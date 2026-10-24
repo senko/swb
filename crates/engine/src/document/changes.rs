@@ -478,7 +478,9 @@ impl DocumentState {
                 self.sheet_serial += 1;
                 let serial = self.sheet_serial;
                 plan.sheets.push((owner, serial, url.clone()));
-                (Some(SheetSlot::link(owner, url, serial, media)), true)
+                let mut slot = SheetSlot::link(owner, url, serial, media);
+                slot.blocks_scripts = self.parser_drain;
+                (Some(slot), true)
             }
             _ => (None, old.is_some()),
         }

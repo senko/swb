@@ -501,3 +501,31 @@ fn fragment_parsing_respects_the_limits() {
     assert_eq!(doc.len(), len, "nothing was added");
     assert!(parse_fragment(&mut doc, div, &"<i></i>".repeat(50)).is_ok());
 }
+
+#[test]
+fn script_positions_count_from_the_document() {
+    // As in the case `errors-inline-positions` of
+    // tools/probes/web-scripts.json: the start of each script's text (line
+    // and column from 0; also an empty one). html5ever does not pause at
+    // an SVG `script`.
+    let text = "<!DOCTYPE html><head><script>var a</script></head><body>\n<p>x</p>   <script>throw 1</script>\n\
+                <script>\n  var a = 1;\n</script><script>f()</script>\n<script>  }</script><script src=x></script>\
+                <svg><script>s</script></svg><script></script>";
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, text, true);
+    let mut found = Vec::new();
+    while let ParseStep::Script(_) = parser.resume(&mut doc).expect("the parser's document") {
+        let p = parser.script_position();
+        found.push((p.line, p.column));
+    }
+    assert_eq!(
+        found,
+        [(0, 29), (1, 19), (2, 8), (4, 17), (5, 8), (5, 34), (5, 80)]
+    );
+    // Without the scripting flag the parser does not keep the text.
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, text, false);
+    while let ParseStep::Script(_) = parser.resume(&mut doc).expect("the parser's document") {
+        assert_eq!(parser.script_position(), TextPosition::default());
+    }
+}

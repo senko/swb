@@ -19,20 +19,12 @@ use common::{Departure, answer, expected, load_in, on_big_stack, probe_failures_
 use swb_web::{ClockMode, ConsoleLevel, ScriptRuntime};
 
 /// The values where swb departs from Chromium on purpose.
-const SWB_VALUES: &[Departure] = &[
-    (
-        "errors",
-        0,
-        r#"[["Uncaught TypeError: inline", "TypeError", true, 1, 37]]"#,
-        "lines and columns count from the start of the inline script, not of the document (until the script processing of feature 5c)",
-    ),
-    (
-        "errors",
-        6,
-        r#"[["Uncaught SyntaxError: reported", "SyntaxError", false, 1, 42], ["Uncaught 5", "number", false, 0, 0]]"#,
-        "reportError of a value that is not an error object has no position in swb (Chromium: the call)",
-    ),
-];
+const SWB_VALUES: &[Departure] = &[(
+    "errors",
+    6,
+    r#"[["Uncaught SyntaxError: reported", "SyntaxError", false, 1, 42], ["Uncaught 5", "number", false, 0, 0]]"#,
+    "reportError of a value that is not an error object has no position in swb (Chromium: the call)",
+)];
 
 #[test]
 fn probe_cases() {

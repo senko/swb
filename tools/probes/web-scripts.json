@@ -1,0 +1,596 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "order",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/log('i1');setTimeout(function(){log('t0')},0);Promise.resolve().then(function(){log('m1')})</script><link rel=stylesheet href=s.css><script>/*i2*/log('i2')</script><script src=b1.js></script><script nomodule>/*n*/log('nomodule')</script><script type=text/plain>/*p*/log('plain')</script><script type='text/javascript; charset=utf-8'>/*q*/log('param')</script><script src=missing.js></script></head><body><p>x</p><script>/*i3*/log('i3')</script><script defer src=d1.js></script><script defer src=d2.js></script><script>/*i4*/log('i4')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "s.css": {
+     "text": "p { margin: 0 }",
+     "delay_ms": 200
+    },
+    "b1.js": {
+     "text": "log('b1')",
+     "delay_ms": 200
+    },
+    "d1.js": {
+     "text": "log('d1')",
+     "delay_ms": 100
+    },
+    "d2.js": {
+     "text": "log('d2');Promise.resolve().then(function(){log('m-d2')})",
+     "delay_ms": 0
+    }
+   }
+  },
+  {
+   "name": "timer-vs-dcl",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/log('i1');setTimeout(function(){log('t0')},0);Promise.resolve().then(function(){log('m1')})</script></head><body><p>x</p><script>/*i2*/log('i2');setTimeout(function(){log('t0b')},0)</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ]
+  },
+  {
+   "name": "timer-vs-dcl-loading",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/setTimeout(function(){log('t0')},0)</script><script defer src=d.js></script></head><body><p>x</p><script>/*i2*/log('i2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "d.js": {
+     "text": "log('d');setTimeout(function(){log('t-d')},0);Promise.resolve().then(function(){log('m-d')})",
+     "delay_ms": 200
+    }
+   }
+  },
+  {
+   "name": "timer-vs-dcl-image",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/setTimeout(function(){log('t0')},0)</script></head><body><img src=i.png><p>x</p><script>/*i2*/log('i2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "i.png": {
+     "text": "x",
+     "delay_ms": 200,
+     "content_type": "image/png"
+    }
+   }
+  },
+  {
+   "name": "inserted",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/var s=document.createElement('script');s.src='x1.js';log('x1async '+s.async);document.head.appendChild(s);var s2=document.createElement('script');s2.src='x2.js';s2.async=false;log('x2async '+s2.async);document.head.appendChild(s2);var s3=document.createElement('script');s3.src='x3.js';s3.async=false;document.head.appendChild(s3);var s4=document.createElement('script');s4.text=\"/*x4*/log('x4')\";log('before');document.head.appendChild(s4);log('after');log('parser async '+document.currentScript.async);</script></head><body><p>x</p><script>/*i2*/log('i2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "x1.js": {
+     "text": "log('x1')",
+     "delay_ms": 150
+    },
+    "x2.js": {
+     "text": "log('x2')",
+     "delay_ms": 400
+    },
+    "x3.js": {
+     "text": "log('x3')",
+     "delay_ms": 0
+    }
+   }
+  },
+  {
+   "name": "inserted-error",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/var s=document.createElement('script');s.src='missing.js';document.head.appendChild(s);</script></head><body><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ]
+  },
+  {
+   "name": "inserted-after-load",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/addEventListener('load',function(){var s=document.createElement('script');s.src='y1.js';document.head.appendChild(s);log('in load')})</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "y1.js": {
+     "text": "log('y1')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "load-waits-async-chain",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script async src=c1.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "c1.js": {
+     "text": "log('c1');var s=document.createElement('script');s.src='c2.js';document.head.appendChild(s)",
+     "delay_ms": 50
+    },
+    "c2.js": {
+     "text": "log('c2')",
+     "delay_ms": 200
+    }
+   }
+  },
+  {
+   "name": "defer-waits-sheet",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><link rel=stylesheet href=s.css><script defer src=d1.js></script><script async src=a1.js></script></head><body><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "s.css": {
+     "text": "p { margin: 0 }",
+     "delay_ms": 300
+    },
+    "d1.js": {
+     "text": "log('d1')",
+     "delay_ms": 0
+    },
+    "a1.js": {
+     "text": "log('a1')",
+     "delay_ms": 0
+    }
+   }
+  },
+  {
+   "name": "sheet-blocks-inline-in-body",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i0*/setTimeout(function(){log('t0')},0)</script></head><body><link rel=stylesheet href=s.css><script>/*i1*/log('i1');setTimeout(function(){log('t1')},0)</script><link rel=stylesheet href=p.css media=print><script>/*i2*/log('i2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},900)})"
+    }
+   ],
+   "resources": {
+    "s.css": {
+     "text": "body { margin: 0 }",
+     "delay_ms": 300
+    },
+    "p.css": {
+     "text": "body { color: red }",
+     "delay_ms": 600
+    }
+   }
+  },
+  {
+   "name": "ignored-attributes-and-errors",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script defer>/*i1*/log('i1')</script><script async>/*i2*/log('i2')</script><script src=''>/*e*/log('empty src')</script><script src='  '>/*w*/</script><script src='http://['>/*u*/</script><script type=application/json>/*j*/{}</script></head><body><script>/*i3*/log('i3')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ]
+  },
+  {
+   "name": "types",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script language=javascript>/*a*/log('a')</script><script type='text/javascript1.5'>/*b*/log('b')</script><script type=' application/x-javascript '>/*c*/log('c')</script><script language=vbscript>/*e*/log('e')</script><script src=g.js nomodule></script><script src=g.js type=text/x-foo></script><script defer async src=i.js></script><script for=window event=onload>/*f1*/log('for-window')</script><script for=x event=onload>/*f2*/log('for-x')</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "g.js": {
+     "text": "log('g')"
+    },
+    "i.js": {
+     "text": "log('i')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "response-types",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script src=a.js></script><script src=b.js></script><script src=c.js></script><script src=d.js></script><script src=e.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "a.js": {
+     "text": "log('a')",
+     "content_type": "text/plain"
+    },
+    "b.js": {
+     "text": "log('b')",
+     "content_type": "image/png"
+    },
+    "c.js": {
+     "text": "log('c')",
+     "content_type": "text/csv"
+    },
+    "d.js": {
+     "text": "log('d é')",
+     "content_type": "text/javascript; charset=utf-8"
+    },
+    "e.js": {
+     "text": "log('e')",
+     "content_type": "video/mp4"
+    }
+   }
+  },
+  {
+   "name": "module-not-run",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script type=module>/*m*/log('module')</script><script src=e.js type=module></script></head><body><script>/*i*/log('i')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ],
+   "resources": {
+    "e.js": {
+     "text": "log('external module')"
+    }
+   }
+  },
+  {
+   "name": "element-events",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*h2*/var EV=[];document.addEventListener('load',function(e){if(e.target.localName==='script')EV.push([e.type,e.bubbles,e.cancelable,e.isTrusted,e.eventPhase,e.constructor.name])},true);document.addEventListener('error',function(e){if(e.target.localName==='script')EV.push([e.type,e.bubbles,e.cancelable,e.isTrusted,e.eventPhase,e.constructor.name])},true);var W=[];addEventListener('load',function(e){W.push([e.type,e.bubbles,e.cancelable,e.isTrusted,e.target===document,e.currentTarget===window,e.constructor.name])});addEventListener('pageshow',function(e){W.push([e.type,e.bubbles,e.cancelable,e.persisted,e.target===document,e.constructor.name])});document.addEventListener('DOMContentLoaded',function(e){W.push([e.type,e.bubbles,e.cancelable,e.isTrusted,e.target===document,e.constructor.name])});addEventListener('DOMContentLoaded',function(e){W.push(['window-dcl',e.eventPhase])});document.addEventListener('readystatechange',function(e){W.push([e.type,e.bubbles,e.cancelable,document.readyState])});</script><script src=ok.js></script><script src=missing.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "EV"
+    },
+    {
+     "js": "W"
+    }
+   ],
+   "resources": {
+    "ok.js": {
+     "text": "1"
+    }
+   }
+  },
+  {
+   "name": "current-script",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*c1*/var C=[nm(document.currentScript), document.currentScript===document.head.lastChild, document.currentScript.constructor.name];setTimeout(function(){C.push(String(document.currentScript))},50);</script></head><body><script src=cs.js></script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(C.concat([String(document.currentScript)]))},200)})"
+    }
+   ],
+   "resources": {
+    "cs.js": {
+     "text": "C.push(nm(document.currentScript))"
+    }
+   }
+  },
+  {
+   "name": "script-properties",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script src=x.js async defer type=text/javascript nomodule></script><script>/*s2*/var s1=document.head.lastChild.previousSibling;var s2=document.head.lastChild;</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "[s1.src.slice(s1.src.lastIndexOf('/')), s1.async, s1.defer, s1.type, s1.noModule, s2.src, s2.async, s2.defer, s2.type, s2.noModule, s2.text.slice(0, 6)]"
+    },
+    {
+     "js": "(function(){var s=document.createElement('script');var r=[s.async];s.async=false;r.push(s.async);s.async=true;r.push(s.async);s.async=false;r.push(s.async);s.src='y.js';r.push(s.src.slice(s.src.lastIndexOf('/')));s.text='a<b';r.push(s.text, s.childNodes.length, s.firstChild.data);s.text='';r.push(s.childNodes.length);return r})()"
+    },
+    {
+     "js": "[Object.prototype.toString.call(document.createElement('script')), document.createElement('SCRIPT').localName, document.createElement('Div').tagName]"
+    },
+    {
+     "js": "(function(){try{document.createElement('1a');return 'no error'}catch(e){return e.name+': '+e.message}})()"
+    },
+    {
+     "js": "(function(){try{document.createElement('a b');return 'no error'}catch(e){return e.name}})()"
+    },
+    {
+     "js": "[document.createElement('a@b').localName, document.createElement('x-y').localName]"
+    }
+   ],
+   "resources": {
+    "x.js": {
+     "text": "1"
+    }
+   }
+  },
+  {
+   "name": "read-below",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*r1*/var R=[document.body===null, document.documentElement.childNodes.length, document.head.childNodes.length, document.readyState]</script></head><body><p>late</p><script>/*r2*/R.push(document.body.childNodes.length, document.body.firstChild.nodeName, document.body.lastChild.nodeName)</script><div>after</div></body></html>",
+   "measure": [
+    {
+     "js": "R"
+    },
+    {
+     "js": "[document.body.childNodes.length, document.readyState]"
+    }
+   ]
+  },
+  {
+   "name": "detached-and-moved",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script>/*i1*/var d=document.createElement('div');var s=document.createElement('script');s.text=\"/*x1*/log('x1')\";d.appendChild(s);log('detached');document.body.appendChild(d);log('connected');document.body.appendChild(s);log('moved');var e=document.createElement('script');document.body.appendChild(e);log('empty');e.text=\"/*x2*/log('x2')\";log('text set');var t=document.createElement('script');t.type='text/plain';t.text=\"/*x3*/log('x3')\";document.body.appendChild(t);t.type='';document.body.appendChild(t);log('retyped');var n=document.createElement('script');n.text=\"/*x4*/log('x4');document.body.appendChild(n2)\";var n2=document.createElement('script');n2.text=\"/*x5*/log('x5')\";document.body.appendChild(n);log('nested');</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    }
+   ]
+  },
+  {
+   "name": "errors-inline-positions",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.message,e.lineno,e.colno,e.filename===document.URL])})</script></head><body>\n<p>x</p>   <script>/*e1*/throw new Error('first')</script>\n<script>\n  var a = 1;\n    null.x;\n</script><script>function f(){throw new TypeError('in f')}</script>\n<script>  setTimeout(f, 50)</script><script>  }</script><script src=bad.js></script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},400)})"
+    }
+   ],
+   "resources": {
+    "bad.js": {
+     "text": "\n  throw new RangeError('ext')",
+     "delay_ms": 0
+    }
+   }
+  },
+  {
+   "name": "blocking-timers",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script>/*i1*/setTimeout(function(){log('t-i1')},0)</script><script src=b.js></script><script>/*i2*/log('i2');setTimeout(function(){log('t-i2')},0)</script><p>x</p><script>/*i3*/log('i3')</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b');setTimeout(function(){log('t-b')},0)",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-http-script-timer-last",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script src=b.js></script><script>/*i2*/setTimeout(function(){log('t')},0)</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b')",
+     "delay_ms": 150
+    },
+    "c.js": {
+     "text": "log('c')",
+     "delay_ms": 150
+    },
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-http-script-p-timer",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script src=b.js></script><p>x</p><script>/*i2*/log('i2')</script><script>/*i3*/setTimeout(function(){log('t')},0)</script><p>y</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b')",
+     "delay_ms": 150
+    },
+    "c.js": {
+     "text": "log('c')",
+     "delay_ms": 150
+    },
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-http-sheet-timer",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><link rel=stylesheet href=s.css><script>/*i1*/log('i1');setTimeout(function(){log('t')},0)</script><p>y</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b')",
+     "delay_ms": 150
+    },
+    "c.js": {
+     "text": "log('c')",
+     "delay_ms": 150
+    },
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-http-nowait-control",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script>/*i1*/setTimeout(function(){log('t')},0)</script><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b')",
+     "delay_ms": 150
+    },
+    "c.js": {
+     "text": "log('c')",
+     "delay_ms": 150
+    },
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-http-head-script-timer",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script><script src=b.js></script></head><body><script>/*i2*/setTimeout(function(){log('t')},0)</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b')",
+     "delay_ms": 150
+    },
+    "c.js": {
+     "text": "log('c')",
+     "delay_ms": 150
+    },
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 150
+    }
+   }
+  },
+  {
+   "name": "end-file-script-timer-last",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script src=b.js></script><script>/*i1*/setTimeout(function(){log('t')},0)</script></body></html>",
+   "files": {
+    "b.js": "tools/probes/web-scripts/b.js"
+   },
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ]
+  },
+  {
+   "name": "end-file-defer-timer",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script defer src=b.js></script><script>/*i1*/setTimeout(function(){log('t')},0)</script></body></html>",
+   "files": {
+    "b.js": "tools/probes/web-scripts/b.js"
+   },
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ]
+  },
+  {
+   "name": "end-file-async-missing",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src===document.URL)return 'doc';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});addEventListener('pageshow',function(e){log('pageshow')});document.addEventListener('load',function(e){if(e.target.localName==='script')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){if(e.target.localName==='script')log('error-'+nm(e.target))},true);</script></head><body><script>var s=document.createElement('script');s.async=true;s.src='missing.js';document.body.appendChild(s);setTimeout(function(){log('t')},0)</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},800)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-lf-before",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body>\n\n\n<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-lf-inside",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>\n\n\nnull.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-lf-two",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>null.a</script>\n\n<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-cr-before",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body>\r\r\r<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-cr-inside",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>\r\r\rnull.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-cr-two",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>null.a</script>\r\r<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-crlf-before",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body>\r\n\r\n\r\n<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-crlf-inside",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>\r\n\r\n\r\nnull.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  },
+  {
+   "name": "nl-crlf-two",
+   "html": "<!DOCTYPE html><html><head><script>var E=[];addEventListener('error',function(e){E.push([e.lineno,e.colno])})</script></head><body><script>null.a</script>\r\n\r\n<script>null.x</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(E)},500)})"
+    }
+   ]
+  }
+ ]
+}

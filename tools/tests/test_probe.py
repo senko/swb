@@ -19,6 +19,7 @@ from swbtools.probe import (
     CaseResult,
     ProbeError,
     Query,
+    Resource,
     Row,
     SwbBox,
     _probe_all,
@@ -396,6 +397,54 @@ def test_probe_waits_for_web_fonts():
         in_chromium(lambda page, directory: _probe_all([case], None, 1.0, page, directory))
     )
     assert [row.data["value"] for row in result.rows] == ["loaded", True]
+
+
+def test_parse_resources():
+    (case,) = parse_cases(
+        case_json(
+            resources={
+                "a.js": {"text": "x()", "delay_ms": 200},
+                "b.css": {"text": "p{}", "content_type": "text/plain"},
+            }
+        )
+    )
+    assert case.resources == (
+        Resource("a.js", "x()", 200, None),
+        Resource("b.css", "p{}", 0, "text/plain"),
+    )
+    for bad in (
+        {"../a.js": {"text": ""}},
+        {"a.js": "x"},
+        {"a.js": {"text": "", "delay_ms": -1}},
+        {"a.js": {"text": "", "delay_ms": 20000}},
+        {"a.js": {"text": "", "delay": 1}},
+        {"a.js": {"text": "", "content_type": ""}},
+    ):
+        with pytest.raises(ProbeError):
+            parse_cases(case_json(resources=bad))
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_serves_resources_after_their_delay():
+    # The parser waits for the delayed script; a timer runs meanwhile.
+    html = (
+        "<script>var L = []; setTimeout(() => L.push('t'), 0)</script>"
+        "<script src=b.js></script><script>L.push('after')</script>"
+    )
+    resources = (
+        Resource("b.js", "L.push('b')", 300, None),
+        Resource("c.txt", "text", 0, "text/x-test"),
+    )
+    queries = (
+        Query("js", "L.join()"),
+        Query("js", "location.protocol"),
+        Query("js", "fetch('c.txt').then(r => r.headers.get('content-type'))"),
+    )
+    case = Case("r", html, (400, 300), queries, javascript=True, resources=resources)
+    (result,) = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all([case], None, 1.0, page, directory))
+    )
+    assert [row.data["value"] for row in result.rows] == ["t,b,after", "http:", "text/x-test"]
 
 
 @pytest.mark.usefixtures("chromium")

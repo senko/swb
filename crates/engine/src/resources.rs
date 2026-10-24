@@ -1,11 +1,11 @@
 //! Subresources of a page: stylesheets and images (also video posters),
-//! and the requests that load them. The natural size of an `<img>` is
-//! corrected by the pixel density of its chosen source
-//! (`crate::image_source`). After a viewport or scale change, an image
+//! the scripts of script elements, and the requests that load them. The
+//! natural size of an `<img>` is corrected by the pixel density of its
+//! chosen source (`crate::image_source`). After a viewport or scale change, an image
 //! keeps its source until the newly selected one has loaded
 //! ([`Images::reselect`]).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -27,6 +27,8 @@ pub(crate) enum Pending {
     Image { url: Url },
     /// A web font file.
     Font { url: Url },
+    /// The classic script of a script element.
+    Script { node: NodeId },
 }
 
 /// Where the text of an author stylesheet comes from.
@@ -59,6 +61,9 @@ pub(crate) struct SheetSlot {
     pub(crate) media: Option<String>,
     /// True if the load failed, was not allowed, or was stopped.
     pub(crate) failed: bool,
+    /// True if the parser inserted the element: until the sheet loads, it
+    /// blocks scripts (HTML "a style sheet that is blocking scripts").
+    pub(crate) blocks_scripts: bool,
 }
 
 impl SheetSlot {
@@ -73,6 +78,7 @@ impl SheetSlot {
             base_url,
             media,
             failed: false,
+            blocks_scripts: false,
         }
     }
 
@@ -87,6 +93,7 @@ impl SheetSlot {
             base_url: url,
             media,
             failed: false,
+            blocks_scripts: false,
         }
     }
 
@@ -463,6 +470,30 @@ impl Requests {
     /// True if no request is running.
     pub(crate) fn is_empty(&self) -> bool {
         self.pending.is_empty()
+    }
+}
+
+/// The most script fetches of a document in flight at once (ADR 0028
+/// section 16); the next ones wait in a queue.
+pub(crate) const MAX_SCRIPT_FETCHES: usize = 64;
+
+/// The fetches of the scripts of script elements beyond the requests.
+#[derive(Debug, Default)]
+pub(crate) struct ScriptFetches {
+    /// The script requests in flight.
+    pub(crate) in_flight: usize,
+    /// The fetches that wait for a free place, in order.
+    pub(crate) queued: VecDeque<(NodeId, Url)>,
+    /// The scripts that arrived (`None`: the fetch failed) and wait for the
+    /// script runtime, in order of arrival.
+    pub(crate) arrived: Vec<(NodeId, Option<swb_web::FetchedScript>)>,
+}
+
+impl ScriptFetches {
+    /// True if no fetch waits in the queue and no result waits for the
+    /// runtime.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.queued.is_empty() && self.arrived.is_empty()
     }
 }
 

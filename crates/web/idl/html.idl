@@ -1,7 +1,8 @@
 // Source: HTML Living Standard, https://html.spec.whatwg.org/
 // copied on 2026-10-23 (ErrorEvent, PromiseRejectionEvent and
 // PageTransitionEvent on 2026-10-24; WindowOrWorkerGlobalScope, TimerHandler,
-// Function and VoidFunction on 2026-10-24).
+// Function and VoidFunction on 2026-10-24; DocumentReadyState,
+// `readyState`, `currentScript` and HTMLScriptElement on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -12,7 +13,9 @@
 //
 // swb cut these IDL blocks to the members that it implements (features 4c2
 // and 5a of M8): Window has the members that name windows and its document;
-// Document has `title`, `body` and `head`; HTMLElement has no members yet
+// Document has `readyState`, `title`, `body`, `head` and `currentScript`
+// (feature 5c); HTMLScriptElement has `src`, `type`, `noModule`, `async`,
+// `defer` and `text` (feature 5c), and no constructor; HTMLElement has no members yet
 // and no constructor; HTMLHeadElement is complete apart from the
 // constructor; ErrorEvent, PromiseRejectionEvent and PageTransitionEvent
 // are complete; WindowOrWorkerGlobalScope has the timers, `queueMicrotask`
@@ -21,11 +24,14 @@
 // [LegacyTreatNonObjectAsNull], which only event handler attributes
 // need. The order of the remaining members is the specification's.
 //
-// One line is swb's own: the typedef of WindowProxy. Without frames, the
-// WindowProxy of a window is the Window object itself (ADR 0028
-// section 4).
+// Two lines are swb's own: the typedef of WindowProxy (without frames, the
+// WindowProxy of a window is the Window object itself, ADR 0028 section
+// 4), and the typedef of HTMLOrSVGScriptElement, which is the union of
+// HTMLScriptElement and SVGScriptElement in HTML (swb has no SVG
+// interfaces and runs no SVG scripts).
 
 typedef Window WindowProxy;
+typedef HTMLScriptElement HTMLOrSVGScriptElement;
 
 [Global=Window, Exposed=Window]
 interface Window : EventTarget {
@@ -41,11 +47,17 @@ interface Window : EventTarget {
   [Replaceable] readonly attribute WindowProxy? parent;
 };
 
+enum DocumentReadyState { "loading", "interactive", "complete" };
+
 partial interface Document {
+  // resource metadata management
+  readonly attribute DocumentReadyState readyState;
+
   // DOM tree accessors
   [CEReactions] attribute DOMString title;
   [CEReactions] attribute HTMLElement? body;
   readonly attribute HTMLHeadElement? head;
+  readonly attribute HTMLOrSVGScriptElement? currentScript; // classic scripts in a document tree only
 };
 
 [Exposed=Window]
@@ -54,6 +66,16 @@ interface HTMLElement : Element {
 
 [Exposed=Window]
 interface HTMLHeadElement : HTMLElement {
+};
+
+[Exposed=Window]
+interface HTMLScriptElement : HTMLElement {
+  [CEReactions, ReflectURL] attribute USVString src;
+  [CEReactions, Reflect] attribute DOMString type;
+  [CEReactions, Reflect="nomodule"] attribute boolean noModule;
+  [CEReactions] attribute boolean async;
+  [CEReactions, Reflect] attribute boolean defer;
+  [CEReactions] attribute DOMString text;
 };
 
 [Exposed=*]

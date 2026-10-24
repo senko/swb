@@ -40,6 +40,13 @@ pub(crate) enum Task {
     NotifyRejections,
     /// Run the cleanup of a finalization registry.
     FinalizationCleanup,
+    /// Let the parser go on after a wait (`document_load.rs`).
+    ParserResume,
+    /// Fire `error` at a script element whose `src` is empty or not a URL
+    /// (HTML "queue an element task").
+    ScriptErrorEvent(swb_dom::NodeId),
+    /// The fetch of a script element's script failed at once.
+    ScriptFetchFailed(swb_dom::NodeId),
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

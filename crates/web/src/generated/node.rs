@@ -57,6 +57,9 @@ pub trait NodeImpl: b::Host {
     /// `boolean contains(Node? other)`.
     fn contains(cx: &mut b::Cx<'_>, this: b::NodeId, other: Option<b::NodeId>) -> b::Result<bool>;
 
+    /// `Node appendChild(Node node)`.
+    fn append_child(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId) -> b::Result<b::NodeId>;
+
 }
 
 fn get_node_type<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -195,6 +198,17 @@ fn op_contains<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
     })
 }
 
+fn op_append_child<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Node", "appendChild"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::NODE)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let result = <H as NodeImpl>::append_child(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
 /// Creates the interface object and the prototype of `Node` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: NodeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -249,6 +263,7 @@ pub fn define<H: NodeImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmRe
     rt.define_value(interface.prototype, "DOCUMENT_POSITION_CONTAINED_BY", swb_js::Value::Int(16), swb_js::Attributes::CONSTANT)?;
     rt.define_value(interface.object, "DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC", swb_js::Value::Int(32), swb_js::Attributes::CONSTANT)?;
     rt.define_value(interface.prototype, "DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC", swb_js::Value::Int(32), swb_js::Attributes::CONSTANT)?;
+    rt.define_method(realm, target, "appendChild", 1, op_append_child::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "contains", 1, op_contains::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getRootNode", 0, op_get_root_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "hasChildNodes", 0, op_has_child_nodes::<H>, swb_js::Attributes::MEMBER)?;

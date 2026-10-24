@@ -2607,9 +2607,53 @@ Steps:
         test fetcher) against Chromium; a script that reads the DOM
         below itself (the read-only tree accessors of 4c) sees nothing;
         hostile: a script that inserts scripts in a chain.
+        Done 2026-10-24. The runtime drives the parse
+        (`EngineHost::parse_step`); inline scripts run at their end tag;
+        parser-blocking scripts and parser `link` sheets with matching
+        media make it wait; parser tasks continue it (after an external
+        script in a new task, after an unblocked inline one at once, as
+        Chromium). "The end": readiness, deferred scripts after the
+        sheets, `DOMContentLoaded`, the as-soon-as-possible scripts, then
+        `load` and `pageshow` when no request runs after a layout.
+        `readyState`, `currentScript`, `HTMLScriptElement` (`src`, `type`,
+        `noModule`, `async`, `defer`, `text`), `createElement` and
+        `appendChild` (inserted scripts async or in order, inline ones at
+        once), `load` and `error` at script elements, `pagehide` and
+        `unload` on navigation, `page.waitForLoad` waits for the `load`
+        event. The engine fetches scripts (64 at once, status, MIME and
+        nosniff checks, decoding). Error positions of inline scripts
+        count from the document (`Runtime::eval_named_at`), and no list
+        of inline scripts is collected before the first runs.
+        Departures: module scripts, import maps and SVG scripts do not
+        run; `DOMContentLoaded` and `load` are not queued tasks, but "the
+        end" waits for a parser task for a document from HTTP(S) and
+        after any wait of the parser (as Chromium, measured); a `src` of
+        only whitespace is an error (Chromium); no preload scanner;
+        `stop` fires no readiness events; no muted errors. The probe
+        `web-scripts.json` (38 cases, served with delays by the probe's
+        new `resources` option) matches Chromium except module scripts;
+        hostile 146 ok + 1 known failure (four new cases); JS-off
+        snapshot and test262 unchanged. Review fixes: a document whose
+        scripts stopped while the parser waited now parses on without
+        scripts (before, the parse never went on and `load` never came);
+        "the end" waits for a task as above (before, only while
+        subresources loaded, so a 0 ms timer after an external script
+        ran after `load`); a lone CR does not end a line in error
+        positions (Chromium); the column of a script start is counted
+        once (80,000 scripts on one line: 12.7 s to 0.4 s); the set of
+        as-soon-as-possible scripts is a hash set (200,000 inserted
+        scripts: 9.3 s to 1.8 s); at most 256 MiB of fetched script text
+        that has not run per document.
       Exit: senko.net with JavaScript on matches its JS-off boxes and
       pixels; `hn.js` runs at the end of the Hacker News body (its error
       is the missing `getElementsByClassName`, fixed in 6b).
+      Feature 5 done 2026-10-24: with JavaScript on, senko.net (65 of 65
+      boxes, 0 pixels differ) and Hacker News (821 of 821 boxes, 0
+      pixels) match their JS-off renderings; `hn.js` runs at the end of
+      the body and stops at `el.getElementsByClassName is not a
+      function`. Headless page loads with JavaScript on take 2 ms longer
+      than with it off on both pages (best of 5: 9 to 11 ms and 17 to
+      19 ms; budget: 50 ms).
    6. DOM core and input events (`implementer`), four sessions.
       - 6a: tree changes (`appendChild`, `insertBefore`,
         `removeChild`, `replaceChild`, `remove`, `append`, `prepend`,
@@ -3021,9 +3065,6 @@ Steps:
   them (the DOM node limit bounds them; the hostile wrapper case reaches
   366 MiB RSS). With the mutators of 6a, drop stale `childNodes` caches
   when the generation changes.
-- `web`, 5c: the inline scripts are collected before the first runs, so
-  a script that removes a later `<script>` (possible after 6a) does not
-  stop it.
 - `web` (found in feature 5a): the `signal` option of
   `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
   reads `signal` after `passive`).
@@ -3046,9 +3087,6 @@ Steps:
   `PromiseRejectionEvent.reason` are not checked against Chromium (the
   HTML IDL has no default, so `undefined` is expected; swb's answer shows
   `null`). Add a `=== undefined` query.
-- `web`, 5c (found in feature 5b): the lines and columns of errors in
-  inline scripts count from the start of the script; Chromium counts
-  from the document. Pass the script's start position.
 - `web`: `reportError(v)` of a value that is not an error object has no
   position (Chromium: the call site); it needs the caller's frame from
   `js`.
@@ -3080,6 +3118,46 @@ Steps:
   ran a task, so a `setInterval(f, 0)` page redraws about 250 times a
   second when the DOM does not change. `Pump` should say whether the DOM
   or the layout changed.
+
+- `web` (found in feature 5c): muted errors of cross-origin classic
+  scripts (HTML "muted errors": the `error` event gets `Script error.`,
+  no position and a null `error`; the console keeps the real text). It
+  needs the CORS state of the script's fetch.
+- `web` (found in feature 5c): SVG `script` elements. Chromium runs
+  them; html5ever does not pause at their end tag.
+- `web` (found in feature 5c): a `<style>` with `@import` should block
+  scripts until its imports load (HTML "a style sheet that is blocking
+  scripts"); swb counts only `link` sheets.
+- `web` (found in feature 5c): the `charset` attribute of script
+  elements (HTML uses it when the response has no charset).
+- Engine (found in feature 5c): a preload scanner (ADR 0028 section 8:
+  not in M8). Without it, async scripts after a waiting parser load
+  later than in Chromium.
+- Engine (found in feature 5c): `Page::stop` should fire
+  `readystatechange` (HTML "abort a parser"); measure Chromium's
+  `window.stop()` first.
+- Engine (found in feature 5c): `pagehide` and `unload` are not measured
+  against Chromium (the probe cannot see a page that was left);
+  Chromium 148 may skip `unload` on some navigations.
+- Net/engine (found in the 5c review): the loader's completion channel
+  has no bound. When the main thread is busy, fast fetches (file reads)
+  queue whole bodies: 40 deferred scripts of 30 MiB reach 1.3 GB RSS,
+  and 64 fetches of 64 MiB could reach 4 GB. Bound the channel, or give
+  the fetches of a document a byte budget.
+- Engine (found in the 5c review): Chromium's timing of "the end" for
+  `data:` and `about:` documents is not measured; swb treats them like
+  files. A file document that waits for a style sheet gives a different
+  Chromium order from run to run.
+- `web`, 6a (found in the 5c review): test that a script which removes
+  the current script or a later script during the parse gives
+  Chromium's result (it needs `removeChild` or `remove`).
+- Tools (found in the 5c review): a fast failure (a 404 or a missing
+  file) cannot be compared in the probe: Chromium sees it within the
+  parse task, swb's loader is asynchronous.
+- Tools (found in feature 5c): the probe's case server speaks HTTP/1.0.
+  Chromium opens at most 6 connections per host, and its resource
+  scheduler delays async scripts and images in the head, so a case must
+  space its delays.
 
 ## Backlog from M6
 

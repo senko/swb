@@ -1,6 +1,6 @@
 //! Scripts in the page (ADR 0028 section 2, feature 4c2): one runtime per
-//! document with JavaScript on, the inline classic scripts at the end of
-//! the parse, DOM changes of scripts processed when the state comes back,
+//! document with JavaScript on, the inline classic scripts in the parse,
+//! DOM changes of scripts processed when the state comes back,
 //! `Page::evaluate` and the console, the runtime dropped on navigation,
 //! and the page's refusal of JavaScript without a big enough stack. Pages
 //! come from an in-memory fetcher; scripts run on a thread with a 16 MiB
@@ -58,15 +58,17 @@ fn value(page: &mut Page, source: &str) -> String {
 }
 
 #[test]
-fn inline_scripts_run_after_the_parse_and_change_the_dom() {
+fn inline_scripts_run_in_the_parse_and_change_the_dom() {
     on_page_thread(|| {
         let mut page = load(
-            "<!DOCTYPE html><title>Before</title><script>window.seen = document.body.childNodes.length; document.title = 'After';</script><body><p>a</p><p>b</p>",
+            "<!DOCTYPE html><title>Before</title><script>window.seen = document.body; document.title = 'After';</script><body><p>a</p><p>b</p><script>window.later = document.body.childNodes.length</script>",
             "",
         );
         assert!(page.has_script_runtime());
-        // The script ran after the parse: it saw the whole body.
-        assert_eq!(value(&mut page, "window.seen"), "2");
+        // The scripts ran at their place in the parse: the first one saw
+        // no body, the second one the body up to itself.
+        assert_eq!(value(&mut page, "window.seen"), "null");
+        assert_eq!(value(&mut page, "window.later"), "3");
         // The title change reached the engine when the state came back.
         assert_eq!(page.title(), "After");
         assert_eq!(value(&mut page, "document.title"), r#""After""#);

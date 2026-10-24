@@ -4,6 +4,71 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-24: M8 feature 5c, scripts in the HTML parser
+
+- Scripts now run where the parser finds them. The runtime drives the
+  parse through `EngineHost::parse_step`. Inline scripts run at their
+  end tag, each as its own task. Parser-blocking scripts and the style
+  sheets that block scripts make the parser wait, and parser tasks in
+  the event loop continue it.
+- "The end" follows HTML: readiness `interactive`, deferred scripts in
+  order, `DOMContentLoaded`, the scripts that run as soon as possible,
+  then `load` and `pageshow` when nothing delays the load event. The
+  engine decides that from the requests after a layout. Navigation fires
+  `pagehide` and `unload`. `page.waitForLoad` now waits for the `load`
+  event; requests that scripts start later do not count.
+- `document.readyState`, `document.currentScript`, `HTMLScriptElement`,
+  and `load` and `error` at script elements. `createElement` and
+  `appendChild` came forward from 6a: inserted external scripts are
+  async or in order, inserted inline scripts run inside the insertion.
+- The engine fetches the scripts: at most 64 at once, the others wait in
+  a queue. It checks the status, the MIME type and nosniff, and decodes
+  the text.
+- Error positions of inline scripts count from the document. The parser
+  finds the start of each script's text, and `js` has a new
+  `Runtime::eval_named_at`. Functions that an inline script defines and
+  a timer calls later also report document positions, as in Chromium.
+- Chromium was measured with a new probe option: `resources` serves
+  files with delays from a local HTTP server. Two Chromium orders differ
+  from HTML, and swb follows them: `DOMContentLoaded` and `load` fire at
+  once, not in queued tasks, but the end of the parse waits for a task
+  for a document from HTTP(S) and after any wait of the parser. Only a
+  file document that never waited ends at once, so a 0 ms timer of an
+  inline script runs after `load`. The probe `web-scripts.json` (38
+  cases) matches Chromium except module scripts, which swb does not run.
+- Departures: module scripts, import maps and SVG scripts do not run; no
+  preload scanner; `stop` fires no readiness events; errors of
+  cross-origin scripts are not muted.
+- JS-off snapshot identical, JS-off page loads within noise (−1.6 % to
+  +0.5 %), hostile 146 ok + 1 known failure with four new cases (script
+  chains, held script text), test262 unchanged.
+- Review fixes:
+  - When a document's scripts stopped (time limits, the long-task
+    budget) while the parser waited for a script, the parse never went
+    on and `load` never came. Now the page drops the script fetches and
+    the parser runs to the end without scripts.
+  - "The end" waited for a task only while subresources loaded. The
+    first probe cases came from `file:` URLs, which hid the HTTP rule;
+    16 new cases measure it (above). So for the common page shape, an
+    external script and then an inline script that sets a 0 ms timer,
+    the timer now runs before `DOMContentLoaded`, as in Chromium.
+  - A lone CR ended a line in error positions; Chromium counts only LF
+    and CRLF.
+  - Two quadratic costs: the column of each script start was counted
+    from the line start (80,000 scripts on one line: 12.7 s, now
+    0.4 s), and each finished async script was removed from a list
+    (200,000 inserted scripts: 9.3 s, now 1.8 s).
+  - Fetched script text that has not run had no limit outside the JS
+    heap. Now at most 256 MiB per document; later scripts fail with an
+    `error` event. The loader itself still queues whole bodies without
+    a bound (backlog).
+- Exit of feature 5: senko.net and Hacker News render the same with
+  JavaScript on and off (all boxes, 0 pixels differ). `hn.js` runs at
+  the end of the body and stops at the missing `getElementsByClassName`
+  (6b).
+
+Next: feature 6a, tree changes and attributes.
+
 ## 2026-10-24: M8 feature 5b, the event loop
 
 - Documents with JavaScript on have an event loop. The binding state

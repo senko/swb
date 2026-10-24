@@ -6,7 +6,7 @@
 
 use std::any::Any;
 
-use swb_dom::Document;
+use swb_dom::{Document, HtmlParser, ParseStep, TextPosition};
 use swb_js::{HeapConfig, RuntimeConfig};
 use swb_web::{ClockMode, EngineHost, Evaluation, JsonForm, PageClock, ScriptRuntime};
 
@@ -25,9 +25,28 @@ pub(crate) struct Case {
 /// swb's value, why).
 pub(crate) type Departure = (&'static str, usize, &'static str, &'static str);
 
-/// A document for the runtime: what the engine lends.
+/// A document for the runtime: what the engine lends, with the parser of
+/// a parse in steps.
 pub(crate) struct TestDocument {
     pub(crate) dom: Document,
+    pub(crate) parser: Option<HtmlParser>,
+}
+
+impl TestDocument {
+    /// A parsed document (no parser).
+    pub(crate) fn parsed(dom: Document) -> TestDocument {
+        TestDocument { dom, parser: None }
+    }
+
+    /// A document that the runtime parses in steps.
+    pub(crate) fn parsing(html: &str) -> TestDocument {
+        let mut dom = Document::new();
+        let parser = HtmlParser::new(&mut dom, html, true);
+        TestDocument {
+            dom,
+            parser: Some(parser),
+        }
+    }
 }
 
 impl EngineHost for TestDocument {
@@ -60,14 +79,23 @@ impl EngineHost for TestDocument {
         "text/html"
     }
 
+    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+        let parser = self.parser.as_mut()?;
+        if let Ok(ParseStep::Script(node)) = parser.resume(&mut self.dom) {
+            return Some((ParseStep::Script(node), parser.script_position()));
+        }
+        self.parser = None;
+        Some((ParseStep::Finished, TextPosition::default()))
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 }
 
 /// A runtime (in the GC stress mode with `stress`, in real time) with
-/// `html` parsed, its inline scripts run in tree order (what the engine
-/// does at the end of the parse) and the tasks run that are due then.
+/// `html` parsed with its scripts (external scripts fail to load), the
+/// `load` event fired and the tasks run that are due then.
 pub(crate) fn load(html: &str, stress: bool) -> ScriptRuntime {
     load_in(html, stress, ClockMode::Real)
 }
@@ -86,9 +114,10 @@ pub(crate) fn load_in(html: &str, stress: bool, mode: ClockMode) -> ScriptRuntim
     };
     let clock = PageClock::new(mode, None);
     let mut rt = ScriptRuntime::with_config(config, clock).expect("a runtime");
-    let dom = swb_dom::parse_html_with(html, true);
-    rt.lend(Box::new(TestDocument { dom }));
-    rt.run_inline_scripts(URL);
+    rt.lend(Box::new(TestDocument::parsing(html)));
+    rt.start_document();
+    // Nothing delays the load event of the test document.
+    rt.fire_load_event();
     // The tasks that the scripts queued for now (notifications of
     // rejected promises; timers of 0 ms).
     rt.run_due_tasks(std::time::Duration::from_secs(5));

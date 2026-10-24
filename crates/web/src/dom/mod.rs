@@ -1,7 +1,9 @@
 //! The DOM interfaces (DOM Standard, <https://dom.spec.whatwg.org/>): the
 //! read-only tree accessors of `Node`, `Element`, `CharacterData` and the
 //! mixins `ParentNode` and `NonDocumentTypeChildNode`, `CharacterData`'s
-//! `data`, `DocumentType` and `ProcessingInstruction` (feature 4c2).
+//! `data`, `DocumentType` and `ProcessingInstruction` (feature 4c2), and
+//! `appendChild` (feature 5c, for scripts that insert scripts; feature 6a
+//! adds the other tree changes).
 //! `Document` is in `document.rs`, `NodeList` in `node_list.rs`.
 //!
 //! Each function reads the lent DOM ([`crate::state::dom`]); a function
@@ -160,6 +162,21 @@ impl g::node::NodeImpl for WebState {
 
     fn is_same_node(_cx: &mut Cx<'_>, this: NodeId, other: Option<NodeId>) -> b::Result<bool> {
         Ok(other == Some(this))
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-node-appendchild>: DOM "append",
+    /// then the steps of inserted script elements (they run now, or start
+    /// their fetch).
+    fn append_child(cx: &mut Cx<'_>, this: NodeId, node: NodeId) -> b::Result<NodeId> {
+        let dom = dom(cx.rt)?;
+        let inserted: Vec<NodeId> = match dom.node(node).data {
+            NodeData::DocumentFragment => dom.children(node).collect(),
+            _ => vec![node],
+        };
+        let result = dom_mut(cx.rt)?.append_child(this, node);
+        dom_result(cx.rt, result)?;
+        crate::scripts::after_insertion(cx.rt, this, &inserted)?;
+        Ok(node)
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-contains>: `other` is an

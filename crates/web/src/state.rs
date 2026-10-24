@@ -76,6 +76,8 @@ pub(crate) struct WebState {
     pub(crate) event_loop: EventLoop,
     /// The window's `Performance` object, made at the first access.
     pub(crate) performance: Option<Gc<Object>>,
+    /// The script elements and the script lists of the window's document.
+    pub(crate) scripts: crate::scripts::Scripts,
 }
 
 impl HostState for WebState {
@@ -153,20 +155,18 @@ pub(crate) fn dom_mut(rt: &mut Runtime) -> VmResult<&mut Document> {
 }
 
 /// The interface of a node's wrapper: its most derived interface among
-/// those that swb has (HTML elements other than `head` get
+/// those that swb has (HTML elements other than `head` and `script` get
 /// `HTMLElement`; elements of other namespaces `Element`).
 fn class_of(dom: &Document, node: NodeId) -> ClassId {
     match &dom.node(node).data {
         NodeData::Document => g::DOCUMENT,
         NodeData::DocumentFragment => g::DOCUMENT_FRAGMENT,
         NodeData::Doctype { .. } => g::DOCUMENT_TYPE,
-        NodeData::Element(e) if e.name.ns == ns!(html) => {
-            if e.name.local == local_name!("head") {
-                g::HTML_HEAD_ELEMENT
-            } else {
-                g::HTML_ELEMENT
-            }
-        }
+        NodeData::Element(e) if e.name.ns == ns!(html) => match e.name.local {
+            local_name!("head") => g::HTML_HEAD_ELEMENT,
+            local_name!("script") => g::HTML_SCRIPT_ELEMENT,
+            _ => g::HTML_ELEMENT,
+        },
         NodeData::Element(_) => g::ELEMENT,
         NodeData::Text(_) => g::TEXT,
         NodeData::Comment(_) => g::COMMENT,

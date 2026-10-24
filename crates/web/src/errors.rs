@@ -14,9 +14,9 @@
 //! The position (`filename`, `lineno`, `colno`) is where an error object
 //! was created (the first frame of its stack, as Chromium reports it), else
 //! where the value was thrown, else the place of a compile error. Lines and
-//! columns count in the script's own text: an inline script reports lines
-//! from its first line, while Chromium counts from the document's start
-//! (the script positions come with the parser's script processing).
+//! columns of an inline script of the parser count from the start of the
+//! document, as in Chromium (the script's start position goes to `js`
+//! with its source, feature 5c).
 
 use swb_js::{Runtime, ScriptError, SourceLocation, Value, VmError, VmResult};
 
@@ -33,6 +33,9 @@ pub(crate) struct Site<'a> {
     /// The URL and the source text of a script, for the position of a
     /// compile error.
     pub(crate) script: Option<(&'a str, &'a str)>,
+    /// Where the source text starts in its document (line and column from
+    /// 0).
+    pub(crate) start: (u32, u32),
 }
 
 impl Site<'static> {
@@ -40,26 +43,39 @@ impl Site<'static> {
     pub(crate) const JOB: Site<'static> = Site {
         name: "a microtask",
         script: None,
+        start: (0, 0),
     };
     /// The function of a timer.
     pub(crate) const TIMER: Site<'static> = Site {
         name: "a timer",
         script: None,
+        start: (0, 0),
     };
 }
 
 impl<'a> Site<'a> {
     /// A classic script of `url` with its source text.
     pub(crate) fn script(url: &'a str, source: &'a str) -> Site<'a> {
+        Site::script_at(url, source, (0, 0))
+    }
+
+    /// A classic script whose text starts at `start` (line and column from
+    /// 0) in its document: an inline script of the parser.
+    pub(crate) fn script_at(url: &'a str, source: &'a str, start: (u32, u32)) -> Site<'a> {
         Site {
             name: url,
             script: Some((url, source)),
+            start,
         }
     }
 
     /// Something that has a name but no source.
     pub(crate) fn named(name: &'a str) -> Site<'a> {
-        Site { name, script: None }
+        Site {
+            name,
+            script: None,
+            start: (0, 0),
+        }
     }
 }
 
@@ -89,10 +105,15 @@ pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> 
             let message = format!("Uncaught {}: {message}", kind.name());
             let location = site.script.map(|(url, source)| {
                 let (line, column) = Runtime::source_location(source, *offset);
+                let (start_line, start_column) = site.start;
                 SourceLocation {
                     name: url.to_owned(),
-                    line,
-                    column,
+                    line: line.saturating_add(start_line),
+                    column: if line == 1 {
+                        column.saturating_add(start_column)
+                    } else {
+                        column
+                    },
                 }
             });
             let result = report_exception(rt, site.name, value, &message, location);

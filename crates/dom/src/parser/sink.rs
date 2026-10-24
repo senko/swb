@@ -127,6 +127,14 @@ impl TreeSink for Sink {
         id
     }
 
+    /// HTML "already started" of a script that the parser will not run
+    /// (fragments, the end of the input inside the script).
+    fn mark_script_already_started(&self, node: &NodeId) {
+        if let Some(element) = self.doc.borrow_mut().element_mut(*node) {
+            element.script_already_started = true;
+        }
+    }
+
     fn create_comment(&self, text: StrTendril) -> NodeId {
         let mut doc = self.doc.borrow_mut();
         let id = doc.push_node(NodeData::Comment(text.to_string()), NodeId::DOCUMENT);

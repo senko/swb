@@ -4,18 +4,27 @@
 //! lends the document state to the runtime for each task and takes it back
 //! afterwards, which processes the DOM changes of the task.
 //!
-//! Feature 4c2 runs the inline classic scripts of a document at the end of
-//! its parse ([`Page::start_scripts`]) and evaluates expressions for the
-//! automation API and `--eval` ([`Page::evaluate`]). Feature 5a adds the
-//! entry for DOM events that the engine fires ([`Page::dispatch_event`]).
-//! Feature 5b adds the event loop: [`Page::pump`] runs the due tasks (timers,
-//! notifications of rejected promises, finalization cleanups) and says when
-//! the next one is due; the embedder calls it from its own loop.
-//! [`Page::run_event_loop`], [`Page::wait_until_idle`] and the evaluation of
-//! a promise block and run the loop themselves. All of them follow the
-//! page clock: in virtual time the clock jumps to the next task when
-//! nothing runs and no request is pending. The script processing in the
-//! parser comes with feature 5c.
+//! The runtime drives the parse of its document ([`Page::start_scripts`],
+//! feature 5c): the parser stops at each script, inline scripts run at
+//! their place, and the parser waits for the scripts that block it and for
+//! the style sheets that block scripts. The page fetches the scripts of
+//! script elements and hands each result to the runtime
+//! ([`Page::deliver_scripts`]), tells it about arrived style sheets, and
+//! fires the `load` event when the runtime is ready for it and nothing
+//! delays it ([`Page::check_load_event`]: no request, also after a layout
+//! that can find background images and fonts). A document without a
+//! runtime parses to the end at once. Leaving a document fires `pagehide`
+//! and `unload` ([`Page::unload_document`]).
+//!
+//! The page also evaluates expressions for the automation API and
+//! `--eval` ([`Page::evaluate`]) and fires DOM events
+//! ([`Page::dispatch_event`]). [`Page::pump`] runs the due tasks (timers,
+//! parser tasks, notifications of rejected promises, finalization
+//! cleanups) and says when the next one is due; the embedder calls it from
+//! its own loop. [`Page::run_event_loop`], [`Page::wait_until_idle`] and
+//! the evaluation of a promise block and run the loop themselves. All of
+//! them follow the page clock: in virtual time the clock jumps to the next
+//! task when nothing runs and no request is pending.
 
 use std::time::{Duration, Instant};
 
@@ -67,15 +76,23 @@ impl Page {
     }
 
     /// Creates the script runtime of the current document if the document
-    /// has scripting on, and runs its inline classic scripts in tree order
-    /// (feature 5c moves them into the parse). Called when a document
-    /// commits.
+    /// has scripting on, and starts the document: the runtime parses it
+    /// with its scripts. Without a runtime the parse runs to the end at
+    /// once. Called when a document commits.
     pub(super) fn start_scripts(&mut self) {
         self.script = None;
         self.scripts_dropped = false;
-        if !self.scripts_allowed || !self.document_has_scripting() {
-            return;
+        if self.scripts_allowed && self.document_has_scripting() {
+            self.create_runtime();
         }
+        if self.script.is_some() {
+            self.run_task(ScriptRuntime::start_document);
+            self.check_load_event();
+        }
+        self.finish_parse_without_scripts();
+    }
+
+    fn create_runtime(&mut self) {
         let started = Instant::now();
         let runtime = match ScriptRuntime::new(self.clock.clone()) {
             Ok(runtime) => runtime,
@@ -90,9 +107,80 @@ impl Page {
             runtime.heap_size()
         );
         self.script = Some(runtime);
-        let url = self.doc.as_ref().map(|d| d.url().to_string());
-        let url = url.unwrap_or_default();
-        self.run_task(|script| script.run_inline_scripts(&url));
+    }
+
+    /// Without a script runtime (JavaScript off, or a runtime that was
+    /// dropped), a parse in steps runs to the end.
+    fn finish_parse_without_scripts(&mut self) {
+        if self.script.is_none()
+            && let Some(doc) = self.doc.as_deref_mut()
+            && doc.is_parsing()
+        {
+            doc.run_parser();
+        }
+    }
+
+    /// Hands the scripts that the document fetched to the runtime, in the
+    /// order of arrival, and tells it when style sheets arrived (a script
+    /// may wait for them); then fires `load` if it is due.
+    pub(super) fn deliver_scripts(&mut self, sheets_changed: bool) {
+        let arrived = match self.doc.as_deref_mut() {
+            Some(doc) => doc.take_arrived_scripts(),
+            None => return,
+        };
+        if self.script.is_none() {
+            return;
+        }
+        for (node, script) in arrived {
+            self.run_task(|runtime| runtime.script_fetched(node, script));
+        }
+        if sheets_changed
+            && self
+                .script
+                .as_ref()
+                .is_some_and(ScriptRuntime::waits_for_style_sheets)
+        {
+            self.run_task(ScriptRuntime::style_sheets_changed);
+        }
+        self.check_load_event();
+    }
+
+    /// Fires the `load` event of the document when the runtime is ready
+    /// for it ("the end" waits for nothing that delays the load event) and
+    /// nothing delays it: no request runs, also after a layout, which can
+    /// start the loads of background images and web fonts.
+    pub(super) fn check_load_event(&mut self) {
+        if self.lent
+            || !self
+                .script
+                .as_ref()
+                .is_some_and(ScriptRuntime::load_event_due)
+        {
+            return;
+        }
+        if self.doc.as_ref().is_none_or(|d| d.is_loading()) {
+            return;
+        }
+        self.update_layout();
+        if self.doc.as_ref().is_none_or(|d| d.is_loading()) {
+            return;
+        }
+        self.run_task(ScriptRuntime::fire_load_event);
+    }
+
+    /// True if the document has a script runtime whose `load` event has
+    /// not fired yet.
+    pub(super) fn load_event_pending(&self) -> bool {
+        self.script.as_ref().is_some_and(|s| !s.document_loaded())
+    }
+
+    /// Fires `pagehide` and `unload` at the window of the current document
+    /// (HTML "unload a document"); a navigation calls it before it
+    /// replaces the document.
+    pub(super) fn unload_document(&mut self) {
+        if self.script.is_some() {
+            self.run_task(ScriptRuntime::unload_document);
+        }
     }
 
     /// Runs `task` with the document state lent to the script runtime, then
@@ -119,8 +207,32 @@ impl Page {
             );
             self.script = None;
             self.scripts_dropped = true;
+            self.finish_parse_without_scripts();
         }
+        self.finish_stopped_scripts();
         Some(result)
+    }
+
+    /// A runtime whose scripts stopped (three time limits, the budget of
+    /// long tasks) runs no task, so the parse that waits for a script or a
+    /// style sheet would never go on (ADR 0028 section 8). The document
+    /// parses on without scripts: the runtime ends its load without
+    /// events, the fetches of scripts are abandoned and the engine runs
+    /// the parser to the end.
+    fn finish_stopped_scripts(&mut self) {
+        let Some(script) = self.script.as_mut() else {
+            return;
+        };
+        if !script.stopped() || script.document_loaded() {
+            return;
+        }
+        script.abort_document();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.abandon_scripts();
+            if doc.is_parsing() {
+                doc.run_parser();
+            }
+        }
     }
 
     // ----- The event loop -----
@@ -145,8 +257,13 @@ impl Page {
         if !self.task_due() {
             return 0;
         }
-        self.run_task(|script| script.run_due_tasks(PUMP_BUDGET))
-            .unwrap_or(0)
+        let ran = self
+            .run_task(|script| script.run_due_tasks(PUMP_BUDGET))
+            .unwrap_or(0);
+        // A task (the parser's) can make the load event due; it fires
+        // before the next task when nothing delays it.
+        self.check_load_event();
+        ran
     }
 
     /// True if a task of the document is due at the page time now.

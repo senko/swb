@@ -428,6 +428,9 @@ impl Page {
         if !self.is_loading() {
             return;
         }
+        if self.script.is_some() {
+            self.run_task(swb_web::ScriptRuntime::abort_document);
+        }
         self.loader.cancel_all();
         self.document_request = None;
         self.pending = None;
@@ -679,11 +682,13 @@ impl Page {
         self.doc.as_ref().map_or("", |d| d.title())
     }
 
-    /// The loading state.
+    /// The loading state. A document with a script runtime loads until its
+    /// `load` event fired.
     pub fn load_state(&self) -> LoadState {
         match self.state {
             LoadState::Complete | LoadState::LoadingResources
-                if self.doc.as_ref().is_some_and(|d| d.is_loading()) =>
+                if self.doc.as_ref().is_some_and(|d| d.is_loading())
+                    || self.load_event_pending() =>
             {
                 LoadState::LoadingResources
             }

@@ -46,6 +46,7 @@ impl DocumentState {
         match pending {
             Pending::Stylesheet { owner, serial } => self.stylesheet_arrived(owner, serial, result),
             Pending::Font { url } => self.font_file_arrived(&url, result, fonts),
+            Pending::Script { node } => self.script_arrived(node, result),
             Pending::Image { url } => {
                 let state = ImageState::from_fetch(&url, result, &self.images.counting);
                 self.images.by_url.insert(url.clone(), state);
@@ -273,6 +274,10 @@ impl DocumentState {
     /// that did not arrive are skipped, fonts that are loading fail.
     pub(crate) fn stop_loading(&mut self, fonts: &mut FontContext) {
         self.requests = Requests::default();
+        // The parse ends here (HTML "abort a parser"), and so do the
+        // fetches of scripts.
+        self.parser = None;
+        self.script_fetches = crate::resources::ScriptFetches::default();
         // The images of the cancelled requests are requested again by the
         // next selection or style computation.
         self.images.forget_cancelled(&HashSet::new());

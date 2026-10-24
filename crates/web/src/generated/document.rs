@@ -36,6 +36,9 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute Element? documentElement`.
     fn document_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `readonly attribute DocumentReadyState readyState`.
+    fn ready_state(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<super::types::DocumentReadyState>;
+
     /// `attribute DOMString title`.
     fn title(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
@@ -51,6 +54,9 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute HTMLHeadElement? head`.
     fn head(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `readonly attribute HTMLOrSVGScriptElement? currentScript`.
+    fn current_script(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
+
     /// `readonly attribute Element? firstElementChild`.
     fn first_element_child(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -59,6 +65,9 @@ pub trait DocumentImpl: b::Host {
 
     /// `readonly attribute unsigned long childElementCount`.
     fn child_element_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
+
+    /// `Element createElement(DOMString localName)`.
+    fn create_element(cx: &mut b::Cx<'_>, this: b::NodeId, local_name: String) -> b::Result<b::NodeId>;
 
     /// `Event createEvent(DOMString interface)`.
     fn create_event(cx: &mut b::Cx<'_>, this: b::NodeId, interface: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
@@ -137,6 +146,14 @@ fn get_document_element<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js
     })
 }
 
+fn get_ready_state<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "readyState"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::ready_state(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(b::to_js::string(rt, result.as_str())?)
+    })
+}
+
 fn get_title<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Document", "title"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -181,6 +198,14 @@ fn get_head<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
     })
 }
 
+fn get_current_script<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "currentScript"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::current_script(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
 fn get_first_element_child<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Document", "firstElementChild"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -202,6 +227,17 @@ fn get_child_element_count<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let result = <H as DocumentImpl>::child_element_count(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn op_create_element<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createElement"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as DocumentImpl>::create_element(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
 }
 
@@ -231,12 +267,15 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "contentType", (Some(get_content_type::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "doctype", (Some(get_doctype::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "documentElement", (Some(get_document_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "readyState", (Some(get_ready_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "title", (Some(get_title::<H> as swb_js::NativeFn), Some(set_title::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "body", (Some(get_body::<H> as swb_js::NativeFn), Some(set_body::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "head", (Some(get_head::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "currentScript", (Some(get_current_script::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "firstElementChild", (Some(get_first_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "lastElementChild", (Some(get_last_element_child::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "childElementCount", (Some(get_child_element_count::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createElement", 1, op_create_element::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)

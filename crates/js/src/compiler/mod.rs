@@ -282,11 +282,12 @@ impl CompileStats {
 pub(crate) fn compile_script(
     heap: &mut Heap,
     script: &Script,
-    source: Str16<'_>,
-    name: &str,
+    (source, name, start): (Str16<'_>, &str, (u32, u32)),
     budget: &mut RecursionBudget,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
-    let shared = Rc::new(crate::bytecode::Source::new(source, Rc::from(name)));
+    let mut text = crate::bytecode::Source::new(source, Rc::from(name));
+    text.start = start;
+    let shared = Rc::new(text);
     compile_code(heap, script, (source, shared), budget, None)
 }
 

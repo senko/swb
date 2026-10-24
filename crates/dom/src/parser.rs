@@ -10,6 +10,9 @@
 //! use the document between steps (also for nodes they removed).
 //! `document.write` (later work, ADR 0028 section 8) will put its text into
 //! the queue in front of the unparsed rest (`BufferQueue::push_front`).
+//! With the scripting flag on, the parser also finds where the text of each
+//! script starts in the source ([`HtmlParser::script_position`],
+//! `position.rs`), for the positions of errors in inline scripts.
 //!
 //! The tree builder gets the scripting flag of the document (the JavaScript
 //! setting when the document was created, ADR 0028 section 15). With the
@@ -31,6 +34,7 @@
 //! shows what was parsed up to that point.
 
 mod fragment;
+mod position;
 mod sink;
 
 use std::rc::Rc;
@@ -41,6 +45,8 @@ use html5ever::tokenizer::{BufferQueue, Tokenizer, TokenizerOpts};
 use html5ever::tree_builder::{TreeBuilder, TreeBuilderOpts};
 
 pub use fragment::parse_fragment;
+use position::Positions;
+pub use position::TextPosition;
 use sink::Sink;
 
 use crate::encoding::decode_html;
@@ -69,6 +75,10 @@ pub struct HtmlParser {
     input: Rc<BufferQueue>,
     arena_id: u64,
     finished: bool,
+    /// The source text for the positions of scripts (scripting on).
+    positions: Option<Positions>,
+    /// The position of the text of the script of the last step.
+    script_position: TextPosition,
 }
 
 /// The largest input chunk: tendrils hold at most 4 GiB.
@@ -110,6 +120,8 @@ impl HtmlParser {
             input,
             arena_id: doc.arena_id(),
             finished: false,
+            positions: scripting.then(|| Positions::new(text)),
+            script_position: TextPosition::default(),
         }
     }
 
@@ -129,6 +141,12 @@ impl HtmlParser {
         let step = loop {
             match self.tokenizer.feed(&self.input) {
                 TokenizerResult::Script(node) if !sink.stopped.get() => {
+                    self.script_position = script_start(
+                        self.positions.as_mut(),
+                        &self.input,
+                        &sink.doc.borrow(),
+                        node,
+                    );
                     break ParseStep::Script(node);
                 }
                 // The input was decoded before the parse (`encoding.rs`),
@@ -142,7 +160,17 @@ impl HtmlParser {
             }
         };
         std::mem::swap(&mut *sink.doc.borrow_mut(), doc);
+        if step == ParseStep::Finished {
+            self.positions = None;
+        }
         Ok(step)
+    }
+
+    /// Where the text of the script of the last [`ParseStep::Script`]
+    /// starts in the source text (line and column from 0, the column in
+    /// UTF-16 code units). Zero for a parser without the scripting flag.
+    pub fn script_position(&self) -> TextPosition {
+        self.script_position
     }
 
     /// True after the parser returned [`ParseStep::Finished`].
@@ -154,6 +182,38 @@ impl HtmlParser {
     pub fn stopped_at_limit(&self) -> bool {
         self.tokenizer.sink.sink.stopped.get()
     }
+}
+
+/// The start of the text of `script`, whose end tag the tokenizer just
+/// consumed: the input that is left in `input` tells where the end tag
+/// ends. Zero without `positions` (scripting off).
+fn script_start(
+    positions: Option<&mut Positions>,
+    input: &BufferQueue,
+    doc: &Document,
+    script: NodeId,
+) -> TextPosition {
+    let Some(positions) = positions else {
+        return TextPosition::default();
+    };
+    // The queue has one chunk per pushed text and per write; taking them
+    // out and back costs a few reference counts.
+    let mut remaining = 0;
+    let mut chunks = Vec::new();
+    while let Some(chunk) = input.pop_front() {
+        remaining += chunk.len();
+        chunks.push(chunk);
+    }
+    for chunk in chunks {
+        input.push_back(chunk);
+    }
+    let text_chars = doc
+        .children(script)
+        .filter_map(|c| doc.node(c).as_text())
+        .map(|t| t.chars().count())
+        .sum();
+    let end = positions.len().saturating_sub(remaining);
+    positions.script_start(end, text_chars)
 }
 
 /// Parses an HTML document from text, with scripting disabled.

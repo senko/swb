@@ -903,6 +903,19 @@ temporary directory, loaded by navigation.
   (scripting)` matches. The clock is not fixed: a case must not depend on
   the date. Without the flag, scripts do not run and `js` queries only read
   the DOM that the HTML made.
+- `resources` (case, optional): text files that a local HTTP server
+  serves next to the page, each after its delay:
+  `{"a.js": {"text": "log('a')", "delay_ms": 200, "content_type":
+  "text/plain"}}` (`delay_ms` default 0, at most 10,000; the type comes
+  from the extension unless `content_type` gives it). A case with
+  resources loads from `http://127.0.0.1:PORT/case-N/case-N.html` in
+  Chromium and in swb (`--with-swb`), so a case can order the arrival of
+  scripts and style sheets (`tools/probes/web-scripts.json`). Responses
+  have `Cache-Control: no-store`. Chromium's HTTP/1 connection limit and
+  its resource scheduler can delay low-priority requests (async scripts,
+  images) behind others, and its preload scanner fetches later scripts
+  early; space the delays (100 ms or more) and do not compare the order of
+  async scripts that a waiting parser could see early.
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -1022,7 +1035,11 @@ on the window after DOM changes, and the event loop (feature 5b):
 endless loops in timers, an endless microtask chain, `setInterval(f, 0)`
 with a chain of `setTimeout(f, 0)`, the timer limit, 400,000 timers, and
 inline scripts that run just under the time limit until the budget of
-the document stops them. The cases with timers pass `--settle-ms`, so
+the document stops them; and scripts that insert scripts (feature 5c): an
+endless chain of inline scripts (each runs inside the insertion of the
+next, so the recursion budget ends it), a chain of 3,000 external scripts,
+and external scripts that each insert two more until 20,000 ran (at most
+64 fetches at once). The cases with timers pass `--settle-ms`, so
 that the timers run after the load.
 
 ```
@@ -2278,12 +2295,32 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   interval, evaluations of promises that settle later, and the drop of a
   runtime at the heap limit.
 - `crates/engine/tests/scripts.rs`: scripts in a page: the inline scripts
-  after the parse, DOM changes that reach the engine, the console, a new
+  in the parse, DOM changes that reach the engine, the console, a new
   runtime per document, JavaScript off, the page that refuses JavaScript
   without a big stack, `document.title` on the page fixtures with
   JavaScript on (Chromium's values), and `Page::dispatch_event`. `crates/engine/tests/script_memory.rs`
   (one test, its own process) checks that the resident set size comes
   back after a navigation drops a runtime that held about 100 MiB.
+- `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
+  (feature 5c): every case of `tools/probes/web-scripts.json` with
+  Chromium's values (`tests/script_processing/cases.rs`, generated from the
+  probe's `--json` output), served by a fetcher that delays each resource
+  as the probe's server does (real time; the cases run in parallel);
+  `SWB_VALUES` has the departure (module scripts do not run). Also: the
+  load as `page.waitForLoad` sees it (a parser-blocking script delays it;
+  a request that a `load` listener starts does not), at most 64 script
+  fetches at once, a stopped load, and scripts that stopped (time
+  limits) while the parser waits or before it reaches more scripts (the
+  parse finishes without them). A case without `resources` loads from a
+  file, one with `resources` over HTTP (`Case.file`); "the end" of the
+  parse differs (ADR 0028 section 8). The order of parser-blocking,
+  inline, deferred, async and inserted scripts with style sheets that
+  block scripts, `readyState`, `currentScript`, `DOMContentLoaded`,
+  `load`, `pageshow`, script element events, skipped types, response
+  types and the positions of errors in inline scripts are in the probe.
+  `crates/web/tests/document_load.rs` has the unload (`pagehide`,
+  `unload`), a parse that goes on after the document's scripts stopped,
+  and the readiness without a parse.
 
 They run every case with and without the GC stress mode and check that no
 collection found a stale root. The expected values come from Chromium

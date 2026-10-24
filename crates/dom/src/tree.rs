@@ -80,6 +80,11 @@ pub struct ElementData {
     /// is not a descendant of the form (`<table><form><tr><td><input>`).
     /// <https://html.spec.whatwg.org/multipage/parsing.html#create-an-element-for-the-token>
     pub parser_form: Option<NodeId>,
+    /// For `script` elements: the parser set the HTML "already started"
+    /// flag (a script of a fragment, or one that the end of the input cut
+    /// off), so the script never runs. The bindings keep the rest of the
+    /// state of a script element (feature 5c of M8).
+    pub script_already_started: bool,
 }
 
 impl ElementData {
@@ -90,6 +95,7 @@ impl ElementData {
             attrs,
             template_contents: None,
             parser_form: None,
+            script_already_started: false,
         }
     }
 

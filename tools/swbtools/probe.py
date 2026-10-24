@@ -18,7 +18,8 @@ A case file is JSON (committed ones are in `tools/probes/`):
       {"js": "document.scrollingElement.scrollHeight"},
       {"ink": "#a"}
     ],
-    "files": {"x.ttf": "fixtures/fonts/DejaVuSans.ttf"}}]}
+    "files": {"x.ttf": "fixtures/fonts/DejaVuSans.ttf"},
+    "resources": {"a.js": {"text": "log('a')", "delay_ms": 200}}}]}
 ```
 
 - `viewport` (file and case, optional; default 800x600): the layout viewport.
@@ -40,6 +41,13 @@ A case file is JSON (committed ones are in `tools/probes/`):
 - `files` (case, optional): files to put next to the page, as
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root. Use it for fonts (`@font-face`) and images.
+- `resources` (case, optional): text files that a local HTTP server serves
+  next to the page, as `{"name": {"text": "...", "delay_ms": 200,
+  "content_type": "text/css"}}` (`delay_ms` and `content_type` are
+  optional; the type comes from the extension). A case with resources is
+  loaded from `http://127.0.0.1:PORT/` in Chromium and in swb, and each
+  resource is answered after its delay, so that a case can order the
+  arrival of scripts and stylesheets.
 - `time_zone` (file and case, optional): the IANA name of the time zone of
   the page (`"Europe/Zagreb"`), for the results of `Date`. Without it the
   page has the machine's zone. Chromium gets it as the `timezone_id` of a
@@ -77,9 +85,13 @@ import asyncio
 import io
 import json
 import logging
+import mimetypes
 import shutil
+import threading
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -123,6 +135,18 @@ class Query:
 
 
 @dataclass(frozen=True)
+class Resource:
+    """A text file that the local server serves next to the page of a case."""
+
+    name: str
+    text: str
+    delay_ms: int = 0
+    """How long the server waits before it answers."""
+    content_type: str | None = None
+    """The `Content-Type`; `None` takes it from the extension."""
+
+
+@dataclass(frozen=True)
 class Case:
     """One HTML document and what to measure in it."""
 
@@ -137,6 +161,9 @@ class Case:
     machine's zone."""
     javascript: bool = False
     """True if the scripts of the page run."""
+    resources: tuple[Resource, ...] = ()
+    """Files that the local HTTP server serves; with them the page loads
+    over HTTP."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -217,7 +244,31 @@ def _parse_case(
         _parse_javascript(item["javascript"], where) if "javascript" in item else default_javascript
     )
     files = _parse_files(item.get("files", {}), where)
-    return Case(name, html, viewport, queries, files, zone, javascript)
+    resources = _parse_resources(item.get("resources", {}), where)
+    return Case(name, html, viewport, queries, files, zone, javascript, resources)
+
+
+def _parse_resources(value: Any, where: str) -> tuple[Resource, ...]:
+    """The `resources` of a case: plain file names to text, delay and type."""
+    if not isinstance(value, dict):
+        raise ProbeError(f"{where}: resources must be an object of name to resource")
+    resources = []
+    for name, item in value.items():
+        if not name or "/" in name or "\\" in name or name in (".", ".."):
+            raise ProbeError(f"{where}: resource name {name!r} must be a plain file name")
+        if not isinstance(item, dict) or not isinstance(item.get("text"), str):
+            raise ProbeError(f"{where}: resource {name!r} needs a text string")
+        extra = set(item) - {"text", "delay_ms", "content_type"}
+        if extra:
+            raise ProbeError(f"{where}: unknown key {sorted(extra)[0]!r} in resource {name!r}")
+        delay = item.get("delay_ms", 0)
+        if not isinstance(delay, int) or isinstance(delay, bool) or not 0 <= delay <= 10_000:
+            raise ProbeError(f"{where}: delay_ms of {name!r} must be 0 to 10000")
+        kind = item.get("content_type")
+        if kind is not None and (not isinstance(kind, str) or not kind):
+            raise ProbeError(f"{where}: content_type of {name!r} must be a non-empty string")
+        resources.append(Resource(name, item["text"], delay, kind))
+    return tuple(resources)
 
 
 def _parse_files(value: Any, where: str) -> tuple[tuple[str, Path], ...]:
@@ -697,25 +748,117 @@ async def _run_query(page: Page, query: Query) -> list[Row]:
         return [Row(query.kind, query.target, {"error": message})]
 
 
-async def probe_case(
-    page: Page, directory: Path, number: int, case: Case
-) -> tuple[CaseResult, Path]:
-    """Loads the case in Chromium and runs its queries. Returns the result
-    and the path of the page file."""
-    await page.set_viewport_size({"width": case.viewport[0], "height": case.viewport[1]})
-    path = directory / f"case-{number}.html"
+class CaseServer:
+    """A local HTTP server for the cases with resources: it serves a
+    directory, answers each resource after its delay with its type, and
+    forbids caching. It runs on its own threads until `close`."""
+
+    def __init__(self, directory: Path) -> None:
+        self.delays: dict[str, float] = {}
+        """URL path to the delay in seconds."""
+        self.types: dict[str, str] = {}
+        """URL path to the `Content-Type`."""
+        server = self
+
+        class Handler(SimpleHTTPRequestHandler):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, directory=str(directory), **kwargs)
+
+            def do_GET(self) -> None:
+                path = self.path.split("?", 1)[0]
+                delay = server.delays.get(path, 0.0)
+                if delay:
+                    time.sleep(delay)
+                self._swb_type = server.types.get(path)
+                super().do_GET()
+
+            def guess_type(self, path: Any) -> str:
+                kind = getattr(self, "_swb_type", None)
+                return kind or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+
+            def end_headers(self) -> None:
+                self.send_header("Cache-Control", "no-store")
+                super().end_headers()
+
+            def log_message(self, format: str, *args: Any) -> None:
+                log.debug("case server: " + format, *args)
+
+        self._httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self._httpd.daemon_threads = True
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
+        self._thread.start()
+
+    @property
+    def origin(self) -> str:
+        """`http://127.0.0.1:PORT`."""
+        return f"http://127.0.0.1:{self._httpd.server_address[1]}"
+
+    def close(self) -> None:
+        self._httpd.shutdown()
+        self._httpd.server_close()
+
+
+_JAVASCRIPT_TYPE = "text/javascript"
+
+
+def _resource_type(resource: Resource) -> str:
+    """The `Content-Type` of a resource: its own, else from the extension."""
+    if resource.content_type:
+        return resource.content_type
+    if resource.name.endswith((".js", ".mjs")):
+        return _JAVASCRIPT_TYPE
+    return mimetypes.guess_type(resource.name)[0] or "text/plain"
+
+
+def _write_case_files(case: Case, directory: Path) -> None:
+    """Copies the `files` of a case into `directory`."""
     for name, source in case.files:
         try:
             shutil.copyfile(source, directory / name)
         except OSError as error:
             raise ProbeError(f"case {case.name!r}: cannot copy {source}: {error}") from error
-    await browser.load_html(page, path, case.html)
+
+
+def _serve_case(case: Case, number: int, directory: Path, server: CaseServer) -> tuple[Path, str]:
+    """Writes the page and the resources of a case into its own directory
+    below the server's and returns the page's path and URL."""
+    folder = f"case-{number}"
+    case_dir = directory / folder
+    case_dir.mkdir(exist_ok=True)
+    _write_case_files(case, case_dir)
+    for resource in case.resources:
+        (case_dir / resource.name).write_text(resource.text, encoding="utf-8")
+        path = f"/{folder}/{resource.name}"
+        server.delays[path] = resource.delay_ms / 1000
+        server.types[path] = _resource_type(resource)
+    page_path = case_dir / f"case-{number}.html"
+    page_path.write_text(case.html, encoding="utf-8")
+    return page_path, f"{server.origin}/{folder}/{page_path.name}"
+
+
+async def probe_case(
+    page: Page, directory: Path, number: int, case: Case, server: CaseServer | None = None
+) -> tuple[CaseResult, Path, str]:
+    """Loads the case in Chromium and runs its queries. Returns the result,
+    the path of the page file and its URL (`http:` from `server` for a case
+    with resources, else `file:`)."""
+    await page.set_viewport_size({"width": case.viewport[0], "height": case.viewport[1]})
+    if case.resources:
+        if server is None:
+            raise ProbeError(f"case {case.name!r}: resources need the case server")
+        path, url = _serve_case(case, number, directory, server)
+        await page.goto(url, wait_until="load")
+    else:
+        path = directory / f"case-{number}.html"
+        _write_case_files(case, directory)
+        await browser.load_html(page, path, case.html)
+        url = path.as_uri()
     await browser.wait_for_fonts(page)
     await browser.stop_animations(page)
     result = CaseResult(case.name, case.viewport)
     for query in case.queries:
         result.rows.extend(await _run_query(page, query))
-    return result, path
+    return result, path, url
 
 
 # --- swb -------------------------------------------------------------------
@@ -739,15 +882,17 @@ def run_swb(
     directory: Path,
     screenshot: bool = False,
     extra: list[str] | None = None,
+    url: str | None = None,
 ) -> SwbRun:
     """Renders the page in swb and returns its box dump, with `screenshot`
     its full-page screenshot, and its stdout. `extra` are additional swb
-    options. Raises `ProbeError` if swb fails."""
+    options; `url` is the page's URL if it is not the file's (a case served
+    over HTTP). Raises `ProbeError` if swb fails."""
     dump_path = directory / f"{page.stem}.swb-boxes.json"
     log_path = directory / f"{page.stem}.swb.log"
     out_path = directory / f"{page.stem}.swb.out"
     shot_path = directory / f"{page.stem}.swb.png" if screenshot else None
-    command = swb.probe_command(binary, page.as_uri(), viewport, dump_path, shot_path, extra)
+    command = swb.probe_command(binary, url or page.as_uri(), viewport, dump_path, shot_path, extra)
     status = swb.run(command, log_path, out_path)
     if status != 0 or not dump_path.is_file():
         tail = log_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-3:]
@@ -842,10 +987,12 @@ def _compare_with_swb(
     tolerance: float,
     path: Path,
     directory: Path,
+    url: str | None = None,
 ) -> None:
-    """Runs swb on the case and attaches its boxes, ink and values to the
-    result. A JavaScript case needs `--js` (and `--eval` for its `js`
-    queries); a swb without them has `not supported` lines instead."""
+    """Runs swb on the case (the page at `url`, else the file `path`) and
+    attaches its boxes, ink and values to the result. A JavaScript case
+    needs `--js` (and `--eval` for its `js` queries); a swb without them has
+    `not supported` lines instead."""
     flags = swb.supported_flags(binary)
     if case.javascript and JS_OPTION not in flags:
         mark_unsupported(result, ("boxes", "js"))
@@ -859,7 +1006,7 @@ def _compare_with_swb(
         mark_unsupported(result, ("js",))
     wants_ink = any(query.kind == "ink" for query in case.queries)
     try:
-        run = run_swb(binary, path, case.viewport, directory, wants_ink, extra)
+        run = run_swb(binary, path, case.viewport, directory, wants_ink, extra, url)
         attach_swb(result, run.dump, tolerance, run.image)
         if evaluates:
             attach_swb_values(result, run.stdout)
@@ -872,14 +1019,19 @@ async def _probe_all(
 ) -> list[CaseResult]:
     results = []
     pages = {(None, False): page}
-    for number, case in enumerate(cases, 1):
-        key = (case.time_zone, case.javascript)
-        if key not in pages:
-            pages[key] = await _new_context_page(page, case)
-        result, path = await probe_case(pages[key], directory, number, case)
-        if binary is not None:
-            _compare_with_swb(result, case, binary, tolerance, path, directory)
-        results.append(result)
+    server = CaseServer(directory) if any(case.resources for case in cases) else None
+    try:
+        for number, case in enumerate(cases, 1):
+            key = (case.time_zone, case.javascript)
+            if key not in pages:
+                pages[key] = await _new_context_page(page, case)
+            result, path, url = await probe_case(pages[key], directory, number, case, server)
+            if binary is not None:
+                _compare_with_swb(result, case, binary, tolerance, path, directory, url)
+            results.append(result)
+    finally:
+        if server is not None:
+            server.close()
     return results
 
 

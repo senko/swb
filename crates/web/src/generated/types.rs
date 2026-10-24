@@ -340,6 +340,41 @@ impl PageTransitionEventInit {
     }
 }
 
+/// The enumeration `DocumentReadyState`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DocumentReadyState {
+    /// `"loading"`.
+    Loading,
+    /// `"interactive"`.
+    Interactive,
+    /// `"complete"`.
+    Complete,
+}
+
+impl DocumentReadyState {
+    /// The values in order.
+    pub const VALUES: [&'static str; 3] = ["loading", "interactive", "complete"];
+
+    /// The value as a string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DocumentReadyState::Loading => "loading",
+            DocumentReadyState::Interactive => "interactive",
+            DocumentReadyState::Complete => "complete",
+        }
+    }
+
+    /// Converts a JavaScript value (Web IDL §3.2.18).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<DocumentReadyState> {
+        let index = b::convert::enumeration(rt, value, &DocumentReadyState::VALUES, "DocumentReadyState")?;
+        Ok(match index {
+            0 => DocumentReadyState::Loading,
+            1 => DocumentReadyState::Interactive,
+            _ => DocumentReadyState::Complete,
+        })
+    }
+}
+
 /// The callback function type `Function`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Function(pub swb_js::Gc<swb_js::Object>);

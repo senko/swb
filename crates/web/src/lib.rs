@@ -29,9 +29,16 @@
 //!   the window), the page clock with real and virtual time
 //!   ([`PageClock`]), and [`ScriptRuntime::run_due_tasks`], which the
 //!   engine calls from its loop.
+//! - Scripts in the document (feature 5c): `scripts` (script elements:
+//!   prepare, execute, `HTMLScriptElement`) and `document_load` (the
+//!   parser with its pauses, "the end" of the parse, `DOMContentLoaded`,
+//!   `load`, `pageshow`, the unload). The engine lends the parser and
+//!   fetches the scripts ([`EngineHost::parse_step`],
+//!   [`EngineHost::fetch_script`], [`ScriptRuntime::script_fetched`]).
 
 pub mod bindings;
 mod clock;
+mod document_load;
 mod dom;
 mod errors;
 mod event_loop;
@@ -52,4 +59,5 @@ pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
+pub use scripts::{FetchedScript, is_javascript_mime_type};
 pub use swb_js::{ConsoleLevel, ScriptError};

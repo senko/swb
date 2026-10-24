@@ -10,7 +10,7 @@
 
 use std::any::Any;
 
-use swb_dom::Document;
+use swb_dom::{Document, NodeId, ParseStep, TextPosition};
 
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
@@ -41,6 +41,32 @@ pub trait EngineHost: Any {
     /// The content type of the document (`text/html`, `text/plain`,
     /// `image/png`).
     fn content_type(&self) -> &str;
+
+    /// One step of the document's parser (feature 5c): it parses until the
+    /// end tag of a `script` element (with the position of the script's
+    /// text in the source) or to the end of the input, and processes the
+    /// changes. `None` if the document has no parser (it is complete; a
+    /// [`ParseStep::Finished`] drops the parser).
+    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+        None
+    }
+
+    /// True if the document has a style sheet that is blocking scripts
+    /// (HTML §4.2.4): a style sheet of the parser, for the current media,
+    /// that has not loaded yet.
+    fn style_sheets_block_scripts(&mut self) -> bool {
+        false
+    }
+
+    /// Starts the fetch of the classic script at `url` (absolute, from
+    /// [`EngineHost::parse_url`]) for the script element `node`; the
+    /// engine hands the result to [`crate::ScriptRuntime::script_fetched`].
+    /// False if the document may not load the URL (the fetch fails at
+    /// once).
+    fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
+        let _ = (node, url);
+        false
+    }
 
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;

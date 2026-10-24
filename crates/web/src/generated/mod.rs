@@ -23,6 +23,7 @@ pub mod performance;
 pub mod window;
 pub mod html_element;
 pub mod html_head_element;
+pub mod html_script_element;
 pub mod error_event;
 pub mod promise_rejection_event;
 pub mod page_transition_event;
@@ -65,19 +66,21 @@ pub const WINDOW: swb_js::ClassId = swb_js::ClassId::from_index(14);
 pub const HTML_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(15);
 /// The class of `HTMLHeadElement`.
 pub const HTML_HEAD_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(16);
+/// The class of `HTMLScriptElement`.
+pub const HTML_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
 /// The class of `ErrorEvent`.
-pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(17);
+pub const ERROR_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
 /// The class of `PromiseRejectionEvent`.
-pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(18);
+pub const PROMISE_REJECTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(19);
 /// The class of `PageTransitionEvent`.
-pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(19);
+pub const PAGE_TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(20);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(20);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(21);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
+pub trait Bindings: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl {}
 
-impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
+impl<T: b::Host + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + element::ElementImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + performance::PerformanceImpl + window::WindowImpl + html_element::HTMLElementImpl + html_head_element::HTMLHeadElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + dom_exception::DOMExceptionImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -99,6 +102,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("Window").parent(EVENT_TARGET), WINDOW)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLElement").parent(ELEMENT), HTML_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLHeadElement").parent(HTML_ELEMENT), HTML_HEAD_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("HTMLScriptElement").parent(HTML_ELEMENT), HTML_SCRIPT_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ErrorEvent").parent(EVENT).constructor(error_event::construct::<H>, 1), ERROR_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("PromiseRejectionEvent").parent(EVENT).constructor(promise_rejection_event::construct::<H>, 2), PROMISE_REJECTION_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("PageTransitionEvent").parent(EVENT).constructor(page_transition_event::construct::<H>, 1), PAGE_TRANSITION_EVENT)?;
@@ -143,6 +147,8 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "HTMLElement", interface)?;
     let interface = html_head_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "HTMLHeadElement", interface)?;
+    let interface = html_script_element::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "HTMLScriptElement", interface)?;
     let interface = error_event::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "ErrorEvent", interface)?;
     let interface = promise_rejection_event::define::<H>(rt, realm)?;

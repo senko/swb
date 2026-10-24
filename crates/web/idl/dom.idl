@@ -1,6 +1,7 @@
 // Source: DOM Living Standard, https://dom.spec.whatwg.org/
 // (Last Updated 19 October 2026), copied on 2026-10-23 (CustomEvent,
-// the partial Window interface and createEvent on 2026-10-24).
+// the partial Window interface and createEvent on 2026-10-24;
+// createElement and appendChild on 2026-10-24).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -18,7 +19,9 @@
 // (feature 4c2), Document its URL, mode, encoding and content type and
 // `createEvent` (feature 5a), Element its names and CharacterData its
 // `data`; the members that change the tree, the queries and the
-// attributes come with feature 6. Document, DocumentFragment, Text and
+// attributes come with feature 6. Feature 5c brought forward
+// `Node.appendChild` and `Document.createElement` without its `options`
+// argument (feature 6a completes them). Document, DocumentFragment, Text and
 // Comment have no constructors yet, Text no members, ProcessingInstruction
 // only `target`. The order of the remaining members is the
 // specification's.
@@ -141,6 +144,8 @@ interface Node : EventTarget {
   const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
   const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20;
   boolean contains(Node? other);
+
+  [CEReactions] Node appendChild(Node node);
 };
 
 dictionary GetRootNodeOptions {
@@ -159,6 +164,8 @@ interface Document : Node {
 
   readonly attribute DocumentType? doctype;
   readonly attribute Element? documentElement;
+
+  [CEReactions, NewObject] Element createElement(DOMString localName);
 
   [NewObject] Event createEvent(DOMString interface); // legacy
 };

@@ -7,8 +7,13 @@
 //! JavaScript on, the parser runs in steps (`HtmlParser`), which stop at
 //! each script end tag; the document state processes the journal after
 //! each step, so the loads of the elements start as they are inserted.
-//! The inline scripts run after the parse (`script.rs`; feature 5c runs
-//! them at their place in the parse).
+//! The script runtime drives the steps and runs the scripts at their place
+//! (`script.rs`, feature 5c).
+//!
+//! A document with a script runtime is loaded when its `load` event has
+//! fired ([`Page::is_fully_loaded`]); requests that scripts start after it
+//! do not count. Without a runtime, it is loaded when no request runs
+//! after a layout.
 
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -19,7 +24,7 @@ use swb_net::{Response, Url, escape_html};
 
 use super::{LoadState, Page, about_blank};
 use crate::document::{DocumentInit, DocumentState, indicated};
-use crate::resources::{ImageState, Images};
+use crate::resources::{ImageState, Images, Pending};
 
 /// A parsed or new document and its parser.
 struct Parsed {
@@ -63,13 +68,33 @@ impl Page {
 
     /// True if the page and all its subresources are loaded. Layout can
     /// discover more resources (background images), so the page is laid
-    /// out first.
+    /// out first. With a script runtime: the `load` event has fired (it
+    /// waited for the same resources; requests that scripts start later do
+    /// not count).
     pub fn is_fully_loaded(&mut self) -> bool {
+        if self.state == LoadState::LoadingDocument {
+            return false;
+        }
+        if let Some(script) = &self.script {
+            return script.document_loaded();
+        }
         if self.is_loading() {
             return false;
         }
         self.update_layout();
         !self.is_loading()
+    }
+
+    /// True if the load that [`Page::wait_until_loaded`] waits for is over,
+    /// without a layout.
+    fn load_done(&self) -> bool {
+        if self.state == LoadState::LoadingDocument {
+            return false;
+        }
+        match &self.script {
+            Some(script) => script.document_loaded(),
+            None => !self.is_loading(),
+        }
     }
 
     /// Blocks until the page and all subresources are loaded, or until
@@ -81,7 +106,7 @@ impl Page {
         }
         // A timeout too large to represent means "no deadline".
         let deadline = Instant::now().checked_add(timeout);
-        while self.is_loading() {
+        while !self.load_done() {
             let now = Instant::now();
             let mut remaining = match deadline {
                 Some(d) if now >= d => return false,
@@ -96,8 +121,9 @@ impl Page {
                 self.handle_completion(completion);
             }
             self.run_due_tasks();
-            // Layout can discover more resources (background images).
-            if !self.is_loading() {
+            // Layout can discover more resources (background images); with
+            // a runtime, the check of the load event lays out.
+            if self.script.is_none() && !self.is_loading() {
                 self.update_layout();
             }
         }
@@ -119,10 +145,12 @@ impl Page {
         let Some(pending) = doc.requests.pending.remove(&completion.id) else {
             return false;
         };
+        let sheet = matches!(pending, Pending::Stylesheet { .. });
         doc.handle_completion(pending, completion.result, fonts);
         if !doc.is_loading() && self.state == LoadState::Complete {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
+        self.deliver_scripts(sheet);
         true
     }
 
@@ -234,6 +262,8 @@ impl Page {
     /// contains images that are already loaded.
     fn set_document(&mut self, parsed: Parsed, url: Url, images: Images) {
         let scroll_target = self.commit_navigation(&url);
+        // The old document sees `pagehide` and `unload` first.
+        self.unload_document();
         // Requests that are still pending belong to the previous document
         // (for example images that a restyle of it started).
         self.loader.cancel_all();

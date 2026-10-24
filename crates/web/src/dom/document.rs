@@ -1,7 +1,9 @@
 //! `Document` (DOM §4.5, <https://dom.spec.whatwg.org/#interface-document>)
 //! with the tree accessors of HTML §3.1.4
 //! (<https://html.spec.whatwg.org/multipage/dom.html#dom-tree-accessors>):
-//! `title`, `body` and `head`.
+//! `title`, `body` and `head`; `readyState` and `currentScript` (feature
+//! 5c, `scripts.rs`), and `createElement` without its options (brought
+//! forward from feature 6a).
 //!
 //! Only the document of `NodeId::DOCUMENT` has a URL, an encoding and a
 //! quirks mode; the other documents of the arena (the inert documents of
@@ -227,6 +229,38 @@ impl g::document::DocumentImpl for WebState {
         Ok(head_element(dom(cx.rt)?, this))
     }
 
+    fn ready_state(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<crate::generated::types::DocumentReadyState> {
+        Ok(crate::scripts::ready_state(cx.rt, this)?)
+    }
+
+    fn current_script(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        if !is_main(this) {
+            return Ok(None);
+        }
+        Ok(crate::scripts::scripts(cx.rt)?.current_script)
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-document-createelement>, for an
+    /// HTML document: the name in ASCII lowercase, an element of the HTML
+    /// namespace. The `options` argument comes with feature 6a.
+    fn create_element(cx: &mut Cx<'_>, this: NodeId, local_name: String) -> b::Result<NodeId> {
+        if !is_valid_element_local_name(&local_name) {
+            return Err(Exception::dom(
+                "InvalidCharacterError",
+                format!("The tag name provided ('{local_name}') is not a valid name."),
+            ));
+        }
+        let name = QualName::new(
+            None,
+            ns!(html),
+            swb_dom::LocalName::from(local_name.to_ascii_lowercase()),
+        );
+        create_element(cx, this, name)
+    }
+
     fn create_event(
         cx: &mut Cx<'_>,
         this: NodeId,
@@ -262,6 +296,24 @@ fn string_replace_all(cx: &mut Cx<'_>, doc: NodeId, parent: NodeId, value: &str)
     dom_result(cx.rt, result)
 }
 
+/// DOM "valid element local name"
+/// (<https://dom.spec.whatwg.org/#valid-element-local-name>).
+fn is_valid_element_local_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if first.is_ascii_alphabetic() {
+        return !name
+            .chars()
+            .any(|c| c.is_ascii_whitespace() || matches!(c, '\0' | '/' | '>'));
+    }
+    (first == ':' || first == '_' || first >= '\u{80}')
+        && chars.all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | ':' | '_') || c >= '\u{80}'
+        })
+}
+
 /// A new element of the document `doc`.
 fn create_element(cx: &mut Cx<'_>, doc: NodeId, name: QualName) -> b::Result<NodeId> {
     let data = NodeData::Element(ElementData::new(name, Vec::new()));
@@ -272,6 +324,25 @@ fn create_element(cx: &mut Cx<'_>, doc: NodeId, name: QualName) -> b::Result<Nod
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn element_local_names() {
+        for name in [
+            "a",
+            "my-element",
+            "a@b",
+            "a:b",
+            "\u{e9}t\u{e9}",
+            "_x",
+            ":x",
+            "A",
+        ] {
+            assert!(is_valid_element_local_name(name), "{name}");
+        }
+        for name in ["", "1a", "a b", "a/b", "a>", "-x", "_x@", "a\0"] {
+            assert!(!is_valid_element_local_name(name), "{name:?}");
+        }
+    }
 
     #[test]
     fn strips_and_collapses_ascii_whitespace() {

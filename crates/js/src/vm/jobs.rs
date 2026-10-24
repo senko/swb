@@ -333,5 +333,27 @@ mod tests {
         let location = rt.throw_location().expect("a location");
         assert_eq!((location.name.as_str(), location.line), ("file:///b.js", 2));
         assert_eq!(Runtime::source_location("a\nbc", 3), (2, 2));
+        // A script that starts at line 4, column 10 of its document: the
+        // column moves on its first line only; stack traces agree.
+        let error = rt
+            .eval_named_at(
+                "var e1 = new Error('a');\n  var e2 = new Error('b'); [e1, e2]",
+                "page.html",
+                (3, 9),
+            )
+            .expect("script");
+        let first = rt.eval("e1").expect("e1");
+        let location = rt.error_location(first).expect("a location");
+        assert_eq!((location.line, location.column), (4, 19));
+        let second = rt.eval("e2").expect("e2");
+        let location = rt.error_location(second).expect("a location");
+        assert_eq!((location.line, location.column), (5, 12));
+        let stack = rt.eval("e2.stack").expect("stack");
+        assert!(
+            rt.display(stack).ends_with("page.html:5:12"),
+            "{}",
+            rt.display(stack)
+        );
+        assert!(matches!(error, Value::Object(_)));
     }
 }

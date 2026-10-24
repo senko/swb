@@ -32,7 +32,7 @@ fn url() -> Url {
 /// The state of a document: `dom` parsed to the end, or parsed in steps
 /// by `parser`.
 fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState {
-    DocumentState::new(DocumentInit {
+    let mut doc = DocumentState::new(DocumentInit {
         content_type: "text/html".to_owned(),
         dom,
         parser,
@@ -47,7 +47,9 @@ fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState 
         },
         scroll_target: None,
         parse: Duration::ZERO,
-    })
+    });
+    doc.run_parser();
+    doc
 }
 
 /// The state of `html` parsed without pauses (the walk).

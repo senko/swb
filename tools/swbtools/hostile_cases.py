@@ -1962,3 +1962,66 @@ def scripts_under_the_time_limit_js_on() -> Page:
 def console_error_loop_js_on() -> Page:
     script = "<script>for (let i = 0; ; i++) console.error('line ' + i);</script>"
     return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "Inline scripts that each insert the next inline script without end, with JavaScript on: "
+    "an inserted inline script runs inside the insertion, so the chain nests; the shared "
+    "recursion budget ends it with a RangeError (ADR 0028 sections 8 and 16)",
+    expect_log="Maximum call stack size exceeded",
+    swb_args=("--js",),
+)
+def script_chain_inline_js_on() -> Page:
+    script = (
+        "<script>function next(n) { const s = document.createElement('script'); "
+        "s.text = 'next(' + (n + 1) + ')'; document.body.appendChild(s); } next(0);</script>"
+    )
+    return Page(doc("<p>text</p>" + script + "<p>after</p>"))
+
+
+@case(
+    "An external script that inserts itself again 3,000 times, with JavaScript on: each "
+    "inserted script delays the load event until it ran, so the load waits for the end of "
+    "the chain, one fetch after the other (ADR 0028 section 8)",
+    swb_args=("--js",),
+)
+def script_chain_external_js_on() -> Page:
+    chain = (
+        "window.n = (window.n || 0) + 1; if (window.n < 3000) { "
+        "const s = document.createElement('script'); s.src = 'chain.js'; "
+        "document.head.appendChild(s); }"
+    )
+    return Page(doc("<p>text</p><script src=chain.js></script><p>after</p>"), {"chain.js": chain})
+
+
+@case(
+    "External scripts that each insert two more until 20,000 ran, with JavaScript on: at most "
+    "64 script fetches run at once and the rest wait in a queue (ADR 0028 section 16); the "
+    "load waits for all of them",
+    swb_args=("--js",),
+)
+def script_fanout_js_on() -> Page:
+    fanout = (
+        "window.n = (window.n || 0) + 1; if (window.n < 10000) "
+        "for (let i = 0; i < 2; i++) { const s = document.createElement('script'); "
+        "s.src = 'fanout.js'; document.head.appendChild(s); }"
+    )
+    return Page(doc("<p>text</p><script src=fanout.js></script>"), {"fanout.js": fanout})
+
+
+@case(
+    "60 deferred scripts that share one file of 6 MiB and a last blocking script, with "
+    "JavaScript on: the deferred scripts arrive while the parser waits, so their text is held; "
+    "the text of fetched scripts that has not run is limited to 256 MiB per document, and the "
+    "scripts beyond it fail with an error event (ADR 0028 section 16)",
+    expect_log="script text that has not run",
+    rss_limit_mib=900,
+    swb_args=("--js",),
+)
+def script_text_held_js_on() -> Page:
+    big = "/*" + "x" * (6 * MIB) + "*/"
+    blocker = "/*" + "y" * (10 * MIB) + "*/"
+    scripts = "<script defer src=big.js></script>" * 60 + "<script src=blocker.js></script>"
+    return Page(
+        doc("<p>text</p>" + scripts + "<p>after</p>"), {"big.js": big, "blocker.js": blocker}
+    )

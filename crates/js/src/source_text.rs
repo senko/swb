@@ -119,6 +119,11 @@ pub(crate) struct Source {
     /// The source of a `Function` constructor call (see
     /// [`FunctionCode::is_dynamic`]).
     pub(crate) dynamic_function: bool,
+    /// Where the text starts in the document that holds it (line and
+    /// column from 0): an inline script of an HTML page reports positions
+    /// from the start of the page, as browsers do. The column applies to
+    /// the first line only.
+    pub(crate) start: (u32, u32),
     lines: OnceCell<swb_js_syntax::LineIndex>,
 }
 
@@ -130,6 +135,7 @@ impl Source {
             name,
             origin: None,
             dynamic_function: false,
+            start: (0, 0),
             lines: OnceCell::new(),
         }
     }
@@ -141,6 +147,7 @@ impl Source {
             name: Rc::from(format!("{origin}, <anonymous>")),
             origin: Some(origin),
             dynamic_function: false,
+            start: (0, 0),
             lines: OnceCell::new(),
         }
     }
@@ -154,11 +161,18 @@ impl Source {
         }
     }
 
-    /// The line and column of a code-unit offset (both from 1).
+    /// The line and column of a code-unit offset (both from 1), counted
+    /// from the start of the document that holds the text.
     pub(crate) fn location(&self, offset: u32) -> swb_js_syntax::Location {
-        self.lines
+        let mut location = self
+            .lines
             .get_or_init(|| self.text.with_whole(swb_js_syntax::LineIndex::new))
-            .location(offset)
+            .location(offset);
+        if location.line == 1 {
+            location.column = location.column.saturating_add(self.start.1);
+        }
+        location.line = location.line.saturating_add(self.start.0);
+        location
     }
 }
 

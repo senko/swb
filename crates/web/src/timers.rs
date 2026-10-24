@@ -279,6 +279,7 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
             Handler::Code(code) => crate::errors::Site {
                 name: "a timer",
                 script: Some((url.as_str(), &**code)),
+                start: (0, 0),
             },
         };
         match error {

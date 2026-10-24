@@ -142,7 +142,7 @@ const SERIALIZER: &str = r"(() => {
 
 /// The script runtime of one document.
 pub struct ScriptRuntime {
-    rt: Runtime,
+    pub(crate) rt: Runtime,
     console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
     /// The page clock (shared with the binding state).
     clock: PageClock,
@@ -298,28 +298,6 @@ impl ScriptRuntime {
         })
     }
 
-    /// Runs the inline classic scripts of the lent document in tree order,
-    /// each as a task, until the document's scripts are stopped (feature
-    /// 4c2: at the end of the parse; feature 5c runs them during the
-    /// parse). `name` (the document URL) names them in error reports.
-    /// Returns the number of scripts that ran.
-    pub fn run_inline_scripts(&mut self, name: &str) -> usize {
-        let scripts = match crate::state::dom(&self.rt) {
-            Ok(dom) => crate::scripts::inline_classic_scripts(dom),
-            Err(_) => return 0,
-        };
-        let mut ran = 0;
-        for script in &scripts {
-            if self.stopped {
-                break;
-            }
-            // Errors are reported; the next script runs.
-            let _ = self.run_classic_script(script, name);
-            ran += 1;
-        }
-        ran
-    }
-
     /// Fires a trusted event at a node of the lent document or at the window
     /// as a task (DOM "fire an event"; ADR 0028 section 11): the dispatch
     /// under the time limit, a microtask checkpoint after each listener
@@ -350,10 +328,13 @@ impl ScriptRuntime {
     /// until none is due or `budget` of real time has passed (checked
     /// between tasks). In virtual time each task moves the clock by
     /// [`VIRTUAL_TASK_TIME`]. Returns the number of tasks that ran. A
-    /// stopped document runs none.
+    /// stopped document runs none. It also returns after a task that made
+    /// the load event due ([`ScriptRuntime::load_event_due`]), so that the
+    /// engine fires `load` before the next task when nothing delays it.
     pub fn run_due_tasks(&mut self, budget: Duration) -> usize {
         let started = Instant::now();
         let mut ran = 0;
+        let load_due = self.load_event_due();
         while !self.stopped {
             let now = self.clock.now();
             let task = state_mut(&mut self.rt)
@@ -366,7 +347,7 @@ impl ScriptRuntime {
             let _ = self.run_task(task);
             self.clock.advance_to(now + VIRTUAL_TASK_TIME);
             ran += 1;
-            if started.elapsed() >= budget {
+            if started.elapsed() >= budget || (!load_due && self.load_event_due()) {
                 break;
             }
         }
@@ -404,6 +385,17 @@ impl ScriptRuntime {
             Task::NotifyRejections => self.task("unhandled rejections", |rt| {
                 crate::event_loop::notify_rejections(rt).map_err(task_error)
             }),
+            Task::ParserResume => {
+                self.resume_parser();
+                Ok(())
+            }
+            Task::ScriptErrorEvent(node) => self.task("a script element", |rt| {
+                crate::scripts::fire_at_element(rt, node, "error").map_err(task_error)
+            }),
+            Task::ScriptFetchFailed(node) => {
+                self.script_fetched(node, None);
+                Ok(())
+            }
             Task::FinalizationCleanup => self.task("a finalization registry", |rt| {
                 if let Ok(state) = state_mut(rt) {
                     state.event_loop.cleanup_queued = false;
@@ -592,7 +584,7 @@ impl ScriptRuntime {
     /// scope, the body, the microtask checkpoint, the cleanup tasks of
     /// finalization registries, and the stop rules. `name` names the task
     /// in the log. The body reports its own errors; a termination counts.
-    fn task<R>(
+    pub(crate) fn task<R>(
         &mut self,
         name: &str,
         body: impl FnOnce(&mut Runtime) -> Result<R, ScriptError>,

@@ -739,7 +739,7 @@ Feature 5b notes (the event loop; see also section 7):
   the value was thrown (`Runtime::throw_location`), else the place of a
   compile error; lines count from the start of a script's own text, not
   of the document (a departure for inline scripts until feature 5c knows
-  their positions). A listener whose `handleEvent` is not callable gets a
+  their positions; since feature 5c they count from the document). A listener whose `handleEvent` is not callable gets a
   console line and no `error` event, as in Chromium (measured; HTML would
   fire one). `unhandledrejection` is a cancelable `PromiseRejectionEvent`;
   not canceled, it gives `Uncaught (in promise) ...`. `rejectionhandled`
@@ -1069,6 +1069,95 @@ error of a script is reported the same way.
 the stylesheets inserted so far have loaded; after that, a rendering
 opportunity can show a partly parsed document (as in Chromium).
 
+Feature 5c notes (measured with `tools/probes/web-scripts.json`, which
+serves its scripts and style sheets with delays from a local HTTP server):
+
+- (Feature 5c: the parse.) The runtime drives the parse
+  (`EngineHost::parse_step`, one step per `script` end tag;
+  `document_load.rs`). An inline classic script runs at its end tag as a
+  task; a parser-blocking external script (or an inline one while a style
+  sheet blocks scripts) becomes the pending parsing-blocking script, and
+  the parse waits. "A style sheet that is blocking scripts" is the sheet of
+  a `link` that the parser inserted, not arrived or failed, whose media
+  match (Chromium does not wait for `media=print`). When the wait ends (the
+  script arrived, a sheet arrived), a parser task (`Task::ParserResume`,
+  in the one queue of section 7) runs the script; after an external script
+  the parse goes on in the next parser task, after an inline one at once
+  (as Chromium: a timer of 0 ms that a fetched blocking script set runs
+  before the rest of the parse; one that the unblocked inline script set
+  runs after it). Timers run while the parser waits.
+- (Feature 5c: the end.) At the end of the input the readiness becomes
+  "interactive" (`readystatechange`), the deferred scripts run in order
+  (each after the sheets that block scripts), and `DOMContentLoaded`
+  fires; then the load waits until the scripts that run as soon as
+  possible ran, and until the engine finds that nothing delays the load
+  event (no request, also after a layout that can start the loads of
+  background images and fonts): then, before the next task, the
+  readiness becomes "complete", `load` fires at the window (legacy target
+  override) and `pageshow` (bubbles and can be canceled, as HTML says).
+  Departures from HTML, as Chromium: `DOMContentLoaded` and `load` are not
+  queued tasks, so with nothing to wait for they come before a timer of
+  0 ms that a script set (a document from a file); but "the end" starts
+  in a parser task, after the due tasks, when the document came over
+  HTTP(S) (its end of input is a task of its own) or when the parser ever
+  waited for a script or a style sheet. Images and scripts that still
+  load do not defer it for a file. Measured in Chromium 148, three runs
+  each (cases `end-http-*`, `end-file-*`, `timer-vs-dcl*`).
+- (Feature 5c: fetches.) The engine fetches the classic scripts
+  (`document/scripts.rs`; destination `script`, the document's origin as
+  initiator), at most 64 at once with the rest in a queue (section 16).
+  An error status, a type `image/*`, `audio/*`, `video/*` or `text/csv`,
+  or a type that is not JavaScript with `X-Content-Type-Options: nosniff`
+  is a network error (`error` at the element); the text is decoded with
+  its BOM, else the response's charset, else the document's encoding (the
+  `charset` attribute is ignored). The result goes to
+  `ScriptRuntime::script_fetched`: an async script runs at once in its own
+  task, the in-order list runs from its front, a parser script sets
+  "ready to be parser-executed". A fetch that fails at once (a URL that
+  the document may not load) completes in a task.
+- (Feature 5c: execution.) "Execute the script element" sets
+  `document.currentScript`, runs the script (`Runtime::eval_named_at`
+  with the start of an inline script's text in the document, which the
+  parser finds, `HtmlParser::script_position`; positions of errors and
+  stack frames then count from the document, as in Chromium), runs the
+  microtask checkpoint before it restores `currentScript` (Chromium's
+  microtasks see the script) and fires `load` at an external script.
+  `load` and `error` at script elements neither bubble nor can be
+  canceled.
+- (Feature 5c: scripts that scripts insert.) `createElement` (HTML names
+  in lowercase; the name check of DOM "valid element local name", as
+  Chromium 148) and `appendChild` came forward from feature 6a.
+  `appendChild` runs the children changed steps of a `script` parent and
+  the post-connection steps of the inserted scripts in tree order: an
+  inline one runs inside the call (nested; the shared recursion budget
+  ends an endless chain with a `RangeError`), an external one is async
+  unless its `async` was set to false (then in order). `HTMLScriptElement`
+  has `src`, `type`, `noModule`, `async` (force async), `defer` and
+  `text` (its setter runs the children changed steps). Feature 6a calls
+  `scripts::after_insertion` from its other insertions and adds the
+  attribute change steps (a new `src`, an `async` attribute added with
+  `setAttribute`).
+- (Feature 5c: the unload.) A navigation fires `pagehide` (if `pageshow`
+  fired) and `unload` at the old window before it drops the document.
+  `Page::stop` aborts the parse: the document counts as loaded, with the
+  readiness "complete" and no events (HTML fires `readystatechange`).
+- (Feature 5c: waits.) `Page::is_fully_loaded` and `page.waitForLoad`
+  wait for the `load` event of a document with a runtime; requests that
+  scripts start after it do not count. A runtime that reached the heap
+  limit is dropped, and the parse runs to the end without scripts; a
+  document whose scripts stopped (three time limits, the budget of long
+  tasks) parses on without them: the page abandons the script fetches,
+  runs the parser to the end and counts the document as loaded, with the
+  readiness "complete" and no events.
+- (Feature 5c: departures.) Module scripts, import maps, speculation rules
+  and SVG scripts do not run (a warning for modules). A `src` of only
+  whitespace fires `error` like an empty one, as Chromium (HTML would
+  fetch the document's URL). No preload scanner (as planned): in Chromium
+  an async script that a waiting parser has not reached yet can arrive
+  early and run before the end of the parse. Errors of cross-origin
+  scripts are not muted (HTML "muted errors"). `document.write` is not
+  supported.
+
 ### 9. Style and layout after changes; layout queries
 
 **Invalidation.** The engine drains the journal after each task and
@@ -1318,7 +1407,8 @@ Per document, all settings with these defaults:
 | String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |
 | Long tasks (50 ms or more) of a document, their total real time (feature 5b) | 30 s | the document runs no more scripts |
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
-| Script fetches in flight | 64 | queued |
+| Script fetches in flight (feature 5c) | 64 | queued |
+| Fetched script text that has not run, per document (feature 5c) | 256 MiB | the script fails as a network error (`error` event, warning) |
 | `localStorage` per origin | 5 MiB | `QuotaExceededError` |
 | Mutation observer records waiting | 1,000,000 | further records dropped with a warning |
 

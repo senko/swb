@@ -19,15 +19,17 @@
 //!
 //! Files: `changes.rs` (the journal drain and resource discovery),
 //! `derived.rs` (generation-keyed caches), `loads.rs` (subresource loads
-//! and their completions, image sources, web fonts), `pipeline.rs` (style,
-//! layout, display list, raster), `queries.rs` (geometry, scrolling, hit
-//! testing, rendered text).
+//! and their completions, image sources, web fonts), `scripts.rs` (the
+//! fetches of the scripts of script elements, the style sheets that block
+//! scripts), `pipeline.rs` (style, layout, display list, raster),
+//! `queries.rs` (geometry, scrolling, hit testing, rendered text).
 
 mod changes;
 mod derived;
 mod loads;
 mod pipeline;
 mod queries;
+mod scripts;
 #[cfg(test)]
 mod tests;
 
@@ -36,7 +38,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use encoding_rs::Encoding;
-use swb_dom::{Document, HtmlParser, NodeId, ParseStep};
+use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition};
 use swb_layout::{FragmentTree, Point, Size};
 use swb_net::{Loader, Origin, Url};
 use swb_paint::DisplayList;
@@ -44,7 +46,7 @@ use swb_style::{ElementStates, StyleMap, Stylist};
 
 use crate::forms::Forms;
 use crate::page::StageTimings;
-use crate::resources::{Images, Requests, Sheets};
+use crate::resources::{Images, Requests, ScriptFetches, Sheets};
 use crate::scrollers::Scrollers;
 use crate::selection::{Selection, TreeOrder};
 use crate::web_fonts::WebFonts;
@@ -103,10 +105,16 @@ pub(crate) struct DocumentInit {
 pub struct DocumentState {
     pub(crate) dom: Document,
     /// The parser while a parse in steps goes on.
-    parser: Option<HtmlParser>,
+    pub(crate) parser: Option<HtmlParser>,
     pub(crate) loader: Rc<Loader>,
     /// The running requests of the document's subresources.
     pub(crate) requests: Requests,
+    /// The fetches of the scripts of script elements: the queue beyond the
+    /// limit and the arrived scripts that wait for the runtime.
+    pub(crate) script_fetches: ScriptFetches,
+    /// True while the journal drain processes a step of the parser: the
+    /// style sheets that it finds block scripts.
+    parser_drain: bool,
     /// The document URL.
     pub(crate) url: Url,
     pub(crate) encoding: &'static Encoding,
@@ -159,9 +167,11 @@ pub struct DocumentState {
 
 impl DocumentState {
     /// Creates the state of a new document and processes its DOM: a
-    /// complete DOM is walked once (its journal is incomplete), a parse in
-    /// steps runs to the end, and each step's changes are processed (no
-    /// script runs yet). The subresources start to load.
+    /// complete DOM is walked once (its journal is incomplete). A parse in
+    /// steps has not started: the script runtime drives it
+    /// ([`swb_web::EngineHost::parse_step`]), or, without one, the page
+    /// runs it to the end ([`DocumentState::run_parser`]). The
+    /// subresources start to load.
     pub(crate) fn new(init: DocumentInit) -> DocumentState {
         let url = init.url;
         let mut doc = DocumentState {
@@ -169,6 +179,8 @@ impl DocumentState {
             parser: init.parser,
             loader: init.loader,
             requests: Requests::default(),
+            script_fetches: ScriptFetches::default(),
+            parser_drain: false,
             base_url: Derived::new(url.clone()),
             url,
             encoding: init.encoding,
@@ -200,7 +212,6 @@ impl DocumentState {
             #[cfg(test)]
             walks: 0,
         };
-        doc.run_parser();
         doc.sync();
         doc
     }
@@ -241,35 +252,63 @@ impl swb_web::EngineHost for DocumentState {
         &self.content_type
     }
 
+    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+        self.parse_step()
+    }
+
+    fn style_sheets_block_scripts(&mut self) -> bool {
+        self.style_sheets_block_scripts()
+    }
+
+    fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
+        self.fetch_script(node, url)
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
 }
 
 impl DocumentState {
-    /// Runs the parser to the end, if a parse in steps goes on, and
-    /// processes the changes after each step. Feature 5c runs the scripts
-    /// at the pauses.
-    fn run_parser(&mut self) {
-        let Some(mut parser) = self.parser.take() else {
-            return;
-        };
-        let mut parse = std::time::Duration::ZERO;
-        loop {
-            let started = Instant::now();
-            let step = parser.resume(&mut self.dom);
-            parse += started.elapsed();
-            self.process_changes();
-            match step {
-                Ok(ParseStep::Script(_)) => {}
-                Ok(ParseStep::Finished) => break,
-                Err(e) => {
-                    log::warn!("HTML parser: {e}");
-                    break;
-                }
+    /// Runs the parser to the end without scripts, if a parse in steps
+    /// goes on: the document has no script runtime (or lost it).
+    pub(crate) fn run_parser(&mut self) {
+        while let Some((ParseStep::Script(_), _)) = self.parse_step() {}
+        self.sync();
+    }
+
+    /// One step of the parser (the script runtime calls it through
+    /// [`swb_web::EngineHost::parse_step`]): the changes of the scripts
+    /// before it are processed, then the parser runs to the next `script`
+    /// end tag or to the end, and the changes of the step are processed
+    /// (the style sheets that it finds block scripts). The parser goes away
+    /// at the end. `None` without a parser.
+    pub(crate) fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+        let mut parser = self.parser.take()?;
+        self.process_changes();
+        let started = Instant::now();
+        let step = parser.resume(&mut self.dom);
+        self.timings.parse += started.elapsed();
+        self.parser_drain = true;
+        self.process_changes();
+        self.parser_drain = false;
+        match step {
+            Ok(ParseStep::Script(node)) => {
+                let position = parser.script_position();
+                self.parser = Some(parser);
+                Some((ParseStep::Script(node), position))
+            }
+            Ok(ParseStep::Finished) => Some((ParseStep::Finished, TextPosition::default())),
+            Err(e) => {
+                log::warn!("HTML parser: {e}");
+                Some((ParseStep::Finished, TextPosition::default()))
             }
         }
-        self.timings.parse = parse;
+    }
+
+    /// True if the parser waits or runs (a parse in steps).
+    pub(crate) fn is_parsing(&self) -> bool {
+        self.parser.is_some()
     }
 
     // ----- The DOM and its changes -----
@@ -357,7 +396,7 @@ impl DocumentState {
 
     /// True while the parse or subresource loads go on.
     pub fn is_loading(&self) -> bool {
-        self.parser.is_some() || !self.requests.is_empty()
+        self.parser.is_some() || !self.requests.is_empty() || !self.script_fetches.is_empty()
     }
 
     /// True if the document was parsed with scripting on.
