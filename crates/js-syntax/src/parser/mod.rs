@@ -245,8 +245,23 @@ pub fn parse_event_handler(
     params_end: u32,
     budget: &mut RecursionBudget,
 ) -> Result<Script, ParseError> {
-    run_parser!(source, budget, CodeKind::DirectEval, |parser| parser
-        .parse_dynamic_function(params_end))
+    let result = run_parser!(source, budget, CodeKind::DirectEval, |parser| parser
+        .parse_dynamic_function(params_end));
+    // Chromium parses the body of a handler alone, so a body that ends
+    // the function early fails at its first `}` ("Unexpected token '}'")
+    // and not as a source text that is not a single function.
+    result.map_err(|error| {
+        if error.message != messages::SINGLE_FUNCTION_LITERAL {
+            return error;
+        }
+        let brace = source
+            .units()
+            .enumerate()
+            .skip(params_end as usize)
+            .find(|&(_, unit)| unit == u16::from(b'}'))
+            .map_or(0, |(index, _)| index as u32);
+        ParseError::syntax(brace, "Unexpected token '}'")
+    })
 }
 
 /// The state of the parse of a `Function` constructor source

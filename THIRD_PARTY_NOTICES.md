@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and three W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and nine W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -115,6 +115,65 @@ https://whatwg.org/ipr-policy). The generated glue in
 > LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 > NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 > SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## W3C UI Events: IDL (W3C Software and Document License)
+
+`crates/web/idl/ui-events.idl` contains IDL blocks from UI Events (W3C
+Working Draft 21 February 2026, https://www.w3.org/TR/uievents/, copied
+on 2026-10-25): `UIEvent`, `FocusEvent`, `KeyboardEvent`, `InputEvent`,
+`CompositionEvent`, the legacy `TextEvent` and their init dictionaries.
+swb cut the file to the interfaces that a browser without touch input
+has, changed the types of some members to Chromium's (the header of the
+file lists the changes) and moved `MouseEvent` and `WheelEvent` to
+`pointer-events.idl`. The license text is in the section of W3C High
+Resolution Time below.
+
+> This software or document includes material copied from or derived
+> from UI Events, https://www.w3.org/TR/uievents/. Copyright © 2026
+> World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
+## W3C Pointer Events, CSSOM View and Pointer Lock: IDL (W3C Software and Document License)
+
+`crates/web/idl/pointer-events.idl` contains IDL blocks, copied on
+2026-10-25, from Pointer Events Level 4 (W3C Working Draft 8 October
+2026, https://www.w3.org/TR/pointerevents/: `PointerEvent`,
+`MouseEvent`, `WheelEvent`, their init dictionaries), CSSOM View Module
+(W3C Working Draft 16 September 2025,
+https://www.w3.org/TR/cssom-view-1/: the partial `MouseEvent`) and
+Pointer Lock 2.0 (W3C Working Draft 25 February 2026,
+https://www.w3.org/TR/pointerlock-2/: `movementX`, `movementY`). swb
+merged the `MouseEvent` blocks into one interface in Chromium's member
+order and cut and changed members (the header of the file lists the
+changes). The license text is in the section of W3C High Resolution
+Time below.
+
+> This software or document includes material copied from or derived
+> from Pointer Events, https://www.w3.org/TR/pointerevents/; CSSOM View
+> Module, https://www.w3.org/TR/cssom-view-1/; and Pointer Lock 2.0,
+> https://www.w3.org/TR/pointerlock-2/. Copyright © 2025 and 2026 World
+> Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
+## W3C CSS Transitions and Device Orientation: IDL (W3C Software and Document License)
+
+`crates/web/idl/transition-device-events.idl` contains IDL blocks,
+copied on 2026-10-25, from CSS Transitions Level 1 (W3C Working Draft 8
+January 2026, https://www.w3.org/TR/css-transitions-1/:
+`TransitionEvent`) and Device Orientation and Motion (W3C Candidate
+Recommendation Draft 12 February 2025,
+https://www.w3.org/TR/orientation-event/: `DeviceMotionEvent`,
+`DeviceOrientationEvent`). swb cut the file to the event interfaces
+that `document.createEvent()` makes (the header of the file lists the
+changes). The license text is in the section of W3C High Resolution
+Time below.
+
+> This software or document includes material copied from or derived
+> from CSS Transitions Level 1, https://www.w3.org/TR/css-transitions-1/,
+> and Device Orientation and Motion,
+> https://www.w3.org/TR/orientation-event/. Copyright © 2025 and 2026
+> World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
 
 ## W3C SVG 2: IDL (W3C Software and Document License)
 

@@ -21,12 +21,19 @@
 //! left out; the path keeps the fields that shadow trees need.
 
 mod dispatch;
+mod handler_names;
+pub(crate) mod handlers;
 mod listeners;
+mod misc;
+mod mouse;
 mod target;
+mod ui;
 
 pub use dispatch::{DispatchTarget, EventInterface, TrustedEvent};
-pub(crate) use dispatch::{dispatch, dispatch_trusted, new_event_object};
+pub(crate) use dispatch::{dispatch, dispatch_trusted, fire_trusted, new_event_object};
+pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_changed};
 pub(crate) use listeners::Listeners;
+pub(crate) use mouse::new_click_event;
 pub(crate) use target::TargetData;
 
 use swb_js::{
@@ -65,6 +72,10 @@ pub(crate) enum Extra {
     PromiseRejection { promise: Gc<Object>, reason: Value },
     /// `PageTransitionEvent.persisted`.
     PageTransition { persisted: bool },
+    /// The UI events: `UIEvent` and its subclasses (`ui.rs`, `mouse.rs`).
+    Ui(Box<ui::Fields>),
+    /// `SubmitEvent`, `MessageEvent` and the other events of `misc.rs`.
+    Other(Box<misc::Other>),
 }
 
 /// A struct of an event's path (DOM §2.2, "path"): the fields that shadow
@@ -133,14 +144,14 @@ impl EventData {
 
     /// DOM "set the canceled flag": only for a cancelable event outside a
     /// passive listener.
-    fn set_canceled(&mut self) {
+    pub(crate) fn set_canceled(&mut self) {
         if self.cancelable && !self.in_passive_listener {
             self.canceled = true;
         }
     }
 
     /// DOM "initialize" (of `initEvent` and `initCustomEvent`).
-    fn initialize(&mut self, kind: String, bubbles: bool, cancelable: bool) {
+    pub(crate) fn initialize(&mut self, kind: String, bubbles: bool, cancelable: bool) {
         self.initialized = true;
         self.stop_propagation = false;
         self.stop_immediate_propagation = false;
@@ -166,6 +177,8 @@ impl GenericData for EventData {
         }
         match &self.extra {
             Extra::None | Extra::PageTransition { .. } => {}
+            Extra::Ui(fields) => fields.trace(tracer),
+            Extra::Other(other) => other.trace(tracer),
             Extra::Custom { detail } => tracer.value(*detail),
             Extra::Error { error, .. } => tracer.value(*error),
             Extra::PromiseRejection { promise, reason } => {
@@ -180,6 +193,8 @@ impl GenericData for EventData {
             Extra::Error {
                 message, filename, ..
             } => message.capacity() + filename.capacity(),
+            Extra::Ui(fields) => fields.heap_size(),
+            Extra::Other(other) => other.heap_size(),
             _ => 0,
         };
         self.kind.capacity() + self.path.capacity() * size_of::<PathItem>() + extra
@@ -486,16 +501,20 @@ impl g::page_transition_event::PageTransitionEventImpl for WebState {
     }
 }
 
-/// `document.createEvent(interface)` (DOM §4.5): an uninitialized event of
-/// the interface that the legacy name gives, among the interfaces swb has.
-/// The other names of the specification's table (`MouseEvent`,
-/// `KeyboardEvent`, ...) come with their interfaces (feature 6d).
+/// `document.createEvent(interface)` (DOM §4.5,
+/// <https://dom.spec.whatwg.org/#dom-document-createevent>): an
+/// uninitialized event of the interface that the legacy name gives. The
+/// names are those of the specification's table that swb has an interface
+/// for, and `TransitionEvent`, which Chromium adds; `TouchEvent` throws, as
+/// in Chromium without touch input.
 pub(crate) fn create_event(
     cx: &mut Cx<'_>,
     _document: NodeId,
     interface: &str,
 ) -> b::Result<Gc<Object>> {
+    use ui::Family;
     let name = interface.to_ascii_lowercase();
+    let ui = |class, family| (class, ui::blank(family));
     let (class, extra) = match name.as_str() {
         "event" | "events" | "htmlevents" | "svgevents" => (g::EVENT, Extra::None),
         "customevent" => (
@@ -504,12 +523,22 @@ pub(crate) fn create_event(
                 detail: Value::Null,
             },
         ),
-        _ => {
-            return Err(Exception::dom(
-                "NotSupportedError",
-                format!("The provided event type ('{interface}') is invalid."),
-            ));
-        }
+        "uievent" | "uievents" => ui(g::UI_EVENT, Family::Ui),
+        "mouseevent" | "mouseevents" => ui(g::MOUSE_EVENT, Family::Mouse),
+        "keyboardevent" => ui(g::KEYBOARD_EVENT, Family::Keyboard),
+        "focusevent" => ui(g::FOCUS_EVENT, Family::Focus),
+        "textevent" => ui(g::TEXT_EVENT, Family::Text),
+        "compositionevent" => ui(g::COMPOSITION_EVENT, Family::Composition),
+        "dragevent" => ui(g::DRAG_EVENT, Family::Drag),
+        other => match misc::blank(other) {
+            Some((class, other)) => (class, Extra::Other(Box::new(other))),
+            None => {
+                return Err(Exception::dom(
+                    "NotSupportedError",
+                    format!("The provided event type ('{interface}') is invalid."),
+                ));
+            }
+        },
     };
     let mut event = EventData::new(String::new(), &base(false, false, false), now(cx.rt), extra);
     event.initialized = false;

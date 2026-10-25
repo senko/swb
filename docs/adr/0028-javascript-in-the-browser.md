@@ -1279,6 +1279,213 @@ tests in `crates/engine/tests/script_dom.rs`):
   build, best of 5; the noise is 1.5 to 2.4 ms). That is far below the limit
   of about 1 ms or 1 MB, so no lazy creation.
 
+Feature 6d1 notes (the event interfaces, the event handlers, focus, `click()`
+and the form methods; measured with `tools/probes/web-input-events.json` (7
+cases, 149 queries) and `tools/probes/web-input-handlers.json` (10 cases, 234
+queries), three equal Chromium runs each; the Rust tests are
+`crates/web/tests/input_events.rs` and `crates/engine/tests/script_input.rs`).
+6d2 (the engine's own input as DOM events) is not part of it.
+
+- **IDL.** Four new files in `crates/web/idl/`, all with the source, the copy
+  date, the license and the cuts in their headers: `ui-events.idl` (UI Events,
+  W3C Working Draft 21 February 2026: `UIEvent`, `FocusEvent`, `InputEvent`,
+  `KeyboardEvent`, `CompositionEvent`, `TextEvent`), `pointer-events.idl`
+  (Pointer Events 4, CSSOM View and Pointer Lock 2 for `MouseEvent`;
+  `WheelEvent`, `PointerEvent`, the pointer handlers),
+  `transition-device-events.idl` (`TransitionEvent`, `DeviceMotionEvent`,
+  `DeviceOrientationEvent`) and, in `html.idl`, the three handler mixins,
+  `SubmitEvent`, `HashChangeEvent`, `MessageEvent`, `StorageEvent`,
+  `BeforeUnloadEvent`, `DragEvent`, `FocusOptions`, `focus()`, `blur()`,
+  `click()`, the form methods, `activeElement` and `hasFocus()`. The
+  `createEvent` names are those that Chromium 148 accepts: the DOM table
+  without `TouchEvent` (Chromium without touch input throws
+  `NotSupportedError`; so do `PointerEvent`, `WheelEvent`, `InputEvent` and
+  `SubmitEvent`), plus `TransitionEvent`. The names are not case sensitive.
+  Where the standards differ from Chromium the IDL follows Chromium: the
+  members of `MouseEvent` are in Chromium's order, `keyCode` and `charCode`
+  are `long`, `WheelEvent` has `wheelDeltaX`, `wheelDeltaY` and `wheelDelta`
+  (and the init members of the first two) and no `momentum`,
+  `MessageEvent.ports`, `StorageEvent.storageArea`, `DragEvent.dataTransfer`
+  and the device events' objects are `object`, `UIEvent.sourceCapabilities`,
+  `InputEvent.dataTransfer` and `getTargetRanges()` are null and empty.
+- **The state of the events.** `events/ui.rs`, `mouse.rs` and `misc.rs`. The
+  UI family keeps one boxed `Fields` (`Extra::Ui`) with the members of all its
+  interfaces and a `Family` that decides `which` and `getModifierState`; the
+  other events keep a variant of `Other` (`Extra::Other`). A getter is one
+  line (`field_getters!`). Measured: `which` is not initialized from the
+  dictionary (0 for `UIEvent`; `button + 1` for mouse events, also
+  `PointerEvent` (1); `keyCode` for `KeyboardEvent`); a `MouseEvent` floors
+  `screenX`, `clientX` and the others (`-2.5` gives `-3`), a `PointerEvent`
+  keeps fractions; `pageX` is `clientX` plus the scroll offset of the viewport
+  at the time of the construction, if `view` is the window (not later:
+  `EngineHost::scroll_offset`); `movementX` is truncated; `button` is a
+  `short` (`-1` reads as 0); `x` and `y` are `clientX` and `clientY`;
+  `fromElement` and `toElement` are the related target and the target,
+  swapped for `mouseout` and `mouseleave` only (not for `pointerout`);
+  `wheelDeltaX` and `wheelDeltaY` follow the truncated deltas unless the
+  dictionary gives them, `wheelDelta` is `wheelDeltaY` or, if that is 0,
+  `wheelDeltaX`; `PointerEvent` derives `tiltX`, `tiltY` from
+  `altitudeAngle` and `azimuthAngle` and the reverse (the algorithms of the
+  Pointer Events specification, tilt rounded: `altitudeAngle: 0.5` gives
+  `tiltX` 61); a `KeyboardEvent` `initKeyboardEvent` leaves `key` and
+  `keyCode` alone (its fifth argument is the old `keyIdentifier`) and the
+  `init*` methods of the other events change only the members they name.
+  The invalid `view` or `relatedTarget` messages are Chromium's
+  (`Failed to read the 'view' property from 'UIEventInit': Failed to convert
+  value to 'Window'.`).
+- **Departures of the events.** `offsetX`, `offsetY`, `layerX` and `layerY`
+  need layout: before the dispatch they are the rounded and floored page
+  coordinates (as Chromium), and they stay so after it (Chromium makes them
+  relative to the target and its layer). A script task has no font context,
+  so no layout; feature 7b may add it. `MessageEvent.ports` is a new array
+  at each read, not a frozen array, and holds any object (no `MessagePort`);
+  `MessageEvent` has no `userActivation`; `PointerEvent` lists its members
+  attributes first (the generator's order).
+- **Event handlers.** `events/handlers.rs`, with the names in
+  `handler_names.rs` (a unit test compares the table with the IDL). The
+  generator writes the glue of the three handler types
+  (`EventHandler`, `OnErrorEventHandler`, `OnBeforeUnloadEventHandler`) by
+  itself: the getter and the setter call `Host::event_handler` and
+  `Host::set_event_handler`; no trait method per attribute exists (that
+  would be 480 methods that all do the same). A map from (target, name) to
+  a value (`null`, an object, or the text of a content attribute) is in the
+  binding state, traced; a non-null value has a listener in the target's
+  list whose callback is one marker object and whose `handler` field names
+  the handler, so that the dispatch calls `handlers::call` for it. A value
+  keeps its place in the list while it changes; `null` removes the listener,
+  a new value adds it at the end (Chromium, `handler-attrs` queries 18 to
+  21). The setter keeps any object, also one that is not callable (the
+  getter returns it; a dispatch ignores it) and makes every other value
+  `null` (measured: `d.onclick = {}` reads back `{}`, `5` reads `null`).
+  The text of a content attribute compiles at the first need: the getter, or
+  the first dispatch (`Runtime::compile_event_handler`, ADR 0028 section 6
+  item 6). The scope is the document, the form owner of a form-associated
+  element (`form_owner` now answers only for listed elements and `img`), the
+  element; the parameters are `event`, `evt` for an SVG element and five for
+  `onerror` of the window. `body` and `frameset` forward `onblur`,
+  `onerror`, `onfocus`, `onload`, `onresize`, `onscroll` and the
+  `WindowEventHandlers` to the window (any `body` element, also one that is
+  not in the document: as Chromium). The processing algorithm: `false`
+  cancels, `true` cancels an `ErrorEvent` `error` at the window (five
+  arguments), `onbeforeunload` cancels for any value but `null`/`undefined`;
+  an exception is reported like a listener's (the console line, the `error`
+  event). A compile error is reported with Chromium's message, which names
+  the call that found it (`Failed to read the 'onclick' property from
+  'HTMLElement': Unexpected identifier 'error'` for the getter,
+  `Failed to execute 'dispatchEvent' on 'EventTarget': ...` or `'click' on
+  'HTMLElement'` for a dispatch inside those calls), and the value becomes
+  `null`. Changes in `js`: the lines of a handler count from its body (the
+  source has the function header on line 1; `Source::start` is -1 and the
+  line sum wraps), so `window.onerror` gets line 1 for an error on the first
+  line of the attribute, as Chromium; and a body that ends the function early
+  (`}), (function () {`) is `Unexpected token '}'`, as Chromium (which parses
+  the body alone), not `Single function literal required` (that stays for the
+  `Function` constructor).
+- **When the attributes are read.** The parser sets attributes without the
+  bindings, and a JavaScript-off page must not pay for handlers. So the
+  `on*` attributes of an element are read the first time a script touches its
+  listeners (a dispatch through it, `addEventListener`, the IDL attribute),
+  in attribute order, and later changes go through the attribute funnel
+  (`handlers::attribute_changed`, called by `set_attribute` and
+  `remove_attribute` of `dom/attrs.rs`). Listeners of one type on one target
+  are only observable after a touch, so the order is the one of Chromium
+  (`handler-order`). The window syncs the `body` or `frameset` of the
+  document at each touch, not once: a script in the `head` may add a listener
+  before the body exists (Chromium: head listener, body attribute, body-script
+  listener). Departure: an element that no script touched has no listener;
+  `onerror="..."` on `img` fired by the engine's load error before any script
+  touched it is dispatched by the engine through the same entry and so syncs.
+- **Focus.** `html/focus.rs`, `EngineHost` (`focused_element`, `can_focus`,
+  `set_focus`, `request_scroll_into_view`), `engine/src/document/
+  script_actions.rs`. The focused element is the engine's
+  `ElementStates::focus`. `can_focus` is the engine's rule
+  (`focus::is_focusable`) plus "rendered" from the styles of the last flush
+  (`display` is not `none` for the element and its ancestors, which have no
+  style, and `visibility` is `visible`): no layout, since a script task has
+  no font context. A focus change sets the states at once and marks the
+  styles stale (`DocumentState::styles_stale`); the next style flush computes
+  them. A loop of 100,000 `focus()` calls with a `:focus` rule therefore
+  computes the styles once at the end and not 100,000 times (the check of
+  `can_focus` uses the styles that exist). The event order is Chromium's,
+  with its oddities (module comment of `focus.rs`): `blur`, `focusout`,
+  `focus`, `focusin`; `activeElement` is the body during `blur`; a listener
+  that moves the focus ends the change in progress (then `focusout` has a
+  null `relatedTarget`, and `focusin` of the interrupted element does not
+  follow). The events are trusted `FocusEvent`s (`view` the window,
+  composed, `detail` 0). `focus({preventScroll})` asks the page for a scroll
+  into view when the task ends (the page has the layout and the fonts);
+  `focusVisible` defaults to true for a script. `blur()` on an element that
+  is not focused does nothing. The "locked for focus" flag stops a `focus()`
+  from inside its own events. The HTML focus fixup rule: a focused element
+  that is removed, replaced, moved (an insertion takes it from its old
+  parent: `appendChild`, `insertBefore`), cleared or disabled, or that gets
+  the `hidden` attribute itself (also `until-found`), loses the focus with `blur` and `focusout`
+  (`relatedTarget` null) at once, while it is still in the document for a
+  removal (`before_removal` in `tree_ops`, `markup`); `display: none` does not
+  blur until the next rendering update, and neither does `hidden` on an
+  ancestor (Chromium; swb: the engine's fixup). `innerText` has no setter
+  in swb yet, so its fixup is not done.
+  `document.hasFocus()` is true for the window's document and false for the
+  others; the window gets no `focus` or `blur` event. Departure: an
+  element with `contenteditable` is not focusable (swb edits only form
+  controls). An SVG `a` with a link is focusable now (the engine's rule
+  changed).
+- **Activation.** `html/activation.rs`, called from `events/dispatch.rs`.
+  A `click` event that is a `MouseEvent` (`PointerEvent` too; a plain `Event`
+  is not) has an activation target (the target, or with `bubbles` the nearest
+  ancestor with an activation behavior: `a`/`area`/SVG `a` with `href`,
+  checkbox, radio, submit and image inputs and buttons, reset buttons,
+  `label`). Checkboxes and radio buttons run the legacy-pre-activation
+  behavior before the listeners (the checkedness changes, `indeterminate`
+  becomes false; a radio button remembers the checked button of its group)
+  and the legacy-canceled-activation behavior if the event is canceled
+  (restore), else `input` (`Event`, bubbles, composed, trusted) and `change`
+  (`Event`, bubbles); a radio button that was checked and a control outside
+  the document fire neither. All of this also holds for `dispatchEvent` and
+  for a disabled checkbox (Chromium; only `click()` stops at disabled
+  controls). A link asks the engine for the navigation
+  (`EngineHost::request_hyperlink`): the page acts on it when the task
+  ends (`Page::act_on_script_requests`: `follow_link`, so a fragment link
+  scrolls and a canceled click does nothing). `click()` makes the
+  synthetic event that Chromium makes: a `PointerEvent` with `pointerId` -1,
+  not trusted, bubbling, cancelable, composed, `detail` 0, and keeps the
+  click-in-progress flag per element. A label focuses its control (if it can
+  be focused) and dispatches a synthetic click at it, unless the control is
+  disabled. The label does nothing if the event came from the control or
+  from inside it (HTML), and a label that is clicking its control does not
+  start again (a per-label flag), so labels that nest each other or point
+  into each other cannot recurse (a hostile case). Not done: the
+  `summary`/`details` toggle by `click()` (the engine toggles it for the
+  user's click), `input type=file`, `javascript:` links (6d2).
+- **Forms.** `form.requestSubmit(submitter)`: a submitter that is not a
+  submit button is a `TypeError` (`The specified element is not a submit
+  button.`), one owned by another form `NotFoundError`; the submission runs
+  "submit": nothing for a form that is not connected or not in the window's
+  document, nothing while the form is firing its submission events (the
+  flag), the interactive validation (the engine's `invalid_controls`; an
+  `invalid` event at each, the first control gets the focus unless its event
+  was canceled) unless `novalidate`/`formnovalidate`, the `submit` event
+  (`SubmitEvent`, trusted, bubbles, cancelable, not composed), and if it was
+  not canceled the engine's request (`EngineHost::request_form_submission`:
+  the page navigates with `form_submission`, like a user's submit, when the
+  task ends). `form.submit()` skips the validation and the event.
+  `form.reset()` and a reset button: the `reset` event (`Event`, trusted,
+  bubbles, cancelable), nothing inside its own `reset` event ("locked for
+  reset"), and if not canceled `Forms::reset` (`EngineHost::reset_form`;
+  the seeds of the form's descendants are forgotten, which also covers a
+  form outside the document). A task that makes several navigation requests
+  navigates to the last. Departures: the `name` of a control does not hide
+  `form.submit` (no `[LegacyOverrideBuiltIns]`, 6c); `javascript:` form
+  actions and `target`/`formtarget` are not looked at.
+- **Cost.** A runtime costs 368 KB more heap (1,132,705 bytes against
+  764,262) and about 0.9 ms more to create (3.1 ms against 2.3 ms, release,
+  senko.net, five runs each), for the 480 handler accessors and 20 more
+  interfaces. Runtime creation now takes about 1.13 MB and 3.1 ms in total.
+  That is past the limit of about 1 ms or 1 MB, which applies to the total.
+  The interface objects get lazy creation in a later feature;
+  the roadmap backlog holds the item. JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
+  ms (base 20 and 13), with the boxes and pixels of the JavaScript-off run.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12

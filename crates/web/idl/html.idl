@@ -82,6 +82,29 @@ partial interface Document {
   [CEReactions] attribute HTMLElement? body;
   readonly attribute HTMLHeadElement? head;
   readonly attribute HTMLOrSVGScriptElement? currentScript; // classic scripts in a document tree only
+
+  // user interaction
+  boolean hasFocus();
+};
+Document includes GlobalEventHandlers;
+Document includes DocumentAndElementEventHandlers;
+
+partial interface Document {
+  // https://html.spec.whatwg.org/multipage/dom.html#handler-document-onreadystatechange
+  // and the other event handlers of Chromium's Document (see the header).
+  attribute EventHandler onreadystatechange;
+  attribute EventHandler onvisibilitychange;
+  attribute EventHandler onfullscreenchange;
+  attribute EventHandler onfullscreenerror;
+  attribute EventHandler onpointerlockchange;
+  attribute EventHandler onpointerlockerror;
+  attribute EventHandler onfreeze;
+  attribute EventHandler onresume;
+};
+
+// DocumentOrShadowRoot (https://dom.spec.whatwg.org/#documentorshadowroot).
+partial interface Document {
+  readonly attribute Element? activeElement;
 };
 
 partial interface Document {
@@ -133,11 +156,14 @@ interface HTMLElement : Element {
   [CEReactions, Reflect] attribute DOMString accessKey;
   [CEReactions] attribute boolean draggable;
   [CEReactions] attribute boolean spellcheck;
+  undefined click();
   [CEReactions, Reflect, SwbKeywords="= none off=none on=sentences sentences words characters", SwbInvalid="sentences"] attribute DOMString autocapitalize;
   [CEReactions, Reflect, SwbKeywords="none text tel url email numeric decimal search", SwbMissing="", SwbInvalid=""] attribute DOMString inputMode;
   [CEReactions, Reflect, SwbKeywords="enter done go next previous search send", SwbMissing="", SwbInvalid=""] attribute DOMString enterKeyHint;
 };
 HTMLElement includes HTMLOrSVGElement;
+HTMLElement includes GlobalEventHandlers;
+HTMLElement includes DocumentAndElementEventHandlers;
 
 [Exposed=Window]
 interface HTMLUnknownElement : HTMLElement {
@@ -148,6 +174,14 @@ interface mixin HTMLOrSVGElement {
   [Reflect] attribute DOMString nonce;
   [CEReactions, Reflect] attribute boolean autofocus;
   [CEReactions, ReflectSetter] attribute long tabIndex;
+
+  undefined focus(optional FocusOptions options = {});
+  undefined blur();
+};
+
+dictionary FocusOptions {
+  boolean preventScroll = false;
+  boolean focusVisible;
 };
 
 [Exposed=Window, LegacyOverrideBuiltIns]
@@ -221,6 +255,7 @@ interface HTMLStyleElement : HTMLElement {
 interface HTMLBodyElement : HTMLElement {
   [HTMLConstructor] constructor();
 };
+HTMLBodyElement includes WindowEventHandlers;
 
 [Exposed=Window]
 interface HTMLHeadingElement : HTMLElement {
@@ -558,6 +593,10 @@ interface HTMLFormElement : HTMLElement {
   readonly attribute unsigned long length;
   getter Element (unsigned long index);
   getter (RadioNodeList or Element) (DOMString name);
+
+  undefined submit();
+  undefined requestSubmit(optional HTMLElement? submitter = null);
+  [CEReactions] undefined reset();
 };
 
 [Exposed=Window]
@@ -790,6 +829,7 @@ interface HTMLMarqueeElement : HTMLElement {
 interface HTMLFrameSetElement : HTMLElement {
   [HTMLConstructor] constructor();
 };
+HTMLFrameSetElement includes WindowEventHandlers;
 
 [Exposed=Window]
 interface HTMLFrameElement : HTMLElement {
@@ -896,3 +936,231 @@ interface mixin WindowOrWorkerGlobalScope {
   undefined queueMicrotask(VoidFunction callback);
 };
 Window includes WindowOrWorkerGlobalScope;
+Window includes GlobalEventHandlers;
+Window includes WindowEventHandlers;
+
+// The event handlers (HTML §8.1.8.1, "Event handlers",
+// https://html.spec.whatwg.org/multipage/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects).
+// swb's list is the specification's plus the names that Chromium 148 has on
+// HTMLElement.prototype and Window and that pages use (`onmousewheel`,
+// `onselectstart`, `onselectionchange`, the CSS animation and transition
+// handlers, the pointer handlers of pointer-events.idl), without the touch
+// handlers (Chromium has none without touch input; pages test for
+// `ontouchstart in window`) and without the Chromium-only names of no use to
+// pages. The generator makes the glue of the three handler types itself
+// (`EventHandler`, `OnErrorEventHandler`, `OnBeforeUnloadEventHandler`); the
+// callback types are the specification's, with `any` for the first argument
+// of `OnErrorEventHandlerNonNull` (a union in the specification).
+
+callback EventHandlerNonNull = any (Event event);
+typedef EventHandlerNonNull? EventHandler;
+
+callback OnErrorEventHandlerNonNull = any (any event, optional DOMString source, optional unsigned long lineno, optional unsigned long colno, optional any error);
+typedef OnErrorEventHandlerNonNull? OnErrorEventHandler;
+
+callback OnBeforeUnloadEventHandlerNonNull = DOMString? (Event event);
+typedef OnBeforeUnloadEventHandlerNonNull? OnBeforeUnloadEventHandler;
+
+interface mixin GlobalEventHandlers {
+  attribute EventHandler onabort;
+  attribute EventHandler onauxclick;
+  attribute EventHandler onbeforeinput;
+  attribute EventHandler onbeforematch;
+  attribute EventHandler onbeforetoggle;
+  attribute EventHandler onblur;
+  attribute EventHandler oncancel;
+  attribute EventHandler oncanplay;
+  attribute EventHandler oncanplaythrough;
+  attribute EventHandler onchange;
+  attribute EventHandler onclick;
+  attribute EventHandler onclose;
+  attribute EventHandler oncommand;
+  attribute EventHandler oncontextlost;
+  attribute EventHandler oncontextmenu;
+  attribute EventHandler oncontextrestored;
+  attribute EventHandler oncuechange;
+  attribute EventHandler ondblclick;
+  attribute EventHandler ondrag;
+  attribute EventHandler ondragend;
+  attribute EventHandler ondragenter;
+  attribute EventHandler ondragleave;
+  attribute EventHandler ondragover;
+  attribute EventHandler ondragstart;
+  attribute EventHandler ondrop;
+  attribute EventHandler ondurationchange;
+  attribute EventHandler onemptied;
+  attribute EventHandler onended;
+  attribute OnErrorEventHandler onerror;
+  attribute EventHandler onfocus;
+  attribute EventHandler onformdata;
+  attribute EventHandler oninput;
+  attribute EventHandler oninvalid;
+  attribute EventHandler onkeydown;
+  attribute EventHandler onkeypress;
+  attribute EventHandler onkeyup;
+  attribute EventHandler onload;
+  attribute EventHandler onloadeddata;
+  attribute EventHandler onloadedmetadata;
+  attribute EventHandler onloadstart;
+  attribute EventHandler onmousedown;
+  attribute EventHandler onmouseenter;
+  attribute EventHandler onmouseleave;
+  attribute EventHandler onmousemove;
+  attribute EventHandler onmouseout;
+  attribute EventHandler onmouseover;
+  attribute EventHandler onmouseup;
+  attribute EventHandler onmousewheel; // legacy, Chromium
+  attribute EventHandler onpause;
+  attribute EventHandler onplay;
+  attribute EventHandler onplaying;
+  attribute EventHandler onprogress;
+  attribute EventHandler onratechange;
+  attribute EventHandler onreset;
+  attribute EventHandler onresize;
+  attribute EventHandler onscroll;
+  attribute EventHandler onscrollend;
+  attribute EventHandler onsecuritypolicyviolation;
+  attribute EventHandler onseeked;
+  attribute EventHandler onseeking;
+  attribute EventHandler onselect;
+  attribute EventHandler onselectionchange;
+  attribute EventHandler onselectstart;
+  attribute EventHandler onslotchange;
+  attribute EventHandler onstalled;
+  attribute EventHandler onsubmit;
+  attribute EventHandler onsuspend;
+  attribute EventHandler ontimeupdate;
+  attribute EventHandler ontoggle;
+  attribute EventHandler onvolumechange;
+  attribute EventHandler onwaiting;
+  attribute EventHandler onwebkitanimationend;
+  attribute EventHandler onwebkitanimationiteration;
+  attribute EventHandler onwebkitanimationstart;
+  attribute EventHandler onwebkittransitionend;
+  attribute EventHandler onwheel;
+  // CSS Animations and CSS Transitions
+  attribute EventHandler onanimationcancel;
+  attribute EventHandler onanimationend;
+  attribute EventHandler onanimationiteration;
+  attribute EventHandler onanimationstart;
+  attribute EventHandler ontransitioncancel;
+  attribute EventHandler ontransitionend;
+  attribute EventHandler ontransitionrun;
+  attribute EventHandler ontransitionstart;
+};
+
+interface mixin WindowEventHandlers {
+  attribute EventHandler onafterprint;
+  attribute EventHandler onbeforeprint;
+  attribute OnBeforeUnloadEventHandler onbeforeunload;
+  attribute EventHandler onhashchange;
+  attribute EventHandler onlanguagechange;
+  attribute EventHandler onmessage;
+  attribute EventHandler onmessageerror;
+  attribute EventHandler onoffline;
+  attribute EventHandler ononline;
+  attribute EventHandler onpagehide;
+  attribute EventHandler onpagereveal;
+  attribute EventHandler onpageshow;
+  attribute EventHandler onpageswap;
+  attribute EventHandler onpopstate;
+  attribute EventHandler onrejectionhandled;
+  attribute EventHandler onstorage;
+  attribute EventHandler onunhandledrejection;
+  attribute EventHandler onunload;
+};
+
+interface mixin DocumentAndElementEventHandlers {
+  attribute EventHandler oncopy;
+  attribute EventHandler oncut;
+  attribute EventHandler onpaste;
+};
+
+// The events of HTML that createEvent() names: SubmitEvent (§4.10.18.6),
+// HashChangeEvent (§7.4.6), MessageEvent (§9.3), StorageEvent (Web Storage),
+// BeforeUnloadEvent (§7.4.6.3) and DragEvent (§6.11.3). `ports` of
+// MessageEvent, `storageArea` and `dataTransfer` use `object` where swb has
+// no MessagePort, Storage or DataTransfer. HashChangeEvent has no init
+// method, as in Chromium.
+
+[Exposed=Window]
+interface SubmitEvent : Event {
+  constructor(DOMString type, optional SubmitEventInit eventInitDict = {});
+
+  readonly attribute HTMLElement? submitter;
+};
+
+dictionary SubmitEventInit : EventInit {
+  HTMLElement? submitter = null;
+};
+
+[Exposed=Window]
+interface HashChangeEvent : Event {
+  constructor(DOMString type, optional HashChangeEventInit eventInitDict = {});
+
+  readonly attribute USVString oldURL;
+  readonly attribute USVString newURL;
+};
+
+dictionary HashChangeEventInit : EventInit {
+  USVString oldURL = "";
+  USVString newURL = "";
+};
+
+[Exposed=Window]
+interface MessageEvent : Event {
+  constructor(DOMString type, optional MessageEventInit eventInitDict = {});
+
+  readonly attribute any data;
+  readonly attribute USVString origin;
+  readonly attribute DOMString lastEventId;
+  readonly attribute EventTarget? source;
+  readonly attribute sequence<object> ports;
+
+  undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional EventTarget? source = null, optional sequence<object> ports = []);
+};
+
+dictionary MessageEventInit : EventInit {
+  any data = null;
+  USVString origin = "";
+  DOMString lastEventId = "";
+  EventTarget? source = null;
+  sequence<object> ports = [];
+};
+
+[Exposed=Window]
+interface StorageEvent : Event {
+  constructor(DOMString type, optional StorageEventInit eventInitDict = {});
+
+  readonly attribute DOMString? key;
+  readonly attribute DOMString? oldValue;
+  readonly attribute DOMString? newValue;
+  readonly attribute USVString url;
+  readonly attribute object? storageArea;
+
+  undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional DOMString? key = null, optional DOMString? oldValue = null, optional DOMString? newValue = null, optional USVString url = "", optional object? storageArea = null);
+};
+
+dictionary StorageEventInit : EventInit {
+  DOMString? key = null;
+  DOMString? oldValue = null;
+  DOMString? newValue = null;
+  USVString url = "";
+  object? storageArea = null;
+};
+
+[Exposed=Window]
+interface BeforeUnloadEvent : Event {
+  attribute DOMString returnValue;
+};
+
+[Exposed=Window]
+interface DragEvent : MouseEvent {
+  constructor(DOMString type, optional DragEventInit eventInitDict = {});
+
+  readonly attribute object? dataTransfer;
+};
+
+dictionary DragEventInit : MouseEventInit {
+  object? dataTransfer = null;
+};

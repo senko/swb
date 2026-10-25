@@ -28,7 +28,7 @@ pub use exception::{Context, Exception};
 pub use swb_dom::NodeId;
 
 use swb_js::{
-    ClassId, Gc, HostData, HostState, NativeCall, Object, Runtime, Tracer, VmError, VmResult,
+    ClassId, Gc, HostData, HostState, NativeCall, Object, Runtime, Tracer, Value, VmError, VmResult,
 };
 
 /// The result of a hand-written member function.
@@ -166,6 +166,38 @@ pub trait Host: HostState + Sized {
     /// `[ReflectURL]`: `value` parsed relative to the base URL of the node
     /// document of `element` and serialized, or `None` on failure.
     fn reflect_url(cx: &mut Cx<'_>, element: NodeId, value: &str) -> Option<String>;
+
+    /// The getter of an event handler IDL attribute `name` (`onclick`) of
+    /// `target` (HTML "getting the current value of the event handler"):
+    /// a function or `null`. The default has no handlers.
+    fn event_handler(rt: &mut Runtime, target: HandlerTarget, name: &str) -> VmResult<Value> {
+        let _ = (rt, target, name);
+        Ok(Value::Null)
+    }
+
+    /// The setter of an event handler IDL attribute: a callable `value`
+    /// is the handler, any other value deactivates it. The default does
+    /// nothing.
+    fn set_event_handler(
+        rt: &mut Runtime,
+        target: HandlerTarget,
+        name: &str,
+        value: Value,
+    ) -> VmResult<()> {
+        let _ = (rt, target, name, value);
+        Ok(())
+    }
+}
+
+/// The object an event handler IDL attribute belongs to: a node (a
+/// `body` or `frameset` element forwards some handlers to the window), or
+/// the window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HandlerTarget {
+    /// An element or the document.
+    Node(NodeId),
+    /// The window.
+    Window,
 }
 
 /// The state of the glue in a runtime: the templates of the
@@ -193,7 +225,7 @@ impl GlueState {
 /// Records a value in the open handle scope, if there is one (inside a
 /// native call there always is); a value that the glue builds outside
 /// one must be rooted by the caller.
-pub fn keep(rt: &mut Runtime, value: swb_js::Value) {
+pub fn keep(rt: &mut Runtime, value: Value) {
     if rt.heap().scope_depth() > 0 {
         rt.heap_mut().record(value);
     }

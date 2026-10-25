@@ -151,7 +151,9 @@ fn event_handler_names_resolve_against_the_outer_environment() {
     assert_eq!(resolution("value"), Some(crate::Resolution::Caller));
     for (body, expected) in [
         ("}", "Unexpected token '}'"),
-        ("}); alert(1); ({", "Single function literal required"),
+        // Chromium parses the body alone: the first `}` is unexpected.
+        ("}); alert(1); ({", "Unexpected token '}'"),
+        ("a; }), (function () { b", "Unexpected token '}'"),
         ("return )", "Unexpected token ')'"),
         ("let event", "Identifier 'event' has already been declared"),
         ("return yield + await", "ok"),

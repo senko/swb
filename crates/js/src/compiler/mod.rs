@@ -354,6 +354,9 @@ pub(crate) fn compile_event_handler(
         )))?;
     let mut text = crate::bytecode::Source::new(source, script_name);
     text.dynamic_function = true;
+    // The body starts on the second line of the source; browsers count
+    // the lines of a handler from its body.
+    text.start = (u32::MAX, 0);
     let shared = Rc::new(text);
     let input = eval::EvalInput {
         caller: Some(eval::EvalCaller {

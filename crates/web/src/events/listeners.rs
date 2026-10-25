@@ -28,6 +28,10 @@ pub(crate) struct Listener {
     /// Set when the listener is removed (a dispatch that holds a clone of
     /// the list skips it).
     pub(crate) removed: Cell<bool>,
+    /// The event handler that this listener stands for (HTML "event
+    /// handler"): the callback is then the marker object and the dispatch
+    /// calls the handler's current value (`handlers.rs`).
+    pub(crate) handler: Option<&'static super::handlers::Name>,
 }
 
 /// The number of slots from which a type's list has an index; a shorter
@@ -215,6 +219,7 @@ mod tests {
             passive: false,
             once: false,
             removed: Cell::new(false),
+            handler: None,
         }
     }
 

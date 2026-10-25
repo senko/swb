@@ -171,7 +171,9 @@ impl Source {
         if location.line == 1 {
             location.column = location.column.saturating_add(self.start.1);
         }
-        location.line = location.line.saturating_add(self.start.0);
+        // Wrapping: an event handler counts its lines from its body, one
+        // line after the start of its source (`start.0` is -1).
+        location.line = location.line.wrapping_add(self.start.0);
         location
     }
 }

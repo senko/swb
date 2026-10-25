@@ -158,6 +158,15 @@ fn inserted(dom: &Document, node: NodeId) -> Vec<NodeId> {
     }
 }
 
+/// An insertion takes `node` from its old parent first (DOM "adopt" and
+/// "remove"): a focused element in `node` loses the focus, as in a removal.
+fn before_move(cx: &mut Cx<'_>, node: NodeId) -> b::Result<()> {
+    if dom(cx.rt)?.parent(node).is_some() {
+        crate::html::focus::before_removal(cx.rt, node, true)?;
+    }
+    Ok(())
+}
+
 /// DOM "pre-insert" `node` into `parent` before `child`, then the steps
 /// of the script elements that the insertion connected.
 /// <https://dom.spec.whatwg.org/#concept-node-pre-insert>
@@ -168,6 +177,7 @@ pub(crate) fn pre_insert(
     child: Option<NodeId>,
 ) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, child, false)?;
+    before_move(cx, node)?;
     let added = inserted(dom(cx.rt)?, node);
     let result = dom_mut(cx.rt)?.insert_before(parent, node, child);
     dom_result(cx.rt, result)?;
@@ -183,6 +193,8 @@ pub(crate) fn replace(
     child: NodeId,
 ) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, Some(child), true)?;
+    crate::html::focus::before_removal(cx.rt, child, true)?;
+    before_move(cx, node)?;
     let added = inserted(dom(cx.rt)?, node);
     let result = dom_mut(cx.rt)?.replace_child(parent, node, child);
     dom_result(cx.rt, result)?;
@@ -192,6 +204,8 @@ pub(crate) fn replace(
 /// DOM "replace all" `parent`'s children with `node` (`replaceChildren`).
 pub(super) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, None, false)?;
+    crate::html::focus::before_removal(cx.rt, parent, false)?;
+    before_move(cx, node)?;
     let added = inserted(dom(cx.rt)?, node);
     let result = dom_mut(cx.rt)?.replace_all(parent, Some(node));
     dom_result(cx.rt, result)?;
@@ -206,6 +220,7 @@ pub(crate) fn pre_remove(cx: &mut Cx<'_>, parent: NodeId, child: NodeId) -> b::R
             "The node to be removed is not a child of this node.",
         ));
     }
+    crate::html::focus::before_removal(cx.rt, child, true)?;
     let result = dom_mut(cx.rt)?.remove_child(parent, child);
     dom_result(cx.rt, result)
 }
@@ -332,7 +347,9 @@ pub(super) fn replace_with(
 /// `ChildNode.remove`.
 pub(crate) fn remove(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
     if dom(cx.rt)?.parent(this).is_some() {
+        crate::html::focus::before_removal(cx.rt, this, true)?;
         dom_mut(cx.rt)?.remove(this);
+        crate::html::focus::fixup(cx.rt)?;
     }
     Ok(())
 }

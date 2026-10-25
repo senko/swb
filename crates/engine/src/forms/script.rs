@@ -51,6 +51,16 @@ impl Seeds {
         self.map.get(&node)?.value.as_deref()
     }
 
+    /// Forgets what scripts wrote to `node` (the form reset algorithm).
+    pub(crate) fn forget(&mut self, node: NodeId) {
+        if let Some(seed) = self.map.remove(&node) {
+            self.value_bytes = self
+                .value_bytes
+                .saturating_sub(seed.value.as_ref().map_or(0, String::len));
+        }
+        self.clean_applied.remove(&node);
+    }
+
     /// The checkedness that a script wrote to `node`.
     pub(crate) fn checked(&self, node: NodeId) -> Option<bool> {
         self.map.get(&node)?.checked.map(|(checked, _)| checked)

@@ -1,0 +1,192 @@
+// Source: UI Events, W3C Working Draft 21 February 2026,
+// https://www.w3.org/TR/uievents/ (the IDL blocks of sections 3 and 6 and
+// the legacy sections, https://www.w3.org/TR/uievents/#idl-interface-UIEvent-initializers),
+// copied on 2026-10-25.
+//
+// This file includes material copied from UI Events,
+// https://www.w3.org/TR/uievents/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut and changed this file for feature 6d1 of M8 (scripts that make and
+// dispatch input events); the interfaces are the ones that a browser without
+// touch input has:
+//
+// - The IDL blocks are the specification's, in one file; the duplicates of
+//   the specification's example and its summary blocks are dropped.
+// - `which` stays a member of UIEventInit (the specification has it), but
+//   Chromium ignores the value, and so does swb: `which` is computed from
+//   the interface (button + 1 for a MouseEvent, keyCode for a KeyboardEvent,
+//   else 0; measured with tools/probes/web-input-events.json).
+// - `keyCode` and `charCode` are `long` (Chromium returns -1 for -1; the
+//   specification says unsigned long).
+// - `sourceCapabilities` (UIEvent, from the UI Events Working Group's
+//   Input Device Capabilities) is `object?` and always null, and so are
+//   `dataTransfer` and `getTargetRanges` of InputEvent, whose interfaces
+//   (InputDeviceCapabilities, DataTransfer, StaticRange) swb has not
+//   (`sequence<object>` for the ranges).
+// - MouseEvent and WheelEvent are in pointer-events.idl (the specification
+//   moved them there), TextEvent is the legacy interface of section 8.4.
+
+[Exposed=Window]
+interface UIEvent : Event {
+  constructor(DOMString type, optional UIEventInit eventInitDict = {});
+  readonly attribute Window? view;
+  readonly attribute long detail;
+  readonly attribute object? sourceCapabilities;
+};
+
+dictionary UIEventInit : EventInit {
+  Window? view = null;
+  long detail = 0;
+};
+
+[Exposed=Window]
+interface FocusEvent : UIEvent {
+  constructor(DOMString type, optional FocusEventInit eventInitDict = {});
+  readonly attribute EventTarget? relatedTarget;
+};
+
+dictionary FocusEventInit : UIEventInit {
+  EventTarget? relatedTarget = null;
+};
+
+[Exposed=Window]
+interface InputEvent : UIEvent {
+  constructor(DOMString type, optional InputEventInit eventInitDict = {});
+  readonly attribute USVString? data;
+  readonly attribute boolean isComposing;
+  readonly attribute DOMString inputType;
+  readonly attribute object? dataTransfer;
+  sequence<object> getTargetRanges();
+};
+
+dictionary InputEventInit : UIEventInit {
+  DOMString? data = null;
+  boolean isComposing = false;
+  DOMString inputType = "";
+};
+
+[Exposed=Window]
+interface KeyboardEvent : UIEvent {
+  constructor(DOMString type, optional KeyboardEventInit eventInitDict = {});
+  // KeyLocationCode
+  const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
+  const unsigned long DOM_KEY_LOCATION_LEFT = 0x01;
+  const unsigned long DOM_KEY_LOCATION_RIGHT = 0x02;
+  const unsigned long DOM_KEY_LOCATION_NUMPAD = 0x03;
+
+  readonly attribute DOMString key;
+  readonly attribute DOMString code;
+  readonly attribute unsigned long location;
+
+  readonly attribute boolean ctrlKey;
+  readonly attribute boolean shiftKey;
+  readonly attribute boolean altKey;
+  readonly attribute boolean metaKey;
+
+  readonly attribute boolean repeat;
+  readonly attribute boolean isComposing;
+
+  boolean getModifierState(DOMString keyArg);
+};
+
+dictionary KeyboardEventInit : EventModifierInit {
+  DOMString key = "";
+  DOMString code = "";
+  unsigned long location = 0;
+  boolean repeat = false;
+  boolean isComposing = false;
+};
+
+dictionary EventModifierInit : UIEventInit {
+  boolean ctrlKey = false;
+  boolean shiftKey = false;
+  boolean altKey = false;
+  boolean metaKey = false;
+
+  boolean modifierAltGraph = false;
+  boolean modifierCapsLock = false;
+  boolean modifierFn = false;
+  boolean modifierFnLock = false;
+  boolean modifierHyper = false;
+  boolean modifierNumLock = false;
+  boolean modifierScrollLock = false;
+  boolean modifierSuper = false;
+  boolean modifierSymbol = false;
+  boolean modifierSymbolLock = false;
+};
+
+[Exposed=Window]
+interface CompositionEvent : UIEvent {
+  constructor(DOMString type, optional CompositionEventInit eventInitDict = {});
+  readonly attribute USVString data;
+};
+
+dictionary CompositionEventInit : UIEventInit {
+  DOMString data = "";
+};
+
+partial interface UIEvent {
+  // Deprecated in this specification
+  undefined initUIEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional long detailArg = 0);
+};
+
+partial interface KeyboardEvent {
+  // Originally introduced (and deprecated) in this specification
+  undefined initKeyboardEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional DOMString keyArg = "",
+    optional unsigned long locationArg = 0,
+    optional boolean ctrlKey = false,
+    optional boolean altKey = false,
+    optional boolean shiftKey = false,
+    optional boolean metaKey = false);
+};
+
+partial interface CompositionEvent {
+  // Originally introduced (and deprecated) in this specification
+  undefined initCompositionEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional WindowProxy? viewArg = null,
+    optional DOMString dataArg = "");
+};
+
+partial interface UIEvent {
+  // The following support legacy user agents
+  readonly attribute unsigned long which;
+};
+
+partial dictionary UIEventInit {
+  unsigned long which = 0;
+};
+
+partial interface KeyboardEvent {
+  // The following support legacy user agents
+  readonly attribute long charCode;
+  readonly attribute long keyCode;
+};
+
+partial dictionary KeyboardEventInit {
+  // The following support legacy user agents
+  long charCode = 0;
+  long keyCode = 0;
+};
+
+[Exposed=Window]
+interface TextEvent : UIEvent {
+  readonly attribute DOMString data;
+  undefined initTextEvent(DOMString type,
+    optional boolean bubbles = false,
+    optional boolean cancelable = false,
+    optional Window? view = null,
+    optional DOMString data = "undefined");
+};

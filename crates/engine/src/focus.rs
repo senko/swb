@@ -36,7 +36,10 @@ fn parse_tab_index(value: &str) -> Option<i32> {
 /// HTML elements that are focusable without `tabindex`.
 fn focusable_by_default(doc: &Document, node: NodeId, element: &ElementData) -> bool {
     if !element.is_html() {
-        return false;
+        // An SVG `a` with a link is focusable (SVG 2, "Links").
+        return element.name.ns == swb_dom::ns!(svg)
+            && *element.local_name() == local_name!("a")
+            && element.svg_href().is_some();
     }
     match *element.local_name() {
         local_name!("a") | local_name!("area") => element.has_attr("href"),

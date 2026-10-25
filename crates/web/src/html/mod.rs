@@ -14,6 +14,9 @@
 //! - `form_controls.rs`: `value`, `checked`, `selectedIndex` and the other
 //!   members that depend on the state of a control (the engine's form
 //!   state, [`crate::EngineHost`]);
+//! - `focus.rs`: `focus()`, `blur()`, `activeElement` and `hasFocus()`;
+//! - `activation.rs`: `click()`, the activation behaviors and the form
+//!   methods `submit()`, `requestSubmit()` and `reset()`;
 //! - `forms.rs`: `form`, `label`, `select`, `option`, `fieldset`,
 //!   `output`, `textarea` and the collections of a form and a select;
 //! - `tables.rs`: `table`, `tbody`, `tr` and `td`.
@@ -22,9 +25,11 @@
 //! the IDL (`crates/web/idl/html.idl`); this module has what the standard
 //! describes in prose.
 
+pub(crate) mod activation;
 mod classes;
 pub(crate) mod element;
 mod factories;
+pub(crate) mod focus;
 mod form_controls;
 mod forms;
 mod hyperlink;

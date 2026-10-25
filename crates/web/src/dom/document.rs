@@ -94,6 +94,14 @@ fn is_main(this: NodeId) -> bool {
 }
 
 impl g::document::DocumentImpl for WebState {
+    fn active_element(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        crate::html::focus::active_element(cx, this)
+    }
+
+    fn has_focus(_cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(crate::html::focus::has_focus(this))
+    }
+
     fn url(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         if !is_main(this) && !state(cx.rt)?.parsed_documents.contains(&this) {
             return Ok("about:blank".to_owned());

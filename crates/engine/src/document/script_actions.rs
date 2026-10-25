@@ -1,0 +1,177 @@
+//! What scripts ask of the engine for focus, links and forms (M8 feature
+//! 6d1, [`swb_web::EngineHost`]).
+//!
+//! A script task has no layout and no page, so some requests wait: a
+//! navigation (`a.click()`, `form.submit()`) and a scroll into view are
+//! stored in [`ScriptRequests`], and the page acts on them when the task
+//! ends ([`crate::Page`], `page/script.rs`). Focus changes the element
+//! states at once; the restyle that `:focus` rules need waits for the next
+//! flush (`styles_stale`), so a loop of 100,000 `focus()` calls does not
+//! compute the styles 100,000 times. Whether an element can be focused
+//! uses the styles of the last flush (`display` and `visibility`), not a
+//! layout.
+
+use swb_dom::NodeId;
+use swb_net::Url;
+use swb_style::{Display, Visibility};
+
+use super::DocumentState;
+use crate::focus;
+use crate::forms::{FormContext, FormRequest, Submitter, form_submission};
+use crate::hit_test::link_target;
+
+/// A navigation that a script asked for.
+#[derive(Clone, Debug)]
+pub(crate) enum ScriptNavigation {
+    /// Follow a hyperlink (a fragment of this document scrolls).
+    Link(Url),
+    /// Submit a form.
+    Form(FormRequest),
+}
+
+/// The requests of the scripts of one task that the page acts on when the
+/// task ends.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ScriptRequests {
+    /// The last navigation request of the task.
+    pub(crate) navigation: Option<ScriptNavigation>,
+    /// The element to scroll into view (after a `focus()`).
+    pub(crate) scroll_into_view: Option<NodeId>,
+}
+
+impl DocumentState {
+    /// The requests that scripts made since the last call.
+    pub(crate) fn take_script_requests(&mut self) -> ScriptRequests {
+        std::mem::take(&mut self.script_requests)
+    }
+
+    /// The scroll offset of the viewport.
+    pub(crate) fn script_scroll_offset(&self) -> (f64, f64) {
+        (f64::from(self.scroll.x), f64::from(self.scroll.y))
+    }
+
+    /// True if `node` is connected, focusable and rendered.
+    pub(crate) fn script_can_focus(&mut self, node: NodeId) -> bool {
+        self.process_changes();
+        if self.dom.element(node).is_none()
+            || !self.dom.is_connected(node)
+            || !focus::is_focusable(&self.dom, node)
+            || self.dom.in_closed_details_content(node)
+        {
+            return false;
+        }
+        // The styles of the last flush are enough, also when only the
+        // focus made them stale; computing them again for each call would
+        // make a loop of `focus()` calls quadratic.
+        if self.styles.is_none() {
+            self.update_style();
+        }
+        // Without styles (the style sheets have not loaded) nothing is
+        // rendered yet; the element counts as rendered.
+        let Some(styles) = &self.styles else {
+            return true;
+        };
+        styles
+            .get(node)
+            .is_some_and(|s| s.display != Display::None && s.visibility == Visibility::Visible)
+    }
+
+    /// Moves the focus. The styles that depend on `:focus` are outdated
+    /// until the next flush.
+    pub(crate) fn script_set_focus(&mut self, node: Option<NodeId>, visible: bool) {
+        let mut states = self.states.clone();
+        states.focus = node;
+        states.focus_visible = visible && node.is_some();
+        let changed = self.states.changes(&states);
+        self.states = states;
+        if changed.is_empty() {
+            return;
+        }
+        let affected = self
+            .stylist
+            .as_ref()
+            .is_none_or(|s| s.state_dependencies().intersects(changed));
+        if affected {
+            self.styles_stale = true;
+            self.invalidate_layout();
+        }
+    }
+
+    /// Stores the request to scroll `node` into view.
+    pub(crate) fn script_request_scroll(&mut self, node: NodeId) {
+        self.script_requests.scroll_into_view = Some(node);
+    }
+
+    /// Stores the request to follow the link of `node` (an `a` or `area`
+    /// element). False if it has no link.
+    pub(crate) fn script_request_hyperlink(&mut self, node: NodeId) -> bool {
+        self.process_changes();
+        let Some(url) = link_target(&self.dom, node, self.base_url.value()) else {
+            return false;
+        };
+        self.script_requests.navigation = Some(ScriptNavigation::Link(url));
+        true
+    }
+
+    /// The invalid controls of `form`.
+    pub(crate) fn script_invalid_controls(&mut self, form: NodeId) -> Vec<NodeId> {
+        self.ensure_forms();
+        self.forms.value().invalid_controls(&self.dom, form)
+    }
+
+    /// Stores the request to submit `form`. False if the submission does
+    /// not navigate.
+    pub(crate) fn script_request_form_submission(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+    ) -> bool {
+        self.process_changes();
+        self.ensure_forms();
+        let cx = FormContext {
+            doc: &self.dom,
+            forms: self.forms.value(),
+            base_url: self.base_url.value(),
+            document_url: &self.url,
+            encoding: self.encoding,
+        };
+        let submitter = match submitter {
+            Some(node) => Submitter::Button {
+                node,
+                coordinate: None,
+            },
+            None => Submitter::Form,
+        };
+        let Some(request) = form_submission(&cx, form, submitter) else {
+            return false;
+        };
+        if !self.may_load(&request.url) {
+            log::warn!("not allowed to submit a form to {}", request.url);
+            return false;
+        }
+        self.script_requests.navigation = Some(ScriptNavigation::Form(request));
+        true
+    }
+
+    /// The reset algorithm of `form`. The values that scripts wrote to
+    /// controls outside the document are forgotten.
+    pub(crate) fn script_reset_form(&mut self, form: NodeId) {
+        for node in self.dom.descendants(form).collect::<Vec<_>>() {
+            self.seeds.forget(node);
+        }
+        self.ensure_forms();
+        self.forms.value_mut().reset(&self.dom, form);
+        self.controls_stale = true;
+        self.invalidate_layout();
+    }
+
+    /// The checked radio button in the group of `radio`.
+    pub(crate) fn script_checked_radio(&mut self, radio: NodeId) -> Option<NodeId> {
+        self.ensure_forms();
+        let forms = self.forms.value();
+        forms
+            .radio_group(&self.dom, radio)
+            .into_iter()
+            .find(|&n| forms.checked(n).unwrap_or(false))
+    }
+}

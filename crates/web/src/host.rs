@@ -187,6 +187,80 @@ pub trait EngineHost: Any {
         let _ = option;
     }
 
+    /// The scroll offset of the viewport in CSS px (the page coordinates
+    /// of mouse events add it).
+    fn scroll_offset(&self) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
+    /// The focused element of the document, if any (the node in the
+    /// engine's element states; `document.activeElement` falls back to the
+    /// body).
+    fn focused_element(&self) -> Option<NodeId> {
+        None
+    }
+
+    /// True if a script can focus `node`: it is a focusable area (HTML
+    /// "focusable area": a link, a control that is not disabled, an element
+    /// with `tabindex`) and it is rendered (its style and its ancestors'
+    /// are not `display: none` and it is not `visibility: hidden`; no
+    /// layout is needed).
+    fn can_focus(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
+    /// Moves the focus to `node` or removes it. `visible` sets
+    /// `:focus-visible`. The engine does not restyle at once: a loop of
+    /// `focus()` calls stays linear.
+    fn set_focus(&mut self, node: Option<NodeId>, visible: bool) {
+        let _ = (node, visible);
+    }
+
+    /// Asks the page to scroll `node` into view when the task ends (the
+    /// scroll of `focus()` without `preventScroll`; scrolling needs the
+    /// layout, which a script task does not have).
+    fn request_scroll_into_view(&mut self, node: NodeId) {
+        let _ = node;
+    }
+
+    /// Asks the page to follow the hyperlink of the `a` or `area` element
+    /// `node` when the task ends (HTML "follow the hyperlink"). False if
+    /// the element has no `href` that resolves. A link to a fragment of the
+    /// document scrolls; one to another document navigates.
+    fn request_hyperlink(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
+    /// The controls of `form` that fail constraint validation, in tree
+    /// order.
+    fn invalid_controls(&mut self, form: NodeId) -> Vec<NodeId> {
+        let _ = form;
+        Vec::new()
+    }
+
+    /// Asks the page to submit `form` when the task ends (HTML "submit":
+    /// the planned navigation), with the submit button `submitter` or
+    /// without. False if the submission does not navigate (an action that
+    /// cannot load, a `dialog` form).
+    fn request_form_submission(&mut self, form: NodeId, submitter: Option<NodeId>) -> bool {
+        let _ = (form, submitter);
+        false
+    }
+
+    /// The reset algorithm of `form`: its controls return to their default
+    /// values.
+    fn reset_form(&mut self, form: NodeId) {
+        let _ = form;
+    }
+
+    /// The checked radio button of the group of `radio`, if any.
+    fn checked_radio_in_group(&mut self, radio: NodeId) -> Option<NodeId> {
+        let _ = radio;
+        None
+    }
+
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

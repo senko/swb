@@ -16,12 +16,14 @@ Format: source, license (for code), what it influenced.
   `HTMLElement`, the interfaces of the HTML elements (from
   `HTMLHtmlElement` to `HTMLUnknownElement`, with `HTMLFormControlsCollection`,
   `RadioNodeList`, `HTMLOptionsCollection` and the mixin
-  `HTMLHyperlinkElementUtils`), `ErrorEvent`, `PromiseRejectionEvent` and
-  `PageTransitionEvent`, copied into `crates/web/idl/html.idl`
+  `HTMLHyperlinkElementUtils`), `ErrorEvent`, `PromiseRejectionEvent`,
+  `PageTransitionEvent`, `SubmitEvent` and the other HTML events, and the
+  event handler mixins, copied into `crates/web/idl/html.idl`
   (BSD-3-Clause for IDL in source code, WHATWG IPR policy 7.1.1); the
   title, body and named-access algorithms, the script type test, the
   reflection rules of content attributes, the form control, select and
-  table algorithms of `swb-web` and `swb-engine`.
+  table algorithms, the event handler, focusing, activation and form
+  submission algorithms of `swb-web` and `swb-engine`.
 - WHATWG Web IDL Standard — https://webidl.spec.whatwg.org/ — the
   conversions of `swb-web` (§3.2), overload resolution (§3.6), the
   interface objects and members (§3.7), exceptions and `DOMException`
@@ -39,6 +41,23 @@ Format: source, license (for code), what it influenced.
 - W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
   typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
+- W3C UI Events — https://www.w3.org/TR/uievents/ — the IDL blocks of
+  the event interfaces in `crates/web/idl/ui-events.idl` (W3C Software
+  and Document License 2023; see THIRD_PARTY_NOTICES.md).
+- W3C Pointer Events Level 4, CSSOM View Module and Pointer Lock 2.0 —
+  https://www.w3.org/TR/pointerevents/,
+  https://www.w3.org/TR/cssom-view-1/, https://www.w3.org/TR/pointerlock-2/
+  — the IDL blocks of `PointerEvent`, `MouseEvent` and `WheelEvent` in
+  `crates/web/idl/pointer-events.idl` (W3C Software and Document License
+  2023; see THIRD_PARTY_NOTICES.md); the conversion between tilt and
+  altitude/azimuth angles of `PointerEvent` (Pointer Events Level 4,
+  example 1).
+- W3C CSS Transitions Level 1 and Device Orientation and Motion —
+  https://www.w3.org/TR/css-transitions-1/,
+  https://www.w3.org/TR/orientation-event/ — the IDL blocks of
+  `TransitionEvent`, `DeviceMotionEvent` and `DeviceOrientationEvent` in
+  `crates/web/idl/transition-device-events.idl` (W3C Software and
+  Document License 2023; see THIRD_PARTY_NOTICES.md).
 - W3C Scalable Vector Graphics (SVG) 2 — https://www.w3.org/TR/SVG2/ —
   the IDL blocks of the element interfaces and `SVGAnimatedString` in
   `crates/web/idl/svg.idl` (W3C Software and Document License 2023; see

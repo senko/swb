@@ -33,8 +33,8 @@ use swb_web::{
     JsonForm, PageClock, ScriptRuntime, TrustedEvent,
 };
 
-use super::Page;
-use crate::document::DocumentState;
+use super::{HistoryHandling, Page};
+use crate::document::{DocumentState, ScriptNavigation};
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
 /// 60 Hz), so that the embedder's loop stays responsive.
@@ -210,7 +210,39 @@ impl Page {
             self.finish_parse_without_scripts();
         }
         self.finish_stopped_scripts();
+        self.act_on_script_requests();
         Some(result)
+    }
+
+    /// Does what the scripts of the task asked for: scrolls an element
+    /// into view (after `focus()`), follows a link or submits a form
+    /// (`a.click()`, `form.submit()`). A task that makes several
+    /// navigation requests navigates to the last one.
+    fn act_on_script_requests(&mut self) {
+        let Some(doc) = self.doc.as_deref_mut() else {
+            return;
+        };
+        let requests = doc.take_script_requests();
+        if let Some(node) = requests.scroll_into_view {
+            self.scroll_into_view(node);
+        }
+        match requests.navigation {
+            Some(ScriptNavigation::Link(url)) => {
+                self.follow_link(url);
+            }
+            Some(ScriptNavigation::Form(request)) => {
+                log::info!("a script submits a form: {}", request.url);
+                let initiator = self.document_origin();
+                self.start_navigation(
+                    request.url,
+                    request.post,
+                    HistoryHandling::Push,
+                    None,
+                    initiator,
+                );
+            }
+            None => {}
+        }
     }
 
     /// A runtime whose scripts stopped (three time limits, the budget of

@@ -29,6 +29,7 @@ mod derived;
 mod loads;
 mod pipeline;
 mod queries;
+mod script_actions;
 mod script_forms;
 mod scripts;
 #[cfg(test)]
@@ -56,6 +57,7 @@ pub(crate) use derived::Derived;
 pub(crate) use pipeline::Rendering;
 pub use queries::ElementScroll;
 pub(crate) use queries::{indicated, is_rendered_in};
+pub(crate) use script_actions::{ScriptNavigation, ScriptRequests};
 
 /// What the document knows of its viewport: the page sets it.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -162,6 +164,11 @@ pub struct DocumentState {
     pub(crate) selection: Option<Selection>,
     pub(crate) stylist: Option<Stylist>,
     pub(crate) styles: Option<StyleMap>,
+    /// True if a script changed the focus and the styles that depend on
+    /// `:focus` are outdated: the next style flush computes them again.
+    pub(crate) styles_stale: bool,
+    /// What scripts asked for during the task (navigation, scrolling).
+    pub(crate) script_requests: ScriptRequests,
     pub(crate) fragments: Option<FragmentTree>,
     pub(crate) display_list: Option<DisplayList>,
     pub(crate) timings: StageTimings,
@@ -215,6 +222,8 @@ impl DocumentState {
             selection: None,
             stylist: None,
             styles: None,
+            styles_stale: false,
+            script_requests: ScriptRequests::default(),
             fragments: None,
             display_list: None,
             timings: StageTimings {
@@ -337,6 +346,46 @@ impl swb_web::EngineHost for DocumentState {
 
     fn parse_url_against_document_url(&mut self, value: &str) -> Option<String> {
         self.url.join(value).ok().map(|u| u.to_string())
+    }
+
+    fn scroll_offset(&self) -> (f64, f64) {
+        self.script_scroll_offset()
+    }
+
+    fn focused_element(&self) -> Option<NodeId> {
+        self.states.focus
+    }
+
+    fn can_focus(&mut self, node: NodeId) -> bool {
+        self.script_can_focus(node)
+    }
+
+    fn set_focus(&mut self, node: Option<NodeId>, visible: bool) {
+        self.script_set_focus(node, visible);
+    }
+
+    fn request_scroll_into_view(&mut self, node: NodeId) {
+        self.script_request_scroll(node);
+    }
+
+    fn request_hyperlink(&mut self, node: NodeId) -> bool {
+        self.script_request_hyperlink(node)
+    }
+
+    fn invalid_controls(&mut self, form: NodeId) -> Vec<NodeId> {
+        self.script_invalid_controls(form)
+    }
+
+    fn request_form_submission(&mut self, form: NodeId, submitter: Option<NodeId>) -> bool {
+        self.script_request_form_submission(form, submitter)
+    }
+
+    fn reset_form(&mut self, form: NodeId) {
+        self.script_reset_form(form);
+    }
+
+    fn checked_radio_in_group(&mut self, radio: NodeId) -> Option<NodeId> {
+        self.script_checked_radio(radio)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {

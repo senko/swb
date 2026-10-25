@@ -41,7 +41,7 @@ impl Gen<'_> {
     pub(crate) fn iface_file(&self, iface: &Iface) -> Result<String, Error> {
         let mut out = String::new();
         out.push_str(&self.header(&format!("the interface `{}`", iface.name)));
-        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]\n\n");
+        out.push_str("#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else, clippy::fn_params_excessive_bools, unused_variables)]\n\n");
         let _ = writeln!(out, "use {} as b;\n", self.support);
         let groups = op_groups(iface);
         let mut trait_items = String::new();
@@ -148,6 +148,10 @@ impl Gen<'_> {
     ) -> Result<(), Error> {
         let getter = snake(&attr.name);
         let fn_name = ident(&attr.name);
+        if is_event_handler(attr) {
+            self.event_handler_glue(iface, attr, glue);
+            return Ok(());
+        }
         let reflect = reflect_kind(attr);
         let this_ty = self.this_type(iface);
         if (reflect.is_some() || attr.ext_attrs.has("ReflectSetter"))
@@ -298,6 +302,54 @@ impl Gen<'_> {
             "{head}        let v = rt.arg(call, 0);\n        let value = {convert}.map_err(b::Exception::nested)?;\n        {call_impl}?;\n        Ok(swb_js::Value::Undefined)\n    }})\n}}\n"
         );
         Ok(())
+    }
+
+    /// The getter and the setter of an event handler IDL attribute (HTML
+    /// §8.1.8.1, <https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes>):
+    /// the host decides what the attribute holds (`Host::event_handler`
+    /// and `Host::set_event_handler`), so that the interface has no trait
+    /// method for it. The target is the node, or the window for `Window`.
+    fn event_handler_glue(&self, iface: &Iface, attr: &Attribute, glue: &mut String) {
+        let getter = snake(&attr.name);
+        let target = if self.model.is_node(&iface.name) {
+            "b::HandlerTarget::Node(this)"
+        } else {
+            "b::HandlerTarget::Window"
+        };
+        for (set, context, body) in [
+            (
+                false,
+                format!(
+                    "b::Context::Getter({}, {})",
+                    literal(&iface.name),
+                    literal(&attr.name)
+                ),
+                format!(
+                    "Ok(<H as b::Host>::event_handler(rt, {target}, {})?)",
+                    literal(&attr.name)
+                ),
+            ),
+            (
+                true,
+                format!(
+                    "b::Context::Setter({}, {})",
+                    literal(&iface.name),
+                    literal(&attr.name)
+                ),
+                format!(
+                    "let v = rt.arg(call, 0);\n        <H as b::Host>::set_event_handler(rt, {target}, {}, v)?;\n        Ok(swb_js::Value::Undefined)",
+                    literal(&attr.name)
+                ),
+            ),
+        ] {
+            let _ = writeln!(
+                glue,
+                "fn {}_{getter}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {}\n        {body}\n    }})\n}}\n",
+                if set { "set" } else { "get" },
+                iface.name,
+                self.this_check(iface),
+            );
+        }
     }
 
     /// The getter call of a reflected attribute (an expression with the
@@ -861,6 +913,14 @@ impl Gen<'_> {
 /// The object and the attributes of a member's property: the prototype
 /// (or the global object of a `[Global]` interface) for regular members;
 /// the template (or the global object) for `[LegacyUnforgeable]` ones.
+/// True for an attribute of the type `EventHandler`,
+/// `OnErrorEventHandler` or `OnBeforeUnloadEventHandler` (the typedefs of
+/// HTML §8.1.8.1).
+fn is_event_handler(attr: &Attribute) -> bool {
+    matches!(&attr.ty.kind, TypeKind::Named(name)
+        if matches!(name.as_str(), "EventHandler" | "OnErrorEventHandler" | "OnBeforeUnloadEventHandler"))
+}
+
 fn member_place(unforgeable: bool, global: bool) -> (&'static str, &'static str) {
     const UNFORGEABLE: &str =
         "swb_js::Attributes { writable: false, enumerable: true, configurable: false }";

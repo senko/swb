@@ -21,7 +21,7 @@ use swb_js::{ClassId, Gc, HostData, HostState, Object, Runtime, Tracer, Value, V
 use crate::bindings::{self as b, Cx, GlueState};
 use crate::clock::DocumentClock;
 use crate::event_loop::EventLoop;
-use crate::events::Listeners;
+use crate::events::{Handlers, Listeners};
 use crate::generated as g;
 use crate::host::EngineHost;
 use crate::runtime::ConsoleMessage;
@@ -106,6 +106,11 @@ pub(crate) struct WebState {
     pub(crate) listeners: HashMap<NodeId, Listeners>,
     /// The event listener list of the window.
     pub(crate) window_listeners: Listeners,
+    /// The event handlers (`onclick`, ...) of nodes and of the window.
+    pub(crate) handlers: Handlers,
+    /// The elements that are busy with a click, a focus, a submission or
+    /// a reset (the flags of the HTML algorithms).
+    pub(crate) busy: crate::html::activation::Busy,
     /// The listeners in `listeners` and `window_listeners`.
     pub(crate) listener_count: usize,
     /// The window's current event (HTML `window.event`).
@@ -149,6 +154,7 @@ impl HostState for WebState {
             list.trace(tracer);
         }
         self.window_listeners.trace(tracer);
+        self.handlers.trace(tracer);
         if let Some(event) = self.current_event {
             tracer.object(event);
         }
@@ -305,5 +311,18 @@ impl b::Host for WebState {
 
     fn reflect_url(cx: &mut Cx<'_>, _element: NodeId, value: &str) -> Option<String> {
         engine_mut(cx.rt).ok()?.parse_url(value)
+    }
+
+    fn event_handler(rt: &mut Runtime, target: b::HandlerTarget, name: &str) -> VmResult<Value> {
+        crate::events::handlers::get(rt, target, name)
+    }
+
+    fn set_event_handler(
+        rt: &mut Runtime,
+        target: b::HandlerTarget,
+        name: &str,
+        value: Value,
+    ) -> VmResult<()> {
+        crate::events::handlers::set(rt, target, name, value)
     }
 }

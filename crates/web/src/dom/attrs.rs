@@ -228,6 +228,10 @@ pub(crate) fn set_attribute(
         selected_attribute_changed(rt, element, name)?;
     }
     crate::html::after_type_change(rt, element, type_change)?;
+    crate::events::handler_attribute_changed(rt, element, name, Some(value))?;
+    if name.ns == ns!() && &*name.local == "hidden" {
+        crate::html::focus::hidden_set(rt, element)?;
+    }
     Ok(crate::scripts::attribute_changed(rt, element, name, had)?)
 }
 
@@ -257,6 +261,7 @@ pub(crate) fn remove_attribute(
     let old = dom_mut(rt)?.remove_attribute(element, name);
     if old.is_some() {
         selected_attribute_changed(rt, element, name)?;
+        crate::events::handler_attribute_changed(rt, element, name, None)?;
     }
     if let Some(old) = &old {
         let key = (element, name.ns.clone(), name.local.clone());

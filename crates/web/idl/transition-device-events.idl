@@ -1,0 +1,69 @@
+// Sources, copied on 2026-10-25:
+// - CSS Transitions Level 1, W3C Working Draft 8 January 2026,
+//   https://www.w3.org/TR/css-transitions-1/#interface-transitionevent
+//   (TransitionEvent);
+// - Device Orientation and Motion, W3C Candidate Recommendation Draft
+//   12 February 2025, https://www.w3.org/TR/orientation-event/
+//   (DeviceMotionEvent, DeviceOrientationEvent).
+//
+// This file includes material copied from these documents. Copyright © 2025
+// and 2026 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut and changed this file for feature 6d1 of M8, so that
+// `document.createEvent()` can make the events of the DOM table
+// (https://dom.spec.whatwg.org/#dom-document-createevent) that Chromium
+// makes, and so that scripts can construct them. swb fires none of them:
+// - `CSSOMString` is `DOMString`.
+// - Not copied: `requestPermission`, the sensor-access parts, the
+//   `DeviceMotionEventAcceleration` and `DeviceMotionEventRotationRate`
+//   interfaces (`acceleration`, `accelerationIncludingGravity` and
+//   `rotationRate` are `object?`, null in swb), their init dictionaries
+//   (the init members of the three are ignored), `[SecureContext]` (Chromium
+//   exposes the events on `file:` and loopback pages), and the handler
+//   attributes `ondevicemotion`, `ondeviceorientation` and
+//   `ondeviceorientationabsolute` (the transition handlers are in html.idl).
+
+[Exposed=Window]
+interface TransitionEvent : Event {
+  constructor(DOMString type, optional TransitionEventInit transitionEventInitDict = {});
+  readonly attribute DOMString propertyName;
+  readonly attribute double elapsedTime;
+  readonly attribute DOMString pseudoElement;
+};
+
+dictionary TransitionEventInit : EventInit {
+  DOMString propertyName = "";
+  double elapsedTime = 0.0;
+  DOMString pseudoElement = "";
+};
+
+[Exposed=Window]
+interface DeviceMotionEvent : Event {
+  constructor(DOMString type, optional DeviceMotionEventInit eventInitDict = {});
+  readonly attribute object? acceleration;
+  readonly attribute object? accelerationIncludingGravity;
+  readonly attribute object? rotationRate;
+  readonly attribute double interval;
+};
+
+dictionary DeviceMotionEventInit : EventInit {
+  double interval = 0;
+};
+
+[Exposed=Window]
+interface DeviceOrientationEvent : Event {
+  constructor(DOMString type, optional DeviceOrientationEventInit eventInitDict = {});
+  readonly attribute double? alpha;
+  readonly attribute double? beta;
+  readonly attribute double? gamma;
+  readonly attribute boolean absolute;
+};
+
+dictionary DeviceOrientationEventInit : EventInit {
+  double? alpha = null;
+  double? beta = null;
+  double? gamma = null;
+  boolean absolute = false;
+};

@@ -3,7 +3,7 @@
 
 //! The binding glue of the dictionaries, enumerations, unions and callbacks.
 
-#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms)]
+#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms, unused_parens, unused_variables)]
 
 use swb_web::bindings as b;
 

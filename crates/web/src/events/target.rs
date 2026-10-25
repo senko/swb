@@ -26,7 +26,7 @@ use crate::state::{WebState, dom, state, state_mut};
 /// ends the task (the lists live outside the JavaScript heap, so the heap
 /// limit does not bound them; a listener of its own type costs about
 /// 400 bytes). The lists of constructed targets count against the heap.
-const MAX_DOCUMENT_LISTENERS: usize = 1 << 18;
+pub(super) const MAX_DOCUMENT_LISTENERS: usize = 1 << 18;
 
 /// The data of an `EventTarget` made by its constructor: its listeners.
 #[derive(Debug, Default)]
@@ -111,7 +111,7 @@ pub(crate) fn with_listeners<R>(
 
 /// DOM "default passive value": true for the touch and wheel events at
 /// the window, a document, its document element and its body.
-fn default_passive(rt: &Runtime, target: TargetKind, kind: &str) -> VmResult<bool> {
+pub(super) fn default_passive(rt: &Runtime, target: TargetKind, kind: &str) -> VmResult<bool> {
     if !matches!(kind, "touchstart" | "touchmove" | "wheel" | "mousewheel") {
         return Ok(false);
     }
@@ -159,6 +159,7 @@ impl g::event_target::EventTargetImpl for WebState {
         let Some(EventListener(callback)) = callback else {
             return Ok(());
         };
+        super::handlers::sync(cx.rt, target)?;
         let (capture, passive, once) = match options {
             AddEventListenerOptionsOrBoolean::Boolean(capture) => (capture, None, false),
             AddEventListenerOptionsOrBoolean::AddEventListenerOptions(o) => {
@@ -183,6 +184,7 @@ impl g::event_target::EventTargetImpl for WebState {
             passive,
             once,
             removed: Cell::new(false),
+            handler: None,
         };
         let added = with_listeners(cx.rt, target, |list| list.add(&kind, listener))?;
         if added && in_document {
@@ -203,6 +205,7 @@ impl g::event_target::EventTargetImpl for WebState {
         let Some(EventListener(callback)) = callback else {
             return Ok(());
         };
+        super::handlers::sync(cx.rt, target)?;
         let capture = match options {
             EventListenerOptionsOrBoolean::Boolean(capture) => capture,
             EventListenerOptionsOrBoolean::EventListenerOptions(o) => o.capture,
@@ -228,12 +231,11 @@ impl g::event_target::EventTargetImpl for WebState {
             ));
         }
         data.is_trusted = false;
-        Ok(super::dispatch::dispatch(
+        let realm = cx.realm();
+        Ok(super::handlers::with_context(
             cx.rt,
-            cx.realm(),
-            this.object,
-            event.object,
-            None,
+            "Failed to execute 'dispatchEvent' on 'EventTarget'",
+            |rt| super::dispatch::dispatch(rt, realm, this.object, event.object, None),
         )?)
     }
 }

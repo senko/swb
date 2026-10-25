@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-25: M8 feature 6d1, input events from scripts
+
+- Feature 6d is split: 6d1 is the script side, 6d2 the engine's own
+  input as DOM events.
+- 18 event interfaces from UI Events, Pointer Events and HTML, with
+  constructors, init dictionaries and Chromium's conversions, and the
+  `createEvent` names that Chromium accepts.
+- All `on*` handlers on `HTMLElement`, `SVGElement`, `Document` and
+  `Window`. Content attributes compile at their first use with the
+  scope chain of document, form owner and element; `return false`
+  cancels; `window.onerror` gets five arguments.
+- `focus()`, `blur()`, `activeElement` and `hasFocus()` fire the focus
+  events in Chromium's order. `click()` and a dispatched `click`
+  `MouseEvent` run the activation behaviour: checkboxes and radio
+  buttons, links, submit and reset buttons, labels. `submit()`,
+  `requestSubmit()` and `reset()` fire their events. The page carries
+  out the navigations and scrolls that a script asks for after the
+  task.
+- Learned from the probes: `click()` fires a `PointerEvent` with
+  `pointerId` -1; a nested `focus()` inside a `blur` handler stops the
+  first focus change (no `focusin`); removing, disabling or hiding
+  (`hidden`) the focused element blurs it, `display: none` does not.
+- Two new probe files (149 and 199 queries). A runtime costs 368 KB
+  and about 0.9 ms more, for about 480 handler accessors.
+- With JavaScript on, the Craigslist posting now differs from JS off in
+  17,803 pixels (94,935 before).
+- Review fixes: `click()` on a `label` that contains its `input`
+  overflowed the stack, because the click at the control bubbled back
+  to the label. The label now ignores a click that comes from its
+  control, and a flag per label stops other loops (new hostile case).
+  Handlers that `body` forwards to the window have no document scope;
+  moving the focused element blurs it; `hidden` on an ancestor does not.
+- A runtime now costs about 1.13 MB and 3.1 ms at creation, past the
+  limit in ADR 0028; lazy creation of the interface objects comes
+  before 8a.
+
+Next: feature 6d2, the engine's input as DOM events.
+
 ## 2026-10-25: M8 feature 6c2, `Image`, `Option` and the SVG interfaces
 
 - `new Image(width, height)` and `new Option(text, value,

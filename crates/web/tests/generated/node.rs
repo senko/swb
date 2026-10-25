@@ -3,7 +3,7 @@
 
 //! The binding glue of the interface `Node`.
 
-#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else)]
+#![allow(clippy::too_many_arguments, clippy::too_many_lines, clippy::type_complexity, clippy::extra_unused_type_parameters, clippy::unreadable_literal, clippy::single_match_else, clippy::fn_params_excessive_bools, unused_variables)]
 
 use swb_web::bindings as b;
 

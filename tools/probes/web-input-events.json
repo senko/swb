@@ -1,0 +1,498 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "ui-event",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new UIEvent('x'), ['type', 'bubbles', 'cancelable', 'composed', 'view', 'detail', 'which', 'isTrusted']))"
+    },
+    {
+     "js": "E(() => P(new UIEvent('x', {view: window, detail: 3, which: 7, bubbles: true}), ['bubbles', 'view', 'detail', 'which']))"
+    },
+    {
+     "js": "E(() => P(new UIEvent('x', {view: null, detail: 2.7}), ['view', 'detail']))"
+    },
+    {
+     "js": "E(() => new UIEvent('x', {view: 5}))"
+    },
+    {
+     "js": "E(() => new UIEvent('x', {view: document}))"
+    },
+    {
+     "js": "E(() => new UIEvent('x', {view: {}}))"
+    },
+    {
+     "js": "E(() => new UIEvent('x', 5))"
+    },
+    {
+     "js": "E(() => new UIEvent('x', null).detail)"
+    },
+    {
+     "js": "E(() => [new UIEvent('x', {detail: 'a'}).detail, new UIEvent('x', {detail: -1.9}).detail, new UIEvent('x', {detail: 2 ** 33}).detail, new UIEvent('x', {detail: 2 ** 31}).detail, new UIEvent('x', {detail: '12'}).detail])"
+    },
+    {
+     "js": "E(() => [new UIEvent('x', {which: -1}).which, new UIEvent('x', {which: 2 ** 32 + 5}).which, new UIEvent('x', {which: 1.5}).which])"
+    },
+    {
+     "js": "E(() => new UIEvent())"
+    },
+    {
+     "js": "E(() => UIEvent('x'))"
+    },
+    {
+     "js": "E(() => [UIEvent.length, UIEvent.name, C(new UIEvent('x')), Object.getOwnPropertyNames(UIEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { const d = Object.getOwnPropertyDescriptor(UIEvent.prototype, 'detail'); return [typeof d.get, d.set, d.enumerable, d.configurable, d.get.name].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('UIEvent'); return [e.constructor.name, e.view, e.detail, e.type, e.bubbles, e.which].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('UIEvents'); e.initUIEvent('foo', true, true, window, 5); return P(e, ['type', 'bubbles', 'cancelable', 'view', 'detail']); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('UIEvent'); e.initUIEvent('foo'); return P(e, ['type', 'bubbles', 'cancelable', 'view', 'detail']); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('UIEvent'); e.initUIEvent(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('UIEvent'); e.initUIEvent('foo', false, false, 5); })"
+    },
+    {
+     "js": "E(() => UIEvent.prototype.initUIEvent.length)"
+    },
+    {
+     "js": "E(() => { const e = new UIEvent('x'); const log = []; d.addEventListener('x', (ev) => log.push(ev.view === window, ev.detail)); d.dispatchEvent(e); return log.join(); })"
+    }
+   ]
+  },
+  {
+   "name": "mouse-event",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new MouseEvent('click'), [\"screenX\", \"screenY\", \"clientX\", \"clientY\", \"pageX\", \"pageY\", \"x\", \"y\", \"offsetX\", \"offsetY\", \"layerX\", \"layerY\", \"movementX\", \"movementY\", \"ctrlKey\", \"shiftKey\", \"altKey\", \"metaKey\", \"button\", \"buttons\", \"relatedTarget\", \"fromElement\", \"toElement\", \"detail\", \"which\", \"view\"]))"
+    },
+    {
+     "js": "E(() => P(new MouseEvent('click', {screenX: 1, screenY: 2, clientX: 3, clientY: 4, ctrlKey: true, shiftKey: true, altKey: true, metaKey: true, button: 2, buttons: 5, relatedTarget: d, detail: 2, view: window}), [\"screenX\", \"screenY\", \"clientX\", \"clientY\", \"pageX\", \"pageY\", \"x\", \"y\", \"offsetX\", \"offsetY\", \"layerX\", \"layerY\", \"movementX\", \"movementY\", \"ctrlKey\", \"shiftKey\", \"altKey\", \"metaKey\", \"button\", \"buttons\", \"relatedTarget\", \"fromElement\", \"toElement\", \"detail\", \"which\", \"view\"]))"
+    },
+    {
+     "js": "E(() => P(new MouseEvent('click', {clientX: 1.7, clientY: -2.5, screenX: 1.2, screenY: 9.9}), ['screenX', 'screenY', 'clientX', 'clientY', 'pageX', 'pageY', 'x', 'y', 'offsetX', 'offsetY', 'layerX', 'layerY']))"
+    },
+    {
+     "js": "E(() => P(new MouseEvent('click', {clientX: 1e10, screenX: -1e10, movementX: 2.5, movementY: -3}), ['clientX', 'screenX', 'movementX', 'movementY']))"
+    },
+    {
+     "js": "E(() => [new MouseEvent('click', {button: 70000}).button, new MouseEvent('click', {button: -1}).button, new MouseEvent('click', {buttons: 70000}).buttons, new MouseEvent('click', {buttons: -1}).buttons].join())"
+    },
+    {
+     "js": "E(() => new MouseEvent('click', {relatedTarget: 5}))"
+    },
+    {
+     "js": "E(() => new MouseEvent('click', {relatedTarget: {}}))"
+    },
+    {
+     "js": "E(() => new MouseEvent('click', {relatedTarget: window}).relatedTarget === window)"
+    },
+    {
+     "js": "E(() => new MouseEvent('click', {relatedTarget: undefined}).relatedTarget)"
+    },
+    {
+     "js": "E(() => [new MouseEvent('x', {button: 0}).which, new MouseEvent('x', {button: 1}).which, new MouseEvent('x', {button: 2}).which, new MouseEvent('x', {button: 4}).which, new MouseEvent('x', {which: 9}).which, new MouseEvent('x', {which: 9, button: 2}).which].join())"
+    },
+    {
+     "js": "E(() => { const e = new MouseEvent('x', {ctrlKey: true, modifierCapsLock: true, modifierAltGraph: true}); return ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock', 'AltGraph', 'NumLock', 'Fn', 'Foo', 'control', ''].map((k) => k + '=' + e.getModifierState(k)).join(' '); })"
+    },
+    {
+     "js": "E(() => new MouseEvent('x').getModifierState())"
+    },
+    {
+     "js": "E(() => MouseEvent.prototype.getModifierState.length)"
+    },
+    {
+     "js": "E(() => [MouseEvent.length, MouseEvent.name, C(new MouseEvent('x')), Object.getOwnPropertyNames(MouseEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvents'); return [e.constructor.name, e.type, e.bubbles, e.cancelable, e.clientX, e.which, e.detail].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvent'); e.initMouseEvent('foo', true, true, window, 2, 10, 20, 30, 40, true, false, true, false, 1, d); return P(e, [\"screenX\", \"screenY\", \"clientX\", \"clientY\", \"pageX\", \"pageY\", \"x\", \"y\", \"offsetX\", \"offsetY\", \"layerX\", \"layerY\", \"movementX\", \"movementY\", \"ctrlKey\", \"shiftKey\", \"altKey\", \"metaKey\", \"button\", \"buttons\", \"relatedTarget\", \"fromElement\", \"toElement\", \"detail\", \"which\", \"view\", \"type\", \"bubbles\", \"cancelable\"]); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvent'); e.initMouseEvent('foo'); return P(e, ['type', 'clientX', 'button', 'relatedTarget', 'view', 'detail']); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvent'); e.initMouseEvent(); })"
+    },
+    {
+     "js": "E(() => MouseEvent.prototype.initMouseEvent.length)"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvent'); e.initMouseEvent('foo', false, false, null, 0, 1.9, 2.9, 3.9, 4.9); return P(e, ['screenX', 'screenY', 'clientX', 'clientY']); })"
+    },
+    {
+     "js": "E(() => { const e = new MouseEvent('x', {clientX: 5}); d.dispatchEvent(e); return P(e, ['clientX', 'pageX', 'offsetX', 'layerX', 'x']); })"
+    },
+    {
+     "js": "E(() => { let r; d.addEventListener('mx', (e) => { r = P(e, ['clientX', 'clientY', 'pageX', 'pageY', 'offsetX', 'offsetY', 'layerX', 'layerY', 'x', 'y', 'fromElement', 'toElement']); }); d.dispatchEvent(new MouseEvent('mx', {clientX: 50, clientY: 60, view: window})); return r; })"
+    },
+    {
+     "js": "E(() => { let r; d.addEventListener('mx2', (e) => { r = P(e, ['clientX', 'clientY', 'pageX', 'pageY', 'offsetX', 'offsetY', 'layerX', 'layerY']); }); d.dispatchEvent(new MouseEvent('mx2', {clientX: 50, clientY: 60})); return r; })"
+    },
+    {
+     "js": "E(() => { let r; d.addEventListener('mx3', (e) => { r = P(e, ['offsetX', 'offsetY', 'layerX', 'layerY']); }); s.dispatchEvent(new MouseEvent('mx3', {clientX: 50, clientY: 60, view: window})); return r; })"
+    },
+    {
+     "js": "E(() => { const e = new MouseEvent('over', {relatedTarget: s}); let r; d.addEventListener('over', (ev) => { r = P(ev, ['fromElement', 'toElement', 'relatedTarget']); }); d.dispatchEvent(new MouseEvent('over', {relatedTarget: s})); return r; })"
+    },
+    {
+     "js": "E(() => { const e = new MouseEvent('mouseout', {relatedTarget: s}); let r; d.addEventListener('mouseout', (ev) => { r = [N(ev.fromElement), N(ev.toElement), N(ev.relatedTarget)].join(); }); d.dispatchEvent(e); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "pointer-wheel",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new PointerEvent('pointerdown'), ['pointerId', 'width', 'height', 'pressure', 'tangentialPressure', 'tiltX', 'tiltY', 'twist', 'altitudeAngle', 'azimuthAngle', 'pointerType', 'isPrimary', 'persistentDeviceId', 'button', 'buttons', 'clientX', 'detail', 'which']))"
+    },
+    {
+     "js": "E(() => P(new PointerEvent('pointerdown', {pointerId: 3, width: 2.5, height: 3, pressure: 0.5, tangentialPressure: -0.5, tiltX: 10, tiltY: -20, twist: 90, altitudeAngle: 1, azimuthAngle: 2, pointerType: 'pen', isPrimary: true, button: 1, buttons: 2, clientX: 4.5, bubbles: true}), ['pointerId', 'width', 'height', 'pressure', 'tangentialPressure', 'tiltX', 'tiltY', 'twist', 'altitudeAngle', 'azimuthAngle', 'pointerType', 'isPrimary', 'button', 'buttons', 'clientX', 'bubbles']))"
+    },
+    {
+     "js": "E(() => [new PointerEvent('x', {tiltX: 3.9}).tiltX, new PointerEvent('x', {pressure: 2}).pressure, new PointerEvent('x', {width: -1}).width, new PointerEvent('x', {twist: 400}).twist, new PointerEvent('x', {pointerType: 5}).pointerType].join())"
+    },
+    {
+     "js": "E(() => [new PointerEvent('x').getCoalescedEvents().length, new PointerEvent('x').getPredictedEvents().length, Array.isArray(new PointerEvent('x').getCoalescedEvents())].join())"
+    },
+    {
+     "js": "E(() => new PointerEvent('x', {coalescedEvents: [new PointerEvent('y')]}).getCoalescedEvents().length)"
+    },
+    {
+     "js": "E(() => new PointerEvent('x', {coalescedEvents: [5]}))"
+    },
+    {
+     "js": "E(() => [PointerEvent.length, PointerEvent.name, C(new PointerEvent('x')), Object.getOwnPropertyNames(PointerEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { try { document.createEvent('PointerEvent'); } catch (e) { return e.name + ': ' + e.message; } })"
+    },
+    {
+     "js": "E(() => P(new WheelEvent('wheel'), ['deltaX', 'deltaY', 'deltaZ', 'deltaMode', 'wheelDeltaX', 'wheelDeltaY', 'wheelDelta', 'clientX', 'detail', 'which']))"
+    },
+    {
+     "js": "E(() => P(new WheelEvent('wheel', {deltaX: 1.5, deltaY: -2, deltaZ: 3, deltaMode: 1, clientX: 3, cancelable: true}), ['deltaX', 'deltaY', 'deltaZ', 'deltaMode', 'wheelDeltaX', 'wheelDeltaY', 'wheelDelta', 'clientX']))"
+    },
+    {
+     "js": "E(() => P(new WheelEvent('wheel', {deltaX: 100, deltaY: 100}), ['wheelDeltaX', 'wheelDeltaY', 'wheelDelta']))"
+    },
+    {
+     "js": "E(() => P(new WheelEvent('wheel', {deltaX: 100, deltaY: 100, deltaMode: 1}), ['wheelDeltaX', 'wheelDeltaY', 'wheelDelta']))"
+    },
+    {
+     "js": "E(() => P(new WheelEvent('wheel', {wheelDeltaY: 5, deltaY: 1}), ['wheelDeltaX', 'wheelDeltaY', 'deltaY']))"
+    },
+    {
+     "js": "E(() => [WheelEvent.DOM_DELTA_PIXEL, WheelEvent.DOM_DELTA_LINE, WheelEvent.DOM_DELTA_PAGE, WheelEvent.prototype.DOM_DELTA_PAGE, new WheelEvent('x', {deltaMode: 7}).deltaMode].join())"
+    },
+    {
+     "js": "E(() => { const d = Object.getOwnPropertyDescriptor(WheelEvent, 'DOM_DELTA_LINE'); return [d.writable, d.enumerable, d.configurable].join(); })"
+    },
+    {
+     "js": "E(() => [WheelEvent.length, WheelEvent.name, C(new WheelEvent('x')), Object.getOwnPropertyNames(WheelEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { try { document.createEvent('WheelEvent'); } catch (e) { return e.name; } })"
+    }
+   ]
+  },
+  {
+   "name": "keyboard-event",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new KeyboardEvent('keydown'), [\"key\", \"code\", \"location\", \"ctrlKey\", \"shiftKey\", \"altKey\", \"metaKey\", \"repeat\", \"isComposing\", \"charCode\", \"keyCode\", \"which\", \"detail\", \"view\", \"bubbles\"]))"
+    },
+    {
+     "js": "E(() => P(new KeyboardEvent('keydown', {key: 'a', code: 'KeyA', location: 1, ctrlKey: true, shiftKey: true, altKey: true, metaKey: true, repeat: true, isComposing: true, charCode: 97, keyCode: 65, which: 66, bubbles: true, detail: 3}), [\"key\", \"code\", \"location\", \"ctrlKey\", \"shiftKey\", \"altKey\", \"metaKey\", \"repeat\", \"isComposing\", \"charCode\", \"keyCode\", \"which\", \"detail\", \"view\", \"bubbles\"]))"
+    },
+    {
+     "js": "E(() => [new KeyboardEvent('keydown', {keyCode: 65}).which, new KeyboardEvent('keydown', {charCode: 97}).which, new KeyboardEvent('keypress', {charCode: 97}).which, new KeyboardEvent('keypress', {charCode: 97, keyCode: 65}).which, new KeyboardEvent('keyup', {which: 5, keyCode: 6}).which, new KeyboardEvent('keydown', {which: 5}).which, new KeyboardEvent('keydown', {which: 5}).keyCode].join())"
+    },
+    {
+     "js": "E(() => [new KeyboardEvent('x', {keyCode: -1}).keyCode, new KeyboardEvent('x', {keyCode: 2 ** 32 + 1}).keyCode, new KeyboardEvent('x', {location: 9}).location, new KeyboardEvent('x', {key: null}).key, new KeyboardEvent('x', {key: undefined}).key, new KeyboardEvent('x', {key: 12}).key].join('|'))"
+    },
+    {
+     "js": "E(() => { const e = new KeyboardEvent('x', {ctrlKey: true, modifierNumLock: true, modifierFn: true}); return ['Control', 'Shift', 'NumLock', 'Fn', 'CapsLock', 'Foo', 'OS', 'Win', 'Super', 'Hyper', 'Symbol', 'SymbolLock', 'ScrollLock', 'FnLock'].map((k) => k + '=' + e.getModifierState(k)).join(' '); })"
+    },
+    {
+     "js": "E(() => [KeyboardEvent.length, KeyboardEvent.name, C(new KeyboardEvent('x')), Object.getOwnPropertyNames(KeyboardEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => [KeyboardEvent.DOM_KEY_LOCATION_STANDARD, KeyboardEvent.DOM_KEY_LOCATION_LEFT, KeyboardEvent.DOM_KEY_LOCATION_RIGHT, KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, KeyboardEvent.prototype.DOM_KEY_LOCATION_NUMPAD].join())"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('KeyboardEvent'); return [e.constructor.name, e.type, e.key, e.code, e.keyCode, e.location].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('KeyboardEvent'); e.initKeyboardEvent('keydown', true, true, window, 'x', 2, true, false, true, false); return P(e, ['type', 'bubbles', 'cancelable', 'view', 'key', 'code', 'location', 'ctrlKey', 'altKey', 'shiftKey', 'metaKey', 'keyCode', 'charCode', 'repeat']); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('KeyboardEvent'); e.initKeyboardEvent('keydown'); return P(e, ['type', 'key', 'location', 'ctrlKey']); })"
+    },
+    {
+     "js": "E(() => KeyboardEvent.prototype.initKeyboardEvent.length)"
+    },
+    {
+     "js": "E(() => { const e = new KeyboardEvent('keydown', {key: 'a', keyCode: 65}); e.initKeyboardEvent('keyup', false, false, null, 'b'); return P(e, ['type', 'key', 'keyCode', 'code']); })"
+    },
+    {
+     "js": "E(() => { let r; d.addEventListener('keydown', (e) => { r = P(e, ['key', 'isTrusted', 'which']); }); d.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', keyCode: 90})); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "focus-input-misc",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new FocusEvent('focus'), ['relatedTarget', 'view', 'detail', 'which', 'bubbles']))"
+    },
+    {
+     "js": "E(() => N(new FocusEvent('focus', {relatedTarget: d, bubbles: true}).relatedTarget))"
+    },
+    {
+     "js": "E(() => new FocusEvent('focus', {relatedTarget: 5}))"
+    },
+    {
+     "js": "E(() => [FocusEvent.length, FocusEvent.name, C(new FocusEvent('x')), Object.getOwnPropertyNames(FocusEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { try { document.createEvent('FocusEvent').relatedTarget; return document.createEvent('FocusEvent').constructor.name; } catch (e) { return e.name; } })"
+    },
+    {
+     "js": "E(() => P(new InputEvent('input'), ['data', 'isComposing', 'inputType', 'dataTransfer', 'view', 'detail', 'which']))"
+    },
+    {
+     "js": "E(() => P(new InputEvent('input', {data: 'x', isComposing: true, inputType: 'insertText', bubbles: true}), ['data', 'isComposing', 'inputType']))"
+    },
+    {
+     "js": "E(() => [new InputEvent('x', {data: null}).data, new InputEvent('x', {data: undefined}).data, new InputEvent('x', {data: 5}).data, new InputEvent('x', {data: '\\ud800'}).data.length].join('|'))"
+    },
+    {
+     "js": "E(() => [InputEvent.length, InputEvent.name, C(new InputEvent('x')), Object.getOwnPropertyNames(InputEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => new InputEvent('x').getTargetRanges().length)"
+    },
+    {
+     "js": "E(() => P(new CompositionEvent('compositionstart'), ['data', 'view', 'detail', 'which']))"
+    },
+    {
+     "js": "E(() => P(new CompositionEvent('compositionstart', {data: 'ab'}), ['data']))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('CompositionEvent'); e.initCompositionEvent('compositionend', true, false, window, 'zz'); return P(e, ['type', 'bubbles', 'data', 'view']); })"
+    },
+    {
+     "js": "E(() => [CompositionEvent.length, CompositionEvent.name, C(new CompositionEvent('x')), Object.getOwnPropertyNames(CompositionEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('TextEvent'); e.initTextEvent('textInput', true, true, window, 'hi'); return [e.constructor.name, e.type, e.data, e.bubbles].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('TextEvent'); return [e.data, Object.getOwnPropertyNames(TextEvent.prototype).join(), C(e)].join('|'); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('TextEvent'); e.initTextEvent('x'); return e.data; })"
+    },
+    {
+     "js": "E(() => E(() => new TextEvent('x')))"
+    }
+   ]
+  },
+  {
+   "name": "other-events",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body style=\"margin:0\"><div id=d style=\"position:absolute;left:30px;top:40px;width:100px;height:50px\"><span id=s>text</span></div><form id=f action=\"x\" method=get><input id=i name=n value=v><input id=cb type=checkbox><button id=b>b</button></form><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(new SubmitEvent('submit'), ['submitter', 'bubbles', 'cancelable']))"
+    },
+    {
+     "js": "E(() => N(new SubmitEvent('submit', {submitter: b}).submitter))"
+    },
+    {
+     "js": "E(() => new SubmitEvent('submit', {submitter: d}).submitter === d)"
+    },
+    {
+     "js": "E(() => new SubmitEvent('submit', {submitter: document}))"
+    },
+    {
+     "js": "E(() => new SubmitEvent('submit', {submitter: 5}))"
+    },
+    {
+     "js": "E(() => [SubmitEvent.length, SubmitEvent.name, C(new SubmitEvent('x')), Object.getOwnPropertyNames(SubmitEvent.prototype).join()])"
+    },
+    {
+     "js": "E(() => P(new HashChangeEvent('hashchange'), ['oldURL', 'newURL']))"
+    },
+    {
+     "js": "E(() => P(new HashChangeEvent('hashchange', {oldURL: 'a', newURL: 'b'}), ['oldURL', 'newURL']))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('HashChangeEvent'); e.initHashChangeEvent('hashchange', true, false, 'o', 'n'); return P(e, ['type', 'bubbles', 'oldURL', 'newURL']); })"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyNames(HashChangeEvent.prototype).join())"
+    },
+    {
+     "js": "E(() => P(new MessageEvent('message'), ['data', 'origin', 'lastEventId', 'source', 'ports']))"
+    },
+    {
+     "js": "E(() => P(new MessageEvent('message', {data: {a: 1}, origin: 'o', lastEventId: 'l', source: window, ports: []}), ['origin', 'lastEventId', 'source', 'ports']))"
+    },
+    {
+     "js": "E(() => new MessageEvent('message', {data: 5}).data)"
+    },
+    {
+     "js": "E(() => new MessageEvent('message', {source: 5}))"
+    },
+    {
+     "js": "E(() => new MessageEvent('message', {ports: [1]}))"
+    },
+    {
+     "js": "E(() => Object.isFrozen(new MessageEvent('message').ports))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MessageEvent'); e.initMessageEvent('message', true, false, 'dd', 'oo', 'll', null, []); return P(e, ['type', 'data', 'origin', 'lastEventId', 'source']); })"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyNames(MessageEvent.prototype).join())"
+    },
+    {
+     "js": "E(() => P(new StorageEvent('storage'), ['key', 'oldValue', 'newValue', 'url', 'storageArea']))"
+    },
+    {
+     "js": "E(() => P(new StorageEvent('storage', {key: 'k', oldValue: 'o', newValue: 'n', url: 'u'}), ['key', 'oldValue', 'newValue', 'url']))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('StorageEvent'); e.initStorageEvent('storage', true, false, 'k', 'o', 'n', 'u', null); return P(e, ['type', 'key', 'oldValue', 'newValue', 'url']); })"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyNames(StorageEvent.prototype).join())"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('BeforeUnloadEvent'); return [e.constructor.name, e.returnValue, C(e), Object.getOwnPropertyNames(BeforeUnloadEvent.prototype).join(), e.cancelable, e.type].join('|'); })"
+    },
+    {
+     "js": "E(() => new BeforeUnloadEvent('x'))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('BeforeUnloadEvent'); e.returnValue = 'abc'; return [e.returnValue, e.defaultPrevented].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('DeviceMotionEvent'); return [e.constructor.name, e.acceleration, e.accelerationIncludingGravity, e.rotationRate, e.interval, Object.getOwnPropertyNames(DeviceMotionEvent.prototype).join()].join('|'); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('DeviceOrientationEvent'); return [e.constructor.name, e.alpha, e.beta, e.gamma, e.absolute, Object.getOwnPropertyNames(DeviceOrientationEvent.prototype).join()].join('|'); })"
+    },
+    {
+     "js": "E(() => { const e = new DeviceOrientationEvent('x', {alpha: 1, beta: 2, gamma: 3, absolute: true}); return [e.alpha, e.beta, e.gamma, e.absolute].join(); })"
+    },
+    {
+     "js": "E(() => { const e = new DeviceMotionEvent('x', {interval: 5}); return [e.interval, e.acceleration].join(); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('DragEvent'); return [e.constructor.name, e.dataTransfer, C(e), Object.getOwnPropertyNames(DragEvent.prototype).join(), e.clientX].join('|'); })"
+    },
+    {
+     "js": "E(() => [new DragEvent('drag').dataTransfer, new DragEvent('drag', {clientX: 5}).clientX].join())"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('TransitionEvent'); return [e.constructor.name, e.propertyName, e.elapsedTime, e.pseudoElement].join('|'); })"
+    },
+    {
+     "js": "E(() => { const e = new TransitionEvent('transitionend', {propertyName: 'width', elapsedTime: 1.5, pseudoElement: '::before'}); return [e.propertyName, e.elapsedTime, e.pseudoElement].join(); })"
+    },
+    {
+     "js": "E(() => ['Event','Events','HTMLEvents','SVGEvents','CustomEvent','UIEvent','UIEvents','MouseEvent','MouseEvents','KeyboardEvent','FocusEvent','TextEvent','CompositionEvent','DragEvent','HashChangeEvent','MessageEvent','StorageEvent','BeforeUnloadEvent','DeviceMotionEvent','DeviceOrientationEvent','TransitionEvent','TouchEvent','PointerEvent','WheelEvent','InputEvent','SubmitEvent','ErrorEvent','ClipboardEvent','AnimationEvent','ProgressEvent','PopStateEvent','CloseEvent','PageTransitionEvent','KeyEvents','MutationEvent','MutationEvents','TrackEvent','XYZ','mouseevent','MOUSEEVENTS','keyboardevent','htmlevents','uievents','textevent','Mouseevent '].map(n => { try { const e = document.createEvent(n); return n + '=' + Object.getPrototypeOf(e).constructor.name; } catch (x) { return n + '!' + x.name; } }).join(' '))"
+    },
+    {
+     "js": "E(() => ['MouseEvents', 'KeyboardEvent', 'UIEvents', 'FocusEvent'].map((n) => { const e = document.createEvent(n); return [n, e.type === '', e.bubbles, e.cancelable, e.composed, e.isTrusted, e.eventPhase, e.defaultPrevented].join(); }).join(' '))"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvents'); d.dispatchEvent(e); })"
+    },
+    {
+     "js": "E(() => { const e = document.createEvent('MouseEvents'); e.initEvent('foo', true, true); let r; d.addEventListener('foo', (ev) => { r = ev === e; }); d.dispatchEvent(e); return r + ' ' + e.constructor.name; })"
+    },
+    {
+     "js": "E(() => document.createEvent())"
+    },
+    {
+     "js": "E(() => document.createEvent(undefined))"
+    },
+    {
+     "js": "E(() => document.createEvent(null))"
+    }
+   ]
+  },
+  {
+   "name": "mouse-more",
+   "html": "<!DOCTYPE html><body style='margin:0'><div id=tall style='height:2000px;width:3000px'></div><div id=d style='position:absolute;left:30px;top:40px;width:100px;height:50px'><span id=s>x</span></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(x) { if (x === null) return 'null'; if (x === undefined) return 'undefined'; if (x === window) return 'window'; if (x === document) return 'document'; if (x.nodeType === 1) return x.localName + (x.id ? '#' + x.id : ''); if (x.nodeType) return '#' + x.nodeType; return 'target'; }\nfunction C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }\nfunction P(o, names) { return names.map((n) => n + '=' + (typeof o[n] === 'function' ? 'fn' : String(o[n]))).join(' '); }\n</script></body>",
+   "measure": [
+    {
+     "js": "[new WheelEvent('w', {wheelDeltaX: 5, deltaY: 3}), new WheelEvent('w', {wheelDeltaX: 5, wheelDeltaY: 7}), new WheelEvent('w', {deltaX: 4, deltaY: 0}), new WheelEvent('w', {deltaX: -4, deltaY: 0.6}), new WheelEvent('w', {deltaY: 2e10})].map((e) => P(e, ['wheelDeltaX', 'wheelDeltaY', 'wheelDelta'])).join(' | ')"
+    },
+    {
+     "js": "[new MouseEvent('x', {button: -2}).button, new MouseEvent('x', {button: -2}).which, new MouseEvent('x', {button: 3}).which, new MouseEvent('x', {button: 70000}).which, new MouseEvent('x', {button: 65535}).button].join()"
+    },
+    {
+     "js": "(() => { const r = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave', 'pointerover', 'pointerout', 'dragleave', 'dragenter', 'click', 'blur', 'focusout']) { let v; d.addEventListener(t, (e) => { v = t + ':' + [e.fromElement, e.toElement].map((n) => n ? n.id : 'null').join('/'); }); d.dispatchEvent(new MouseEvent(t, {relatedTarget: s})); r.push(v); } return r.join(' '); })()"
+    },
+    {
+     "js": "(() => { const r = []; for (const t of ['mouseover', 'mouseout']) { let v; s.addEventListener(t, (e) => { v = t + ':' + [e.fromElement, e.toElement].map((n) => n ? n.id : 'null').join('/'); }); s.dispatchEvent(new MouseEvent(t, {relatedTarget: window})); r.push(v); } return r.join(' '); })()"
+    },
+    {
+     "js": "(() => { const e = new MouseEvent('x', {relatedTarget: d}); return [e.fromElement && e.fromElement.id, e.toElement].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new MouseEvent('mouseout', {relatedTarget: d}); return [e.fromElement && e.fromElement.id, e.toElement].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new MouseEvent('x', {relatedTarget: window}); return [e.fromElement, e.toElement, e.relatedTarget === window].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new KeyboardEvent('x', {charCode: -5, keyCode: 3.9}); return [e.charCode, e.keyCode, e.which].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new KeyboardEvent('keypress', {key: 'a', charCode: 97}); const f = new KeyboardEvent('keydown', {key: 'A', code: 'KeyA', keyCode: 65}); return [e.which, f.which, e.charCode, f.charCode].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new PointerEvent('x', {altitudeAngle: 0.5}); const f = new PointerEvent('x', {azimuthAngle: 0.5}); const g = new PointerEvent('x', {tiltX: 30}); return [e.tiltX, e.tiltY, e.azimuthAngle, f.altitudeAngle, f.azimuthAngle, g.altitudeAngle, g.azimuthAngle, g.tiltX].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new PointerEvent('x', {pointerType: 'mouse', button: 0, buttons: 1, isPrimary: true}); return [e.pointerType, e.pressure, e.width, e.height, e.which, e.detail].join(); })()"
+    },
+    {
+     "js": "(() => { const e = new UIEvent('x', {detail: 1}); return [Object.prototype.hasOwnProperty.call(e, 'detail'), Object.keys(e).length, JSON.stringify(e), 'isTrusted' in e, Object.getOwnPropertyNames(e).join()].join('|'); })()"
+    },
+    {
+     "js": "(() => { const e = document.createEvent('MouseEvents'); e.initMouseEvent('click', true, true, window, 1, 1.9, 2.9, 3.9, 4.9, false, false, false, false, 2, null); return P(e, ['screenX', 'clientX', 'button', 'detail', 'buttons', 'which']); })()"
+    },
+    {
+     "js": "(() => { const e = new KeyboardEvent('keydown', {key: 'a', keyCode: 65}); e.initKeyboardEvent('keyup', true, true, window, 'b', 1, true, true, true, true); return P(e, ['type', 'key', 'keyCode', 'ctrlKey', 'altKey', 'shiftKey', 'metaKey', 'location', 'bubbles']); })()"
+    }
+   ]
+  }
+ ]
+}

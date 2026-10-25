@@ -1,0 +1,180 @@
+// Sources, copied on 2026-10-25:
+// - Pointer Events Level 4, W3C Working Draft 8 October 2026,
+//   https://www.w3.org/TR/pointerevents/ (PointerEvent, MouseEvent,
+//   MouseEventInit, WheelEvent, WheelEventInit, initMouseEvent, the pointer
+//   members of GlobalEventHandlers);
+// - CSSOM View Module, W3C Working Draft 16 September 2025,
+//   https://www.w3.org/TR/cssom-view-1/#extensions-to-the-mouseevent-interface
+//   (the partial MouseEvent and MouseEventInit: the double types, `pageX`,
+//   `pageY`, `x`, `y`, `offsetX`, `offsetY`);
+// - Pointer Lock 2.0, W3C Working Draft 25 February 2026,
+//   https://www.w3.org/TR/pointerlock-2/ (`movementX`, `movementY`).
+//
+// This file includes material copied from these documents. Copyright © 2025
+// and 2026 World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut and changed this file for feature 6d1 of M8:
+//
+// - MouseEvent is one interface with the members of the three documents, in
+//   the order of Chromium's prototype (measured with
+//   tools/probes/web-input-events.json). `fromElement` and `toElement` are
+//   Chromium's legacy members (no specification).
+// - WheelEvent has Chromium's `wheelDeltaX`, `wheelDeltaY` and `wheelDelta`
+//   (and the init members `wheelDeltaX`, `wheelDeltaY`), not `momentum`.
+// - The members of PointerEvent that no mouse-only browser fills (`persistentDeviceId`
+//   stays) are all there; `getCoalescedEvents` has no [SecureContext]
+//   (Chromium has it on http://127.0.0.1 and file: pages).
+// - `Element.setPointerCapture` and its two partners, `Navigator.maxTouchPoints`
+//   and `onpointerrawupdate` are not copied (feature 6d2 and later).
+// - The pointer event handler attributes (`onpointerover`, ...) are in
+//   html.idl with the other GlobalEventHandlers.
+
+[Exposed=Window]
+interface MouseEvent : UIEvent {
+  constructor(DOMString type, optional MouseEventInit eventInitDict = {});
+  readonly attribute double screenX;
+  readonly attribute double screenY;
+  readonly attribute double clientX;
+  readonly attribute double clientY;
+
+  readonly attribute boolean ctrlKey;
+  readonly attribute boolean shiftKey;
+  readonly attribute boolean altKey;
+  readonly attribute boolean metaKey;
+
+  readonly attribute short button;
+  readonly attribute unsigned short buttons;
+
+  readonly attribute EventTarget? relatedTarget;
+
+  readonly attribute double pageX;
+  readonly attribute double pageY;
+  readonly attribute double x;
+  readonly attribute double y;
+  readonly attribute double offsetX;
+  readonly attribute double offsetY;
+
+  readonly attribute double movementX;
+  readonly attribute double movementY;
+
+  readonly attribute Node? fromElement; // legacy
+  readonly attribute Node? toElement; // legacy
+  readonly attribute long layerX; // legacy
+  readonly attribute long layerY; // legacy
+
+  boolean getModifierState(DOMString keyArg);
+};
+
+dictionary MouseEventInit : EventModifierInit {
+  double screenX = 0.0;
+  double screenY = 0.0;
+  double clientX = 0.0;
+  double clientY = 0.0;
+
+  short button = 0;
+  unsigned short buttons = 0;
+  EventTarget? relatedTarget = null;
+
+  double movementX = 0;
+  double movementY = 0;
+};
+
+partial interface MouseEvent {
+  // Deprecated in this specification
+  undefined initMouseEvent(DOMString typeArg,
+    optional boolean bubblesArg = false,
+    optional boolean cancelableArg = false,
+    optional Window? viewArg = null,
+    optional long detailArg = 0,
+    optional long screenXArg = 0,
+    optional long screenYArg = 0,
+    optional long clientXArg = 0,
+    optional long clientYArg = 0,
+    optional boolean ctrlKeyArg = false,
+    optional boolean altKeyArg = false,
+    optional boolean shiftKeyArg = false,
+    optional boolean metaKeyArg = false,
+    optional short buttonArg = 0,
+    optional EventTarget? relatedTargetArg = null);
+};
+
+[Exposed=Window]
+interface WheelEvent : MouseEvent {
+  constructor(DOMString type, optional WheelEventInit eventInitDict = {});
+  // DeltaModeCode
+  const unsigned long DOM_DELTA_PIXEL = 0x00;
+  const unsigned long DOM_DELTA_LINE = 0x01;
+  const unsigned long DOM_DELTA_PAGE = 0x02;
+
+  readonly attribute double deltaX;
+  readonly attribute double deltaY;
+  readonly attribute double deltaZ;
+  readonly attribute unsigned long deltaMode;
+
+  readonly attribute long wheelDeltaX; // legacy
+  readonly attribute long wheelDeltaY; // legacy
+  readonly attribute long wheelDelta; // legacy
+};
+
+dictionary WheelEventInit : MouseEventInit {
+  double deltaX = 0.0;
+  double deltaY = 0.0;
+  double deltaZ = 0.0;
+  unsigned long deltaMode = 0;
+
+  long wheelDeltaX = 0; // legacy
+  long wheelDeltaY = 0; // legacy
+};
+
+[Exposed=Window]
+interface PointerEvent : MouseEvent {
+  constructor(DOMString type, optional PointerEventInit eventInitDict = {});
+  readonly attribute long pointerId;
+  readonly attribute double width;
+  readonly attribute double height;
+  readonly attribute float pressure;
+  readonly attribute long tiltX;
+  readonly attribute long tiltY;
+  readonly attribute double azimuthAngle;
+  readonly attribute double altitudeAngle;
+  readonly attribute float tangentialPressure;
+  readonly attribute long twist;
+  readonly attribute DOMString pointerType;
+  readonly attribute boolean isPrimary;
+  sequence<PointerEvent> getPredictedEvents();
+  readonly attribute long persistentDeviceId;
+  sequence<PointerEvent> getCoalescedEvents();
+};
+
+dictionary PointerEventInit : MouseEventInit {
+  long pointerId = 0;
+  double width = 1;
+  double height = 1;
+  float pressure = 0;
+  float tangentialPressure = 0;
+  long tiltX;
+  long tiltY;
+  long twist = 0;
+  double altitudeAngle;
+  double azimuthAngle;
+  DOMString pointerType = "";
+  boolean isPrimary = false;
+  long persistentDeviceId = 0;
+  sequence<PointerEvent> coalescedEvents = [];
+  sequence<PointerEvent> predictedEvents = [];
+};
+
+partial interface mixin GlobalEventHandlers {
+  attribute EventHandler onpointerover;
+  attribute EventHandler onpointerenter;
+  attribute EventHandler onpointerdown;
+  attribute EventHandler onpointermove;
+  attribute EventHandler onpointerup;
+  attribute EventHandler onpointercancel;
+  attribute EventHandler onpointerout;
+  attribute EventHandler onpointerleave;
+  attribute EventHandler ongotpointercapture;
+  attribute EventHandler onlostpointercapture;
+};

@@ -86,7 +86,7 @@ impl DocumentState {
     /// loaded, there are no styles.
     pub fn update_style(&mut self) {
         self.sync();
-        if self.styles.is_none() && self.stylesheets_settled() {
+        if (self.styles.is_none() || self.styles_stale) && self.stylesheets_settled() {
             self.compute_styles();
         }
     }
@@ -276,6 +276,7 @@ impl DocumentState {
         log::debug!("style: {:?}", self.timings.style);
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
+        self.styles_stale = false;
         for url in image_urls {
             if let Ok(url) = Url::parse(&url) {
                 self.start_image(url);

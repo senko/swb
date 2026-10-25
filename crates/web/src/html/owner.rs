@@ -45,6 +45,11 @@ pub(crate) fn owner_with(
 
 /// The form owner of a listed element.
 pub(crate) fn form_owner(dom: &Document, node: NodeId) -> Option<NodeId> {
+    // Only form-associated elements have a form owner.
+    let e = dom.element(node)?;
+    if !(is_listed(e) || (e.is_html() && &**e.local_name() == "img")) {
+        return None;
+    }
     owner_with(dom, node, || dom.ancestors(node).find(|&n| is_form(dom, n)))
 }
 

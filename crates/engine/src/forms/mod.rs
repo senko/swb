@@ -38,7 +38,9 @@ pub(crate) use script::{
     Seeds, option_is_disabled, options_of_detached, select_is_attached, select_of_option,
 };
 pub(crate) use select::{option_label, option_value, settle};
-pub(crate) use submit::{FormContext, Submitter, blocking_fields, default_button, form_submission};
+pub(crate) use submit::{
+    FormContext, FormRequest, Submitter, blocking_fields, default_button, form_submission,
+};
 pub(crate) use view::{LayoutControls, display_offset, value_offset};
 
 use select::{has_placeholder_label_option, select_options};

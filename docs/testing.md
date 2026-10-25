@@ -1061,8 +1061,15 @@ reflected attribute accesses, a form of 100,000 controls with 100,000 named
 lookups, a select of 100,000 options with `add` and `remove`, a value of
 24 MB, 400 writes of 5 MB to the values of controls (the budget of 32 MiB
 ends the task), 6,000 appended radio buttons that a script checks, and
-30,000 `option.selected` writes. The cases with timers pass
-`--settle-ms`, so that the timers run after the load.
+30,000 `option.selected` writes. Cases for the input of feature 6d1: a
+`click()` from inside its own handler and a chain of 20,000 elements that
+click the next one (the click-in-progress flag and the recursion budget),
+100,000 writes of `on*` attributes and properties with 200,000 calls of the
+handlers, `focus()` on 100,000 inputs in a loop with a `:focus` rule (the
+restyle waits for the flush), and a `submit` handler that calls
+`requestSubmit()` and `submit()` and a `reset` handler that calls
+`reset()`, with a loop of 100,000 `requestSubmit()` calls. The cases with
+timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
 just hostile                    # all cases; builds the release binary first
@@ -2256,6 +2263,14 @@ generator in memory and fails if a checked-in file differs or a file in
 an output directory is not generated. The generated files are not
 formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
 
+An attribute of the type `EventHandler`, `OnErrorEventHandler` or
+`OnBeforeUnloadEventHandler` (the event handler IDL attributes, feature
+6d1) gets no trait method: the generator writes a getter and a setter that
+call `Host::event_handler` and `Host::set_event_handler` with the target
+(the node, or the window for `Window`) and the attribute name. The default
+host methods answer `null` and ignore the setter, so the test IDL needs no
+code for them (a unit test of the generator checks the glue).
+
 - `crates/web/tests/bindings.rs`: the test IDL has one member per type and
   extended attribute that the generator supports (integers with
   `[Clamp]` and `[EnforceRange]`, floats, the string types, nullable,
@@ -2381,6 +2396,42 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   form; a control named like a built-in member of its form does not hide
   it; an option that leaves a select without a built state; a removed and
   inserted radio button; a range value after a change of `max`).
+- `crates/web/tests/input_events.rs`: the event interfaces of feature 6d1:
+  every case of `tools/probes/web-input-events.json` (7 cases, 149
+  queries: the constructors, init dictionaries, defaults, conversions and
+  error messages of `UIEvent`, `MouseEvent`, `PointerEvent`, `WheelEvent`,
+  `KeyboardEvent`, `FocusEvent`, `InputEvent`, `CompositionEvent`,
+  `TextEvent`, `SubmitEvent`, `HashChangeEvent`, `MessageEvent`,
+  `StorageEvent`, `BeforeUnloadEvent`, `DragEvent`, `TransitionEvent` and the
+  device events; `which`, `getModifierState`, `fromElement` and `toElement`,
+  tilt and altitude, the `init*` methods; all `createEvent` names with
+  their case folding and the names that throw) with Chromium's values
+  (`tests/input_events/cases.rs`, generated from the probe's `--json`
+  output; three equal Chromium runs), each with and without the GC stress
+  mode; also event objects across a collection and a loop of 50,000
+  dispatches. `SWB_VALUES` has the departures (`offsetX` and `layerX` after
+  the dispatch, the order of the members of `PointerEvent`, `MessagePort`,
+  the frozen `ports`, `userActivation`).
+- `crates/engine/tests/script_input.rs`: the event handlers, focus, `click()`,
+  activation and the form methods of feature 6d1 in a page with JavaScript
+  on: every case of `tools/probes/web-input-handlers.json` (10 cases, 234
+  queries: handler attributes against properties, `toString`, the scope
+  chain with the form and the document, `return false`, the order of
+  handlers and listeners, errors in handlers and `window.onerror` with five
+  arguments, compile errors with Chromium's messages and line numbers,
+  `body` and the window, focus events in Chromium's order with listeners that
+  move the focus, `activeElement`, the focus fixup (removal, moves, `hidden` on the element and on an ancestor), the scope chain of `body` handlers, `click()` on
+  checkboxes, radio buttons, labels (also a text input in a label) and disabled controls, canceled clicks,
+  `dispatchEvent` of clicks, `requestSubmit`, `submit`, `reset` and their
+  events and recursion flags) with Chromium's values
+  (`tests/script_input/cases.rs`); `SWB_VALUES` has three departures
+  (`contenteditable` is not focusable, the `toString` of an empty
+  attribute, `window.name`). Also what a probe cannot see: the navigation
+  that `a.click()` and `form.submit()` start after the task, a canceled
+  click that does not follow the link, a fragment link that scrolls, an
+  invalid form that is not submitted and gets the focus, the scroll after
+  `focus()`, `window.onerror` and `onunhandledrejection` for real errors,
+  and `body onload` as the window's handler.
 - `crates/web/tests/events.rs`: the event core (feature 5a): every case
   of `tools/probes/web-events.json` with Chromium's values
   (`tests/events/cases.rs`, generated from the probe's `--json` output as

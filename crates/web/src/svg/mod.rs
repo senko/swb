@@ -89,6 +89,18 @@ fn is_svg_named(dom: &Document, node: NodeId, local: &str) -> bool {
 }
 
 impl g::svg_element::SVGElementImpl for WebState {
+    fn focus(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::FocusOptions,
+    ) -> b::Result<()> {
+        crate::html::focus::focus(cx, this, &options)
+    }
+
+    fn blur(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        crate::html::focus::blur(cx, this)
+    }
+
     /// `className`: the one `SVGAnimatedString` of the element.
     fn class_name(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
         let realm = cx.realm();

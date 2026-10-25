@@ -32,6 +32,18 @@ fn list(cx: &mut Cx<'_>, root: NodeId, kind: ElementList) -> b::Result<Platform>
 }
 
 impl g::html_form_element::HTMLFormElementImpl for WebState {
+    fn submit(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::activation::submit_method(cx, this)
+    }
+
+    fn request_submit(cx: &mut Cx<'_>, this: NodeId, submitter: Option<NodeId>) -> b::Result<()> {
+        super::activation::request_submit(cx, this, submitter)
+    }
+
+    fn reset(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::activation::reset_method(cx, this)
+    }
+
     fn action(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         action_url(cx, this, "action")
     }

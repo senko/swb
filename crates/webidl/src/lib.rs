@@ -321,6 +321,25 @@ mod tests {
     }
 
     #[test]
+    fn event_handler_attributes_call_the_host() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node {};\ncallback EventHandlerNonNull = any (any event);\ntypedef EventHandlerNonNull? EventHandler;\ninterface mixin GlobalEventHandlers { attribute EventHandler onclick; };\n[Exposed=Window] interface HTMLElement : Element {};\nHTMLElement includes GlobalEventHandlers;\n[Global=Window, Exposed=Window] interface Window {};\nWindow includes GlobalEventHandlers;";
+        let element = file(idl, "html_element.rs");
+        // No trait method, a getter and a setter that name the target and
+        // the attribute.
+        assert!(!element.contains("fn onclick("));
+        assert!(element.contains(
+            "<H as b::Host>::event_handler(rt, b::HandlerTarget::Node(this), \"onclick\")?"
+        ));
+        assert!(element.contains(
+            "<H as b::Host>::set_event_handler(rt, b::HandlerTarget::Node(this), \"onclick\", v)?;"
+        ));
+        assert!(element.contains("rt.define_accessor(realm, target, \"onclick\", (Some(get_onclick::<H> as swb_js::NativeFn), Some(set_onclick::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;"));
+        // The window is the target of its own attributes.
+        let window = file(idl, "window.rs");
+        assert!(window.contains("b::HandlerTarget::Window, \"onclick\""));
+    }
+
+    #[test]
     fn reflect_setter_covers_strings_and_integers() {
         let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node { [ReflectSetter] attribute long a; [ReflectSetter] attribute unsigned long b; [ReflectSetter] attribute DOMString c; attribute long d; };";
         let element = file(idl, "element.rs");

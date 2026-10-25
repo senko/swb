@@ -2874,7 +2874,60 @@ Steps:
         navigate; a canceled `keydown` in a text field inserts
         nothing), handler attribute scope (`onclick="f(value)"` in a
         form), the event order of a click and of typing against
-        Chromium.
+        Chromium. Split in two sessions:
+        - 6d1: the script side: the event interfaces and the
+          `createEvent` names; the `on*` handlers (IDL and content
+          attributes, the scope chain, return values, `window.onerror`,
+          `onunhandledrejection`); `focus()`, `blur()`,
+          `activeElement`, `hasFocus()` with their events; `click()`
+          and activation behaviour in the dispatch (checkbox and radio
+          pre-activation, links, submit and reset buttons, labels);
+          `form.submit()`, `requestSubmit()`, `reset()`.
+          Done 2026-10-25. UI Events, Pointer Events and HTML give 18
+          event interfaces (`UIEvent`, `MouseEvent`, `PointerEvent`,
+          `WheelEvent`, `KeyboardEvent`, `FocusEvent`, `InputEvent`,
+          `CompositionEvent`, `TextEvent`, `SubmitEvent` and the other
+          events of the `createEvent` table) with constructors, init
+          dictionaries and Chromium's conversions; `createEvent`
+          accepts Chromium's names. All `on*` handlers on
+          `HTMLElement`, `SVGElement`, `Document` and `Window`, `body`
+          and `frameset` forward the window's: the content attributes
+          compile at the first use with the scope chain of document,
+          form owner and element; a handler keeps its place among the
+          listeners; `return false` cancels; `window.onerror` gets five
+          arguments. `focus()`, `blur()`, `activeElement` and
+          `hasFocus()` fire the focus events in Chromium's order, also
+          for nested focus changes, and the focus moves away from a
+          removed, disabled or hidden element. `click()` fires a
+          `PointerEvent` as in Chromium; the activation behaviour runs in
+          the dispatch, also for a dispatched `click` `MouseEvent`.
+          `submit()`, `requestSubmit()` and `reset()` fire their events;
+          the page carries out the navigations and scrolls that a task
+          asks for after the task. Probes `web-input-events.json` (149
+          queries) and `web-input-handlers.json` (199 queries), three
+          equal Chromium runs each; the departures are in ADR 0028
+          "Feature 6d1 notes" (`offsetX` without layout, `contenteditable`
+          focus, the `toString` of an empty handler). The older probes
+          lost 13 differences. test262 equal (40,286); a runtime costs
+          368 KB and about 0.9 ms more (1,133 KB, 3.1 ms) for about 480
+          handler accessors and 20 interfaces, past the limit of ADR
+          0028 (backlog: lazy creation before 8a). Review fixes: a
+          `label` whose control is the target of the click, or inside
+          it, does nothing (`<label><input></label>` with `click()`
+          overflowed the stack), and a flag per label stops the other
+          loops; the handlers that `body` and `frameset` forward to the
+          window have no document or element in their scope; moving the
+          focused element or an ancestor with `appendChild` or
+          `insertBefore` blurs it, and `hidden` on an ancestor does not
+          (measured). The handler probe has 10 cases and 234 queries.
+          Hostile 182 cases, 181 ok + 1 known failure (five new);
+          JS-off snapshot identical, perf within 1 %; Hacker News and
+          senko.net with JavaScript on equal JS-off.
+        - 6d2: the engine's input as DOM events (mouse, pointer, keys,
+          wheel, scroll) with the default actions after the dispatch,
+          focus events for focus changes by the user, `javascript:`
+          URLs, the event order of real input against Chromium, and the
+          Exit below.
       Exit (Hacker News): the Hacker News checks of the list above in
       an integration test on the local fixture; `compare --js
       hacker-news` gives the same scores as the JS-off comparison;
@@ -3218,9 +3271,7 @@ Steps:
 - `web` (found in feature 5a): the `signal` option of
   `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
   reads `signal` after `passive`).
-- `web`, 6d: the other `createEvent` names (`MouseEvent`,
-  `KeyboardEvent`, `FocusEvent`, `UIEvent`), activation behaviour in the
-  dispatch, the legacy `webkit` renames of animation events.
+- `web`: the legacy `webkit` renames of animation events.
 - `web`: nested `dispatchEvent` ends with a RangeError at about 408
   levels (release build); Chromium allows more. No page needs it.
 - `web`: a non-callable `handleEvent` reports a TypeError in swb's own
@@ -3242,8 +3293,6 @@ Steps:
   `js`.
 - `web`: `rejectionhandled` and the set of outstanding rejected
   promises; it needs a report from `js` when a handler is added later.
-- `web`, 6d: the `window.onerror` handler attribute (five arguments,
-  `return true` cancels) and `onunhandledrejection`.
 - `web`: `Performance` has only `now` and `timeOrigin`. `toJSON` (the
   generator has no `[Default]`), `mark`, `measure`, `getEntries*` and
   `performance.timing` come when a page needs them (analytics scripts use
@@ -3434,6 +3483,44 @@ Steps:
   plain `Element`; no `Audio` factory; `new Image(undefined, 5)` sets
   no `width` (Chromium `0`); Chromium lists `Option`, `Image` and
   `Audio` in another order among the window's properties.
+- `web`, 7b (found in feature 6d1): `offsetX`, `offsetY`, `layerX` and
+  `layerY` of a dispatched event stay the page coordinates, and
+  `focus()` scrolls when the task ends; both need layout inside a
+  script task.
+- `web` (found in feature 6d1): `click()` on a `summary` does not toggle
+  its `details`, and `click()` on `input type=file` does nothing;
+  `window.focus()`, `window.blur()` and `window.name` are missing; the
+  constraint validation API (`checkValidity`, `reportValidity`,
+  `validity`); `contenteditable` elements are not focusable;
+  Chromium-only handler names (`onsearch` and others) are not defined;
+  the members of event types that swb has not (`MessagePort`,
+  `Storage`, `DataTransfer`, `StaticRange`) are `object` or null, and
+  `MessageEvent.ports` is a new array at each read; the members of
+  `PointerEvent` are in the generator's order; the `toString` of an
+  empty handler attribute differs from Chromium; an element that stops
+  being rendered (`display: none`) keeps the focus until the engine's
+  next fixup; the handler table grows with the document.
+- `web`, 8a (found in the 6d1 review): lazy creation of the interface
+  objects. A runtime now costs about 1.13 MB and 3.1 ms at creation,
+  past the limit of about 1 ms or 1 MB in ADR 0028 (section 5, "Feature
+  6c notes"). Do it before 8a adds the next interfaces.
+- `js`/`web` (found in the 6d1 review): for a handler attribute from the
+  parser, Chromium reports error positions in the HTML document (the
+  line of the attribute); swb counts from the handler body (1:7). Some
+  compile error messages differ (`if (x) {`: Chromium "Unexpected end of
+  input", swb "Unexpected token ')'").
+- Engine, 7a (found in the 6d1 review): the focusability check of
+  `focus()` restyles the whole document after each DOM change: 2,000
+  times "append an input, `focus()`" take 3.0 s, and 4,000 reach the
+  script time limit. The invalidation from the journal (7a) removes the
+  full restyle.
+- `web` (found in the 6d1 review): writes to `Attr.nodeValue` and
+  `Attr.textContent` do not change the attribute (and so not its
+  handler). There is no `innerText` setter and no
+  `document.createRange` (Chromium blurs a focused element that
+  `innerText=` removes, with `blur` and without `focusout`). A
+  termination of the script during the click of a checkbox leaves the
+  checkbox toggled.
 - Engine (found in the 6c2 review): the dirty selectedness flag is kept
   per `select`, not per `option`. An option in a select that a script
   or the user changed does not follow later changes of its `selected`
@@ -3442,9 +3529,10 @@ Steps:
   `Document::record`); if it grows again, check the size and layout of
   `Document`.
 - Engine (found in feature 6c1): with JavaScript on, the Craigslist
-  posting has no script error but differs from Chromium in the top
-  137 px; Wikipedia stops at `Cannot read properties of undefined
-  (reading 'match')`. Features 11 and 12 cover them.
+  posting has no script error but differs from the JS-off rendering in
+  the top 137 px (94,935 pixels; after feature 6d1 17,803 pixels, with
+  the same 208 boxes); Wikipedia stops at `Cannot read properties of
+  undefined (reading 'match')`. Features 11 and 12 cover them.
 - `css` (found in the 6b review): Chromium accepts selectors that swb
   refuses with `SyntaxError`: `|p` (no namespace), `& p` and `div &`
   (the nesting selector, `:scope` in a query), `::part(x)` and

@@ -2557,3 +2557,121 @@ def children_loop_attribute_writes_js_on() -> Page:
         "console.log(k);</script>"
     )
     return Page(doc("<div id=r>" + "<i></i>" * 100_000 + "</div>" + script))
+
+
+@case(
+    "An onclick handler that calls click() on its own element and on itself again and "
+    "again, with JavaScript on: the click-in-progress flag ends the recursion (HTML "
+    "click(), feature 6d1); a listener that clicks another element in a chain of 20,000 "
+    "elements ends with the shared recursion budget",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=1024,
+)
+def click_recursion_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const a = document.getElementById('a'); "
+        "a.onclick = () => { n++; a.click(); }; a.click(); "
+        "const els = []; for (let i = 0; i < 20000; i++) { const e = document.createElement('b'); "
+        "els.push(e); document.body.appendChild(e); } "
+        "for (let i = 0; i < els.length - 1; i++) "
+        "els[i].onclick = () => { n++; els[i + 1].click(); }; "
+        "els[els.length - 1].onclick = () => { n++; }; els[0].click(); "
+        "console.log('clicks ' + n);</script>"
+    )
+    return Page(doc("<a id=a href='#'>a</a>" + script))
+
+
+@case(
+    "100,000 writes of on* content attributes and IDL attributes on 100,000 elements and "
+    "100,000 calls of the handlers, with JavaScript on: the handlers compile once each, the "
+    "maps and the listener lists stay linear (feature 6d1)",
+    swb_args=("--js",),
+    time_limit_s=5,
+    rss_limit_mib=1024,
+)
+def event_handler_attribute_writes_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const els = []; for (let i = 0; i < 100000; i++) { "
+        "const e = document.createElement('i'); e.setAttribute('onclick', 'window.n++'); "
+        "e.onmouseover = () => { n++; }; els.push(e); } window.n = 0; "
+        "for (const e of els) { e.dispatchEvent(new MouseEvent('click')); "
+        "e.dispatchEvent(new MouseEvent('mouseover')); } "
+        "for (let i = 0; i < 100000; i++) { els[0].setAttribute('onclick', 'window.n += ' + i); "
+        "els[0].onmouseout = els[0].onmouseover; } "
+        "console.log('handled ' + window.n + ' ' + n);</script>"
+    )
+    return Page(doc("<p>handlers</p>" + script))
+
+
+@case(
+    "focus() on 100,000 focusable elements in a loop, with a :focus rule in the style sheet "
+    "and focus listeners, with JavaScript on: the restyle waits for the next flush, so the "
+    "loop does not compute the styles for each call (feature 6d1)",
+    swb_args=("--js",),
+    time_limit_s=6,
+    rss_limit_mib=1024,
+)
+def focus_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; document.addEventListener('focusin', () => n++); "
+        "const els = document.querySelectorAll('input'); "
+        "for (const e of els) e.focus(); console.log('focused ' + n + ' ' + "
+        "(document.activeElement === els[els.length - 1]));</script>"
+    )
+    body = "<div>" + "<input>" * 100_000 + "</div>" + script
+    return Page(doc(body, "input:focus { color: red }"))
+
+
+@case(
+    "click() and dispatched clicks on a label and on the text input inside it, labels that "
+    "nest each other with DOM calls, a for attribute that points into another label and a "
+    "control that is the label's ancestor, with JavaScript on: the label does not click a "
+    "control that the event came from, and a label that is clicking its control does not "
+    "start again (feature 6d1, review)",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=1024,
+)
+def label_activation_js_on() -> Page:
+    script = (
+        "<script>let n = 0; document.addEventListener('click', () => { n++; }, true); "
+        "const l = document.getElementById('l'), i = document.getElementById('i'); "
+        "l.click(); i.click(); i.dispatchEvent(new MouseEvent('click', { bubbles: true })); "
+        "const a = document.createElement('label'), b = document.createElement('label'); "
+        "const x = document.createElement('input'), y = document.createElement('input'); "
+        "x.id = 'x'; y.id = 'y'; a.htmlFor = 'y'; b.htmlFor = 'x'; "
+        "a.appendChild(x); b.appendChild(y); document.body.append(a, b); "
+        "a.click(); b.click(); x.click(); y.click(); "
+        "try { a.appendChild(b); b.appendChild(a); } catch (e) { } "
+        "a.click(); b.click(); "
+        "const c = document.createElement('label'); c.htmlFor = 'bt'; "
+        "document.getElementById('bt').appendChild(c); c.click(); "
+        "for (let k = 0; k < 300; k++) { const m = document.createElement('label'); "
+        "m.appendChild(document.createElement('input')); document.body.appendChild(m); "
+        "m.click(); m.firstChild.click(); } "
+        "console.log('clicks ' + n);</script>"
+    )
+    return Page(doc("<label id=l>t<input id=i></label><button id=bt>b</button>" + script))
+
+
+@case(
+    "A submit handler that calls requestSubmit() and submit() on its form, a reset handler "
+    "that calls reset(), and a loop of 100,000 requestSubmit() calls whose handler cancels "
+    "the event, with JavaScript on: the firing-submission-events and locked-for-reset flags "
+    "end the recursion and the loop stays linear (feature 6d1)",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=1024,
+)
+def submit_reset_loops_js_on() -> Page:
+    script = (
+        "<script>let n = 0, r = 0; const f = document.getElementById('f'); "
+        "f.addEventListener('submit', (e) => { e.preventDefault(); n++; "
+        "f.requestSubmit(); f.submit(); }); "
+        "f.addEventListener('reset', () => { r++; f.reset(); }); "
+        "for (let i = 0; i < 100000; i++) { f.requestSubmit(); if (i % 100 == 0) f.reset(); } "
+        "console.log('submits ' + n + ' resets ' + r);</script>"
+    )
+    form = "<form id=f action='x'><input name=a value=1><button>go</button></form>"
+    return Page(doc(form + script))

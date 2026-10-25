@@ -348,11 +348,7 @@ fn event_handlers_have_the_early_errors_of_a_function_body() {
                 "Identifier 'event' has already been declared",
                 4,
             ),
-            (
-                "}); print('injected'); ({",
-                "Single function literal required",
-                0,
-            ),
+            ("}); print('injected'); ({", "Unexpected token '}'", 0),
             (
                 "'use strict'; with (x) {}",
                 "Strict mode code may not include a with statement",

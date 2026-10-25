@@ -43,7 +43,7 @@ use crate::state::{Slot, WebState, dom, dom_mut, engine_mut, same_object};
 /// The result of a change function as a binding result: the DOM errors
 /// become `DOMException`s, the limits end the task (ADR 0028 section 16).
 pub(crate) fn dom_result<T>(rt: &mut Runtime, result: Result<T, DomError>) -> b::Result<T> {
-    result.map_err(|error| match error {
+    let value = result.map_err(|error| match error {
         DomError::HierarchyRequest => Exception::dom(
             "HierarchyRequestError",
             "The operation would yield an incorrect node tree.",
@@ -62,7 +62,11 @@ pub(crate) fn dom_result<T>(rt: &mut Runtime, result: Result<T, DomError>) -> b:
         DomError::NodeLimit(_) => rt.terminate("the DOM node limit").into(),
         DomError::ByteLimit(_) => rt.terminate("the DOM byte limit").into(),
         DomError::WrongDocument => Exception::type_error("the document of another parser"),
-    })
+    })?;
+    // HTML "focus fixup rule": a focused element that left the document or
+    // became disabled loses the focus, with the events (Chromium).
+    crate::html::focus::fixup(rt)?;
+    Ok(value)
 }
 
 /// The number of UTF-16 code units of `text` (the length of a DOM string).
@@ -130,6 +134,7 @@ pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -
         let result = dom_mut(cx.rt)?.create_node_in(document, NodeData::Text(value.to_owned()));
         Some(dom_result(cx.rt, result)?)
     };
+    crate::html::focus::before_removal(cx.rt, parent, false)?;
     let result = dom_mut(cx.rt)?.replace_all(parent, node);
     dom_result(cx.rt, result)?;
     let added: Vec<NodeId> = node.into_iter().collect();

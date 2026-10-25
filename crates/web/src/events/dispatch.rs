@@ -50,6 +50,17 @@ pub enum EventInterface {
         /// `persisted`.
         persisted: bool,
     },
+    /// `FocusEvent` (`focus`, `blur`, `focusin`, `focusout`), with the
+    /// window as `view`.
+    Focus {
+        /// `relatedTarget`.
+        related_target: Option<NodeId>,
+    },
+    /// `SubmitEvent` (`submit`).
+    Submit {
+        /// `submitter`.
+        submitter: Option<NodeId>,
+    },
 }
 
 /// An event that the engine fires (DOM "fire an event"): `isTrusted` is
@@ -120,6 +131,25 @@ pub(crate) fn dispatch_trusted(
             g::PAGE_TRANSITION_EVENT,
             Extra::PageTransition { persisted },
         ),
+        EventInterface::Focus { related_target } => {
+            let mut fields = super::ui::Fields::new(super::ui::Family::Focus);
+            fields.view = Some(rt.global(0)?);
+            fields.related_target = match related_target {
+                Some(node) => Some(WebState::wrap_node(rt, 0, node)?),
+                None => None,
+            };
+            (g::FOCUS_EVENT, Extra::Ui(Box::new(fields)))
+        }
+        EventInterface::Submit { submitter } => {
+            let submitter = match submitter {
+                Some(node) => Some(WebState::wrap_node(rt, 0, node)?),
+                None => None,
+            };
+            (
+                g::SUBMIT_EVENT,
+                Extra::Other(Box::new(super::misc::Other::Submit { submitter })),
+            )
+        }
     };
     let mut data = EventData::new(event.kind.clone(), &init, super::now(rt), extra);
     data.is_trusted = true;
@@ -134,6 +164,22 @@ pub(crate) fn dispatch_trusted(
         None
     };
     dispatch(rt, 0, target_object, object, target_override)
+}
+
+/// [`dispatch_trusted`] in a handle scope of its own, for a native
+/// function that fires an event while script runs (`focus()`,
+/// `form.reset()`). Returns false if the event was canceled.
+pub(crate) fn fire_trusted(
+    rt: &mut Runtime,
+    target: DispatchTarget,
+    event: &TrustedEvent,
+) -> VmResult<bool> {
+    let scope = rt.heap_mut().open_scope();
+    let result = dispatch_trusted(rt, target, event);
+    if let Err(error) = rt.heap_mut().close_scope(scope) {
+        log::warn!("the handle scope of an event was not the last one: {error:?}");
+    }
+    result
 }
 
 /// DOM "dispatch" of `event` to `target`, with the legacy target override
@@ -152,8 +198,26 @@ pub(crate) fn dispatch(
         .ok_or(VmError::type_error("Illegal invocation"))?;
     let handle = super::event_handle(data)?;
     super::data_mut(rt, handle)?.dispatching = true;
-    let result = build_path(rt, realm, target, handle, target_override)
-        .and_then(|()| run_phases(rt, handle, event));
+    // Steps 5.4 to 5.10 of "dispatch": the activation target and its
+    // legacy-pre-activation behavior (HTML activation behaviors).
+    let activation = activation_before(rt, target, handle);
+    let result = activation
+        .and_then(|activation| {
+            build_path(rt, realm, target, handle, target_override)?;
+            run_phases(rt, handle, event)?;
+            Ok(activation)
+        })
+        .and_then(|activation| {
+            // Steps 5.15 and 5.16, after the path is done.
+            super::data_mut(rt, handle)?.dispatching = false;
+            let canceled = super::data(rt, handle)?.canceled;
+            match activation {
+                Some(activation) => {
+                    crate::html::activation::after_dispatch(rt, activation, canceled)
+                }
+                None => Ok(()),
+            }
+        });
     // Steps 7 to 10, also after a termination.
     let data = super::data_mut(rt, handle)?;
     data.phase = NONE;
@@ -164,6 +228,34 @@ pub(crate) fn dispatch(
     data.stop_immediate_propagation = false;
     let canceled = data.canceled;
     result.map(|()| !canceled)
+}
+
+/// The activation target of a `click` `MouseEvent` and its
+/// legacy-pre-activation behavior (DOM §2.9, "dispatch", steps 5.4 to
+/// 5.10): the target if it has an activation behavior, else, if the event
+/// bubbles, the nearest ancestor that has one. `None` for other events.
+fn activation_before(
+    rt: &mut Runtime,
+    target: Gc<Object>,
+    handle: Gc<Generic>,
+) -> VmResult<Option<crate::html::activation::Activation>> {
+    let event = super::data(rt, handle)?;
+    let is_click =
+        event.kind == "click" && matches!(&event.extra, Extra::Ui(f) if f.family.is_mouse());
+    if !is_click {
+        return Ok(None);
+    }
+    let bubbles = event.bubbles;
+    let TargetKind::Node(node) = kind_of(rt, target)? else {
+        return Ok(None);
+    };
+    match crate::html::activation::find_target(rt, node, bubbles)? {
+        Some(activation) => {
+            let activation = crate::html::activation::pre_activation(rt, activation)?;
+            Ok(Some(activation))
+        }
+        None => Ok(None),
+    }
 }
 
 /// Steps 5.3 to 5.9 of "dispatch": the event path, stored in the event.
@@ -299,6 +391,7 @@ fn invoke(
     data.current_target = Some(item.target);
     let kind = data.kind.clone();
     let target_kind = kind_of(rt, item.target)?;
+    super::handlers::sync(rt, target_kind)?;
     let listeners = listeners_of(rt, target_kind, &kind)?;
     inner_invoke(
         rt,
@@ -344,7 +437,10 @@ fn inner_invoke(
         }
         super::data_mut(rt, handle)?.in_passive_listener = listener.passive;
         b::keep(rt, Value::Object(listener.callback));
-        let result = call_listener(rt, listener.callback, item.target, event, kind);
+        let result = match listener.handler {
+            Some(name) => super::handlers::call(rt, target, name, event, handle, item.target),
+            None => call_listener(rt, listener.callback, item.target, event, kind),
+        };
         super::data_mut(rt, handle)?.in_passive_listener = false;
         state_mut(rt)?.current_event = current_event;
         result?;

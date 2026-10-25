@@ -39,6 +39,22 @@ fn inherited(
 }
 
 impl g::html_element::HTMLElementImpl for WebState {
+    fn click(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::activation::click(cx, this)
+    }
+
+    fn focus(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::FocusOptions,
+    ) -> b::Result<()> {
+        super::focus::focus(cx, this, &options)
+    }
+
+    fn blur(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::focus::blur(cx, this)
+    }
+
     /// `translate`: the nearest `translate` attribute, else true.
     /// <https://html.spec.whatwg.org/multipage/dom.html#attr-translate>
     fn translate(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {

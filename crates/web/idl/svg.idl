@@ -33,8 +33,7 @@
 // - `crossOrigin` of SVGImageElement and SVGScriptElement (Chromium reads
 //   it as an ordinary property), `referrerPolicy` and the URL members of
 //   SVGAElement, `sheet` of SVGStyleElement (LinkStyle),
-//   GlobalEventHandlers and WindowEventHandlers (feature 6d), `focus` and
-//   `blur`, `style`, GetSVGDocument, SVGUseElementShadowRoot, the
+//   `style`, GetSVGDocument, SVGUseElementShadowRoot, the
 //   `rootElement` of Document.
 // - Elements that Chromium has interfaces for and swb has not: the filter
 //   element and its primitives, the animation elements (animate, set,
@@ -61,6 +60,8 @@ interface SVGElement : Element {
 };
 
 SVGElement includes HTMLOrSVGElement;
+SVGElement includes GlobalEventHandlers;
+SVGElement includes DocumentAndElementEventHandlers;
 
 [Exposed=Window]
 interface SVGAnimatedString {
