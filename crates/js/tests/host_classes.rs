@@ -111,6 +111,51 @@ fn instanceof_and_methods_follow_the_class_tree() {
     ]);
 }
 
+/// A legacy factory function (`Runtime::define_constructor`): a native
+/// constructor with `name`, `length` and a fixed `prototype` that is the
+/// interface prototype; it sees `new.target`, so subclasses work.
+#[test]
+fn a_legacy_factory_function_is_a_constructor_with_the_interface_prototype() {
+    check_host_cases(&[
+        (
+            "[Make2.name, Make2.length, Make2.prototype === A.prototype, Object.getPrototypeOf(Make2) === Function.prototype, Object.getOwnPropertyNames(Make2).join()].join()",
+            "=> Make2,2,true,true,length,name,prototype",
+        ),
+        (
+            "var d = Object.getOwnPropertyDescriptor(Make2, 'prototype'); [d.writable, d.enumerable, d.configurable].join()",
+            "=> false,false,false",
+        ),
+        (
+            "var d = Object.getOwnPropertyDescriptor(globalThis, 'Make2'); [d.writable, d.enumerable, d.configurable].join()",
+            "=> true,false,true",
+        ),
+        (
+            "var a = new Make2(); [a instanceof A, a.hello(), Object.getPrototypeOf(a) === A.prototype].join()",
+            "=> true,A#1,true",
+        ),
+        (
+            "class E extends Make2 {} var e = new E(); [e instanceof E, e instanceof A, e.id].join()",
+            "=> true,true,1",
+        ),
+        (
+            "Reflect.construct(Make2, [], Object) instanceof A",
+            "=> false",
+        ),
+        (
+            "Make2()",
+            "Uncaught TypeError: Please use the 'new' operator",
+        ),
+        (
+            "Make2.call(new A())",
+            "Uncaught TypeError: Please use the 'new' operator",
+        ),
+        (
+            "Make2.prototype = {}; Make2.prototype === A.prototype",
+            "=> true",
+        ),
+    ]);
+}
+
 #[test]
 fn a_wrong_this_is_an_illegal_invocation() {
     check_host_cases(&[

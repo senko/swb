@@ -12,7 +12,7 @@
 //! again keeps what it holds (the dirty value flag and the dirty
 //! checkedness flag of HTML are properties of the element).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use swb_dom::{Document, NodeId};
 
@@ -28,6 +28,10 @@ struct Seed {
     checked: Option<(bool, u64)>,
     /// The selectedness of an option.
     selected: Option<bool>,
+    /// True if `selected` is a selectedness that the option got without
+    /// the dirtiness flag (`new Option()`): a change of the `selected`
+    /// attribute drops it.
+    selected_clean: bool,
 }
 
 /// The values that scripts wrote to controls that have no state yet.
@@ -36,6 +40,9 @@ pub(crate) struct Seeds {
     map: HashMap<NodeId, Seed>,
     /// The bytes of the values in `map`.
     value_bytes: usize,
+    /// The options in a select whose selectedness is clean (see
+    /// [`Seed::selected_clean`]) and was applied to the select.
+    clean_applied: HashSet<NodeId>,
 }
 
 impl Seeds {
@@ -66,6 +73,19 @@ impl Seeds {
         self.value_bytes = self.value_bytes.saturating_sub(old.map_or(0, |v| v.len())) + added;
     }
 
+    /// Drops the seed of `node` after a select or a control applied it;
+    /// a clean selectedness stays marked in `clean_applied`.
+    fn retire(&mut self, node: NodeId) {
+        if self
+            .map
+            .get(&node)
+            .is_some_and(|s| s.selected_clean && s.selected.is_some())
+        {
+            self.clean_applied.insert(node);
+        }
+        self.remove(node);
+    }
+
     /// Drops the seed of `node`.
     fn remove(&mut self, node: NodeId) {
         if let Some(seed) = self.map.remove(&node) {
@@ -80,7 +100,52 @@ impl Seeds {
     }
 
     pub(crate) fn set_selected(&mut self, node: NodeId, selected: bool) {
-        self.map.entry(node).or_default().selected = Some(selected);
+        self.clean_applied.remove(&node);
+        let seed = self.map.entry(node).or_default();
+        seed.selected = Some(selected);
+        seed.selected_clean = false;
+    }
+
+    /// Sets the selectedness of the option `node` without making it
+    /// dirty (HTML "selectedness" of `new Option()`).
+    pub(crate) fn set_selected_clean(&mut self, node: NodeId, selected: bool) {
+        let seed = self.map.entry(node).or_default();
+        seed.selected = Some(selected);
+        seed.selected_clean = true;
+    }
+
+    /// Drops the selectedness of the option `node` if it is not dirty:
+    /// the `selected` attribute was added or removed, and the
+    /// selectedness follows the attribute again. True if it dropped one.
+    pub(crate) fn drop_clean_selected(&mut self, node: NodeId) -> bool {
+        let Some(seed) = self.map.get_mut(&node) else {
+            return false;
+        };
+        let dropped = seed.selected_clean;
+        if dropped {
+            seed.selected = None;
+            seed.selected_clean = false;
+        }
+        if seed.value.is_none() && seed.checked.is_none() && seed.selected.is_none() {
+            self.map.remove(&node);
+        }
+        dropped
+    }
+
+    /// True if `node` had a clean selectedness that a select got; the
+    /// mark is dropped. The `selected` attribute decides it again.
+    pub(crate) fn take_clean_applied(&mut self, node: NodeId) -> bool {
+        self.clean_applied.remove(&node)
+    }
+
+    /// Marks the option `node` of a select as clean again.
+    pub(crate) fn mark_clean_applied(&mut self, node: NodeId) {
+        self.clean_applied.insert(node);
+    }
+
+    /// Drops a dirty write of the selectedness of `node` from the marks.
+    pub(crate) fn forget_clean_applied(&mut self, node: NodeId) {
+        self.clean_applied.remove(&node);
     }
 }
 
@@ -174,7 +239,7 @@ impl Forms {
             self.apply_option_seeds(doc, select, seeds);
         }
         for node in applied {
-            seeds.remove(node);
+            seeds.retire(node);
         }
         if !radios.is_empty() {
             self.stamp_seeded_radios(doc, radios);

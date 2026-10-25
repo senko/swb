@@ -471,10 +471,10 @@ Feature 4b notes:
   `crates/web/tests/bindings.rs`. `swb_webidl::binding_sets` names both
   sets; the freshness test (`crates/webidl/tests/freshness.rs`) checks
   both.
-- (Feature 4b: not generated yet.) `[LegacyFactoryFunction]`, static
-  attributes, `[Reflect]` of `double` and of element references: the
-  generator refuses them with a message and the line. (Indexed and named
-  properties and `iterable` came with feature 4c1.)
+- (Feature 4b: not generated yet.) Static attributes, `[Reflect]` of
+  `double` and of element references: the generator refuses them with a
+  message and the line. (Indexed and named properties and `iterable` came
+  with feature 4c1; `[LegacyFactoryFunction]` with feature 6c2.)
 
 Feature 4c1 notes:
 
@@ -572,6 +572,8 @@ Feature 4c2 notes:
   `item` and the indexed getter read the cache, so a loop over the list
   walks the children once while the DOM does not change. The generation
   is one counter per arena: any change anywhere makes every list stale.
+  (Feature 6c2 fix: the lists of children use a second counter that only
+  child-list changes bump; see the 6c2 notes.)
 - (Feature 4c2: the window.) Without frames, `window`, `self`, `frames`,
   `top` and `parent` return the global object and `length` is 0; the IDL
   has `typedef Window WindowProxy`. The named properties object answers
@@ -1147,15 +1149,135 @@ Chromium runs with equal results; the Rust tests are
   1.55 ms and 464 KB of heap before, 1.57 ms and 725 KB after (senko.net,
   release build). That is below the limit of about 1 ms or 1 MB, so no
   lazy creation.
-- **Not done (6c2):** `Image` and `Option` (`[LegacyFactoryFunction]` needs
-  a function constructor with a given prototype in `js`), the SVG
-  interfaces (`SVGElement`, `className` as `SVGAnimatedString`,
-  `dataset` and `classList` on SVG elements), the obsolete members, the
-  selection members of `input` and `textarea`, constraint validation,
-  `files`, `valueAsNumber`, `labels`, `iframe.contentWindow`,
-  `canvas.getContext`, the media playback members, `meter` and `progress`
-  values, `naturalWidth`, `complete` and `currentSrc` from the loaded image
-  (they are 0, true without a source and false with one).
+- **Not done:** the obsolete members, the selection members of `input` and
+  `textarea`, constraint validation, `files`, `valueAsNumber`, `labels`,
+  `iframe.contentWindow`, `canvas.getContext`, the media playback members,
+  `meter` and `progress` values, `naturalWidth`, `complete` and
+  `currentSrc` from the loaded image (they are 0, true without a source and
+  false with one). `Image`, `Option` and the SVG interfaces came with
+  feature 6c2 (next notes).
+
+Feature 6c2 notes (`new Image()`, `new Option()` and the SVG interfaces;
+measured with `tools/probes/web-svg-elements.json` (9 cases, 156 values) and
+`tools/probes/web-image-option.json` (5 cases, 112 values), three Chromium runs
+each with equal results; the Rust tests are `crates/web/tests/svg_elements.rs`,
+`image_option.rs`, `crates/engine/tests/script_html/option_cases.rs` and two
+tests in `crates/engine/tests/script_dom.rs`):
+
+- **`[LegacyFactoryFunction]`.** The generator accepts
+  `[LegacyFactoryFunction=Name(arguments)]` on an interface (Web IDL §3.3.3,
+  §3.7.2). For each one the trait gets `legacy_factory_<name>` with the
+  arguments, the glue gets `construct_<name>` (a call without `new` throws
+  Chromium's message with the factory's name; the arguments convert as for a
+  constructor; the context is `Failed to construct 'Image'`), and `define`
+  makes the function with `Runtime::define_constructor` and defines it on the
+  global object (writable, not enumerable, configurable, as Chromium has
+  it). `Runtime::define_constructor(realm, prototype, name, length, func)` in
+  `js` is the only change there: a native constructor function whose
+  `prototype` property (not writable, not enumerable, not configurable) is the
+  interface prototype object, and which sees `new.target`.
+  `Image.prototype === HTMLImageElement.prototype`; `Image.name`/`length`
+  (`0`), descriptors and calls through `call`, `apply`, `Reflect.apply`
+  match Chromium. `new.target` decides the prototype of the new object
+  (`class A extends Image`, `Reflect.construct`), so `state.rs` has
+  `wrap_node_with_proto`, which makes the wrapper of a node that has none
+  with a given prototype. The element is made in the window's document
+  (`create_node`), so its node document is the current document.
+- **`Image` and `Option`.** `html/factories.rs`. `Image(width, height)` sets
+  the `width` and `height` attributes of the new `img` (a value above
+  2147483647 sets 0, as Chromium: `new Image(-1)` gives `width="0"`).
+  `Option(text, value, defaultSelected, selected)` appends a text node for
+  a text that is not empty, sets `value` if the argument is not missing,
+  `selected` if `defaultSelected`, and sets the selectedness when it differs from `defaultSelected`, without the
+  dirtiness flag (HTML, `Option`; `set_option_initial_selected`):
+  `new Option("a", "b", true).selected === false`, and an option added to a
+  select with no selected option leaves the first one selected. Because
+  the option is not dirty, adding or removing its `selected` attribute
+  (`defaultSelected`, `setAttribute`, `removeAttribute`) sets the
+  selectedness again (`option_selected_attribute_changed`, called by the
+  attribute funnel of `dom/attrs.rs`); a write of `option.selected` makes
+  it dirty. The engine keeps the clean selectedness as a seed (before the
+  option is in a select) and as a mark (after the select applied it);
+  a setting of the same attribute value keeps it. Limit: the engine has
+  no dirty flag per option, only per select, so the selectedness of the
+  other options of a select that a script or the user changed does not
+  follow their attribute. Departure:
+  `new Image(undefined, 5)` gives no `width` attribute (Web IDL: an
+  undefined optional argument is missing); Chromium sets `width="0"`. An
+  `img` that `new Image()` makes and that has a `src` loads when it goes
+  into the document, not before: the engine selects the sources of the
+  elements in the document, and a detached image has no effect that a script
+  can read (`complete`, `naturalWidth` and `load` do not exist yet). The
+  backlog item stays.
+- **SVG interfaces.** `idl/svg.idl` (the W3C Software and Document License
+  allows the copy, ADR 0003): 38 element interfaces and `SVGAnimatedString`.
+  `state.rs` picks the class of an SVG element with `svg::class_of_svg`, a
+  table by local name (the same lookup as for HTML; a name outside the table,
+  also a name with a different case, `SVGElement`). The parser's names
+  (`foreignObject`, `clipPath`, `linearGradient`) match. What is cut, and why,
+  is the header of the file: the animated value interfaces except
+  `SVGAnimatedString` and the members that use them (`x`, `width`,
+  `viewBox`, `transform`, `points`, `href`), the members that need layout or
+  geometry types that swb has not (`getBBox`, `getCTM`, `getTotalLength`,
+  `createSVGRect`, ... : feature 7b), the filter and animation elements
+  (`SVGElement`), event handler attributes (6d), `focus` and `blur`.
+  `SVGElement` has `className`, `ownerSVGElement`, `viewportElement` and
+  the `HTMLOrSVGElement` mixin (`dataset`, `nonce`, `autofocus`, `tabIndex`):
+  the same code as `HTMLElement`, so `dataset` and `classList` on SVG
+  elements work and `tabIndex` is -1 (0 for `a`, as measured).
+- **`className`.** An `SVGAnimatedString` is a platform object whose host
+  data is the element (`Slot::ClassName`, one object per element). `baseVal`
+  reads the `class` attribute (also a missing one: `""`); a write sets the
+  attribute to the string as it is (an empty string leaves
+  `class=""`; `null` gives `"null"`); `animVal` reads the same and has no
+  setter (without animation it equals `baseVal`). The object is live: it
+  follows `setAttribute`, `removeAttribute`, `classList`. The setter of
+  `className` does not exist (Chromium: getter only, and a strict-mode
+  write throws). `baseVal` is a `DOMString`; the standard has
+  `(DOMString or TrustedScriptURL)`.
+- **`ownerSVGElement` and `viewportElement`** (measured, not the standard's
+  text): `ownerSVGElement` is the nearest `svg` ancestor, also through HTML
+  elements (`foreignObject > div > g`); an `svg` element whose parent is not
+  an SVG element or is a `foreignObject` (an outermost `svg`; also one in a
+  `div`) has none. `viewportElement` is the nearest ancestor that is an `svg`, `symbol` or
+  `image` element (not `marker`, `pattern`); a detached element has none.
+- **Defaults.** `SVGStyleElement.type` is `text/css` and `media` is `all`
+  without the attribute (measured); `SVGScriptElement.type` is `""`.
+  `SVGSVGElement.getElementById` finds the first descendant with the id
+  (the svg itself and elements outside are not found). `SVGStyleElement.
+  disabled` is false and a write has no effect (Chromium: no attribute);
+  swb has no sheet state for it.
+- **Prototype of `new.target`: a departure for every host constructor.**
+  When `new.target.prototype` is not an object, Web IDL (internally create a
+  new object implementing the interface) takes the interface prototype
+  object of the realm of `new.target`. Chromium takes `Object.prototype`,
+  for `Image`, `Option` and `Event` alike (`Reflect.construct(Image, [], F)`
+  with `F.prototype = 5`). swb follows the standard, in the one helper
+  `prototype_from_new_target` that all host constructors share, so the
+  departure applies to all of them. Two cases of `web-image-option.json`
+  (`option-02`, 17 and 18) record the Chromium values; the test overrides
+  them. The factory functions read `new.target.prototype` before they make
+  the node, so a getter that throws leaves no node in the arena.
+- **Child lists and the structure generation.** `Document` has a second
+  counter, `structure_generation`, that `record` bumps only for a change of
+  a child list (`Change::Children`; every insertion and removal goes
+  through `record`, and the links that bypass it build copies in nodes that
+  have no list yet). The caches of `children`, `childNodes` and the lists
+  of children (`tBodies`, section `rows`, row `cells`) record this counter,
+  so an attribute or text write keeps them and `for (const e of el.children)
+  e.setAttribute(...)` is linear (100,000 children: 5.4 s before, 0.42 s
+  after, the same as a loop over `Array.from`). The lists that depend on
+  attributes (`getElementsBy*`, the document collections, `form.elements`,
+  `select.options` and the others) and the registry of stale caches keep
+  the full generation. The supported property names of an
+  `HTMLCollection` (`id` and `name` lookups) record the full generation
+  separately, because an `id` write changes them without changing the
+  nodes. A unit test counts the rebuilds (`REBUILDS`).
+- **Cost.** 39 more classes (38 element interfaces and `SVGAnimatedString`)
+  and the two factory functions are created with the runtime: 1.51 ms and
+  727,173 B of heap before, 1.56 ms and 763,589 B after (senko.net, release
+  build, best of 5; the noise is 1.5 to 2.4 ms). That is far below the limit
+  of about 1 ms or 1 MB, so no lazy creation.
 
 ### 6. Changes to `js`
 

@@ -2504,3 +2504,56 @@ def option_selected_loop_js_on() -> Page:
         "o[i].selected = true; } console.log(s.selectedIndex);</script>"
     )
     return Page(doc("<select id=s></select>" + script))
+
+
+@case(
+    "A loop of 100,000 calls of new Image() and of new Option('x', 'y') that keeps the "
+    "elements in an array, with JavaScript on: the node limit and the memory of the wrappers "
+    "hold (feature 6c2)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=1024,
+)
+def factory_functions_loop_js_on() -> Page:
+    script = (
+        "<script>const keep = []; for (let i = 0; i < 100000; i++) { keep.push(new Image(i, i)); "
+        "keep.push(new Option('x', 'y', i % 2 == 0, i % 3 == 0)); } "
+        "console.log(keep.length);</script>"
+    )
+    return Page(doc("<p>factories</p>" + script))
+
+
+@case(
+    "A loop that writes className.baseVal of 100,000 SVG elements that it creates and "
+    "appends to an svg element, with JavaScript on: the restyle of the changed classes "
+    "stays linear (feature 6c2)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=1024,
+)
+def svg_class_name_write_loop_js_on() -> Page:
+    script = (
+        "<script>const N = 'http://www.w3.org/2000/svg'; const s = document.getElementById('s'); "
+        "for (let i = 0; i < 100000; i++) { const e = document.createElementNS(N, 'rect'); "
+        "e.className.baseVal = 'c' + (i % 100); s.appendChild(e); } "
+        "for (const e of Array.from(s.children)) { e.className.baseVal += ' d'; } "
+        "console.log(s.childNodes.length);</script>"
+    )
+    return Page(doc("<svg id=s width=100 height=100></svg>" + script))
+
+
+@case(
+    "A loop over the children of an element that has 100,000 children, with JavaScript on, "
+    "that sets an attribute on each child: an attribute write keeps the cache of the child "
+    "list, so the loop stays linear (feature 6c2 fix)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=1024,
+)
+def children_loop_attribute_writes_js_on() -> Page:
+    script = (
+        "<script>const r = document.getElementById('r'); let k = 0; "
+        "for (const e of r.children) e.setAttribute('a', k++); "
+        "console.log(k);</script>"
+    )
+    return Page(doc("<div id=r>" + "<i></i>" * 100_000 + "</div>" + script))

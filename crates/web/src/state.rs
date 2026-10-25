@@ -46,6 +46,8 @@ pub(crate) enum Slot {
     /// `table.rows`, `tBodies`, `tr.cells`, `select.options` and the
     /// other lists of an element (feature 6c).
     ElementList(crate::dom::ElementList),
+    /// `SVGElement.className`.
+    ClassName,
     /// `Document.implementation`.
     Implementation,
     /// `document.forms` and the other collections of a document.
@@ -206,14 +208,16 @@ pub(crate) fn dom_mut(rt: &mut Runtime) -> VmResult<&mut Document> {
 }
 
 /// The interface of a node's wrapper: its most derived interface among
-/// those that swb has (HTML elements: a table by tag name, `html::classes`;
-/// elements of other namespaces `Element`; every document `HTMLDocument`).
+/// those that swb has (HTML and SVG elements: a table by tag name,
+/// `html::classes` and `svg`; elements of other namespaces `Element`; every
+/// document `HTMLDocument`).
 fn class_of(dom: &Document, node: NodeId) -> ClassId {
     match &dom.node(node).data {
         NodeData::Document => g::HTML_DOCUMENT,
         NodeData::DocumentFragment => g::DOCUMENT_FRAGMENT,
         NodeData::Doctype { .. } => g::DOCUMENT_TYPE,
         NodeData::Element(e) if e.name.ns == ns!(html) => crate::html::class_of_html(&e.name.local),
+        NodeData::Element(e) if e.name.ns == ns!(svg) => crate::svg::class_of_svg(&e.name.local),
         NodeData::Element(_) => g::ELEMENT,
         NodeData::Text(_) => g::TEXT,
         NodeData::Comment(_) => g::COMMENT,
@@ -237,33 +241,48 @@ pub(crate) fn same_object(
     Ok(object)
 }
 
+/// The wrapper of `node`, made with `proto` as its prototype if the node
+/// has none yet (a constructor that script called through a subclass:
+/// `class A extends Image`); else the class's prototype.
+pub(crate) fn wrap_node_with_proto(
+    rt: &mut Runtime,
+    realm: u32,
+    node: NodeId,
+    proto: Option<Gc<Object>>,
+) -> VmResult<Gc<Object>> {
+    let state = state(rt)?;
+    if let Some(Some(wrapper)) = state.wrappers.get(node.index()) {
+        return Ok(*wrapper);
+    }
+    let dom = dom(rt)?;
+    if dom.get(node).is_none() {
+        return Err(VmError::type_error(
+            "a wrapper of a node that does not exist",
+        ));
+    }
+    let class = class_of(dom, node);
+    let wrapper = match proto {
+        Some(proto) => rt.new_host_object_with_proto(Some(proto), class, b::node_data(node))?,
+        None => rt.new_host_object(realm, class, b::node_data(node))?,
+    };
+    b::glue::install_unforgeables::<WebState>(rt, realm, class, wrapper)?;
+    let state = state_mut(rt)?;
+    if state.wrappers.len() <= node.index() {
+        state.wrappers.resize(node.index() + 1, None);
+    }
+    if let Some(slot) = state.wrappers.get_mut(node.index()) {
+        *slot = Some(wrapper);
+    }
+    Ok(wrapper)
+}
+
 impl b::Host for WebState {
     fn glue_state(&mut self) -> &mut GlueState {
         &mut self.glue
     }
 
     fn wrap_node(rt: &mut Runtime, realm: u32, node: NodeId) -> VmResult<Gc<Object>> {
-        let state = state(rt)?;
-        if let Some(Some(wrapper)) = state.wrappers.get(node.index()) {
-            return Ok(*wrapper);
-        }
-        let dom = dom(rt)?;
-        if dom.get(node).is_none() {
-            return Err(VmError::type_error(
-                "a wrapper of a node that does not exist",
-            ));
-        }
-        let class = class_of(dom, node);
-        let wrapper = rt.new_host_object(realm, class, b::node_data(node))?;
-        b::glue::install_unforgeables::<WebState>(rt, realm, class, wrapper)?;
-        let state = state_mut(rt)?;
-        if state.wrappers.len() <= node.index() {
-            state.wrappers.resize(node.index() + 1, None);
-        }
-        if let Some(slot) = state.wrappers.get_mut(node.index()) {
-            *slot = Some(wrapper);
-        }
-        Ok(wrapper)
+        wrap_node_with_proto(rt, realm, node, None)
     }
 
     fn reflect_get(cx: &mut Cx<'_>, element: NodeId, name: &str) -> b::Result<Option<String>> {

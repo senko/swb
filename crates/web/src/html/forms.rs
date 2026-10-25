@@ -659,6 +659,17 @@ impl g::html_option_element::HTMLOptionElementImpl for WebState {
         crate::dom::string_replace_all(cx, this, &value)
     }
 
+    /// `new Option(text, value, defaultSelected, selected)`.
+    fn legacy_factory_option(
+        cx: &mut Cx<'_>,
+        text: String,
+        value: Option<String>,
+        default_selected: bool,
+        selected: bool,
+    ) -> b::Result<Gc<Object>> {
+        super::factories::option(cx, &text, value.as_deref(), default_selected, selected)
+    }
+
     /// The position in the list of options of the select, else 0.
     fn index(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
         let Some(select) = super::select_of_option(dom(cx.rt)?, this) else {

@@ -2824,6 +2824,45 @@ Steps:
           constructor with a given prototype); the SVG interfaces that
           the targets use (Leaflet), `className` as `SVGAnimatedString`,
           `dataset` and `classList` on SVG elements.
+          Done 2026-10-25. `new Image()` and `new Option()` come from
+          `[LegacyFactoryFunction]` in the generator, with
+          `Runtime::define_constructor` as the only `js` change (test262
+          equal, 40,286 passes; jsbench within noise): `name`, `length`,
+          the shared prototype, Chromium's error for a call without
+          `new`, subclassing and `Reflect.construct`. `svg.idl` has 38
+          SVG element interfaces and `SVGAnimatedString` from SVG 2, cut
+          to the members that need no layout, animation or geometry
+          interfaces; `class_of` looks SVG names up in a table, unknown
+          SVG names give `SVGElement`. `className` is a live
+          `SVGAnimatedString`; `ownerSVGElement`, `viewportElement`,
+          `dataset`, `tabIndex`, `classList`, `getElementById` on `svg`.
+          Probes `web-svg-elements.json` (151 queries) and
+          `web-image-option.json` (102 queries), three equal Chromium
+          runs each; swb matches except `new Image(undefined, 5)`
+          (Chromium sets `width="0"`). The SVG departures of the older
+          tests are gone; the older probes lost 14 differences. A
+          runtime costs 36 KB more (764 KB), with no measurable time.
+          A detached `img` from `new Image()` loads when it is inserted
+          (backlog). Review fixes: `ownerSVGElement` is null for an
+          `svg` in a `foreignObject` or under a non-SVG parent; `new
+          Option()` sets the selectedness without the dirty mark, so a
+          later change of the `selected` attribute changes it;
+          `SVGStyleElement.disabled`; the factory functions read
+          `new.target.prototype` before they make the node. A
+          `new.target` whose `prototype` is not an object gives the
+          interface prototype of its realm (Web IDL); Chromium gives
+          `Object.prototype`. This is a documented departure for all
+          host constructors (ADR 0028). `children`, `childNodes` and
+          the table section lists cache against a new
+          `Document::structure_generation` that only child-list changes
+          bump: a loop that writes attributes to 100,000 children takes
+          0.42 s, not 5.4 s. The probes have 156 and 112 values; the
+          only departures are `new Image(undefined, 5)` and the
+          `prototype` case. Hostile 176 ok + 1 known failure (three new
+          cases); JS-off snapshot identical; JS-off load time +1 % on
+          the three large fixtures (parse +2.5 %, layout +0.7 %, which
+          the change does not touch); Hacker News and senko.net with
+          JavaScript on equal JS-off.
       - 6d: input as DOM events (ADR 0028 section 11): `UIEvent`,
         `MouseEvent`, `PointerEvent`, `KeyboardEvent`, `FocusEvent`,
         `InputEvent`, `WheelEvent`; `on*` attributes and properties;
@@ -3035,8 +3074,10 @@ Steps:
 - Engine (found in feature 3b): a change in a detached subtree or in
   template contents marks the styles dirty (the drain does not check
   that a change is in the document). Fix when 7a counts forced restyles.
-- Engine, 6a/6b: `img` elements that are not in the document do not load
-  (`new Image()` with `src` loads in browsers).
+- Engine: `img` elements that are not in the document do not load
+  (`new Image()` with `src` loads in browsers; in swb it loads when it
+  is inserted). Do it with `complete`, `naturalWidth` and the `load`
+  event of `img`, which nothing implements yet.
 - Engine: the text of `style` and `title` elements is their descendant
   text; HTML uses the child text content.
 - Engine: when the focused element is removed, focus becomes none, but
@@ -3077,9 +3118,6 @@ Steps:
 - `js`: the source text of a script is charged only while the script's
   code object lives; its functions keep the shared text alive after
   that, uncharged (older than M8).
-- `webidl`, 6c2 (found in feature 4b): `[LegacyFactoryFunction]`
-  (`Image`, `Option`) is not generated; it needs a `js` API for a
-  constructor function with a given `prototype`.
 - `web`: `DOMException`s that the bindings throw have no own `stack`
   (Chromium: an own string `stack` whose first line is `Name: message`).
 - `web`: overload resolution selects the overload before it converts
@@ -3154,8 +3192,6 @@ Steps:
   (`document.characterSet` in the probe). This is the HTML sniffing
   default and changes JS-off rendering of such files, so check the
   fixtures before changing it.
-- `web`, 6c2: `SVGElement` and its subclasses; the probe
-  `web-dom-tree.json` has Chromium's chains.
 - `web`: the `window[name]` cache rebuilds with a tree walk at the
   first miss after each DOM change: a loop that changes the DOM and
   reads a missing global is O(n) per step (hostile case
@@ -3278,8 +3314,6 @@ Steps:
   `Node` (`nodeType` 2, `instanceof Node`), `Element.slot`, shadow
   roots. Older libraries read `attributes[i].nodeName` and `nodeValue`;
   `Attr` has neither yet.
-- `web`, 6c2 (found in feature 6a): `dataset` and `classList` on SVG
-  elements (they need the SVG interfaces).
 - `web` (found in feature 6a): with expandos, `Reflect.ownKeys` of a
   `NamedNodeMap` lists the named properties first (Web IDL); Chromium
   lists the expandos first.
@@ -3304,8 +3338,6 @@ Steps:
   walks the removed subtree to clear the parser's form pointers, so a
   deep chain taken apart by repeated `remove` is quadratic.
   `DOMTokenList.contains` searches the tokens (Chromium too).
-- `web`, 6c2 (found in the 6a review): `className` of an SVG element must
-  be an `SVGAnimatedString`.
 - Engine (found in the 6a review): `document.characterSet` of a file
   page without a charset declaration is `UTF-8`; Chromium gives
   `windows-1252`.
@@ -3388,6 +3420,27 @@ Steps:
   `img.complete` and `naturalWidth` from the loaded image,
   `iframe.contentWindow`; color names in a color input are not
   converted; `form.img` is not a named property.
+- `web`, 7b (found in feature 6c2): `createSVGRect`, `createSVGPoint`,
+  `createSVGMatrix`, `getBBox`, `getCTM`, `getTotalLength` are missing
+  (they need `DOMRect`, `DOMPoint`, `DOMMatrix`). Target scripts test
+  `'createSVGRect' in svg` and `typeof t.getBBox == "function"` and
+  take their non-SVG path in swb; this can explain part of the
+  Craigslist and Wikipedia differences with JavaScript on.
+- `web` (found in feature 6c2): SVG animated values (`SVGAnimatedLength`
+  and the others, with `x`, `width`, `viewBox`, `transform`), the URL
+  members of SVG `a`, the filter and animation element interfaces
+  (`SVGFilterElement`, `SVGFE*`, `SVGAnimationElement`), `style`,
+  `focus`, `blur` and `on*` on SVG elements (6d); MathML elements are
+  plain `Element`; no `Audio` factory; `new Image(undefined, 5)` sets
+  no `width` (Chromium `0`); Chromium lists `Option`, `Image` and
+  `Audio` in another order among the window's properties.
+- Engine (found in the 6c2 review): the dirty selectedness flag is kept
+  per `select`, not per `option`. An option in a select that a script
+  or the user changed does not follow later changes of its `selected`
+  attribute; only options from `new Option()` do. Also: the JS-off
+  load time grew 1 % with the 6c2 fixes (one counter in
+  `Document::record`); if it grows again, check the size and layout of
+  `Document`.
 - Engine (found in feature 6c1): with JavaScript on, the Craigslist
   posting has no script error but differs from Chromium in the top
   137 px; Wikipedia stops at `Cannot read properties of undefined

@@ -2276,8 +2276,7 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   every case of `tools/probes/web-dom-tree.json` with Chromium's values
   (`tests/dom/cases.rs`, generated from the probe's `--json` output; the
   values where swb departs on purpose are overridden in `SWB_VALUES` of
-  `dom.rs` with the reason: no `HTMLDocument`, HTML elements other than
-  `head` are `HTMLElement`, no SVG interfaces), and the interface objects, property names,
+  `dom.rs` with the reason; none is left since feature 6c2), and the interface objects, property names,
   descriptors, argument checks, `Event` and `DOMException` of the browser's
   glue; also expandos and identity across collections, the live
   `childNodes`, the console buffer, the evaluation forms and the task time
@@ -2332,6 +2331,42 @@ formatted by `rustfmt` (`#[rustfmt::skip]` on their `mod`).
   the GC stress mode; also tests of the element lists with 2,000 to 5,000
   rows, controls and options. The test document resolves URLs against
   its `base` element.
+- `crates/web/tests/svg_elements.rs`: the SVG element interfaces of feature
+  6c2: every case of `tools/probes/web-svg-elements.json` (151 queries:
+  constructor names and prototype chains of the SVG elements made by
+  `createElementNS`, the parser, `innerHTML` and cloning, with unknown names
+  and names with other case; `className` as `SVGAnimatedString` with reads,
+  writes of every kind of value, the `class` attribute after writes, brand
+  checks and `classList`; `ownerSVGElement` and `viewportElement` through
+  `symbol`, `image`, `foreignObject` and HTML elements; `dataset`,
+  `tabIndex`, `autofocus`; the members of `style`, `script`, `a` and `svg`)
+  with Chromium's values (`tests/svg_elements/cases.rs`, generated from the
+  probe's `--json` output; three equal Chromium runs), each with and
+  without the GC stress mode, and tests of the `className` object across
+  collections and of a loop of 20,000 writes. `SWB_VALUES` is empty: the
+  probe asks only for the members that swb has (`idl/svg.idl` lists what is
+  cut).
+- `crates/web/tests/image_option.rs`: `new Image()` and `new Option()`
+  (feature 6c2): every case of `tools/probes/web-image-option.json` that
+  does not need the form state (the function object: `name`, `length`,
+  `prototype`, the descriptors; the arguments and their conversions; the
+  calls without `new`, with `call`, `apply` and `Reflect.apply`;
+  `Reflect.construct` and `class extends`; the node document; options in
+  a `select`), each with and without the GC stress mode, 200 mixed
+  objects across a collection, and a loop of 100,000 calls. `SWB_VALUES`:
+  `new Image(undefined, 5)` and the non-object `prototype` of `new.target`
+  (Web IDL takes the interface prototype; Chromium `Object.prototype`). The `forms-option` cases (the selectedness
+  that the fourth argument sets, in a select) run in `script_html.rs`
+  (`tests/script_html/option_cases.rs`). The generator tests for
+  `[LegacyFactoryFunction]` are in `crates/webidl/src/lib.rs`
+  (`a_legacy_factory_function_is_a_constructor_of_the_global_object` and
+  the error cases); `Runtime::define_constructor` is tested in
+  `crates/js/tests/host_classes.rs` with the test host's `Make2`.
+- `crates/engine/tests/script_dom.rs` has two tests of feature 6c2: an image
+  made by `new Image()` loads when it goes into the document (and does not
+  load before; the width and height arguments size the box), and a class
+  change of an SVG element through `className.baseVal`, `classList` and
+  `setAttribute` restyles it.
 - `crates/engine/tests/script_html.rs`: form controls from scripts
   (feature 6c): the `forms-` cases of the same probe file (input values and
   their dirty flag, `checked` and radio groups, `textarea`, `select`,

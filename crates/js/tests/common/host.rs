@@ -93,6 +93,14 @@ fn a_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> 
     Ok(NativeReturn::Value(object.into()))
 }
 
+/// `new Make2()`: like `new A()`; a call without `new` throws.
+fn a_factory(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    if call.new_target().is_undefined() {
+        return Err(VmError::type_error("Please use the 'new' operator"));
+    }
+    a_constructor(rt, call)
+}
+
 fn a_hello(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let class = classes(rt)?.a;
     let word = word(rt.this_host_data(call, class)?)?;
@@ -526,6 +534,9 @@ fn create_interfaces(rt: &mut Runtime, classes: &Classes) -> VmResult<()> {
     let a = rt
         .interface(0, classes.a)
         .ok_or(VmError::type_error("no A"))?;
+    // A legacy factory function of A (Web IDL §3.7.2): `Make2`.
+    let factory = rt.define_constructor(0, a.prototype, "Make2", 2, a_factory)?;
+    rt.define_value(global, "Make2", factory.into(), Attributes::HIDDEN)?;
     rt.define_accessor(0, a.prototype, "id", (Some(a_id), None), Attributes::MEMBER)?;
     rt.define_value(a.object, "CONSTANT", Value::Int(7), Attributes::CONSTANT)?;
     rt.define_value(a.prototype, "CONSTANT", Value::Int(7), Attributes::CONSTANT)?;

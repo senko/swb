@@ -11,6 +11,9 @@ use crate::ast::{
     Interface, Member, Place, Type, TypeKind,
 };
 
+/// The extended attribute of legacy factory functions (`new Image()`).
+pub(crate) const FACTORY: &str = "LegacyFactoryFunction";
+
 /// The extended attributes that the generator knows, per construct, with
 /// the ones it ignores on purpose: `[CEReactions]` (no custom elements),
 /// `[SameObject]` and `[NewObject]` (the hand-written code keeps or makes
@@ -381,6 +384,9 @@ impl Model {
     fn check(&self) -> Result<(), Error> {
         for iface in self.interfaces.iter().chain(&self.callback_interfaces) {
             check_attrs(&iface.ext_attrs, INTERFACE_ATTRS, &iface.place, "interface")?;
+            for factory in iface.ext_attrs.0.iter().filter(|a| a.name == FACTORY) {
+                self.check_args(factory.args.as_deref().unwrap_or_default(), &factory.place)?;
+            }
             for member in &iface.members {
                 self.check_member(iface, member)?;
             }
@@ -507,8 +513,15 @@ impl Model {
 /// Fails for an extended attribute that is not in `allowed`.
 fn check_attrs(attrs: &ExtAttrs, allowed: &[&str], place: &Place, what: &str) -> Result<(), Error> {
     for attr in &attrs.0 {
-        if attr.name == "LegacyFactoryFunction" {
-            return error(&attr.place, "[LegacyFactoryFunction] is not generated yet");
+        if attr.name == FACTORY && what == "interface" {
+            // Web IDL §3.3.3: `[LegacyFactoryFunction=Name(arguments)]`.
+            if !matches!(attr.value, ExtValue::Ident(_)) || attr.args.is_none() {
+                return error(
+                    &attr.place,
+                    "[LegacyFactoryFunction] needs a name and arguments: [LegacyFactoryFunction=Name(args)]",
+                );
+            }
+            continue;
         }
         if !allowed.contains(&attr.name.as_str()) {
             return error(

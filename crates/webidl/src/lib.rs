@@ -284,6 +284,43 @@ mod tests {
     }
 
     #[test]
+    fn a_legacy_factory_function_is_a_constructor_of_the_global_object() {
+        let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node {};\n[Exposed=Window, LegacyFactoryFunction=Img(optional unsigned long width, optional unsigned long height), LegacyFactoryFunction=Opt(DOMString text, optional boolean sel = false)]\ninterface Img : Element { [HTMLConstructor] constructor(); };";
+        let img = file(idl, "img.rs");
+        // The trait has one method per factory, with the arguments of the
+        // attribute (an optional argument without a default is an Option).
+        assert!(img.contains("fn legacy_factory_img(cx: &mut b::Cx<'_>, width: Option<u32>, height: Option<u32>) -> b::Result<swb_js::Gc<swb_js::Object>>;"));
+        assert!(img.contains("fn legacy_factory_opt(cx: &mut b::Cx<'_>, text: String, sel: bool) -> b::Result<swb_js::Gc<swb_js::Object>>;"));
+        // The glue is a constructor named by the factory, and a call
+        // without `new` throws Chromium's message with the factory's name.
+        assert!(img.contains("fn construct_img<H: ImgImpl>("));
+        assert!(img.contains("b::Context::Constructor(\"Img\")"));
+        assert!(img.contains("if call.new_target().is_undefined() {"));
+        assert!(img.contains("Please use the 'new' operator, this DOM object constructor cannot be called as a function."));
+        assert!(img.contains(
+            "<H as ImgImpl>::legacy_factory_img(&mut b::Cx::new(rt, call, super::IMG), a0, a1)"
+        ));
+        // The HTML constructor of the interface itself is unchanged.
+        assert!(img.contains("pub(super) fn construct<H: ImgImpl>("));
+        assert!(img.contains("Err(b::Exception::type_error(\"Illegal constructor\"))"));
+        // `define` makes the functions with the prototype of the
+        // interface and a `length` of the required arguments (0 and 1), and
+        // defines them on the global object, after `constructor` of the
+        // prototype.
+        assert!(img.contains("rt.end_interface(interface)?;\n    let factory = rt.define_constructor(realm, interface.prototype, \"Img\", 0, construct_img::<H>)?;\n    b::glue::expose_function(rt, realm, \"Img\", factory)?;"));
+        assert!(img.contains(
+            "rt.define_constructor(realm, interface.prototype, \"Opt\", 1, construct_opt::<H>)?;"
+        ));
+        // An interface that is not exposed in `Window` gets no function.
+        let hidden = file(
+            "[Exposed=Worker, LegacyFactoryFunction=W()] interface W {};",
+            "w.rs",
+        );
+        assert!(hidden.contains("fn legacy_factory_w("));
+        assert!(!hidden.contains("define_constructor"));
+    }
+
+    #[test]
     fn reflect_setter_covers_strings_and_integers() {
         let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node { [ReflectSetter] attribute long a; [ReflectSetter] attribute unsigned long b; [ReflectSetter] attribute DOMString c; attribute long d; };";
         let element = file(idl, "element.rs");
@@ -368,7 +405,19 @@ mod tests {
             ),
             (
                 "[LegacyFactoryFunction=Image] interface A {};",
-                "t.idl:1: [LegacyFactoryFunction] is not generated yet",
+                "t.idl:1: [LegacyFactoryFunction] needs a name and arguments: [LegacyFactoryFunction=Name(args)]",
+            ),
+            (
+                "[LegacyFactoryFunction(optional long w)] interface A {};",
+                "t.idl:1: [LegacyFactoryFunction] needs a name and arguments: [LegacyFactoryFunction=Name(args)]",
+            ),
+            (
+                "[LegacyFactoryFunction=I(Missing m)] interface A {};",
+                "t.idl:1: unknown type 'Missing'",
+            ),
+            (
+                "interface A { [LegacyFactoryFunction=I()] attribute long x; };",
+                "t.idl:1: the extended attribute [LegacyFactoryFunction] is not supported on a attribute",
             ),
             (
                 "interface A { [Reflect] attribute DOMString x; };",

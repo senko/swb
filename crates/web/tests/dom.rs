@@ -18,20 +18,7 @@ use swb_web::{ConsoleLevel, Evaluation, JsonForm, ScriptRuntime};
 
 /// The values where swb departs from Chromium on purpose: (case, query
 /// index, swb's value, why).
-const SWB_VALUES: &[Departure] = &[
-    (
-        "chains",
-        7,
-        r#""[object Element] [object Node] [object EventTarget] [object Object]""#,
-        "no SVG interfaces",
-    ),
-    (
-        "chains",
-        8,
-        r#""[object Element] [object Node] [object EventTarget] [object Object]""#,
-        "no SVG interfaces",
-    ),
-];
+const SWB_VALUES: &[Departure] = &[];
 
 /// Runs every probe case with and without the GC stress mode.
 #[test]

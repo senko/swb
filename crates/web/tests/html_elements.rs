@@ -20,12 +20,6 @@ use common::{Departure, answer, expected, load, on_big_stack, probe_failures};
 /// index, swb's value, why).
 const SWB_VALUES: &[Departure] = &[
     (
-        "html-element-02",
-        8,
-        "\"\"",
-        "no SVG interfaces yet (feature 6c2): an SVG element has no tabIndex",
-    ),
-    (
         "fix-html-01",
         0,
         "\"http://h.test:5/p,http://h.test:5/p,http://h:5/p,http://h:5/p,http://h.test:5/p,http://h:5/p,http://h:5/p,http://h.test:5/p,http://h2.test:5/p\"",

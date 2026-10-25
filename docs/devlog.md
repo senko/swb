@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-25: M8 feature 6c2, `Image`, `Option` and the SVG interfaces
+
+- `new Image(width, height)` and `new Option(text, value,
+  defaultSelected, selected)` work as in Chromium: `name`, `length`,
+  the interface prototype, the error for a call without `new`,
+  subclassing with `class extends` and `Reflect.construct`. The
+  generator writes `[LegacyFactoryFunction]`; `js` has one new API,
+  `Runtime::define_constructor`. test262 and jsbench are unchanged.
+- 38 SVG element interfaces and `SVGAnimatedString` come from the SVG 2
+  IDL, cut to the members that need no layout. The prototype chains and
+  constructor names of the SVG elements match Chromium, and unknown SVG
+  names give `SVGElement`. `className` is a live `SVGAnimatedString`;
+  `ownerSVGElement`, `viewportElement`, `dataset`, `tabIndex` and
+  `classList` work on SVG elements.
+- Learned from the probes: `viewportElement` is the nearest `svg`,
+  `symbol` or `image` ancestor, and the SVG `tabIndex` is -1 (0 for
+  `a`).
+- Two new probe files (151 and 102 queries). The SVG departures of the
+  older tests are gone, and the older probes lost 14 differences. A
+  runtime costs 36 KB more.
+- Not done: the SVG geometry members (`getBBox`, `createSVGRect`;
+  feature 7b). Target scripts test for them and take their non-SVG
+  path. A detached `img` from `new Image()` loads only when it is
+  inserted.
+- Review fixes: `ownerSVGElement` under `foreignObject`; `new
+  Option()` selectedness without the dirty mark (a new engine path
+  from the attribute change steps); `SVGStyleElement.disabled`; the
+  factory functions read `new.target.prototype` first. A non-object
+  `prototype` of `new.target` stays a documented departure (Web IDL
+  against Chromium's `Object.prototype`).
+- Performance: every attribute write dropped the cache of
+  `children`, so a `for...of` loop that writes to the children was
+  quadratic (100,000 children: 5.4 s). The child lists now cache
+  against `Document::structure_generation`, which only child-list
+  changes bump (0.42 s). JS-off load time is 1 % higher on the large
+  fixtures; part of it is code placement.
+
+Next: feature 6d, input as DOM events.
+
 ## 2026-10-24: M8 feature 6c1, HTML element interfaces and form controls
 
 - Every HTML element has its interface: prototype chains, constructor

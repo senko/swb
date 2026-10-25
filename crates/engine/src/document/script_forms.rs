@@ -285,10 +285,39 @@ impl DocumentState {
         })
     }
 
+    /// The selectedness of a new option (`new Option()`), without the
+    /// dirtiness flag: the `selected` attribute decides again when it
+    /// changes.
+    pub(crate) fn script_set_option_initial_selected(&mut self, option: NodeId, selected: bool) {
+        self.seeds.set_selected_clean(option, selected);
+        self.controls_changed();
+    }
+
+    /// The `selected` attribute of `option` was added or removed: an
+    /// option that is not dirty follows the attribute (HTML, the
+    /// attribute change steps of `option`).
+    pub(crate) fn script_option_selected_attribute_changed(&mut self, option: NodeId) {
+        let was_clean = self.seeds.drop_clean_selected(option);
+        let was_applied = self.seeds.take_clean_applied(option);
+        if (was_clean || was_applied) && select_of_option(&self.dom, option).is_some() {
+            // The option is in a select, which keeps its state over
+            // rebuilds: the selectedness follows the attribute.
+            let selected = self
+                .dom
+                .element(option)
+                .is_some_and(|e| e.has_attr("selected"));
+            self.script_set_option_selected(option, selected);
+            self.seeds.mark_clean_applied(option);
+            return;
+        }
+        self.controls_changed();
+    }
+
     /// `option.selected = selected`: selects the option (and deselects the
     /// others of a select without `multiple`), then the selectedness
     /// setting algorithm runs ("ask for a reset").
     pub(crate) fn script_set_option_selected(&mut self, option: NodeId, selected: bool) {
+        self.seeds.forget_clean_applied(option);
         let Some(select) = select_of_option(&self.dom, option) else {
             self.seeds.set_selected(option, selected);
             self.controls_changed();

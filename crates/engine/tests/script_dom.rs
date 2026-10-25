@@ -258,6 +258,85 @@ fn inserted_style_sheets_and_images_apply_and_load() {
     });
 }
 
+/// `new Image()` with a source (feature 6c2): the image loads when the
+/// element goes into the document. A detached image does not load (the
+/// engine selects sources for the elements of the document only; nothing
+/// that a script can read depends on it yet).
+#[test]
+fn an_image_made_by_the_factory_loads_when_inserted() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-new-image");
+        let png = Pixmap::new(2, 3).unwrap().encode_png().unwrap();
+        site.file("pic.png", &png);
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>body { margin: 0 }</style><div id=a>a</div>",
+        );
+        let (mut page, recorder) = load(&url);
+        run(
+            &mut page,
+            "var i = new Image(); i.id = 'i'; i.src = 'pic.png'; window.i = i;",
+        );
+        settle(&mut page);
+        assert_eq!(recorder.count("pic.png"), 0);
+        run(&mut page, "document.body.appendChild(i);");
+        settle(&mut page);
+        assert_eq!(recorder.count("pic.png"), 1);
+        let r = rect(&mut page, "i");
+        assert_eq!((r.width, r.height), (2.0, 3.0));
+        // The width and height arguments are attributes: they size the box.
+        run(
+            &mut page,
+            "var j = new Image(7, 9); j.id = 'j'; document.body.appendChild(j);",
+        );
+        let r = rect(&mut page, "j");
+        assert_eq!((r.width, r.height), (7.0, 9.0));
+    });
+}
+
+/// A script that changes the `class` of an SVG element (through
+/// `className.baseVal`, `classList` and `setAttribute`) restyles it
+/// (feature 6c2).
+#[test]
+fn a_class_change_of_an_svg_element_restyles() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-svg-class");
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>.red { fill: red } .blue { fill: blue } svg { display: block; width: 50px; height: 50px }</style>\
+             <svg id=s><rect id=r class=red width=10 height=10></rect></svg>",
+        );
+        let (mut page, _) = load(&url);
+        let fill = |page: &mut Page| {
+            page.update_layout();
+            let n = node(page, "r");
+            page.styles().expect("styles").get(n).unwrap().fill.clone()
+        };
+        let red = fill(&mut page);
+        run(
+            &mut page,
+            "document.getElementById('r').className.baseVal = 'blue'",
+        );
+        let blue = fill(&mut page);
+        assert_ne!(red, blue);
+        run(
+            &mut page,
+            "document.getElementById('r').classList.replace('blue', 'red')",
+        );
+        assert_eq!(fill(&mut page), red);
+        run(
+            &mut page,
+            "document.getElementById('r').setAttribute('class', 'blue')",
+        );
+        assert_eq!(fill(&mut page), blue);
+        let value = run(
+            &mut page,
+            "[document.getElementById('r').className.baseVal, document.getElementById('r') instanceof SVGRectElement]",
+        );
+        assert_eq!(value, "[\"blue\",true]");
+    });
+}
+
 #[test]
 fn a_cloned_fragment_with_a_style_sheet_applies() {
     on_page_thread(|| {

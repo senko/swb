@@ -24,6 +24,9 @@ struct OpGroup<'a> {
     name: String,
     overloads: Vec<&'a Operation>,
     is_static: bool,
+    /// The name of a legacy factory function (`Image`); such a group has
+    /// one overload and the empty `name`, like a constructor.
+    factory: Option<String>,
 }
 
 /// One entry of an effective overload set for an argument count: the
@@ -68,6 +71,19 @@ impl Gen<'_> {
         for group in &groups {
             self.operation(iface, group, &mut trait_items, &mut glue, &mut claim)?;
         }
+        let factory_ops = factory_operations(iface);
+        let factories: Vec<OpGroup<'_>> = factory_ops
+            .iter()
+            .map(|(name, op)| OpGroup {
+                name: String::new(),
+                overloads: vec![op],
+                is_static: false,
+                factory: Some(name.clone()),
+            })
+            .collect();
+        for group in &factories {
+            self.operation(iface, group, &mut trait_items, &mut glue, &mut claim)?;
+        }
         if let Some(place) = iface.members.iter().find_map(|m| match m {
             Member::Stringifier(place) => Some(place),
             _ => None,
@@ -93,7 +109,7 @@ impl Gen<'_> {
             let _ = writeln!(out, "impl<T: b::Host> {trait_name} for T {{}}\n");
         }
         out.push_str(&glue);
-        self.define_fn(iface, &groups, &mut out)?;
+        self.define_fn(iface, &groups, &factories, &mut out)?;
         Ok(out)
     }
 
@@ -387,7 +403,9 @@ impl Gen<'_> {
         claim: &mut impl FnMut(&str, &Place) -> Result<(), Error>,
     ) -> Result<(), Error> {
         let constructor = group.name.is_empty();
-        let base = if constructor {
+        let base = if let Some(factory) = &group.factory {
+            format!("legacy_factory_{}", snake(factory))
+        } else if constructor {
             "constructor".to_owned()
         } else {
             ident(&group.name)
@@ -472,7 +490,9 @@ impl Gen<'_> {
             let _ = writeln!(
                 trait_items,
                 "    /// `{}({signature})`.\n    fn {method}({}) -> b::Result<{ret}>;\n",
-                if constructor {
+                if let Some(factory) = &group.factory {
+                    format!("new {factory}")
+                } else if constructor {
                     "constructor".to_owned()
                 } else {
                     format!("{} {}", self.idl_text(&op.ret), group.name)
@@ -507,12 +527,16 @@ impl Gen<'_> {
         glue: &mut String,
     ) -> Result<(), Error> {
         let constructor = group.name.is_empty();
-        let fn_name = if constructor {
+        let fn_name = if let Some(factory) = &group.factory {
+            format!("construct_{}", snake(factory))
+        } else if constructor {
             "construct".to_owned()
         } else {
             format!("op_{}", snake(&group.name))
         };
-        let context = if constructor {
+        let context = if let Some(factory) = &group.factory {
+            format!("b::Context::Constructor({})", literal(factory))
+        } else if constructor {
             format!("b::Context::Constructor({})", literal(&iface.name))
         } else {
             format!(
@@ -535,6 +559,11 @@ impl Gen<'_> {
         );
         if !constructor && !group.is_static {
             let _ = writeln!(glue, "        {}", self.this_check(iface));
+        }
+        if group.factory.is_some() {
+            // Web IDL §3.7.2: a factory function needs `new` (Chromium's
+            // message).
+            glue.push_str("        if call.new_target().is_undefined() {\n            return Err(b::Exception::type_error(\"Please use the 'new' operator, this DOM object constructor cannot be called as a function.\"));\n        }\n");
         }
         let min_required = group
             .overloads
@@ -740,6 +769,7 @@ impl Gen<'_> {
         &self,
         iface: &Iface,
         groups: &[OpGroup<'_>],
+        factories: &[OpGroup<'_>],
         out: &mut String,
     ) -> Result<(), Error> {
         let class = format!("super::{}", constant(&iface.name));
@@ -802,7 +832,11 @@ impl Gen<'_> {
         define_constants(iface, out)?;
         define_operations(iface, groups, global, out);
         out.push_str(&last);
-        out.push_str("    rt.end_interface(interface)?;\n    Ok(interface)\n}\n");
+        out.push_str("    rt.end_interface(interface)?;\n");
+        if exposed_in_window(&iface.ext_attrs) {
+            define_factories(factories, out);
+        }
+        out.push_str("    Ok(interface)\n}\n");
         Ok(())
     }
 
@@ -965,6 +999,61 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
     }
 }
 
+/// The legacy factory functions of an interface (`[LegacyFactoryFunction=
+/// Image(optional unsigned long width)]`) as operations without a name:
+/// the factory's name and its arguments.
+fn factory_operations(iface: &Iface) -> Vec<(String, Operation)> {
+    iface
+        .ext_attrs
+        .0
+        .iter()
+        .filter(|a| a.name == crate::model::FACTORY)
+        .filter_map(|attr| {
+            let ExtValue::Ident(name) = &attr.value else {
+                return None;
+            };
+            let op = Operation {
+                name: None,
+                ret: crate::ast::Type {
+                    kind: TypeKind::Undefined,
+                    nullable: false,
+                    ext_attrs: crate::ast::ExtAttrs::default(),
+                },
+                args: attr.args.clone().unwrap_or_default(),
+                special: None,
+                is_static: false,
+                ext_attrs: crate::ast::ExtAttrs::default(),
+                place: attr.place.clone(),
+            };
+            Some((name.clone(), op))
+        })
+        .collect()
+}
+
+/// The functions of the legacy factory functions: each is a constructor
+/// whose `prototype` is the interface prototype object, a property of the
+/// global object (Web IDL §3.7.2).
+fn define_factories(factories: &[OpGroup<'_>], out: &mut String) {
+    for group in factories {
+        let Some(name) = &group.factory else {
+            continue;
+        };
+        let length = group
+            .overloads
+            .iter()
+            .map(|op| required_count(op))
+            .min()
+            .unwrap_or(0);
+        let _ = writeln!(
+            out,
+            "    let factory = rt.define_constructor(realm, interface.prototype, {}, {length}, construct_{}::<H>)?;\n    b::glue::expose_function(rt, realm, {}, factory)?;",
+            literal(name),
+            snake(name),
+            literal(name)
+        );
+    }
+}
+
 /// The groups of operations (by name; the constructors as the group with
 /// the empty name), in order of their first declaration.
 fn op_groups(iface: &Iface) -> Vec<OpGroup<'_>> {
@@ -987,6 +1076,7 @@ fn op_groups(iface: &Iface) -> Vec<OpGroup<'_>> {
                 name,
                 overloads: vec![op],
                 is_static: op.is_static,
+                factory: None,
             }),
         }
     }

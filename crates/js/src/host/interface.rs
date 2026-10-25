@@ -165,6 +165,32 @@ impl Runtime {
         Ok(())
     }
 
+    /// Creates the function of a legacy factory function (Web IDL
+    /// §3.7.2, <https://webidl.spec.whatwg.org/#js-legacy-factory-functions>,
+    /// `new Image()`): a native constructor of `realm` named `name` with
+    /// `length`, whose `prototype` property (not writable, not
+    /// enumerable, not configurable) is `prototype`, the interface
+    /// prototype object of the interface that has the factory. The
+    /// function sees `new.target`; a call without `new` is the native's to
+    /// reject. The host defines the result as a property of the global
+    /// object at once ([`Runtime::define_value`] with
+    /// [`Attributes::HIDDEN`]).
+    pub fn define_constructor(
+        &mut self,
+        realm: u32,
+        prototype: Gc<Object>,
+        name: &str,
+        length: u32,
+        func: NativeFn,
+    ) -> VmResult<Gc<Object>> {
+        self.scoped(|rt| {
+            let function = rt.new_builtin(realm, name, length, func, true)?;
+            let key = PropertyKey::String(rt.vm.atoms.prototype);
+            rt.define(function, key, prototype.into(), false, false, false)?;
+            Ok(function)
+        })
+    }
+
     /// Defines a method (a native function of `realm` named `name`) on
     /// `object`.
     pub fn define_method(

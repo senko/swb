@@ -224,8 +224,26 @@ pub(crate) fn set_attribute(
     let type_change = crate::html::before_type_change(rt, element, name)?;
     let result = dom_mut(rt)?.set_attribute(element, name, value);
     dom_result(rt, result)?;
+    if !had {
+        selected_attribute_changed(rt, element, name)?;
+    }
     crate::html::after_type_change(rt, element, type_change)?;
     Ok(crate::scripts::attribute_changed(rt, element, name, had)?)
+}
+
+/// Tells the engine that the `selected` attribute of an `option` was
+/// added or removed: an option whose selectedness is not dirty follows
+/// the attribute.
+fn selected_attribute_changed(rt: &mut Runtime, element: NodeId, name: &QualName) -> VmResult<()> {
+    if name.ns == ns!() && &*name.local == "selected" {
+        let is_option = dom(rt)?
+            .element(element)
+            .is_some_and(|e| e.is_html() && &**e.local_name() == "option");
+        if is_option {
+            crate::state::engine_mut(rt)?.option_selected_attribute_changed(element);
+        }
+    }
+    Ok(())
 }
 
 /// Removes the attribute `name` of `element`; its `Attr` object, if a
@@ -237,6 +255,9 @@ pub(crate) fn remove_attribute(
     name: &QualName,
 ) -> VmResult<Option<String>> {
     let old = dom_mut(rt)?.remove_attribute(element, name);
+    if old.is_some() {
+        selected_attribute_changed(rt, element, name)?;
+    }
     if let Some(old) = &old {
         let key = (element, name.ns.clone(), name.local.clone());
         if let Some(object) = state_mut(rt)?.attr_objects.remove(&key) {

@@ -1,0 +1,695 @@
+// The cases of `tools/probes/web-svg-elements.json` with the values that
+// Chromium 148 gave (`just probe tools/probes/web-svg-elements.json`, three
+// runs, all equal); where swb departs on purpose, the test overrides the value.
+// Generated.
+
+use crate::common::Case;
+
+/// The page of the cases.
+pub(crate) const PAGE: &str = r"<!DOCTYPE html><html><head><title>t</title></head><body><div id=d class=k><svg id=s class='a b' xmlns='http://www.w3.org/2000/svg' data-foo-bar='1'><g id=g class=x><path id=p d='M0 0'/><rect id=r /><foo id=u class=u1 /></g><text id=t>hi</text><svg id=in><circle id=c /></svg><foreignObject id=fo><div id=h class=hh>x</div></foreignObject></svg></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function C(o) { const r = []; for (let p = Object.getPrototypeOf(o); p; p = Object.getPrototypeOf(p)) r.push(Object.prototype.toString.call(p)); return r.join(' '); }
+const N = 'http://www.w3.org/2000/svg';
+function X(t) { return document.createElementNS(N, t); }
+</script></body></html>";
+
+pub(crate) const CASES: &[Case] = &[
+    Case {
+        name: "chains-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => ['svg', 'g', 'defs', 'desc', 'metadata', 'title', 'symbol', 'use', 'switch', 'style', 'script', 'path'].map((t) => t + '=' + X(t).constructor.name).join(' '))",
+                r#""svg=SVGSVGElement g=SVGGElement defs=SVGDefsElement desc=SVGDescElement metadata=SVGMetadataElement title=SVGTitleElement symbol=SVGSymbolElement use=SVGUseElement switch=SVGSwitchElement style=SVGStyleElement script=SVGScriptElement path=SVGPathElement""#,
+            ),
+            (
+                r"E(() => ['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'textPath', 'image', 'foreignObject', 'marker'].map((t) => t + '=' + X(t).constructor.name).join(' '))",
+                r#""rect=SVGRectElement circle=SVGCircleElement ellipse=SVGEllipseElement line=SVGLineElement polyline=SVGPolylineElement polygon=SVGPolygonElement text=SVGTextElement tspan=SVGTSpanElement textPath=SVGTextPathElement image=SVGImageElement foreignObject=SVGForeignObjectElement marker=SVGMarkerElement""#,
+            ),
+            (
+                r"E(() => ['linearGradient', 'radialGradient', 'stop', 'pattern', 'clipPath', 'mask', 'a', 'view', 'discard', 'foo', 'x-y', 'font-face'].map((t) => t + '=' + X(t).constructor.name).join(' '))",
+                r#""linearGradient=SVGLinearGradientElement radialGradient=SVGRadialGradientElement stop=SVGStopElement pattern=SVGPatternElement clipPath=SVGClipPathElement mask=SVGMaskElement a=SVGAElement view=SVGViewElement discard=SVGElement foo=SVGElement x-y=SVGElement font-face=SVGElement""#,
+            ),
+            (
+                r"E(() => ['SVG', 'Rect', 'div', 'span', 'math', 'altGlyph', 'glyph', 'tref', 'cursor', 'font', 'hkern', 'vkern'].map((t) => t + '=' + X(t).constructor.name).join(' '))",
+                r#""SVG=SVGElement Rect=SVGElement div=SVGElement span=SVGElement math=SVGElement altGlyph=SVGElement glyph=SVGElement tref=SVGElement cursor=SVGElement font=SVGElement hkern=SVGElement vkern=SVGElement""#,
+            ),
+            (
+                r"E(() => ['mesh', 'hatch', 'solidcolor', 'unknown'].map((t) => t + '=' + X(t).constructor.name).join(' '))",
+                r#""mesh=SVGElement hatch=SVGElement solidcolor=SVGElement unknown=SVGElement""#,
+            ),
+            (
+                r"E(() => ['svg', 'g', 'defs', 'desc', 'metadata', 'title', 'symbol', 'use', 'switch', 'style', 'script', 'path'].map((t) => { const d = document.createElement('div'); d.innerHTML = '<svg><' + t + '></' + t + '></svg>'; const e = d.firstChild.firstChild; return t + '=' + (e ? e.constructor.name + '/' + e.localName + '/' + e.namespaceURI.slice(-4) : 'none'); }).join(' '))",
+                r#""svg=SVGSVGElement/svg//svg g=SVGGElement/g//svg defs=SVGDefsElement/defs//svg desc=SVGDescElement/desc//svg metadata=SVGMetadataElement/metadata//svg title=SVGTitleElement/title//svg symbol=SVGSymbolElement/symbol//svg use=SVGUseElement/use//svg switch=SVGSwitchElement/switch//svg style=SVGStyleElement/style//svg script=SVGScriptElement/script//svg path=SVGPathElement/path//svg""#,
+            ),
+            (
+                r"E(() => ['rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'textPath', 'image', 'foreignObject', 'marker'].map((t) => { const d = document.createElement('div'); d.innerHTML = '<svg><' + t + '></' + t + '></svg>'; const e = d.firstChild.firstChild; return t + '=' + (e ? e.constructor.name + '/' + e.localName + '/' + e.namespaceURI.slice(-4) : 'none'); }).join(' '))",
+                r#""rect=SVGRectElement/rect//svg circle=SVGCircleElement/circle//svg ellipse=SVGEllipseElement/ellipse//svg line=SVGLineElement/line//svg polyline=SVGPolylineElement/polyline//svg polygon=SVGPolygonElement/polygon//svg text=SVGTextElement/text//svg tspan=SVGTSpanElement/tspan//svg textPath=SVGTextPathElement/textPath//svg image=SVGImageElement/image//svg foreignObject=SVGForeignObjectElement/foreignObject//svg marker=SVGMarkerElement/marker//svg""#,
+            ),
+            (
+                r"E(() => ['linearGradient', 'radialGradient', 'stop', 'pattern', 'clipPath', 'mask', 'a', 'view', 'discard', 'foo', 'x-y', 'font-face'].map((t) => { const d = document.createElement('div'); d.innerHTML = '<svg><' + t + '></' + t + '></svg>'; const e = d.firstChild.firstChild; return t + '=' + (e ? e.constructor.name + '/' + e.localName + '/' + e.namespaceURI.slice(-4) : 'none'); }).join(' '))",
+                r#""linearGradient=SVGLinearGradientElement/linearGradient//svg radialGradient=SVGRadialGradientElement/radialGradient//svg stop=SVGStopElement/stop//svg pattern=SVGPatternElement/pattern//svg clipPath=SVGClipPathElement/clipPath//svg mask=SVGMaskElement/mask//svg a=SVGAElement/a//svg view=SVGViewElement/view//svg discard=SVGElement/discard//svg foo=SVGElement/foo//svg x-y=SVGElement/x-y//svg font-face=SVGElement/font-face//svg""#,
+            ),
+            (
+                r"E(() => ['SVG', 'Rect', 'div', 'span', 'math', 'altGlyph', 'glyph', 'tref', 'cursor', 'font', 'hkern', 'vkern'].map((t) => { const d = document.createElement('div'); d.innerHTML = '<svg><' + t + '></' + t + '></svg>'; const e = d.firstChild.firstChild; return t + '=' + (e ? e.constructor.name + '/' + e.localName + '/' + e.namespaceURI.slice(-4) : 'none'); }).join(' '))",
+                r#""SVG=SVGSVGElement/svg//svg Rect=SVGRectElement/rect//svg div=none span=none math=SVGElement/math//svg altGlyph=SVGElement/altGlyph//svg glyph=SVGElement/glyph//svg tref=SVGElement/tref//svg cursor=SVGElement/cursor//svg font=SVGElement/font//svg hkern=SVGElement/hkern//svg vkern=SVGElement/vkern//svg""#,
+            ),
+            (
+                r"E(() => ['mesh', 'hatch', 'solidcolor', 'unknown'].map((t) => { const d = document.createElement('div'); d.innerHTML = '<svg><' + t + '></' + t + '></svg>'; const e = d.firstChild.firstChild; return t + '=' + (e ? e.constructor.name + '/' + e.localName + '/' + e.namespaceURI.slice(-4) : 'none'); }).join(' '))",
+                r#""mesh=SVGElement/mesh//svg hatch=SVGElement/hatch//svg solidcolor=SVGElement/solidcolor//svg unknown=SVGElement/unknown//svg""#,
+            ),
+            (
+                r"E(() => C(X('svg')))",
+                r#""[object SVGSVGElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('g')))",
+                r#""[object SVGGElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('path')))",
+                r#""[object SVGPathElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('rect')))",
+                r#""[object SVGRectElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('text')))",
+                r#""[object SVGTextElement] [object SVGTextPositioningElement] [object SVGTextContentElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('tspan')))",
+                r#""[object SVGTSpanElement] [object SVGTextPositioningElement] [object SVGTextContentElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('textPath')))",
+                r#""[object SVGTextPathElement] [object SVGTextContentElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('linearGradient')))",
+                r#""[object SVGLinearGradientElement] [object SVGGradientElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('radialGradient')))",
+                r#""[object SVGRadialGradientElement] [object SVGGradientElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('stop')))",
+                r#""[object SVGStopElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('foo')))",
+                r#""[object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('clipPath')))",
+                r#""[object SVGClipPathElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('mask')))",
+                r#""[object SVGMaskElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('a')))",
+                r#""[object SVGAElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('title')))",
+                r#""[object SVGTitleElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('style')))",
+                r#""[object SVGStyleElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('script')))",
+                r#""[object SVGScriptElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('image')))",
+                r#""[object SVGImageElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('use')))",
+                r#""[object SVGUseElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('symbol')))",
+                r#""[object SVGSymbolElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+        ],
+    },
+    Case {
+        name: "chains-02",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => C(X('marker')))",
+                r#""[object SVGMarkerElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('pattern')))",
+                r#""[object SVGPatternElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('polygon')))",
+                r#""[object SVGPolygonElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('polyline')))",
+                r#""[object SVGPolylineElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('line')))",
+                r#""[object SVGLineElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('circle')))",
+                r#""[object SVGCircleElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('ellipse')))",
+                r#""[object SVGEllipseElement] [object SVGGeometryElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('foreignObject')))",
+                r#""[object SVGForeignObjectElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('defs')))",
+                r#""[object SVGDefsElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('desc')))",
+                r#""[object SVGDescElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('metadata')))",
+                r#""[object SVGMetadataElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('switch')))",
+                r#""[object SVGSwitchElement] [object SVGGraphicsElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => C(X('view')))",
+                r#""[object SVGViewElement] [object SVGElement] [object Element] [object Node] [object EventTarget] [object Object]""#,
+            ),
+            (
+                r"E(() => X('SVG').nodeName + ' ' + X('clipPath').nodeName + ' ' + X('clipPath').tagName + ' ' + X('svg').localName)",
+                r#""SVG clipPath clipPath svg""#,
+            ),
+            (
+                r"E(() => document.createElementNS('http://www.w3.org/2000/svg', 'svg:rect').constructor.name)",
+                r#""SVGRectElement""#,
+            ),
+            (
+                r"E(() => document.createElementNS('http://www.w3.org/2000/svg', 'svg:foo').constructor.name)",
+                r#""SVGElement""#,
+            ),
+            (
+                r"E(() => document.createElement('svg').constructor.name + ' ' + document.createElement('rect').constructor.name)",
+                r#""HTMLUnknownElement HTMLUnknownElement""#,
+            ),
+            (
+                r"E(() => ['s', 'g', 'p', 'r', 'u', 't', 'in', 'c', 'fo', 'h', 'd'].map((id) => document.getElementById(id).constructor.name).join())",
+                r#""SVGSVGElement,SVGGElement,SVGPathElement,SVGRectElement,SVGElement,SVGTextElement,SVGSVGElement,SVGCircleElement,SVGForeignObjectElement,HTMLDivElement,HTMLDivElement""#,
+            ),
+            (
+                r"E(() => { const d = document.createElement('div'); d.innerHTML = '<svg><foreignObject><div></div><svg></svg></foreignObject></svg>'; const fo = d.firstChild.firstChild; return [fo.constructor.name, fo.firstChild.constructor.name, fo.lastChild.constructor.name].join(); })",
+                r#""SVGForeignObjectElement,HTMLDivElement,SVGSVGElement""#,
+            ),
+            (
+                r"E(() => [X('rect') instanceof SVGElement, X('rect') instanceof SVGGeometryElement, X('rect') instanceof SVGGraphicsElement, X('rect') instanceof Element, X('rect') instanceof HTMLElement, X('g') instanceof SVGGeometryElement, X('foo') instanceof SVGGraphicsElement, X('text') instanceof SVGTextContentElement, X('tspan') instanceof SVGTextPositioningElement, X('linearGradient') instanceof SVGGradientElement, X('stop') instanceof SVGGraphicsElement])",
+                r#""true,true,true,true,false,false,false,true,true,true,false""#,
+            ),
+            (
+                r"E(() => ['rect', 'svg', 'g', 'text', 'foo', 'a', 'stop', 'pattern', 'image'].map((t) => Object.prototype.toString.call(X(t))).join())",
+                r#""[object SVGRectElement],[object SVGSVGElement],[object SVGGElement],[object SVGTextElement],[object SVGElement],[object SVGAElement],[object SVGStopElement],[object SVGPatternElement],[object SVGImageElement]""#,
+            ),
+            (
+                r"E(() => [typeof SVGElement, SVGElement.name, SVGElement.length, SVGGraphicsElement.name, SVGGeometryElement.name, SVGSVGElement.name, SVGGElement.name, SVGPathElement.name, SVGRectElement.name, SVGCircleElement.name, SVGEllipseElement.name, SVGLineElement.name, SVGPolylineElement.name, SVGPolygonElement.name, SVGTextElement.name, SVGTSpanElement.name, SVGTextPathElement.name, SVGTextContentElement.name, SVGTextPositioningElement.name].join())",
+                r#""function,SVGElement,0,SVGGraphicsElement,SVGGeometryElement,SVGSVGElement,SVGGElement,SVGPathElement,SVGRectElement,SVGCircleElement,SVGEllipseElement,SVGLineElement,SVGPolylineElement,SVGPolygonElement,SVGTextElement,SVGTSpanElement,SVGTextPathElement,SVGTextContentElement,SVGTextPositioningElement""#,
+            ),
+            (
+                r"E(() => [SVGImageElement.name, SVGUseElement.name, SVGDefsElement.name, SVGSymbolElement.name, SVGTitleElement.name, SVGDescElement.name, SVGMetadataElement.name, SVGStyleElement.name, SVGScriptElement.name, SVGForeignObjectElement.name, SVGClipPathElement.name, SVGMaskElement.name, SVGGradientElement.name, SVGLinearGradientElement.name, SVGRadialGradientElement.name, SVGStopElement.name, SVGMarkerElement.name, SVGPatternElement.name, SVGAElement.name, SVGViewElement.name, SVGSwitchElement.name, SVGAnimatedString.name].join())",
+                r#""SVGImageElement,SVGUseElement,SVGDefsElement,SVGSymbolElement,SVGTitleElement,SVGDescElement,SVGMetadataElement,SVGStyleElement,SVGScriptElement,SVGForeignObjectElement,SVGClipPathElement,SVGMaskElement,SVGGradientElement,SVGLinearGradientElement,SVGRadialGradientElement,SVGStopElement,SVGMarkerElement,SVGPatternElement,SVGAElement,SVGViewElement,SVGSwitchElement,SVGAnimatedString""#,
+            ),
+            (
+                r"E(() => [Object.getPrototypeOf(SVGElement) === Element, Object.getPrototypeOf(SVGGraphicsElement) === SVGElement, Object.getPrototypeOf(SVGGeometryElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGRectElement) === SVGGeometryElement, Object.getPrototypeOf(SVGSVGElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGTextElement) === SVGTextPositioningElement, Object.getPrototypeOf(SVGTextPositioningElement) === SVGTextContentElement, Object.getPrototypeOf(SVGLinearGradientElement) === SVGGradientElement, Object.getPrototypeOf(SVGStopElement) === SVGElement, Object.getPrototypeOf(SVGClipPathElement) === SVGElement, Object.getPrototypeOf(SVGMaskElement) === SVGElement, Object.getPrototypeOf(SVGImageElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGTitleElement) === SVGElement, Object.getPrototypeOf(SVGDefsElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGAElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGMarkerElement) === SVGElement, Object.getPrototypeOf(SVGPatternElement) === SVGElement, Object.getPrototypeOf(SVGSymbolElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGForeignObjectElement) === SVGGraphicsElement, Object.getPrototypeOf(SVGScriptElement) === SVGElement, Object.getPrototypeOf(SVGStyleElement) === SVGElement, Object.getPrototypeOf(SVGUseElement) === SVGGraphicsElement])",
+                r#""true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true""#,
+            ),
+            (
+                r"E(() => ['SVGElement', 'SVGRectElement', 'SVGSVGElement', 'SVGAnimatedString', 'SVGTextElement'].map((n) => { const d = Object.getOwnPropertyDescriptor(window, n); return [d.writable, d.enumerable, d.configurable, Object.prototype.toString.call(window[n].prototype), Object.getPrototypeOf(window[n].prototype) === Object.prototype].join(); }).join(' '))",
+                r#""true,false,true,[object SVGElement],false true,false,true,[object SVGRectElement],false true,false,true,[object SVGSVGElement],false true,false,true,[object SVGAnimatedString],true true,false,true,[object SVGTextElement],false""#,
+            ),
+            (
+                r"E(() => new SVGElement())",
+                r#""TypeError: Failed to construct 'SVGElement': Illegal constructor""#,
+            ),
+            (
+                r"E(() => new SVGRectElement())",
+                r#""TypeError: Failed to construct 'SVGRectElement': Illegal constructor""#,
+            ),
+            (
+                r"E(() => new SVGSVGElement())",
+                r#""TypeError: Failed to construct 'SVGSVGElement': Illegal constructor""#,
+            ),
+            (
+                r"E(() => SVGElement())",
+                r#""TypeError: Illegal constructor""#,
+            ),
+            (
+                r"E(() => SVGAnimatedString())",
+                r#""TypeError: Illegal constructor""#,
+            ),
+        ],
+    },
+    Case {
+        name: "chains-03",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => new SVGAnimatedString())",
+                r#""TypeError: Failed to construct 'SVGAnimatedString': Illegal constructor""#,
+            ),
+            (
+                r"E(() => SVGElement.prototype.constructor === SVGElement && Object.getOwnPropertyNames(SVGGElement.prototype).join() + '|' + Object.getOwnPropertyNames(SVGDefsElement.prototype).join() + '|' + Object.getOwnPropertyNames(SVGRectElement.prototype).filter((n) => n !== 'x' && n !== 'y' && n !== 'width' && n !== 'height' && n !== 'rx' && n !== 'ry').join())",
+                r#""constructor|constructor|constructor""#,
+            ),
+            (
+                r"E(() => 'className' in SVGElement.prototype && !('className' in SVGRectElement.prototype) + ' ' + Object.getOwnPropertyNames(SVGElement.prototype).filter((n) => ['className', 'ownerSVGElement', 'viewportElement', 'dataset', 'tabIndex', 'autofocus', 'nonce'].includes(n)).join())",
+                r#""false className,ownerSVGElement,viewportElement,dataset,nonce,autofocus,tabIndex""#,
+            ),
+            (
+                r"E(() => ['className', 'ownerSVGElement', 'viewportElement', 'dataset', 'tabIndex', 'autofocus'].map((n) => { const d = Object.getOwnPropertyDescriptor(SVGElement.prototype, n); return n + ':' + (d ? [typeof d.get, typeof d.set, d.enumerable, d.configurable].join() : 'none'); }).join(' '))",
+                r#""className:function,undefined,true,true ownerSVGElement:function,undefined,true,true viewportElement:function,undefined,true,true dataset:function,undefined,true,true tabIndex:function,function,true,true autofocus:function,function,true,true""#,
+            ),
+            (
+                r"E(() => ['className', 'classList', 'id', 'dataset', 'tabIndex', 'hidden'].map((n) => n + ':' + (n in X('rect')) + (X('rect').hasOwnProperty(n))).join(' '))",
+                r#""className:truefalse classList:truefalse id:truefalse dataset:truefalse tabIndex:truefalse hidden:falsefalse""#,
+            ),
+            (
+                r"E(() => ['id', 'className', 'classList', 'getAttribute', 'querySelector', 'closest', 'matches', 'append', 'after', 'remove', 'innerHTML', 'outerHTML', 'insertAdjacentHTML', 'textContent', 'children', 'attributes', 'localName', 'namespaceURI', 'prefix'].map((n) => (n in X('rect')) ? 1 : 0).join(''))",
+                r#""1111111111111111111""#,
+            ),
+            (
+                r"E(() => ['hidden', 'title', 'lang', 'dir', 'innerText', 'click', 'offsetWidth', 'accessKey', 'draggable', 'contentEditable'].map((n) => (n in X('rect')) ? 1 : 0).join(''))",
+                r#""0000000000""#,
+            ),
+        ],
+    },
+    Case {
+        name: "classname-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => { const c = document.getElementById('s').className; return [c.constructor.name, Object.prototype.toString.call(c), typeof c, c.baseVal, c.animVal, Object.keys(c).join(), Object.getPrototypeOf(c) === SVGAnimatedString.prototype].join('|'); })",
+                r#""SVGAnimatedString|[object SVGAnimatedString]|object|a b|a b||true""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('s'); return [e.className === e.className, e.className.baseVal === e.className.animVal, document.getElementById('g').className.baseVal, document.getElementById('p').className.baseVal === '', document.getElementById('p').hasAttribute('class')].join(); })",
+                r#""true,true,x,true,false""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyNames(SVGAnimatedString.prototype).join())",
+                r#""baseVal,animVal,constructor""#,
+            ),
+            (
+                r"E(() => ['baseVal', 'animVal'].map((n) => { const d = Object.getOwnPropertyDescriptor(SVGAnimatedString.prototype, n); return n + ':' + [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set && d.set.name].join(); }).join(' '))",
+                r#""baseVal:function,function,true,true,get baseVal,set baseVal animVal:function,undefined,true,true,get animVal,""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.className.baseVal = 'q r'; return [e.getAttribute('class'), e.className.baseVal, e.className.animVal, e.classList.length, e.classList.contains('r')].join('|'); })",
+                r#""q r|q r|q r|2|true""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.setAttribute('class', '  a  b '); const c = e.className; const r = [c.baseVal, c.animVal]; e.setAttribute('class', 'z'); r.push(c.baseVal, c.animVal); e.removeAttribute('class'); r.push(c.baseVal, c.animVal, e.hasAttribute('class')); return JSON.stringify(r); })",
+                r#""[\"  a  b \",\"  a  b \",\"z\",\"z\",\"\",\"\",false]""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.className.baseVal = ''; return [e.hasAttribute('class'), JSON.stringify(e.getAttribute('class')), JSON.stringify(e.className.baseVal)].join(); })",
+                r#""true,\"\",\"\"""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const out = []; for (const v of [5, null, undefined, true, {toString() { return 'obj'; }}, ['a', 'b'], 1.5, -0, NaN]) { e.className.baseVal = v; out.push(JSON.stringify(e.getAttribute('class'))); } return out.join(' '); })",
+                r#""\"5\" \"null\" \"undefined\" \"true\" \"obj\" \"a,b\" \"1.5\" \"0\" \"NaN\"""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.className.baseVal = Symbol('x'); })",
+                r#""TypeError: Failed to set the 'baseVal' property on 'SVGAnimatedString': Cannot convert a Symbol value to a string""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.setAttribute('class', 'k'); e.className.animVal = 'changed'; return [e.className.animVal, e.getAttribute('class')].join(); })",
+                r#""k,k""#,
+            ),
+            (
+                r"E(() => { 'use strict'; const e = X('rect'); e.setAttribute('class', 'k'); e.className.animVal = 'changed'; })",
+                r#""TypeError: Cannot set property animVal of #<SVGAnimatedString> which has only a getter""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.setAttribute('class', 'k'); e.className = 'changed'; return [typeof e.className, e.className.baseVal, e.getAttribute('class')].join(); })",
+                r#""object,k,k""#,
+            ),
+            (
+                r"E(() => { 'use strict'; const e = X('rect'); e.className = 'changed'; })",
+                r#""TypeError: Cannot set property className of #<SVGElement> which has only a getter""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.setAttribute('class', 'k'); return SVGAnimatedString.prototype.__lookupGetter__('baseVal').call(e.className) + '|' + Object.getOwnPropertyDescriptor(SVGAnimatedString.prototype, 'baseVal').get.call(e.className); })",
+                r#""k|k""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGAnimatedString.prototype, 'baseVal').get.call({}))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGAnimatedString.prototype, 'baseVal').set.call({}, 'x'))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGAnimatedString.prototype, 'animVal').get.call(document))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGElement.prototype, 'className').get.call(document.body))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGElement.prototype, 'className').get.call(document.getElementById('h')))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGElement.prototype, 'className').get.call(document.getElementById('s')).baseVal)",
+                r#""a b""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const c = e.className; c.baseVal = 'one'; e.className.baseVal += ' two'; return [e.getAttribute('class'), c.baseVal, e.classList.toString()].join('|'); })",
+                r#""one two|one two|one two""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.classList.add('a', 'b'); e.classList.toggle('a'); e.classList.add('c'); return [e.getAttribute('class'), e.className.baseVal, e.classList.length, e.classList.item(1), e.classList.value, e.classList.contains('b')].join('|'); })",
+                r#""b c|b c|2|c|b c|true""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.classList.add('a'); e.classList.replace('a', 'z'); e.classList.remove('q'); return e.getAttribute('class') + '|' + e.classList.supports; })",
+                r#""z|function supports() { [native code] }""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.classList.value = ' x  y '; return [e.getAttribute('class'), e.classList.length, e.classList[1]].join('|'); })",
+                r#"" x  y |2|y""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); return [typeof e.classList, Object.prototype.toString.call(e.classList), e.classList === e.classList, e.classList.length, e.hasAttribute('class')].join(); })",
+                r#""object,[object DOMTokenList],true,0,false""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('s'); const r = [e.classList.contains('a'), e.classList.length, e.getAttribute('class')]; e.classList.add('c'); r.push(e.className.baseVal, e.getAttribute('class')); return r.join('|'); })",
+                r#""true|2|a b|a b c|a b c""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('s'); e.classList.add('a b'); })",
+                r#""DOMException InvalidCharacterError: Failed to execute 'add' on 'DOMTokenList': The token provided ('a b') contains HTML space characters, which are not valid in tokens.""#,
+            ),
+            (
+                r"E(() => document.getElementById('s').classList.add(''))",
+                r#""DOMException SyntaxError: Failed to execute 'add' on 'DOMTokenList': The token provided must not be empty.""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('g'); e.className.baseVal = 'x2'; return [document.querySelectorAll('.x2').length, document.querySelectorAll('.x').length, e.matches('g.x2'), document.getElementsByClassName('x2').length, e.closest('.x2') === e, document.getElementById('s').querySelector('.x2') === e].join(); })",
+                r#""1,0,true,1,true,true""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('g'); const l = document.getElementsByClassName('zz'); e.className.baseVal = 'zz'; const n = l.length; e.classList.remove('zz'); return [n, l.length].join(); })",
+                r#""1,0""#,
+            ),
+        ],
+    },
+    Case {
+        name: "classname-02",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => { const e = X('foo'); const r = [e.className.baseVal === '']; e.className.baseVal = 'k'; r.push(e.getAttribute('class'), e.className.constructor.name); return r.join(); })",
+                r#""true,k,SVGAnimatedString""#,
+            ),
+            (
+                r#"E(() => { const d = document.createElement('div'); d.innerHTML = '<svg class="a"><rect class="b c"></rect></svg>'; const s = d.firstChild; return [s.className.baseVal, s.firstChild.className.baseVal, s.firstChild.className.animVal, s.firstChild.classList.length].join('|'); })"#,
+                r#""a|b c|b c|2""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); s.className.baseVal = 'sv'; document.body.appendChild(s); const r = [document.querySelectorAll('svg.sv').length]; s.remove(); return r.join(); })",
+                r#""1""#,
+            ),
+            (
+                r"E(() => { const e = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); e.setAttributeNS(null, 'class', 'ns'); e.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:class', 'xl'); return [e.className.baseVal, e.attributes.length].join(); })",
+                r#""ns,2""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.setAttribute('CLASS', 'up'); return [e.className.baseVal, e.getAttribute('CLASS'), e.getAttribute('class'), e.attributes[0].name].join(); })",
+                r#"",up,,CLASS""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.className.baseVal = 'a'; e.className.baseVal = 'b'; return [e.attributes.length, e.attributes[0].name, e.attributes[0].value].join(); })",
+                r#""1,class,b""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const c = e.className; e.setAttribute('class', 'old'); const r = [c.baseVal]; e.remove(); document.body.appendChild(e); r.push(c.baseVal); e.remove(); return r.join(); })",
+                r#""old,old""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const f = e.cloneNode(); e.className.baseVal = 'cl'; const g = e.cloneNode(); return [f.className.baseVal, g.className.baseVal, f.className === e.className].join('|'); })",
+                r#""|cl|false""#,
+            ),
+            (
+                r"E(() => { const h = document.getElementById('h'); return [typeof h.className, h.className].join(); })",
+                r#""string,hh""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.id = 'zz'; e.className.baseVal = 'w'; return [e.id, e.getAttribute('id'), e.className.baseVal].join(); })",
+                r#""zz,zz,w""#,
+            ),
+        ],
+    },
+    Case {
+        name: "owner-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => ['svg', 'symbol', 'marker', 'pattern', 'image', 'foreignObject', 'switch', 'use', 'mask', 'clipPath', 'a', 'g', 'defs', 'text', 'linearGradient', 'view', 'style', 'foo'].map((t) => { const s = X('svg'); const c = X(t); const r = X('rect'); c.appendChild(r); s.appendChild(c); const v = r.viewportElement; return t + '=' + (v === s ? 'svg' : v === c ? 'self' : String(v)) + '/' + (c.viewportElement === s) + '/' + (r.ownerSVGElement === (t === 'svg' ? c : s)); }).join(' '))",
+                r#""svg=self/true/true symbol=self/true/true marker=svg/true/true pattern=svg/true/true image=self/true/true foreignObject=svg/true/true switch=svg/true/true use=svg/true/true mask=svg/true/true clipPath=svg/true/true a=svg/true/true g=svg/true/true defs=svg/true/true text=svg/true/true linearGradient=svg/true/true view=svg/true/true style=svg/true/true foo=svg/true/true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const sy = X('symbol'); const i = X('svg'); const r = X('rect'); i.appendChild(r); sy.appendChild(i); s.appendChild(sy); return [i.viewportElement === sy, i.ownerSVGElement === s, r.viewportElement === i, r.ownerSVGElement === i].join(); })",
+                r#""true,true,true,true""#,
+            ),
+            (
+                r"E(() => ['s', 'g', 'p', 'r', 'u', 't', 'in', 'c', 'fo'].map((id) => { const e = document.getElementById(id); return id + ':' + (e.ownerSVGElement && e.ownerSVGElement.id) + '/' + (e.viewportElement && e.viewportElement.id); }).join(' '))",
+                r#""s:null/null g:s/s p:s/s r:s/s u:s/s t:s/s in:s/s c:in/in fo:s/s""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); return [e.ownerSVGElement, e.viewportElement].join(); })",
+                r#"",""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const g = X('g'); const r = X('rect'); g.appendChild(r); const a = [r.ownerSVGElement, r.viewportElement, s.ownerSVGElement, g.ownerSVGElement]; s.appendChild(g); return a.join() + '|' + [r.ownerSVGElement === s, r.viewportElement === s, s.ownerSVGElement, s.viewportElement, g.ownerSVGElement === s].join(); })",
+                r#"",,,|true,true,,,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const i = X('svg'); const r = X('rect'); i.appendChild(r); s.appendChild(i); return [i.ownerSVGElement === s, i.viewportElement === s, r.ownerSVGElement === i, r.viewportElement === i, s.ownerSVGElement === null].join(); })",
+                r#""true,true,true,true,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const sy = X('symbol'); const r = X('rect'); sy.appendChild(r); s.appendChild(sy); return [r.ownerSVGElement === s, r.viewportElement === s, r.viewportElement === sy, sy.viewportElement === s].join(); })",
+                r#""true,false,true,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const sw = X('switch'); const m = X('marker'); const p = X('pattern'); const r = X('rect'); m.appendChild(r); s.appendChild(m); s.appendChild(p); return [r.viewportElement === s, r.viewportElement === m, p.viewportElement === s, r.ownerSVGElement === s].join(); })",
+                r#""true,false,true,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const fo = X('foreignObject'); const d = document.createElement('div'); const i = X('svg'); const g = X('g'); d.appendChild(i); i.appendChild(g); fo.appendChild(d); s.appendChild(fo); return [i.ownerSVGElement === s, i.ownerSVGElement, g.ownerSVGElement === i, g.ownerSVGElement === s, i.viewportElement === s, i.viewportElement].join(); })",
+                r#""false,,true,false,true,[object SVGSVGElement]""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const fo = X('foreignObject'); const d = document.createElement('div'); const g = X('g'); d.appendChild(g); fo.appendChild(d); s.appendChild(fo); return [g.ownerSVGElement, g.viewportElement, fo.ownerSVGElement === s, fo.viewportElement === s].join(); })",
+                r#""[object SVGSVGElement],[object SVGSVGElement],true,true""#,
+            ),
+            (
+                r"E(() => { const g = X('g'); const r = X('rect'); g.appendChild(r); return [r.ownerSVGElement, r.viewportElement, g.ownerSVGElement].join(); })",
+                r#"",,""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'); const g = X('g'); s.appendChild(g); const r = [g.ownerSVGElement === s]; s.removeChild(g); r.push(g.ownerSVGElement); return r.join(); })",
+                r#""true,""#,
+            ),
+            (
+                r"E(() => Object.getOwnPropertyDescriptor(SVGElement.prototype, 'ownerSVGElement').get.call(document.body))",
+                r#""TypeError: Illegal invocation""#,
+            ),
+            (
+                r"E(() => { 'use strict'; document.getElementById('r').ownerSVGElement = 1; })",
+                r#""TypeError: Cannot set property ownerSVGElement of #<SVGElement> which has only a getter""#,
+            ),
+            (
+                r"E(() => { const r = document.getElementById('r'); return [r.ownerSVGElement === r.ownerSVGElement, r.ownerSVGElement.constructor.name, r.viewportElement.constructor.name].join(); })",
+                r#""true,SVGSVGElement,SVGSVGElement""#,
+            ),
+            (
+                r"E(() => { const d = document.implementation.createHTMLDocument(''); d.body.innerHTML = '<svg id=a><g id=b></g></svg>'; return [d.getElementById('b').ownerSVGElement === d.getElementById('a'), d.getElementById('a').constructor.name].join(); })",
+                r#""true,SVGSVGElement""#,
+            ),
+            (
+                r"E(() => { const t = document.createElement('template'); t.innerHTML = '<svg id=a><g id=b></g></svg>'; const s = t.content.firstChild; return [s.constructor.name, s.firstChild.ownerSVGElement === s, s.ownerDocument === document, s.ownerDocument === t.content.ownerDocument].join(); })",
+                r#""SVGSVGElement,true,false,true""#,
+            ),
+            (
+                r"E(() => { const p = document.getElementById('s'); const fo = X('foreignObject'); const q = X('svg'); const g = X('g'); q.appendChild(g); fo.appendChild(q); p.appendChild(fo); return [q.ownerSVGElement, q.viewportElement === p, g.ownerSVGElement === q, g.viewportElement === q, fo.ownerSVGElement === p].join(); })",
+                r#"",true,true,true,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'), fo = X('foreignObject'), s2 = X('svg'); s.appendChild(fo); fo.appendChild(s2); return [s2.ownerSVGElement, s2.viewportElement === s].join(); })",
+                r#"",true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'), fo = X('foreignObject'), d = document.createElement('div'), s2 = X('svg'); s.appendChild(fo); fo.appendChild(d); d.appendChild(s2); return [s2.ownerSVGElement === s, s2.viewportElement === s].join(); })",
+                r#""false,true""#,
+            ),
+            (
+                r"E(() => { const s = X('svg'), g = X('g'), s2 = X('svg'); s.appendChild(g); g.appendChild(s2); return [s2.ownerSVGElement === s, s2.viewportElement === s].join(); })",
+                r#""true,true""#,
+            ),
+        ],
+    },
+    Case {
+        name: "dataset-tabindex-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => { const s = document.getElementById('s'); return [s.dataset.fooBar, Object.keys(s.dataset).join(), s.dataset === s.dataset, Object.prototype.toString.call(s.dataset)].join('|'); })",
+                r#""1|fooBar|true|[object DOMStringMap]""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.dataset.camelCase = '1'; e.dataset.x = 'y'; return [e.getAttribute('data-camel-case'), e.getAttribute('data-x'), Object.keys(e.dataset).join(), 'camelCase' in e.dataset, delete e.dataset.x, e.hasAttribute('data-x')].join('|'); })",
+                r#""1|y|camelCase,x|true|true|false""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.dataset['a-b'] = '1'; })",
+                r#""DOMException SyntaxError: Failed to set a named property 'a-b' on 'DOMStringMap': 'a-b' is not a valid property name.""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); e.dataset.aB = 'q'; e.setAttribute('data-c-d', 'w'); return [JSON.stringify(Object.keys(e.dataset)), e.dataset.cD, e.dataset.aB, e.attributes.length].join('|'); })",
+                r#""[\"aB\",\"cD\"]|w|q|2""#,
+            ),
+            (
+                r"E(() => ['svg', 'g', 'a', 'text', 'foo', 'rect', 'script', 'style', 'image', 'foreignObject', 'use'].map((t) => t + '=' + X(t).tabIndex).join(' '))",
+                r#""svg=-1 g=-1 a=0 text=-1 foo=-1 rect=-1 script=-1 style=-1 image=-1 foreignObject=-1 use=-1""#,
+            ),
+            (
+                r"E(() => { const a = X('a'); a.setAttribute('href', '#x'); const r = [a.tabIndex]; a.setAttribute('xlink:href', '#y'); r.push(a.tabIndex); a.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#y'); r.push(a.tabIndex); return r.join(); })",
+                r#""0,0,0""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const r = []; for (const v of ['3', '-2', ' 5', '0', 'x', '', '1.5', '2147483648', '+4']) { e.setAttribute('tabindex', v); r.push(v + '>' + e.tabIndex); } return r.join(' '); })",
+                r#""3>3 -2>-2  5>5 0>0 x>-1 >-1 1.5>1 2147483648>-1 +4>4""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const r = []; for (const v of [0, 1, -1, 5.9, 2147483648, '7', NaN, null]) { e.tabIndex = v; r.push(JSON.stringify(e.getAttribute('tabindex'))); } return r.join(' '); })",
+                r#""\"0\" \"1\" \"-1\" \"5\" \"-2147483648\" \"7\" \"0\" \"0\"""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const r = [e.autofocus, e.hasAttribute('autofocus')]; e.autofocus = true; r.push(e.getAttribute('autofocus'), e.autofocus); e.autofocus = false; r.push(e.hasAttribute('autofocus')); e.setAttribute('autofocus', 'false'); r.push(e.autofocus); return r.join(); })",
+                r#""false,false,,true,false,true""#,
+            ),
+            (
+                r"E(() => { const e = X('rect'); const r = [typeof e.nonce, e.hasAttribute('nonce')]; return r.join(); })",
+                r#""string,false""#,
+            ),
+            (
+                r"E(() => { const e = document.getElementById('s'); e.setAttribute('tabindex', '4'); return [e.tabIndex, document.getElementById('g').tabIndex].join(); })",
+                r#""4,-1""#,
+            ),
+        ],
+    },
+    Case {
+        name: "members-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => { const e = X('style'); e.setAttribute('type', 'text/css'); e.setAttribute('media', 'print'); e.setAttribute('title', 'T'); const r = [e.type, e.media, e.title]; e.type = 'a'; e.media = 'b'; e.title = 'c'; r.push(e.getAttribute('type'), e.getAttribute('media'), e.getAttribute('title')); return r.join(); })",
+                r#""text/css,print,T,a,b,c""#,
+            ),
+            (
+                r"E(() => { const e = X('style'); return [e.type, e.media, e.title].join('|'); })",
+                r#""text/css|all|""#,
+            ),
+            (
+                r"E(() => { const e = X('script'); e.setAttribute('type', 'text/ecmascript'); const r = [e.type]; e.type = 'x'; r.push(e.getAttribute('type')); return r.join(); })",
+                r#""text/ecmascript,x""#,
+            ),
+            (
+                r"E(() => { const e = X('script'); return [e.type, 'text' in e].join('|'); })",
+                r#""|false""#,
+            ),
+            (
+                r"E(() => { const s = document.getElementById('s'); return [typeof s.getElementById, typeof s.getTotalLength].join(); })",
+                r#""function,undefined""#,
+            ),
+            (
+                r"E(() => { const s = document.getElementById('s'); return [s.getElementById('g') === document.getElementById('g'), s.getElementById('nope'), s.getElementById('d'), s.getElementById('') ].join(); })",
+                r#""true,,,""#,
+            ),
+            (
+                r"E(() => { const g = X('g'); return [typeof g.getElementById].join(); })",
+                r#""undefined""#,
+            ),
+            (
+                r"E(() => { const a = X('a'); a.setAttribute('rel', 'nofollow x'); a.setAttribute('download', 'f'); a.setAttribute('hreflang', 'hr'); a.setAttribute('type', 'text/plain'); a.setAttribute('ping', 'http://p.test/'); return [a.rel, a.download, a.hreflang, a.type, a.ping, a.relList.length, a.relList.contains('x'), a.relList.constructor.name].join('|'); })",
+                r#""nofollow x|f|hr|text/plain|http://p.test/|2|true|DOMTokenList""#,
+            ),
+            (
+                r"E(() => { const a = X('a'); a.rel = 'r'; a.download = 'd'; return [a.getAttribute('rel'), a.getAttribute('download')].join(); })",
+                r#""r,d""#,
+            ),
+            (
+                r"E(() => { const a = X('a'); return [a.rel, a.download, a.hreflang, a.type, a.ping, a.relList.length].join('|'); })",
+                r#""|||||0""#,
+            ),
+            (
+                r"E(() => { const e = X('style'); const r = [e.disabled, typeof e.disabled]; e.disabled = true; r.push(e.disabled, e.hasAttribute('disabled')); return r.join(); })",
+                r#""false,boolean,false,false""#,
+            ),
+        ],
+    },
+    Case {
+        name: "tree-01",
+        html: PAGE,
+        queries: &[
+            (
+                r"E(() => { const s = document.getElementById('s'); return [s.children.length, s.firstElementChild.tagName, s.firstElementChild.className.baseVal, s.namespaceURI.slice(-4), s.querySelector('foo').constructor.name, s.getElementsByTagName('rect')[0].constructor.name, document.getElementsByTagName('g')[0].constructor.name].join(); })",
+                r#""4,g,x,/svg,SVGElement,SVGRectElement,SVGGElement""#,
+            ),
+            (
+                r"E(() => { const d = document.createElement('div'); d.innerHTML = '<svg id=n1 class=q><path class=w /></svg>'; const s = d.firstChild; return [s.constructor.name, s.firstChild.constructor.name, s.className.baseVal, s.firstChild.className.baseVal, s.outerHTML].join('|'); })",
+                r#""SVGSVGElement|SVGPathElement|q|w|<svg id=\"n1\" class=\"q\"><path class=\"w\"></path></svg>""#,
+            ),
+            (
+                r"E(() => { const d = document.createElement('div'); d.insertAdjacentHTML('beforeend', '<svg><circle r=1 /></svg>'); return d.lastChild.firstChild.constructor.name + ' ' + d.lastChild.firstChild.getAttribute('r'); })",
+                r#""SVGCircleElement 1""#,
+            ),
+            (
+                r"E(() => document.getElementById('s').cloneNode(true).querySelector('path').constructor.name)",
+                r#""SVGPathElement""#,
+            ),
+            (
+                r"E(() => document.importNode(document.getElementById('s'), true).constructor.name)",
+                r#""SVGSVGElement""#,
+            ),
+            (
+                r"E(() => { const d = document.implementation.createHTMLDocument(''); const e = d.adoptNode(document.getElementById('r')); return e.constructor.name + ' ' + (e.ownerDocument === d); })",
+                r#""SVGRectElement true""#,
+            ),
+        ],
+    },
+];

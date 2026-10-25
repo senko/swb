@@ -5,7 +5,7 @@
 //!
 //! <https://html.spec.whatwg.org/multipage/dom.html#htmlelement>
 
-use swb_dom::{NodeId, parse_integer};
+use swb_dom::{NodeId, ns, parse_integer};
 
 use super::{attribute, is_html, remove_attribute, set_attribute};
 use crate::bindings::{self as b, Cx};
@@ -138,7 +138,7 @@ pub(crate) fn dataset(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb
 
 /// `tabIndex`: the parsed `tabindex` attribute, else 0 for the elements
 /// that can take the focus (links, controls, `iframe`, `object`, media
-/// with controls) and -1 for the others (measured in Chromium: `a` and
+/// with controls, the SVG `a`) and -1 for the others (measured in Chromium: `a` and
 /// `area` without `href` are 0, `embed` and `summary` are -1, and an
 /// element with `contenteditable` is -1 too; the standard says 0 for it).
 /// <https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex>
@@ -152,21 +152,24 @@ pub(crate) fn tab_index(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
     let Some(e) = dom.element(this) else {
         return Ok(-1);
     };
-    if !e.is_html() {
-        return Ok(-1);
-    }
-    let focusable = matches!(
-        &**e.local_name(),
-        "a" | "area"
-            | "button"
-            | "input"
-            | "select"
-            | "textarea"
-            | "iframe"
-            | "object"
-            | "audio"
-            | "video"
-    );
+    let focusable = if e.is_html() {
+        matches!(
+            &**e.local_name(),
+            "a" | "area"
+                | "button"
+                | "input"
+                | "select"
+                | "textarea"
+                | "iframe"
+                | "object"
+                | "audio"
+                | "video"
+        )
+    } else {
+        // Measured in Chromium: of the SVG elements only `a` is 0, with or
+        // without `href`.
+        e.name.ns == ns!(svg) && &**e.local_name() == "a"
+    };
     Ok(if focusable { 0 } else { -1 })
 }
 
@@ -236,6 +239,15 @@ impl g::html_image_element::HTMLImageElementImpl for WebState {
 
     fn current_src(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<String> {
         Ok(String::new())
+    }
+
+    /// `new Image(width, height)`.
+    fn legacy_factory_image(
+        cx: &mut Cx<'_>,
+        width: Option<u32>,
+        height: Option<u32>,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        super::factories::image(cx, width, height)
     }
 }
 

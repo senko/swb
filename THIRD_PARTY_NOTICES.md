@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and two W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and three W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -115,6 +115,22 @@ https://whatwg.org/ipr-policy). The generated glue in
 > LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 > NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 > SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## W3C SVG 2: IDL (W3C Software and Document License)
+
+`crates/web/idl/svg.idl` contains IDL blocks from Scalable Vector Graphics
+(SVG) 2 (W3C Candidate Recommendation Snapshot,
+https://www.w3.org/TR/SVG2/, Appendix A "IDL Definitions",
+https://www.w3.org/TR/SVG2/idl.html, copied on 2026-10-24); swb cut them to
+the element interfaces that scripts use and added `SVGClipPathElement` and
+`SVGMaskElement` without members (CSS Masking Module Level 1 defines them).
+The owner allowed this license for IDL data files (ADR 0003, 2026-10-22).
+The license text is in the section of W3C High Resolution Time below.
+
+> This software or document includes material copied from or derived
+> from Scalable Vector Graphics (SVG) 2, https://www.w3.org/TR/SVG2/.
+> Copyright © 2026 World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
 
 ## W3C DOM Parsing and Serialization: IDL (W3C Software and Document License)
 

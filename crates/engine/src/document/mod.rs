@@ -327,6 +327,14 @@ impl swb_web::EngineHost for DocumentState {
         self.script_set_option_selected(option, selected);
     }
 
+    fn set_option_initial_selected(&mut self, option: NodeId, selected: bool) {
+        self.script_set_option_initial_selected(option, selected);
+    }
+
+    fn option_selected_attribute_changed(&mut self, option: NodeId) {
+        self.script_option_selected_attribute_changed(option);
+    }
+
     fn parse_url_against_document_url(&mut self, value: &str) -> Option<String> {
         self.url.join(value).ok().map(|u| u.to_string())
     }

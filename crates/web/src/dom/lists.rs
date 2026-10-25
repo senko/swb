@@ -153,6 +153,17 @@ impl ListKind {
         }
     }
 
+    /// The generation that a cache of this kind depends on: lists of
+    /// children depend only on the child lists, so attribute and text
+    /// writes keep their caches.
+    fn generation_in(&self, dom: &Document) -> u64 {
+        if self.is_child_list() {
+            dom.structure_generation()
+        } else {
+            dom.generation()
+        }
+    }
+
     /// True if the binding state registers the list for the drop of stale
     /// caches: the lists of the side table, which live as long as their
     /// node.
@@ -186,6 +197,9 @@ struct Built {
 /// nodes that have each `id` and each `name` (HTML elements only), for the
 /// named lookups.
 struct Names {
+    /// The full DOM generation of the names: an `id` or `name` write
+    /// makes them stale, also for a list of children whose nodes stay.
+    generation: u64,
     list: Vec<String>,
     set: HashSet<String>,
     by_id: HashMap<String, Vec<usize>>,
@@ -414,7 +428,7 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
     if list_of(cx.rt, data)?.kind == ListKind::Static {
         return Ok(());
     }
-    let generation = dom(cx.rt)?.generation();
+    let generation = list_of(cx.rt, data)?.kind.generation_in(dom(cx.rt)?);
     if let Some(built) = &list_of(cx.rt, data)?.built
         && built.generation == generation
         && !list_of(cx.rt, data)?.kind.is_volatile()
@@ -422,11 +436,12 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
         return Ok(());
     }
     let stale = {
+        let registry_generation = dom(cx.rt)?.generation();
         let state = state_mut(cx.rt)?;
-        if state.list_registry_generation == generation {
+        if state.list_registry_generation == registry_generation {
             Vec::new()
         } else {
-            state.list_registry_generation = generation;
+            state.list_registry_generation = registry_generation;
             std::mem::take(&mut state.list_registry)
         }
     };
@@ -527,7 +542,7 @@ fn list_item(cx: &mut Cx<'_>, this: Platform, index: u32) -> b::Result<Option<No
         let have = list
             .built
             .as_ref()
-            .filter(|b| b.generation == document.generation())
+            .filter(|b| b.generation == list.kind.generation_in(document))
             .map_or(0, |b| b.nodes.len());
         if index >= have && len - 1 - index < index - have {
             return Ok(nth_child_from_end(
@@ -559,14 +574,16 @@ fn nth_child_from_end(
 /// order, without duplicates.
 fn ensure_names(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
     extend(cx, data, None)?;
+    let generation = dom(cx.rt)?.generation();
     if list_of(cx.rt, data)?
         .built
         .as_ref()
-        .is_some_and(|b| b.names.is_some())
+        .is_some_and(|b| b.names.as_ref().is_some_and(|n| n.generation == generation))
     {
         return Ok(());
     }
     let mut names = Names {
+        generation,
         list: Vec::new(),
         set: HashSet::new(),
         by_id: HashMap::new(),
@@ -974,6 +991,28 @@ mod tests {
             // The length comes from the counts of the DOM: no cache.
             let length = "document.title = 'y'; document.body.childNodes.length";
             assert_eq!(count(rt, length), (Evaluation::Value("2000".to_owned()), 0));
+        });
+    }
+
+    /// Attribute and text writes keep the cache of `children` and
+    /// `childNodes` (they depend on the child lists only); a change of a
+    /// child list drops it. The named lookups see an `id` write.
+    #[test]
+    fn child_lists_keep_their_cache_over_attribute_and_text_writes() {
+        let html = format!("<body><div id=r>{}</div>", "<p>t</p>".repeat(500));
+        with_runtime(html, |rt| {
+            let prepare = "window.r = document.getElementById('r'); window.c = r.children; window.n = r.childNodes; c[0] && n[0] ? 1 : 0";
+            assert_eq!(count(rt, prepare), (Evaluation::Value("1".to_owned()), 2));
+            let writes = "{ let k = 0; for (const e of c) { e.setAttribute('a', k++); e.firstChild.data = 'x' + k; } for (let i = 0; i < n.length; i++) n[i].title = 't'; k }";
+            assert_eq!(count(rt, writes), (Evaluation::Value("500".to_owned()), 0));
+            let id = "{ c[3].id = 'found'; c.namedItem('found') === c[3] }";
+            assert_eq!(count(rt, id).0, Evaluation::Value("true".to_owned()));
+            let remove = "{ r.removeChild(c[0]); c.length + ',' + c[0].getAttribute('a') + ',' + n[0].getAttribute('a') }";
+            let (value, rebuilds) = count(rt, remove);
+            assert_eq!(value, Evaluation::Value("\"499,1,1\"".to_owned()));
+            assert!(rebuilds >= 1, "a child-list change rebuilds");
+            let moved = "{ r.insertBefore(r.lastChild, r.firstChild); c[0].getAttribute('a') }";
+            assert_eq!(count(rt, moved).0, Evaluation::Value("\"499\"".to_owned()));
         });
     }
 

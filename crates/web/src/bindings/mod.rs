@@ -84,6 +84,16 @@ impl<'a> Cx<'a> {
         self.call
     }
 
+    /// The prototype that a constructor gives its object when script
+    /// called it: the `prototype` of `new.target` (so script subclasses
+    /// work). None without a native call.
+    pub fn prototype_from_new_target(&mut self) -> VmResult<Option<Gc<Object>>> {
+        match self.call {
+            Some(call) => Ok(Some(self.rt.prototype_from_new_target(call, self.class)?)),
+            None => Ok(None),
+        }
+    }
+
     /// A new instance of the interface for a constructor: a host object
     /// with `data`, whose prototype comes from `new.target` (so script
     /// subclasses work), with the `[LegacyUnforgeable]` members of the

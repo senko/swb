@@ -1,0 +1,229 @@
+// Source: Scalable Vector Graphics (SVG) 2, W3C Candidate Recommendation Snapshot,
+// https://www.w3.org/TR/SVG2/ (Appendix A, IDL Definitions,
+// https://www.w3.org/TR/SVG2/idl.html), copied on 2026-10-24.
+//
+// This file includes material copied from Scalable Vector Graphics (SVG) 2,
+// https://www.w3.org/TR/SVG2/. Copyright © 2026 World Wide Web Consortium.
+// https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to the element interfaces for scripts (feature 6c2 of
+// M8): every element interface of SVG 2 that has members in the targets,
+// with the members that need no layout, no animation and no geometry
+// interfaces. What swb cut:
+//
+// - The animated value interfaces except SVGAnimatedString (`className` is
+//   one): SVGAnimatedLength, SVGAnimatedNumber, SVGAnimatedEnumeration,
+//   SVGAnimatedTransformList, SVGAnimatedRect, SVGAnimatedPreserveAspectRatio,
+//   SVGAnimatedLengthList, SVGAnimatedNumberList, SVGAnimatedBoolean,
+//   SVGAnimatedInteger, SVGAnimatedAngle, and the value and list interfaces
+//   under them (SVGLength, SVGNumber, SVGAngle, SVGTransform, the lists,
+//   SVGPreserveAspectRatio, SVGUnitTypes). The members of the elements that
+//   have these types are cut with them: `x`, `y`, `width`, `height`, `cx`,
+//   `r`, `viewBox`, `transform`, `points`, `href` (SVGURIReference),
+//   `target` of `a`, `requiredExtensions` and `systemLanguage` (SVGTests),
+//   the gradient, pattern, marker and text members, `pathLength`.
+// - Members that depend on layout or on geometry types that swb has not
+//   (feature 7b): `getBBox`, `getCTM`, `getScreenCTM`, `getTotalLength`,
+//   `getPointAtLength`, `isPointInFill`, `isPointInStroke`, the text
+//   measuring methods, `createSVGPoint` and the other factory methods of
+//   SVGSVGElement, `currentScale`, `currentTranslate`,
+//   `getIntersectionList` and its relatives, the redraw methods.
+// - `crossOrigin` of SVGImageElement and SVGScriptElement (Chromium reads
+//   it as an ordinary property), `referrerPolicy` and the URL members of
+//   SVGAElement, `sheet` of SVGStyleElement (LinkStyle),
+//   GlobalEventHandlers and WindowEventHandlers (feature 6d), `focus` and
+//   `blur`, `style`, GetSVGDocument, SVGUseElementShadowRoot, the
+//   `rootElement` of Document.
+// - Elements that Chromium has interfaces for and swb has not: the filter
+//   element and its primitives, the animation elements (animate, set,
+//   animateMotion, animateTransform, mpath), `discard`. These get
+//   SVGElement.
+//
+// Three lines differ from the specification. The mixin included by
+// SVGElement is called HTMLOrSVGElement in swb's html.idl (the standard
+// renames it HTMLOrSVGOrMathMLElement). `baseVal` of SVGAnimatedString is a
+// DOMString (the standard allows TrustedScriptURL; swb has no Trusted
+// Types). SVGClipPathElement and SVGMaskElement come from CSS Masking
+// Module Level 1 (https://www.w3.org/TR/css-masking-1/), which defines
+// them with members that swb cut; they are empty here. The constructors of
+// the element interfaces throw (`Illegal constructor`), as the
+// interfaces have no constructor. The order of the remaining members is the
+// specification's.
+
+[Exposed=Window]
+interface SVGElement : Element {
+  [SameObject] readonly attribute SVGAnimatedString className;
+
+  readonly attribute SVGSVGElement? ownerSVGElement;
+  readonly attribute SVGElement? viewportElement;
+};
+
+SVGElement includes HTMLOrSVGElement;
+
+[Exposed=Window]
+interface SVGAnimatedString {
+           attribute DOMString baseVal;
+  readonly attribute DOMString animVal;
+};
+
+[Exposed=Window]
+interface SVGGraphicsElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGGeometryElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGSVGElement : SVGGraphicsElement {
+  Element? getElementById(DOMString elementId);
+};
+
+[Exposed=Window]
+interface SVGGElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGDefsElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGDescElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGMetadataElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGTitleElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGSymbolElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGUseElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGSwitchElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGStyleElement : SVGElement {
+  [ReflectSetter] attribute DOMString type;
+  [ReflectSetter] attribute DOMString media;
+  [Reflect] attribute DOMString title;
+  attribute boolean disabled;
+};
+
+[Exposed=Window]
+interface SVGPathElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGRectElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGCircleElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGEllipseElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGLineElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGPolylineElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGPolygonElement : SVGGeometryElement {
+};
+
+[Exposed=Window]
+interface SVGTextContentElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGTextPositioningElement : SVGTextContentElement {
+};
+
+[Exposed=Window]
+interface SVGTextElement : SVGTextPositioningElement {
+};
+
+[Exposed=Window]
+interface SVGTSpanElement : SVGTextPositioningElement {
+};
+
+[Exposed=Window]
+interface SVGTextPathElement : SVGTextContentElement {
+};
+
+[Exposed=Window]
+interface SVGImageElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGForeignObjectElement : SVGGraphicsElement {
+};
+
+[Exposed=Window]
+interface SVGMarkerElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGGradientElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGLinearGradientElement : SVGGradientElement {
+};
+
+[Exposed=Window]
+interface SVGRadialGradientElement : SVGGradientElement {
+};
+
+[Exposed=Window]
+interface SVGStopElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGPatternElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGClipPathElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGMaskElement : SVGElement {
+};
+
+[Exposed=Window]
+interface SVGScriptElement : SVGElement {
+  [Reflect] attribute DOMString type;
+};
+
+[Exposed=Window]
+interface SVGAElement : SVGGraphicsElement {
+  [Reflect] attribute DOMString download;
+  [Reflect] attribute USVString ping;
+  [Reflect] attribute DOMString rel;
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
+  [Reflect] attribute DOMString hreflang;
+  [Reflect] attribute DOMString type;
+};
+
+[Exposed=Window]
+interface SVGViewElement : SVGElement {
+};

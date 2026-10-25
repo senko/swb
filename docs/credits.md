@@ -39,6 +39,11 @@ Format: source, license (for code), what it influenced.
 - W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
   typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
+- W3C Scalable Vector Graphics (SVG) 2 — https://www.w3.org/TR/SVG2/ —
+  the IDL blocks of the element interfaces and `SVGAnimatedString` in
+  `crates/web/idl/svg.idl` (W3C Software and Document License 2023; see
+  THIRD_PARTY_NOTICES.md); the `ownerSVGElement` and `viewportElement`
+  algorithms of `swb-web`.
 - W3C DOM Parsing and Serialization — https://w3c.github.io/DOM-Parsing/
   — the `DOMParser` interface in `crates/web/idl/dom-parsing.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).

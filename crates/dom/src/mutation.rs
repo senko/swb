@@ -310,11 +310,15 @@ impl Document {
         p.element_child_count -= u32::from(is_element);
     }
 
-    /// Reports a change: bumps the generation, appends a journal entry and
+    /// Reports a change: bumps the generation (and the structure generation
+    /// for a change of a child list), appends a journal entry and
     /// calls the mutation sink with the document in its new state.
     #[inline]
     pub(crate) fn record(&mut self, change: &Change<'_>) {
         self.generation += 1;
+        if matches!(change, Change::Children { .. }) {
+            self.structure_generation += 1;
+        }
         if self.journaling {
             self.journal.record(change);
         } else {

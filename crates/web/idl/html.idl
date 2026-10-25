@@ -21,7 +21,7 @@
 // no layout and no events (`title`, `lang`, `translate`, `dir`, `hidden`,
 // `inert`, `accessKey`, `draggable`, `spellcheck`, `autocapitalize`,
 // `inputMode`, `enterKeyHint`) and the
-// members of HTMLOrSVGElement without `nonce`, `focus` and `blur` (feature
+// members of HTMLOrSVGElement without `focus` and `blur` (feature
 // 6d); it lacks `click`, `innerText`, `outerText`, `contentEditable`,
 // `popover`, `attachInternals` and the popover members. No element
 // interface has the obsolete members, `validity` and the other constraint
@@ -30,11 +30,12 @@
 // `reset()`, `requestSubmit()`, `iframe.contentWindow` and
 // `contentDocument`, `canvas.getContext`, the media playback members,
 // `dialog.show*`, `meter` and `progress` values, `sheet` and the
-// `LegacyFactoryFunction` of `Image` and `Option` (added with feature 6c
-// part 4). The attributes whose prose says "limited to only known
-// values" have swb's `[SwbKeywords]` (see the generator). `width` and
-// `height` of `img` reflect the content attributes (the standard returns
-// the rendered or natural size). Two members are the standard's
+// factory function `Audio`. `HTMLImageElement` and `HTMLOptionElement`
+// have their `LegacyFactoryFunction` (`Image`, `Option`; feature 6c2). The
+// attributes whose prose says "limited to only known values" have swb's
+// `[SwbKeywords]` (see the generator). `width` and `height` of
+// `img` reflect the content attributes (the standard returns the rendered
+// or natural size). Two members are the standard's
 // `ReflectSetter` with swb's getter: `tabIndex` and `action`. Other
 // members whose getter the standard describes in prose are `[SwbCustom]`
 // or have a hand-written getter. The element interfaces keep
@@ -360,7 +361,8 @@ interface HTMLSourceElement : HTMLElement {
   [CEReactions, Reflect] attribute unsigned long height;
 };
 
-[Exposed=Window]
+[Exposed=Window,
+ LegacyFactoryFunction=Image(optional unsigned long width, optional unsigned long height)]
 interface HTMLImageElement : HTMLElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect] attribute DOMString alt;
@@ -656,7 +658,8 @@ interface HTMLOptGroupElement : HTMLElement {
   [CEReactions, Reflect] attribute DOMString label;
 };
 
-[Exposed=Window]
+[Exposed=Window,
+ LegacyFactoryFunction=Option(optional DOMString text = "", optional DOMString value, optional boolean defaultSelected = false, optional boolean selected = false)]
 interface HTMLOptionElement : HTMLElement {
   [HTMLConstructor] constructor();
   [CEReactions, Reflect] attribute boolean disabled;

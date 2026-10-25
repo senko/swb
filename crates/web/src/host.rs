@@ -175,6 +175,18 @@ pub trait EngineHost: Any {
         let _ = (option, selected);
     }
 
+    /// The selectedness of a new option (`new Option()`) without the
+    /// dirtiness flag: it stays until the `selected` attribute is added or
+    /// removed, or a script writes `option.selected`.
+    fn set_option_initial_selected(&mut self, option: NodeId, selected: bool) {
+        let _ = (option, selected);
+    }
+
+    /// The `selected` attribute of `option` was added or removed.
+    fn option_selected_attribute_changed(&mut self, option: NodeId) {
+        let _ = option;
+    }
+
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

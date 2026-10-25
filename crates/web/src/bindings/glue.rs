@@ -99,6 +99,19 @@ pub fn expose(rt: &mut Runtime, realm: u32, name: &str, interface: Interface) ->
     rt.define_value(global, name, interface.object.into(), Attributes::HIDDEN)
 }
 
+/// Defines the function of a legacy factory function (`Image`) as a
+/// property of the global object of `realm` (Web IDL §3.7.2: writable,
+/// not enumerable, configurable).
+pub fn expose_function(
+    rt: &mut Runtime,
+    realm: u32,
+    name: &str,
+    function: Gc<Object>,
+) -> VmResult<()> {
+    let global = rt.global(realm)?;
+    rt.define_value(global, name, function.into(), Attributes::HIDDEN)
+}
+
 /// Makes the prototypes of `classes` in `realm` immutable prototype
 /// objects (Web IDL §3.7.3: a `[Global]` interface and its ancestors).
 pub fn immutable_prototypes(rt: &mut Runtime, realm: u32, classes: &[ClassId]) -> VmResult<()> {

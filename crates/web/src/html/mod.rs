@@ -9,6 +9,7 @@
 //!   (HTML `HTMLHyperlinkElementUtils`);
 //! - `token_lists.rs`: `relList`, `sizes`, `sandbox`, `blocking`,
 //!   `htmlFor` and `supports`;
+//! - `factories.rs`: the factory functions `Image` and `Option`;
 //! - `owner.rs`: form owners and the listed elements of a form;
 //! - `form_controls.rs`: `value`, `checked`, `selectedIndex` and the other
 //!   members that depend on the state of a control (the engine's form
@@ -23,6 +24,7 @@
 
 mod classes;
 pub(crate) mod element;
+mod factories;
 mod form_controls;
 mod forms;
 mod hyperlink;

@@ -32,6 +32,11 @@ pub(crate) struct Case {
 #[path = "script_html/cases.rs"]
 mod cases;
 
+/// The cases of `tools/probes/web-image-option.json` that need the form
+/// state (the selectedness of options made by `new Option`).
+#[path = "script_html/option_cases.rs"]
+mod option_cases;
+
 /// The values where swb departs from Chromium on purpose: (case, query
 /// index, swb's value, why).
 const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
@@ -120,7 +125,7 @@ fn run(page: &mut Page, source: &str) -> String {
 fn probe_cases() {
     on_page_thread(|| {
         let mut failures = Vec::new();
-        for case in cases::CASES {
+        for case in cases::CASES.iter().chain(option_cases::CASES) {
             let site = Site::new(&format!("script-html-{}", case.name));
             let mut page = open(&site, case.html);
             for (index, &(query, chromium)) in case.queries.iter().enumerate() {

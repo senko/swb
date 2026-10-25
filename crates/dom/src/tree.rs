@@ -371,6 +371,8 @@ pub struct Document {
     pub(crate) journaling: bool,
     /// Grows with every change.
     pub(crate) generation: u64,
+    /// Like `generation`, but only changes of the child lists bump it.
+    pub(crate) structure_generation: u64,
     /// `id` values of connected elements; built at the first lookup, which
     /// takes `&self`.
     pub(crate) ids: RefCell<IdIndex>,
@@ -409,6 +411,7 @@ impl fmt::Debug for Document {
             .field("quirks_mode", &self.quirks_mode)
             .field("scripting", &self.scripting)
             .field("generation", &self.generation)
+            .field("structure_generation", &self.structure_generation)
             .finish_non_exhaustive()
     }
 }
@@ -435,6 +438,7 @@ impl Document {
             journal: Journal::default(),
             journaling: true,
             generation: 0,
+            structure_generation: 0,
             ids: RefCell::default(),
             text_bytes: 0,
             limits,
@@ -476,6 +480,14 @@ impl Document {
     /// data records the generation it was built for.
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    /// The structure generation: a counter that grows with every change
+    /// of a child list (insertion, removal, replacement), and not with
+    /// changes of attributes or text. Data that depends only on the
+    /// sibling links, such as `children`, records this one.
+    pub fn structure_generation(&self) -> u64 {
+        self.structure_generation
     }
 
     /// The changes since the last [`take_journal`](Self::take_journal).

@@ -50,6 +50,7 @@ mod html;
 mod runtime;
 mod scripts;
 mod state;
+mod svg;
 mod timers;
 mod window;
 
