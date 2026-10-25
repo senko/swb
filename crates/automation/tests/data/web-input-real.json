@@ -1,0 +1,166 @@
+{
+ "boundary-flags": [
+  "pointerover@HTML b=true can=true cmp=true PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerenter@document b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerenter@HTML b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|mouseover@HTML b=true can=true cmp=true MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseenter@document b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseenter@HTML b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|pointerout@HTML<c b=true can=true cmp=true PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerover@c<HTML b=true can=true cmp=true PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerenter@BODY<HTML b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerenter@p<HTML b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerenter@c<HTML b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|mouseout@HTML<c b=true can=true cmp=true MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseover@c<HTML b=true can=true cmp=true MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseenter@BODY<HTML b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseenter@p<HTML b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseenter@c<HTML b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|pointerout@c<p b=true can=true cmp=true PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerleave@c<p b=false can=false cmp=false PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|pointerover@p<c b=true can=true cmp=true PointerEvent pid=1 prim=true btn=-1/0 d=0 pr=0|mouseout@c<p b=true can=true cmp=true MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseleave@c<p b=false can=false cmp=false MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined|mouseover@p<c b=true can=true cmp=true MouseEvent pid=undefined prim=undefined btn=0/0 d=0 pr=undefined"
+ ],
+ "cancel-beforeinput-text": [
+  "keydown@t key=a|keypress@t key=a|beforeinput@t it=insertText data=\"a\" c=true b=true comp=false InputEvent|keyup@t key=a|keydown@t key=b|keypress@t key=b|beforeinput@t it=insertText data=\"b\" c=true b=true comp=false InputEvent|keyup@t key=b|keydown@t key=Backspace|beforeinput@t it=deleteContentBackward data=null c=true b=true comp=false InputEvent|keyup@t key=Backspace|keydown@t key=Tab|keyup@BODY key=Tab",
+  "xy"
+ ],
+ "cancel-click-checkbox": [
+  "click@c checked=true|click@r1 checked=true",
+  false,
+  false,
+  true
+ ],
+ "cancel-click-link": [
+  "click@x dp=false|click@y dp=false",
+  "two"
+ ],
+ "cancel-click-link-only-x": [
+  "",
+  "",
+  "A"
+ ],
+ "cancel-keydown-tab-space": [
+  "focus@a |focusin@a |keydown@a key=Tab|blur@a<b |focusout@a<b |focus@b<a |focusin@b<a |keyup@b key=Tab|keydown@b key=Tab|keyup@b key=Tab|blur@b<k |focusout@b<k |focus@k<b |focusin@k<b |keydown@k key=Enter|keyup@k key=Enter|keydown@k key= |keyup@k key= |keydown@k key=PageDown|keyup@k key=PageDown",
+  "k"
+ ],
+ "cancel-keydown-text": [
+  "focus@t |focusin@t |keydown@t key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keyup@t key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"b\" code=KeyB kc=66 cc=0 loc=0 rep=false sh=false ct=false|keyup@t key=\"b\" code=KeyB kc=66 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false|keyup@t key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"Enter\" code=Enter kc=13 cc=0 loc=0 rep=false sh=false ct=false|keyup@t key=\"Enter\" code=Enter kc=13 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"Backspace\" code=Backspace kc=8 cc=0 loc=0 rep=false sh=false ct=false|keyup@t key=\"Backspace\" code=Backspace kc=8 cc=0 loc=0 rep=false sh=false ct=false",
+  "",
+  "t"
+ ],
+ "cancel-keypress-text": [
+  "keydown@t key=a|keypress@t key=a|keyup@t key=a|keydown@t key=b|keypress@t key=b|keyup@t key=b|keydown@t key=Backspace|beforeinput@t it=deleteContentBackward data=null c=true b=true comp=false InputEvent|keyup@t key=Backspace",
+  ""
+ ],
+ "cancel-mousedown-focus": [
+  "mousedown@t|click@t|mousedown@b|click@b|mousedown@p|click@p|mousedown@p|click@p",
+  "BODY"
+ ],
+ "cancel-pointerdown": [
+  "pointerdown@a|pointerup@a|click@a"
+ ],
+ "cancel-pointerdown-focus": [
+  "pointerdown@t|click@t|pointerdown@p|click@p|pointerdown@p|click@p",
+  "BODY"
+ ],
+ "change-rules": [
+  "input@t v=xa|input@t v=x|blur@t<u v=x|input@u v=q|change@u v=q|blur@u v=q|blur@u v=q"
+ ],
+ "click-button-summary": [
+  "mousedown@b MouseEvent|focus@b FocusEvent|focusin@b FocusEvent|mouseup@b MouseEvent|click@b PointerEvent|mousedown@s MouseEvent|blur@b<s FocusEvent|focusout@b<s FocusEvent|focus@s<b FocusEvent|focusin@s<b FocusEvent|mouseup@s MouseEvent|click@s PointerEvent|mousedown@t MouseEvent|blur@s<t FocusEvent|focusout@s<t FocusEvent|focus@t<s FocusEvent|focusin@t<s FocusEvent|mouseup@t MouseEvent|click@t PointerEvent|mousedown@HTML MouseEvent|blur@t FocusEvent|focusout@t FocusEvent|mouseup@HTML MouseEvent|click@HTML PointerEvent",
+  true,
+  "BODY"
+ ],
+ "click-disabled": [
+  "pointerover@b|mouseover@b|mouseenter@document|mouseenter@HTML|mouseenter@BODY|mouseenter@b|mousemove@b|pointerdown@b|pointerover@i<b|mouseover@i<b|mouseenter@i<b|mousemove@i|pointerdown@i|pointerover@n<i|mouseover@n<i|mouseenter@w<i|mouseenter@n<i|mousemove@n|pointerdown@n"
+ ],
+ "click-div": [
+  "pointerover@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|pointerenter@document c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=false bub=false can=false|pointerenter@HTML c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=false bub=false can=false|pointerenter@BODY c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=false bub=false can=false|pointerenter@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=false bub=false can=false|mouseover@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|mouseenter@document c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=false bub=false can=false|mouseenter@HTML c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=false bub=false can=false|mouseenter@BODY c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=false bub=false can=false|mouseenter@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=false bub=false can=false|pointermove@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mousemove@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerdown@a c=150,125 b=0/1 d=0 PointerEvent pid=1 prim=true pr=0.5 cmp=true bub=true can=true|mousedown@a c=150,125 b=0/1 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerup@a c=150,125 b=0/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mouseup@a c=150,125 b=0/0 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|click@a c=150,125 b=0/0 d=1 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|pointermove@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mousemove@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerdown@a c=150,125 b=2/2 d=0 PointerEvent pid=1 prim=true pr=0.5 cmp=true bub=true can=true|mousedown@a c=150,125 b=2/2 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|contextmenu@a c=150,125 b=2/2 d=0 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|pointerup@a c=150,125 b=2/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mouseup@a c=150,125 b=2/0 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|auxclick@a c=150,125 b=2/0 d=1 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|pointermove@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mousemove@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerdown@a c=150,125 b=1/4 d=0 PointerEvent pid=1 prim=true pr=0.5 cmp=true bub=true can=true|mousedown@a c=150,125 b=1/4 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerup@a c=150,125 b=1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mouseup@a c=150,125 b=1/0 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|auxclick@a c=150,125 b=1/0 d=1 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|pointermove@a c=150,125 b=-1/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mousemove@a c=150,125 b=0/0 d=0 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerdown@a c=150,125 b=0/1 d=0 PointerEvent pid=1 prim=true pr=0.5 cmp=true bub=true can=true|mousedown@a c=150,125 b=0/1 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerup@a c=150,125 b=0/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mouseup@a c=150,125 b=0/0 d=1 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|click@a c=150,125 b=0/0 d=1 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|pointerdown@a c=150,125 b=0/1 d=0 PointerEvent pid=1 prim=true pr=0.5 cmp=true bub=true can=true|mousedown@a c=150,125 b=0/1 d=2 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|pointerup@a c=150,125 b=0/0 d=0 PointerEvent pid=1 prim=true pr=0 cmp=true bub=true can=true|mouseup@a c=150,125 b=0/0 d=2 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true|click@a c=150,125 b=0/0 d=2 PointerEvent pid=1 prim=false pr=0 cmp=true bub=true can=true|dblclick@a c=150,125 b=0/0 d=2 MouseEvent pid=undefined prim=undefined pr=undefined cmp=true bub=true can=true"
+ ],
+ "click-fields": [
+  "mousedown@a c=123,117 b=0/1 d=1 off=23,17 pg=123,117 sc=123,117 xy=123,117 which=1 mods=false,false,false,false mv=0,0 view=true|click@a c=123,117 b=0/0 d=1 off=23,17 pg=123,117 sc=123,117 xy=123,117 which=1 mods=false,false,false,false mv=0,0 view=true|mousedown@a c=200,150 b=0/1 d=1 off=100,50 pg=200,150 sc=200,150 xy=200,150 which=1 mods=false,true,false,false mv=0,0 view=true|click@a c=200,150 b=0/0 d=1 off=100,50 pg=200,150 sc=200,150 xy=200,150 which=1 mods=false,true,false,false mv=0,0 view=true|mousedown@a c=200,150 b=0/1 d=1 off=100,50 pg=200,150 sc=200,150 xy=200,150 which=1 mods=true,false,true,false mv=0,0 view=true|click@a c=200,150 b=0/0 d=1 off=100,50 pg=200,150 sc=200,150 xy=200,150 which=1 mods=true,false,true,false mv=0,0 view=true"
+ ],
+ "click-link-checkbox-label": [
+  "pointerdown@c PointerEvent|mousedown@c MouseEvent|focus@c FocusEvent|focusin@c FocusEvent|pointerup@c PointerEvent|mouseup@c MouseEvent|click@c PointerEvent d=1 tr=true checked=true|input@c Event|change@c Event|pointerdown@l PointerEvent|mousedown@l MouseEvent|blur@c FocusEvent|focusout@c FocusEvent|selectstart@l Event|pointerup@l PointerEvent|mouseup@l MouseEvent|click@l PointerEvent d=1 tr=true checked=true|focus@c FocusEvent|focusin@c FocusEvent|click@c PointerEvent d=1 tr=true checked=false|input@c Event|change@c Event|pointerdown@x PointerEvent|mousedown@x MouseEvent|blur@c<x FocusEvent|focusout@c<x FocusEvent|focus@x<c FocusEvent|focusin@x<c FocusEvent|pointerup@x PointerEvent|mouseup@x MouseEvent|click@x PointerEvent d=1 tr=true checked=false|blur@x FocusEvent|focusout@x FocusEvent",
+  "frag",
+  "",
+  false
+ ],
+ "edit-keys": [
+  "keydown@t key=End|keydown@t key=Backspace|beforeinput@t it=deleteWordBackward data=null c=true b=true comp=false InputEvent v=\"ab cd\"|input@t it=deleteWordBackward data=null c=false b=true comp=false InputEvent v=\"ab \"|keydown@t key=Delete|beforeinput@t it=deleteContentForward data=null c=true b=true comp=false InputEvent v=\"ab \"|keydown@t key=ArrowLeft|keydown@t key=a|keydown@t key=Backspace|beforeinput@t it=deleteContentBackward data=null c=true b=true comp=false InputEvent v=\"ab \"|input@t it=deleteContentBackward data=null c=false b=true comp=false InputEvent v=\"\"|keydown@t key=Backspace|beforeinput@t it=deleteContentBackward data=null c=true b=true comp=false InputEvent v=\"\"|change@t |keydown@a key=x|beforeinput@a it=insertText data=\"x\" c=true b=true comp=false InputEvent v=\"\"|input@a it=insertText data=\"x\" c=false b=true comp=false InputEvent v=\"x\"|keydown@a key=Enter|beforeinput@a it=insertLineBreak data=null c=true b=true comp=false InputEvent v=\"x\"|input@a it=insertLineBreak data=null c=false b=true comp=false InputEvent v=\"x\\n\"|keydown@a key=Backspace|beforeinput@a it=deleteContentBackward data=null c=true b=true comp=false InputEvent v=\"x\\n\"|input@a it=deleteContentBackward data=null c=false b=true comp=false InputEvent v=\"x\"|keydown@a key=Delete|beforeinput@a it=deleteContentForward data=null c=true b=true comp=false InputEvent v=\"x\"",
+  "",
+  "\"x\""
+ ],
+ "enter-implicit-submit": [
+  "focus@t |focusin@t |click@t PointerEvent d=1 pid=1|keydown@t key=a|keypress@t key=a|beforeinput@t |input@t |keyup@t key=a|keydown@t key=Enter|keypress@t key=Enter|beforeinput@t |change@t |click@s PointerEvent d=0 pid=-1|submit@f sub=s|keyup@t key=Enter|blur@t<u |focusout@t<u |focus@u<t |focusin@u<t |click@u PointerEvent d=1 pid=1|keydown@u key=b|keypress@u key=b|beforeinput@u |input@u |keyup@u key=b|keydown@u key=Enter|keypress@u key=Enter|beforeinput@u |change@u |submit@g sub=null|keyup@u key=Enter"
+ ],
+ "enter-no-form": [
+  "keydown@t key=a|keypress@t key=a|beforeinput@t it=insertText data=\"a\" c=true b=true comp=false InputEvent|input@t it=insertText data=\"a\" c=false b=true comp=false InputEvent|keyup@t key=a|keydown@t key=Enter|keypress@t key=Enter|beforeinput@t it=insertLineBreak data=null c=true b=true comp=false InputEvent|change@t |keyup@t key=Enter|keydown@t key=Tab|keyup@a key=Tab"
+ ],
+ "hover-chain": [
+  "pointerover@o|pointerenter@document|pointerenter@HTML|pointerenter@BODY|pointerenter@o|mouseover@o|mouseenter@document|mouseenter@HTML|mouseenter@BODY|mouseenter@o|pointerout@o<c|pointerleave@o<c|pointerover@c<o|pointerenter@p<o|pointerenter@c<o|mouseout@o<c|mouseleave@o<c|mouseover@c<o|mouseenter@p<o|mouseenter@c<o|pointerout@c<p|pointerleave@c<p|pointerover@p<c|mouseout@c<p|mouseleave@c<p|mouseover@p<c|pointerout@p<HTML|pointerleave@p<HTML|pointerleave@BODY<HTML|pointerover@HTML<p|mouseout@p<HTML|mouseleave@p<HTML|mouseleave@BODY<HTML|mouseover@HTML<p|pointerout@HTML<c|pointerover@c<HTML|pointerenter@BODY<HTML|pointerenter@p<HTML|pointerenter@c<HTML|mouseout@HTML<c|mouseover@c<HTML|mouseenter@BODY<HTML|mouseenter@p<HTML|mouseenter@c<HTML"
+ ],
+ "javascript-link": [
+  "click@x|ran1|click@y|ran2|click@z|click@s|submit@f|formaction",
+  ""
+ ],
+ "javascript-link-base-target": [
+  "click@x|click@s|ran-s"
+ ],
+ "javascript-link-modifiers": [
+  "click@x|click@x|click@x|ran-x|click@x|auxclick@x|click@x|ran-x|click@f|submit@FORM|click@f|submit@FORM|click@f|submit@FORM|click@f|submit@FORM|ran-form"
+ ],
+ "javascript-link-order-click-method": [
+  "doc-click-a|after click()|doc-click-b|act"
+ ],
+ "javascript-link-order-user-click": [
+  "mouseup|doc-click|micro|timeout0|act"
+ ],
+ "javascript-link-targets": [
+  "click@x|ran-x|click@b|click@s|ran-s|click@p|ran-p|click@t|ran-t|click@n|click@fb|click@f|ran-form"
+ ],
+ "key-activation": [
+  "keydown@b key=Enter|keypress@b key=Enter|click@b PointerEvent d=0 pid=-1 c=undefined tr=true|keyup@b key=Enter|keydown@b key= |keypress@b key= |keyup@b key= |click@b PointerEvent d=0 pid=-1 c=undefined tr=true|keydown@c key= |keypress@c key= |keyup@c key= |click@c PointerEvent d=0 pid=-1 c=true tr=true|input@c |change@c |keydown@c key=Enter|keypress@c key=Enter|keyup@c key=Enter|keydown@a key=Enter|click@a PointerEvent d=0 pid=-1 c=undefined tr=true|keyup@a key=Enter|keydown@a key= |keypress@a key= |keyup@a key= |keydown@r1 key= |keypress@r1 key= |keyup@r1 key= |click@r1 PointerEvent d=0 pid=-1 c=true tr=true|input@r1 |change@r1 |keydown@s key=Enter|keypress@s key=Enter|click@s PointerEvent d=0 pid=-1 c=undefined tr=true|keyup@s key=Enter|keydown@s key= |keypress@s key= |keyup@s key= |click@s PointerEvent d=0 pid=-1 c=undefined tr=true",
+  "z",
+  false,
+  true
+ ],
+ "key-fields": [
+  "keydown@BODY key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keypress@BODY key=\"a\" code=KeyA kc=97 cc=97 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"A\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=true ct=false|keypress@BODY key=\"A\" code=KeyA kc=65 cc=65 loc=0 rep=false sh=true ct=false|keyup@BODY key=\"A\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=true ct=false|keydown@BODY key=\"Enter\" code=Enter kc=13 cc=0 loc=0 rep=false sh=false ct=false|keypress@BODY key=\"Enter\" code=Enter kc=13 cc=13 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"Enter\" code=Enter kc=13 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\" \" code=Space kc=32 cc=0 loc=0 rep=false sh=false ct=false|keypress@BODY key=\" \" code=Space kc=32 cc=32 loc=0 rep=false sh=false ct=false|keyup@BODY key=\" \" code=Space kc=32 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"ArrowDown\" code=ArrowDown kc=40 cc=0 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"ArrowDown\" code=ArrowDown kc=40 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"Escape\" code=Escape kc=27 cc=0 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"Escape\" code=Escape kc=27 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"1\" code=Digit1 kc=49 cc=0 loc=0 rep=false sh=false ct=false|keypress@BODY key=\"1\" code=Digit1 kc=49 cc=49 loc=0 rep=false sh=false ct=false|keyup@BODY key=\"1\" code=Digit1 kc=49 cc=0 loc=0 rep=false sh=false ct=false|keydown@BODY key=\"c\" code=KeyC kc=67 cc=0 loc=0 rep=false sh=false ct=true|keyup@BODY key=\"c\" code=KeyC kc=67 cc=0 loc=0 rep=false sh=false ct=true"
+ ],
+ "move-fields": [
+  "pointermove@a c=110,110 b=-1/0 d=0 mv=0,0 off=10,10 pg=110,110 sc=110,110 PointerEvent pid=1 mouse prim=true pr=0 w=1,1 cmp=true bub=true can=true|mousemove@a c=110,110 b=0/0 d=0 mv=0,0 off=10,10 pg=110,110 sc=110,110 MouseEvent pid=undefined undefined prim=undefined pr=undefined w=undefined,undefined cmp=true bub=true can=true|pointermove@a c=130,140 b=-1/0 d=0 mv=20,30 off=30,40 pg=130,140 sc=130,140 PointerEvent pid=1 mouse prim=true pr=0 w=1,1 cmp=true bub=true can=true|mousemove@a c=130,140 b=0/0 d=0 mv=20,30 off=30,40 pg=130,140 sc=130,140 MouseEvent pid=undefined undefined prim=undefined pr=undefined w=undefined,undefined cmp=true bub=true can=true|pointermove@a c=130,140 b=-1/0 d=0 mv=0,0 off=30,40 pg=130,140 sc=130,140 PointerEvent pid=1 mouse prim=true pr=0 w=1,1 cmp=true bub=true can=true|mousemove@a c=130,140 b=0/0 d=0 mv=0,0 off=30,40 pg=130,140 sc=130,140 MouseEvent pid=undefined undefined prim=undefined pr=undefined w=undefined,undefined cmp=true bub=true can=true"
+ ],
+ "remove-on-click": [
+  "mousedown@a|mouseup@a|click@a",
+  "q"
+ ],
+ "remove-on-mousedown": [
+  "pointerdown@a|mousedown@a|pointerup@p|mouseup@p"
+ ],
+ "scroll-tree-order": [
+  "scroll-b|scroll-a|scroll-c"
+ ],
+ "select-text-click": [
+  "mousedown@p|selectstart@#text|mouseup@p|click@p|mousedown@p|selectstart@#text|mouseup@p|click@p"
+ ],
+ "tab-order": [
+  "keydown@BODY key=Tab|focus@a |focusin@a |keyup@a key=Tab|keydown@a key=Tab|blur@a<l |focusout@a<l |focus@l<a |focusin@l<a |keyup@l key=Tab|keydown@l key=Tab|blur@l<d |focusout@l<d |focus@d<l |focusin@d<l |keyup@d key=Tab|keydown@d key=Tab|blur@d<z |focusout@d<z |focus@z<d |focusin@z<d |keyup@z key=Tab|keydown@z key=Tab|blur@z |focusout@z |blur@window|keyup@BODY key=Tab|keydown@BODY key=Tab|focus@window|focus@z |focusin@z |keyup@z key=Tab|keydown@z key=Tab|blur@z<d |focusout@z<d |focus@d<z |focusin@d<z |keyup@d key=Tab",
+  "d"
+ ],
+ "type-no-focus": [
+  "keydown@BODY key=a|keypress@BODY key=a|keyup@BODY key=a|keydown@BODY key=b|keypress@BODY key=b|keyup@BODY key=b|keydown@a key=c|keypress@a key=c|beforeinput@a |input@a |keyup@a key=c",
+  "c"
+ ],
+ "type-non-ascii": [
+  "keydown@t key=\"!\" code=Digit1 kc=49 cc=0 loc=0 rep=false sh=false ct=false|keypress@t key=\"!\" code=Digit1 kc=33 cc=33 loc=0 rep=false sh=false ct=false|beforeinput@t it=insertText data=\"!\" c=true b=true comp=false InputEvent|input@t it=insertText data=\"!\" c=false b=true comp=false InputEvent|keyup@t key=\"!\" code=Digit1 kc=49 cc=0 loc=0 rep=false sh=false ct=false|beforeinput@t it=insertText data=\"é\" c=true b=true comp=false InputEvent|input@t it=insertText data=\"é\" c=false b=true comp=false InputEvent",
+  "!é"
+ ],
+ "type-target-removed": [
+  "keydown@a key=a|keypress@BODY key=a|keyup@BODY key=a|keydown@BODY key=b|keypress@BODY key=b|keyup@BODY key=b|keydown@BODY key=c|keypress@BODY key=c|keyup@BODY key=c"
+ ],
+ "type-text": [
+  "focus@t |focusin@t |keydown@t key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keypress@t key=\"a\" code=KeyA kc=97 cc=97 loc=0 rep=false sh=false ct=false|beforeinput@t it=insertText data=\"a\" c=true b=true comp=false InputEvent v=|input@t it=insertText data=\"a\" c=false b=true comp=false InputEvent v=a|keyup@t key=\"a\" code=KeyA kc=65 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"B\" code=KeyB kc=66 cc=0 loc=0 rep=false sh=false ct=false|keypress@t key=\"B\" code=KeyB kc=66 cc=66 loc=0 rep=false sh=false ct=false|beforeinput@t it=insertText data=\"B\" c=true b=true comp=false InputEvent v=a|input@t it=insertText data=\"B\" c=false b=true comp=false InputEvent v=aB|keyup@t key=\"B\" code=KeyB kc=66 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"Backspace\" code=Backspace kc=8 cc=0 loc=0 rep=false sh=false ct=false|beforeinput@t it=deleteContentBackward data=null c=true b=true comp=false InputEvent v=aB|input@t it=deleteContentBackward data=null c=false b=true comp=false InputEvent v=a|keyup@t key=\"Backspace\" code=Backspace kc=8 cc=0 loc=0 rep=false sh=false ct=false|keydown@t key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false|change@t |blur@t<o |focusout@t<o |focus@o<t |focusin@o<t |keyup@o key=\"Tab\" code=Tab kc=9 cc=0 loc=0 rep=false sh=false ct=false",
+  "a"
+ ],
+ "wheel-cancel": [
+  "wheel@a|prevented=true"
+ ],
+ "wheel-deltas": [
+  "wheel@a d=0,300 wd=-120,0,-120 can=false|wheel@a d=0,-100 wd=120,0,120 can=false|wheel@a d=30,0 wd=-120,-120,0 can=false|wheel@a d=0,1000 wd=-120,0,-120 can=false|wheel@a d=-7,3 wd=-120,120,-120 can=false"
+ ],
+ "wheel-element-scroll": [
+  "wheel@DIV d=60|scroll@a bub=false|wheel@DIV d=60|scroll@document bub=true"
+ ],
+ "wheel-passive-defaults": [
+  "div passive=n/a|prevented=false BODY|prevented=false #document|prevented=false undefined|scroll@document"
+ ],
+ "wheel-scroll": [
+  "wheel@a d=0,100,0 m=0 wd=-120,0,-120 c=200,200 cmp=true can=false bub=true b=0/0 WheelEvent|scroll@document bub=true|wheel@a d=0,53,0 m=0 wd=-120,0,-120 c=200,200 cmp=true can=false bub=true b=0/0 WheelEvent|scroll@document bub=true|wheel@a d=0,61,0 m=0 wd=-120,0,-120 c=200,200 cmp=true can=false bub=true b=0/0 WheelEvent|scroll@document bub=true"
+ ],
+ "window-focus-click": [
+  "focus@a|focusin@a|blur@a|focusout@a|blur@window|mousedown@d|focus@window|mouseup@d|click@d|mousedown@d|mouseup@d|click@d"
+ ]
+}

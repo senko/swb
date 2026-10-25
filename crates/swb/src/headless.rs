@@ -32,6 +32,8 @@ pub(crate) struct HeadlessOptions<'a> {
     pub(crate) javascript: bool,
     /// Expressions to evaluate after the load (`--eval`).
     pub(crate) eval: &'a [String],
+    /// Input steps to send after the load (`--steps`, a JSON list).
+    pub(crate) steps: Option<&'a str>,
     /// The mode and the start time of the page clock (`--virtual-time`,
     /// `--now`).
     pub(crate) clock: (ClockMode, Option<f64>),
@@ -92,7 +94,18 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
         }
         log::warn!("{error}");
     }
+    let mut steps_error = None;
+    if let Some(steps) = options.steps {
+        let steps: Vec<serde_json::Value> =
+            serde_json::from_str(steps).context("--steps is not a JSON list")?;
+        // A failed step is reported after the `--eval` lines, so that a
+        // probe still gets the values the page had when the step failed.
+        steps_error = swb_automation::run_steps(&mut page, &steps).err();
+    }
     evaluate(&mut page, options.eval, options.timeout)?;
+    if let Some(error) = steps_error {
+        anyhow::bail!("{error}");
+    }
     page.update_layout();
 
     if options.dump_dom {

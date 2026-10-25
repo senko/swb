@@ -169,7 +169,14 @@ pub struct DocumentState {
     pub(crate) styles_stale: bool,
     /// What scripts asked for during the task (navigation, scrolling).
     pub(crate) script_requests: ScriptRequests,
+    /// The text control that the user edited since its last `change` event
+    /// (or since it got the focus), with its value before the first edit.
+    /// `change` fires when the control commits, if the value differs.
+    pub(crate) commit_baseline: Option<(NodeId, String)>,
     pub(crate) fragments: Option<FragmentTree>,
+    /// Counts the layouts: a cache of data derived from the fragments is
+    /// valid while this stays the same.
+    pub(crate) layout_serial: u64,
     pub(crate) display_list: Option<DisplayList>,
     pub(crate) timings: StageTimings,
     /// The DOM generation at the last drain of the journal.
@@ -224,7 +231,9 @@ impl DocumentState {
             styles: None,
             styles_stale: false,
             script_requests: ScriptRequests::default(),
+            commit_baseline: None,
             fragments: None,
+            layout_serial: 0,
             display_list: None,
             timings: StageTimings {
                 parse: init.parse,
@@ -364,6 +373,10 @@ impl swb_web::EngineHost for DocumentState {
         self.script_set_focus(node, visible);
     }
 
+    fn take_pending_change(&mut self, node: NodeId) -> bool {
+        self.script_take_pending_change(node)
+    }
+
     fn request_scroll_into_view(&mut self, node: NodeId) {
         self.script_request_scroll(node);
     }
@@ -376,8 +389,13 @@ impl swb_web::EngineHost for DocumentState {
         self.script_invalid_controls(form)
     }
 
-    fn request_form_submission(&mut self, form: NodeId, submitter: Option<NodeId>) -> bool {
-        self.script_request_form_submission(form, submitter)
+    fn request_form_submission(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+        coordinate: (i32, i32),
+    ) -> bool {
+        self.script_request_form_submission(form, submitter, coordinate)
     }
 
     fn reset_form(&mut self, form: NodeId) {

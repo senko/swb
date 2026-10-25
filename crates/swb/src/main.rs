@@ -111,6 +111,13 @@ struct Args {
     )]
     eval: Vec<String>,
 
+    /// Headless: after the page loaded, send these input steps (a JSON
+    /// list; see `swb_automation::run_steps`) through the `input.*` methods
+    /// of the automation API, before the evaluations and the outputs. For
+    /// the probe tool (docs/testing.md).
+    #[arg(long, value_name = "JSON", requires = "headless")]
+    steps: Option<String>,
+
     /// Use the bundled test fonts instead of the system fonts.
     #[arg(long)]
     test_fonts: bool,
@@ -255,6 +262,7 @@ fn main() -> Result<()> {
             bench: args.bench,
             javascript,
             eval: &args.eval,
+            steps: args.steps.as_deref(),
             clock,
             settle: Duration::from_millis(args.settle_ms),
         };

@@ -9,6 +9,7 @@ use swb_layout::{Point, Size};
 use swb_style::{Cursor, ElementStates, UserSelect};
 
 use super::Page;
+use super::events::{Down, ScrollSeen};
 use crate::document::is_rendered_in;
 use crate::focus;
 use crate::hit_test::{self, HitResult};
@@ -56,6 +57,32 @@ pub(super) struct InputState {
     /// The node of the last press of the primary button. Without a focused
     /// element, keyboard scrolling starts at its scroll container.
     last_press: Option<NodeId>,
+    // ----- Events of the user's input (scripts on; `events.rs`) -----
+    /// The element that the pointer is over, as the events saw it last.
+    pub(super) over: Option<NodeId>,
+    /// The mouse buttons held (`buttons`).
+    pub(super) buttons: u16,
+    /// The modifier keys of the last input.
+    pub(super) modifiers: Modifiers,
+    /// Where the last pointer event was (for `movementX`).
+    pub(super) last_point: Option<Point>,
+    /// The press in progress, for the events that follow it.
+    pub(super) down: Option<Down>,
+    /// True after Tab left the page: the window lost the focus.
+    pub(super) window_blurred: bool,
+    /// The element on which Space went down; it is clicked on release.
+    pub(super) space_down: Option<NodeId>,
+    /// The page time of the next frame that fires `scroll` events.
+    pub(super) frame_due: Option<f64>,
+    /// The scroll offsets that `scroll` events were last fired for.
+    pub(super) scroll_seen: ScrollSeen,
+    /// The scroll containers in the order they scrolled since the last
+    /// frame: the `scroll` events follow this order (CSSOM View "run the
+    /// scroll steps": the order the targets were added; measured).
+    pub(super) scroll_order: Vec<NodeId>,
+    /// The boxes of the elements for `offsetX` and `offsetY`, kept while
+    /// the layout and the scroll offsets stay the same (`events.rs`).
+    pub(super) boxes: Option<super::events::BoxCache>,
 }
 
 impl InputState {
@@ -73,6 +100,19 @@ impl Page {
     pub fn hit_test(&mut self, x: f32, y: f32) -> Option<HitResult> {
         let (doc, fonts) = self.parts()?;
         doc.hit_test(x, y, fonts)
+    }
+
+    /// The generation of the DOM of the current document (0 without one):
+    /// it grows with every change, so a caller can tell that input events
+    /// changed the page.
+    pub(super) fn dom_generation(&self) -> u64 {
+        self.doc.as_ref().map_or(0, |d| d.dom().generation())
+    }
+
+    /// The position of the mouse pointer in viewport coordinates, while it
+    /// is over the page.
+    pub fn pointer_position(&self) -> Option<Point> {
+        self.input.pointer
     }
 
     /// The URL of the link under the mouse pointer.
@@ -146,7 +186,12 @@ impl Page {
     pub fn mouse_move(&mut self, x: f32, y: f32) -> bool {
         let point = Point::new(x, y);
         self.input.pointer = Some(point);
-        let mut changed = false;
+        let generation = self.dom_generation();
+        if self.script_input() {
+            self.scripted_move(point);
+        }
+        // Listeners may have changed the page.
+        let mut changed = generation != self.dom_generation();
         if let Some(press) = &mut self.input.press {
             let (dx, dy) = (point.x - press.origin.x, point.y - press.origin.y);
             press.dragging |= dx.hypot(dy) > DRAG_THRESHOLD;
@@ -188,6 +233,9 @@ impl Page {
     /// Handles the mouse pointer leaving the page area. Returns true if a
     /// repaint is needed.
     pub fn mouse_leave(&mut self) -> bool {
+        if self.script_input() {
+            self.scripted_leave();
+        }
         self.input.pointer = None;
         self.input.cursor = Cursor::Auto;
         let changed = self.input.hovered_link.take().is_some();
@@ -198,7 +246,10 @@ impl Page {
     /// The primary button focuses, activates (`:active`) and starts a
     /// selection; `click_count` 2 selects a word, 3 a paragraph, and Shift
     /// extends the selection. In a text field, the press places the caret
-    /// (and selects in the field). Returns true if a repaint is needed.
+    /// (and selects in the field). With scripts, `pointerdown`,
+    /// `mousedown` and, for the secondary button, `contextmenu` come first;
+    /// a canceled `pointerdown` or `mousedown` leaves the focus and the
+    /// selection alone. Returns true if a repaint is needed.
     pub fn mouse_down(
         &mut self,
         x: f32,
@@ -207,17 +258,25 @@ impl Page {
         modifiers: Modifiers,
         click_count: u32,
     ) -> bool {
-        if button != MouseButton::Primary {
-            return false;
-        }
+        self.input.modifiers = modifiers;
         let point = Point::new(x, y);
+        let scripted = self.script_input();
+        let mut allowed = true;
+        if scripted {
+            self.input.pointer = Some(point);
+            allowed = self.scripted_down(point, button, click_count);
+        }
+        if button != MouseButton::Primary {
+            return scripted;
+        }
         self.input.pointer = Some(point);
         let hit = self.hit_test(x, y);
         let element = hit.as_ref().and_then(|h| self.element_of(h.node));
         let focus = hit
             .as_ref()
+            .filter(|_| allowed)
             .and_then(|h| self.doc.as_ref()?.click_focus_target(h.node));
-        if focus.is_none() {
+        if focus.is_none() && allowed {
             self.input.focus_start = hit.as_ref().map(|h| h.node);
         }
         self.input.last_press = hit.as_ref().map(|h| h.node);
@@ -225,12 +284,15 @@ impl Page {
         let control = focus.filter(|&n| self.is_text_control(n));
         let (selection, anchor) = match control {
             Some(_) => (None, None),
+            None if !allowed => (None, None),
             None => self.press_selection(point, modifiers, click_count),
         };
         // The offset in the text as shown before the focus changes (which
         // can scroll the text).
         let offset = control.map(|c| self.control_offset_at(c, point));
-        self.set_selection(selection);
+        if allowed && !scripted {
+            self.set_selection(selection);
+        }
         self.input.press = Some(Press {
             origin: point,
             target: hit
@@ -240,11 +302,33 @@ impl Page {
             control,
             dragging: false,
         });
-        self.update_states(|s| {
-            s.active = element;
-            s.focus = focus;
-            s.focus_visible = false;
-        });
+        if scripted {
+            // The focus change fires the focus events: a task of its own.
+            self.update_states(|s| s.active = element);
+            if allowed {
+                if focus.is_none() {
+                    // A click anywhere in the page brings the window focus
+                    // back after Tab left it.
+                    self.regain_window_focus();
+                }
+                self.scripted_focus(focus, false);
+                // A press that focuses nothing starts a selection, if no
+                // listener cancels `selectstart`.
+                if focus.is_none() && !self.fire_selectstart(point) {
+                    if let Some(press) = &mut self.input.press {
+                        press.anchor = None;
+                    }
+                } else {
+                    self.set_selection(selection);
+                }
+            }
+        } else {
+            self.update_states(|s| {
+                s.active = element;
+                s.focus = focus;
+                s.focus_visible = false;
+            });
+        }
         if let (Some(control), Some(offset)) = (control, offset) {
             self.press_in_control(control, offset, modifiers.shift, click_count);
         }
@@ -299,6 +383,9 @@ impl Page {
     /// Returns whether a repaint is needed and whether a click activated
     /// something.
     fn release(&mut self, x: f32, y: f32, button: MouseButton) -> (bool, bool) {
+        if self.script_input() {
+            return self.scripted_release(Point::new(x, y), button);
+        }
         if button != MouseButton::Primary {
             return (false, false);
         }
@@ -314,6 +401,47 @@ impl Page {
             _ => false,
         };
         (changed, activated)
+    }
+
+    /// The release with scripts: `pointerup`, `mouseup` and the click
+    /// events. The activation behavior of the click runs in the dispatch
+    /// of `click` (the bindings do it: links, checkboxes, radio buttons,
+    /// buttons, labels, summaries), so the engine's own action does not
+    /// run. Only the default summary of a `details` element, which has no
+    /// element, toggles here. Returns whether a repaint is needed and
+    /// whether the click activated something.
+    fn scripted_release(&mut self, point: Point, button: MouseButton) -> (bool, bool) {
+        let generation = self.dom_generation();
+        let press = if button == MouseButton::Primary {
+            self.input.press.take()
+        } else {
+            None
+        };
+        let mut changed = if button == MouseButton::Primary {
+            self.update_states(|s| s.active = None)
+        } else {
+            false
+        };
+        let dragging = press.as_ref().is_some_and(|p| p.dragging);
+        let up = self.scripted_up(point, button, dragging);
+        changed |= generation != self.dom_generation();
+        let Some((target, proceed)) = up else {
+            return (changed, false);
+        };
+        let mut activated = false;
+        if proceed && button == MouseButton::Primary {
+            let activation = self.activation_target(target, point);
+            activated = activation.is_some();
+            if let Some(node) = activation
+                && self.document().is_some_and(|d| {
+                    d.element(node)
+                        .is_some_and(|e| e.is_html_named(&swb_dom::local_name!("details")))
+                })
+            {
+                changed |= self.toggle_details(node);
+            }
+        }
+        (changed || activated, activated)
     }
 
     /// Clicks the primary button at a point in viewport coordinates.
@@ -333,7 +461,71 @@ impl Page {
     /// follows the focused link, Ctrl+A selects all, and the arrows, Page
     /// Up/Down, Space, Home and End scroll. Returns true if the page
     /// handled the key (and needs a repaint).
+    ///
+    /// With scripts, `keydown` goes first and, if no listener canceled it,
+    /// `keypress` for printable keys and Enter; a canceled event leaves the
+    /// default action out (no text, no focus move, no scroll, no
+    /// activation). An Enter on a link clicks it after `keydown`, without
+    /// `keypress` (measured). The edits of text fields fire `beforeinput`
+    /// and `input`; Space on a button, a checkbox, a radio button or a
+    /// summary clicks it when the key goes up ([`Page::key_up`]).
     pub fn key_down(&mut self, key: &Key, modifiers: Modifiers) -> bool {
+        self.input.modifiers = modifiers;
+        if !self.script_input() {
+            return self.key_default(key, modifiers);
+        }
+        // A new key going down: a Space whose release was lost (a host that
+        // sends no `key_up`) must not click later.
+        self.input.space_down = None;
+        let info = key.info();
+        let Some(target) = self.key_target() else {
+            return self.key_default(key, modifiers);
+        };
+        if !self.fire_key("keydown", target, &info, modifiers) {
+            return true;
+        }
+        let ctrl = modifiers.ctrl || modifiers.meta;
+        if key == &Key::Enter
+            && !ctrl
+            && !modifiers.alt
+            && let Some(link) = self.focused_link()
+        {
+            return self.simulate_click(link);
+        }
+        if info.keypress && !ctrl {
+            let target = self.key_target().unwrap_or(target);
+            if !self.fire_key("keypress", target, &info, modifiers) {
+                return true;
+            }
+        }
+        self.key_default(key, modifiers)
+    }
+
+    /// Handles a key release. With scripts, `keyup` goes to the focused
+    /// element (or the body), and Space that went down on a button, a
+    /// checkbox, a radio button or a summary clicks it now. Returns true
+    /// if the page handled the key.
+    pub fn key_up(&mut self, key: &Key, modifiers: Modifiers) -> bool {
+        if !self.script_input() {
+            return false;
+        }
+        self.input.modifiers = modifiers;
+        let Some(target) = self.key_target() else {
+            return false;
+        };
+        let info = key.info();
+        self.fire_key("keyup", target, &info, modifiers);
+        if key.is_char(' ')
+            && let Some(node) = self.input.space_down.take()
+            && self.focused_element() == Some(node)
+        {
+            self.simulate_click(node);
+        }
+        true
+    }
+
+    /// The default action of a key (after its events, if scripts run).
+    fn key_default(&mut self, key: &Key, modifiers: Modifiers) -> bool {
         if let Some(handled) = self.control_key(key, modifiers) {
             return handled;
         }
@@ -343,6 +535,9 @@ impl Page {
             && (key == &Key::Enter || key.is_char(' '))
             && let Some(details) = self.focused_summary()
         {
+            if self.script_input() {
+                return self.scripted_activation_key(key);
+            }
             return self.toggle_details(details);
         }
         match key {
@@ -371,10 +566,15 @@ impl Page {
             }
         }
         let before = self.focus_state();
-        self.update_states(|s| {
-            s.focus = node;
-            s.focus_visible = visible && node.is_some();
-        });
+        if self.script_input() {
+            // The focus events (`change`, `blur`, `focus`, ...) fire.
+            self.scripted_focus(node, visible && node.is_some());
+        } else {
+            self.update_states(|s| {
+                s.focus = node;
+                s.focus_visible = visible && node.is_some();
+            });
+        }
         if visible && let Some(node) = node {
             self.scroll_into_view(node);
         }
@@ -419,7 +619,13 @@ impl Page {
         let from = doc.states.focus.or(from_start);
         let next = focus::next_in_order(dom, from, backward, rendered);
         self.input.focus_start = None;
+        let leaving = next.is_none() && self.focused_element().is_some();
         self.focus(next, true);
+        if leaving && self.script_input() {
+            // Tab left the page: the window loses the focus.
+            self.input.window_blurred = true;
+            self.run_task(|s| s.window_focus(false));
+        }
         // Keyboard focus selects the text of a text field.
         if let Some(next) = next {
             self.select_field_text(next);
@@ -433,8 +639,40 @@ impl Page {
         doc.dom().details_of_summary(doc.states.focus?)
     }
 
+    /// The focused element if it is a link (an `a` or `area` with `href`)
+    /// that is rendered.
+    fn focused_link(&mut self) -> Option<NodeId> {
+        let focus = self.focused_element().filter(|&n| self.is_rendered(n))?;
+        let doc = self.doc.as_ref()?;
+        hit_test::link_target(doc.dom(), focus, doc.base_url()).map(|_| focus)
+    }
+
+    /// Clicks `node` as a key does (Chromium's simulated click, a trusted
+    /// `click` event whose activation behavior follows). Returns true.
+    pub(super) fn simulate_click(&mut self, node: NodeId) -> bool {
+        self.run_task(|s| s.simulated_click(node));
+        true
+    }
+
+    /// Enter or Space on a focused summary with scripts: Enter clicks it
+    /// at once, Space when the key goes up.
+    fn scripted_activation_key(&mut self, key: &Key) -> bool {
+        let Some(node) = self.focused_element() else {
+            return false;
+        };
+        if key == &Key::Enter {
+            return self.simulate_click(node);
+        }
+        self.input.space_down = Some(node);
+        true
+    }
+
     /// Follows the focused link, if there is one and it is rendered.
     fn activate_focused(&mut self) -> bool {
+        if self.script_input() {
+            // The click of the key did it (`key_down`).
+            return false;
+        }
         let Some(focus) = self.focused_element().filter(|&n| self.is_rendered(n)) else {
             return false;
         };

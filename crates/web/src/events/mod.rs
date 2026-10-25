@@ -28,6 +28,7 @@ mod misc;
 mod mouse;
 mod target;
 mod ui;
+mod user;
 
 pub use dispatch::{DispatchTarget, EventInterface, TrustedEvent};
 pub(crate) use dispatch::{dispatch, dispatch_trusted, fire_trusted, new_event_object};
@@ -35,6 +36,7 @@ pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_chang
 pub(crate) use listeners::Listeners;
 pub(crate) use mouse::new_click_event;
 pub(crate) use target::TargetData;
+pub use user::{UserEvent, UserKind, modifiers};
 
 use swb_js::{
     Gc, Generic, GenericData, HostData, Object, Runtime, Tracer, Value, VmError, VmResult,

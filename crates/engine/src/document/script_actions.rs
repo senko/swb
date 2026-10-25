@@ -97,6 +97,39 @@ impl DocumentState {
         }
     }
 
+    /// True if the user edited the text control `node` since its last
+    /// `change` event and its value differs from the one before the edit.
+    /// Forgets the edit of the control.
+    pub(crate) fn script_take_pending_change(&mut self, node: NodeId) -> bool {
+        if self
+            .commit_baseline
+            .as_ref()
+            .is_none_or(|(n, _)| *n != node)
+        {
+            return false;
+        }
+        let Some((_, before)) = self.commit_baseline.take() else {
+            return false;
+        };
+        self.script_control_value(node)
+            .is_some_and(|value| value != before)
+    }
+
+    /// Notes that the user is about to edit the text control `node`: its
+    /// value now is the one that `change` compares with, unless an earlier
+    /// edit of the control noted it.
+    pub(crate) fn note_user_edit(&mut self, node: NodeId) {
+        if self
+            .commit_baseline
+            .as_ref()
+            .is_some_and(|(n, _)| *n == node)
+        {
+            return;
+        }
+        let value = self.script_control_value(node).unwrap_or_default();
+        self.commit_baseline = Some((node, value));
+    }
+
     /// Stores the request to scroll `node` into view.
     pub(crate) fn script_request_scroll(&mut self, node: NodeId) {
         self.script_requests.scroll_into_view = Some(node);
@@ -125,6 +158,7 @@ impl DocumentState {
         &mut self,
         form: NodeId,
         submitter: Option<NodeId>,
+        coordinate: (i32, i32),
     ) -> bool {
         self.process_changes();
         self.ensure_forms();
@@ -138,7 +172,7 @@ impl DocumentState {
         let submitter = match submitter {
             Some(node) => Submitter::Button {
                 node,
-                coordinate: None,
+                coordinate: Some(coordinate),
             },
             None => Submitter::Form,
         };

@@ -31,7 +31,7 @@ use crate::state::{state, state_mut};
 use crate::timers::Timers;
 
 /// A task of the event loop.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Task {
     /// A timer of `setTimeout` or `setInterval`: its id and its unique
     /// handle (the sequence number of its queue entry).
@@ -47,6 +47,9 @@ pub(crate) enum Task {
     ScriptErrorEvent(swb_dom::NodeId),
     /// The fetch of a script element's script failed at once.
     ScriptFetchFailed(swb_dom::NodeId),
+    /// Run the script of a `javascript:` URL that a link or a form
+    /// navigates to (HTML "navigate to a javascript: URL" queues a task).
+    JavascriptUrl(String),
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

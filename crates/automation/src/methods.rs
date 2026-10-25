@@ -748,10 +748,15 @@ struct TypeParams {
 /// submission in a text field) and tabs press Tab (the focus moves to the
 /// next element). Typing stops when Enter starts a navigation (the rest
 /// would go to the old document) or when the focus leaves editable
-/// fields.
+/// fields. With scripts the keys go to the focused element or the body
+/// whatever it is, and typing goes on when the target stops being editable
+/// (a page may listen to keys without a field; Playwright's
+/// `keyboard.type` does the same). Without scripts a key can only edit, so
+/// the call fails if no editable element has the focus.
 fn type_text(page: &mut Page, params: Value) -> MethodResult {
     let p: TypeParams = parse(params)?;
-    if !page.has_editable_focus() {
+    let scripted = page.has_script_runtime();
+    if !scripted && !page.has_editable_focus() {
         return Err(RpcError::failed("no editable element is focused"));
     }
     let text = p.text.replace("\r\n", "\n").replace('\r', "\n");
@@ -759,7 +764,7 @@ fn type_text(page: &mut Page, params: Value) -> MethodResult {
     loop {
         let end = rest.find(['\n', '\t']).unwrap_or(rest.len());
         let (chunk, tail) = rest.split_at(end);
-        page.insert_text(chunk);
+        type_chunk(page, chunk);
         let Some(separator) = tail.chars().next() else {
             break;
         };
@@ -769,7 +774,10 @@ fn type_text(page: &mut Page, params: Value) -> MethodResult {
             Key::Tab
         };
         page.key_down(&key, Modifiers::NONE);
-        if page.load_state() == LoadState::LoadingDocument || !page.has_editable_focus() {
+        page.key_up(&key, Modifiers::NONE);
+        if page.load_state() == LoadState::LoadingDocument
+            || (!scripted && !page.has_editable_focus())
+        {
             break;
         }
         rest = &tail[separator.len_utf8()..];
@@ -777,10 +785,34 @@ fn type_text(page: &mut Page, params: Value) -> MethodResult {
     Ok(json!({}))
 }
 
+/// Types a run of characters. With JavaScript off it is one insertion.
+/// With scripts each character is a key press (`keydown`, `keypress`,
+/// `beforeinput`, `input`, `keyup`), as Playwright's `keyboard.type` sends
+/// it; a character that is not on the US keyboard layout is inserted as
+/// text without key events, as Playwright does.
+fn type_chunk(page: &mut Page, chunk: &str) {
+    if !page.has_script_runtime() {
+        page.insert_text(chunk);
+        return;
+    }
+    for c in chunk.chars() {
+        let key = Key::Character(c.to_string());
+        if key.is_on_us_layout() {
+            page.key_down(&key, Modifiers::NONE);
+            page.key_up(&key, Modifiers::NONE);
+        } else {
+            // Without an editable element there is nothing to insert into.
+            page.insert_text(&c.to_string());
+        }
+    }
+}
+
 fn key(page: &mut Page, params: Value) -> MethodResult {
     let p: KeyParams = parse(params)?;
     let key = Key::from_dom(&p.key)
         .ok_or_else(|| RpcError::invalid_params(format!("unknown key {}", p.key)))?;
-    let handled = page.key_down(&key, modifiers(&p.modifiers)?);
+    let modifiers = modifiers(&p.modifiers)?;
+    let handled = page.key_down(&key, modifiers);
+    page.key_up(&key, modifiers);
     Ok(json!({ "handled": handled }))
 }

@@ -277,6 +277,7 @@ impl Page {
     pub fn pump(&mut self) -> Pump {
         let mut changed = self.process_network();
         changed |= self.run_due_tasks() > 0;
+        changed |= self.run_frame();
         Pump {
             changed,
             next: self.next_task_instant(),
@@ -300,13 +301,19 @@ impl Page {
 
     /// True if a task of the document is due at the page time now.
     fn task_due(&self) -> bool {
-        self.next_task_time()
+        self.script
+            .as_ref()
+            .and_then(ScriptRuntime::next_task_time)
             .is_some_and(|time| time <= self.clock.now())
     }
 
     /// The page time of the next task of the document.
     fn next_task_time(&self) -> Option<f64> {
-        self.script.as_ref()?.next_task_time()
+        let tasks = self.script.as_ref()?.next_task_time();
+        match (tasks, self.frame_time()) {
+            (Some(task), Some(frame)) => Some(task.min(frame)),
+            (task, frame) => task.or(frame),
+        }
     }
 
     /// When the next task of the document is due, in real time; in virtual

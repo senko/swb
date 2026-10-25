@@ -23,7 +23,8 @@ Format: source, license (for code), what it influenced.
   title, body and named-access algorithms, the script type test, the
   reflection rules of content attributes, the form control, select and
   table algorithms, the event handler, focusing, activation and form
-  submission algorithms of `swb-web` and `swb-engine`.
+  submission algorithms, and the navigation to a `javascript:` URL, of
+  `swb-web` and `swb-engine`.
 - WHATWG Web IDL Standard — https://webidl.spec.whatwg.org/ — the
   conversions of `swb-web` (§3.2), overload resolution (§3.6), the
   interface objects and members (§3.7), exceptions and `DOMException`
@@ -43,7 +44,13 @@ Format: source, license (for code), what it influenced.
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
 - W3C UI Events — https://www.w3.org/TR/uievents/ — the IDL blocks of
   the event interfaces in `crates/web/idl/ui-events.idl` (W3C Software
-  and Document License 2023; see THIRD_PARTY_NOTICES.md).
+  and Document License 2023; see THIRD_PARTY_NOTICES.md); the order of
+  the focus, mouse, wheel and keyboard events in `swb-engine`
+  (`page/events.rs`, `page/input.rs`).
+- W3C UI Events KeyboardEvent code values and Input Events Level 2 —
+  https://www.w3.org/TR/uievents-code/, https://www.w3.org/TR/input-events-2/
+  — the `code` names of the US layout (`engine/src/input.rs`) and the
+  `inputType` values of `beforeinput` and `input`.
 - W3C Pointer Events Level 4, CSSOM View Module and Pointer Lock 2.0 —
   https://www.w3.org/TR/pointerevents/,
   https://www.w3.org/TR/cssom-view-1/, https://www.w3.org/TR/pointerlock-2/
@@ -51,7 +58,8 @@ Format: source, license (for code), what it influenced.
   `crates/web/idl/pointer-events.idl` (W3C Software and Document License
   2023; see THIRD_PARTY_NOTICES.md); the conversion between tilt and
   altitude/azimuth angles of `PointerEvent` (Pointer Events Level 4,
-  example 1).
+  example 1); the order of the pointer events and their compatibility
+  mouse events in `swb-engine` (`page/events.rs`).
 - W3C CSS Transitions Level 1 and Device Orientation and Motion —
   https://www.w3.org/TR/css-transitions-1/,
   https://www.w3.org/TR/orientation-event/ — the IDL blocks of

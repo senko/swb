@@ -18,6 +18,8 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
+use swb_dom::NodeId;
+
 use swb_js::{
     ConsoleLevel, PromiseStatus, ReactionKind, Runtime, RuntimeConfig, ScriptError, Value, VmError,
     VmResult,
@@ -324,6 +326,51 @@ impl ScriptRuntime {
         })
     }
 
+    /// The user's focus change (a click, Tab): `new` gets the focus, or
+    /// with `None` the focus goes away, with the events of the focusing
+    /// steps (`change` of an edited control, `blur`, `focusout`, `focus`,
+    /// `focusin`; feature 6d2). A task.
+    pub fn user_focus(&mut self, new: Option<NodeId>, visible: bool) -> Result<(), ScriptError> {
+        self.task("a focus change", |rt| {
+            crate::html::focus::user_focus(rt, new, visible).map_err(task_error)
+        })
+    }
+
+    /// `blur` (`gained` false) or `focus` at the window: the user's focus
+    /// left the page after its last element, or came back (feature 6d2).
+    pub fn window_focus(&mut self, gained: bool) -> Result<(), ScriptError> {
+        self.task("a focus change", |rt| {
+            crate::html::focus::window_focus(rt, gained).map_err(task_error)
+        })
+    }
+
+    /// Fires `change` at the text control `node` if its user's edit is not
+    /// committed (Enter in a field, before the implicit submission). A task.
+    pub fn commit_change(&mut self, node: NodeId) -> Result<(), ScriptError> {
+        self.task("a change event", |rt| {
+            crate::html::focus::commit_change(rt, node).map_err(task_error)
+        })
+    }
+
+    /// The synthetic `click` of a key at `node` (trusted, as Chromium
+    /// makes it): Enter on a button or link, Space on release, Enter in a
+    /// text field for the default button. The activation behavior follows
+    /// the dispatch. A task.
+    pub fn simulated_click(&mut self, node: NodeId) -> Result<(), ScriptError> {
+        self.task("a click", |rt| {
+            crate::html::activation::simulated_click(rt, node).map_err(task_error)
+        })
+    }
+
+    /// The implicit submission of `form` (Enter in a field of a form
+    /// without a submit button): HTML "submit" with the validation and the
+    /// `submit` event. A task.
+    pub fn implicit_submit(&mut self, form: NodeId) -> Result<(), ScriptError> {
+        self.task("a form submission", |rt| {
+            crate::html::activation::implicit_submit(rt, form).map_err(task_error)
+        })
+    }
+
     /// Runs the tasks that are due at the page time now, in their order,
     /// until none is due or `budget` of real time has passed (checked
     /// between tasks). In virtual time each task moves the clock by
@@ -396,6 +443,9 @@ impl ScriptRuntime {
                 self.script_fetched(node, None);
                 Ok(())
             }
+            Task::JavascriptUrl(source) => self.task("a javascript: URL", |rt| {
+                crate::html::activation::run_javascript_url(rt, &source).map_err(task_error)
+            }),
             Task::FinalizationCleanup => self.task("a finalization registry", |rt| {
                 if let Ok(state) = state_mut(rt) {
                     state.event_loop.cleanup_queued = false;

@@ -13,6 +13,7 @@ Generated pages stay below `MAX_PAGE_BYTES`.
 """
 
 import base64
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -2675,3 +2676,119 @@ def submit_reset_loops_js_on() -> Page:
     )
     form = "<form id=f action='x'><input name=a value=1><button>go</button></form>"
     return Page(doc(form + script))
+
+
+def _steps(steps: list[dict[str, object]]) -> tuple[str, ...]:
+    """The swb arguments of a case that sends input after the load."""
+    return ("--js", f"--steps={json.dumps(steps)}")
+
+
+@case(
+    "A mousemove listener that rebuilds a 3,000-element list and queries it on each of 200 "
+    "pointer moves, with JavaScript on: each event is a task of its own under the time limit "
+    "(feature 6d2)",
+    swb_args=_steps([{"hover": [10 + 3 * i, 20 + 2 * i]} for i in range(200)]),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def mousemove_heavy_dom_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const box = document.getElementById('box'); "
+        "document.addEventListener('mousemove', () => { n++; box.textContent = ''; "
+        "for (let i = 0; i < 3000; i++) { const d = document.createElement('i'); "
+        "d.className = 'c' + (i % 7); box.appendChild(d); } "
+        "n += box.querySelectorAll('.c3').length; }); "
+        "window.addEventListener('load', () => setTimeout(() => console.log('moves ' + n), 50));"
+        "</script>"
+    )
+    return Page(doc("<div id=box style='width:300px;height:300px'></div>" + script))
+
+
+@case(
+    "A keydown listener that moves the focus to the next of 2,000 inputs, and keypress, "
+    "input and focus listeners on the document, while 300 characters are typed, with "
+    "JavaScript on: a listener that calls focus() on another element changes where the "
+    "default action goes, not how many events fire (feature 6d2)",
+    swb_args=_steps([{"focus": "#i0"}, {"type": "x" * 300}]),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def keydown_focus_other_js_on() -> Page:
+    script = (
+        "<script>let k = 0, f = 0, n = 0; "
+        "document.addEventListener('keydown', (e) => { k++; const next = "
+        "document.activeElement.nextElementSibling; if (next) next.focus(); }); "
+        "document.addEventListener('focusin', () => f++); "
+        "document.addEventListener('input', () => n++); "
+        "window.addEventListener('load', () => setTimeout(() => "
+        "console.log('keys ' + k + ' focus ' + f + ' inputs ' + n), 50));</script>"
+    )
+    inputs = "".join(f"<input id=i{i}>" for i in range(2000))
+    return Page(doc(inputs + script))
+
+
+@case(
+    "A click listener that removes its target and the next 20 siblings, 90 clicks in a "
+    "row on the first of 2,000 buttons, with JavaScript on: the events that follow a "
+    "removed target (mouseup, click) go to the element that is left (feature 6d2)",
+    swb_args=_steps([{"click": "button"}] * 90),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def click_removes_target_js_on() -> Page:
+    script = (
+        "<script>let n = 0; document.addEventListener('click', (e) => { n++; "
+        "let t = e.target; for (let i = 0; i < 20 && t.nextElementSibling; i++) "
+        "t.nextElementSibling.remove(); t.remove(); }); "
+        "document.addEventListener('mousedown', (e) => { if (e.target.id == 'x') "
+        "e.target.remove(); }); "
+        "window.addEventListener('load', () => setTimeout(() => console.log('clicks ' + n), 50));"
+        "</script>"
+    )
+    body = "<div>" + "<button>b</button>" * 2000 + "</div>"
+    return Page(doc(body + script))
+
+
+@case(
+    "A link whose href is javascript:while(1){} is clicked, with JavaScript on: the script "
+    "of the URL runs under the time limit of a task (5 s) and the page stays (feature 6d2)",
+    swb_args=_steps([{"click": "a"}]),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def javascript_link_loop_js_on() -> Page:
+    return Page(doc("<a href='javascript:while(1){}'>loop</a>"))
+
+
+@case(
+    "wheel listeners on 10,000 elements and on the document, body and window (passive by "
+    "default there), 100 wheel turns over the elements, with JavaScript on: the dispatch "
+    "visits the listeners of the path only (feature 6d2)",
+    swb_args=_steps([{"hover": [20, 20]}] + [{"wheel": [0, 40]}] * 100),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def wheel_listeners_10000_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const all = document.querySelectorAll('p'); "
+        "for (const p of all) p.addEventListener('wheel', () => n++); "
+        "for (const t of [window, document, document.body]) "
+        "for (let i = 0; i < 50; i++) t.addEventListener('wheel', () => n++); "
+        "window.addEventListener('load', () => setTimeout(() => console.log('wheels ' + n), 50));"
+        "</script>"
+    )
+    body = "<p style='margin:0;height:20px'>w</p>" * 10_000
+    return Page(doc(body + script))
+
+
+@case(
+    "A page of 100,000 paragraphs with a bold child, 200 pointer moves with JavaScript on "
+    "and no listener: the offsets of the events come from boxes that are kept for the "
+    "layout, so a move does not walk the whole page (feature 6d2 fix round)",
+    swb_args=_steps([{"hover": [10 + 3 * i, 20 + 2 * i]} for i in range(200)]),
+    time_limit_s=12,
+    rss_limit_mib=1024,
+)
+def hover_100000_paragraphs_js_on() -> Page:
+    body = "<style>body{margin:0}p{margin:0;height:10px}</style>" + "<p><b>x</b></p>" * 100_000
+    return Page(doc(body + "<script>document.title = 'hover';</script>"))

@@ -31,6 +31,7 @@ impl Page {
         {
             // Other content is under the pointer now.
             self.update_hover(false);
+            self.note_scroll(None);
         }
     }
 
@@ -50,6 +51,7 @@ impl Page {
         let (offset, scrolled) = doc.scroll_element_to(node, offset, fonts);
         if scrolled {
             self.update_hover(false);
+            self.note_scroll(Some(node));
         }
         offset
     }
@@ -83,6 +85,7 @@ impl Page {
                 let scrolled = doc.set_element_scroll(node, to);
                 if scrolled {
                     self.update_hover(false);
+                    self.note_scroll(Some(node));
                 }
                 return scrolled;
             }
@@ -113,14 +116,22 @@ impl Page {
     /// scroll chain, else the viewport (as Chromium chains scrolling;
     /// deviation: each event picks the scroll container again, Chromium
     /// keeps it for a whole wheel gesture). Returns true if something
-    /// scrolled.
+    /// scrolled or a listener changed the page.
     pub fn wheel(&mut self, x: f32, y: f32, dx: f32, dy: f32) -> bool {
         let (dx, dy) = (finite_or_zero(dx), finite_or_zero(dy));
         // The pointer is where the wheel turns (the hovered link and the
         // cursor follow it after the scroll).
         self.input.pointer = Some(Point::new(x, y));
+        // With scripts, `wheel` goes first; a listener that cancels it
+        // keeps the page from scrolling.
+        let generation = self.dom_generation();
+        if self.script_input() && !self.scripted_wheel(Point::new(x, y), dx, dy) {
+            return generation != self.dom_generation();
+        }
         let start = self.hit_test(x, y).map(|h| h.node);
-        self.user_scroll(start, |_| (dx, dy), (dx, dy))
+        let scrolled = self.user_scroll(start, |_| (dx, dy), (dx, dy));
+        // Listeners may have changed the page as well.
+        scrolled || generation != self.dom_generation()
     }
 
     /// Scrolls so that the element is visible, as Chromium does for focus
@@ -134,6 +145,7 @@ impl Page {
             && doc.scroll_into_view(node, fonts)
         {
             self.update_hover(false);
+            self.note_scroll(None);
         }
     }
 
@@ -157,6 +169,7 @@ impl Page {
             && doc.scroll_to_fragment(fragment, fonts)
         {
             self.update_hover(false);
+            self.note_scroll(None);
         }
     }
 

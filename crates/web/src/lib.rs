@@ -55,7 +55,7 @@ mod timers;
 mod window;
 
 pub use clock::{ClockMode, PageClock};
-pub use events::{DispatchTarget, EventInterface, TrustedEvent};
+pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{ControlWrite, EngineHost};
 pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,

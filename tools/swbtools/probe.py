@@ -59,6 +59,19 @@ A case file is JSON (committed ones are in `tools/probes/`):
   runs the case with `--js`, and the `js` queries are also evaluated in swb
   (`--eval`, docs/testing.md "Probe Chromium behaviour"). A swb without
   these options prints `not supported` for its lines.
+- `steps` (case, optional; needs `javascript`): input to send before the
+  queries, in order. Chromium gets it through Playwright's mouse and
+  keyboard; swb through the `input.*` methods of the automation API
+  (`--steps`). Each step is an object with one key: `click`, `dblclick`,
+  `rightclick`, `middleclick` and `hover` take a selector (the center of the
+  element) or `[x, y]` in viewport coordinates; `mousedown` and `mouseup`
+  take a button name (`left`, `middle`, `right`) at the current position;
+  `type` takes text, `key` a key name (`Enter`, `Tab`, `a`, `Shift+Tab`),
+  `wheel` takes `[dx, dy]` at the current position, `wait` takes
+  milliseconds (the event loop runs meanwhile), `focus` takes a selector
+  and calls `element.focus()` in the page, `eval` takes an expression.
+  The point steps take `"modifiers": ["Shift", "Control", "Alt", "Meta"]`,
+  held during the step.
 
 Chromium has the settings of the other tools (`browser.py`: bundled fonts,
 JavaScript disabled unless the case sets `javascript`, scale 1). The page is a
@@ -164,6 +177,8 @@ class Case:
     resources: tuple[Resource, ...] = ()
     """Files that the local HTTP server serves; with them the page loads
     over HTTP."""
+    steps: tuple[dict[str, Any], ...] = ()
+    """The input to send before the queries (see the module comment)."""
 
 
 def _parse_viewport(value: Any, where: str) -> tuple[int, int]:
@@ -245,7 +260,73 @@ def _parse_case(
     )
     files = _parse_files(item.get("files", {}), where)
     resources = _parse_resources(item.get("resources", {}), where)
-    return Case(name, html, viewport, queries, files, zone, javascript, resources)
+    steps = _parse_steps(item.get("steps", []), where)
+    if steps and not javascript:
+        raise ProbeError(f"{where}: steps need javascript")
+    return Case(name, html, viewport, queries, files, zone, javascript, resources, steps)
+
+
+STEP_KINDS = (
+    "click",
+    "dblclick",
+    "rightclick",
+    "middleclick",
+    "hover",
+    "mousedown",
+    "mouseup",
+    "type",
+    "key",
+    "wheel",
+    "wait",
+    "focus",
+    "eval",
+)
+_POINT_STEPS = ("click", "dblclick", "rightclick", "middleclick", "hover")
+
+
+def _is_point(argument: Any) -> bool:
+    return (
+        isinstance(argument, list)
+        and len(argument) == 2
+        and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in argument)
+    )
+
+
+def _parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
+    """The `steps` of a case: objects with one key of `STEP_KINDS`."""
+    if not isinstance(value, list):
+        raise ProbeError(f"{where}: steps must be a list")
+    steps = []
+    for number, item in enumerate(value, 1):
+        if not isinstance(item, dict) or not item:
+            raise ProbeError(f"{where}, step {number}: a step is an object with one key")
+        modifiers = item.get("modifiers")
+        rest = {k: v for k, v in item.items() if k != "modifiers"}
+        if len(rest) != 1:
+            raise ProbeError(f"{where}, step {number}: a step is an object with one key")
+        ((kind, argument),) = rest.items()
+        if modifiers is not None and not (
+            kind in _POINT_STEPS
+            and isinstance(modifiers, list)
+            and all(m in ("Shift", "Control", "Alt", "Meta") for m in modifiers)
+        ):
+            raise ProbeError(f"{where}, step {number}: bad modifiers")
+        if kind not in STEP_KINDS:
+            raise ProbeError(f"{where}, step {number}: unknown step {kind!r}")
+        if kind in _POINT_STEPS:
+            ok = _is_point(argument) or (isinstance(argument, str) and bool(argument))
+        elif kind == "wheel":
+            ok = _is_point(argument)
+        elif kind == "wait":
+            ok = isinstance(argument, int) and not isinstance(argument, bool) and argument >= 0
+        elif kind in ("mousedown", "mouseup"):
+            ok = argument in ("left", "middle", "right")
+        else:
+            ok = isinstance(argument, str) and bool(argument)
+        if not ok:
+            raise ProbeError(f"{where}, step {number}: bad argument for {kind}")
+        steps.append(item)
+    return tuple(steps)
 
 
 def _parse_resources(value: Any, where: str) -> tuple[Resource, ...]:
@@ -836,6 +917,56 @@ def _serve_case(case: Case, number: int, directory: Path, server: CaseServer) ->
     return page_path, f"{server.origin}/{folder}/{page_path.name}"
 
 
+_BUTTONS = {"click": "left", "dblclick": "left", "rightclick": "right", "middleclick": "middle"}
+
+
+async def _point_of(page: Page, argument: Any) -> tuple[float, float]:
+    """The viewport point of a step: `[x, y]`, or the center of the first
+    element that the selector matches (scrolled into view)."""
+    if isinstance(argument, list):
+        return float(argument[0]), float(argument[1])
+    locator = page.locator(argument).first
+    await locator.scroll_into_view_if_needed(timeout=5000)
+    box = await locator.bounding_box(timeout=5000)
+    if box is None:
+        raise ProbeError(f"step: {argument!r} has no box")
+    return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+
+async def run_steps(page: Page, steps: Sequence[dict[str, Any]]) -> None:
+    """Sends the input of the steps to Chromium."""
+    for step in steps:
+        modifiers = step.get("modifiers", [])
+        ((kind, argument),) = [(k, v) for k, v in step.items() if k != "modifiers"]
+        for modifier in modifiers:
+            await page.keyboard.down(modifier)
+        if kind in _POINT_STEPS:
+            x, y = await _point_of(page, argument)
+            if kind == "hover":
+                await page.mouse.move(x, y)
+            else:
+                clicks = 2 if kind == "dblclick" else 1
+                await page.mouse.click(x, y, button=_BUTTONS[kind], click_count=clicks)
+        elif kind == "mousedown":
+            await page.mouse.down(button=argument)
+        elif kind == "mouseup":
+            await page.mouse.up(button=argument)
+        elif kind == "type":
+            await page.keyboard.type(argument)
+        elif kind == "key":
+            await page.keyboard.press(argument)
+        elif kind == "wheel":
+            await page.mouse.wheel(argument[0], argument[1])
+        elif kind == "wait":
+            await page.wait_for_timeout(argument)
+        elif kind == "focus":
+            await page.evaluate("(s) => document.querySelector(s).focus()", argument)
+        elif kind == "eval":
+            await page.evaluate(argument)
+        for modifier in reversed(modifiers):
+            await page.keyboard.up(modifier)
+
+
 async def probe_case(
     page: Page, directory: Path, number: int, case: Case, server: CaseServer | None = None
 ) -> tuple[CaseResult, Path, str]:
@@ -855,6 +986,14 @@ async def probe_case(
         url = path.as_uri()
     await browser.wait_for_fonts(page)
     await browser.stop_animations(page)
+    if case.steps:
+        try:
+            await run_steps(page, case.steps)
+        except ProbeError:
+            raise
+        except Exception as error:
+            message = str(error).strip().splitlines()[0] if str(error).strip() else "failed"
+            raise ProbeError(f"case {case.name!r}: step failed: {message}") from error
     result = CaseResult(case.name, case.viewport)
     for query in case.queries:
         result.rows.extend(await _run_query(page, query))
@@ -910,6 +1049,7 @@ def run_swb(
 
 JS_OPTION = "--js"
 EVAL_OPTION = "--eval"
+STEPS_OPTION = "--steps"
 _PLAYWRIGHT_PREFIX = "Page.evaluate: "
 
 
@@ -997,8 +1137,13 @@ def _compare_with_swb(
     if case.javascript and JS_OPTION not in flags:
         mark_unsupported(result, ("boxes", "js"))
         return
+    if case.steps and STEPS_OPTION not in flags:
+        mark_unsupported(result, ("boxes", "js"))
+        return
     evaluates = case.javascript and EVAL_OPTION in flags
     extra = [JS_OPTION] if case.javascript else []
+    if case.steps:
+        extra.append(f"{STEPS_OPTION}={json.dumps(list(case.steps))}")
     expressions = [query.target for query in case.queries if query.kind == "js"]
     if evaluates:
         extra += [f"{EVAL_OPTION}={expression}" for expression in expressions]
@@ -1025,7 +1170,14 @@ async def _probe_all(
             key = (case.time_zone, case.javascript)
             if key not in pages:
                 pages[key] = await _new_context_page(page, case)
-            result, path, url = await probe_case(pages[key], directory, number, case, server)
+            # Input steps get a page of their own: the mouse position of a
+            # page carries over to its next document.
+            case_page = await pages[key].context.new_page() if case.steps else pages[key]
+            try:
+                result, path, url = await probe_case(case_page, directory, number, case, server)
+            finally:
+                if case.steps:
+                    await case_page.close()
             if binary is not None:
                 _compare_with_swb(result, case, binary, tolerance, path, directory, url)
             results.append(result)

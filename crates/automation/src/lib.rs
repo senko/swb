@@ -13,6 +13,7 @@ mod headless;
 mod methods;
 mod protocol;
 mod server;
+mod steps;
 
 use std::io;
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use swb_engine::Page;
 pub use client::{Client, ClientError};
 pub use headless::HeadlessBrowser;
 pub use protocol::{Request, Response, RpcError};
+pub use steps::run_steps;
 
 use methods::{Condition, Outcome};
 use server::{Command, Listener, Reply};

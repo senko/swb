@@ -1486,6 +1486,227 @@ queries), three equal Chromium runs each; the Rust tests are
   the roadmap backlog holds the item. JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
   ms (base 20 and 13), with the boxes and pixels of the JavaScript-off run.
 
+Feature 6d2 notes (the engine's input as DOM events; measured with
+`tools/probes/web-input-real.json` (45 cases after the fix round), three equal
+Chromium runs, and compared with swb's `--steps` run: 0 differences; the Rust
+tests are
+`crates/automation/tests/real_input.rs` and `hacker_news.rs`, and
+`crates/engine/src/input.rs` for the key table).
+
+- **Task source and priority (the decision).** The input of the user is the
+  task source "user interaction" of section 7. It has no queue: the embedder's
+  call (`Page::mouse_move`, `mouse_down`, `mouse_up`, `wheel`, `key_down`,
+  `key_up`, `insert_text`, `paste_text`, `focus`) is the task, and the page runs
+  it at once, before any task of the other sources. The other sources run only
+  in `Page::pump`, which the GUI and the servers call after they handled the
+  input events that wait; so a due timer never delays a click, and a click
+  never waits for a timer. Reasons: the embedders are single threaded and an
+  OS event queue (winit's, the automation server's channel) is already the
+  queue of this source; a second queue would only add a copy of the events and
+  a rule for their order against `pump`. Each event of an input is one
+  `dispatch_event` task (the document state is lent for it): the engine
+  re-reads the DOM between two events, so a listener that removes the target
+  or moves the focus changes what follows, as in Chromium; the microtask
+  checkpoint runs after each listener and after each task, so promise jobs
+  of a `mousedown` listener run before `mouseup`. A task that runs past the
+  time limit ends as always (section 7); the input that follows still works.
+  `scroll` is a rendering-update step, not a user task (below). When the
+  document's scripts are stopped (the time limits), `Page::script_input()` is
+  false and the input works as with JavaScript off: clicks activate links and
+  controls, the focus moves, keys edit, all through the engine's own actions.
+- **What an input does.** With a script runtime (not stopped, not lent):
+  `mouse_move` fires, if the element under the pointer changed, `pointerout`,
+  `pointerleave` (innermost first), `pointerover`, `pointerenter` (outermost
+  first, the document included), then the four mouse events of the same
+  kind, then `pointermove` and `mousemove`. A press first moves the pointer
+  there if it is elsewhere; it fires `pointerdown`, `mousedown` (not after a
+  canceled `pointerdown`), then the default action, then `selectstart`; the
+  secondary button fires `contextmenu` after `mousedown` (Chromium on Linux).
+  The release fires `pointerup`, `mouseup`, then `click` (or `auxclick`) at the
+  nearest common ancestor of the targets of press and release, then `dblclick`
+  for the second click. A disabled form control gets the pointer events only.
+  A press and release that moved more than 4 px (a drag) fire no click (a
+  departure: Chromium fires it at the common ancestor). A wheel turn fires
+  `wheel` and scrolls unless it was canceled. A key fires `keydown`, then
+  `keypress` (printable keys and Enter, not with Ctrl or Meta, not for Enter on
+  a link), then the default action; `keyup` goes to the focused element or the
+  body. The `Key` of the engine has no modifier keys, so Shift, Control, Alt
+  and Meta alone fire no key events (departure; backlog).
+- **Canceled defaults (measured).** A canceled `pointerdown` also suppresses
+  `mousedown` and `mouseup` and the default of the press (no focus change, no
+  selection); `click` still fires. A canceled `mousedown` keeps the focus
+  where it is and starts no selection; `click` fires. A canceled `selectstart`
+  starts no selection. A canceled `keydown` leaves out `keypress` and the
+  default (no text, no focus move for Tab, no scroll, no implicit submission,
+  no click of Space or Enter); `keyup` fires. A canceled `keypress` leaves
+  out `beforeinput` and the insertion. A canceled `beforeinput` leaves out
+  the edit and `input`. A canceled `click` leaves out the activation (a link
+  does not navigate, a checkbox returns to its old state without `input` and
+  `change`, a submit button does not submit).
+- **The click and its activation.** The trusted `click` is a `PointerEvent`
+  with `pointerId` 1 (the `click()` of a script has -1), `isPrimary` false,
+  `isTrusted` true. The activation behavior of 6d1 runs in the dispatch of
+  that event, so it replaces the engine's own action; the engine runs none of
+  its own with scripts on, with one exception: the default summary of a
+  `details` element without a `summary` element (no element to click) toggles
+  in the engine after an uncanceled click. `summary` is now an activation
+  target (it toggles `open`; `click()` on a `summary` toggles too, which
+  closes a backlog item of 6d1). A label or a summary does not act when the
+  click came from interactive content inside it (a text field, a select, a
+  button, as the engine's rule for JavaScript off). The click that a label
+  forwards to its control is trusted and has the `detail` of the click that
+  caused it (measured: 1 for a user click, 0 for `label.click()`). A click
+  whose target left the document during `mousedown` fires no click (the
+  common ancestor is gone); a click listener that removes a link does not stop
+  its navigation (measured).
+- **Keys.** Enter on a link clicks it after `keydown`, without `keypress`.
+  Enter on a button or a summary clicks it after `keypress`. Space on a
+  button, a checkbox, a radio button or a summary clicks it when the key
+  goes up (`keyup`, `Page::key_up`), only if the focus is still there. Enter
+  in a text field first fires `beforeinput` (`insertLineBreak`, cancelable,
+  also without a form), then `change` if the value changed, then the
+  implicit submission (a trusted click at the default button, or `submit` at
+  the form). The simulated clicks of keys are trusted, `PointerEvent`s with
+  `pointerId` -1 and `detail` 0. The keyboard attributes are for a US layout
+  (`crates/engine/src/input.rs`): `keydown`/`keyup` have `keyCode` 65 to 90
+  for letters of both cases, `charCode` 0; `keypress` has the character code
+  in `keyCode` and `charCode`; `code` is `KeyA`, `Digit1` (also for `!`),
+  `Space`, ...; a character that is not on the layout has an empty `code`
+  and `keyCode` 229 in the GUI. The automation API `input.type` inserts such
+  a character as text without key events, as Playwright does (the other
+  characters are key presses: `keydown`, `keypress`, `beforeinput`, `input`,
+  `keyup`).
+- **Edits and `change`.** `beforeinput` (cancelable) and `input` are
+  `InputEvent`s, composed, bubbling, at the text field. `inputType` and `data`
+  as Chromium: `insertText` (data the character), `deleteContentBackward`,
+  `deleteContentForward`, `deleteWordBackward`, `deleteWordForward` (Ctrl),
+  `insertLineBreak` (Enter in a text area, data null), `insertFromPaste` and
+  `deleteByCut` (the GUI's `paste_text` and `cut_selection`). `beforeinput`
+  fires also when the edit changes nothing (Backspace in an empty field,
+  Delete at the end); `input` only when the value changed. A read-only or
+  disabled field fires none. `change` fires when a text control commits: when
+  it loses the focus (before `blur`; by a click, Tab, `blur()` or `focus()`
+  of another element) and on Enter before the implicit submission, if the
+  user edited it and its value now differs from the value before the first
+  edit (typing `a` and deleting it fires none). The engine keeps one control
+  with its value before the edit (`DocumentState::commit_baseline`, asked
+  through `EngineHost::take_pending_change`); a script that sets `.value`
+  does not reset it (not measured).
+- **Focus.** The user's focus changes (click, Tab, label, the fragment of a
+  link) go through the focusing steps of 6d1 (`ScriptRuntime::user_focus`):
+  `blur`, `focusout`, `focus`, `focusin` with the related targets, `change`
+  first for an edited field; `Page::focus` runs them, so does everything
+  that called it. A click on a part of the page that is not focusable
+  removes the focus (with the events). When Tab leaves the page after its
+  last element (or before the first for Shift+Tab), the element blurs and
+  then the window gets `blur`; the next Tab or click gives the window
+  `focus` before the element's (measured; 6d1 had no window events). A
+  focused link whose fragment target is not focusable blurs after the click
+  (measured).
+- **Wheel and scroll.** `wheel` is a `WheelEvent` with `deltaX`, `deltaY`
+  (CSS px, `deltaMode` 0), `wheelDelta*` = 120 per axis with the sign opposite
+  to the delta (measured: any size of delta gives 120), composed, bubbling,
+  cancelable only if a listener on the path (the target, its ancestors, the
+  window) is not passive; the listeners of the window, the document and
+  `body` are passive by default (DOM), so a `preventDefault` there is
+  ignored and does not stop the scroll. `scroll` is a plain `Event`: at the
+  document (bubbling) when the viewport scrolled, at an element (not
+  bubbling) when it scrolled as a scroll container; several elements get
+  their events in the order they scrolled (CSSOM View "run the scroll
+  steps" takes the targets in the order they were added; measured:
+  `scroll-tree-order`; a scroll the page did not note by element, such as a
+  scroll into view, comes after, in tree order). The page keeps the
+  offsets of the last `scroll` events and a frame time (`Page::note_scroll`
+  sets it 1/60 s ahead, in page time); `Page::pump` fires the events when the
+  frame is due and `next_task_time` includes it, so virtual time jumps to it.
+  Any number of scrolls within one frame make one event per target (and
+  none if the position is the same again); `scroll_by` of the keys and
+  the wheel, scroll into view and the fragment scroll all note it. Scrolls
+  from scripts come with 7b. Chromium animates key scrolls (smooth
+  scrolling) and fires `scroll` for each frame of the animation; swb
+  scrolls at once, so one event.
+- **Coordinates.** `clientX` and `clientY` are the pointer in CSS px;
+  `screenX` and `screenY` are the same (the page has no screen offset);
+  `pageX` and `pageY` add the viewport scroll; `offsetX` and `offsetY` are
+  relative to the border box of the target (departure: Chromium measures
+  from the padding edge; transforms are not applied), computed from a
+  collection of the element boxes that the page keeps for one layout and
+  one scroll position (`BoxCache`, keyed by `DocumentState::layout_serial`),
+  so a pointer that moves over a page of 100,000 elements collects the boxes
+  once, not once per move;
+  `movementX` and `movementY` are the distance from the last pointer event
+  (0 for the first). `buttons` and `detail` as Chromium (`detail` is the click
+  count for `mousedown`, `mouseup`, `click`, `auxclick`, `dblclick`; 0 for
+  the pointer events and `contextmenu`). The pointer events have
+  `pointerType` `mouse`, `pointerId` 1, `isPrimary` true (false for `click`,
+  `auxclick`, `contextmenu`), `pressure` 0.5 while a button is held (0 for
+  `pointerup` and the click family), `button` -1 when no button changed
+  (`pointermove`, `pointerover`, ...; 0 for the mouse event of the same
+  kind). `pointerenter`, `pointerleave`, `mouseenter` and `mouseleave` do not
+  bubble, cannot be canceled and are not composed; the others bubble and are
+  composed.
+- **`javascript:` URLs.** A click on `<a href="javascript:...">` (also
+  `click()` and Enter) and the submission of a form whose `action` (or the
+  submitter's `formaction`) is a `javascript:` URL queue the script as a task
+  (`Task::JavascriptUrl`, HTML "navigate to a javascript: URL") that runs as
+  a classic script in the document with the time limit of the task; it does
+  not run inside the click: `a.click(); L('after')` logs `after` first, and
+  after a user click the task runs after the `setTimeout(0)` timers that the
+  listeners queued (measured: `javascript-link-order-click-method`,
+  `javascript-link-order-user-click`). Errors are reported like those
+  of a script (`error` event, console). The script does not run when the
+  link or the form targets another browsing context (`target` or
+  `formtarget` other than empty, `_self`, `_parent`, `_top`; else the
+  `target` of the first `base` element; a named context counts as a new one
+  because swb has no frames), or when the click had Ctrl (new tab), Shift
+  (new window) or Alt (download) held; Meta runs it, a middle click is an
+  `auxclick` and runs nothing (measured: `javascript-link-targets`,
+  `javascript-link-modifiers`, `javascript-link-base-target`). The value is dropped: a string
+  result does not replace the document (the departure of section 11;
+  Chromium shows the string as a new document). A canceled click or
+  `submit` runs nothing. The URL is parsed against the base URL and its
+  path is percent-decoded as UTF-8 (HTML "navigate to a javascript: URL");
+  a fragment is cut. JavaScript off ignores such links as before.
+- **Departures.** `offsetX`/`offsetY` (above); no key events for modifier
+  keys; no `compositionstart` and the other IME events, no `textInput`
+  (Chromium fires the legacy `textInput` between `beforeinput` and `input`);
+  no `toggle` event after a `summary` click; a drag fires no `click`;
+  the `contextmenu` has no default (swb has no menu); a `details` element
+  without a `summary` child gets no focus from the click and fires no
+  `toggle` (Chromium focuses the details, `focus@details`); `selectstart` is
+  fired for a press that focuses nothing (as Chromium) but its target is
+  the hit node and a `user-select: none` element fires none; the keys of
+  `select` fire no `input` and `change` (backlog); no touch or pen input;
+  a key repeat is not generated (`repeat` is false); `Page::pump` cannot
+  interrupt a task, so a mousemove listener that runs for 5 s freezes the
+  GUI for that time (section 2).
+- **Cost.** With scripts on, a pointer move that crosses no element
+  boundary fires two events (two tasks); one that crosses a boundary of
+  one element fires ten. The boxes of the page are collected once per layout
+  and scroll position (for `offsetX`): 200 pointer moves over 100,000
+  `<p><b>` take 1.6 s with JavaScript on and 1.4 s with it off (the hostile
+  case `hover-100000-paragraphs-js-on`; the load is most of it). JavaScript off pays one `script.is_some()`
+  check per input call. Hacker News with JavaScript on loads in 20 ms
+  (19 ms with JavaScript off, base 20 and 18); the JavaScript-off perf table
+  and snapshot equal the base's.
+
+- **Fix round of 6d2 (review).** A stopped runtime lets the input work as
+  with JavaScript off (above). `input type=image` submits the click's point
+  with scripts on: the activation takes `offsetX/offsetY` of the trusted
+  click when the target is the button itself (`EngineHost::
+  request_form_submission` got a `coordinate`; `click()` and the clicks of
+  keys and labels send 0,0, as the specification says). The automation
+  `input.type` and `input.key` send key events whatever has the focus (the
+  body without one) and go on when the target stops being editable; with
+  JavaScript off `input.type` still fails without an editable focus. A
+  failed step of `--steps` prints its message after the `--eval` lines, and
+  `run_steps` runs the due tasks after each step (a `javascript:` task, a
+  `setTimeout(0)`), as Chromium does while Playwright waits for its next
+  call. After Tab left the page, a click on a part of the page that takes no
+  focus gives the window `focus` (measured: `window-focus-click`, `focus@window`
+  after `mousedown`). `space_down` is cleared when the focus changes or
+  another key goes down.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12

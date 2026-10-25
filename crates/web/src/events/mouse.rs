@@ -37,6 +37,8 @@ pub(crate) struct Mouse {
     pub(crate) layer: (i32, i32),
     pub(crate) movement: (f64, f64),
     pub(crate) button: i16,
+    /// True for a trusted event that has no button (`button` reads -1).
+    pub(crate) no_button: bool,
     pub(crate) buttons: u16,
     pub(crate) related_target: Option<Gc<Object>>,
     pub(crate) wheel: Wheel,
@@ -53,6 +55,7 @@ impl Default for Mouse {
             layer: (0, 0),
             movement: (0.0, 0.0),
             button: 0,
+            no_button: false,
             buttons: 0,
             related_target: None,
             wheel: Wheel::default(),
@@ -111,6 +114,22 @@ impl Default for Pointer {
 }
 
 impl Mouse {
+    /// `button` as the getter reports it: a trusted pointer event without
+    /// a button (`pointermove`, ...) reports -1, while the constructor
+    /// reads a dictionary's -1 as 0 (measured).
+    pub(crate) fn reported_button(&self) -> i16 {
+        match self.button {
+            _ if self.no_button => -1,
+            -1 => 0,
+            button => button,
+        }
+    }
+
+    /// The button for `which`: "no button" counts as -1 (`which` 0).
+    pub(crate) fn stored_button(&self) -> i16 {
+        if self.no_button { -1 } else { self.button }
+    }
+
     /// Sets the coordinates from the values that script gave and the
     /// scroll offset that the page coordinates add.
     fn place(&mut self, pointer: bool, screen: (f64, f64), client: (f64, f64), scroll: (f64, f64)) {
@@ -192,7 +211,7 @@ impl g::mouse_event::MouseEventImpl for WebState {
         shift_key: bool = |f| f.mods & modifier::SHIFT != 0;
         alt_key: bool = |f| f.mods & modifier::ALT != 0;
         meta_key: bool = |f| f.mods & modifier::META != 0;
-        button: i16 = |f| if f.mouse.button == -1 { 0 } else { f.mouse.button };
+        button: i16 = |f| f.mouse.reported_button();
         buttons: u16 = |f| f.mouse.buttons;
         related_target: Option<Gc<Object>> = |f| f.mouse.related_target;
         page_x: f64 = |f| f.mouse.page.0;
@@ -436,16 +455,22 @@ impl g::pointer_event::PointerEventImpl for WebState {
 /// The event of `click()` and of the label steps: Chromium makes a
 /// `PointerEvent` with `pointerId` -1 that is not trusted, bubbles, can be
 /// canceled and is composed; `detail` and the coordinates are 0.
-pub(crate) fn new_click_event(rt: &mut Runtime) -> VmResult<Gc<Object>> {
+pub(crate) fn new_click_event(
+    rt: &mut Runtime,
+    trusted: bool,
+    detail: i32,
+) -> VmResult<Gc<Object>> {
     let mut f = super::ui::Fields::new(Family::Pointer);
     f.view = Some(rt.global(0)?);
+    f.detail = detail;
     f.mouse.pointer.id = -1;
-    let data = EventData::new(
+    let mut data = EventData::new(
         "click".to_owned(),
         &base(true, true, true),
         now(rt),
         Extra::Ui(Box::new(f)),
     );
+    data.is_trusted = trusted;
     new_event_object(rt, 0, g::POINTER_EVENT, data)
 }
 

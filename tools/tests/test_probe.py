@@ -473,3 +473,74 @@ def test_probe_json_output(capsys):
     assert probe([EXAMPLE], ["computed-line-height"], None, 1.0, True) == 0
     data = json.loads(capsys.readouterr().out)
     assert data["cases"][0]["name"] == "computed-line-height"
+
+
+# --- Steps -----------------------------------------------------------------
+
+
+def parse_steps(steps, javascript=True):
+    text = json.dumps(
+        {
+            "javascript": javascript,
+            "cases": [{"name": "a", "html": "<p>x", "steps": steps, "measure": [{"js": "1"}]}],
+        }
+    )
+    return parse_cases(text, "steps.json")[0].steps
+
+
+def test_steps_all_kinds_parse():
+    steps = [
+        {"click": "#a"},
+        {"click": [10, 20.5], "modifiers": ["Shift", "Control"]},
+        {"dblclick": "#a"},
+        {"rightclick": [1, 2]},
+        {"middleclick": "#a"},
+        {"hover": "#a"},
+        {"mousedown": "left"},
+        {"mouseup": "right"},
+        {"type": "abc"},
+        {"key": "Shift+Tab"},
+        {"wheel": [0, 100]},
+        {"wait": 0},
+        {"focus": "#a"},
+        {"eval": "1"},
+    ]
+    assert parse_steps(steps) == tuple(steps)
+
+
+@pytest.mark.parametrize(
+    "steps, message",
+    [
+        ("click", "steps must be a list"),
+        ([{}], "an object with one key"),
+        (["click"], "an object with one key"),
+        ([{"click": "#a", "hover": "#b"}], "an object with one key"),
+        ([{"jump": "#a"}], "unknown step 'jump'"),
+        ([{"click": ""}], "bad argument for click"),
+        ([{"click": [1]}], "bad argument for click"),
+        ([{"click": [True, 2]}], "bad argument for click"),
+        ([{"wheel": "#a"}], "bad argument for wheel"),
+        ([{"wait": -1}], "bad argument for wait"),
+        ([{"wait": True}], "bad argument for wait"),
+        ([{"wait": 1.5}], "bad argument for wait"),
+        ([{"mousedown": "up"}], "bad argument for mousedown"),
+        ([{"type": ""}], "bad argument for type"),
+        ([{"key": 5}], "bad argument for key"),
+        ([{"type": "a", "modifiers": ["Shift"]}], "bad modifiers"),
+        ([{"click": "#a", "modifiers": ["Super"]}], "bad modifiers"),
+        ([{"click": "#a", "modifiers": "Shift"}], "bad modifiers"),
+    ],
+)
+def test_bad_steps(steps, message):
+    with pytest.raises(ProbeError, match=message):
+        parse_steps(steps)
+
+
+def test_steps_name_the_step_number():
+    with pytest.raises(ProbeError, match="step 2"):
+        parse_steps([{"click": "#a"}, {"wait": "x"}])
+
+
+def test_steps_need_javascript():
+    with pytest.raises(ProbeError, match="steps need javascript"):
+        parse_steps([{"click": "#a"}], javascript=False)

@@ -25,6 +25,7 @@ use swb_js::{ClassId, Gc, Generic, Object, Runtime, ScriptError, Value, VmError,
 
 use super::listeners::Listener;
 use super::target::{TargetKind, kind_of, listeners_of};
+use super::user::UserEvent;
 use super::{AT_TARGET, BUBBLING_PHASE, CAPTURING_PHASE, EventData, Extra, NONE, PathItem};
 use crate::bindings::{self as b, Host};
 use crate::generated as g;
@@ -61,6 +62,9 @@ pub enum EventInterface {
         /// `submitter`.
         submitter: Option<NodeId>,
     },
+    /// An event of the user's input: a mouse, pointer, wheel, keyboard or
+    /// input event ([`UserEvent`]).
+    User(Box<UserEvent>),
 }
 
 /// An event that the engine fires (DOM "fire an event"): `isTrusted` is
@@ -120,29 +124,35 @@ pub(crate) fn dispatch_trusted(
     target: DispatchTarget,
     event: &TrustedEvent,
 ) -> VmResult<bool> {
-    let init = EventInit {
+    let target_object = match target {
+        DispatchTarget::Node(node) => WebState::wrap_node(rt, 0, node)?,
+        DispatchTarget::Window => rt.global(0)?,
+    };
+    let mut init = EventInit {
         bubbles: event.bubbles,
         cancelable: event.cancelable,
         composed: event.composed,
     };
-    let (class, extra) = match event.interface {
+    let (class, extra) = match &event.interface {
         EventInterface::Event => (g::EVENT, Extra::None),
         EventInterface::PageTransition { persisted } => (
             g::PAGE_TRANSITION_EVENT,
-            Extra::PageTransition { persisted },
+            Extra::PageTransition {
+                persisted: *persisted,
+            },
         ),
         EventInterface::Focus { related_target } => {
             let mut fields = super::ui::Fields::new(super::ui::Family::Focus);
             fields.view = Some(rt.global(0)?);
             fields.related_target = match related_target {
-                Some(node) => Some(WebState::wrap_node(rt, 0, node)?),
+                Some(node) => Some(WebState::wrap_node(rt, 0, *node)?),
                 None => None,
             };
             (g::FOCUS_EVENT, Extra::Ui(Box::new(fields)))
         }
         EventInterface::Submit { submitter } => {
             let submitter = match submitter {
-                Some(node) => Some(WebState::wrap_node(rt, 0, node)?),
+                Some(node) => Some(WebState::wrap_node(rt, 0, *node)?),
                 None => None,
             };
             (
@@ -150,14 +160,20 @@ pub(crate) fn dispatch_trusted(
                 Extra::Other(Box::new(super::misc::Other::Submit { submitter })),
             )
         }
+        EventInterface::User(user) => {
+            // Chromium makes a `wheel` event cancelable only when a
+            // listener on its path can cancel it.
+            if user.kind == super::user::UserKind::Wheel && init.cancelable {
+                let kind = kind_of(rt, target_object)?;
+                init.cancelable = super::user::has_blocking_listener(rt, kind, &event.kind)?;
+            }
+            let (class, fields) = super::user::fields_of(rt, user)?;
+            (class, Extra::Ui(Box::new(fields)))
+        }
     };
     let mut data = EventData::new(event.kind.clone(), &init, super::now(rt), extra);
     data.is_trusted = true;
     let object = new_event_object(rt, 0, class, data)?;
-    let target_object = match target {
-        DispatchTarget::Node(node) => WebState::wrap_node(rt, 0, node)?,
-        DispatchTarget::Window => rt.global(0)?,
-    };
     let target_override = if event.legacy_target_override && target == DispatchTarget::Window {
         Some(WebState::wrap_node(rt, 0, NodeId::DOCUMENT)?)
     } else {
@@ -210,11 +226,24 @@ pub(crate) fn dispatch(
         .and_then(|activation| {
             // Steps 5.15 and 5.16, after the path is done.
             super::data_mut(rt, handle)?.dispatching = false;
-            let canceled = super::data(rt, handle)?.canceled;
+            let (canceled, origin, offset, mods) = {
+                let data = super::data(rt, handle)?;
+                let (detail, offset, mods) = match &data.extra {
+                    Extra::Ui(fields) => (fields.detail, fields.mouse.offset, fields.mods),
+                    _ => (0, (0.0, 0.0), 0),
+                };
+                // The point of the click relative to the target, for an
+                // image button (HTML "form submission", `x` and `y`).
+                let coordinate = (
+                    offset.0.floor().max(0.0) as i32,
+                    offset.1.floor().max(0.0) as i32,
+                );
+                (data.canceled, (data.is_trusted, detail), coordinate, mods)
+            };
             match activation {
-                Some(activation) => {
-                    crate::html::activation::after_dispatch(rt, activation, canceled)
-                }
+                Some(activation) => crate::html::activation::after_dispatch(
+                    rt, activation, canceled, origin, offset, mods,
+                ),
                 None => Ok(()),
             }
         });

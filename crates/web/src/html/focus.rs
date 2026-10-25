@@ -22,7 +22,13 @@
 //!   composed, and have the window as `view`.
 //! - The window has the focus (`hasFocus()` is true for the document of
 //!   the window, false for the others) and no `focus` or `blur` event
-//!   goes to the window when the focused element changes.
+//!   goes to the window when the focused element changes. (Feature 6d2:
+//!   the engine tells when the user's Tab leaves the page after its last
+//!   element and when the next Tab enters it again; `blur` and `focus`
+//!   then go to the window ([`window_focus`]).)
+//! - A text control with an edit of the user that was not committed fires
+//!   `change` before `blur` when it loses the focus (measured in
+//!   `tools/probes/web-input-real.json`).
 //!
 //! Departures: elements with `contenteditable` are not focusable in swb
 //! (`crates/engine/src/focus.rs`); `focus()` scrolls the
@@ -76,6 +82,11 @@ fn move_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<
         return Ok(());
     }
     if let Some(old) = old {
+        commit_change(rt, old)?;
+        // A listener of `change` can move the focus; the change ends then.
+        if focused(rt)? != Some(old) {
+            return Ok(());
+        }
         engine_mut(rt)?.set_focus(None, false);
         fire(rt, "blur", old, new, false)?;
         if focused(rt)?.is_some() {
@@ -97,6 +108,41 @@ fn move_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<
         }
         fire(rt, "focusin", new, old, true)?;
     }
+    Ok(())
+}
+
+/// Fires `change` (bubbles) at the control `node` if the user edited its
+/// value since the last `change` or since it got the focus, and the value
+/// differs from the one then. The engine keeps the state.
+pub(crate) fn commit_change(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    if !engine_mut(rt)?.take_pending_change(node) {
+        return Ok(());
+    }
+    let mut event = TrustedEvent::new("change");
+    event.bubbles = true;
+    fire_trusted(rt, DispatchTarget::Node(node), &event)?;
+    Ok(())
+}
+
+/// The user's focus change: `new` gets the focus (`None` removes it) with
+/// the events of the focusing steps. The page scrolls the element itself.
+pub(crate) fn user_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<()> {
+    match new {
+        Some(node) => focus_with(rt, node, visible, true),
+        None => move_focus(rt, None, false),
+    }
+}
+
+/// `blur` or `focus` at the window (a `FocusEvent` without a related
+/// target, composed, not bubbling): the user's Tab left the page or
+/// entered it again.
+pub(crate) fn window_focus(rt: &mut Runtime, gained: bool) -> VmResult<()> {
+    let mut event = TrustedEvent::new(if gained { "focus" } else { "blur" });
+    event.composed = true;
+    event.interface = EventInterface::Focus {
+        related_target: None,
+    };
+    fire_trusted(rt, DispatchTarget::Window, &event)?;
     Ok(())
 }
 

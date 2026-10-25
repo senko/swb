@@ -4,6 +4,50 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-25: M8 feature 6d2, the user's input as DOM events
+
+- With JavaScript on, the engine's input is DOM events: pointer and
+  mouse events with the hover chains, `click`, `auxclick`, `dblclick`
+  and `contextmenu`; `wheel` and `scroll`; `keydown`, `keypress` and
+  `keyup`; `beforeinput`, `input` and `change` for edits; focus events
+  for every focus change by the user. The default actions run only if
+  no listener canceled the event.
+- Decision (ADR 0028 "Feature 6d2 notes"): the user's input is the task
+  source "user interaction" without a queue of its own. The embedder's
+  call is the task and runs at once; the other sources run only in
+  `Page::pump`. Each event is one dispatch task, so a listener that
+  removes the target changes what follows.
+- The trusted `click` runs the activation of 6d1, and the engine skips
+  its own action. `summary` and `javascript:` URLs (links and form
+  actions) are new; a string result does not replace the document.
+- Learned from the probes: a canceled `pointerdown` also suppresses
+  `mousedown`, the focus change and the selection; `contextmenu` fires
+  on the press on Linux; Enter on a link clicks after `keydown` and
+  without `keypress`, Space clicks on `keyup`; `change` fires before
+  `blur` and compares with the value before the first edit; the window
+  gets `blur` when Tab leaves the page; `wheel` is cancelable only with
+  a non-passive listener.
+- The probe tool has `steps` (click, type, key, wheel), and swb has
+  `--headless --steps=JSON`, so real input runs the same way in both.
+  New probe file `web-input-real.json` (45 cases), no difference in
+  swb.
+- Feature 6 is complete. The Hacker News test passes: `hn.js` runs, its
+  `click` listener runs once per click, and the links and the search
+  form work as with JavaScript off. `compare --js hacker-news` equals
+  the JS-off scores; load time 20 ms with JavaScript on, 19 ms off.
+- Review fixes: after the document's scripts stopped at the time
+  limit, every click did nothing; input now works as with JavaScript
+  off. An image button sends the click point. Pointer moves collected
+  the boxes of the whole page for `offsetX` at each move (100,000
+  elements, 200 moves: 5.1 s against 1.0 s with JS off); the boxes are
+  now cached per layout and scroll position (1.6 s against 1.4 s). A
+  `javascript:` URL runs in a queued task, and not for another target
+  or a Ctrl, Shift or Alt click, as in Chromium.
+- Hostile set 188 cases, 187 ok + the known failure (six new); JS-off
+  snapshot identical, perf within noise.
+
+Next: feature 7a, style and layout invalidation from the journal.
+
 ## 2026-10-25: M8 feature 6d1, input events from scripts
 
 - Feature 6d is split: 6d1 is the script side, 6d2 the engine's own

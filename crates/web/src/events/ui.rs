@@ -158,7 +158,7 @@ impl Fields {
     pub(crate) fn which(&self) -> u32 {
         match self.family {
             Family::Keyboard => u32::try_from(self.key_code).unwrap_or(0),
-            f if f.is_mouse() => (i32::from(self.mouse.button).wrapping_add(1)) as u32,
+            f if f.is_mouse() => (i32::from(self.mouse.stored_button()).wrapping_add(1)) as u32,
             _ => 0,
         }
     }

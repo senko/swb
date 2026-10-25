@@ -361,6 +361,14 @@ impl App {
 
     fn handle_key(&mut self, event_loop: &ActiveEventLoop, event: &KeyEvent) {
         if event.state != ElementState::Pressed {
+            // The page sees the release of a key (`keyup`).
+            if !self.toolbar.focused
+                && let Some(key) = engine_key(&event.logical_key)
+            {
+                let modifiers = self.engine_modifiers();
+                self.page.key_up(&key, modifiers);
+                self.request_redraw();
+            }
             return;
         }
         let ctrl = self.modifiers.control_key();
@@ -475,7 +483,7 @@ impl App {
             }
             Key::Character(c) if editing && modifiers.ctrl && c.eq_ignore_ascii_case("v") => {
                 if let Some(text) = self.paste() {
-                    self.page.insert_text(&text);
+                    self.page.paste_text(&text);
                 }
             }
             // Typed text (also composed characters and Space) without
@@ -490,7 +498,16 @@ impl App {
                     .is_some_and(|t| !t.chars().any(char::is_control)) =>
             {
                 if let Some(text) = &event.text {
-                    self.page.insert_text(text);
+                    let mut chars = text.chars();
+                    let single = chars.next().is_some() && chars.next().is_none();
+                    if single && self.page.has_script_runtime() {
+                        // One character is a key press for the page's
+                        // key events; a composed string is only text.
+                        self.page
+                            .key_down(&swb_engine::Key::Character(text.to_string()), modifiers);
+                    } else {
+                        self.page.insert_text(text);
+                    }
                 }
             }
             Key::Named(NamedKey::Backspace) if modifiers.is_empty() && !editing => {

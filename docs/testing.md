@@ -28,7 +28,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -916,6 +916,37 @@ temporary directory, loaded by navigation.
   images) behind others, and its preload scanner fetches later scripts
   early; space the delays (100 ms or more) and do not compare the order of
   async scripts that a waiting parser could see early.
+- `steps` (case, optional; needs `"javascript": true`): input to send
+  before the queries, in order, for the events of the user's input (M8
+  feature 6d2). Chromium gets it through Playwright's mouse and keyboard
+  (the case runs in a page of its own, so the pointer starts outside the
+  document); swb through the `input.*` methods of the automation API
+  (`swb --headless --js --steps=JSON`; a swb without `--steps` prints `not
+  supported`). Each step is an object with one key:
+  `{"click": "#a"}`, `dblclick`, `rightclick`, `middleclick` and `hover`
+  take a CSS selector (the center of the first match) or `[x, y]` in
+  viewport coordinates, and may have `"modifiers": ["Shift", "Control",
+  "Alt", "Meta"]`; `mousedown` and `mouseup` take `"left"`, `"middle"` or
+  `"right"` at the pointer position; `{"type": "abc"}` types text (a
+  character that is not on the US layout is inserted without key events,
+  as Playwright does); `{"key": "Shift+Tab"}` presses a key (`Enter`,
+  `Tab`, `Space`, `ArrowDown`, `a`, ...); `{"wheel": [dx, dy]}` turns the
+  wheel at the pointer position; `{"wait": 100}` runs the event loop for
+  100 ms; `{"focus": "#a"}` calls `focus()` in the page; `{"eval":
+  "expression"}` runs a script. A click moves the pointer first (also
+  when it is there), as Playwright does. swb runs the tasks that are due
+  after each step (a `javascript:` link, a `setTimeout(0)`), as Chromium runs
+  them while Playwright waits for its next call. A failed step ends the
+  steps; swb prints its message after the `--eval` lines. Playwright sends the events of
+  modifier keys (`keydown` of `Shift`); swb does not (the engine has no
+  key for them), so a case that holds a modifier with `key` must not log
+  those. Example: `tools/probes/web-input-real.json`
+  (`"steps": [{"click": "#t"}, {"type": "ab"}, {"key": "Enter"},
+  {"wheel": [0, 100]}]`). The Rust test `crates/automation/tests/
+  real_input.rs` runs the cases of that file with the steps and compares
+  the queries with the Chromium values in `tests/data/web-input-real.json`
+  (made from `just probe --json`; `tools/swbtools` has no script for it:
+  the file maps each case to the values of its `js` queries).
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector

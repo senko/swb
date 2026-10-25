@@ -159,6 +159,7 @@ impl DocumentState {
         log::debug!("layout: {:?}", self.timings.layout);
         self.scrollers.update(&fragments);
         self.fragments = Some(fragments);
+        self.layout_serial += 1;
         self.keep_control_scroll();
         self.select_auto_sized_images();
         true

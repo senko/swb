@@ -28,9 +28,21 @@ impl Page {
     }
 
     /// Inserts text at the caret of the focused text control (typed or
-    /// pasted text), replacing its selection. Line breaks become spaces in
-    /// text fields. Returns false if no editable control has the focus.
+    /// composed text), replacing its selection. Line breaks become spaces
+    /// in text fields. Returns false if no editable control has the focus.
+    /// With scripts, `beforeinput` and `input` (`inputType` `insertText`)
+    /// surround the edit.
     pub fn insert_text(&mut self, text: &str) -> bool {
+        self.insert_text_as(text, "insertText")
+    }
+
+    /// Inserts pasted text (`inputType` `insertFromPaste`); otherwise as
+    /// [`Page::insert_text`].
+    pub fn paste_text(&mut self, text: &str) -> bool {
+        self.insert_text_as(text, "insertFromPaste")
+    }
+
+    fn insert_text_as(&mut self, text: &str, input_type: &str) -> bool {
         let Some(node) = self.editable_focus() else {
             return false;
         };
@@ -42,16 +54,35 @@ impl Page {
         } else {
             text.to_owned()
         };
+        let scripted = self.script_input();
+        if scripted {
+            if !self.fire_input(true, node, input_type, Some(&text)) {
+                return true;
+            }
+            if self.editable_focus() != Some(node) {
+                return true;
+            }
+            if let Some(doc) = self.doc.as_deref_mut() {
+                doc.note_user_edit(node);
+            }
+        }
+        let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
+            return false;
+        };
         if state.edit.insert(&text) {
             state.dirty = true;
             self.control_changed();
+            if scripted {
+                self.fire_input(false, node, input_type, Some(&text));
+            }
         }
         true
     }
 
     /// Cuts the selection of the focused editable text control: returns
     /// the selected text and deletes it. Empty without a selection (and
-    /// for password fields, which cannot be copied).
+    /// for password fields, which cannot be copied). With scripts,
+    /// `beforeinput` and `input` (`deleteByCut`) surround the deletion.
     pub fn cut_selection(&mut self) -> String {
         let text = self
             .doc
@@ -61,12 +92,25 @@ impl Page {
         if text.is_empty() {
             return text;
         }
-        if let Some(node) = self.editable_focus()
-            && let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node))
-            && state.edit.delete_selection()
-        {
-            state.dirty = true;
-            self.control_changed();
+        let scripted = self.script_input();
+        if let Some(node) = self.editable_focus() {
+            if scripted {
+                if !self.fire_input(true, node, "deleteByCut", None) {
+                    return String::new();
+                }
+                if let Some(doc) = self.doc.as_deref_mut() {
+                    doc.note_user_edit(node);
+                }
+            }
+            if let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node))
+                && state.edit.delete_selection()
+            {
+                state.dirty = true;
+                self.control_changed();
+                if scripted {
+                    self.fire_input(false, node, "deleteByCut", None);
+                }
+            }
         }
         text
     }
@@ -477,14 +521,23 @@ impl Page {
             // Space clicks checkboxes, radio buttons and buttons; Enter
             // clicks buttons and submits the form of a checkbox or radio
             // button.
+            // With scripts, Space clicks when the key goes up (key_up).
             _ if key.is_char(' ') && (ty.is_checkable() || ty.is_button()) => {
-                self.activate_control(node, None);
+                if self.script_input() {
+                    self.input.space_down = Some(node);
+                } else {
+                    self.activate_control(node, None);
+                }
             }
             _ if key == &Key::Enter && ty.is_checkable() => {
                 self.implicit_submission(node);
             }
             _ if key == &Key::Enter && ty.is_button() => {
-                self.activate_control(node, None);
+                if self.script_input() {
+                    self.simulate_click(node);
+                } else {
+                    self.activate_control(node, None);
+                }
             }
             _ => return None,
         }
@@ -500,22 +553,49 @@ impl Page {
         key: &Key,
         modifiers: Modifiers,
     ) -> Option<bool> {
+        let scripted = self.script_input();
+        let editable = self.editable_focus() == Some(node);
         if key == &Key::Enter && ty != ControlType::TextArea {
+            // Chromium fires `beforeinput` for the line break of a single
+            // line field; a listener can cancel the submission with it.
+            if scripted && editable && !self.fire_input(true, node, "insertLineBreak", None) {
+                return Some(true);
+            }
             self.implicit_submission(node);
             return Some(true);
         }
-        let editable = self.editable_focus() == Some(node);
-        let state = self.forms_mut()?.get_mut(node)?;
         let field = FieldKind {
             multiline: ty == ControlType::TextArea,
             number: ty == ControlType::Input(InputType::Number),
             password: ty == ControlType::Input(InputType::Password),
             editable,
         };
+        // The edit that the key makes: its `inputType` and `data`.
+        let plan = if scripted {
+            input_plan(field, key, modifiers)
+        } else {
+            None
+        };
+        if let Some((input_type, data)) = &plan {
+            if !self.fire_input(true, node, input_type, data.as_deref()) {
+                return Some(true);
+            }
+            // Listeners may have moved the focus or changed the page.
+            if self.editable_focus() != Some(node) {
+                return Some(true);
+            }
+            if let Some(doc) = self.doc.as_deref_mut() {
+                doc.note_user_edit(node);
+            }
+        }
+        let state = self.forms_mut()?.get_mut(node)?;
         let changed = edit_key(&mut state.edit, field, key, modifiers)?;
         if changed {
             state.dirty = true;
             self.control_changed();
+            if let Some((input_type, data)) = &plan {
+                self.fire_input(false, node, input_type, data.as_deref());
+            }
         } else {
             self.invalidate_layout();
         }
@@ -598,7 +678,12 @@ impl Page {
         if next != node {
             self.focus(Some(next), true);
         }
-        self.activate_control(next, None);
+        if self.script_input() {
+            // The arrow clicks the radio button as a key does.
+            self.simulate_click(next);
+        } else {
+            self.activate_control(next, None);
+        }
         true
     }
 
@@ -610,15 +695,28 @@ impl Page {
     /// a submission started.
     /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#implicit-submission>
     fn implicit_submission(&mut self, control: NodeId) -> bool {
+        let scripted = self.script_input();
+        if scripted {
+            // The line break commits the edit (`change`) before the
+            // submission (measured).
+            self.run_task(|s| s.commit_change(control));
+        }
         let (Some(doc), Some(forms)) = (self.document(), self.forms()) else {
             return false;
         };
         let Some(form) = forms.owner(control) else {
             return false;
         };
-        match default_button(doc, forms, form) {
+        let button = default_button(doc, forms, form);
+        let blocking = blocking_fields(doc, forms, form);
+        match button {
+            Some(button) if scripted => self.simulate_click(button),
             Some(button) => self.activate_control(button, None),
-            None if blocking_fields(doc, forms, form) > 1 => false,
+            None if blocking > 1 => false,
+            None if scripted => {
+                self.run_task(|s| s.implicit_submit(form));
+                true
+            }
             None => self.submit_form(form, Submitter::Form),
         }
     }
@@ -754,6 +852,39 @@ fn edit_key(
         }
     }
     Some(false)
+}
+
+/// The `inputType` and the `data` of the `beforeinput` and `input` events
+/// of the edit that a key makes in a text field (UI Events, Input Events 2,
+/// "inputType"), as Chromium fires them (measured): a character inserts
+/// text, Backspace and Delete delete (a word with Ctrl), Enter in a text
+/// area breaks the line. `None` for keys that edit nothing and for fields
+/// that cannot be edited.
+fn input_plan(
+    field: FieldKind,
+    key: &Key,
+    modifiers: Modifiers,
+) -> Option<(&'static str, Option<String>)> {
+    if !field.editable {
+        return None;
+    }
+    let ctrl = modifiers.ctrl || modifiers.meta;
+    match key {
+        Key::Character(c) if !ctrl => {
+            let text = if field.number {
+                number_characters(c)
+            } else {
+                c.clone()
+            };
+            (!text.is_empty()).then_some(("insertText", Some(text)))
+        }
+        Key::Backspace if ctrl => Some(("deleteWordBackward", None)),
+        Key::Backspace => Some(("deleteContentBackward", None)),
+        Key::Delete if ctrl => Some(("deleteWordForward", None)),
+        Key::Delete => Some(("deleteContentForward", None)),
+        Key::Enter if field.multiline => Some(("insertLineBreak", None)),
+        _ => None,
+    }
 }
 
 /// Backspace (`backspace` is true) or Delete: deletes the selection, else

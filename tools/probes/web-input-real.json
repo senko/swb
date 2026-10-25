@@ -1,0 +1,1333 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "hover-chain",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=p class=abs style='left:50px;top:50px;width:200px;height:200px;background:#ddd'><div id=c class=abs style='left:20px;top:20px;width:100px;height:100px;background:#aaa'></div></div><div id=o class=abs style='left:400px;top:50px;width:100px;height:100px;background:#bbb'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerover\", \"pointerenter\", \"pointerout\", \"pointerleave\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseenter\", \"mouseout\", \"mouseleave\", \"mousedown\", \"mouseup\", \"click\", \"auxclick\", \"dblclick\", \"contextmenu\"]);</script>",
+   "steps": [
+    {
+     "hover": "#o"
+    },
+    {
+     "hover": [
+      150,
+      150
+     ]
+    },
+    {
+     "hover": [
+      60,
+      60
+     ]
+    },
+    {
+     "hover": [
+      10,
+      400
+     ]
+    },
+    {
+     "hover": "#c"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "move-fields",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:100px;top:100px;width:200px;height:100px;background:#ddd'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['pointermove','mousemove'], function (e) { return em(e) + ' mv=' + e.movementX + ',' + e.movementY + ' off=' + e.offsetX + ',' + e.offsetY + ' pg=' + e.pageX + ',' + e.pageY + ' sc=' + e.screenX + ',' + e.screenY + ' ' + e.constructor.name + ' pid=' + e.pointerId + ' ' + e.pointerType + ' prim=' + e.isPrimary + ' pr=' + e.pressure + ' w=' + e.width + ',' + e.height + ' cmp=' + e.composed + ' bub=' + e.bubbles + ' can=' + e.cancelable; });</script>",
+   "steps": [
+    {
+     "hover": [
+      110,
+      110
+     ]
+    },
+    {
+     "hover": [
+      130,
+      140
+     ]
+    },
+    {
+     "hover": [
+      130,
+      140
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "click-div",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:100px;top:100px;width:100px;height:50px;background:#ccc'>A</div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerover\", \"pointerenter\", \"pointerout\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseenter\", \"mouseout\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"auxclick\", \"dblclick\", \"contextmenu\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return em(e) + ' ' + e.constructor.name + ' pid=' + e.pointerId + ' prim=' + e.isPrimary + ' pr=' + e.pressure + ' cmp=' + e.composed + ' bub=' + e.bubbles + ' can=' + e.cancelable; });</script>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "rightclick": "#a"
+    },
+    {
+     "middleclick": "#a"
+    },
+    {
+     "dblclick": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "click-fields",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:100px;top:100px;width:200px;height:100px;background:#ddd'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click','mousedown'], function (e) { return em(e) + ' off=' + e.offsetX + ',' + e.offsetY + ' pg=' + e.pageX + ',' + e.pageY + ' sc=' + e.screenX + ',' + e.screenY + ' xy=' + e.x + ',' + e.y + ' which=' + e.which + ' mods=' + [e.ctrlKey, e.shiftKey, e.altKey, e.metaKey] + ' mv=' + e.movementX + ',' + e.movementY + ' view=' + (e.view === window); });</script>",
+   "steps": [
+    {
+     "click": [
+      123,
+      117
+     ]
+    },
+    {
+     "click": "#a",
+     "modifiers": [
+      "Shift"
+     ]
+    },
+    {
+     "click": "#a",
+     "modifiers": [
+      "Control",
+      "Alt"
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "click-link-checkbox-label",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input type=checkbox id=c class=abs style='left:10px;top:10px;width:20px;height:20px'><label id=l for=c class=abs style='left:100px;top:10px;width:60px;height:20px'>lab</label><a id=x href='#frag' class=abs style='left:200px;top:10px;width:60px;height:20px'>link</a><div id=frag style='margin-top:500px'>f</div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerdown\", \"mousedown\", \"pointerup\", \"mouseup\", \"click\", \"input\", \"change\", \"selectstart\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.constructor.name + (e.type == 'click' ? ' d=' + e.detail + ' tr=' + e.isTrusted + ' checked=' + document.getElementById('c').checked : ''); });</script>",
+   "steps": [
+    {
+     "click": "#c"
+    },
+    {
+     "click": "#l"
+    },
+    {
+     "click": "#x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "(document.URL.split('#')[1] || '')"
+    },
+    {
+     "js": "document.activeElement.id"
+    },
+    {
+     "js": "document.getElementById('c').checked"
+    }
+   ]
+  },
+  {
+   "name": "click-button-summary",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><button id=b class=abs style='left:10px;top:10px;width:80px;height:30px'>B</button><details id=d class=abs style='left:10px;top:100px;width:200px'><summary id=s>S</summary>content</details><div id=t tabindex=0 class=abs style='left:300px;top:10px;width:50px;height:30px;background:#ccc'>t</div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"mousedown\", \"mouseup\", \"click\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.constructor.name; });</script>",
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "click": "#s"
+    },
+    {
+     "click": "#t"
+    },
+    {
+     "click": [
+      600,
+      400
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('d').open"
+    },
+    {
+     "js": "document.activeElement.nodeName"
+    }
+   ]
+  },
+  {
+   "name": "cancel-click-link",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=x href='#one' class=abs style='left:10px;top:10px;width:60px;height:20px'>x</a><a id=y href='#two' class=abs style='left:100px;top:10px;width:60px;height:20px'>y</a><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click'], function (e) { return 'dp=' + e.defaultPrevented; });document.getElementById('x').addEventListener('click', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#x"
+    },
+    {
+     "click": "#y"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "(document.URL.split('#')[1] || '')"
+    }
+   ]
+  },
+  {
+   "name": "cancel-click-link-only-x",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=x href='#one' class=abs style='left:10px;top:10px;width:60px;height:20px'>x</a><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>document.getElementById('x').addEventListener('click', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "(document.URL.split('#')[1] || '')"
+    },
+    {
+     "js": "document.activeElement.nodeName"
+    }
+   ]
+  },
+  {
+   "name": "cancel-click-checkbox",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input type=checkbox id=c class=abs style='left:10px;top:10px;width:20px;height:20px'><input type=radio name=r id=r1 class=abs style='left:50px;top:10px'><input type=radio name=r id=r2 checked class=abs style='left:80px;top:10px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click','input','change'], function (e) { return 'checked=' + e.target.checked; });window.addEventListener('click', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#c"
+    },
+    {
+     "click": "#r1"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('c').checked"
+    },
+    {
+     "js": "document.getElementById('r1').checked"
+    },
+    {
+     "js": "document.getElementById('r2').checked"
+    }
+   ]
+  },
+  {
+   "name": "cancel-mousedown-focus",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><button id=b class=abs style='left:200px;top:10px'>b</button><p id=p class=abs style='left:10px;top:100px;margin:0'>word other</p><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['focus','blur','focusin','focusout','mousedown','click','selectstart']);document.getElementById('t').addEventListener('mousedown', function (e) { e.preventDefault(); });document.getElementById('b').addEventListener('mousedown', function (e) { e.preventDefault(); });document.getElementById('p').addEventListener('mousedown', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "dblclick": "#p"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.activeElement.nodeName"
+    }
+   ]
+  },
+  {
+   "name": "select-text-click",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><p id=p class=abs style='left:10px;top:100px;margin:0'>word other</p><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['selectstart','mousedown','mouseup','click']);</script>",
+   "steps": [
+    {
+     "dblclick": [
+      20,
+      108
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "cancel-pointerdown",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:100px;top:100px;width:100px;height:50px;background:#ccc'>A</div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerdown\", \"mousedown\", \"pointerup\", \"mouseup\", \"click\"]);document.getElementById('a').addEventListener('pointerdown', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "cancel-keydown-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><form id=f><input id=t class=abs style='left:10px;top:10px;width:100px'><input id=o class=abs style='left:200px;top:10px'><input type=submit id=s class=abs style='left:300px;top:10px'></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.type.startsWith('key') ? ek(e) : e.type.endsWith('input') ? ei(e) : ''; });window.addEventListener('submit', function (e) { e.preventDefault(); L('submit'); });var cancel = true;document.getElementById('t').addEventListener('keydown', function (e) { if (cancel) e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Backspace"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    },
+    {
+     "js": "document.activeElement.id"
+    }
+   ]
+  },
+  {
+   "name": "cancel-keypress-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : e.type.endsWith('input') ? ei(e) : ''; });document.getElementById('t').addEventListener('keypress', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "key": "Backspace"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    }
+   ]
+  },
+  {
+   "name": "cancel-beforeinput-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px' value=xy><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : e.type.endsWith('input') ? ei(e) : ''; });document.getElementById('t').addEventListener('beforeinput', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    }
+   ]
+  },
+  {
+   "name": "cancel-keydown-tab-space",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=a class=abs style='left:10px;top:10px;width:60px'><input id=b class=abs style='left:100px;top:10px;width:60px'><button id=k class=abs style='left:200px;top:10px'>k</button><div style='height:3000px'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"focus\", \"blur\", \"focusin\", \"focusout\", \"click\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : ''; });window.addEventListener('keydown', function (e) { if (window.stop_it) e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "window.stop_it = true"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "focus": "#k"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "key": "PageDown"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.activeElement.id"
+    }
+   ]
+  },
+  {
+   "name": "type-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><input id=o class=abs style='left:200px;top:10px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.type.startsWith('key') ? ek(e) : e.type.endsWith('input') ? ei(e) + ' v=' + e.target.value : ''; });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "aB"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    }
+   ]
+  },
+  {
+   "name": "edit-keys",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px' value='ab cd'><textarea id=a class=abs style='left:200px;top:10px;width:100px;height:60px'></textarea><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['keydown','beforeinput','input','change'], function (e) { return e.type == 'keydown' ? 'key=' + e.key : e.type.endsWith('input') ? ei(e) + ' v=' + JSON.stringify(e.target.value) : ''; });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "key": "Control+Backspace"
+    },
+    {
+     "key": "Delete"
+    },
+    {
+     "key": "ArrowLeft"
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#a"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Delete"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    },
+    {
+     "js": "JSON.stringify(document.getElementById('a').value)"
+    }
+   ]
+  },
+  {
+   "name": "change-rules",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px' value=x><input id=u class=abs style='left:200px;top:10px;width:100px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['input','change','blur'], function (e) { return 'v=' + e.target.value; });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "a"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "type": "q"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "enter-implicit-submit",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><form id=f><input id=t class=abs style='left:10px;top:10px;width:100px'><button id=s class=abs style='left:200px;top:10px'>go</button></form><form id=g><input id=u class=abs style='left:10px;top:60px;width:100px'></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"click\", \"change\", \"input\", \"beforeinput\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : e.type == 'click' ? e.constructor.name + ' d=' + e.detail + ' pid=' + e.pointerId : ''; });window.addEventListener('submit', function (e) { e.preventDefault(); L('submit@' + e.target.id + ' sub=' + (e.submitter && e.submitter.id)); });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "click": "#u"
+    },
+    {
+     "type": "b"
+    },
+    {
+     "key": "Enter"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "key-activation",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><button id=b class=abs style='left:10px;top:10px'>b</button><input type=checkbox id=c class=abs style='left:100px;top:10px'><a id=a href='#z' class=abs style='left:200px;top:10px'>a</a><input type=radio name=r id=r1 class=abs style='left:300px;top:10px'><details class=abs style='left:10px;top:100px'><summary id=s>s</summary>x</details><div style='height:3000px'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"click\", \"change\", \"input\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : e.type == 'click' ? e.constructor.name + ' d=' + e.detail + ' pid=' + e.pointerId + ' c=' + e.target.checked + ' tr=' + e.isTrusted : ''; });</script>",
+   "steps": [
+    {
+     "focus": "#b"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "focus": "#c"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "focus": "#a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "focus": "#r1"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "focus": "#s"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Space"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "(document.URL.split('#')[1] || '')"
+    },
+    {
+     "js": "document.querySelector('details').open"
+    },
+    {
+     "js": "document.getElementById('c').checked"
+    }
+   ]
+  },
+  {
+   "name": "tab-order",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=a class=abs style='left:10px;top:10px;width:60px'><a id=l href='#' class=abs style='left:100px;top:10px'>l</a><div id=d tabindex=0 class=abs style='left:200px;top:10px;width:40px;height:20px'>d</div><button id=z class=abs style='left:300px;top:10px'>z</button><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.type == 'keydown' || e.type == 'keyup' ? 'key=' + e.key : ''; }); watchWin(['focus','blur']);</script>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.activeElement.id"
+    }
+   ]
+  },
+  {
+   "name": "type-non-ascii",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\"], function (e) { return e.type.startsWith('key') ? ek(e) : e.type.endsWith('input') ? ei(e) : ''; });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "!\u00e9"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    }
+   ]
+  },
+  {
+   "name": "click-disabled",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><button id=b disabled class=abs style='left:10px;top:10px;width:80px;height:30px'>B</button><input id=i disabled class=abs style='left:200px;top:10px;width:80px'><div id=w class=abs style='left:10px;top:100px;width:200px;height:50px;background:#ccc'><button id=n disabled style='width:100px;height:30px'>n</button></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerdown\", \"mousedown\", \"mouseup\", \"click\", \"mouseover\", \"mouseenter\", \"pointerover\", \"mousemove\"]);</script>",
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "click": "#i"
+    },
+    {
+     "click": "#n"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "key-fields",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\"], ek);</script>",
+   "steps": [
+    {
+     "key": "a"
+    },
+    {
+     "key": "Shift+A"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "1"
+    },
+    {
+     "key": "Control+c"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "wheel-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a style='height:3000px;background:linear-gradient(#fff,#ccc)'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['wheel','scroll'], function (e) { return e.type == 'wheel' ? 'd=' + e.deltaX + ',' + e.deltaY + ',' + e.deltaZ + ' m=' + e.deltaMode + ' wd=' + e.wheelDelta + ',' + e.wheelDeltaX + ',' + e.wheelDeltaY + ' c=' + e.clientX + ',' + e.clientY + ' cmp=' + e.composed + ' can=' + e.cancelable + ' bub=' + e.bubbles + ' b=' + e.button + '/' + e.buttons + ' ' + e.constructor.name : 'bub=' + e.bubbles; });</script>",
+   "steps": [
+    {
+     "hover": [
+      200,
+      200
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "wheel": [
+      0,
+      53
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "wheel": [
+      0,
+      61
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "wheel-cancel",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a style='height:3000px;background:linear-gradient(#fff,#ccc)'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['wheel','scroll']);document.getElementById('a').addEventListener('wheel', function (e) { e.preventDefault(); L('prevented=' + e.defaultPrevented); });</script>",
+   "steps": [
+    {
+     "hover": [
+      200,
+      200
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "wheel-passive-defaults",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a style='height:3000px;background:linear-gradient(#fff,#ccc)'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['scroll']);var h = function (e) { e.preventDefault(); L('prevented=' + e.defaultPrevented + ' ' + e.currentTarget.nodeName); };window.addEventListener('wheel', h); document.addEventListener('wheel', h); document.body.addEventListener('wheel', h);document.getElementById('a').addEventListener('wheel', function (e) { L('div passive=' + 'n/a'); });</script>",
+   "steps": [
+    {
+     "hover": [
+      200,
+      200
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "cancel-pointerdown-focus",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><p id=p class=abs style='left:10px;top:100px;margin:0'>word other</p><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['focus','blur','mousedown','pointerdown','click','selectstart']);window.addEventListener('pointerdown', function (e) { e.preventDefault(); }, true);</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "dblclick": "#p"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.activeElement.nodeName"
+    }
+   ]
+  },
+  {
+   "name": "boundary-flags",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=p class=abs style='left:50px;top:50px;width:200px;height:200px;background:#ddd'><div id=c class=abs style='left:20px;top:20px;width:100px;height:100px;background:#aaa'></div></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"pointerover\", \"pointerenter\", \"pointerout\", \"pointerleave\", \"mouseover\", \"mouseenter\", \"mouseout\", \"mouseleave\"], function (e) { return 'b=' + e.bubbles + ' can=' + e.cancelable + ' cmp=' + e.composed + ' ' + e.constructor.name + ' pid=' + e.pointerId + ' prim=' + e.isPrimary + ' btn=' + e.button + '/' + e.buttons + ' d=' + e.detail + ' pr=' + e.pressure; });</script>",
+   "steps": [
+    {
+     "hover": [
+      500,
+      500
+     ]
+    },
+    {
+     "hover": [
+      150,
+      150
+     ]
+    },
+    {
+     "hover": [
+      60,
+      60
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "enter-no-form",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=t class=abs style='left:10px;top:10px;width:100px'><textarea id=a class=abs style='left:200px;top:10px'></textarea><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch([\"keydown\", \"keypress\", \"keyup\", \"beforeinput\", \"input\", \"change\", \"submit\"], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : e.type.endsWith('input') ? ei(e) : ''; });</script>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "wheel-deltas",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a style='height:6000px;width:3000px;background:linear-gradient(#fff,#ccc)'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['wheel'], function (e) { return 'd=' + e.deltaX + ',' + e.deltaY + ' wd=' + e.wheelDelta + ',' + e.wheelDeltaX + ',' + e.wheelDeltaY + ' can=' + e.cancelable; });</script>",
+   "steps": [
+    {
+     "hover": [
+      200,
+      200
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      -100
+     ]
+    },
+    {
+     "wheel": [
+      30,
+      0
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      1000
+     ]
+    },
+    {
+     "wheel": [
+      -7,
+      3
+     ]
+    },
+    {
+     "wait": 50
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "wheel-element-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:10px;top:10px;width:200px;height:100px;overflow:auto'><div style='height:1000px'>x</div></div><div style='height:3000px'></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['wheel','scroll'], function (e) { return e.type == 'scroll' ? 'bub=' + e.bubbles : 'd=' + e.deltaY; });</script>",
+   "steps": [
+    {
+     "hover": [
+      100,
+      50
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      60
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      400,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      60
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=x href=\"javascript:L('ran1');void 0\" class=abs style='left:10px;top:10px'>x</a><a id=y href=\"javascript:L('ran2')\" class=abs style='left:100px;top:10px'>y</a><a id=z href=\"javascript:L('ran3')\" class=abs style='left:200px;top:10px'>z</a><form id=f action=\"javascript:L('formaction')\" class=abs style='left:10px;top:50px'><input id=t><button id=s>go</button></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click','submit']);document.getElementById('z').addEventListener('click', function (e) { e.preventDefault(); });</script>",
+   "steps": [
+    {
+     "click": "#x"
+    },
+    {
+     "click": "#y"
+    },
+    {
+     "click": "#z"
+    },
+    {
+     "click": "#s"
+    },
+    {
+     "wait": 50
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.title"
+    }
+   ]
+  },
+  {
+   "name": "remove-on-mousedown",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=p class=abs style='left:50px;top:50px;width:200px;height:100px;background:#ddd'><div id=a style='width:100px;height:50px;background:#aaa'>A</div></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['mousedown','mouseup','click','pointerup','pointerdown']);document.getElementById('a').addEventListener('mousedown', function (e) { e.target.remove(); });</script>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "remove-on-click",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=a href='#q' class=abs style='left:50px;top:50px'>A</a><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['mousedown','mouseup','click']);document.getElementById('a').addEventListener('click', function (e) { e.target.remove(); });</script>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "hover": [
+      300,
+      300
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "(document.URL.split('#')[1] || '')"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-targets",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=x href=\"javascript:L('ran-x')\" class=abs style='left:0;top:0'>x</a><a id=b href=\"javascript:L('ran-b')\" target=_blank class=abs style='left:100px;top:0'>b</a><a id=s href=\"javascript:L('ran-s')\" target=_self class=abs style='left:200px;top:0'>s</a><a id=p href=\"javascript:L('ran-p')\" target=_parent class=abs style='left:300px;top:0'>p</a><a id=t href=\"javascript:L('ran-t')\" target=_top class=abs style='left:400px;top:0'>t</a><a id=n href=\"javascript:L('ran-n')\" target=other class=abs style='left:500px;top:0'>n</a><form action=\"javascript:L('ran-form-blank')\" target=_blank class=abs style='left:0;top:50px'><button id=fb>fb</button></form><form action=\"javascript:L('ran-form')\" class=abs style='left:100px;top:50px'><button id=f>f</button></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click']);</script>",
+   "steps": [
+    {
+     "click": "#x"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "click": "#s"
+    },
+    {
+     "click": "#p"
+    },
+    {
+     "click": "#t"
+    },
+    {
+     "click": "#n"
+    },
+    {
+     "click": "#fb"
+    },
+    {
+     "click": "#f"
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-modifiers",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=x href=\"javascript:L('ran-x')\" class=abs style='left:0;top:0'>x</a><a id=b href=\"javascript:L('ran-b')\" target=_blank class=abs style='left:100px;top:0'>b</a><a id=s href=\"javascript:L('ran-s')\" target=_self class=abs style='left:200px;top:0'>s</a><a id=p href=\"javascript:L('ran-p')\" target=_parent class=abs style='left:300px;top:0'>p</a><a id=t href=\"javascript:L('ran-t')\" target=_top class=abs style='left:400px;top:0'>t</a><a id=n href=\"javascript:L('ran-n')\" target=other class=abs style='left:500px;top:0'>n</a><form action=\"javascript:L('ran-form-blank')\" target=_blank class=abs style='left:0;top:50px'><button id=fb>fb</button></form><form action=\"javascript:L('ran-form')\" class=abs style='left:100px;top:50px'><button id=f>f</button></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click', 'auxclick', 'submit']);</script>",
+   "steps": [
+    {
+     "click": "#x",
+     "modifiers": [
+      "Control"
+     ]
+    },
+    {
+     "click": "#x",
+     "modifiers": [
+      "Shift"
+     ]
+    },
+    {
+     "click": "#x",
+     "modifiers": [
+      "Meta"
+     ]
+    },
+    {
+     "click": "#x",
+     "modifiers": [
+      "Alt"
+     ]
+    },
+    {
+     "middleclick": "#x"
+    },
+    {
+     "click": "#x"
+    },
+    {
+     "click": "#f",
+     "modifiers": [
+      "Control"
+     ]
+    },
+    {
+     "click": "#f",
+     "modifiers": [
+      "Shift"
+     ]
+    },
+    {
+     "click": "#f",
+     "modifiers": [
+      "Alt"
+     ]
+    },
+    {
+     "click": "#f"
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-base-target",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><base target=_blank><a id=x href=\"javascript:L('ran-x')\" class=abs style='left:0;top:0'>x</a><a id=b href=\"javascript:L('ran-b')\" target=_blank class=abs style='left:100px;top:0'>b</a><a id=s href=\"javascript:L('ran-s')\" target=_self class=abs style='left:200px;top:0'>s</a><a id=p href=\"javascript:L('ran-p')\" target=_parent class=abs style='left:300px;top:0'>p</a><a id=t href=\"javascript:L('ran-t')\" target=_top class=abs style='left:400px;top:0'>t</a><a id=n href=\"javascript:L('ran-n')\" target=other class=abs style='left:500px;top:0'>n</a><form action=\"javascript:L('ran-form-blank')\" target=_blank class=abs style='left:0;top:50px'><button id=fb>fb</button></form><form action=\"javascript:L('ran-form')\" class=abs style='left:100px;top:50px'><button id=f>f</button></form><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['click']);</script>",
+   "steps": [
+    {
+     "click": "#x"
+    },
+    {
+     "click": "#s"
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-order-click-method",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=a href=\"javascript:L('act')\" class=abs style='left:0;top:0;width:100px;height:30px'>x</a><button id=b class=abs style='left:0;top:50px'>b</button><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>b.addEventListener('click', function () { a.click(); L('after click()'); });document.addEventListener('click', function (e) { L('doc-click-' + e.target.id); }, false);</script>",
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-order-user-click",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><a id=a href=\"javascript:L('act')\" class=abs style='left:0;top:0;width:100px;height:30px'>x</a><button id=b class=abs style='left:0;top:50px'>b</button><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>document.addEventListener('click', function (e) { L('doc-click'); Promise.resolve().then(function () { L('micro'); }); setTimeout(function () { L('timeout0'); }, 0); }, false);document.addEventListener('mouseup', function () { L('mouseup'); });</script>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "window-focus-click",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=a class=abs style='left:10px;top:10px;width:60px'><div id=d class=abs style='left:10px;top:100px;width:200px;height:100px'>d</div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['mousedown', 'mouseup', 'click', 'focus', 'blur', 'focusin', 'focusout']); watchWin(['focus', 'blur']);</script>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "click": "#d"
+    },
+    {
+     "click": "#d"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "type-no-focus",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=a class=abs style='left:10px;top:10px;width:60px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['keydown', 'keypress', 'keyup', 'beforeinput', 'input'], function (e) { return e.type.startsWith('key') ? 'key=' + e.key : ''; });</script>",
+   "steps": [
+    {
+     "type": "ab"
+    },
+    {
+     "focus": "#a"
+    },
+    {
+     "type": "c"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('a').value"
+    }
+   ]
+  },
+  {
+   "name": "type-target-removed",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><input id=a class=abs style='left:10px;top:10px;width:60px'><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>watch(['keydown', 'keypress', 'keyup'], function (e) { return 'key=' + e.key; });document.addEventListener('keydown', function () { var a = document.getElementById('a'); if (a) a.remove(); });</script>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "type": "abc"
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  },
+  {
+   "name": "scroll-tree-order",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><div id=a class=abs style='left:0;top:0;width:100px;height:100px;overflow:auto'><div style='height:500px'></div></div><div id=b class=abs style='left:150px;top:0;width:100px;height:100px;overflow:auto'><div style='height:500px'></div></div><script>\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) {\n  var s = e.type + '@' + nm(e.target);\n  if (e.relatedTarget) s += '<' + nm(e.relatedTarget);\n  return s;\n}\nvar MODS = /^(Control|Shift|Alt|Meta)$/;\nfunction watch(types, extra, opts) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) {\n      if (e.type.startsWith('key') && MODS.test(e.key)) return;\n      L(extra ? d(e) + ' ' + extra(e) : d(e));\n    }, opts || true);\n  });\n}\nfunction watchWin(types) {\n  types.forEach(function (t) {\n    window.addEventListener(t, function (e) { if (e.target === window) L(d(e)); }, true);\n  });\n}\nfunction em(e) {\n  return 'c=' + e.clientX + ',' + e.clientY + ' b=' + e.button + '/' + e.buttons + ' d=' + e.detail;\n}\nfunction ek(e) {\n  return 'key=' + JSON.stringify(e.key) + ' code=' + e.code + ' kc=' + e.keyCode + ' cc=' + e.charCode +\n    ' loc=' + e.location + ' rep=' + e.repeat + ' sh=' + e.shiftKey + ' ct=' + e.ctrlKey;\n}\nfunction ei(e) {\n  return 'it=' + e.inputType + ' data=' + JSON.stringify(e.data) + ' c=' + e.cancelable + ' b=' + e.bubbles +\n    ' comp=' + e.isComposing + ' ' + e.constructor.name;\n}\nfunction flush() { return log.join('|'); }\n</script><script>var c = document.createElement('div'); c.id = 'c'; c.setAttribute('style', 'position:absolute;left:300px;top:0;width:100px;height:100px;overflow:auto'); c.innerHTML = '<div style=\"height:500px\"></div>'; document.body.insertBefore(c, document.getElementById('a')); ['a', 'b', 'c'].forEach(function (id) { document.getElementById(id).addEventListener('scroll', function () { L('scroll-' + id); }); });</script>",
+   "steps": [
+    {
+     "hover": "#b"
+    },
+    {
+     "wheel": [
+      0,
+      50
+     ]
+    },
+    {
+     "hover": "#a"
+    },
+    {
+     "wheel": [
+      0,
+      50
+     ]
+    },
+    {
+     "hover": "#c"
+    },
+    {
+     "wheel": [
+      0,
+      50
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "flush()"
+    }
+   ]
+  }
+ ]
+}

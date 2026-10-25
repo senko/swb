@@ -29,6 +29,7 @@
 //! `forms.rs` (form controls: editing, activation, submission) and
 //! `script.rs` (the script runtime of the document).
 
+mod events;
 mod forms;
 mod input;
 mod loading;

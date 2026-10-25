@@ -217,6 +217,15 @@ pub trait EngineHost: Any {
         let _ = (node, visible);
     }
 
+    /// True if the user edited the value of the text control `node` since
+    /// it got the focus or since its last `change` event, and the value
+    /// differs from the one then (the user's edit was committed: `change`
+    /// fires). Clears the state of the control either way.
+    fn take_pending_change(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
     /// Asks the page to scroll `node` into view when the task ends (the
     /// scroll of `focus()` without `preventScroll`; scrolling needs the
     /// layout, which a script task does not have).
@@ -243,9 +252,16 @@ pub trait EngineHost: Any {
     /// Asks the page to submit `form` when the task ends (HTML "submit":
     /// the planned navigation), with the submit button `submitter` or
     /// without. False if the submission does not navigate (an action that
-    /// cannot load, a `dialog` form).
-    fn request_form_submission(&mut self, form: NodeId, submitter: Option<NodeId>) -> bool {
-        let _ = (form, submitter);
+    /// cannot load, a `dialog` form). `coordinate` is the point of the
+    /// click relative to the submitter, for an image button (0, 0 for
+    /// `click()`).
+    fn request_form_submission(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+        coordinate: (i32, i32),
+    ) -> bool {
+        let _ = (form, submitter, coordinate);
         false
     }
 

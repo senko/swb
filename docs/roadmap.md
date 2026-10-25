@@ -2928,10 +2928,54 @@ Steps:
           focus events for focus changes by the user, `javascript:`
           URLs, the event order of real input against Chromium, and the
           Exit below.
+          Done 2026-10-25. With JavaScript on, each input of the user is
+          a task of the user interaction source that the embedder's call
+          runs at once, and each event is one dispatch task (the
+          decision is in ADR 0028 "Feature 6d2 notes"). The pointer,
+          mouse, wheel, key and edit events (`beforeinput`, `input`,
+          `change`) have Chromium's order and attributes; the hover
+          chains include the document; a canceled `pointerdown` also
+          suppresses `mousedown`, the focus change and the selection.
+          The default actions run only after an uncanceled event. The
+          trusted `click` runs the activation of 6d1 in place of the
+          engine's own action; `summary` and `javascript:` URLs (links,
+          form actions) are new activation targets, and a string
+          result does not replace the document. The user's focus
+          changes fire the focus events, and the window gets `blur` and
+          `focus` when Tab leaves and enters the page; `scroll` fires
+          once per frame. `Page::key_up` and `paste_text` are new; the
+          GUI sends key releases. The probe tool has `steps` (`swb
+          --headless --steps=JSON`); probe `web-input-real.json`, three
+          equal Chromium runs, no difference in swb. Departures: `offsetX` from the border box, no key
+          events for modifier keys alone, no composition, `textInput`
+          or `toggle` events, a drag fires no `click`, one `scroll` for
+          a key scroll (Chromium animates it). Review fixes: input
+          works as with JavaScript off after the document's scripts
+          stopped (every click did nothing); an image button sends the
+          click point with JavaScript on; the boxes for `offsetX` are
+          cached per layout and scroll position (100,000 elements, 200
+          pointer moves: 5.1 s, now 1.6 s; JS off 1.4 s); a
+          `javascript:` URL runs in a queued task, and not for another
+          target or a Ctrl, Shift or Alt click (measured); the window
+          gets `focus` again on a click after Tab left the page;
+          `input.type` sends key events without an editable focus; the
+          `scroll` events of several elements come in the order they
+          scrolled (measured). The probe has 45 cases. Hostile 188
+          cases, 187 ok + 1 known failure (six new); JS-off snapshot
+          identical, perf within noise.
       Exit (Hacker News): the Hacker News checks of the list above in
       an integration test on the local fixture; `compare --js
       hacker-news` gives the same scores as the JS-off comparison;
       load time within 50 ms of JS off.
+      Done 2026-10-25. `crates/automation/tests/hacker_news.rs` (it
+      skips without `fixtures/js`): `hn.js` runs without a script
+      error, its `click` listener on `document` runs once per click,
+      and a story link, "More" and the search form navigate to the same
+      URLs as with JavaScript off. `compare --js hacker-news`: geometry
+      1.0000, size 1.0000, pixels 0.9986, no missing or extra boxes
+      (JS off: pixels 0.9988); the 821 boxes and the pixels of JS on
+      and JS off are equal. Load time 20 ms with JavaScript on, 19 ms
+      off (best of 7, virtual time).
    7. Style and layout from scripts (`implementer-hard`), two sessions.
       - 7a: invalidation from the journal, the flushes for queries
         (ADR 0028 section 9), counters of forced style and layout runs
@@ -3297,8 +3341,6 @@ Steps:
   generator has no `[Default]`), `mark`, `measure`, `getEntries*` and
   `performance.timing` come when a page needs them (analytics scripts use
   marks).
-- `web`/engine, 6d: task sources and the priority of user input (5b has
-  one queue).
 - Engine: in virtual time, `wait_until_idle` with an endless interval
   advances virtual time as fast as it can until the real time-out;
   `is_idle` lays out on each check (`is_fully_loaded`).
@@ -3487,8 +3529,7 @@ Steps:
   `layerY` of a dispatched event stay the page coordinates, and
   `focus()` scrolls when the task ends; both need layout inside a
   script task.
-- `web` (found in feature 6d1): `click()` on a `summary` does not toggle
-  its `details`, and `click()` on `input type=file` does nothing;
+- `web` (found in feature 6d1): `click()` on `input type=file` does nothing;
   `window.focus()`, `window.blur()` and `window.name` are missing; the
   constraint validation API (`checkValidity`, `reportValidity`,
   `validity`); `contenteditable` elements are not focusable;
@@ -3521,6 +3562,29 @@ Steps:
   `innerText=` removes, with `blur` and without `focusout`). A
   termination of the script during the click of a checkbox leaves the
   checkbox toggled.
+- Engine (found in feature 6d2): the engine's `Key` has no modifier
+  keys, so Shift, Control, Alt and Meta alone fire no key events. The
+  keys of a `select` fire no `input` and `change`; there are no
+  `toggle`, `textInput` and composition events. A drag fires no `click`
+  (Chromium fires it at the common ancestor). The `offsetX` and
+  `offsetY` of the user's events are relative to the border box, not
+  the padding edge, and ignore transforms. `Page::mouse_move` hit-tests
+  twice (events and hover).
+- Engine (found in the 6d2 review): a `details` without a `summary`
+  gets no focus from a click (Chromium focuses it). A `javascript:` link
+  whose `target` names a browsing context counts as a new context, also
+  when the name is `window.name` (swb has no frames). Image maps do not
+  work with JavaScript on or off: a click on an `area` of an `img
+  usemap` does not navigate, and a link around an `img ismap` sends no
+  `?x,y`. The GUI
+  now sends a typed single character as `key_down` (number fields
+  filter the characters); check dead keys and input methods (`keyCode`
+  229 for characters that are not on the US layout).
+- `web`, 7b and 8a (found in feature 6d2): swb has no `scrollY` (7b),
+  `location` (8a) and `getSelection`, so the probe cases of
+  `web-input-real.json` cannot query the scroll position, the URL and
+  the selection after real input; only the Rust tests check them. Add
+  those queries when the members exist.
 - Engine (found in the 6c2 review): the dirty selectedness flag is kept
   per `select`, not per `option`. An option in a select that a script
   or the user changed does not follow later changes of its `selected`

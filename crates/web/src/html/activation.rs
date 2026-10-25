@@ -18,6 +18,12 @@
 //! its controls, and the requests that the page acts on when the task ends
 //! (a navigation, a scroll).
 //!
+//! Feature 6d2 adds the user's clicks (the engine's input is dispatched as
+//! trusted events, and the activation behavior of this module replaces the
+//! engine's own action), the `summary` of a `details` element, the
+//! `javascript:` URLs of links and form actions, and the simulated click of
+//! a key (`simulated_click`).
+//!
 //! Measured in Chromium 148 (`tools/probes/web-input-handlers.json`):
 //! `dispatchEvent` of a `click` `MouseEvent` activates a disabled checkbox;
 //! only `click()` stops at disabled controls; a radio button that is
@@ -28,11 +34,12 @@
 
 use std::collections::HashSet;
 
-use swb_dom::{Document, NodeId, local_name, ns};
-use swb_js::{Runtime, VmResult};
+use swb_dom::{Document, NodeId, QualName, local_name, ns};
+use swb_js::{Runtime, ScriptError, VmError, VmResult};
 
 use super::{form_owner, labeled_control};
 use crate::bindings::{self as b, Cx, Host};
+use crate::event_loop::Task;
 use crate::events::{
     DispatchTarget, EventInterface, TrustedEvent, dispatch, fire_trusted, handlers, new_click_event,
 };
@@ -63,6 +70,18 @@ pub(crate) enum Kind {
     Submit,
     Reset,
     Label,
+    /// The first `summary` child of a `details` element.
+    Summary,
+}
+
+/// What the click that submits a form tells the submission.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ClickInfo {
+    /// The point of the click on an image button.
+    coordinate: (i32, i32),
+    /// True if the click opens the target in a new tab, a new window or a
+    /// download (Ctrl, Shift or Alt held).
+    elsewhere: bool,
 }
 
 /// The state that the legacy-pre-activation behavior saved.
@@ -103,6 +122,7 @@ fn kind_of(dom: &Document, node: NodeId) -> Option<Kind> {
     match &**e.local_name() {
         "a" | "area" => e.has_attr("href").then_some(Kind::Link),
         "label" => Some(Kind::Label),
+        "summary" => dom.details_of_summary(node).map(|_| Kind::Summary),
         "input" => match ty().as_deref() {
             Some("checkbox") => Some(Kind::Checkbox),
             Some("radio") => Some(Kind::Radio),
@@ -128,18 +148,44 @@ pub(crate) fn find_target(
 ) -> VmResult<Option<Activation>> {
     let node_target = node;
     let dom = dom(rt)?;
+    // Interactive content between the target and a label or a summary
+    // keeps it from acting (HTML "interactive content"; Chromium).
+    let mut in_interactive = false;
     let found = std::iter::once(node)
         .chain(
             dom.ancestors(node)
                 .take(if bubbles { usize::MAX } else { 0 }),
         )
-        .find_map(|n| Some((n, kind_of(dom, n)?)));
+        .find_map(|n| {
+            let kind = kind_of(dom, n);
+            let blocked = in_interactive && matches!(kind, Some(Kind::Label | Kind::Summary));
+            in_interactive |= is_interactive(dom, n);
+            kind.filter(|_| !blocked).map(|kind| (n, kind))
+        });
     Ok(found.map(|(node, kind)| Activation {
         node,
         origin: node_target,
         kind,
         saved: Saved::None,
     }))
+}
+
+/// True for interactive content other than links (HTML "interactive
+/// content"): a click on it inside a label or a summary does not
+/// activate them.
+fn is_interactive(dom: &Document, node: NodeId) -> bool {
+    let Some(e) = dom.element(node).filter(|e| e.is_html()) else {
+        return false;
+    };
+    match &**e.local_name() {
+        "button" | "select" | "textarea" | "details" | "embed" | "iframe" => true,
+        "input" => !e
+            .attr("type")
+            .is_some_and(|t| t.eq_ignore_ascii_case("hidden")),
+        "audio" | "video" => e.has_attr("controls"),
+        "img" | "object" => e.has_attr("usemap"),
+        _ => false,
+    }
 }
 
 /// The legacy-pre-activation behavior (HTML, `input` of the type
@@ -191,7 +237,14 @@ fn set_indeterminate(rt: &mut Runtime, node: NodeId, value: bool) -> VmResult<()
 
 /// DOM "dispatch" steps 5.15 and 5.16: the activation behavior if the
 /// event was not canceled, else the legacy-canceled-activation behavior.
-pub(crate) fn after_dispatch(rt: &mut Runtime, a: Activation, canceled: bool) -> VmResult<()> {
+pub(crate) fn after_dispatch(
+    rt: &mut Runtime,
+    a: Activation,
+    canceled: bool,
+    origin: (bool, i32),
+    offset: (i32, i32),
+    modifiers: u16,
+) -> VmResult<()> {
     if canceled {
         return canceled_activation(rt, a);
     }
@@ -205,13 +258,209 @@ pub(crate) fn after_dispatch(rt: &mut Runtime, a: Activation, canceled: bool) ->
             Saved::Radio { was_checked, .. } if was_checked => Ok(()),
             _ => fire_input_and_change(rt, a.node),
         },
-        Kind::Submit => activate_submit(rt, a.node),
+        Kind::Submit => {
+            // The coordinate is the click's point on the button itself.
+            let coordinate = if a.origin == a.node { offset } else { (0, 0) };
+            let click = ClickInfo {
+                coordinate,
+                elsewhere: opens_elsewhere(modifiers),
+            };
+            activate_submit(rt, a.node, click)
+        }
         Kind::Reset => activate_reset(rt, a.node),
         Kind::Link => {
+            if let Some(source) = javascript_link(rt, a.node)? {
+                // A link for a new browsing context or a modified click
+                // (Ctrl, Shift, Meta) runs the script in that context, not
+                // in this document (measured).
+                if opens_here(rt, a.node)? && !opens_elsewhere(modifiers) {
+                    queue_javascript_url(rt, source)?;
+                }
+                return Ok(());
+            }
             engine_mut(rt)?.request_hyperlink(a.node);
             Ok(())
         }
-        Kind::Label => activate_label(rt, a.node, a.origin),
+        Kind::Label => activate_label(rt, a.node, a.origin, origin),
+        Kind::Summary => toggle_details(rt, a.node),
+    }
+}
+
+/// The activation behavior of a `summary`: toggles the `open` attribute
+/// of its `details` element.
+fn toggle_details(rt: &mut Runtime, summary: NodeId) -> VmResult<()> {
+    let document = dom(rt)?;
+    let Some(details) = document.details_of_summary(summary) else {
+        return Ok(());
+    };
+    let open = document
+        .element(details)
+        .is_some_and(|e| e.has_attr("open"));
+    let name = QualName::new(None, ns!(), swb_dom::LocalName::from("open"));
+    if open {
+        crate::dom::remove_attribute(rt, details, &name)?;
+        return Ok(());
+    }
+    match crate::dom::set_attribute(rt, details, &name, "") {
+        Err(crate::bindings::Exception::Js(error)) => Err(error),
+        _ => Ok(()),
+    }
+}
+
+// ----- javascript: URLs -----
+
+/// The script of a `javascript:` URL (HTML "navigate to a javascript:
+/// URL"): the part after the scheme, percent-decoded as UTF-8. `None` if
+/// `url` has another scheme.
+fn javascript_source(url: &str) -> Option<String> {
+    let rest = url
+        .trim()
+        .get(..11)
+        .filter(|s| s.eq_ignore_ascii_case("javascript:"))?;
+    let body = &url.trim()[rest.len()..];
+    // The URL parser drops a fragment from the opaque path; the
+    // specification runs the URL without it.
+    let body = body.split('#').next().unwrap_or(body);
+    let bytes = body.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while let Some(&b) = bytes.get(i) {
+        let hex = |k: usize| bytes.get(i + k).and_then(|c| (*c as char).to_digit(16));
+        if b == b'%'
+            && let (Some(hi), Some(lo)) = (hex(1), hex(2))
+        {
+            out.push((hi * 16 + lo) as u8);
+            i += 3;
+        } else {
+            out.push(b);
+            i += 1;
+        }
+    }
+    Some(String::from_utf8_lossy(&out).into_owned())
+}
+
+/// True if a click with the modifier keys `mods` opens the link in a new
+/// tab (Ctrl) or window (Shift) or downloads it (Alt). Meta does nothing
+/// special on Linux (measured, `javascript-link-modifiers`).
+fn opens_elsewhere(mods: u16) -> bool {
+    use crate::events::modifiers::{ALT, CONTROL, SHIFT};
+    mods & (CONTROL | SHIFT | ALT) != 0
+}
+
+/// True if the link `node` navigates the current browsing context: its
+/// `target` (else the `target` of the first `base` element) is empty or
+/// `_self`, `_parent` or `_top` (swb has no frames; a named context counts
+/// as a new one).
+fn opens_here(rt: &Runtime, node: NodeId) -> VmResult<bool> {
+    let own = dom(rt)?
+        .element(node)
+        .and_then(|e| e.attr("target"))
+        .map(str::to_owned);
+    names_current_context(rt, own)
+}
+
+/// [`opens_here`] for the submission of `form` by `submitter`: the
+/// `formtarget` of the submitter (if not empty), else the `target` of the
+/// form.
+fn form_opens_here(rt: &Runtime, form: NodeId, submitter: Option<NodeId>) -> VmResult<bool> {
+    let document = dom(rt)?;
+    let attr = |node: NodeId, name: &str| {
+        document
+            .element(node)
+            .and_then(|e| e.attr(name))
+            .map(str::to_owned)
+    };
+    let own = submitter
+        .and_then(|s| attr(s, "formtarget"))
+        .filter(|t| !t.is_empty())
+        .or_else(|| attr(form, "target"));
+    names_current_context(rt, own)
+}
+
+/// True if the browsing context name `own` (else the `target` of the first
+/// `base` element that has one) is the current one.
+fn names_current_context(rt: &Runtime, own: Option<String>) -> VmResult<bool> {
+    let document = dom(rt)?;
+    let target = own.or_else(|| {
+        document
+            .descendants(NodeId::DOCUMENT)
+            .filter(|&n| document.is_html_element(n, &local_name!("base")))
+            .find_map(|n| document.element(n)?.attr("target").map(str::to_owned))
+    });
+    Ok(target.is_none_or(|t| {
+        let t = t.trim();
+        t.is_empty()
+            || ["_self", "_parent", "_top"]
+                .iter()
+                .any(|r| t.eq_ignore_ascii_case(r))
+    }))
+}
+
+/// The script of the `javascript:` URL that the link `node` has, if any.
+fn javascript_link(rt: &mut Runtime, node: NodeId) -> VmResult<Option<String>> {
+    let href = {
+        let Some(e) = dom(rt)?.element(node) else {
+            return Ok(None);
+        };
+        let href = if e.name.ns == ns!(svg) {
+            e.svg_href()
+        } else {
+            e.attr("href")
+        };
+        match href {
+            Some(href) => href.trim().to_owned(),
+            None => return Ok(None),
+        }
+    };
+    Ok(engine_mut(rt)?
+        .parse_url(&href)
+        .and_then(|url| javascript_source(&url)))
+}
+
+/// The script of the `javascript:` URL that submitting `form` with
+/// `submitter` navigates to: the `formaction` of the submitter, else the
+/// `action` of the form.
+fn javascript_form_action(
+    rt: &mut Runtime,
+    form: NodeId,
+    submitter: Option<NodeId>,
+) -> VmResult<Option<String>> {
+    let document = dom(rt)?;
+    let action = submitter
+        .and_then(|s| document.element(s))
+        .and_then(|e| e.attr("formaction"))
+        .filter(|a| !a.is_empty())
+        .or_else(|| document.element(form).and_then(|e| e.attr("action")))
+        .map(|a| a.trim().to_owned());
+    let Some(action) = action else {
+        return Ok(None);
+    };
+    Ok(engine_mut(rt)?
+        .parse_url(&action)
+        .and_then(|url| javascript_source(&url)))
+}
+
+/// Queues the script of a `javascript:` URL as a task (HTML "navigate to
+/// a javascript: URL", step "queue a global object task"): it does not
+/// run inside the dispatch of the click or the submission.
+/// <https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url>
+fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult<()> {
+    crate::event_loop::queue_task(rt, Task::JavascriptUrl(source))
+}
+
+/// Runs the script of a `javascript:` URL in the document as a classic
+/// script; errors are reported as for a script. The value of the script
+/// is dropped: in swb a string does not replace the document (a departure,
+/// ADR 0028 "Feature 6d2 notes").
+pub(crate) fn run_javascript_url(rt: &mut Runtime, source: &str) -> VmResult<()> {
+    let name = crate::scripts::document_url(rt);
+    match rt.eval_named(source, &name) {
+        Ok(_) => Ok(()),
+        Err(ScriptError::Terminated(termination)) => Err(VmError::Terminated(termination)),
+        Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
+        Err(error) => {
+            crate::errors::report(rt, &crate::errors::Site::script(&name, source), &error)
+        }
     }
 }
 
@@ -253,14 +502,14 @@ fn is_disabled(rt: &Runtime, node: NodeId) -> VmResult<bool> {
 }
 
 /// The activation behavior of a submit button: submits its form.
-fn activate_submit(rt: &mut Runtime, button: NodeId) -> VmResult<()> {
+fn activate_submit(rt: &mut Runtime, button: NodeId, click: ClickInfo) -> VmResult<()> {
     let Some(form) = form_owner(dom(rt)?, button) else {
         return Ok(());
     };
     if is_disabled(rt, button)? {
         return Ok(());
     }
-    submit(rt, form, Some(button), false)
+    submit(rt, form, Some(button), false, click)
 }
 
 /// The activation behavior of a reset button: resets its form.
@@ -279,7 +528,12 @@ fn activate_reset(rt: &mut Runtime, button: NodeId) -> VmResult<()> {
 /// nothing if the event came from the control or from inside it, and a
 /// label that is already clicking its control does not start again, so
 /// that no chain of labels, `for` attributes and nesting can recurse.
-fn activate_label(rt: &mut Runtime, label: NodeId, origin: NodeId) -> VmResult<()> {
+fn activate_label(
+    rt: &mut Runtime,
+    label: NodeId,
+    origin: NodeId,
+    click: (bool, i32),
+) -> VmResult<()> {
     let document = dom(rt)?;
     let Some(control) = labeled_control(document, label) else {
         return Ok(());
@@ -290,18 +544,39 @@ fn activate_label(rt: &mut Runtime, label: NodeId, origin: NodeId) -> VmResult<(
     if is_disabled(rt, control)? || !state_mut(rt)?.busy.label.insert(label) {
         return Ok(());
     }
-    let result =
-        super::focus::focus_node(rt, control, true).and_then(|()| dispatch_click(rt, control));
+    let result = super::focus::focus_node(rt, control, true)
+        .and_then(|()| dispatch_click_as(rt, control, click));
     state_mut(rt)?.busy.label.remove(&label);
     result
 }
 
-/// Dispatches a synthetic `click` at `node`.
+/// Dispatches a synthetic `click` at `node` (not trusted), for `click()`.
 fn dispatch_click(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    dispatch_click_as(rt, node, (false, 0))
+}
+
+/// Dispatches the synthetic `click` of a key at `node` (Space or Enter on
+/// a button, a checkbox, a link; Enter in a field for the default button):
+/// trusted, as Chromium makes it (measured).
+pub(crate) fn simulated_click(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    if !dom(rt)?.is_connected(node) {
+        return Ok(());
+    }
+    dispatch_click_as(rt, node, (true, 0))
+}
+
+/// Dispatches a synthetic `click` at `node` that is `trusted` or not and
+/// has the `detail` of the event that caused it (a label passes the
+/// click of the user on: measured).
+fn dispatch_click_as(
+    rt: &mut Runtime,
+    node: NodeId,
+    (trusted, detail): (bool, i32),
+) -> VmResult<()> {
     let scope = rt.heap_mut().open_scope();
     let result = (|| {
         let target = WebState::wrap_node(rt, 0, node)?;
-        let event = new_click_event(rt)?;
+        let event = new_click_event(rt, trusted, detail)?;
         dispatch(rt, 0, target, event, None).map(|_| ())
     })();
     if let Err(error) = rt.heap_mut().close_scope(scope) {
@@ -348,6 +623,7 @@ pub(crate) fn submit(
     form: NodeId,
     submitter: Option<NodeId>,
     from_method: bool,
+    click: ClickInfo,
 ) -> VmResult<()> {
     let document = dom(rt)?;
     if !document.is_connected(form) || document.node_document(form) != NodeId::DOCUMENT {
@@ -356,7 +632,7 @@ pub(crate) fn submit(
     if !state_mut(rt)?.busy.submit.insert(form) {
         return Ok(());
     }
-    let result = submit_steps(rt, form, submitter, from_method);
+    let result = submit_steps(rt, form, submitter, from_method, click);
     state_mut(rt)?.busy.submit.remove(&form);
     result
 }
@@ -366,6 +642,7 @@ fn submit_steps(
     form: NodeId,
     submitter: Option<NodeId>,
     from_method: bool,
+    click: ClickInfo,
 ) -> VmResult<()> {
     if !from_method {
         if !skips_validation(dom(rt)?, form, submitter) && !validate(rt, form)? {
@@ -381,8 +658,22 @@ fn submit_steps(
             return Ok(());
         }
     }
-    engine_mut(rt)?.request_form_submission(form, submitter);
+    if let Some(source) = javascript_form_action(rt, form, submitter)? {
+        // A submission for a new context or with Ctrl, Shift or Alt held
+        // runs the script there, not in this document (measured).
+        if !click.elsewhere && form_opens_here(rt, form, submitter)? {
+            queue_javascript_url(rt, source)?;
+        }
+        return Ok(());
+    }
+    engine_mut(rt)?.request_form_submission(form, submitter, click.coordinate);
     Ok(())
+}
+
+/// The implicit submission of a form without a submit button (Enter in a
+/// field): HTML "submit" with the `submit` event.
+pub(crate) fn implicit_submit(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
+    submit(rt, form, None, false, ClickInfo::default())
 }
 
 /// HTML "interactively validate the constraints": an `invalid` event at
@@ -447,12 +738,12 @@ pub(crate) fn request_submit(
             ));
         }
     }
-    Ok(submit(cx.rt, form, submitter, false)?)
+    Ok(submit(cx.rt, form, submitter, false, ClickInfo::default())?)
 }
 
 /// `form.submit()`: no validation and no `submit` event.
 pub(crate) fn submit_method(cx: &mut Cx<'_>, form: NodeId) -> b::Result<()> {
-    Ok(submit(cx.rt, form, None, true)?)
+    Ok(submit(cx.rt, form, None, true, ClickInfo::default())?)
 }
 
 /// `form.reset()`.
