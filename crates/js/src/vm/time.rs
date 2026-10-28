@@ -102,9 +102,11 @@ impl Runtime {
     }
 
     /// The time check: a termination if the host asked for one or the
-    /// deadline has passed. Restarts the countdown.
+    /// deadline has passed. Restarts the countdown. Native functions of the
+    /// host call it after work that can take long in one call (a style or
+    /// layout flush), which the countdown does not see.
     #[cold]
-    pub(crate) fn check_time(&mut self) -> VmResult<()> {
+    pub fn check_time(&mut self) -> VmResult<()> {
         Ok(self.vm.check_time()?)
     }
 }

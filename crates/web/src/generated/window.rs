@@ -36,6 +36,9 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute Performance performance`.
     fn performance(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `CSSStyleDeclaration getComputedStyle(Element elt, optional DOMString? pseudoElt)`.
+    fn get_computed_style(cx: &mut b::Cx<'_>, this: b::Platform, elt: b::NodeId, pseudo_elt: Option<Option<String>>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `undefined reportError(any e)`.
     fn report_error(cx: &mut b::Cx<'_>, this: b::Platform, e: swb_js::Value) -> b::Result<()>;
 
@@ -1974,6 +1977,19 @@ fn set_onunload<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
     })
 }
 
+fn op_get_computed_style<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "getComputedStyle"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node(rt, v, super::ELEMENT, "Element").map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { None } else { Some((if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(1))?) };
+        let result = <H as WindowImpl>::get_computed_style(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn op_report_error<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "reportError"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
@@ -2181,6 +2197,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "onunload", (Some(get_onunload::<H> as swb_js::NativeFn), Some(set_onunload::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearInterval", 0, op_clear_interval::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearTimeout", 0, op_clear_timeout::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "getComputedStyle", 1, op_get_computed_style::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "queueMicrotask", 1, op_queue_microtask::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "reportError", 1, op_report_error::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setInterval", 1, op_set_interval::<H>, swb_js::Attributes::MEMBER)?;

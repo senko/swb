@@ -47,7 +47,7 @@ impl DocumentState {
     /// Drops the styles and everything after them (the styles are dirty).
     pub(crate) fn invalidate_styles(&mut self) {
         self.styles = None;
-        self.element_styles.clear();
+        self.clear_element_styles();
         self.invalidate_layout();
     }
 
@@ -55,6 +55,14 @@ impl DocumentState {
     pub(crate) fn invalidate_layout(&mut self) {
         self.fragments = None;
         self.display_list = None;
+        self.used_boxes = None;
+    }
+
+    /// Drops the styles of single elements and pseudo-elements that
+    /// queries computed.
+    pub(crate) fn clear_element_styles(&mut self) {
+        self.element_styles.clear();
+        self.pseudo_styles.clear();
     }
 
     /// Recomputes the styles after a change of the element states. The
@@ -126,6 +134,17 @@ impl DocumentState {
         }
         if !self.stylesheets_settled() {
             return None;
+        }
+        // Many queries without a change between them (a script that reads
+        // the style of every element): one full restyle costs less than
+        // the cascade of each element with its ancestors.
+        if self.element_styles.len() > (self.dom.len() / 16).max(256) {
+            let outer = std::mem::replace(&mut self.in_query, true);
+            self.update_style();
+            self.in_query = outer;
+            if let Some(style) = self.styles.as_ref().and_then(|s| s.get(node)) {
+                return Some(std::sync::Arc::clone(style));
+            }
         }
         if self.images.sources_outdated {
             self.select_image_sources();
@@ -352,7 +371,7 @@ impl DocumentState {
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
         self.styles_stale = false;
-        self.element_styles.clear();
+        self.clear_element_styles();
         for url in image_urls {
             if let Ok(url) = Url::parse(&url) {
                 self.start_image(url);

@@ -26,6 +26,7 @@
 
 mod longhand;
 mod props;
+pub mod resolved;
 mod shorthand;
 mod value;
 

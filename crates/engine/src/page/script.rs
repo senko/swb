@@ -28,6 +28,7 @@
 
 use std::time::{Duration, Instant};
 
+use swb_text::FontContext;
 use swb_web::{
     ConsoleMessage, DispatchTarget, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart,
     JsonForm, PageClock, ScriptRuntime, TrustedEvent,
@@ -197,9 +198,13 @@ impl Page {
         if let Some(state) = state.and_then(|s| s.into_any().downcast::<DocumentState>().ok()) {
             self.return_document_state(state);
         } else {
-            // The bindings never give the state away; this is a bug.
+            // The bindings never give the state away; this is a bug. The
+            // page's font context went with the state, so the page takes
+            // the system fonts (also if it had others, such as the test
+            // fonts) instead of the empty context, which has no glyphs.
             log::error!("the script runtime lost the document state");
             self.lent = false;
+            self.fonts = FontContext::system();
         }
         if self.script.as_ref().is_some_and(ScriptRuntime::failed) {
             log::warn!(

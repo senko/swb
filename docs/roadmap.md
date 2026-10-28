@@ -3025,6 +3025,35 @@ Steps:
         transforms as matrices), style changes that change layout
         (class toggles, `hidden`, inserted and removed style elements,
         `style` writes).
+        Done 2026-10-28. The page lends its font context with the
+        document state, so a script task can lay out; the runs count as
+        forced in `flushes`, and 7b's geometry uses the same path.
+        `getComputedStyle(element, pseudoElt)` returns a new, live,
+        read-only `CSSStyleDeclaration` at each call, as Chromium does.
+        It gives the resolved values (CSSOM) of every property that
+        `style` computes, in Chromium's form
+        (`swb_style::cssom::resolved`): sizes, margins, paddings, insets
+        and transforms come from layout in Chromium's layout units
+        (1/64 px), shorthands through `getPropertyValue`, `::before`,
+        `::after`, `::marker` and `::placeholder` with their own
+        cascade (also without a box), empty values for elements outside
+        the document. A style value costs the style of the element and
+        its ancestors; a layout value costs one layout and one walk of
+        the fragments per layout. The binding checks the task deadline
+        after each read, since a flush in one native call is invisible
+        to the interpreter's countdown (a loop of style writes and
+        layout reads on 50,000 elements ran past 30 s; now it stops at
+        the 5 s limit). Probe `web-computed-style.json` (23 cases, 316
+        queries; 46 departures with reasons, mostly swb's parsers and
+        computed values). JS off: snapshot identical, perf within noise;
+        hostile set 196 cases, 195 ok + the known failure (3 new);
+        runtime +288 bytes. The loads of the three JS targets force no
+        style or layout run. Review fixes: a margin, padding or inset of a
+        length without a percentage is the computed value, as in
+        Chromium (`padding: 0.4em` at 16px gave `6.39062px`, Chromium
+        `6.4px`); if the runtime lost the document state, the page lost
+        its fonts with it and now takes the system fonts; two probe
+        cases for fixed and percentage lengths.
       - 7b: geometry (`getBoundingClientRect`, `getClientRects`,
         `offsetTop/Left/Width/Height/Parent`, `client*`, `scroll*`),
         scrolling from scripts (`scrollTop` and `scrollLeft` setters,
@@ -3670,6 +3699,43 @@ Steps:
 - `web` (found in the 7a1 review): the conversion to `DOMString` turns
   lone surrogates into U+FFFD (`CSS.escape('a\ud800b')`, `style`
   values); Chromium keeps them.
+- `layout` (found in feature 7a2 through `getComputedStyle`): a block
+  with `width: min-content`, `max-content` or `fit-content` is laid out
+  as `auto` (Chromium sizes it to its content; an empty `div` gets
+  0px). In quirks mode the body is not stretched to the viewport height
+  (Chromium: 584px in an 800×600 viewport with 8px margins; swb: the
+  content height). An empty flex item with `margin: auto` in a row
+  container 40px high is not centered in the cross axis (Chromium:
+  margins 20px and 20px; swb places it at the top).
+- `style` (found in feature 7a2): the user-agent sheet has no
+  `table { border-color: gray }` (Chromium's table borders are
+  `rgb(128, 128, 128)` by default). Computed values lose what Chromium
+  shows: CSS Color 4 functions become 8-bit sRGB, `ex` is 0.5em,
+  `aspect-ratio` is one number, the oblique angle, `cursor` images,
+  `safe`, `last baseline` and `legacy` alignment, `list-style-type`
+  strings and counter-style names, `float: inline-start` becomes
+  `left`, the alt text of `content`.
+- `web`/`layout`, `getComputedStyle` (feature 7a2): grid containers
+  report their track sizes as specified (the used sizes are not in the
+  fragment tree); `::marker` and `::placeholder` give no layout values;
+  `::first-line`, `::selection` and the other pseudo-elements are not
+  styled (they inherit from the element); the `auto` margins of flex
+  items in the main axis and of grid items are 0px.
+- `web`/`layout`, `getComputedStyle` (found in the 7a2 review): the SVG
+  geometry properties are missing (`rect` `width` is `auto`, Chromium
+  `10px`; `r`, `cx`, `x` are empty, Chromium `3px`, `0px`, `0px`).
+  swb's layout does not snap to layout units as Chromium does: an
+  absolute box with `left: 10%` is 252.797px wide (Chromium 252.812px),
+  a block with `padding: 3.3%` 712px (712.031px), a `details` 54.3906px
+  high (54.375px). An unstyled pseudo-element (`::part(x)`) gives
+  `width: auto` (Chromium the element's width). When a late font load
+  invalidates the layout after the last layout pass of a flush, the
+  layout values fall back to the computed values (`auto`).
+- `web` (found in feature 7a2): a native function that does long work
+  in one call must call `Runtime::check_time()` after it, since the
+  interpreter's countdown does not see it. 7a2 does it for
+  `getComputedStyle` reads; 7b's geometry needs it too; check the other
+  bindings that flush or walk large structures.
 
 ## Backlog from M6
 

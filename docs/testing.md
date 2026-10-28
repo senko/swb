@@ -1107,7 +1107,12 @@ page of 50,000 elements, huge values (`cssText` of 800,000 declarations,
 a 10 MB custom property, a `font-family` of 1,000,000 names, a 10 MB
 invalid width), 100,000 `setAttribute('style')` writes with reads and
 100,000 elements with an inline style, and 200,000 custom properties in
-one `cssText` with 10,000 `setProperty` calls. The cases with
+one `cssText` with 10,000 `setProperty` calls. Cases for
+`getComputedStyle` (feature 7a2): a loop of `element.style` writes and
+reads of a value that layout resolves on a page of 50,000 elements (the
+task ends at its time limit), `getComputedStyle` of every element of a page
+of 100,000 elements in one task, and layout queries in a task and in a
+timer while 300 web fonts load. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2543,6 +2548,22 @@ code for them (a unit test of the generator checks the glue).
   `engine/src/document/tests.rs` has the invalidation from the journal
   (changes in detached subtrees and template contents keep the styles),
   the element styles against the full styles and the flush counters.
+- `crates/engine/tests/computed_style.rs`: `getComputedStyle` (feature
+  7a2): every case of `tools/probes/web-computed-style.json` (23 cases,
+  316 queries: the 843 values of `web-cssom-values.json` read through
+  `getComputedStyle` in a box of 400x300, the object and its errors,
+  colors, values that layout resolves, grid, fonts, shorthands,
+  pseudo-elements, elements that are not rendered or not in the document,
+  style changes seen through a live declaration, quirks mode) with
+  Chromium's values (`tests/computed_style/cases.rs`, generated from the
+  probe's `--json` output with the URLs of the probe's directory written
+  `BASE/`; three equal Chromium runs). `SWB_VALUES` lists the departures
+  with their reasons (swb's parsers and computed values, the grid track
+  sizes, `::marker`, `::placeholder` and the pseudo-elements that swb does
+  not style, the number of properties, and three layout differences of
+  the backlog). Also: the flush counters of a style value and of a value
+  that layout resolves, and the font context that a task lends. The rules
+  that need no document are tested in `swb_style::cssom::resolved`.
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

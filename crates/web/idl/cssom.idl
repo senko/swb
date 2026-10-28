@@ -1,7 +1,7 @@
 // Source: CSS Object Model (CSSOM), W3C Editor's Draft,
 // https://drafts.csswg.org/cssom/ (§6.7 "CSS Declarations",
-// `CSSStyleDeclaration`, and §7.1 "The ElementCSSInlineStyle Mixin"),
-// copied on 2026-10-28.
+// `CSSStyleDeclaration`, §7.1 "The ElementCSSInlineStyle Mixin" and §9
+// "Extensions to the Window Interface"), copied on 2026-10-28.
 //
 // This file includes material copied from CSS Object Model (CSSOM),
 // https://drafts.csswg.org/cssom/. Copyright © 2026 World Wide Web
@@ -9,8 +9,9 @@
 // (W3C Software and Document License; the full notice is in
 // THIRD_PARTY_NOTICES.md).
 //
-// swb cut this file to `CSSStyleDeclaration` and `ElementCSSInlineStyle`
-// (M8 feature 7a). Changes:
+// swb cut this file to `CSSStyleDeclaration`, `ElementCSSInlineStyle`
+// (M8 feature 7a1) and `getComputedStyle` (§9 "Extensions to the Window
+// Interface", feature 7a2). Changes:
 //
 // - `parentRule` is `object?` (no `CSSRule` yet; it is always null for the
 //   declarations of a `style` attribute).
@@ -24,6 +25,9 @@
 //   swb parses, without an accessor pair per property.
 // - `MathMLElement includes ElementCSSInlineStyle` is cut (no
 //   `MathMLElement` interface).
+// - `getComputedStyle` has `[NewObject]`: Chromium returns a new object at
+//   each call (measured: `getComputedStyle(e) === getComputedStyle(e)` is
+//   false).
 //
 // The `CSS` namespace (`CSS.supports`, `CSS.escape`) is written by hand
 // (`crates/web/src/cssom.rs`): the generator has no namespaces.
@@ -52,3 +56,7 @@ interface mixin ElementCSSInlineStyle {
 
 HTMLElement includes ElementCSSInlineStyle;
 SVGElement includes ElementCSSInlineStyle;
+
+partial interface Window {
+  [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+};

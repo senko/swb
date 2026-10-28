@@ -22,13 +22,16 @@
 //! and their completions, image sources, web fonts), `scripts.rs` (the
 //! fetches of the scripts of script elements, the style sheets that block
 //! scripts), `pipeline.rs` (style, layout, display list, raster),
-//! `queries.rs` (geometry, scrolling, hit testing, rendered text).
+//! `queries.rs` (geometry, scrolling, hit testing, rendered text),
+//! `resolved.rs` (`getComputedStyle` and the layout flush of a script
+//! task).
 
 mod changes;
 mod derived;
 mod loads;
 mod pipeline;
 mod queries;
+mod resolved;
 mod script_actions;
 mod script_forms;
 mod scripts;
@@ -188,6 +191,16 @@ pub struct DocumentState {
     /// queries while `styles` is `None` (ADR 0028 section 9); dropped with
     /// the styles and at each change of the element states.
     pub(crate) element_styles: std::collections::HashMap<NodeId, Arc<swb_style::ComputedStyle>>,
+    /// The styles of pseudo-elements that `getComputedStyle` asked for
+    /// (also those without a box); dropped with `element_styles`.
+    pub(crate) pseudo_styles:
+        std::collections::HashMap<(NodeId, swb_style::PseudoKind), Arc<swb_style::ComputedStyle>>,
+    /// The used boxes of the layout with the serial, built at the first
+    /// query of a resolved value that needs them (`resolved.rs`).
+    pub(crate) used_boxes: Option<(u64, resolved::BoxIndex)>,
+    /// The page's font context while the state is lent to a script task
+    /// (ADR 0028 section 2): the layout flushes of queries use it.
+    pub(crate) lent_fonts: Option<swb_text::FontContext>,
     /// The DOM generation at the last drain of the journal.
     drained: Option<u64>,
     /// The loads that the document started, for the tests of resource
@@ -251,6 +264,9 @@ impl DocumentState {
             flushes: FlushCounters::default(),
             in_query: false,
             element_styles: std::collections::HashMap::new(),
+            pseudo_styles: std::collections::HashMap::new(),
+            used_boxes: None,
+            lent_fonts: None,
             drained: None,
             #[cfg(test)]
             load_log: Vec::new(),
@@ -416,6 +432,23 @@ impl swb_web::EngineHost for DocumentState {
 
     fn checked_radio_in_group(&mut self, radio: NodeId) -> Option<NodeId> {
         self.script_checked_radio(radio)
+    }
+
+    fn computed_style(
+        &mut self,
+        element: NodeId,
+        pseudo: Option<swb_style::cssom::resolved::PseudoElement>,
+    ) -> Option<Arc<swb_style::ComputedStyle>> {
+        self.query_computed_style(element, pseudo)
+    }
+
+    fn resolved_value(
+        &mut self,
+        element: NodeId,
+        pseudo: Option<swb_style::cssom::resolved::PseudoElement>,
+        property: &str,
+    ) -> String {
+        self.resolved_value(element, pseudo, property)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
@@ -635,7 +668,7 @@ impl DocumentState {
         if changed.is_empty() {
             return (false, old_focus);
         }
-        self.element_styles.clear();
+        self.clear_element_styles();
         let affected = self
             .stylist
             .as_ref()

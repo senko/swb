@@ -101,7 +101,7 @@ impl DocumentState {
         if changed.is_empty() {
             return;
         }
-        self.element_styles.clear();
+        self.clear_element_styles();
         let affected = self
             .stylist
             .as_ref()

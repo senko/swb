@@ -1,0 +1,1131 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "values-longhand-colors",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"color\", [\"red\", \"RED\", \"#f00\", \"#FF0000\", \"#f008\", \"#ff000080\", \"rgb(255,0,0)\", \"rgb(255 0 0 / 50%)\", \"rgba(0,0,0,0.5)\", \"rgba(0,0,0,0)\", \"transparent\", \"currentColor\", \"CurrentColor\", \"hsl(120, 100%, 50%)\", \"hsla(120,100%,50%,0.3)\", \"rgb(10.5, 20, 30)\", \"rgba(0,0,0,0.123456)\", \"rgba(0,0,0,0.3)\", \"rgba(1,2,3,0.25)\", \"rgba(1,2,3,.1)\", \"rgb(300,-5,0)\", \"rgb(50%,0%,10%)\", \"foo\", \"#ggg\", \"Canvas\", \"canvastext\", \"-webkit-link\", \"lab(50% 20 30)\", \"oklch(0.5 0.1 120)\", \"color(srgb 1 0 0)\", \"color-mix(in srgb, red, blue)\", \"hwb(120 0% 0%)\", \"rgb(0 0 0 / 0.5)\", \"#ABCDEF\", \"aliceblue\", \"rgba(255,0,0,1)\", \"rgb(1,2,3,0.5)\", \"  red  \", \"red !important\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-color\", [\"red\", \"#0f0\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-top-color\", [\"currentcolor\", \"blue\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-lengths",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"width\", [\"10px\", \"10PX\", \"0\", \"0.5em\", \".5em\", \"10.0px\", \"1e2px\", \"50%\", \"auto\", \"calc(10px + 5px)\", \"calc(100% - 10px)\", \"calc(10px*2)\", \"calc( 50% + 2em )\", \"calc(100%/3)\", \"-10px\", \"10vw\", \"3rem\", \"1in\", \"1cm\", \"12pt\", \"1mm\", \"1q\", \"1pc\", \"2ex\", \"2ch\", \"min-content\", \"fit-content\", \"max-content\", \"10\", \"1.23456789px\", \"0.0001px\", \"1e-7px\", \"123456789px\", \"1234567.5px\", \"0.1px\", \"33.333333px\", \"+5px\", \"-0px\", \"0.000001px\", \"1e21px\", \"fit-content(10px)\", \"10px 20px\", \"stretch\", \"-webkit-fill-available\", \"min(10px, 5%)\", \"max(1px,2px)\", \"clamp(1px, 5%, 10px)\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin-top\", [\"auto\", \"-10px\", \"0\", \"5%\", \"-0.5em\"]))"
+    },
+    {
+     "js": "E(() => C(\"top\", [\"auto\", \"0\", \"-3px\", \"10%\"]))"
+    },
+    {
+     "js": "E(() => C(\"min-width\", [\"auto\", \"0\", \"10px\"]))"
+    },
+    {
+     "js": "E(() => C(\"max-height\", [\"none\", \"10px\"]))"
+    },
+    {
+     "js": "E(() => C(\"padding-left\", [\"0\", \"1px\", \"-1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-top-width\", [\"thin\", \"medium\", \"thick\", \"0\", \"2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"letter-spacing\", [\"normal\", \"0\", \"1px\", \"0.1em\"]))"
+    },
+    {
+     "js": "E(() => C(\"word-spacing\", [\"normal\", \"2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-indent\", [\"10px\", \"5%\", \"0\"]))"
+    },
+    {
+     "js": "E(() => C(\"outline-offset\", [\"0\", \"2px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-keywords",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"display\", [\"block\", \"BLOCK\", \"inline-block\", \"flex\", \"grid\", \"none\", \"contents\", \"table-cell\", \"list-item\", \"inline flex\", \"block flow\", \"inline-flex\", \"flow-root\", \"inline-grid\", \"table\", \"-webkit-box\", \"ruby\", \"math\"]))"
+    },
+    {
+     "js": "E(() => C(\"position\", [\"absolute\", \"sticky\", \"-webkit-sticky\", \"fixed\", \"static\", \"relative\"]))"
+    },
+    {
+     "js": "E(() => C(\"float\", [\"left\", \"none\", \"inline-start\"]))"
+    },
+    {
+     "js": "E(() => C(\"clear\", [\"both\"]))"
+    },
+    {
+     "js": "E(() => C(\"visibility\", [\"hidden\", \"collapse\"]))"
+    },
+    {
+     "js": "E(() => C(\"overflow-x\", [\"hidden\", \"auto\", \"clip\", \"overlay\"]))"
+    },
+    {
+     "js": "E(() => C(\"white-space\", [\"nowrap\", \"pre-wrap\", \"pre-line\", \"break-spaces\", \"normal\", \"pre\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-align\", [\"center\", \"-webkit-center\", \"start\", \"justify\", \"match-parent\", \"LEFT\"]))"
+    },
+    {
+     "js": "E(() => C(\"cursor\", [\"pointer\", \"default\", \"url(a.png), auto\", \"url(a.png) 1 2, pointer\", \"grab\", \"zoom-in\"]))"
+    },
+    {
+     "js": "E(() => C(\"box-sizing\", [\"border-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-transform\", [\"uppercase\", \"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"word-break\", [\"break-all\", \"break-word\"]))"
+    },
+    {
+     "js": "E(() => C(\"overflow-wrap\", [\"anywhere\", \"break-word\"]))"
+    },
+    {
+     "js": "E(() => C(\"pointer-events\", [\"none\", \"auto\", \"visiblePainted\"]))"
+    },
+    {
+     "js": "E(() => C(\"user-select\", [\"none\", \"text\", \"all\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-user-select\", [\"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"vertical-align\", [\"middle\", \"-2px\", \"10%\", \"baseline\", \"text-top\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-overflow\", [\"ellipsis\", \"clip\"]))"
+    },
+    {
+     "js": "E(() => C(\"table-layout\", [\"fixed\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-collapse\", [\"collapse\"]))"
+    },
+    {
+     "js": "E(() => C(\"list-style-type\", [\"disc\", \"DECIMAL\", \"none\", \"'-'\", \"\\\"*\\\"\", \"lower-roman\", \"foo\"]))"
+    },
+    {
+     "js": "E(() => C(\"list-style-position\", [\"inside\"]))"
+    },
+    {
+     "js": "E(() => C(\"direction\", [\"rtl\"]))"
+    },
+    {
+     "js": "E(() => C(\"unicode-bidi\", [\"isolate\", \"bidi-override\"]))"
+    },
+    {
+     "js": "E(() => C(\"object-fit\", [\"cover\"]))"
+    },
+    {
+     "js": "E(() => C(\"scrollbar-width\", [\"none\", \"thin\"]))"
+    },
+    {
+     "js": "E(() => C(\"hyphens\", [\"auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"caption-side\", [\"bottom\"]))"
+    },
+    {
+     "js": "E(() => C(\"empty-cells\", [\"hide\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-decoration-line\", [\"underline\", \"underline overline\", \"overline underline\", \"line-through underline\", \"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-decoration-style\", [\"dotted\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex-direction\", [\"column\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex-wrap\", [\"wrap\"]))"
+    },
+    {
+     "js": "E(() => C(\"justify-content\", [\"center\", \"space-between\", \"flex-start\", \"safe center\", \"normal\", \"left\"]))"
+    },
+    {
+     "js": "E(() => C(\"align-items\", [\"center\", \"baseline\", \"first baseline\", \"last baseline\", \"stretch\", \"normal\"]))"
+    },
+    {
+     "js": "E(() => C(\"align-self\", [\"auto\", \"flex-end\"]))"
+    },
+    {
+     "js": "E(() => C(\"align-content\", [\"space-around\"]))"
+    },
+    {
+     "js": "E(() => C(\"justify-items\", [\"legacy center\", \"center legacy\", \"start\"]))"
+    },
+    {
+     "js": "E(() => C(\"justify-self\", [\"end\"]))"
+    },
+    {
+     "js": "E(() => C(\"contain\", [\"strict\", \"content\", \"layout paint\", \"paint layout\", \"size layout style paint\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-top-style\", [\"solid\", \"none\", \"hidden\", \"double\", \"inset\"]))"
+    },
+    {
+     "js": "E(() => C(\"outline-style\", [\"auto\", \"solid\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-style\", [\"italic\", \"oblique\", \"oblique 10deg\", \"normal\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-variant-caps\", [\"small-caps\", \"all-small-caps\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-stretch\", [\"condensed\", \"75%\", \"normal\", \"ultra-expanded\", \"150.5%\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-attachment\", [\"fixed\", \"scroll, local\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-repeat\", [\"no-repeat\", \"repeat-x\", \"repeat-y\", \"repeat no-repeat\", \"repeat repeat\", \"space round\", \"no-repeat, repeat\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-clip\", [\"text\", \"padding-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"fill-rule\", [\"evenodd\"]))"
+    },
+    {
+     "js": "E(() => C(\"stroke-linecap\", [\"round\"]))"
+    },
+    {
+     "js": "E(() => C(\"shape-rendering\", [\"crispEdges\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-mode\", [\"alpha\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-type\", [\"alpha\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-numbers",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"opacity\", [\"0.5\", \".5\", \"50%\", \"1.0\", \"2\", \"-1\", \"0\", \"1\", \"0.333333333\", \"1e-3\", \"calc(0.5 + 0.1)\"]))"
+    },
+    {
+     "js": "E(() => C(\"z-index\", [\"10\", \"auto\", \"1.5\", \"-1\", \"+3\", \"0\", \"2147483648\", \"1e3\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex-grow\", [\"1\", \"1.5\", \"0\", \"-1\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex-shrink\", [\"0\", \"2\"]))"
+    },
+    {
+     "js": "E(() => C(\"order\", [\"-1\", \"3\"]))"
+    },
+    {
+     "js": "E(() => C(\"line-height\", [\"1.5\", \"normal\", \"20px\", \"150%\", \"0\", \"1\", \"1.25em\", \"-1\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-weight\", [\"bold\", \"700\", \"550\", \"normal\", \"bolder\", \"lighter\", \"100\", \"1000\", \"0\", \"1\", \"400.5\"]))"
+    },
+    {
+     "js": "E(() => C(\"tab-size\", [\"4\", \"10px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => C(\"column-count\", [\"auto\", \"3\"]))"
+    },
+    {
+     "js": "E(() => C(\"fill-opacity\", [\"0.5\", \"50%\"]))"
+    },
+    {
+     "js": "E(() => C(\"stroke-width\", [\"1\", \"2px\", \"5%\"]))"
+    },
+    {
+     "js": "E(() => C(\"stroke-miterlimit\", [\"4\"]))"
+    },
+    {
+     "js": "E(() => C(\"stroke-dasharray\", [\"none\", \"1 2\", \"1,2\", \"5px 10%\"]))"
+    },
+    {
+     "js": "E(() => C(\"aspect-ratio\", [\"auto\", \"16 / 9\", \"16/9\", \"2\", \"auto 1/1\", \"1 / 1 auto\", \"0.5\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-size\", [\"12px\", \"medium\", \"larger\", \"120%\", \"1.2em\", \"XX-Small\", \"xxx-large\", \"0\", \"smaller\", \"math\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-fonts",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"font-family\", [\"Arial\", \"\\\"Times New Roman\\\"\", \"sans-serif\", \"'a b'\", \"Arial  ,  Helvetica\", \"Helvetica Neue\", \"\\\"Arial\\\"\", \"SANS-SERIF\", \"'sans-serif'\", \"system-ui\", \"-apple-system\", \"BlinkMacSystemFont, 'Segoe UI', Roboto\", \"a\\\\,b\", \"\\\"a\\\\\\\"b\\\"\", \"1abc\", \"serif, monospace\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-feature-settings\", [\"normal\", \"\\\"liga\\\" 0\", \"'smcp', 'kern' 1\", \"\\\"liga\\\" on\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-variation-settings\", [\"normal\", \"\\\"wght\\\" 400\", \"'wdth' 75.5\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-transforms",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"transform\", [\"none\", \"translate(10px, 20px)\", \"translate(10px,20px)\", \"translateX(10px)\", \"translate(10px)\", \"rotate(45deg)\", \"scale(2)\", \"scale(1.5, 2)\", \"matrix(1,0,0,1,0,0)\", \"translate3d(1px,2px,3px)\", \"translate3d(10px, 20px, 0)\", \"rotate(0.5turn)\", \"skewX(10deg)\", \"translate(0)\", \"translateX(0)\", \"translate(10px) rotate(5deg)\", \"TRANSLATE(1PX)\", \"rotate(0)\", \"scale3d(1,2,3)\", \"matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)\", \"perspective(100px)\", \"translateY(-50%)\", \"rotateX(10deg)\", \"rotateZ(1rad)\", \"skew(10deg, 20deg)\", \"skew(10deg)\", \"scaleX(-1)\", \"translate(calc(10px + 5px))\", \"rotate(90grad)\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-transform\", [\"rotate(1deg)\"]))"
+    },
+    {
+     "js": "E(() => C(\"transform-origin\", [\"center\", \"left top\", \"top left\", \"10px 20px\", \"50% 50% 0\", \"50% 50%\", \"right\", \"bottom\", \"0 0\", \"center center\", \"left 10px\", \"10px 20px 5px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-images",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"background-image\", [\"url(a.png)\", \"url(\\\"a.png\\\")\", \"url('a b.png')\", \"none\", \"linear-gradient(red, blue)\", \"linear-gradient(to right, red 0%, blue 100%)\", \"linear-gradient(45deg,red,blue)\", \"radial-gradient(circle, red, blue)\", \"url(a.png), none\", \"url(data:image/png;base64,AA==)\", \"url()\", \"image-set(url(a.png) 1x)\", \"-webkit-linear-gradient(top, red, blue)\", \"repeating-linear-gradient(red 0, blue 10px)\", \"conic-gradient(red, blue)\", \"linear-gradient(rgba(0,0,0,.5), #fff)\"]))"
+    },
+    {
+     "js": "E(() => C(\"list-style-image\", [\"none\", \"url(a.png)\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-image\", [\"url(a.svg)\", \"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"content\", [\"\\\"a\\\"\", \"none\", \"normal\", \"counter(x)\", \"attr(title)\", \"\\\"a\\\" \\\"b\\\"\", \"url(a.png)\", \"counters(x, '.')\", \"open-quote\", \"''\", \"\\\"\\\\\\\"\\\"\", \"\\\"a\\\" attr(x) counter(y, upper-roman)\", \"\\\"x\\\" / \\\"alt\\\"\"]))"
+    },
+    {
+     "js": "E(() => C(\"counter-reset\", [\"x 1\", \"x\", \"none\", \"x 1 y\", \"x -1\", \"list-item\"]))"
+    },
+    {
+     "js": "E(() => C(\"counter-increment\", [\"x\", \"x 2\"]))"
+    },
+    {
+     "js": "E(() => C(\"clip-path\", [\"none\", \"inset(10px)\", \"circle(50%)\", \"url(#a)\", \"polygon(0 0, 10px 0, 0 10px)\", \"inset(1px 2px round 3px)\"]))"
+    },
+    {
+     "js": "E(() => C(\"clip\", [\"rect(1px, 2px, 3px, 4px)\", \"rect(1px 2px 3px 4px)\", \"auto\", \"rect(auto, auto, auto, auto)\"]))"
+    },
+    {
+     "js": "E(() => C(\"fill\", [\"red\", \"none\", \"url(#g)\", \"url(#g) blue\", \"context-fill\", \"currentcolor\"]))"
+    },
+    {
+     "js": "E(() => C(\"stroke\", [\"none\", \"#000\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-positions",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"background-position-x\", [\"left\", \"10px\", \"50%\", \"right 10px\", \"center\", \"left, right\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-position-y\", [\"top\", \"bottom 5px\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-size\", [\"cover\", \"contain\", \"10px auto\", \"auto\", \"auto auto\", \"50% 50%\", \"10px\", \"cover, 10px 20px\"]))"
+    },
+    {
+     "js": "E(() => C(\"object-position\", [\"center\", \"left top\", \"10px 20px\", \"right 10px bottom 5px\", \"50% 50%\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-size\", [\"contain\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-repeat\", [\"no-repeat\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-composite\", [\"add\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-clip\", [\"no-clip\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask-position-x\", [\"left\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-top-left-radius\", [\"5px\", \"5px 10px\", \"5px 5px\", \"50%\", \"0\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-grid",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"grid-template-columns\", [\"1fr 1fr\", \"repeat(3, 1fr)\", \"100px auto\", \"none\", \"[a] 10px [b c] 1fr\", \"minmax(100px, 1fr) 2fr\", \"repeat(auto-fill, minmax(100px, 1fr))\", \"subgrid\", \"fit-content(100px)\", \"repeat(2, [a] 10px)\", \"masonry\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-template-rows\", [\"auto\", \"10px 20px\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-template-areas\", [\"none\", \"\\\"a b\\\" \\\"c d\\\"\", \"'a  b'  'c d'\", \"\\\"a . b\\\"\", \"\\\"a ... b\\\"\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-auto-columns\", [\"1fr\", \"100px 200px\", \"minmax(10px, auto)\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-auto-rows\", [\"auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-auto-flow\", [\"row\", \"column\", \"dense\", \"row dense\", \"dense column\", \"column dense\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-row-start\", [\"1\", \"auto\", \"span 2\", \"a\", \"a 2\", \"2 a\", \"span a\", \"-1\", \"span 2 a\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-column-end\", [\"span 3\", \"auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"row-gap\", [\"normal\", \"10px\", \"5%\"]))"
+    },
+    {
+     "js": "E(() => C(\"column-gap\", [\"normal\", \"1em\"]))"
+    },
+    {
+     "js": "E(() => C(\"column-width\", [\"auto\", \"100px\"]))"
+    },
+    {
+     "js": "E(() => C(\"contain-intrinsic-width\", [\"none\", \"100px\", \"auto 100px\", \"auto none\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-custom",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"--x\", [\"10px\", \"  a  b  \", \"red\", \"{a:b}\", \"\", \"  \", \"  10px  /* c */  \", \"var(--y)\", \"initial\", \"INHERIT\", \"a!important\"]))"
+    },
+    {
+     "js": "E(() => C(\"--Foo\", [\"bar\"]))"
+    },
+    {
+     "js": "E(() => C(\"color\", [\"var(--c)\", \"var(--c, red)\", \"VAR(--c)\", \"  var( --c )  \", \"env(foo)\", \"var(--c) !important\"]))"
+    },
+    {
+     "js": "E(() => C(\"width\", [\"calc(var(--w) * 2)\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin\", [\"var(--m)\", \"1px var(--m)\"]))"
+    },
+    {
+     "js": "E(() => C(\"border\", [\"var(--b)\"]))"
+    },
+    {
+     "js": "E(() => C(\"font\", [\"var(--f)\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-longhand-wide",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"color\", [\"inherit\", \"INITIAL\", \"unset\", \"revert\", \"revert-layer\", \"inherit inherit\", \"default\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin\", [\"inherit\", \"initial\", \"unset\", \"revert\"]))"
+    },
+    {
+     "js": "E(() => C(\"border\", [\"initial\"]))"
+    },
+    {
+     "js": "E(() => C(\"background\", [\"inherit\"]))"
+    },
+    {
+     "js": "E(() => C(\"font\", [\"inherit\"]))"
+    },
+    {
+     "js": "E(() => C(\"--x\", [\"inherit\"]))"
+    }
+   ]
+  },
+  {
+   "name": "values-shorthands",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0 } #c { width: 400px; height: 300px; font-size: 20px; position: relative; color: rgb(0, 0, 255) }</style></head><body><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C(\"margin\", [\"1px\", \"1px 2px\", \"1px 2px 3px\", \"1px 2px 3px 4px\", \"auto\", \"0\", \"1px 1px 1px 1px\", \"1px 2px 1px 2px\", \"1px 2px 3px 2px\", \"0 auto\", \"1px 2px 3px 4px 5px\", \"1px,2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"padding\", [\"1px 2px\", \"0\", \"-1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"inset\", [\"0\", \"1px auto\", \"auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin-block\", [\"1px\", \"1px 2px\", \"auto 1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin-inline\", [\"1px 2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"padding-inline\", [\"3px\"]))"
+    },
+    {
+     "js": "E(() => C(\"inset-inline\", [\"1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border\", [\"1px solid red\", \"solid\", \"1px\", \"none\", \"2px dashed\", \"red\", \"0\", \"medium none currentcolor\", \"1px solid\", \"solid red 1px\", \"thin solid #f00\", \"1px solid rgba(0,0,0,.1)\", \"1px 2px solid\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-top\", [\"1px solid red\", \"none\", \"2px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-left\", [\"thick double blue\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-width\", [\"1px 2px\", \"1px\", \"thin medium\", \"1px 2px 3px 4px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-style\", [\"solid dashed\", \"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-color\", [\"red blue\", \"red\", \"red #f00\", \"currentcolor\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-block\", [\"1px solid red\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-inline-width\", [\"1px 2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-radius\", [\"5px\", \"5px 10px\", \"5px / 10px\", \"1px 2px 3px 4px / 5px 6px\", \"50%\", \"0\", \"5px 5px\", \"1px 2px 3px\", \"1px / 1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-spacing\", [\"1px\", \"1px 2px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => C(\"outline\", [\"1px solid red\", \"none\", \"auto\", \"2px dotted\", \"red\", \"0\", \"thin\"]))"
+    },
+    {
+     "js": "E(() => C(\"background\", [\"red\", \"url(a.png) no-repeat center\", \"none\", \"red url(a.png)\", \"transparent\", \"url(a.png) center / cover no-repeat\", \"url(a.png) 0 0 repeat-x\", \"#fff url(a.png) repeat-y left top\", \"linear-gradient(red, blue)\", \"url(a.png), red\", \"url(a.png) fixed\", \"0 0\", \"content-box\", \"padding-box content-box\", \"url(a.png) left 10px top 5px / 10px 20px no-repeat scroll border-box padding-box red\", \"url(a.png), url(b.png) no-repeat\", \"center\"]))"
+    },
+    {
+     "js": "E(() => C(\"background-position\", [\"center\", \"left top\", \"10px 20px\", \"right 10px bottom 5px\", \"50%\", \"top\", \"0 0, center\", \"left 10px top\"]))"
+    },
+    {
+     "js": "E(() => C(\"font\", [\"12px Arial\", \"bold 12px/1.5 Arial, sans-serif\", \"italic small-caps bold 12px Arial\", \"12px/20px sans-serif\", \"caption\", \"menu\", \"small-caption\", \"message-box\", \"icon\", \"status-bar\", \"normal 400 16px/normal serif\", \"condensed 12px a\", \"italic 12px a\", \"16px\", \"12px \\\"Times New Roman\\\"\", \"oblique 10deg 12px a\", \"bold italic 12px a\", \"1.2em/1.2 a\", \"x-large a\", \"100 12px a\", \"small-caps 12px a\", \"normal normal 12px a\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-variant\", [\"small-caps\", \"normal\", \"none\", \"all-small-caps\", \"common-ligatures\"]))"
+    },
+    {
+     "js": "E(() => C(\"list-style\", [\"none\", \"square inside\", \"disc\", \"url(a.png)\", \"inside\", \"square url(a.png) inside\", \"decimal outside none\", \"none square\", \"none none\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-decoration\", [\"underline\", \"underline red dotted\", \"none\", \"red\", \"underline overline\", \"line-through 2px\", \"underline solid\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex\", [\"1\", \"auto\", \"none\", \"1 1 0\", \"2 3 10px\", \"0 0 auto\", \"1 0\", \"10px\", \"0\", \"1 1 0%\", \"1 1 auto\", \"initial\", \"2 2\", \"1 auto\", \"content\", \"0 1 auto\", \"1 1 0px\"]))"
+    },
+    {
+     "js": "E(() => C(\"flex-flow\", [\"row wrap\", \"column\", \"wrap\", \"row nowrap\", \"wrap-reverse column-reverse\"]))"
+    },
+    {
+     "js": "E(() => C(\"gap\", [\"10px\", \"10px 20px\", \"normal\", \"1em normal\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-gap\", [\"5px\"]))"
+    },
+    {
+     "js": "E(() => C(\"columns\", [\"3\", \"100px\", \"100px 3\", \"auto\", \"auto auto\", \"3 auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"overflow\", [\"hidden\", \"hidden auto\", \"auto\", \"visible hidden\", \"clip\"]))"
+    },
+    {
+     "js": "E(() => C(\"place-items\", [\"center\", \"start end\", \"center legacy\", \"baseline\"]))"
+    },
+    {
+     "js": "E(() => C(\"place-content\", [\"center\", \"space-between center\"]))"
+    },
+    {
+     "js": "E(() => C(\"place-self\", [\"auto\", \"start end\"]))"
+    },
+    {
+     "js": "E(() => C(\"contain-intrinsic-size\", [\"100px\", \"100px 200px\", \"auto 100px\", \"none\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-row\", [\"1\", \"1 / 3\", \"span 2\", \"a\", \"1 / span 2\", \"auto\", \"a / b\", \"auto / auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-column\", [\"2 / -1\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-area\", [\"1 / 2\", \"a\", \"1 / 2 / 3 / 4\", \"auto\", \"1\", \"a / b / c\", \"1 / 2 / 3\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid-template\", [\"none\", \"100px / 1fr 1fr\", \"\\\"a b\\\" 10px / 1fr 1fr\", \"auto 1fr / auto\"]))"
+    },
+    {
+     "js": "E(() => C(\"grid\", [\"none\", \"100px / 1fr\", \"auto-flow / 1fr 1fr\", \"\\\"a\\\" 10px / 1fr\", \"1fr / auto-flow dense 100px\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask\", [\"url(a.svg)\", \"none\", \"url(a.svg) no-repeat center / contain\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask\", [\"url(a.svg)\"]))"
+    },
+    {
+     "js": "E(() => C(\"mask-position\", [\"center\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask-position\", [\"left top\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask-clip\", [\"text\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-mask-composite\", [\"source-over\"]))"
+    },
+    {
+     "js": "E(() => C(\"word-wrap\", [\"break-word\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-box-sizing\", [\"border-box\"]))"
+    },
+    {
+     "js": "E(() => C(\"margin-inline-start\", [\"5px\"]))"
+    },
+    {
+     "js": "E(() => C(\"inline-size\", [\"10px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-start-start-radius\", [\"3px\"]))"
+    },
+    {
+     "js": "E(() => C(\"overflow-inline\", [\"hidden\"]))"
+    },
+    {
+     "js": "E(() => C(\"inset-block-start\", [\"1px\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-flex\", [\"1\"]))"
+    },
+    {
+     "js": "E(() => C(\"-webkit-border-radius\", [\"4px\"]))"
+    },
+    {
+     "js": "E(() => C(\"border-block-start\", [\"1px solid red\"]))"
+    },
+    {
+     "js": "E(() => C(\"font-width\", [\"condensed\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-decoration-thickness\", [\"2px\"]))"
+    },
+    {
+     "js": "E(() => C(\"text-underline-offset\", [\"2px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "object",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } </style></head><body><div id=d style='--x: 1; color: rgb(1, 2, 3)'>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const s = getComputedStyle(d); return [s === getComputedStyle(d), s instanceof CSSStyleDeclaration, String(s), s.parentRule, s.cssText, typeof s.length, s.length > 100, s.getPropertyPriority('color'), 'color' in s, s.hasOwnProperty('color'), 'fooBar' in s, s.color, s['background-color'], s.cssFloat, s.float, s.webkitTransform]; })"
+    },
+    {
+     "js": "E(() => getComputedStyle(d).setProperty('color', 'red'))"
+    },
+    {
+     "js": "E(() => getComputedStyle(d).setProperty('foo', 'red'))"
+    },
+    {
+     "js": "E(() => getComputedStyle(d).setProperty('color', ''))"
+    },
+    {
+     "js": "E(() => getComputedStyle(d).removeProperty('color'))"
+    },
+    {
+     "js": "E(() => getComputedStyle(d).removeProperty('foo'))"
+    },
+    {
+     "js": "E(() => { getComputedStyle(d).cssText = 'color: red'; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); s.color = 'red'; return s.color; })"
+    },
+    {
+     "js": "E(() => { 'use strict'; const s = getComputedStyle(d); s.color = 'red'; return s.color; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); s.cssFloat = 'left'; return s.cssFloat; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); s.foo = 1; return [s.foo, delete s.color, s.color]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); s['background-color'] = 'red'; return s.backgroundColor; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); s.backgroundColor = 'red'; return s.backgroundColor; })"
+    },
+    {
+     "js": "E(() => getComputedStyle())"
+    },
+    {
+     "js": "E(() => getComputedStyle(document))"
+    },
+    {
+     "js": "E(() => getComputedStyle(document.createTextNode('x')))"
+    },
+    {
+     "js": "E(() => getComputedStyle(null))"
+    },
+    {
+     "js": "E(() => getComputedStyle({}))"
+    },
+    {
+     "js": "E(() => [getComputedStyle.length, getComputedStyle.name, typeof window.getComputedStyle, JSON.stringify(Object.getOwnPropertyDescriptor(window, 'getComputedStyle')), 'getComputedStyle' in Window.prototype])"
+    },
+    {
+     "js": "E(() => [getComputedStyle(d, null).color, getComputedStyle(d, undefined).color, getComputedStyle(d, '').color, getComputedStyle(d, 'before').color])"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); const a = s.color; d.style.color = 'red'; const b = s.color; d.style.color = 'rgb(1, 2, 3)'; return [a, b, s.color]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); const a = Array.from(s); return [s.length === a.length, a.includes('color'), a.includes('margin'), a.includes('margin-top'), a.includes('--x'), a.includes('-webkit-mask-position-x'), JSON.stringify(a) === JSON.stringify(a.slice().sort()), s[s.length], s.item(100000), typeof s[0]]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); const a = Array.from(s); return [a.indexOf('-webkit-border-horizontal-spacing') > a.indexOf('z-index'), a.filter(n => n.startsWith('--')).join(), a[a.length - 1]]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); return [s.getPropertyValue('COLOR'), s.getPropertyValue('backgroundColor'), s.getPropertyValue('--x'), s.getPropertyValue('--y'), s.getPropertyValue('foo'), s.getPropertyValue('float'), s.getPropertyValue('word-wrap'), s.getPropertyValue('-webkit-transform'), s.getPropertyValue(' color')]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(d); return [Object.keys(s).length > 100, Object.keys(s).includes('0'), Object.keys(s).includes('color'), Object.keys(s).includes('backgroundColor'), Object.keys(s).includes('background-color')]; })"
+    }
+   ]
+  },
+  {
+   "name": "colors",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #a { color: red; background-color: rgba(0, 0, 255, 0.5); border: 1px solid; outline: 2px solid; text-decoration: underline } #b { color: transparent; border-top: 1px solid currentcolor } #c2 { color: hsl(120 100% 25%); background: #f008 } #k { color: inherit; border-bottom-color: currentcolor } svg { color: rgb(9, 8, 7) } #r { fill: currentcolor; stroke: rgb(1, 2, 3) } #t { color: rgba(10, 20, 30, 0.333); background-color: transparent; border-left-color: rgba(0, 0, 0, 0) }</style></head><body><div id=a>a<span id=k>k</span></div><div id=b>b</div><div id=c2>c</div><div id=t>t</div><svg width=10 height=10><rect id=r width=5 height=5 /></svg><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#a', ['color', 'background-color', 'border-top-color', 'border-left-color', 'outline-color', 'text-decoration-color', 'fill', 'stroke', 'border-color', 'border', 'border-top', 'outline', 'text-decoration']))"
+    },
+    {
+     "js": "E(() => G('#b', ['color', 'border-top-color', 'border-bottom-color', 'background-color', 'outline-color']))"
+    },
+    {
+     "js": "E(() => G('#c2', ['color', 'background-color', 'background']))"
+    },
+    {
+     "js": "E(() => G('#k', ['color', 'border-bottom-color', 'background-color']))"
+    },
+    {
+     "js": "E(() => G('#t', ['color', 'background-color', 'border-left-color', 'border-top-color']))"
+    },
+    {
+     "js": "E(() => G('#r', ['color', 'fill', 'stroke', 'fill-opacity', 'stroke-width', 'stroke-dasharray']))"
+    }
+   ]
+  },
+  {
+   "name": "layout",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #box { width: 400px; padding: 10px; border: 5px solid; position: relative; font-size: 10px } #pct { width: 50%; margin: 10% auto 5%; padding: 5% 2%; height: 25%; min-width: 10%; max-width: 90% } #abs { position: absolute; left: 10%; top: auto; width: 30px; height: 20px; margin: 2%; } #abs2 { position: absolute; right: 5px; bottom: 10%; } #rel { position: relative; left: auto; right: 10px; top: 5% } #rel2 { position: relative; left: 5px; right: 10px; bottom: auto } #centered { width: 100px; margin: 0 auto; height: 3em } #inl { width: 100px; height: 100px; margin: 10%; padding: 5%; top: 5% } #bb { box-sizing: border-box; width: 100px; height: 50px; padding: 10px; border: 2px solid } #none { display: none; width: 50%; margin: 10%; height: auto } #nonechild { width: 10px; padding: 10%; left: 5% } #fixed { position: fixed; right: 0; bottom: 0; width: 10px; height: 10px } #sticky { position: sticky; top: 10%; height: 10px } #flex { display: flex; width: 300px; height: 40px } #item { flex: 1 } #item2 { width: 50px; margin: auto } #tf { width: 200px; height: 100px; transform: translate(50%, 10%) rotate(30deg); transform-origin: left 25% } #tf2 { width: 100px; height: 60px; transform: scale(2) } #ib { display: inline-block; width: 30%; height: 7px; padding: 1% } #cell { display: table-cell; width: 40px; padding: 2px } #lh { line-height: normal; height: auto } #lh2 { line-height: 1.5; font-size: 20px } #contents { display: contents; width: 10px; margin: 10% } </style></head><body><div id=box><div id=pct></div><div id=abs></div><div id=abs2>x</div><div id=rel></div><div id=rel2></div><div id=centered></div><span id=inl>x</span><div id=bb></div><div id=none><p id=nonechild></p></div><div id=fixed></div><div id=sticky></div><div id=flex><div id=item></div><div id=item2></div></div><div id=tf></div><div id=tf2></div><div id=ib></div><div id=cell></div><div id=lh>a</div><div id=lh2>b</div><div id=contents></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#pct', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"min-width\", \"max-width\", \"margin\", \"padding\"]))"
+    },
+    {
+     "js": "E(() => G('#abs', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"top\", \"right\", \"bottom\", \"left\", \"inset\"]))"
+    },
+    {
+     "js": "E(() => G('#abs2', [\"width\", \"height\", \"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#rel', [\"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#rel2', [\"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#centered', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#inl', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#bb', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#none', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#nonechild', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#fixed', [\"width\", \"height\", \"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#sticky', [\"width\", \"height\", \"top\", \"right\", \"bottom\", \"left\"]))"
+    },
+    {
+     "js": "E(() => G('#item', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"flex-basis\", \"flex\"]))"
+    },
+    {
+     "js": "E(() => G('#item2', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#tf', ['transform', 'transform-origin', 'width']))"
+    },
+    {
+     "js": "E(() => G('#tf2', ['transform', 'transform-origin']))"
+    },
+    {
+     "js": "E(() => G('#ib', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#cell', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#lh', ['line-height', 'height', 'font-size']))"
+    },
+    {
+     "js": "E(() => G('#lh2', ['line-height', 'height']))"
+    },
+    {
+     "js": "E(() => G('#contents', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('#box', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\", \"border-top-width\", \"border\"]))"
+    },
+    {
+     "js": "E(() => G('body', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    },
+    {
+     "js": "E(() => G('html', [\"width\", \"height\", \"margin-top\", \"margin-right\", \"margin-bottom\", \"margin-left\", \"padding-top\", \"padding-right\", \"padding-bottom\", \"padding-left\"]))"
+    }
+   ]
+  },
+  {
+   "name": "grid",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #g { display: grid; grid-template-columns: 1fr 2fr 30px; grid-template-rows: auto 20px; width: 330px; gap: 10px } #g2 { display: grid; grid-template-columns: repeat(2, 50px); grid-auto-rows: 15px } #ng { grid-template-columns: 1fr 1fr } #ga { display: grid; grid-template-areas: 'a b'; grid-template-columns: [x] 40px [y] 1fr; width: 100px }</style></head><body><div id=g><div>a</div><div></div><div></div><div></div></div><div id=g2><i></i><i></i><i></i></div><div id=ng></div><div id=ga><b></b><b></b></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#g', ['grid-template-columns', 'grid-template-rows', 'grid-auto-rows', 'gap', 'row-gap', 'grid-template', 'grid']))"
+    },
+    {
+     "js": "E(() => G('#g2', ['grid-template-columns', 'grid-template-rows', 'grid-auto-rows']))"
+    },
+    {
+     "js": "E(() => G('#ng', ['grid-template-columns', 'grid-template-rows']))"
+    },
+    {
+     "js": "E(() => G('#ga', ['grid-template-columns', 'grid-template-areas', 'grid-area']))"
+    }
+   ]
+  },
+  {
+   "name": "fonts",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #f1 { font: italic bold 12px/30px Arial, sans-serif } #f2 { font-family: 'Times New Roman', serif; font-size: 2em; font-weight: bolder } #f3 { font-size: larger; font-family: monospace } #f4 { font: 10px a b, 'c', \"d e\", sans-serif; font-stretch: condensed; font-variant: small-caps } #f5 { font-size: 1.5rem; line-height: 1.2em; letter-spacing: 0.1em; word-spacing: 1em; text-indent: 2em }</style></head><body><div id=f1>a</div><div id=f2>b</div><div id=f3>c</div><div id=f4>d</div><div id=f5>e</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#f1', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\"]))"
+    },
+    {
+     "js": "E(() => G('#f2', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\"]))"
+    },
+    {
+     "js": "E(() => G('#f3', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\"]))"
+    },
+    {
+     "js": "E(() => G('#f4', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\"]))"
+    },
+    {
+     "js": "E(() => G('#f5', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\", \"letter-spacing\", \"word-spacing\", \"text-indent\"]))"
+    },
+    {
+     "js": "E(() => G('body', [\"font-family\", \"font-size\", \"font-weight\", \"font-style\", \"font-stretch\", \"font-variant-caps\", \"line-height\", \"font\", \"font-variant\"]))"
+    }
+   ]
+  },
+  {
+   "name": "shorthands",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #s1 { margin: 1px 2px 3px 4px; padding: 1px 2px; border-width: 1px 2px; border-style: solid dashed; border-color: red blue; border-radius: 1px 2px 3px 4px / 5px; outline: 3px dotted green; overflow: hidden auto; list-style: square inside; flex-flow: column wrap; gap: 1px 2px; place-items: center start; inset: 1px 2px 3px 4px; position: relative } #s2 { border: 2px solid rgb(1, 2, 3); border-radius: 50%; background: url(a.png) no-repeat 10px 20px / 30px red; columns: 3 100px; grid-area: 1 / 2 / 3 / 4; text-decoration: underline dotted red; flex: 2 3 10% } #s3 { border-top: 1px solid red; background-position: right 5px bottom 10%; overflow: clip; list-style: none; border-spacing: 2px 3px; place-content: center; place-self: end; contain-intrinsic-size: 10px 20px; mask: none }</style></head><body><div id=s1>a</div><div id=s2>b</div><table id=s3><tr><td>c</td></tr></table><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#s1', [\"margin\", \"padding\", \"border\", \"border-top\", \"border-right\", \"border-width\", \"border-style\", \"border-color\", \"border-radius\", \"outline\", \"overflow\", \"list-style\", \"flex-flow\", \"gap\", \"place-items\", \"inset\", \"background\", \"background-position\", \"columns\", \"grid-area\", \"grid-row\", \"grid-column\", \"text-decoration\", \"flex\", \"border-spacing\", \"place-content\", \"place-self\", \"contain-intrinsic-size\", \"mask\", \"font\", \"font-variant\", \"border-block\", \"border-inline\", \"margin-block\", \"margin-inline\", \"padding-inline\", \"inset-block\", \"border-block-start\", \"border-inline-width\", \"border-image\", \"grid\", \"grid-template\", \"mask-position\", \"-webkit-mask-position\", \"overflow-x\"]))"
+    },
+    {
+     "js": "E(() => G('#s2', [\"margin\", \"padding\", \"border\", \"border-top\", \"border-right\", \"border-width\", \"border-style\", \"border-color\", \"border-radius\", \"outline\", \"overflow\", \"list-style\", \"flex-flow\", \"gap\", \"place-items\", \"inset\", \"background\", \"background-position\", \"columns\", \"grid-area\", \"grid-row\", \"grid-column\", \"text-decoration\", \"flex\", \"border-spacing\", \"place-content\", \"place-self\", \"contain-intrinsic-size\", \"mask\", \"font\", \"font-variant\", \"border-block\", \"border-inline\", \"margin-block\", \"margin-inline\", \"padding-inline\", \"inset-block\", \"border-block-start\", \"border-inline-width\", \"border-image\", \"grid\", \"grid-template\", \"mask-position\", \"-webkit-mask-position\", \"overflow-x\"]))"
+    },
+    {
+     "js": "E(() => G('#s3', [\"margin\", \"padding\", \"border\", \"border-top\", \"border-right\", \"border-width\", \"border-style\", \"border-color\", \"border-radius\", \"outline\", \"overflow\", \"list-style\", \"flex-flow\", \"gap\", \"place-items\", \"inset\", \"background\", \"background-position\", \"columns\", \"grid-area\", \"grid-row\", \"grid-column\", \"text-decoration\", \"flex\", \"border-spacing\", \"place-content\", \"place-self\", \"contain-intrinsic-size\", \"mask\", \"font\", \"font-variant\", \"border-block\", \"border-inline\", \"margin-block\", \"margin-inline\", \"padding-inline\", \"inset-block\", \"border-block-start\", \"border-inline-width\", \"border-image\", \"grid\", \"grid-template\", \"mask-position\", \"-webkit-mask-position\", \"overflow-x\"]))"
+    }
+   ]
+  },
+  {
+   "name": "pseudo",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #p { width: 200px; color: rgb(0, 128, 0) } #p::before { content: 'ab'; color: red; width: 50px; display: inline-block; padding: 10%; height: 1em } #p::after { content: none; color: blue } #q::after { content: counter(x) '.'; position: absolute; left: 10% } #q { position: relative; width: 100px } li::marker { color: rgb(1, 2, 3) } #p::first-line { color: rgb(4, 5, 6) } #hidden::before { content: 'x'; display: none } #p::selection { color: rgb(7, 8, 9) } input::placeholder { color: rgb(10, 11, 12) }</style></head><body><div id=p>text</div><div id=q></div><ul><li id=li>i</li></ul><div id=r></div><div id=hidden></div><input id=in placeholder=x><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::before'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], ':before'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::BEFORE'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::after'))"
+    },
+    {
+     "js": "E(() => G('#q', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::after'))"
+    },
+    {
+     "js": "E(() => G('#r', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::before'))"
+    },
+    {
+     "js": "E(() => G('#hidden', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::before'))"
+    },
+    {
+     "js": "E(() => G('#li', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::marker'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::marker'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::first-line'))"
+    },
+    {
+     "js": "E(() => G('#p', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::selection'))"
+    },
+    {
+     "js": "E(() => G('#in', [\"content\", \"color\", \"width\", \"height\", \"display\", \"padding-left\", \"left\", \"position\"], '::placeholder'))"
+    },
+    {
+     "js": "E(() => ['::foo', 'before', '::before ', ' ::before', ':after', '::-webkit-scrollbar', ':hover', '::before::after', '::first-letter', ':first-line', '::backdrop', '::part(x)', '::slotted(p)', '::details-content'].map(p => { const s = getComputedStyle(document.getElementById('p'), p); return p + ' => ' + s.color + ' ' + s.content + ' ' + s.length; }))"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('p'), '::before'); const a = s.content; document.getElementById('p').id = 'p2'; const b = s.content; document.getElementById('p2').id = 'p'; return [a, b, s.content, s === getComputedStyle(document.getElementById('p'), '::before')]; })"
+    }
+   ]
+  },
+  {
+   "name": "special",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } .x { color: rgb(1, 2, 3); width: 50% } #nd { display: none; color: rgb(9, 9, 9) } #nd span { width: 20px } [hidden] { color: rgb(5, 5, 5) } head, title, script { color: rgb(2, 2, 2) }</style></head><body><div id=nd><span id=ndc class=x>a</span></div><p id=h hidden>h</p><template id=tpl><p class=x>t</p></template><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.className = 'x'; e.style.margin = '3px'; const s = getComputedStyle(e); const a = [s.color, s.display, s.width, s.marginTop, s.length, s.getPropertyValue('color'), s.cssText]; document.body.appendChild(e); const b = [s.color, s.display, s.marginTop, s.length > 0]; e.remove(); return a.concat(b, [s.color]); })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); const f = document.createElement('p'); f.className = 'x'; e.appendChild(f); const s = getComputedStyle(f); return [s.color, s.display, s.length]; })"
+    },
+    {
+     "js": "E(() => G('#nd', ['display', 'color', 'width', 'height', 'margin-top']))"
+    },
+    {
+     "js": "E(() => G('#ndc', ['display', 'color', 'width', 'height', 'font-size', 'line-height']))"
+    },
+    {
+     "js": "E(() => G('#h', ['display', 'color', 'width']))"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('tpl').content.firstElementChild); return [s.color, s.display, s.width, s.length]; })"
+    },
+    {
+     "js": "E(() => { const d = new DOMParser().parseFromString('<p class=x style=\"color: red\">p</p>', 'text/html'); const s = getComputedStyle(d.querySelector('p')); return [s.color, s.display, s.width, s.length]; })"
+    },
+    {
+     "js": "E(() => { const d = document.implementation.createHTMLDocument('t'); const p = d.createElement('p'); d.body.appendChild(p); const s = getComputedStyle(p); return [s.color, s.display, s.length]; })"
+    },
+    {
+     "js": "E(() => [G('head', ['display', 'color']), G('title', ['display', 'width']), G('script', ['display'])].join(' | '))"
+    },
+    {
+     "js": "E(() => G('html', ['display', 'color', 'font-family', 'width', 'height', 'overflow', 'background-color']))"
+    },
+    {
+     "js": "E(() => { const e = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); document.body.appendChild(e); const s = getComputedStyle(e); const r = [s.display, s.width, s.fill, s.color]; e.remove(); return r; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElementNS('http://example.com/x', 'foo'); document.body.appendChild(e); const s = getComputedStyle(e); const r = [s.display, s.width, s.color]; e.remove(); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "changes",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #w { width: 100px } #w.wide { width: 300px; color: rgb(1, 1, 1) } [data-x=y] { color: rgb(2, 2, 2); margin-left: 7px } .a + p { color: rgb(3, 3, 3) } .a ~ #sib2 { width: 33px } #list > :first-child { color: rgb(4, 4, 4) } #par { width: 400px } #child { width: 50%; padding-left: 10% } #t1 { width: 120px } #t1 span { font-size: 20px }</style></head><body><div id=w></div><p id=sib1>s</p><p id=sib2>s</p><div id=list><p id=l1>1</p></div><div id=par><div id=child></div></div><div id=txt></div><div id=t1></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); const a = [s.width, s.color]; e.classList.add('wide'); const b = [s.width, s.color]; e.classList.remove('wide'); return a.concat(b, [s.width]); })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); e.hidden = true; const a = [s.display, s.width]; e.hidden = false; return a.concat([s.display, s.width]); })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); const st = document.createElement('style'); st.textContent = '#w { color: rgb(6, 6, 6); width: 10px !important }'; document.head.appendChild(st); const a = [s.color, s.width]; st.remove(); return a.concat([s.color, s.width]); })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); const st = document.createElement('style'); document.head.appendChild(st); const a = s.width; st.textContent = '#w { width: 11px }'; const b = s.width; st.firstChild.data = '#w { width: 12px }'; const c = s.width; st.remove(); return [a, b, c, s.width]; })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); e.style.width = '123px'; const a = s.width; e.style.padding = '10%'; const b = [s.paddingLeft, s.paddingTop]; e.style.cssText = ''; return [a].concat(b, [s.width, s.paddingLeft]); })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('w'); const s = getComputedStyle(e); e.setAttribute('data-x', 'y'); const a = [s.color, s.marginLeft]; e.setAttribute('data-x', 'z'); const b = [s.color, s.marginLeft]; e.removeAttribute('data-x'); return a.concat(b); })"
+    },
+    {
+     "js": "E(() => { const s1 = getComputedStyle(sib1), s2 = getComputedStyle(sib2); const a = [s1.color, s2.width]; const d = document.createElement('div'); d.className = 'a'; sib1.before(d); const b = [s1.color, s2.width]; d.remove(); return a.concat(b, [s1.color, s2.width]); })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(l1); const a = s.color; const n = document.createElement('p'); list.prepend(n); const b = [s.color, getComputedStyle(n).color]; n.remove(); return [a].concat(b, [s.color]); })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(child); const a = [s.width, s.paddingLeft]; par.style.width = '200px'; const b = [s.width, s.paddingLeft]; par.style.width = ''; return a.concat(b, [s.width]); })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(txt); const a = s.height; txt.textContent = 'x'; const b = s.height; txt.innerHTML = 'x<br>y'; const c = s.height; txt.textContent = ''; return [a, b, c, s.height]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(t1); t1.innerHTML = '<span>abc abc abc abc abc abc abc abc</span>'; const a = s.height; t1.style.width = '60px'; const b = s.height; return [a, b]; })"
+    },
+    {
+     "js": "E(() => { const r = []; for (let i = 0; i < 5; i++) { w.style.width = (i * 10) + 'px'; r.push(getComputedStyle(w).width); } w.style.width = ''; return r; })"
+    }
+   ]
+  },
+  {
+   "name": "quirks",
+   "html": "<html><head><title>t</title><style>#a { width: 50% } </style></head><body><div id=a style='height: 10'>a</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#a', ['width', 'height', 'line-height', 'display', 'margin-top']))"
+    },
+    {
+     "js": "E(() => G('body', ['width', 'height', 'margin-top']))"
+    }
+   ]
+  },
+  {
+   "name": "extra",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #fx { display: flex; width: 200px } #gx { display: grid; width: 200px } .m { min-width: auto; min-height: auto; transform: translate(50%, 25%); width: 40px; height: 20px } #dn { display: none; transform: translate(50%); width: 40px } #sp { transform: translate(50%); transform-origin: 10% 20% } #am { position: absolute; left: 0; right: 0; width: 100px; margin: auto; top: 30px; height: 10px; margin-top: 5% } #rb { position: relative; width: 300px; height: 200px } #fl { float: left; width: 50px; margin: auto 10% } #ia { display: inline-block; width: 10px; margin: auto } #ov { overflow: auto; height: 50px; width: 100px } #ov > p { height: 200px; margin: 0; padding: 10% }</style></head><body><div id=fx><p class=m id=fi></p></div><div id=gx><p class=m id=gi></p></div><div id=dn></div><span id=sp>x</span><div id=rb><div id=am></div></div><div id=fl></div><span id=ia></span><div id=ov><p id=ovp></p></div><div id=plain></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction C(p, vs) { const c = document.getElementById('c'); return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); c.appendChild(e); const r = getComputedStyle(e).getPropertyValue(p); e.remove(); return v + ' => ' + r; }); }\nfunction G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => G('#fi', ['min-width', 'min-height', 'transform', 'transform-origin', 'width']))"
+    },
+    {
+     "js": "E(() => G('#gi', ['min-width', 'min-height', 'transform', 'transform-origin', 'width']))"
+    },
+    {
+     "js": "E(() => G('#dn', ['min-width', 'transform', 'transform-origin', 'width', 'perspective-origin']))"
+    },
+    {
+     "js": "E(() => G('#sp', ['min-width', 'transform', 'transform-origin', 'width', 'height']))"
+    },
+    {
+     "js": "E(() => G('#am', ['margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'left', 'right', 'top', 'bottom']))"
+    },
+    {
+     "js": "E(() => G('#fl', ['margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'min-width']))"
+    },
+    {
+     "js": "E(() => G('#ia', ['margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'width', 'height']))"
+    },
+    {
+     "js": "E(() => G('#ovp', ['width', 'height', 'padding-top', 'padding-left']))"
+    },
+    {
+     "js": "E(() => G('#plain', ['min-width', 'min-height', 'max-width', 'transform-origin']))"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('plain')); s.backgroundColor = 'red'; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('plain')); s.webkitTransform = 'none'; })"
+    },
+    {
+     "js": "E(() => getComputedStyle(document.getElementById('plain')).setProperty('COLOR', 'red'))"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('plain')); return [s.getPropertyValue('text-decoration-thickness'), s.getPropertyValue('text-underline-offset'), s.getPropertyValue('text-underline-position'), s.getPropertyValue('text-decoration-skip-ink'), s.getPropertyValue('mask-type'), s.getPropertyValue('overflow-inline'), s.getPropertyValue('border-image-source'), s.getPropertyValue('border-image-slice'), s.getPropertyValue('border-image-width'), s.getPropertyValue('border-image-outset'), s.getPropertyValue('border-image-repeat'), s.getPropertyValue('-webkit-border-horizontal-spacing'), s.getPropertyValue('inline-size'), s.getPropertyValue('block-size')]; })"
+    },
+    {
+     "js": "E(() => { const s = getComputedStyle(document.getElementById('plain')); const a = Array.from(s); return [a.slice(0, 3).join(), a.indexOf('z-index') < a.indexOf('-webkit-border-horizontal-spacing'), a.filter(n => n.startsWith('-webkit-')).slice(0, 3).join(), a.indexOf('align-content') < a.indexOf('align-items'), a.indexOf('margin-inline-start') >= 0, a.indexOf('inset-block-start') >= 0, a.indexOf('-webkit-mask-position-x'), a.indexOf('mask-position')]; })"
+    }
+   ]
+  },
+  {
+   "name": "fixed-lengths-em",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0;font-size:16px}\n#a{padding:0.4em 0.35em;margin:1.15em 0.7em;width:50%}\n#b{padding:3.3%;margin:1.1% 2.2%}\n#c{margin:-0.3em auto;width:10em}\n</style></head><body><div id=a></div><div id=b></div><div id=c></div><script>function G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "G('#a',[\"padding-top\", \"padding-left\", \"margin-top\", \"margin-left\", \"margin-right\", \"width\"])"
+    },
+    {
+     "js": "G('#b',[\"padding-top\", \"padding-left\", \"margin-top\", \"margin-left\", \"margin-right\", \"width\"])"
+    },
+    {
+     "js": "G('#c',[\"padding-top\", \"padding-left\", \"margin-top\", \"margin-left\", \"margin-right\", \"width\"])"
+    }
+   ]
+  },
+  {
+   "name": "fixed-lengths-positioned",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}\n#p{width:333px;height:200px;position:relative}\n#r1{position:relative;left:5.3px;top:7.77px;width:5.3px;height:6.1px;padding:1.1px;margin:2.3px}\n#r2{position:relative;left:3.3%;bottom:2.2%}\n#s1{position:sticky;top:5.3px;left:3.3%}\n#a1{position:absolute;left:5.3px;top:7.77px;width:5.3px;height:6.1px}\n#a2{position:absolute;right:5.3px;bottom:3.3%;width:10px;height:10px}\n</style></head><body><div id=p><div id=r1></div><div id=r2></div><div id=s1></div><div id=a1></div><div id=a2></div></div><script>function G(sel, ps, pseudo) { const s = getComputedStyle(document.querySelector(sel), pseudo); return ps.map(p => p + ': ' + s.getPropertyValue(p)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "G('#r1',[\"left\", \"right\", \"top\", \"bottom\", \"width\", \"height\", \"padding-top\", \"margin-top\"])"
+    },
+    {
+     "js": "G('#r2',[\"left\", \"right\", \"top\", \"bottom\", \"width\", \"height\", \"padding-top\", \"margin-top\"])"
+    },
+    {
+     "js": "G('#s1',[\"left\", \"right\", \"top\", \"bottom\", \"width\", \"height\", \"padding-top\", \"margin-top\"])"
+    },
+    {
+     "js": "G('#a1',[\"left\", \"right\", \"top\", \"bottom\", \"width\", \"height\", \"padding-top\", \"margin-top\"])"
+    },
+    {
+     "js": "G('#a2',[\"left\", \"right\", \"top\", \"bottom\", \"width\", \"height\", \"padding-top\", \"margin-top\"])"
+    }
+   ]
+  }
+ ]
+}

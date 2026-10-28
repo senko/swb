@@ -2895,3 +2895,65 @@ def many_custom_properties_js_on() -> Page:
         "a.style.getPropertyValue('--p199999'));</script>"
     )
     return Page(doc("<p id=a>x</p><p id=b>y</p>" + script))
+
+
+@case(
+    "A loop that writes element.style.width and reads getComputedStyle(e).width, which "
+    "layout resolves, 1,000,000 times on a page of 50,000 elements, with JavaScript on: "
+    "each read restyles and lays out the page, so the task ends at its time limit of 5 s "
+    "(the binding checks the deadline after each flush; feature 7a2, ADR 0028 sections 9 "
+    "and 16)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1024,
+)
+def computed_style_layout_loop_js_on() -> Page:
+    script = (
+        "<script>const e = document.getElementById('t'); let s = 0; "
+        "for (let i = 0; i < 1000000; i++) { e.style.width = (i % 500) + 'px'; "
+        "s += parseFloat(getComputedStyle(e).width); } console.log('sum ' + s);</script>"
+    )
+    rows = "<p><b>x</b></p>" * 25_000
+    return Page(doc("<div>" + rows + "</div><div id=t></div>" + script))
+
+
+@case(
+    "getComputedStyle of every element of a page of 100,000 elements in one task, with a "
+    "style value and a value that layout resolves of each, with JavaScript on: one full "
+    "restyle and one layout serve all reads (feature 7a2)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def computed_style_every_element_js_on() -> Page:
+    script = (
+        "<script>let n = 0, w = 0; for (const e of document.querySelectorAll('*')) { "
+        "const s = getComputedStyle(e); if (s.color) n++; w += parseFloat(s.width) || 0; } "
+        "console.log('styles ' + n + ' ' + Math.round(w));</script>"
+    )
+    rows = "<p><b>x</b></p>" * 50_000
+    return Page(doc("<div>" + rows + "</div>" + script))
+
+
+@case(
+    "Layout queries while the page lays out web fonts: 300 @font-face families on 300 "
+    "spans, an inline script that reads the width of each span (each layout in the task "
+    "starts font loads through the page's loader) and a timer that reads them again while "
+    "the fonts arrive, with JavaScript on (feature 7a2)",
+    swb_args=("--js", "--settle-ms", "1000"),
+    time_limit_s=10,
+)
+def computed_style_web_fonts_js_on() -> Page:
+    rules = "".join(f"@font-face{{font-family:F{i};src:url(f.ttf?{i})}}" for i in range(300))
+    spans = "".join(
+        f"<span id=s{i} style='display:inline-block;font-family:F{i}'>w{i}</span>"
+        for i in range(300)
+    )
+    script = (
+        "<script>function widths() { let w = 0; for (let i = 0; i < 300; i++) "
+        "w += parseFloat(getComputedStyle(document.getElementById('s' + i)).width); "
+        "return Math.round(w); } console.log('first ' + widths()); "
+        "let k = 0; const t = setInterval(() => { console.log('again ' + widths()); "
+        "if (++k == 5) clearInterval(t); }, 100);</script>"
+    )
+    return Page(doc(spans + script, rules), {"f.ttf": _web_font()})

@@ -2293,6 +2293,116 @@ and `swb_style::cssom` (`cssom/tests.rs`)):
   `CSS.supports('display: flex !important')` is true, a second
   `!important` makes it false); the two-argument form takes no priority.
 
+Feature 7a2 notes (`getComputedStyle` and the layout flush of a script
+task. Measured with `tools/probes/web-computed-style.json` (23 cases,
+316 queries; its value cases read the 843 values of
+`web-cssom-values.json` through `getComputedStyle`), three equal Chromium
+runs; the Rust test is `crates/engine/tests/computed_style.rs`, the
+serializer's tests are in `swb_style::cssom::resolved`):
+
+- **Layout from a script task (section 2).** The page lends its font
+  context with the document state: `Page::take_document_state` moves it
+  into the state (`DocumentState::lent_fonts`) and leaves an empty context
+  (`FontContext::empty`, which allocates nothing) in the page;
+  `return_document_state` moves it back, also when the state comes back
+  after a navigation. While the state is out, the page lays out nothing (it
+  has no document), so the empty context is never used.
+  `DocumentState::with_lent_fonts` gives the context to a query, and
+  `script_layout_flush` is the layout flush of a task (`query_layout`,
+  counted as forced). Web fonts that a layout in the task finds start
+  through the loader of the state, as in a frame; their completions wait
+  in the loader until the task ends. 7b's geometry uses the same path.
+- **The time limit.** A flush can take long in one native call, which the
+  countdown of the interpreter does not see: a loop of style writes and
+  layout reads on a page of 50,000 elements ran past 30 s. The binding
+  calls `Runtime::check_time` (now public in `js`) after each resolved
+  value, so such a loop ends at the deadline (hostile case
+  `computed-style-layout-loop-js-on`: 5.4 s).
+- **Resolved values (CSSOM §9).** `swb_style::cssom::resolved` serializes
+  the computed values of `ComputedStyle` in Chromium's form, and the values
+  that layout resolves from a `UsedBox` (border box, paddings, borders,
+  the containing block, the kind of box). The engine builds the used boxes
+  of all elements and pseudo-elements in one walk of the fragment tree at
+  the first query after a layout (`document/resolved.rs`, keyed by the
+  layout serial), so reading the width of every element costs one layout
+  and one walk (hostile case `computed-style-every-element-js-on`: 100,000
+  elements in 1.0 s). A value that does not need layout needs only a
+  style flush: the element style on demand of 7a1, or the full styles
+  when they are current; when one task asks for the styles of more than
+  1/16 of the nodes (at least 256) without a change, one full restyle
+  serves the rest (a script that reads every element). The style of a
+  pseudo-element is its own cascade, also without a box
+  (`compute_pseudo_element_style`), kept until the styles change.
+- **The object.** `getComputedStyle` is `[NewObject]` in `idl/cssom.idl`
+  (Chromium returns a new object at each call); the declaration is the
+  `CSSStyleDeclaration` of `element.style` with another target, live
+  (each read asks the engine), and read-only.
+- **Chromium behaviour found.** Colors `rgb()`/`rgba()` with
+  `currentcolor` resolved (`transparent` is `rgba(0, 0, 0, 0)`); lengths in
+  `px` with six significant digits; values from layout in layout units,
+  1/64 px truncated (`calc(100%/3)` of 400px is `133.328px`, `1cm` as a
+  width `37.7812px`; at most `3.35544e+07px`); `width` and `height` are the
+  used size (the border box with `box-sizing: border-box`), margins and
+  paddings used values, `auto` margins resolved, but a margin, padding or
+  inset of a length without a percentage is the computed value, not in
+  layout units (review fix: `padding: 0.4em` at 16px is `6.4px`, `left:
+  5.3px` is `5.3px`, while `width: 5.3px` is `5.29688px`), for elements whose box is
+  not a part of an inline box (a `span` keeps `width: 100px`, `margin: 10%`
+  as computed; `display: none` and `contents` too); insets of `absolute`
+  and `fixed` boxes from layout (an `auto` one is the rest of the
+  containing block, both `auto` the static position), of `relative` boxes
+  the specified side resolved and the other its negation (without layout
+  units: `-23.15px` against `23.1406px`), of `sticky` boxes resolved
+  against the scrollport with `auto` kept; `transform` is a `matrix()`
+  with percentages of the border box (a part of an inline box has a box of
+  0; without a box `none`), `transform-origin` in px (without a box as
+  computed); `line-height` numbers in px, `normal` stays; `min-width:
+  auto` is `0px` except for flex and grid items; `letter-spacing: 0` is
+  `normal`, `word-spacing: 0` is `0px`; `font-family` initial is `"Times
+  New Roman"`, an explicit `serif` stays; `content: none` on an element is
+  `normal`, `content: normal` on `::before` and `::after` is `none`,
+  adjacent strings are joined; background and mask lists are cut or
+  repeated to the number of images; outline width stays with style
+  `none`. Shorthands: box sides with one to four values, `border` empty
+  unless the four sides are equal, `outline` as color style width,
+  `background` with every part of each layer (`rgba(0, 0, 0, 0) none repeat
+  scroll 0% 0% / auto padding-box border-box`), `font` without its normal
+  parts (`700 12px / 18px Arial, sans-serif`), `list-style` as position
+  image type, `text-decoration` without `solid` and `currentcolor`,
+  `grid` as six parts, `grid-area` and `grid-row` without the parts the
+  shorthand would fill in. The object: `cssText` is `""`; writes throw
+  `NoModificationAllowedError` ("These styles are computed, and therefore
+  the 'color' property is read-only.", in a named setter after "Failed to
+  set a named property 'backgroundColor' on 'CSSStyleDeclaration': "; the
+  `cssText` setter "...computed, and therefore read-only."), also in
+  sloppy mode; expandos work and `delete` of a property name succeeds
+  without a change. An element that is not in the document, in template
+  contents or in another document gives `""` for every property and
+  `length` 0; once inserted the same object shows values. `pseudoElt`:
+  `::before`, `:before`, `::BEFORE` and `before` name `::before`; `' ::before'`
+  and `foo` mean the element; `'::before '`, `::foo`, `:hover` and
+  `::before::after` give an empty declaration. The list of properties is
+  alphabetical, the `-webkit-` names after the others, the custom
+  properties of the element last.
+- **Departures.** `length` and `item()` list swb's 207 longhands
+  (Chromium 456). The track sizes of grid containers stay as specified
+  (Chromium gives the used sizes; swb's fragments do not keep them).
+  `::marker` and `::placeholder` give their style but no layout values;
+  `::first-line`, `::first-letter`, `::selection` and the other
+  pseudo-elements that swb does not style inherit from the element (their
+  rules do not apply). The auto margins of flex items in the main axis and
+  of grid items are `0px`. Properties that swb accepts and does not
+  compute (`text-decoration-thickness`, `text-underline-offset`,
+  `mask-type`, the `border-image-*` longhands) give their initial values.
+  Values that swb's parsers or computed values do not keep: CSS Color 4
+  functions as `rgb()`, `aspect-ratio` as one number over 1, no oblique
+  angle, no `cursor` images, no `safe`, `last baseline` and `legacy`, no
+  3D transforms, no radial or conic gradients, no `clip-path` shapes;
+  `-apple-system` is `system-ui`. Where swb's layout differs from
+  Chromium's (intrinsic widths of blocks, the body in quirks mode, the
+  centering of an empty flex item with `margin: auto`), the values follow
+  swb's layout (backlog).
+
 ### 11. Events from the engine to scripts
 
 **Dispatch** follows DOM §2.9: the event path, capture and bubble,

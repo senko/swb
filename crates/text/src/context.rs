@@ -215,6 +215,13 @@ impl FontContext {
         }
     }
 
+    /// A context without fonts: text gets a placeholder font without
+    /// glyphs. It allocates nothing; the page keeps one while it lends its
+    /// own context to a script task.
+    pub fn empty() -> Self {
+        Self::with_source(Box::new(EmptySource))
+    }
+
     /// The system fonts. On Linux and other Unix systems this uses
     /// fontconfig, with Chromium's rules for family names and fallback. If
     /// fontconfig is not available, the context has no fonts: text gets a

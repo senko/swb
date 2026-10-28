@@ -86,6 +86,15 @@ impl g::window::WindowImpl for WebState {
         Ok(object)
     }
 
+    fn get_computed_style(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        elt: NodeId,
+        pseudo_elt: Option<Option<String>>,
+    ) -> b::Result<Gc<Object>> {
+        crate::cssom::computed_style(cx, elt, pseudo_elt.flatten().as_deref())
+    }
+
     fn report_error(cx: &mut Cx<'_>, this: Platform, e: Value) -> b::Result<()> {
         crate::timers::report_error(cx, this, e)
     }

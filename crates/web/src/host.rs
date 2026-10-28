@@ -5,13 +5,15 @@
 //! state to the runtime for each task ([`crate::ScriptRuntime::lend`]) as a
 //! `Box<dyn EngineHost>` and takes it back afterwards
 //! ([`crate::ScriptRuntime::take_back`]); [`EngineHost::into_any`] turns the
-//! box back into the engine's type. Features 7 and later add the style and
-//! layout queries here.
+//! box back into the engine's type. The style and layout queries of scripts
+//! (`getComputedStyle`, feature 7) are here too.
 
 use std::any::Any;
+use std::sync::Arc;
 
 use swb_dom::{Document, NodeId, ParseStep, TextPosition};
-use swb_style::ElementStates;
+use swb_style::cssom::resolved::PseudoElement;
+use swb_style::{ComputedStyle, ElementStates};
 
 /// The result of a script write to the value of a control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -275,6 +277,33 @@ pub trait EngineHost: Any {
     fn checked_radio_in_group(&mut self, radio: NodeId) -> Option<NodeId> {
         let _ = radio;
         None
+    }
+
+    /// The computed style of `element`, or of its pseudo-element `pseudo`
+    /// (also one without a box), for `getComputedStyle` (CSSOM §9); `None`
+    /// if the element is not in the document. The default has none.
+    fn computed_style(
+        &mut self,
+        element: NodeId,
+        pseudo: Option<PseudoElement>,
+    ) -> Option<Arc<ComputedStyle>> {
+        let _ = (element, pseudo);
+        None
+    }
+
+    /// The resolved value of `property` of `element` (or of its
+    /// pseudo-element), serialized as Chromium serializes it
+    /// (`swb_style::cssom::resolved`); empty if the element has no style.
+    /// A value that layout resolves flushes the layout (ADR 0028 section
+    /// 9). The default is empty.
+    fn resolved_value(
+        &mut self,
+        element: NodeId,
+        pseudo: Option<PseudoElement>,
+        property: &str,
+    ) -> String {
+        let _ = (element, pseudo, property);
+        String::new()
     }
 
     /// The box as `Any`, so that the engine gets its own type back.

@@ -335,10 +335,15 @@ impl Page {
     /// ([`Page::process_network`] does nothing, [`Page::wait_until_loaded`]
     /// returns at once); they are handled after the return, in their
     /// order. Moving the box costs a pointer copy.
+    ///
+    /// The page's font context goes with the state (layout queries of the
+    /// task use it, [`DocumentState::query_layout`]); the page keeps an
+    /// empty one until the return.
     pub fn take_document_state(&mut self) -> Option<Box<DocumentState>> {
-        let state = self.doc.take();
-        self.lent = state.is_some();
-        state
+        let mut state = self.doc.take()?;
+        self.lent = true;
+        state.lent_fonts = Some(std::mem::replace(&mut self.fonts, FontContext::empty()));
+        Some(state)
     }
 
     /// Gives back the state that [`Page::take_document_state`] took and
@@ -346,6 +351,9 @@ impl Page {
     /// current document's (the page navigated meanwhile) is dropped.
     pub fn return_document_state(&mut self, mut state: Box<DocumentState>) {
         self.lent = false;
+        if let Some(fonts) = state.lent_fonts.take() {
+            self.fonts = fonts;
+        }
         if self.doc.is_some() {
             log::debug!("a document came back after a navigation; dropped");
             return;

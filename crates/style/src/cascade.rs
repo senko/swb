@@ -149,6 +149,39 @@ pub fn compute_element_styles(
     out
 }
 
+/// The computed style of the pseudo-element `kind` of the element `node`
+/// for `getComputedStyle` (ADR 0028 section 10): the cascade of its rules
+/// also when it generates no box (then it inherits from the element), with
+/// `counter()` kept as written. `chain` is the styles of the element and
+/// its ancestors from [`compute_element_styles`] or the full styles, from
+/// the document element down to `node`. `None` if `node` is not the last
+/// element of the chain.
+pub fn compute_pseudo_element_style(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    chain: &[(NodeId, Arc<ComputedStyle>)],
+    kind: PseudoKind,
+) -> Option<ComputedStyle> {
+    let (node, style) = chain.last()?;
+    let state_set = StateSet::lazy(doc, states);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false);
+    if let Some((_, root)) = chain.first() {
+        styler.cx.root_font_size = root.font_size;
+    }
+    // The parent box of the pseudo-element: the element's, or for
+    // `display: contents` that of the nearest ancestor with a box.
+    let layout_parent = chain
+        .iter()
+        .rev()
+        .map(|(_, s)| s.display)
+        .find(|&d| d != Display::Contents);
+    let el = DomElement::new(doc, *node, &state_set)?;
+    styler.style_pseudo_element(&el, style, kind, layout_parent, true)
+}
+
 /// What a shareable element style depends on. The parent style is
 /// identified by its address: the style map keeps all parent styles alive
 /// while styles are computed, so addresses are not reused.
@@ -408,35 +441,12 @@ impl<'a> Styler<'a> {
             kinds.push(PseudoKind::Marker);
         }
         for kind in kinds {
-            let mut matched = std::mem::take(&mut self.matched);
-            matched.clear();
-            if self.cx.stylist.has_pseudo_rules(kind) {
-                self.cx.stylist.matching_rules(
-                    el,
-                    RuleTarget::Pseudo(kind),
-                    &self.media,
-                    self.filter.as_ref(),
-                    &mut self.matching,
-                    &mut self.scratch,
-                    &mut matched,
-                );
-            }
-            let is_marker = kind == PseudoKind::Marker;
             // Markers and placeholders always have a box (the user-agent
             // sheet has rules for both).
-            let always = is_marker || kind == PseudoKind::Placeholder;
-            if !matched.is_empty() || always {
-                let mut pseudo = cascade(
-                    &self.cx,
-                    &matched,
-                    ExtraDeclarations::default(),
-                    style,
-                    Some(data),
-                    false,
-                );
-                if !always {
-                    apply_fixups(&mut pseudo, false, pseudo_layout_parent);
-                }
+            let always = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
+            if let Some(pseudo) =
+                self.style_pseudo_element(el, style, kind, pseudo_layout_parent, false)
+            {
                 let generates_box = always
                     || (!matches!(pseudo.content, Content::Normal | Content::None)
                         && pseudo.display != Display::None);
@@ -444,11 +454,53 @@ impl<'a> Styler<'a> {
                     map.set_pseudo(el.node_id(), kind, Arc::new(pseudo));
                 }
             }
-            self.matched = matched;
         }
         if details {
             Self::style_details_pseudos(el, style, default_summary, map);
         }
+    }
+
+    /// The style of the pseudo-element `kind` of `el`, whose style is
+    /// `style`: `None` if no rule matches it and it is not a marker or a
+    /// placeholder (which always have a box), unless `always`.
+    fn style_pseudo_element(
+        &mut self,
+        el: &DomElement<'_>,
+        style: &Arc<ComputedStyle>,
+        kind: PseudoKind,
+        pseudo_layout_parent: Option<Display>,
+        always: bool,
+    ) -> Option<ComputedStyle> {
+        let mut matched = std::mem::take(&mut self.matched);
+        matched.clear();
+        if self.cx.stylist.has_pseudo_rules(kind) {
+            self.cx.stylist.matching_rules(
+                el,
+                RuleTarget::Pseudo(kind),
+                &self.media,
+                self.filter.as_ref(),
+                &mut self.matching,
+                &mut self.scratch,
+                &mut matched,
+            );
+        }
+        let boxed = matches!(kind, PseudoKind::Marker | PseudoKind::Placeholder);
+        let pseudo = (!matched.is_empty() || boxed || always).then(|| {
+            let mut pseudo = cascade(
+                &self.cx,
+                &matched,
+                ExtraDeclarations::default(),
+                style,
+                Some(el.data()),
+                false,
+            );
+            if !boxed {
+                apply_fixups(&mut pseudo, false, pseudo_layout_parent);
+            }
+            pseudo
+        });
+        self.matched = matched;
+        pseudo
     }
 
     /// Styles the pseudo-elements of a `details` element: the default

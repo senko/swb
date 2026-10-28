@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-28: M8 feature 7a2, `getComputedStyle` and layout from scripts
+
+- A script task can lay out: the page lends its font context with the
+  document state for each task. 7b's geometry uses the same path.
+  Forced runs show in `flushes`.
+- `getComputedStyle(element, pseudoElt)` returns a new, live, read-only
+  `CSSStyleDeclaration` at each call, as Chromium does. It gives the
+  values of every property that `style` computes, in Chromium's form:
+  colors with `currentcolor` resolved, lengths in px, sizes, margins,
+  paddings and insets from layout in 1/64 px units, transforms as
+  `matrix()`, shorthands. `::before`, `::after`, `::marker` and
+  `::placeholder` get their own cascade, also without a box.
+- A style value needs only the style of the element (the element style
+  on demand of 7a1); a layout value needs a layout and one walk of the
+  fragment tree per layout.
+- Learned: a style or layout flush inside one native call is invisible
+  to the interpreter's countdown. A loop of style writes and layout
+  reads on 50,000 elements ran past 30 s; the binding now checks the
+  task deadline after each read, and the loop stops at the 5 s limit.
+- Probe `web-computed-style.json`: 23 cases, 316 queries (with the 843
+  values of 7a1 read through `getComputedStyle`); 46 departures with
+  their reasons. Three layout differences that now show through
+  `getComputedStyle` are in the backlog.
+- Review fixes: a margin, padding or inset of a length without a
+  percentage is the computed value, not snapped to layout units, as in
+  Chromium (`padding: 0.4em` at 16px gave `6.39062px`; Chromium gives
+  `6.4px`). If the runtime ever loses the document state, the page now
+  takes the system fonts instead of keeping the empty font context.
+- JS off: snapshot identical, perf within noise. Hostile set 196 cases,
+  195 ok + the known failure (3 new). Runtime +288 bytes.
+
+Next: feature 7b, geometry, scrolling from scripts, `matchMedia` and
+`requestAnimationFrame`.
+
 ## 2026-10-28: M8 feature 7a1, style from scripts: invalidation, counters, `element.style`
 
 - Feature 7a is split: 7a1 is everything except `getComputedStyle`,

@@ -192,7 +192,7 @@ fn is_generic(name: &str) -> bool {
 }
 
 /// True if `s` is an identifier that needs no escapes.
-fn is_plain_identifier(s: &str) -> bool {
+pub(crate) fn is_plain_identifier(s: &str) -> bool {
     let mut out = String::new();
     swb_css::serialize_identifier(s, &mut out);
     out == s
