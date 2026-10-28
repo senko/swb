@@ -28,6 +28,7 @@
 
 mod changes;
 mod derived;
+mod geometry;
 mod loads;
 mod pipeline;
 mod queries;
@@ -198,6 +199,15 @@ pub struct DocumentState {
     /// The used boxes of the layout with the serial, built at the first
     /// query of a resolved value that needs them (`resolved.rs`).
     pub(crate) used_boxes: Option<(u64, resolved::BoxIndex)>,
+    /// The boxes of the elements of the layout with the serial, for the
+    /// geometry of scripts (`geometry.rs`), built at the first query.
+    pub(crate) geometry: Option<(u64, geometry::GeometryIndex)>,
+    /// The client rectangles of the elements at a scroll state, built at
+    /// the first query (`geometry.rs`).
+    pub(crate) client_rects: Option<geometry::RectIndex>,
+    /// The elements (the document for the viewport) that scrolled since
+    /// the page last fired `scroll` events, in the order they scrolled.
+    pub(crate) scrolled: Vec<NodeId>,
     /// The page's font context while the state is lent to a script task
     /// (ADR 0028 section 2): the layout flushes of queries use it.
     pub(crate) lent_fonts: Option<swb_text::FontContext>,
@@ -266,6 +276,9 @@ impl DocumentState {
             element_styles: std::collections::HashMap::new(),
             pseudo_styles: std::collections::HashMap::new(),
             used_boxes: None,
+            geometry: None,
+            client_rects: None,
+            scrolled: Vec::new(),
             lent_fonts: None,
             drained: None,
             #[cfg(test)]
@@ -449,6 +462,67 @@ impl swb_web::EngineHost for DocumentState {
         property: &str,
     ) -> String {
         self.resolved_value(element, pseudo, property)
+    }
+
+    fn client_rects(&mut self, element: NodeId) -> Vec<swb_web::DomRect> {
+        self.script_client_rects(element)
+    }
+
+    fn offset_metrics(&mut self, element: NodeId) -> swb_web::OffsetMetrics {
+        self.script_offset_metrics(element)
+    }
+
+    fn client_metrics(&mut self, element: NodeId) -> [i32; 4] {
+        self.script_client_metrics(element)
+    }
+
+    fn scroll_metrics(&mut self, element: NodeId) -> swb_web::ScrollMetrics {
+        self.script_scroll_metrics(element)
+    }
+
+    fn scroll_element(&mut self, element: NodeId, request: swb_web::ScrollRequest) {
+        self.script_scroll_element(element, request);
+    }
+
+    fn scroll_position(&mut self) -> (f64, f64) {
+        self.script_scroll_position()
+    }
+
+    fn scroll_viewport(&mut self, request: swb_web::ScrollRequest) {
+        self.script_scroll_viewport(request);
+    }
+
+    fn scroll_into_view(
+        &mut self,
+        element: NodeId,
+        block: swb_web::ScrollAlign,
+        inline: swb_web::ScrollAlign,
+    ) {
+        self.script_scroll_into_view(element, block, inline);
+    }
+
+    fn scrolling_element(&mut self) -> Option<NodeId> {
+        self.script_scrolling_element()
+    }
+
+    fn viewport(&self) -> swb_web::Viewport {
+        swb_web::Viewport {
+            width: f64::from(self.view.viewport.width),
+            height: f64::from(self.view.viewport.height),
+            scale: f64::from(self.view.scale),
+        }
+    }
+
+    fn elements_from_point(&mut self, x: f64, y: f64, all: bool) -> Vec<NodeId> {
+        self.script_elements_from_point(x, y, all)
+    }
+
+    fn content_size(&mut self, element: NodeId) -> Option<(f64, f64)> {
+        self.script_content_size(element)
+    }
+
+    fn event_origins(&mut self, target: NodeId) -> Option<swb_web::EventOrigins> {
+        self.script_event_origins(target)
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {

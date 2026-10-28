@@ -220,6 +220,7 @@ pub(crate) fn dispatch(
     let result = activation
         .and_then(|activation| {
             build_path(rt, realm, target, handle, target_override)?;
+            super::mouse::place_at_target(rt, event, handle, target)?;
             run_phases(rt, handle, event)?;
             Ok(activation)
         })

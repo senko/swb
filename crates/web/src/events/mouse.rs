@@ -8,10 +8,13 @@
 //! `PointerEvent` keeps them); `pageX` is `clientX` plus the scroll
 //! offset of the viewport when `view` is the window, at the time the event
 //! is made; `offsetX` and `layerX` of an event that is not dispatched are
-//! the rounded and the floored page coordinates. After the dispatch,
-//! Chromium makes them relative to the target and to its layer; swb has no
-//! layout in a script task, so they stay as they were (a departure, ADR 0028
-//! "Feature 6d1 notes"). `fromElement` and `toElement` swap for
+//! the rounded and the floored page coordinates. When a script dispatches
+//! the event, they become relative to the target (the padding edge of its
+//! first box, with the viewport's scroll: Chromium 148 gives `offsetY` 92
+//! for `clientY` 30 at `scrollY` 100 and a padding edge at 38) and to its
+//! layer (the border edge of the nearest positioned inclusive ancestor, or
+//! the page origin), from a layout in the task (feature 7b,
+//! `tools/probes/web-geometry.json`). `fromElement` and `toElement` swap for
 //! `mouseout` and `mouseleave`. `wheelDeltaX` and `wheelDeltaY` follow
 //! `deltaX` and `deltaY` truncated unless the init dictionary gives them,
 //! and `wheelDelta` is `wheelDeltaY` or, if that is 0, `wheelDeltaX`.
@@ -144,6 +147,51 @@ impl Mouse {
         };
         self.layer = (self.page.0.floor() as i32, self.page.1.floor() as i32);
     }
+}
+
+/// Makes `offsetX`, `offsetY`, `layerX` and `layerY` of a mouse event that
+/// a script dispatches at `target` relative to the target's box and its
+/// layer (see the module documentation). Events that the engine fires keep
+/// the engine's values; a target without a box (the document, an element
+/// that is not rendered) keeps the page coordinates.
+pub(crate) fn place_at_target(
+    rt: &mut Runtime,
+    event: Gc<Object>,
+    handle: Gc<swb_js::Generic>,
+    target: Gc<Object>,
+) -> VmResult<()> {
+    if !rt.implements(event.into(), g::MOUSE_EVENT) || super::data(rt, handle)?.is_trusted {
+        return Ok(());
+    }
+    let node = match rt.host_object(target.into()) {
+        Some((_, data)) if rt.implements(target.into(), g::NODE) => b::node_of(data),
+        _ => None,
+    };
+    let Some(node) = node else {
+        return Ok(());
+    };
+    let Ok(host) = crate::state::engine_mut(rt) else {
+        return Ok(());
+    };
+    let origins = host.event_origins(node);
+    let scroll = host.scroll_offset();
+    rt.check_time()?;
+    let Some(origins) = origins else {
+        return Ok(());
+    };
+    if let Extra::Ui(fields) = &mut super::data_mut(rt, handle)?.extra {
+        let m = &mut fields.mouse;
+        m.offset = (
+            m.client.0 + scroll.0 - origins.padding.0,
+            m.client.1 + scroll.1 - origins.padding.1,
+        );
+        // `as` saturates.
+        m.layer = (
+            (m.page.0 - origins.layer.0).floor() as i32,
+            (m.page.1 - origins.layer.1).floor() as i32,
+        );
+    }
+    Ok(())
 }
 
 /// The scroll offset of the viewport that the page coordinates of an event

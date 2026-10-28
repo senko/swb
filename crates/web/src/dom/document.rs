@@ -471,6 +471,32 @@ impl g::document::DocumentImpl for WebState {
     }
 
     parent_node_methods!("Document");
+
+    fn scrolling_element(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        crate::cssom_view::scrolling_element(cx.rt, this)
+    }
+
+    fn element_from_point(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        x: f64,
+        y: f64,
+    ) -> b::Result<Option<NodeId>> {
+        Ok(
+            crate::cssom_view::elements_from_point(cx.rt, this, x, y, false)?
+                .first()
+                .copied(),
+        )
+    }
+
+    fn elements_from_point(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        x: f64,
+        y: f64,
+    ) -> b::Result<Vec<NodeId>> {
+        crate::cssom_view::elements_from_point(cx.rt, this, x, y, true)
+    }
 }
 
 /// DOM "valid element local name"

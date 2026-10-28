@@ -130,6 +130,10 @@ pub(crate) struct WebState {
     pub(crate) event_loop: EventLoop,
     /// The window's `Performance` object, made at the first access.
     pub(crate) performance: Option<Gc<Object>>,
+    /// The window's `Screen` object and its `ScreenOrientation`, made at
+    /// the first access.
+    pub(crate) screen: Option<Gc<Object>>,
+    pub(crate) screen_orientation: Option<Gc<Object>>,
     /// The script elements and the script lists of the window's document.
     pub(crate) scripts: crate::scripts::Scripts,
     /// The declaration blocks of the `style` attributes that scripts read
@@ -163,8 +167,11 @@ impl HostState for WebState {
         if let Some(event) = self.current_event {
             tracer.object(event);
         }
-        if let Some(performance) = self.performance {
-            tracer.object(performance);
+        for object in [self.performance, self.screen, self.screen_orientation]
+            .into_iter()
+            .flatten()
+        {
+            tracer.object(object);
         }
         self.event_loop.trace(tracer);
     }

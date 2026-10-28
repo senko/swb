@@ -3054,17 +3054,62 @@ Steps:
         `6.4px`); if the runtime lost the document state, the page lost
         its fonts with it and now takes the system fonts; two probe
         cases for fixed and percentage lengths.
-      - 7b: geometry (`getBoundingClientRect`, `getClientRects`,
-        `offsetTop/Left/Width/Height/Parent`, `client*`, `scroll*`),
-        scrolling from scripts (`scrollTop` and `scrollLeft` setters,
-        `scrollTo`, `scrollBy`, `scrollIntoView`, `window.scroll*`,
-        `scrollX`, `scrollY`, `pageYOffset`), `innerWidth`,
-        `innerHeight`, `outerWidth`, `devicePixelRatio`, `screen`,
-        `elementFromPoint`, `innerText`; `matchMedia` with `change`
-        events; the rendering update with `requestAnimationFrame` and
-        `cancelAnimationFrame`, `resize` and `scroll` events. Tests:
+      - 7b1: geometry (`getBoundingClientRect`, `getClientRects`,
+        `offset*`, `client*`, `scroll*`), scrolling from scripts
+        (`scrollTop` and `scrollLeft` setters, `scroll`, `scrollTo`,
+        `scrollBy`, `scrollIntoView`, `window.scroll*`, `scrollX`,
+        `scrollY`, `pageXOffset`, `pageYOffset`, `scrollingElement`)
+        with their `scroll` events, the window's metrics (`innerWidth`,
+        `outerWidth`, `devicePixelRatio`, `screen`, `screenX`),
+        `elementFromPoint`, `elementsFromPoint`, `DOMRect`; the backlog
+        items marked 7b (`offsetX` and `layerX` of dispatched events,
+        the scroll of `focus()` in the task, the `scrollY` queries of
+        `web-input-real.json`, `img.width` at the layout limit). Tests:
         probe cases for the geometry of each box kind (inline, block,
-        positioned, transformed, scrolled, in tables); a rAF loop that
+        positioned, transformed, scrolled, in tables, SVG).
+        Done 2026-10-28. `crates/web/src/cssom_view.rs` (bindings) and
+        `crates/engine/src/document/geometry.rs` (engine): client
+        rectangles in Chromium's layout units (transformed boxes in
+        `f32`), `offset*` with Chromium's offset parents and rounding,
+        `client*` and `scroll*` of the root and the body in both modes,
+        script scrolls with clamping and whole-px offsets,
+        `scrollIntoView` with all alignments through every scroll
+        container, `elementFromPoint` and `elementsFromPoint`, `DOMRect`,
+        `DOMRectReadOnly`, `DOMRectList`, `screen` and
+        `screen.orientation`. Each read that can lay out flushes once
+        per change (a forced run) and checks the task deadline; two
+        indexes (the boxes of a layout, the client rectangles at a scroll
+        state) make reading every element one walk (100,000 elements in
+        1.06 s). The scrolls of the page and of scripts are recorded in
+        order, and the next frame fires `scroll` in that order (Chromium
+        fires a container before the document if it scrolled first, and
+        also after a scroll back). Dispatched mouse events get `offsetX`
+        and `layerX` from layout; `focus()` scrolls before the next
+        geometry read of the task, not at each call; `img.width` is the
+        rendered width (at most 33554428); HTML boxes with
+        `pointer-events: none` get no hit region (also for the user's
+        clicks with JavaScript off, as in Chromium). Probes
+        `web-geometry.json` (25 cases, 162 queries) and `web-scroll.json`
+        (7 cases, 113 queries), 38 departures with reasons;
+        `web-input-real.json` queries `scrollY`. JS off: snapshot
+        identical, perf within noise; hostile set 201 cases, 200 ok + the
+        known failure (5 new); runtime +37 KB. The loads of the three JS
+        targets force no style or layout run. Review fixes: a scroll
+        coordinate beyond the `f32` range scrolls to 0, as in Chromium (it
+        scrolled to the end). Open from the review (backlog): the scroll
+        methods throw on conversion errors where Chromium returns a
+        rejected promise (7b2); a `focus()` scroll is lost if the element
+        is removed or hidden before the next geometry read.
+      - 7b2: `innerText` (getter and setter); `matchMedia` with
+        `MediaQueryList` and `change` events (resize, color scheme); the
+        rendering update with `requestAnimationFrame` and
+        `cancelAnimationFrame` (the frame time from the page clock,
+        virtual time in headless; `resize`, `scroll`, media query changes
+        and rAF in the HTML order; Chromium's frame rate in virtual
+        time); the SVG geometry methods that the targets call
+        (`createSVGRect`: Leaflet on Craigslist and Wikipedia tests
+        `'createSVGRect' in svg`; Leaflet's marker spiderfier calls
+        `getTotalLength()`; BBC calls `getBBox`). Tests: a rAF loop that
         counts frames in virtual time; hostile: a rAF loop that changes
         layout every frame.
       Exit: the counters for Wikipedia are recorded in
@@ -3561,8 +3606,7 @@ Steps:
 - `web` (found in the 6c1 review): a space in `a.host` or
   `a.hostname` (Chromium writes `%20`; the `url` crate refuses it);
   `option.index` and `options[i]` loops over 100,000 options are
-  quadratic (1.8 s); `img.height = 1e10` gives 1410065408 (Chromium
-  33554428, a layout limit; feature 7b).
+  quadratic (1.8 s).
 - `web` (found in feature 6c1): `select.length`, `options.length` and
   `options[i]` after each DOM change walk the options again; the form's
   control list is rebuilt after each change, so a loop that alternates
@@ -3573,7 +3617,7 @@ Steps:
   `img.complete` and `naturalWidth` from the loaded image,
   `iframe.contentWindow`; color names in a color input are not
   converted; `form.img` is not a named property.
-- `web`, 7b (found in feature 6c2): `createSVGRect`, `createSVGPoint`,
+- `web`, 7b2 (found in feature 6c2): `createSVGRect`, `createSVGPoint`,
   `createSVGMatrix`, `getBBox`, `getCTM`, `getTotalLength` are missing
   (they need `DOMRect`, `DOMPoint`, `DOMMatrix`). Target scripts test
   `'createSVGRect' in svg` and `typeof t.getBBox == "function"` and
@@ -3587,10 +3631,6 @@ Steps:
   plain `Element`; no `Audio` factory; `new Image(undefined, 5)` sets
   no `width` (Chromium `0`); Chromium lists `Option`, `Image` and
   `Audio` in another order among the window's properties.
-- `web`, 7b (found in feature 6d1): `offsetX`, `offsetY`, `layerX` and
-  `layerY` of a dispatched event stay the page coordinates, and
-  `focus()` scrolls when the task ends; both need layout inside a
-  script task.
 - `web` (found in feature 6d1): `click()` on `input type=file` does nothing;
   `window.focus()`, `window.blur()` and `window.name` are missing; the
   constraint validation API (`checkValidity`, `reportValidity`,
@@ -3604,8 +3644,8 @@ Steps:
   being rendered (`display: none`) keeps the focus until the engine's
   next fixup; the handler table grows with the document.
 - `web`, 8a (found in the 6d1 review): lazy creation of the interface
-  objects. A runtime now costs about 1.14 MB and 3.3 ms at creation
-  (after 7a1),
+  objects. A runtime now costs about 1.18 MB and 3.6 ms at creation
+  (after 7b1),
   past the limit of about 1 ms or 1 MB in ADR 0028 (section 5, "Feature
   6c notes"). Do it before 8a adds the next interfaces.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
@@ -3638,11 +3678,11 @@ Steps:
   now sends a typed single character as `key_down` (number fields
   filter the characters); check dead keys and input methods (`keyCode`
   229 for characters that are not on the US layout).
-- `web`, 7b and 8a (found in feature 6d2): swb has no `scrollY` (7b),
-  `location` (8a) and `getSelection`, so the probe cases of
-  `web-input-real.json` cannot query the scroll position, the URL and
-  the selection after real input; only the Rust tests check them. Add
-  those queries when the members exist.
+- `web`, 8a (found in feature 6d2): swb has no `location` (8a) and
+  `getSelection`, so the probe cases of `web-input-real.json` cannot
+  query the URL and the selection after real input; only the Rust tests
+  check them. Add those queries when the members exist (7b1 added the
+  `scrollY` queries).
 - Engine (found in the 6c2 review): the dirty selectedness flag is kept
   per `select`, not per `option`. An option in a select that a script
   or the user changed does not follow later changes of its `selected`
@@ -3734,8 +3774,43 @@ Steps:
 - `web` (found in feature 7a2): a native function that does long work
   in one call must call `Runtime::check_time()` after it, since the
   interpreter's countdown does not see it. 7a2 does it for
-  `getComputedStyle` reads; 7b's geometry needs it too; check the other
-  bindings that flush or walk large structures.
+  `getComputedStyle` reads and 7b1 for the geometry and scroll
+  bindings; check the other bindings that flush or walk large
+  structures.
+- `web`, 7b2 (found in feature 7b1 and its review): Chromium 148
+  returns a rejected promise from `scroll`, `scrollTo`, `scrollBy` and
+  `scrollIntoView` when an argument does not convert (`scrollTo(5)`, a
+  bad enum, an options getter that throws) and `undefined` otherwise;
+  swb throws, which stops the page's script. Needs the Web IDL rule for
+  operations that return a promise in the generator.
+- Engine (found in the 7b1 review): the scroll of `focus()` waits until
+  the next geometry read of the task; if the script removes or hides the
+  element before it, the scroll is lost (Chromium: `focus(); remove();
+  scrollY` gives the scrolled position, swb 0).
+- `web` (found in feature 7b1 and its review): no
+  `window.visualViewport` (Chromium has it).
+  `behavior: 'smooth'` is instant (Chromium animates). There is no
+  `scrollIntoViewIfNeeded` (Chromium only, used by some sites),
+  `caretPositionFromPoint` or `caretRangeFromPoint`; `Screen` has no
+  `onchange` or `isExtended`; `screen` is the viewport, also in the GUI.
+  The table's `clientWidth` and `clientHeight` are not the wrapper
+  box's (Chromium includes the caption).
+- `layout`/`web` (found in feature 7b1): a culled inline box (no
+  borders, padding or background) gives one rectangle per line in
+  `getClientRects`; Chromium gives the rectangles of its children. SVG
+  `text` and `foreignObject` (and its HTML content) have no boxes for
+  geometry; an `area` without an image has no rectangle (Chromium: the
+  `map`'s position). Chromium's largest box is 33554428 px, swb's
+  33554432.
+- Engine (found in feature 7b1): the `offsetX` of the user's events is
+  still relative to the border box (6d2); the dispatch-time computation
+  of 7b1 (`place_at_target`) could serve them too, which changes the
+  expected values of `web-input-real.json`. A `focus()` scroll that
+  waits is applied by the next geometry query or `scrollX`/`scrollY`
+  read, but `getComputedStyle` of a sticky inset does not apply it.
+  `elementFromPoint` hit-tests the whole display list per call
+  (240,000 calls on 20,000 elements reach the 5 s limit); a spatial
+  index would help if a page needs it.
 
 ## Backlog from M6
 

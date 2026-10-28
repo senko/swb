@@ -1,0 +1,390 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "window",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => [scrollX, scrollY, pageXOffset, pageYOffset, N(document.scrollingElement)])"
+    },
+    {
+     "js": "A(() => (scrollTo(10, 20), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo({top: 100}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo({left: 5, top: 6, behavior: 'instant'}), P()))"
+    },
+    {
+     "js": "A(() => (scroll(1, 2), P()))"
+    },
+    {
+     "js": "A(() => (scroll({top: 7}), P()))"
+    },
+    {
+     "js": "A(() => (scrollBy(3, 4), scrollBy(3, 4), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(5, 5), scrollBy({top: 10}), scrollBy({left: -2, behavior: 'auto'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 1e9), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1e9, 0), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(-5, -5), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 10.4), [scrollY, pageYOffset, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 10.5), [scrollY, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 10.6), [scrollY, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (scrollTo(0.25, 0.75), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(NaN, Infinity), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 1e20), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(5, 5), scrollBy(0, -Infinity), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(5, 5), scrollBy(NaN, 10), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo({top: NaN, left: 3}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1, 2, 3), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo({top: 50}, 7), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo('10', '20'), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(null), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(undefined, 5), P()))"
+    },
+    {
+     "js": "A(() => scrollTo({behavior: 'fast'}))"
+    },
+    {
+     "js": "A(() => scrollTo(5))"
+    },
+    {
+     "js": "A(() => [scrollTo.length, scrollBy.length, scroll.length, Element.prototype.scrollTo.length, Element.prototype.scrollIntoView.length])"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollTop = 50, document.documentElement.scrollLeft = 40, [scrollY, scrollX, document.documentElement.scrollTop, document.body.scrollTop]))"
+    },
+    {
+     "js": "A(() => (document.body.scrollTop = 70, [scrollY, document.body.scrollTop]))"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollTo(3, 4), document.documentElement.scrollBy(1, 1), P()))"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollTop = 1e9, [scrollY, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollTop = 'x', document.documentElement.scrollTop))"
+    },
+    {
+     "js": "A(() => (scrollTo({top: 500, behavior: 'smooth'}), P()))"
+    },
+    {
+     "js": "(Z(), scrollTo({top: 500, behavior: 'smooth'}), after(1500).then(() => P()))"
+    },
+    {
+     "js": "A(() => [String(scrollTo(0, 0)), scroll() instanceof Promise, scrollBy(0, 0) instanceof Promise, sc.scrollTo(0, 0) instanceof Promise, sc.scrollBy(1, 1) instanceof Promise, sc.scroll() instanceof Promise, String(target.scrollIntoView()), String(document.documentElement.scroll())])"
+    },
+    {
+     "js": "(Z(), scrollTo(5).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), scrollTo({behavior: 'fast'}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), target.scrollIntoView({block: 'bad'}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), sc.scrollTo({behavior: 'fast'}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), new Promise(r => { const l = []; document.documentElement.scrollTop = 30; l.push(scrollY); r(l); }))"
+    }
+   ]
+  },
+  {
+   "name": "element",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => [sc.scrollTop, sc.scrollLeft, sc.scrollWidth, sc.scrollHeight, sc.clientWidth, sc.clientHeight])"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 50, sc.scrollLeft = 20, [sc.scrollTop, sc.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 1e9, sc.scrollLeft = 1e9, [sc.scrollTop, sc.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = -5, [sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 10.4, sc.scrollLeft = 10.5, [sc.scrollTop, sc.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 10.6, sc.scrollLeft = 0.5, [sc.scrollTop, sc.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTo(10, 20), [sc.scrollLeft, sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTo({top: 30}), sc.scrollBy(5, 5), sc.scrollBy({left: 1}), [sc.scrollLeft, sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scroll(7, 8), [sc.scrollLeft, sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = NaN, sc.scrollLeft = Infinity, [sc.scrollLeft, sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 20, sc.scrollTop = Infinity, [sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (sc.scrollTop = 1e20, [sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => (target.scrollTop = 10, target.scrollTo(5, 5), [target.scrollTop, target.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (hid.scrollTop = 30, hid.scrollLeft = 25, [hid.scrollTop, hid.scrollLeft]))"
+    },
+    {
+     "js": "A(() => (() => { const e = document.createElement('div'); e.scrollTop = 5; e.scrollTo(1, 1); return [e.scrollTop, e.scrollLeft]; })())"
+    },
+    {
+     "js": "A(() => (sc.scrollTo({top: 50, behavior: 'smooth'}), [sc.scrollTop]))"
+    },
+    {
+     "js": "A(() => [N(document.scrollingElement), document.scrollingElement === document.documentElement])"
+    }
+   ]
+  },
+  {
+   "name": "into-view",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => (target.scrollIntoView(), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView(true), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView(false), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({}), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({block: 'center', inline: 'center'}), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({block: 'end', inline: 'end'}), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({block: 'nearest', inline: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({block: 'start', inline: 'start'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1000, 1300), target.scrollIntoView({block: 'nearest', inline: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1100, 1480), target.scrollIntoView({block: 'nearest', inline: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(1100, 1480), target.scrollIntoView({block: 'center'}), P()))"
+    },
+    {
+     "js": "A(() => (big.scrollIntoView({block: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 2100), big.scrollIntoView({block: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 2500), big.scrollIntoView({block: 'nearest'}), P()))"
+    },
+    {
+     "js": "A(() => (big.scrollIntoView({block: 'center'}), P()))"
+    },
+    {
+     "js": "A(() => (big.scrollIntoView({block: 'end'}), P()))"
+    },
+    {
+     "js": "A(() => (it.scrollIntoView(), [sc.scrollLeft, sc.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (it.scrollIntoView({block: 'center', inline: 'center'}), [sc.scrollLeft, sc.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (it.scrollIntoView({block: 'end', inline: 'end'}), [sc.scrollLeft, sc.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (it.scrollIntoView({block: 'nearest', inline: 'nearest'}), [sc.scrollLeft, sc.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (t2.scrollIntoView(), [sc2.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (t2.scrollIntoView(false), [sc2.scrollTop].concat(P())))"
+    },
+    {
+     "js": "A(() => (hidin.scrollIntoView({block: 'end', inline: 'end'}), [hid.scrollTop, hid.scrollLeft].concat(P())))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({block: 'bad'}), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView(null), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView(undefined), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView(0), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView('x'), P()))"
+    },
+    {
+     "js": "A(() => (target.scrollIntoView({behavior: 'smooth'}), P()))"
+    },
+    {
+     "js": "A(() => (() => { const e = document.createElement('div'); e.scrollIntoView(); return P(); })())"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollIntoView(), document.body.scrollIntoView(false), P()))"
+    }
+   ]
+  },
+  {
+   "name": "events",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(r => { log = []; addEventListener('scroll', W); document.addEventListener('scroll', W); sc.addEventListener('scroll', W); sc2.addEventListener('scroll', W); r(1); })"
+    },
+    {
+     "js": "(log = [], Z(), after(100).then(() => (log = [], scrollTo(0, 100), log.push('sync'), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], sc.scrollTop = 10, scrollTo(0, 200), log.push('sync'), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], sc2.scrollTop = 10, sc.scrollTop = 20, log.push('sync'), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], scrollTo(0, scrollY), sc.scrollTop = sc.scrollTop, after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], scrollTo(0, 300), scrollTo(0, 200), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], scrollTo(0, 300), scrollTo(0, 200), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], target.scrollIntoView(), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], t2.scrollIntoView(), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], scrollTo(0, 0), after(0).then(() => { log.push('t0:' + scrollY); }), after(100))).then(() => log))"
+    },
+    {
+     "js": "(log = [], after(100).then(() => (log = [], scrollTo(0, 50), new Promise(r => requestAnimationFrame(() => { log.push('raf'); r(); })))).then(() => after(50)).then(() => log))"
+    }
+   ]
+  },
+  {
+   "name": "quirks",
+   "html": "<html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => [N(document.scrollingElement), scrollY])"
+    },
+    {
+     "js": "A(() => (document.body.scrollTop = 70, [scrollY, document.body.scrollTop, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (document.documentElement.scrollTop = 30, [scrollY, document.body.scrollTop, document.documentElement.scrollTop]))"
+    },
+    {
+     "js": "A(() => (document.body.scrollTo(0, 40), document.body.scrollBy(0, 2), [scrollY, document.body.scrollTop]))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 20), [document.body.scrollTop, document.body.scrollHeight, document.body.clientHeight, document.documentElement.scrollHeight, document.documentElement.clientHeight]))"
+    }
+   ]
+  },
+  {
+   "name": "short",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px }</style></head><body><div id=d>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => (scrollTo(0, 100), document.documentElement.scrollTop = 100, P()))"
+    },
+    {
+     "js": "A(() => (d.scrollIntoView(false), P()))"
+    }
+   ]
+  },
+  {
+   "name": "huge",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>#h { height: 1e9px; width: 1e9px }</style></head><body><div id=h></div><div id=end></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => [document.documentElement.scrollHeight, document.documentElement.scrollWidth, h.offsetHeight, h.getBoundingClientRect().height])"
+    },
+    {
+     "js": "A(() => (scrollTo(1e12, 1e12), P()))"
+    },
+    {
+     "js": "A(() => (end.scrollIntoView(), P().concat([end.getBoundingClientRect().top, end.offsetTop])))"
+    },
+    {
+     "js": "A(() => (scrollTo(0, 33554000), P()))"
+    }
+   ]
+  }
+ ]
+}

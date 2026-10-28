@@ -1,10 +1,11 @@
 //! What scripts ask of the engine for focus, links and forms (M8 feature
 //! 6d1, [`swb_web::EngineHost`]).
 //!
-//! A script task has no layout and no page, so some requests wait: a
-//! navigation (`a.click()`, `form.submit()`) and a scroll into view are
-//! stored in [`ScriptRequests`], and the page acts on them when the task
-//! ends ([`crate::Page`], `page/script.rs`). Focus changes the element
+//! A script task has no page, so a navigation (`a.click()`,
+//! `form.submit()`) waits: it is stored in [`ScriptRequests`], and the page
+//! acts on it when the task ends ([`crate::Page`], `page/script.rs`). The
+//! scroll into view of `focus()` waits too, but only until the next
+//! geometry query of the task (`geometry.rs`). Focus changes the element
 //! states at once; the restyle that `:focus` rules need waits for the next
 //! flush (`styles_stale`), so a loop of 100,000 `focus()` calls does not
 //! compute the styles 100,000 times. Whether an element can be focused
@@ -36,7 +37,10 @@ pub(crate) enum ScriptNavigation {
 pub(crate) struct ScriptRequests {
     /// The last navigation request of the task.
     pub(crate) navigation: Option<ScriptNavigation>,
-    /// The element to scroll into view (after a `focus()`).
+    /// The element that `focus()` scrolls into view: the scroll happens at
+    /// the next geometry query of the task (so scripts see it at once, as
+    /// in Chromium) or when the task ends, whichever comes first, so that a
+    /// loop of `focus()` calls does not lay out at each call.
     pub(crate) scroll_into_view: Option<NodeId>,
 }
 
@@ -143,11 +147,6 @@ impl DocumentState {
         }
         let value = self.script_control_value(node).unwrap_or_default();
         self.commit_baseline = Some((node, value));
-    }
-
-    /// Stores the request to scroll `node` into view.
-    pub(crate) fn script_request_scroll(&mut self, node: NodeId) {
-        self.script_requests.scroll_into_view = Some(node);
     }
 
     /// Stores the request to follow the link of `node` (an `a` or `area`

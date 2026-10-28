@@ -3,8 +3,9 @@
 //! same input steps (`swb_automation::run_steps`, the `input.*` methods),
 //! and the values of their queries are the ones that Chromium 148 gave
 //! (`tests/data/web-input-real.json`: `just probe --json
-//! tools/probes/web-input-real.json`, three equal runs). The tests below
-//! check what a probe cannot see: the scroll position, the selection, the
+//! tools/probes/web-input-real.json`, three equal runs; the cases of the
+//! wheel and keys query `scrollX` and `scrollY` since feature 7b, from one
+//! run). The tests below check what a probe cannot see: the selection, the
 //! navigations, the element states.
 
 // Test helpers outside `#[test]` functions unwrap too.

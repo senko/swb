@@ -27,6 +27,97 @@ pub enum ControlWrite {
     OverLimit,
 }
 
+/// A rectangle in CSS px, as `DOMRect` has it (CSSOM View geometry).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DomRect {
+    /// The left edge.
+    pub x: f64,
+    /// The top edge.
+    pub y: f64,
+    /// The width.
+    pub width: f64,
+    /// The height.
+    pub height: f64,
+}
+
+/// `offsetParent` and the `offset*` values of an element (CSSOM View §7,
+/// <https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface>),
+/// in whole CSS px as Chromium rounds them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct OffsetMetrics {
+    /// `offsetParent`.
+    pub parent: Option<NodeId>,
+    /// `offsetLeft`.
+    pub left: i32,
+    /// `offsetTop`.
+    pub top: i32,
+    /// `offsetWidth`.
+    pub width: i32,
+    /// `offsetHeight`.
+    pub height: i32,
+}
+
+/// The `scroll*` values of an element (CSSOM View §6).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ScrollMetrics {
+    /// `scrollLeft`.
+    pub left: f64,
+    /// `scrollTop`.
+    pub top: f64,
+    /// `scrollWidth`.
+    pub width: i32,
+    /// `scrollHeight`.
+    pub height: i32,
+}
+
+/// The alignment of `scrollIntoView` on one axis (`ScrollLogicalPosition`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollAlign {
+    /// `"start"`.
+    Start,
+    /// `"center"`.
+    Center,
+    /// `"end"`.
+    End,
+    /// `"nearest"`.
+    Nearest,
+}
+
+/// A script scroll: each coordinate is a position or, with `by`, a delta;
+/// `None` keeps the axis.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ScrollRequest {
+    /// The horizontal position or delta.
+    pub x: Option<f64>,
+    /// The vertical position or delta.
+    pub y: Option<f64>,
+    /// True for `scrollBy`: the values are deltas.
+    pub by: bool,
+}
+
+/// The viewport of the document (no flush needed).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Viewport {
+    /// The width in CSS px.
+    pub width: f64,
+    /// The height in CSS px.
+    pub height: f64,
+    /// Device pixels per CSS px.
+    pub scale: f64,
+}
+
+/// The points that a dispatched mouse event is relative to (`offsetX` and
+/// `layerX`), in document coordinates.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EventOrigins {
+    /// The padding edge of the target's first box, with the scroll offsets
+    /// of its scroll containers (`offsetX` and `offsetY`).
+    pub padding: (f64, f64),
+    /// The border edge of the nearest positioned inclusive ancestor of the
+    /// target (`layerX` and `layerY`); the origin if there is none.
+    pub layer: (f64, f64),
+}
+
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
     /// The DOM of the document.
@@ -228,9 +319,11 @@ pub trait EngineHost: Any {
         false
     }
 
-    /// Asks the page to scroll `node` into view when the task ends (the
-    /// scroll of `focus()` without `preventScroll`; scrolling needs the
-    /// layout, which a script task does not have).
+    /// Asks to scroll `node` into view as `focus()` without `preventScroll`
+    /// does: at the next geometry query of the task or when the task ends,
+    /// whichever comes first (Chromium's `scrollY` right after `focus()`
+    /// shows the scroll; a loop of `focus()` calls must not lay out at each
+    /// call).
     fn request_scroll_into_view(&mut self, node: NodeId) {
         let _ = node;
     }
@@ -304,6 +397,101 @@ pub trait EngineHost: Any {
     ) -> String {
         let _ = (element, pseudo, property);
         String::new()
+    }
+
+    // ----- Geometry and scrolling (CSSOM View, feature 7b) -----
+    //
+    // Each of these that needs layout flushes it first (a forced run in a
+    // script task); the bindings check the task deadline afterwards.
+
+    /// The client rectangles of `element` (`getClientRects`) in viewport
+    /// coordinates: one per box fragment, transformed; empty if it has no
+    /// box.
+    fn client_rects(&mut self, element: NodeId) -> Vec<DomRect> {
+        let _ = element;
+        Vec::new()
+    }
+
+    /// `offsetParent` and the `offset*` values of `element`.
+    fn offset_metrics(&mut self, element: NodeId) -> OffsetMetrics {
+        let _ = element;
+        OffsetMetrics::default()
+    }
+
+    /// `clientLeft`, `clientTop`, `clientWidth` and `clientHeight` of
+    /// `element`.
+    fn client_metrics(&mut self, element: NodeId) -> [i32; 4] {
+        let _ = element;
+        [0; 4]
+    }
+
+    /// The `scroll*` values of `element`.
+    fn scroll_metrics(&mut self, element: NodeId) -> ScrollMetrics {
+        let _ = element;
+        ScrollMetrics::default()
+    }
+
+    /// Scrolls `element` (`scrollTop = ...`, `element.scrollTo` and
+    /// `scrollBy`): a scroll container, or the viewport for the element
+    /// that scrolls it; other elements do not scroll. The values are
+    /// finite.
+    fn scroll_element(&mut self, element: NodeId, request: ScrollRequest) {
+        let _ = (element, request);
+    }
+
+    /// `scrollX` and `scrollY`: [`EngineHost::scroll_offset`] after the
+    /// scroll of a `focus()` that waits (see
+    /// [`EngineHost::request_scroll_into_view`]).
+    fn scroll_position(&mut self) -> (f64, f64) {
+        self.scroll_offset()
+    }
+
+    /// Scrolls the viewport (`window.scrollTo` and `scrollBy`). The values
+    /// are finite.
+    fn scroll_viewport(&mut self, request: ScrollRequest) {
+        let _ = request;
+    }
+
+    /// `element.scrollIntoView` with the alignments on the block and the
+    /// inline axis.
+    fn scroll_into_view(&mut self, element: NodeId, block: ScrollAlign, inline: ScrollAlign) {
+        let _ = (element, block, inline);
+    }
+
+    /// `document.scrollingElement`.
+    fn scrolling_element(&mut self) -> Option<NodeId> {
+        None
+    }
+
+    /// The viewport (`innerWidth`, `devicePixelRatio`).
+    fn viewport(&self) -> Viewport {
+        Viewport {
+            width: 0.0,
+            height: 0.0,
+            scale: 1.0,
+        }
+    }
+
+    /// The elements at the point (`x`, `y`) of the viewport, topmost first
+    /// (`elementsFromPoint`; with `all` false at most the first,
+    /// `elementFromPoint`). Empty outside the viewport.
+    fn elements_from_point(&mut self, x: f64, y: f64, all: bool) -> Vec<NodeId> {
+        let _ = (x, y, all);
+        Vec::new()
+    }
+
+    /// The size of the content box of the first box of `element` in CSS px
+    /// (`img.width` of a rendered image); `None` if it has no box.
+    fn content_size(&mut self, element: NodeId) -> Option<(f64, f64)> {
+        let _ = element;
+        None
+    }
+
+    /// The points that a mouse event dispatched at `target` is relative to;
+    /// `None` if the target has no box.
+    fn event_origins(&mut self, target: NodeId) -> Option<EventOrigins> {
+        let _ = target;
+        None
     }
 
     /// The box as `Any`, so that the engine gets its own type back.

@@ -632,15 +632,25 @@ impl Page {
 
     /// Notes that something may have scrolled (`element`: the scroll
     /// container that the caller scrolled, if it is one): the frame fires
-    /// `scroll` events for what did, containers in the order they scrolled.
+    /// `scroll` events for what did, in the order it scrolled (CSSOM View
+    /// "pending scroll event targets"; the document recorded the scrolls of
+    /// the viewport and of its scroll containers, also those of a script
+    /// task, in `DocumentState::scrolled`).
     pub(super) fn note_scroll(&mut self, element: Option<NodeId>) {
-        if let Some(node) = element
-            && self.script.is_some()
-            && !self.input.scroll_order.contains(&node)
-        {
-            self.input.scroll_order.push(node);
+        let scrolled = self
+            .doc
+            .as_deref_mut()
+            .map(|d| std::mem::take(&mut d.scrolled))
+            .unwrap_or_default();
+        if self.script.is_none() {
+            return;
         }
-        if self.script.is_some() && self.input.frame_due.is_none() {
+        for node in scrolled.into_iter().chain(element) {
+            if !self.input.scroll_order.contains(&node) {
+                self.input.scroll_order.push(node);
+            }
+        }
+        if self.input.frame_due.is_none() {
             self.input.frame_due = Some(self.clock.now() + FRAME_MS);
         }
     }
@@ -652,9 +662,13 @@ impl Page {
 
     /// The rendering update of a frame that is due (HTML "update the
     /// rendering", <https://drafts.csswg.org/cssom-view/#run-the-scroll-steps>):
-    /// fires `scroll` once at the document
-    /// if it scrolled since the last frame and once at each scroll
-    /// container that did. Returns true if an event was fired.
+    /// fires `scroll` once at each target that scrolled since the last
+    /// frame (the document for the viewport), in the order they scrolled
+    /// (measured in Chromium 148: a container that a script scrolled before
+    /// the viewport gets its event first; a scroll back to the old position
+    /// still fires). Targets whose offsets changed without a note (a layout
+    /// clamped them) follow, the document first, then in tree order.
+    /// Returns true if an event was fired.
     pub(super) fn run_frame(&mut self) -> bool {
         let Some(due) = self.input.frame_due else {
             return false;
@@ -671,8 +685,11 @@ impl Page {
             document: doc.scroll,
             elements: doc.scrollers.offsets().clone(),
         };
-        let document_scrolled = current.document != seen.document;
-        let mut elements: Vec<NodeId> = current
+        let mut targets = std::mem::take(&mut self.input.scroll_order);
+        if current.document != seen.document && !targets.contains(&NodeId::DOCUMENT) {
+            targets.push(NodeId::DOCUMENT);
+        }
+        let unnoted: std::collections::HashSet<NodeId> = current
             .elements
             .iter()
             .filter(|(node, offset)| seen.elements.get(node) != Some(offset))
@@ -683,31 +700,20 @@ impl Page {
                     .filter(|node| !current.elements.contains_key(node))
                     .copied(),
             )
+            .filter(|node| !targets.contains(node))
             .collect();
-        if elements.len() > 1 {
-            // The events go in the order the containers scrolled (CSSOM
-            // View "run the scroll steps"); the ones whose scroll the page
-            // did not note (a scroll into view) follow in tree order.
-            let wanted: std::collections::HashSet<NodeId> = elements.iter().copied().collect();
-            let mut ordered: Vec<NodeId> = self.document().map_or_else(Vec::new, |d| {
+        if !unnoted.is_empty() {
+            let doc = self.document();
+            targets.extend(doc.into_iter().flat_map(|d| {
                 d.descendants(NodeId::DOCUMENT)
-                    .filter(|n| wanted.contains(n))
-                    .collect()
-            });
-            let order = std::mem::take(&mut self.input.scroll_order);
-            ordered.sort_by_key(|n| order.iter().position(|o| o == n).unwrap_or(usize::MAX));
-            elements = ordered;
+                    .filter(|n| unnoted.contains(n))
+                    .collect::<Vec<_>>()
+            }));
         }
-        self.input.scroll_order.clear();
         self.input.scroll_seen = current;
-        let mut fired = false;
-        if document_scrolled {
-            fired = true;
-            self.fire_scroll(NodeId::DOCUMENT, true);
-        }
-        for node in elements {
-            fired = true;
-            self.fire_scroll(node, false);
+        let fired = !targets.is_empty();
+        for node in targets {
+            self.fire_scroll(node, node == NodeId::DOCUMENT);
         }
         fired
     }

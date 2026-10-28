@@ -271,4 +271,113 @@ impl g::element::ElementImpl for WebState {
     ) -> b::Result<()> {
         markup::insert_adjacent_html(cx, this, &position, &text)
     }
+
+    // ----- CSSOM View (`cssom_view.rs`) -----
+
+    fn scroll_top(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_metrics(cx.rt, this)?.top)
+    }
+
+    fn set_scroll_top(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        let request = crate::ScrollRequest {
+            y: Some(value),
+            ..crate::ScrollRequest::default()
+        };
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
+
+    fn scroll_left(cx: &mut Cx<'_>, this: NodeId) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_metrics(cx.rt, this)?.left)
+    }
+
+    fn set_scroll_left(cx: &mut Cx<'_>, this: NodeId, value: f64) -> b::Result<()> {
+        let request = crate::ScrollRequest {
+            x: Some(value),
+            ..crate::ScrollRequest::default()
+        };
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
+
+    fn scroll_width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::scroll_metrics(cx.rt, this)?.width)
+    }
+
+    fn scroll_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::scroll_metrics(cx.rt, this)?.height)
+    }
+
+    fn client_top(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::client_metrics(cx.rt, this)?[1])
+    }
+
+    fn client_left(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::client_metrics(cx.rt, this)?[0])
+    }
+
+    fn client_width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::client_metrics(cx.rt, this)?[2])
+    }
+
+    fn client_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::client_metrics(cx.rt, this)?[3])
+    }
+
+    fn get_client_rects(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::cssom_view::get_client_rects(cx, this)
+    }
+
+    fn get_bounding_client_rect(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::cssom_view::get_bounding_client_rect(cx, this)
+    }
+
+    fn scroll_into_view(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        arg: crate::generated::types::BooleanOrScrollIntoViewOptions,
+    ) -> b::Result<()> {
+        crate::cssom_view::scroll_into_view(cx.rt, this, arg)
+    }
+
+    fn scroll_1(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::ScrollToOptions,
+    ) -> b::Result<()> {
+        let request = crate::cssom_view::options_request(&options, false);
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
+
+    fn scroll_2(cx: &mut Cx<'_>, this: NodeId, x: f64, y: f64) -> b::Result<()> {
+        let request = crate::cssom_view::point_request(x, y, false);
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
+
+    fn scroll_to_1(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::ScrollToOptions,
+    ) -> b::Result<()> {
+        Self::scroll_1(cx, this, options)
+    }
+
+    fn scroll_to_2(cx: &mut Cx<'_>, this: NodeId, x: f64, y: f64) -> b::Result<()> {
+        Self::scroll_2(cx, this, x, y)
+    }
+
+    fn scroll_by_1(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        options: crate::generated::types::ScrollToOptions,
+    ) -> b::Result<()> {
+        let request = crate::cssom_view::options_request(&options, true);
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
+
+    fn scroll_by_2(cx: &mut Cx<'_>, this: NodeId, x: f64, y: f64) -> b::Result<()> {
+        let request = crate::cssom_view::point_request(x, y, true);
+        crate::cssom_view::scroll(cx.rt, Some(this), request)
+    }
 }

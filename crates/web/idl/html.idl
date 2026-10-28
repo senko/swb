@@ -33,10 +33,10 @@
 // factory function `Audio`. `HTMLImageElement` and `HTMLOptionElement`
 // have their `LegacyFactoryFunction` (`Image`, `Option`; feature 6c2). The
 // attributes whose prose says "limited to only known values" have swb's
-// `[SwbKeywords]` (see the generator). `width` and `height` of
-// `img` reflect the content attributes (the standard returns the rendered
-// or natural size). Two members are the standard's
-// `ReflectSetter` with swb's getter: `tabIndex` and `action`. Other
+// `[SwbKeywords]` (see the generator). Four members are the standard's
+// `ReflectSetter` with swb's getter: `tabIndex`, `action`, and `width` and
+// `height` of `img` (the rendered size of a rendered image, else the
+// content attribute; feature 7b). Other
 // members whose getter the standard describes in prose are `[SwbCustom]`
 // or have a hand-written getter. The element interfaces keep
 // `[HTMLConstructor]`; swb has no custom elements, so the generator emits a
@@ -407,8 +407,8 @@ interface HTMLImageElement : HTMLElement {
   [CEReactions, Reflect, SwbKeywords="=anonymous anonymous use-credentials", SwbInvalid="anonymous"] attribute DOMString? crossOrigin;
   [CEReactions, Reflect] attribute DOMString useMap;
   [CEReactions, Reflect] attribute boolean isMap;
-  [CEReactions, Reflect, ReflectRange=(0, 4294967295)] attribute unsigned long width;
-  [CEReactions, Reflect, ReflectRange=(0, 4294967295)] attribute unsigned long height;
+  [CEReactions, ReflectSetter, ReflectRange=(0, 4294967295)] attribute unsigned long width;
+  [CEReactions, ReflectSetter, ReflectRange=(0, 4294967295)] attribute unsigned long height;
   readonly attribute unsigned long naturalWidth;
   readonly attribute unsigned long naturalHeight;
   readonly attribute boolean complete;

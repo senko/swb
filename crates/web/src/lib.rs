@@ -39,6 +39,7 @@
 pub mod bindings;
 mod clock;
 mod cssom;
+mod cssom_view;
 mod document_load;
 mod dom;
 mod errors;
@@ -57,7 +58,10 @@ mod window;
 
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
-pub use host::{ControlWrite, EngineHost};
+pub use host::{
+    ControlWrite, DomRect, EngineHost, EventOrigins, OffsetMetrics, ScrollAlign, ScrollMetrics,
+    ScrollRequest, Viewport,
+};
 pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,

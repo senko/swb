@@ -273,6 +273,10 @@ pub(crate) enum Align {
     /// The start edges together (`"start"`; the block axis of fragment
     /// navigation).
     Start,
+    /// The centers together (`"center"`).
+    Center,
+    /// The end edges together (`"end"`).
+    End,
     /// No scroll if the box is visible, else the nearest edges together
     /// (`"nearest"`).
     Nearest,
@@ -290,6 +294,8 @@ impl Align {
     pub(crate) fn position(self, start: f32, size: f32, scroll: f32, view: f32) -> f32 {
         match self {
             Align::Start => start,
+            Align::Center => start + size / 2.0 - view / 2.0,
+            Align::End => start + size - view,
             Align::Nearest => nearest(start, size, scroll, view),
             Align::CenterIfNeeded(min_reveal) => {
                 center_if_needed(start, size, scroll, view, min_reveal)

@@ -75,7 +75,9 @@ pub use positioned::{
     transform_matrix,
 };
 pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
-pub use scroll::{NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range};
+pub use scroll::{
+    NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range, scrolling_area,
+};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};

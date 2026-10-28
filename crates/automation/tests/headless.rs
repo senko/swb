@@ -650,7 +650,9 @@ fn the_javascript_setting_applies_to_the_next_document() {
 }
 
 /// `page.info.flushes` counts the style and layout runs of the document;
-/// `focus()` after a DOM change computes the style of one element.
+/// `focus()` after a DOM change computes the style of one element (the
+/// focusability check); its scroll into view waits until a script reads
+/// the geometry or the task ends, so it forces no run here (feature 7b).
 #[test]
 fn page_info_counts_the_flushes() {
     let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);

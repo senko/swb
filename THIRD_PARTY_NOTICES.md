@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and ten W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and twelve W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -153,6 +153,28 @@ Time below.
 > Module, https://www.w3.org/TR/cssom-view-1/; and Pointer Lock 2.0,
 > https://www.w3.org/TR/pointerlock-2/. Copyright © 2025 and 2026 World
 > Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
+## W3C CSSOM View, Screen Orientation and Geometry Interfaces: IDL (W3C Software and Document License)
+
+`crates/web/idl/cssom-view.idl` contains IDL blocks, copied on
+2026-10-28, from CSSOM View Module (W3C Editor's Draft,
+https://drafts.csswg.org/cssom-view/: the partial `Window`, `Document`,
+`Element` and `HTMLElement`, `Screen`, the scroll dictionaries and enums)
+and Screen Orientation (W3C Working Draft,
+https://www.w3.org/TR/screen-orientation/: `ScreenOrientation`, the
+partial `Screen`). `crates/web/idl/geometry.idl` contains IDL blocks,
+copied on 2026-10-28, from Geometry Interfaces Module Level 1 (W3C
+Editor's Draft, https://drafts.fxtf.org/geometry/: `DOMRectReadOnly`,
+`DOMRect`, `DOMRectInit`, `DOMRectList`). swb cut and changed members
+(the headers of the files list the changes). The license text is in the
+section of W3C High Resolution Time below.
+
+> This software or document includes material copied from or derived
+> from CSSOM View Module, https://drafts.csswg.org/cssom-view/; Screen
+> Orientation, https://www.w3.org/TR/screen-orientation/; and Geometry
+> Interfaces Module Level 1, https://drafts.fxtf.org/geometry/.
+> Copyright © 2026 World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 
 ## W3C CSS Transitions and Device Orientation: IDL (W3C Software and Document License)

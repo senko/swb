@@ -127,6 +127,19 @@ impl FragmentTree {
         self.walk_painted_in(offsets, scroll, false, visit);
     }
 
+    /// [`FragmentTree::walk_painted`] that also visits the fragments in
+    /// [`BoxFragment::hidden`] (the content of a closed `details`), as the
+    /// geometry of scripts sees them: Chromium 148 gives the content of a
+    /// closed `details` its layout position in `getBoundingClientRect`.
+    pub fn walk_painted_with_hidden<'a>(
+        &'a self,
+        offsets: &dyn ScrollOffsets,
+        scroll: Point,
+        visit: impl FnMut(FragmentRef<'a>, Rect, &Matrix),
+    ) {
+        self.walk_painted_in(offsets, scroll, true, visit);
+    }
+
     /// [`FragmentTree::walk_painted`]; with `hidden`, it also visits the
     /// fragments in [`BoxFragment::hidden`].
     fn walk_painted_in<'a>(

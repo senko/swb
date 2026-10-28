@@ -83,6 +83,16 @@ Format: source, license (for code), what it influenced.
   https://drafts.csswg.org/css-conditional-3/ — `CSS.supports`. CSS
   Values 4 §10.12 — https://drafts.csswg.org/css-values-4/ — the
   simplification of `calc()` sums in the serialization.
+- W3C CSSOM View Module, Screen Orientation and Geometry Interfaces
+  Module Level 1 — https://drafts.csswg.org/cssom-view/,
+  https://www.w3.org/TR/screen-orientation/,
+  https://drafts.fxtf.org/geometry/ — the IDL in
+  `crates/web/idl/cssom-view.idl` and `crates/web/idl/geometry.idl` (W3C
+  Software and Document License 2023; see THIRD_PARTY_NOTICES.md); the
+  algorithms of `crates/web/src/cssom_view.rs` and
+  `crates/engine/src/document/geometry.rs` (the offset parent, the
+  client and scroll metrics, scroll into view, the pending scroll event
+  targets).
 - WHATWG HTML §2.6.1, reflecting content attributes in IDL attributes —
   the getters and setters of `[Reflect]` in `swb-web`.
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,

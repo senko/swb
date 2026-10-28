@@ -2936,6 +2936,115 @@ def computed_style_every_element_js_on() -> Page:
 
 
 @case(
+    "A loop that writes element.style.width and reads offsetWidth 1,000,000 times on a page "
+    "of 50,000 elements, with JavaScript on: each read lays out the page, so the task ends "
+    "at its time limit of 5 s (the binding checks the deadline after each geometry read; "
+    "feature 7b)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1024,
+)
+def geometry_layout_loop_js_on() -> Page:
+    script = (
+        "<script>const e = document.getElementById('t'); let s = 0; "
+        "for (let i = 0; i < 1000000; i++) { e.style.width = (i % 500) + 'px'; "
+        "s += e.offsetWidth + e.getBoundingClientRect().width; } console.log('sum ' + s);</script>"
+    )
+    rows = "<p><b>x</b></p>" * 25_000
+    return Page(doc("<div>" + rows + "</div><div id=t></div>" + script))
+
+
+@case(
+    "getBoundingClientRect, getClientRects, offsetTop and scrollWidth of every element of a "
+    "page of 100,000 elements in one task, with JavaScript on: one layout and one walk of the "
+    "fragments per index serve all reads (feature 7b)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def bounding_rect_every_element_js_on() -> Page:
+    script = (
+        "<script>let n = 0, h = 0; for (const e of document.querySelectorAll('*')) { "
+        "h += e.getBoundingClientRect().height + e.offsetTop + e.scrollWidth; "
+        "n += e.getClientRects().length; } "
+        "console.log('rects ' + n + ' ' + Math.round(h));</script>"
+    )
+    rows = "<p><b>x</b></p>" * 50_000
+    return Page(doc("<div>" + rows + "</div>" + script))
+
+
+@case(
+    "A loop of 1,000,000 script scrolls of the viewport and of a scroll container with "
+    "geometry reads between them, with JavaScript on: each scroll changes the scroll state, "
+    "so each read walks the fragments again; the task ends at its time limit (feature 7b)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1024,
+)
+def scroll_loop_js_on() -> Page:
+    script = (
+        "<script>const sc = document.getElementById('sc'); let s = 0; "
+        "for (let i = 0; i < 1000000; i++) { scrollTo(0, i % 5000); sc.scrollTop = i % 300; "
+        "s += document.getElementById('t').getBoundingClientRect().top + scrollY; } "
+        "console.log('sum ' + s);</script>"
+    )
+    rows = "<p>x</p>" * 5_000
+    return Page(
+        doc(
+            "<div id=sc style='height:100px;overflow:auto'><div style='height:500px'></div></div>"
+            + rows
+            + "<div id=t>t</div>"
+            + script
+        )
+    )
+
+
+@case(
+    "elementFromPoint and elementsFromPoint at every second px of the viewport (240,000 "
+    "calls) on a page of 20,000 elements, with JavaScript on: each call hit-tests the display "
+    "list; the task ends at its time limit or finishes (feature 7b)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1024,
+)
+def element_from_point_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let y = 0; y < 600; y += 2) for (let x = 0; x < 800; x += 2) "
+        "{ if (document.elementFromPoint(x, y)) n++; "
+        "n += document.elementsFromPoint(x, y).length; } "
+        "console.log('hits ' + n);</script>"
+    )
+    rows = "<span style='display:inline-block;width:7px;height:7px'>x</span>" * 20_000
+    return Page(doc("<div>" + rows + "</div>" + script))
+
+
+@case(
+    "Huge scroll offsets and sizes from scripts, with JavaScript on: scrollTo, scrollBy, "
+    "scrollTop and scrollIntoView with 1e308, -1e308, Infinity and NaN on a page and a "
+    "scroll container 1e9 px high (clamped to the layout limit; feature 7b)",
+    swb_args=("--js",),
+    time_limit_s=8,
+)
+def huge_scroll_offsets_js_on() -> Page:
+    script = (
+        "<script>const sc = document.getElementById('sc'), end = document.getElementById('end'); "
+        "for (const v of [1e308, -1e308, Infinity, -Infinity, NaN, 1e20, 33554431]) { "
+        "scrollTo(v, v); scrollBy(v, -v); scroll({left: v, top: v}); sc.scrollTop = v; "
+        "sc.scrollLeft = v; sc.scrollBy(v, v); end.scrollIntoView({block: 'center'}); "
+        "if (isFinite(v)) document.elementFromPoint(v, v); } "
+        "console.log('at ' + scrollX + ' ' + scrollY + ' ' + sc.scrollTop + ' ' + "
+        "end.getBoundingClientRect().top + ' ' + document.documentElement.scrollHeight);</script>"
+    )
+    return Page(
+        doc(
+            "<div id=sc style='height:100px;width:100px;overflow:auto'>"
+            "<div style='height:1e9px;width:1e9px'></div></div>"
+            "<div style='height:1e9px;width:1e9px'></div><div id=end>end</div>" + script
+        )
+    )
+
+
+@case(
     "Layout queries while the page lays out web fonts: 300 @font-face families on 300 "
     "spans, an inline script that reads the width of each span (each layout in the task "
     "starts font loads through the page's loader) and a timer that reads them again while "

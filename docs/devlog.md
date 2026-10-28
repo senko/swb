@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-28: M8 feature 7b1, geometry and scrolling from scripts
+
+- Feature 7b is split: 7b1 does the geometry, the scrolls from scripts,
+  the window's metrics and the backlog items marked 7b; 7b2 does
+  `innerText`, `matchMedia`, the rendering update with
+  `requestAnimationFrame` and the SVG geometry methods.
+- CSSOM View for scripts: `getBoundingClientRect`, `getClientRects`,
+  `offset*`, `client*`, `scroll*`, the scroll methods of the window and
+  of elements, `scrollIntoView`, `scrollingElement`, `elementFromPoint`,
+  `elementsFromPoint`, `innerWidth`, `devicePixelRatio`, `screen`,
+  `screen.orientation`; `DOMRect`, `DOMRectReadOnly`, `DOMRectList`.
+- Learned from the probes: Chromium's rectangles are in layout units
+  (content size, each padding and each border snapped to 1/64 px),
+  transformed boxes in `f32`; `offset*` and `client*` are rounded, not
+  pixel-snapped; scroll offsets are whole px; `scroll` events come in
+  the order the targets scrolled, also after a scroll back.
+- Each read that can lay out flushes once per change and checks the
+  task deadline. Two indexes (the boxes of a layout, the client
+  rectangles at a scroll state) make reading every element one walk
+  (100,000 elements in 1.06 s with JS on).
+- Dispatched mouse events get `offsetX` and `layerX` from layout.
+  `focus()` scrolls before the next geometry read of the task, not at
+  each call, so focus loops stay cheap. `img.width` is the rendered
+  width. HTML boxes with `pointer-events: none` are not hit, also for
+  the user's clicks with JavaScript off.
+- Probes `web-geometry.json` (25 cases, 162 queries) and
+  `web-scroll.json` (7 cases, 113 queries), 38 departures with reasons;
+  `web-input-real.json` checks `scrollY` after real input.
+- Review fixes: a scroll coordinate beyond the `f32` range scrolls to
+  0, as in Chromium. Open from the review: the scroll methods throw on
+  conversion errors (Chromium returns a rejected promise and the script
+  goes on; first item of 7b2), and the scroll of `focus()` is lost if
+  the element is removed or hidden before the next geometry read.
+- JS off: snapshot identical, perf within noise. Hostile set 201 cases,
+  200 ok + the known failure (5 new). Runtime +37 KB (now about
+  1.18 MB). The three JS targets force no style or layout run during the
+  load.
+
+Next: feature 7b2, `innerText`, `matchMedia` and
+`requestAnimationFrame`.
+
 ## 2026-10-28: M8 feature 7a2, `getComputedStyle` and layout from scripts
 
 - A script task can lay out: the page lends its font context with the

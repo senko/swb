@@ -1112,7 +1112,12 @@ one `cssText` with 10,000 `setProperty` calls. Cases for
 reads of a value that layout resolves on a page of 50,000 elements (the
 task ends at its time limit), `getComputedStyle` of every element of a page
 of 100,000 elements in one task, and layout queries in a task and in a
-timer while 300 web fonts load. The cases with
+timer while 300 web fonts load. Cases for the geometry of scripts
+(feature 7b): a loop of `element.style` writes and `offsetWidth` reads on
+a page of 50,000 elements, the rectangles and offsets of every element of a
+page of 100,000 elements, 1,000,000 script scrolls with reads between
+them, `elementFromPoint` at every second px of the viewport, and huge and
+non-finite scroll offsets on a page 1e9 px high. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2564,6 +2569,21 @@ code for them (a unit test of the generator checks the glue).
   the backlog). Also: the flush counters of a style value and of a value
   that layout resolves, and the font context that a task lends. The rules
   that need no document are tested in `swb_style::cssom::resolved`.
+- `crates/engine/tests/geometry.rs`: geometry and scrolling from scripts
+  (feature 7b): every case of `tools/probes/web-geometry.json` (25 cases,
+  162 queries: `getBoundingClientRect`, `getClientRects`, `offset*`,
+  `client*` and `scroll*` of block, inline, positioned, transformed,
+  scrolled, flex, grid, table, SVG and `details` boxes, rounding, the root
+  and the body in standards and quirks mode, `DOMRect`, the window's
+  metrics, `elementFromPoint`, `offsetX` of dispatched events, the scroll
+  of `focus()`, `img.width`) and of `tools/probes/web-scroll.json` (7
+  cases, 113 queries: the scroll methods, clamping, `scrollIntoView`, the
+  order of `scroll` events, huge sizes) with Chromium's values
+  (`geometry/cases.rs`, generated from the probes' `--json` output, three
+  equal Chromium runs); `geometry/departures.rs` lists the departures with
+  their reasons. Also: the flush counters of geometry reads, a loop of
+  style writes and geometry reads that ends at the task deadline, and the
+  order of the `scroll` events of script scrolls.
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

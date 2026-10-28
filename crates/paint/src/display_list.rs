@@ -66,8 +66,8 @@ use swb_layout::{
     is_absolute_containing_block, is_fixed_containing_block,
 };
 use swb_style::{
-    BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, Position, Rgba,
-    StrokeLinejoin, TextDecorationLine, Visibility, ZIndex,
+    BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, PointerEvents, Position,
+    Rgba, StrokeLinejoin, TextDecorationLine, Visibility, ZIndex,
 };
 use swb_text::FontId;
 
@@ -479,13 +479,30 @@ impl DisplayList {
     /// bounds do not contain the point are skipped, so the list must have
     /// the bounds that [`build_display_list`] sets.
     pub fn hit_test(&self, point: Point, scroll: Point) -> Option<NodeId> {
+        let mut hit = None;
+        self.hits(point, scroll, |node| hit = Some(node));
+        hit
+    }
+
+    /// The nodes of all hit regions at `point` that are not clipped away,
+    /// topmost first (as [`DisplayList::hit_test`]; a node can appear more
+    /// than once). For `elementsFromPoint`.
+    pub fn hit_test_all(&self, point: Point, scroll: Point) -> Vec<NodeId> {
+        let mut hits = Vec::new();
+        self.hits(point, scroll, |node| hits.push(node));
+        hits.reverse();
+        hits
+    }
+
+    /// Calls `hit` with the node of each hit region at `point` in paint
+    /// order (see [`DisplayList::hit_test`]).
+    fn hits(&self, point: Point, scroll: Point, mut hit: impl FnMut(NodeId)) {
         let mut clips: Vec<bool> = Vec::new();
         // The transforms of the enclosing groups and the point in their
         // coordinates.
         let mut groups: Vec<(Matrix, Option<Point>)> = Vec::new();
         let mut matrix = Matrix::IDENTITY;
         let mut local = Some(point);
-        let mut hit = None;
         let mut sticky = StickyCache::default();
         // The path work of the whole test (see `hit_path`).
         let work = crate::hit_path::HitWork::new();
@@ -548,7 +565,7 @@ impl DisplayList {
                 DisplayItem::HitRegion { rect, node }
                     if clips.last().is_none_or(|&c| c) && inside(rect, local) =>
                 {
-                    hit = Some(*node);
+                    hit(*node);
                 }
                 DisplayItem::HitShape {
                     node,
@@ -561,12 +578,11 @@ impl DisplayList {
                         crate::hit_path::contains(path, transform, *fill, *stroke_width, p, &work)
                     }) =>
                 {
-                    hit = Some(*node);
+                    hit(*node);
                 }
                 _ => {}
             }
         }
-        hit
     }
 }
 
@@ -1307,7 +1323,9 @@ impl Builder<'_> {
             return;
         }
         let rect = b.border_rect.translate(origin);
-        if let Some(node) = b.node {
+        if let Some(node) = b.node
+            && style.pointer_events != PointerEvents::None
+        {
             self.list.push(DisplayItem::HitRegion { rect, node });
         }
         let mut areas = BackgroundAreas::of(b, origin);
@@ -1682,8 +1700,10 @@ impl Builder<'_> {
             return;
         }
         let rect = t.rect.translate(origin);
-        self.list
-            .push(DisplayItem::HitRegion { rect, node: t.node });
+        if style.pointer_events != PointerEvents::None {
+            self.list
+                .push(DisplayItem::HitRegion { rect, node: t.node });
+        }
         if t.glyphs.is_empty() {
             return;
         }

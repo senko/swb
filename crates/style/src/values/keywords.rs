@@ -582,7 +582,8 @@ keyword_enum! {
 keyword_enum! {
     /// The `pointer-events` property. The values other than `auto` and
     /// `none` are for SVG shapes (SVG 2 §16.4); on HTML content they
-    /// behave as `auto` (swb does not use the property for HTML yet).
+    /// behave as `auto`. HTML boxes and text with `none` have no hit
+    /// region (paint's display list).
     PointerEvents {
         Auto = "auto",
         None = "none",

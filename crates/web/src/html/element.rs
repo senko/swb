@@ -147,6 +147,26 @@ impl g::html_element::HTMLElementImpl for WebState {
     fn tab_index(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
         tab_index(cx, this)
     }
+
+    fn offset_parent(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
+        Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.parent)
+    }
+
+    fn offset_top(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.top)
+    }
+
+    fn offset_left(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.left)
+    }
+
+    fn offset_width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.width)
+    }
+
+    fn offset_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
+        Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.height)
+    }
 }
 
 /// `dataset` of an HTML or SVG element.
@@ -242,7 +262,39 @@ pub(crate) fn action_url(cx: &mut Cx<'_>, this: NodeId, name: &str) -> b::Result
     }
 }
 
+/// The largest rendered size of an image that Chromium 148 reports
+/// (`img.width = 1e10` reads 33554428, also for 33554430).
+const MAX_RENDERED_IMAGE_SIZE: f64 = 33_554_428.0;
+
+/// `img.width` or `img.height` (HTML §4.8.4.4): the rendered size of the
+/// content box of a rendered image in whole px (a layout flush), at most
+/// Chromium's limit, else the content attribute.
+fn image_size(cx: &mut Cx<'_>, this: NodeId, name: &str, horizontal: bool) -> b::Result<u32> {
+    let size = engine_mut(cx.rt)?.content_size(this);
+    cx.rt.check_time()?;
+    if let Some((width, height)) = size {
+        let value = if horizontal { width } else { height };
+        // `as` saturates.
+        return Ok((value + 0.5).floor().min(MAX_RENDERED_IMAGE_SIZE) as u32);
+    }
+    b::reflect::get_unsigned_long::<WebState>(
+        cx,
+        this,
+        name,
+        b::reflect::UnsignedLimit::Range(0, u32::MAX),
+        None,
+    )
+}
+
 impl g::html_image_element::HTMLImageElementImpl for WebState {
+    fn width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
+        image_size(cx, this, "width", true)
+    }
+
+    fn height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
+        image_size(cx, this, "height", false)
+    }
+
     fn natural_width(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<u32> {
         Ok(0)
     }

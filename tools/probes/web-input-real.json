@@ -419,6 +419,9 @@
     },
     {
      "js": "document.activeElement.id"
+    },
+    {
+     "js": "[scrollX, scrollY]"
     }
    ]
   },
@@ -673,7 +676,7 @@
      "click": "#t"
     },
     {
-     "type": "!\u00e9"
+     "type": "!é"
     }
    ],
    "measure": [
@@ -784,6 +787,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollX, scrollY]"
     }
    ]
   },
@@ -810,6 +816,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollX, scrollY]"
     }
    ]
   },
@@ -836,6 +845,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollX, scrollY]"
     }
    ]
   },
@@ -958,6 +970,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollX, scrollY]"
     }
    ]
   },
@@ -999,6 +1014,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollY, document.getElementById('a').scrollTop]"
     }
    ]
   },
@@ -1326,6 +1344,9 @@
    "measure": [
     {
      "js": "flush()"
+    },
+    {
+     "js": "[scrollY].concat(['a', 'b', 'c'].map(id => document.getElementById(id) && document.getElementById(id).scrollTop))"
     }
    ]
   }

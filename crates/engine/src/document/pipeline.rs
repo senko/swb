@@ -56,6 +56,8 @@ impl DocumentState {
         self.fragments = None;
         self.display_list = None;
         self.used_boxes = None;
+        self.geometry = None;
+        self.client_rects = None;
     }
 
     /// Drops the styles of single elements and pseudo-elements that

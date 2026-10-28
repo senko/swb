@@ -121,6 +121,9 @@ impl DocumentState {
         let before = self.scroll;
         self.scroll = p;
         self.clamp_scroll();
+        if self.scroll != before {
+            self.note_scrolled(NodeId::DOCUMENT);
+        }
         self.scroll != before
     }
 
@@ -157,7 +160,7 @@ impl DocumentState {
     /// the root element, or in quirks mode the body if it is not a scroll
     /// container. (In quirks mode, the root element then is an element that
     /// does not scroll.)
-    fn is_scrolling_element(&self, node: NodeId) -> bool {
+    pub(crate) fn is_scrolling_element(&self, node: NodeId) -> bool {
         let doc = &self.dom;
         if doc.quirks_mode == QuirksMode::Quirks {
             doc.body() == Some(node) && self.scrollers.get(node).is_none()
@@ -251,6 +254,7 @@ impl DocumentState {
         if !self.scrollers.set(node, offset) {
             return false;
         }
+        self.note_scrolled(node);
         self.display_list = None;
         true
     }
@@ -282,7 +286,7 @@ impl DocumentState {
     /// revealed in the next one (as in Blink). Scrolls `overflow: hidden`
     /// containers too. Does not cancel a pending scroll to the fragment.
     /// Returns true if something scrolled.
-    fn reveal(&mut self, node: NodeId, rect: Rect, x: Align, y: Align) -> bool {
+    pub(crate) fn reveal(&mut self, node: NodeId, rect: Rect, x: Align, y: Align) -> bool {
         let (Some(styles), Some(tree)) = (&self.styles, &self.fragments) else {
             return false;
         };
@@ -306,6 +310,7 @@ impl DocumentState {
             );
             if self.scrollers.set(scroller, to) {
                 changed = true;
+                self.note_scrolled(scroller);
                 self.display_list = None;
                 let new = self.scrollers.offset(scroller);
                 rect = rect.translate(Point::new(offset.x - new.x, offset.y - new.y));
@@ -324,6 +329,9 @@ impl DocumentState {
             y.position(rect.y, rect.height, scroll.y, viewport.height),
         );
         self.clamp_scroll();
+        if self.scroll != before {
+            self.note_scrolled(NodeId::DOCUMENT);
+        }
         changed || self.scroll != before
     }
 

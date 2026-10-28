@@ -236,9 +236,16 @@ fn layout_px(value: f32) -> String {
     format!("{}px", super::value::format_number(snap(f64::from(value))))
 }
 
-/// `value` in layout units (see [`layout_px`]). A value within 1/100 of a
-/// unit of a multiple is that multiple: swb lays out in `f32`, so a value
-/// that is exact in Chromium's units can come out just below it.
+/// `value` in Chromium's layout units: a multiple of 1/64 px, truncated,
+/// within the range of those units. A value within 1/100 of a unit of a
+/// multiple is that multiple: swb lays out in `f32`, so a value that is
+/// exact in Chromium's units can come out just below it. The geometry of
+/// scripts (`getBoundingClientRect`, `offsetWidth`) uses it too.
+pub fn layout_unit(value: f64) -> f64 {
+    snap(value)
+}
+
+/// `value` in layout units (see [`layout_unit`]).
 fn snap(value: f64) -> f64 {
     let units = value * 64.0;
     let near = units.round();

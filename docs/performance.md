@@ -125,6 +125,40 @@ is created.
 | senko-net | 1.28 → 1.26 |
 | wikipedia-web-browser | 34.84 → 34.86 |
 
+M8 feature 7b1 (geometry and scrolling from scripts, JavaScript off),
+2026-10-28: three interleaved runs of the base (605938f) and the new
+binary, 40 runs each, mean of the medians in ms. Within noise (the
+`parse` stage of senko-net is bimodal, 0.06 or 0.09 ms).
+
+| Fixture | parse | stylesheets | style | layout | display list | raster | Total |
+|---|---|---|---|---|---|---|---|
+| ars-technica | 3.24 → 3.27 | 3.86 → 3.86 | 21.05 → 20.95 | 7.24 → 7.30 | 0.52 → 0.53 | 5.13 → 5.09 | 41.03 → 40.98 |
+| bbc | 4.13 → 4.20 | 2.10 → 2.10 | 4.97 → 4.74 | 11.04 → 11.11 | 0.78 → 0.76 | 3.45 → 3.44 | 26.46 → 26.36 |
+| craigslist-posting | 0.28 → 0.30 | 0.30 → 0.29 | 0.18 → 0.18 | 0.26 → 0.26 | 0.03 → 0.03 | 1.00 → 0.99 | 2.05 → 2.04 |
+| hacker-news | 0.66 → 0.70 | 0.51 → 0.49 | 1.51 → 1.46 | 1.90 → 1.93 | 0.16 → 0.16 | 0.85 → 0.83 | 5.58 → 5.58 |
+| senko-net | 0.06 → 0.09 | 0.24 → 0.25 | 0.08 → 0.08 | 0.39 → 0.39 | 0.02 → 0.02 | 0.55 → 0.54 | 1.34 → 1.37 |
+| wikipedia-web-browser | 5.48 → 5.53 | 5.15 → 5.08 | 10.36 → 10.15 | 13.64 → 13.54 | 1.13 → 1.10 | 2.30 → 2.23 | 38.07 → 37.63 |
+
+### The loads of the JavaScript targets
+
+`swb --headless --replay fixtures/js/NAME --test-fonts --size 1280x800
+--virtual-time --js --bench 3 URL` gives the flushes of the load (with
+the benchmark's own first render); the load time is the wall time of the
+process with `--dump-boxes`, best of 5. M8 feature 7b1, 2026-10-28
+(release build, Intel Core i5-13500):
+
+| Fixture | style runs (ms) | layout runs (ms) | forced style / layout | load, JS on | load, JS off |
+|---|---|---|---|---|---|
+| hacker-news | 1 (1.7) | 2 (4.3) | 0 / 0 | 21 ms | 18 ms |
+| wikipedia-web-browser | 1 (10.8) | 2 (30.8) | 0 / 0 | 97 ms | 86 ms |
+| craigslist-posting | 1 (0.5) | 1 (1.5) | 0 / 0 | 19 ms | 14 ms |
+
+No load forces a style or layout run: the scripts of these pages read
+no geometry during the load (Wikipedia stops at its known script error;
+the geometry reads of Craigslist's Leaflet run in handlers). The base
+binary (605938f) loads in 21, 96 and 20 ms. Feature 7b2 records the
+numbers of the feature 7 exit.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that
@@ -142,6 +176,13 @@ the document: `crates/engine/tests/script_memory.rs` measures the resident
 set size of a page whose script holds about 100 MiB (20 MiB before, 117
 MiB with the data, 52 MiB after the next document; the allocator keeps
 part of the freed memory).
+
+M8 feature 7b1, 2026-10-28, seven interleaved runs on senko-net: the
+heap after the creation grew from 1,140,798 to 1,177,969 bytes (+37 KB
+for 5 interfaces and about 60 members of `Window`, `Document`, `Element`
+and `HTMLElement`), the median time from 3.38 to 3.58 ms (the runs
+overlap: 3.24–3.85 and 2.53–3.72 ms). The lazy creation of interfaces
+(backlog, before 8a) is still open.
 
 ## JavaScript engine
 

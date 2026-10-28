@@ -147,8 +147,9 @@ pub(crate) fn window_focus(rt: &mut Runtime, gained: bool) -> VmResult<()> {
 }
 
 /// HTML "focus()": the focusing steps of `node`, unless it is locked for
-/// focus. `prevent_scroll` false asks the page to scroll the element into
-/// view when the task ends.
+/// focus. With `prevent_scroll` false, an element that gets the focus is
+/// scrolled into view at once (a layout flush); one that has it already
+/// is not (the focusing steps return early; Chromium 148 does not scroll).
 pub(crate) fn focus_with(
     rt: &mut Runtime,
     node: NodeId,
@@ -162,9 +163,11 @@ pub(crate) fn focus_with(
         if !focusable(rt, node)? {
             return Ok(());
         }
+        let before = focused(rt)?;
         move_focus(rt, Some(node), visible)?;
-        if focused(rt)? == Some(node) && !prevent_scroll {
+        if before != Some(node) && focused(rt)? == Some(node) && !prevent_scroll {
             engine_mut(rt)?.request_scroll_into_view(node);
+            rt.check_time()?;
         }
         Ok(())
     })();

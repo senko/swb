@@ -1,0 +1,645 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "block",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>#a { margin: 10px 20px; padding: 5px; border: 3px solid; width: 300px; height: 50px } #b { margin-left: 10.5px; width: 33.3%; height: 10.25px; border-left: 1.5px solid } #c { width: 100.4px; height: 20.6px; padding: 0.3px } #d { margin-top: 0.7px; height: 7.33px; width: 50% } #e { border: 2px solid; border-width: 1px 2px 3px 4px; padding: 1px 2px 3px 4px; width: 50.5px; font: 16px/20px sans-serif } #f { height: 33.3px }</style></head><body><div id=a><div id=b></div><div id=c></div></div><div id=d></div><div id=e><div id=f>x</div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"div\"))"
+    },
+    {
+     "js": "E(() => L(\"div\"))"
+    },
+    {
+     "js": "E(() => O(\"div\"))"
+    },
+    {
+     "js": "E(() => C(\"div\"))"
+    },
+    {
+     "js": "E(() => S(\"div\"))"
+    }
+   ]
+  },
+  {
+   "name": "inline",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>#w { width: 200px; font: 16px/20px sans-serif } .p { padding: 2px 4px; border: 1px solid; margin: 0 3px }</style></head><body><div id=w>aaa <span id=s1>bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp</span> zz <span id=s2 class=p>pad</span> <span id=s3></span><b id=b1>bold <i id=i1>it</i></b><br id=br><span id=ib style='display:inline-block;width:50px;height:30px'></span><img id=im style='width:20px;height:10px'> <a id=lnk href=#>link text that wraps around the line</a><span id=s4 style='position:relative;left:3px;top:2px'>rel</span></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"#w, #w *\"))"
+    },
+    {
+     "js": "E(() => L(\"#w, #w *\"))"
+    },
+    {
+     "js": "E(() => O(\"#w, #w *\"))"
+    },
+    {
+     "js": "E(() => C(\"#w, #w *\"))"
+    },
+    {
+     "js": "E(() => S(\"#w, #w *\"))"
+    }
+   ]
+  },
+  {
+   "name": "positioned",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif } #rel { position: relative; left: 10px; top: 5px; width: 200px; height: 100px; border: 2px solid; padding: 3px } #abs { position: absolute; left: 20px; top: 30px; width: 50px; height: 40px; border: 1px solid } #inner { width: 10px; height: 10px; margin: 2px } #abs2 { position: absolute; right: 10%; bottom: 7.5px; width: 25.5px; height: 10px } #fix { position: fixed; right: 0; top: 100px; width: 30px; height: 30px } #fp { margin: 0; height: 5px } #st { position: sticky; top: 0; height: 20px } #rel2 { position: relative; margin: 4px; padding: 6px; border: 1px solid } #stat { padding: 2px } #deep { height: 5px }</style></head><body><div id=rel><div id=abs><div id=inner></div></div><div id=abs2></div></div><div id=fix><p id=fp></p></div><div id=st></div><div id=plain><span id=sp>x</span></div><div id=rel2><div id=stat><div id=deep></div></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script)\"))"
+    }
+   ]
+  },
+  {
+   "name": "tables",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } table { border-spacing: 2px; border: 1px solid } td, th { padding: 3px; border: 1px solid }</style></head><body><table id=t><caption id=cap>cap</caption><tbody id=tb><tr id=tr1><td id=td1>a</td><td id=td2><div id=d>in cell</div></td></tr><tr id=tr2><th id=th1 colspan=2>h</th></tr></tbody></table><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"table, table *\"))"
+    },
+    {
+     "js": "E(() => L(\"table, table *\"))"
+    },
+    {
+     "js": "E(() => O(\"table, table *\"))"
+    },
+    {
+     "js": "E(() => C(\"table, table *\"))"
+    },
+    {
+     "js": "E(() => S(\"table, table *\"))"
+    }
+   ]
+  },
+  {
+   "name": "transformed",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } #t1 { width: 100px; height: 50px; margin: 20px; transform: translate(10px, 5px) } #c { width: 10px; height: 10px; margin-left: 5px } #t2 { width: 100px; height: 100px; margin: 30px; transform: rotate(45deg) } #t3 { width: 80px; height: 40px; transform: scale(0.5); transform-origin: 0 0 } #t4 { display: inline-block; transform: translateX(3.3px) } #t5 { position: relative; width: 60px; height: 60px; transform: scale(2) } #t6 { position: absolute; left: 10px; top: 10px; width: 10px; height: 10px }</style></head><body><div id=t1><div id=c></div></div><div id=t2></div><div id=t3><span id=s>text</span></div><span id=t4>x</span><div id=t5><div id=t6></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script)\"))"
+    }
+   ]
+  },
+  {
+   "name": "scrolled",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>#sc { width: 200px; height: 100px; overflow: auto; border: 5px solid; padding: 10px; margin: 10px } #content { width: 500px; height: 400px } #item { margin-top: 150px; height: 10px; width: 10px } #h { width: 150px; height: 60px; overflow: hidden } #hc { height: 200px; width: 300px } #v { width: 100px; height: 50px } #vc { width: 300px; height: 100px } #e { width: 50px; height: 50px; overflow: scroll; border: 1px solid }</style></head><body><div id=sc><div id=content><div id=item></div></div></div><div id=h><div id=hc></div></div><div id=v><div id=vc></div></div><div id=e></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => (sc.scrollTop = 50, sc.scrollLeft = 30, [sc.scrollTop, sc.scrollLeft].concat(B('#item, #content'), O('#item'), S('#sc'))))"
+    },
+    {
+     "js": "E(() => (h.scrollTop = 1000, h.scrollLeft = 1000, [h.scrollTop, h.scrollLeft].concat(B('#hc'))))"
+    },
+    {
+     "js": "E(() => (v.scrollTop = 10, [v.scrollTop, v.scrollLeft]))"
+    },
+    {
+     "js": "E(() => (sc.scrollTop = 10.5, sc.scrollLeft = 0.25, [sc.scrollTop, sc.scrollLeft]))"
+    },
+    {
+     "js": "E(() => (sc.scrollTop = -10, sc.scrollLeft = NaN, [sc.scrollTop, sc.scrollLeft]))"
+    }
+   ]
+  },
+  {
+   "name": "svg",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } svg { margin: 5px; border: 1px solid; padding: 2px }</style></head><body><svg id=s width=200 height=100><g id=g transform='translate(10,20)'><rect id=r x=5 y=5 width=50 height=30 /><circle id=ci cx=100 cy=50 r=10 /></g><text id=tx x=10 y=90>hello</text><foreignObject id=fo x=150 y=0 width=40 height=40><div id=fd>f</div></foreignObject></svg><div id=after>a</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B('svg, svg *'))"
+    },
+    {
+     "js": "E(() => L('svg, svg *'))"
+    },
+    {
+     "js": "E(() => C('svg, svg *'))"
+    },
+    {
+     "js": "E(() => S('svg, svg *'))"
+    },
+    {
+     "js": "E(() => [typeof r.offsetTop, typeof s.offsetParent, 'offsetTop' in s, 'clientTop' in r, fd.offsetParent && fd.offsetParent.id, fd.offsetLeft, fd.offsetTop])"
+    },
+    {
+     "js": "E(() => O('#fd, #after'))"
+    }
+   ]
+  },
+  {
+   "name": "root-standards",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif } #tall { height: 2000px; width: 1000px }</style></head><body><div id=d>text</div><div id=tall></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [document.compatMode, N(document.scrollingElement)])"
+    },
+    {
+     "js": "E(() => B('html, body'))"
+    },
+    {
+     "js": "E(() => O('html, body'))"
+    },
+    {
+     "js": "E(() => C('html, body'))"
+    },
+    {
+     "js": "E(() => S('html, body'))"
+    },
+    {
+     "js": "E(() => L('html, body'))"
+    },
+    {
+     "js": "E(() => (scrollTo(30, 100), [scrollX, scrollY].concat(S('html, body'), B('html, body, #d'), O('#d'))))"
+    },
+    {
+     "js": "E(() => (document.documentElement.scrollTop = 200, [scrollY, document.documentElement.scrollTop, document.body.scrollTop]))"
+    },
+    {
+     "js": "E(() => (document.body.scrollTop = 300, [scrollY, document.documentElement.scrollTop, document.body.scrollTop]))"
+    },
+    {
+     "js": "E(() => (document.documentElement.scrollLeft = 5, document.body.scrollLeft = 7, [scrollX, document.documentElement.scrollLeft, document.body.scrollLeft]))"
+    }
+   ]
+  },
+  {
+   "name": "root-quirks",
+   "html": "<html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif } #tall { height: 2000px; width: 1000px }</style></head><body><div id=d>text</div><div id=tall></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [document.compatMode, N(document.scrollingElement)])"
+    },
+    {
+     "js": "E(() => B('html, body'))"
+    },
+    {
+     "js": "E(() => O('html, body'))"
+    },
+    {
+     "js": "E(() => C('html, body'))"
+    },
+    {
+     "js": "E(() => S('html, body'))"
+    },
+    {
+     "js": "E(() => L('html, body'))"
+    },
+    {
+     "js": "E(() => (scrollTo(30, 100), [scrollX, scrollY].concat(S('html, body'), B('html, body, #d'), O('#d'))))"
+    },
+    {
+     "js": "E(() => (document.documentElement.scrollTop = 200, [scrollY, document.documentElement.scrollTop, document.body.scrollTop]))"
+    },
+    {
+     "js": "E(() => (document.body.scrollTop = 300, [scrollY, document.documentElement.scrollTop, document.body.scrollTop]))"
+    },
+    {
+     "js": "E(() => (document.documentElement.scrollLeft = 5, document.body.scrollLeft = 7, [scrollX, document.documentElement.scrollLeft, document.body.scrollLeft]))"
+    }
+   ]
+  },
+  {
+   "name": "root-short",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif }</style></head><body><div id=d>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C('html, body'))"
+    },
+    {
+     "js": "E(() => S('html, body'))"
+    },
+    {
+     "js": "E(() => O('html, body'))"
+    }
+   ]
+  },
+  {
+   "name": "root-short-quirks",
+   "html": "<html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif }</style></head><body><div id=d>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => C('html, body'))"
+    },
+    {
+     "js": "E(() => S('html, body'))"
+    },
+    {
+     "js": "E(() => O('html, body'))"
+    }
+   ]
+  },
+  {
+   "name": "root-borders",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>html { border: 3px solid; padding: 4px; margin: 5px } body { margin: 8px; border: 2px solid; padding: 1px; font: 16px/20px sans-serif }</style></head><body><div id=d>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"html, body, #d\"))"
+    },
+    {
+     "js": "E(() => L(\"html, body, #d\"))"
+    },
+    {
+     "js": "E(() => O(\"html, body, #d\"))"
+    },
+    {
+     "js": "E(() => C(\"html, body, #d\"))"
+    },
+    {
+     "js": "E(() => S(\"html, body, #d\"))"
+    }
+   ]
+  },
+  {
+   "name": "not-rendered",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif }</style></head><body><div id=n style='display:none'><p id=np>x</p></div><div id=dc style='display:contents'><p id=dcp>y</p></div><template id=tp><p>t</p></template><select id=sel><option id=op>o</option></select><map><area id=ar></map><span id=empty></span><div id=vh style='visibility:hidden;height:5px'></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B('#n, #np, #dc, #op, #ar, #empty, #vh, head, title'))"
+    },
+    {
+     "js": "E(() => L('#n, #np, #dc, #dcp, #op, #ar, #empty, #vh, head'))"
+    },
+    {
+     "js": "E(() => O('#n, #np, #dc, #dcp, #op, #ar, #empty, #vh, head'))"
+    },
+    {
+     "js": "E(() => C('#n, #np, #dc, #op, #ar, #empty, #vh, head'))"
+    },
+    {
+     "js": "E(() => S('#n, #np, #dc, #op, #ar, #vh, head'))"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.width = '10px'; return [R(e.getBoundingClientRect()), e.getClientRects().length, N(e.offsetParent), e.offsetWidth, e.clientWidth, e.scrollWidth, e.scrollTop]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = tp.content.firstChild; return [R(e.getBoundingClientRect()), e.getClientRects().length, N(e.offsetParent), e.offsetWidth]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.scrollTop = 5; return e.scrollTop; })())"
+    }
+   ]
+  },
+  {
+   "name": "rounding",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>.r { position: absolute }</style></head><body><div id=r00 class=r style='left:10.25px;top:50px;width:20.25px;height:5.25px'></div><div id=r10 class=r style='left:10.5px;top:70px;width:20.5px;height:5.5px'></div><div id=r20 class=r style='left:10.75px;top:90px;width:20.75px;height:5.75px'></div><div id=r30 class=r style='left:10.4px;top:110px;width:20.4px;height:5.4px'></div><div id=r40 class=r style='left:10.6px;top:130px;width:20.6px;height:5.6px'></div><div id=r50 class=r style='left:10.49px;top:150px;width:20.51px;height:5.49px'></div><div id=r60 class=r style='left:0.3px;top:170px;width:0.3px;height:0.3px'></div><div id=r70 class=r style='left:0.5px;top:190px;width:0.5px;height:0.5px'></div><div id=r80 class=r style='left:7.7px;top:210px;width:0.7px;height:0.7px'></div><div id=bw style='position:absolute;left:300px;top:10px;width:10.5px;height:10px;border:0.5px solid;padding:0.25px'></div><div id=bw2 style='position:absolute;left:300.5px;top:40px;width:10px;height:10px;border:1.6px solid;padding:0.5px'></div><div id=sc style='position:absolute;left:400px;top:10px;width:50.5px;height:50.5px;overflow:auto'><div style='width:100.5px;height:100.4px'></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\".r, #bw, #bw2, #sc\"))"
+    },
+    {
+     "js": "E(() => L(\".r, #bw, #bw2, #sc\"))"
+    },
+    {
+     "js": "E(() => O(\".r, #bw, #bw2, #sc\"))"
+    },
+    {
+     "js": "E(() => C(\".r, #bw, #bw2, #sc\"))"
+    },
+    {
+     "js": "E(() => S(\".r, #bw, #bw2, #sc\"))"
+    }
+   ]
+  },
+  {
+   "name": "window-metrics",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style></style></head><body><div id=d>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [innerWidth, innerHeight, outerWidth, outerHeight, devicePixelRatio, screenX, screenY, screenLeft, screenTop])"
+    },
+    {
+     "js": "E(() => [screen.width, screen.height, screen.availWidth, screen.availHeight, screen.colorDepth, screen.pixelDepth, screen.availLeft, screen.availTop])"
+    },
+    {
+     "js": "E(() => [screen.orientation.type, screen.orientation.angle, String(screen), String(screen.orientation), screen === screen, screen.orientation === screen.orientation, screen instanceof Screen, screen.orientation instanceof EventTarget])"
+    },
+    {
+     "js": "E(() => [Object.getOwnPropertyNames(Screen.prototype).join(), Object.getOwnPropertyNames(ScreenOrientation.prototype).join()])"
+    },
+    {
+     "js": "E(() => ['innerWidth', 'outerWidth', 'scrollX', 'pageXOffset', 'screen', 'devicePixelRatio', 'screenLeft', 'scrollTo', 'scrollBy', 'scroll'].map(n => n + ':' + JSON.stringify(Object.getOwnPropertyDescriptor(window, n) && Object.keys(Object.getOwnPropertyDescriptor(window, n)))))"
+    },
+    {
+     "js": "E(() => (innerWidth = 5, [innerWidth, typeof Object.getOwnPropertyDescriptor(window, 'innerWidth').value]))"
+    },
+    {
+     "js": "E(() => (scrollY = 7, devicePixelRatio = 3, [scrollY, devicePixelRatio]))"
+    },
+    {
+     "js": "E(() => [typeof window.matchMedia, typeof requestAnimationFrame, typeof document.elementFromPoint, typeof document.elementsFromPoint, typeof document.caretPositionFromPoint])"
+    }
+   ]
+  },
+  {
+   "name": "element-from-point",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } #a { position: absolute; left: 0; top: 0; width: 100px; height: 100px } #b { position: absolute; left: 50px; top: 50px; width: 100px; height: 100px } #c { position: absolute; left: 200px; top: 0; width: 50px; height: 50px; pointer-events: none } #d { margin-top: 300px; height: 2000px } #t { position: absolute; left: 300px; top: 0 } #sv { position: absolute; left: 400px; top: 0 } #hid { position: absolute; left: 500px; top: 0; width: 50px; height: 50px; visibility: hidden } #sc { position: absolute; left: 600px; top: 0; width: 100px; height: 100px; overflow: auto } #sci { height: 500px; margin-top: 200px }</style></head><body><div id=a><span id=as>a</span></div><div id=b></div><div id=c></div><div id=d><p id=p>text</p></div><span id=t>text here</span><svg id=sv width=50 height=50><rect id=rr x=10 y=10 width=20 height=20 /></svg><div id=hid></div><div id=sc><div id=sci></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [[10,10],[60,60],[99.5,99.5],[100,100],[210,10],[-1,5],[5,-1],[5,700],[900,5],[799,599],[799.9,599.9],[800,0],[0,600],[305,5],[415,15],[405,5],[510,10],[650,50],[0,0]].map(p => p.join(',') + '=' + N(document.elementFromPoint(p[0], p[1]))))"
+    },
+    {
+     "js": "E(() => [[60,60],[10,10],[210,10],[415,15],[650,50],[-1,5]].map(p => p.join(',') + '=' + document.elementsFromPoint(p[0], p[1]).map(N).join(' ')))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 250), [N(document.elementFromPoint(5, 55)), N(document.elementFromPoint(5, 5)), N(document.elementFromPoint(60, 60))]))"
+    },
+    {
+     "js": "E(() => (sc.scrollTop = 150, [N(document.elementFromPoint(650, 60)), N(document.elementFromPoint(650, 40))]))"
+    },
+    {
+     "js": "E(() => [document.elementFromPoint.length, document.elementsFromPoint.length, Array.isArray(document.elementsFromPoint(1, 1))])"
+    },
+    {
+     "js": "E(() => document.elementFromPoint())"
+    },
+    {
+     "js": "E(() => document.elementFromPoint(NaN, 1))"
+    },
+    {
+     "js": "E(() => N(document.elementFromPoint('5', '5')))"
+    },
+    {
+     "js": "E(() => N(document.elementFromPoint(1e20, 1e20)))"
+    }
+   ]
+  },
+  {
+   "name": "flex-grid-float",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } #fx { display: flex; width: 300px; gap: 7px; padding: 3px; align-items: center; height: 40px } #f1 { flex: 1 } #f2 { flex: 2; margin: 1.5px } #f3 { width: 20px; height: 20px } #gr { display: grid; grid-template-columns: 50px 1fr 2fr; width: 301px; column-gap: 5px } #fl { float: left; width: 60px; height: 30px; margin-right: 4px } #fp { margin: 0; width: 200px } #ul { margin: 4px 0; padding-left: 30px }</style></head><body><div id=fx><div id=f1>a</div><div id=f2>bb</div><div id=f3></div></div><div id=gr><div id=g1>x</div><div id=g2>y</div><div id=g3>z</div></div><div id=fl>left</div><p id=fp>text next to the float that wraps around it more than once here</p><div id=cl style='clear:both'></div><ul id=ul><li id=li1>one</li><li id=li2>two</li></ul><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script)\"))"
+    }
+   ]
+  },
+  {
+   "name": "scrolled-viewport",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px; font: 16px/20px sans-serif } #abs { position: absolute; left: 10px; top: 300px; width: 20px; height: 20px } #fix { position: fixed; left: 5px; bottom: 5px; width: 30px; height: 30px } #st { position: sticky; top: 10px; height: 15px; margin-top: 50px } #sc { position: relative; overflow: auto; width: 100px; height: 100px; margin-top: 20px } #scabs { position: absolute; left: 5px; top: 150px; width: 10px; height: 10px } #scin { height: 300px } #tall { height: 3000px }</style></head><body><div id=abs></div><div id=fix><span id=fs>f</span></div><div id=st></div><div id=sc><div id=scabs></div><div id=scin></div></div><div id=tall></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B('#abs, #fix, #fs, #st, #sc, #scabs, #scin'))"
+    },
+    {
+     "js": "E(() => O('#abs, #fix, #fs, #st, #scabs'))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 200), sc.scrollTop = 30, B('#abs, #fix, #fs, #st, #sc, #scabs, #scin').concat(O('#abs, #fix, #fs, #st, #scabs'), L('#st'))))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 2000), B('#st, #fix')))"
+    }
+   ]
+  },
+  {
+   "name": "block-in-inline",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } #w { width: 300px }</style></head><body><div id=w><span id=s>before<div id=d>block</div>after</span></div><div id=ib1>x <span id=ibs style='display:inline-block;width:40px'>a b c d e f g</span> y</div><p id=pr>a <span id=rot style='display:inline-block;transform:rotate(90deg);width:30px;height:10px'></span> b <span id=sk style='display:inline-block;transform:skewX(20deg) scale(1.5);width:20px;height:10px'></span></p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script)\"))"
+    }
+   ]
+  },
+  {
+   "name": "details-image",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif }</style></head><body><details id=dt><summary id=sm>s</summary><p id=dp>hidden</p></details><details open id=dt2><summary id=sm2>t</summary><p id=dp2>shown</p></details><img id=im style='width:30px;height:20px;padding:2px 3px;border:1px solid;margin:4px'><input id=in style='width:100px'><button id=bt>go</button><textarea id=ta style='width:100px;height:40px'></textarea><select id=se><option>a</option></select><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B(\"body *:not(script):not(option)\"))"
+    },
+    {
+     "js": "E(() => L(\"body *:not(script):not(option)\"))"
+    },
+    {
+     "js": "E(() => O(\"body *:not(script):not(option)\"))"
+    },
+    {
+     "js": "E(() => C(\"body *:not(script):not(option)\"))"
+    },
+    {
+     "js": "E(() => S(\"body *:not(script):not(option)\"))"
+    }
+   ]
+  },
+  {
+   "name": "nested-transforms",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 10px } #o { width: 100px; height: 100px; transform: rotate(30deg) } #i { width: 50px; height: 50px; margin: 10px; transform: scale(1.5) translate(5px, 5px) } #c { width: 10px; height: 10px } #sc { width: 100px; height: 100px; overflow: auto; margin-top: 60px } #sct { height: 300px; transform: translateY(10px) } #sctc { height: 10px; width: 10px; margin-top: 100px }</style></head><body><div id=o><div id=i><div id=c></div></div></div><div id=sc><div id=sct><div id=sctc></div></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => B('body *:not(script)'))"
+    },
+    {
+     "js": "E(() => O('body *:not(script)'))"
+    },
+    {
+     "js": "E(() => C('body *:not(script)'))"
+    },
+    {
+     "js": "E(() => (sc.scrollTop = 50, B('#sct, #sctc')))"
+    }
+   ]
+  },
+  {
+   "name": "domrect",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style></style></head><body><div id=d style='width:10px;height:20px;margin:3px'></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => (() => { const r = new DOMRect(1, 2, 3, 4); return [String(r), r.x, r.y, r.width, r.height, r.top, r.right, r.bottom, r.left, JSON.stringify(r), JSON.stringify(r.toJSON())]; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = new DOMRect(10, 20, -3, -4); return [r.top, r.right, r.bottom, r.left]; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = new DOMRect(); r.x = 5; r.width = '7'; r.height = NaN; return [r.x, r.y, r.width, r.height, r.right, r.bottom]; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = new DOMRectReadOnly(1, 2, 3, 4); r.x = 9; return [r.x, String(r), r instanceof DOMRect, Object.getPrototypeOf(DOMRect.prototype) === DOMRectReadOnly.prototype]; })())"
+    },
+    {
+     "js": "E(() => (() => { 'use strict'; const r = new DOMRectReadOnly(1, 2, 3, 4); r.x = 9; return r.x; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = DOMRect.fromRect({x: 1, width: 5}); const s = DOMRectReadOnly.fromRect(); return [String(r), R(r), String(s), R(s)]; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = d.getBoundingClientRect(); return [String(r), r instanceof DOMRect, r === d.getBoundingClientRect(), JSON.stringify(r)]; })())"
+    },
+    {
+     "js": "E(() => (() => { const l = d.getClientRects(); return [String(l), l.length, R(l[0]), R(l.item(0)), l[1], l.item(1), l === d.getClientRects(), Object.keys(l).join(), typeof l[Symbol.iterator], Array.isArray(l), 'item' in l]; })())"
+    },
+    {
+     "js": "E(() => (() => { const r = d.getBoundingClientRect(); r.x = 100; r.width = 1; return [R(r), R(d.getBoundingClientRect())]; })())"
+    },
+    {
+     "js": "E(() => [Object.getOwnPropertyNames(DOMRectReadOnly.prototype).join(), Object.getOwnPropertyNames(DOMRect.prototype).join(), Object.getOwnPropertyNames(DOMRectReadOnly).join(), Object.getOwnPropertyNames(DOMRect).join(), Object.getOwnPropertyNames(DOMRectList.prototype).join()])"
+    },
+    {
+     "js": "E(() => [DOMRect.length, DOMRectReadOnly.length, typeof DOMRectList, DOMRect.fromRect.length])"
+    },
+    {
+     "js": "E(() => new DOMRect(1, 2, 3, 'x').width)"
+    },
+    {
+     "js": "E(() => DOMRect(1, 2))"
+    },
+    {
+     "js": "E(() => new DOMRectList())"
+    },
+    {
+     "js": "E(() => (() => { const r = new DOMRect(1e308, 1e308, 1e308, 1e308); return [r.right, r.bottom, new DOMRect(Infinity, 0, -Infinity, 0).left]; })())"
+    },
+    {
+     "js": "E(() => [Object.getOwnPropertyNames(Element.prototype).filter(n => /client|scroll|offset|Rect/.test(n)).join(), Object.getOwnPropertyNames(HTMLElement.prototype).filter(n => /client|scroll|offset|Rect|inner/.test(n)).join(), Object.getOwnPropertyNames(Document.prototype).filter(n => /scroll|Point/.test(n)).join()])"
+    }
+   ]
+  },
+  {
+   "name": "item4-events",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #o { margin: 20px; padding: 10px; border: 5px solid } #t { width: 100px; height: 50px; border: 3px solid; padding: 4px; margin-left: 7px } #sc { width: 100px; height: 100px; overflow: auto; border: 2px solid } #sct { height: 300px; margin-top: 10px; border: 1px solid } #rel { position: relative; left: 5px; margin: 10px; padding: 3px } #rt { width: 40px; height: 40px; padding: 2px } #tall { height: 2000px }</style></head><body><div id=o><div id=t></div></div><div id=sc><div id=sct></div></div><div id=rel><div id=rt></div></div><div id=tall></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => (() => { const e = new MouseEvent('click', {clientX: 50, clientY: 60}); const before = [e.offsetX, e.offsetY, e.layerX, e.layerY, e.pageX, e.pageY]; t.dispatchEvent(e); return before.concat([e.offsetX, e.offsetY, e.layerX, e.layerY, e.pageX, e.pageY]); })())"
+    },
+    {
+     "js": "E(() => (() => { const log = []; t.addEventListener('mousedown', e => log.push(e.offsetX, e.offsetY, e.layerX, e.layerY), {once: true}); t.dispatchEvent(new MouseEvent('mousedown', {clientX: 45.5, clientY: 70.25})); return log; })())"
+    },
+    {
+     "js": "E(() => (() => { sc.scrollTop = 40; const e = new MouseEvent('click', {clientX: 20, clientY: 30}); sct.dispatchEvent(e); return [e.offsetX, e.offsetY, e.layerX, e.layerY]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = new MouseEvent('click', {clientX: 30, clientY: 300}); rt.dispatchEvent(e); return [e.offsetX, e.offsetY, e.layerX, e.layerY]; })())"
+    },
+    {
+     "js": "E(() => (() => { scrollTo(0, 100); const e = new MouseEvent('click', {clientX: 30, clientY: 30}); t.dispatchEvent(e); const r = [e.offsetX, e.offsetY, e.layerX, e.layerY, e.pageX, e.pageY]; scrollTo(0, 0); return r; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = new MouseEvent('click', {clientX: 30, clientY: 30}); document.body.dispatchEvent(e); const f = new MouseEvent('click', {clientX: 30, clientY: 30}); document.dispatchEvent(f); const g = new MouseEvent('click', {clientX: 30, clientY: 30}); const x = document.createElement('div'); x.dispatchEvent(g); return [e.offsetX, e.offsetY, e.layerX, e.layerY, f.offsetX, f.offsetY, f.layerX, f.layerY, g.offsetX, g.offsetY, g.layerX, g.layerY]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = new PointerEvent('pointerdown', {clientX: 50, clientY: 60}); t.dispatchEvent(e); const w = new WheelEvent('wheel', {clientX: 50, clientY: 60}); t.dispatchEvent(w); return [e.offsetX, e.offsetY, w.offsetX, w.offsetY]; })())"
+    }
+   ]
+  },
+  {
+   "name": "item4-focus-scroll",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 8px } #tall { height: 1500px } #tall2 { height: 1000px } #sc { height: 100px; overflow: auto } #sci { height: 400px }</style></head><body><div id=tall></div><input id=i><div id=tall2></div><button id=b2>b</button><div id=sc><div id=sci></div><input id=i2></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => (i.focus(), [scrollX, scrollY]))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 0), i.focus({preventScroll: true}), b2.focus({preventScroll: true}), [scrollY]))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 0), b2.focus(), [scrollY]))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 0), i2.focus(), [scrollY, sc.scrollTop]))"
+    },
+    {
+     "js": "E(() => (scrollTo(0, 0), i.focus(), [scrollY]))"
+    },
+    {
+     "js": "E(() => (() => { scrollTo(0, 0); i.blur(); i.focus(); const y = scrollY; return [y, document.activeElement.id]; })())"
+    }
+   ]
+  },
+  {
+   "name": "item4-img-size",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style></style></head><body><img id=a src='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='><img id=b style='display:none' width=40 height=30><div id=c></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction R(r) { return r.x + ' ' + r.y + ' ' + r.width + ' ' + r.height; }\nfunction Q(s) { return [...document.querySelectorAll(s)]; }\nfunction B(s) { return Q(s).map(e => N(e) + ' ' + R(e.getBoundingClientRect())); }\nfunction L(s) { return Q(s).map(e => N(e) + ' [' + [...e.getClientRects()].map(R).join(' | ') + ']'); }\nfunction O(s) { return Q(s).map(e => N(e) + ' ' + N(e.offsetParent) + ' ' + e.offsetLeft + ' ' + e.offsetTop + ' ' + e.offsetWidth + ' ' + e.offsetHeight); }\nfunction C(s) { return Q(s).map(e => N(e) + ' ' + e.clientLeft + ' ' + e.clientTop + ' ' + e.clientWidth + ' ' + e.clientHeight); }\nfunction S(s) { return Q(s).map(e => N(e) + ' ' + e.scrollLeft + ' ' + e.scrollTop + ' ' + e.scrollWidth + ' ' + e.scrollHeight); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => (a.width = 1e10, [a.width, a.height, a.getAttribute('width'), a.naturalWidth]))"
+    },
+    {
+     "js": "E(() => (a.height = 50000000, [a.width, a.height, a.getAttribute('height')]))"
+    },
+    {
+     "js": "E(() => (a.width = 33554430, a.height = 33554431, [a.width, a.height]))"
+    },
+    {
+     "js": "E(() => (a.width = 2000, a.height = 3000, [a.width, a.height, a.offsetWidth, a.offsetHeight]))"
+    },
+    {
+     "js": "E(() => (b.width = 1e10, [b.width, b.height]))"
+    },
+    {
+     "js": "E(() => (() => { const i = new Image(); i.width = 1e10; i.height = 33554430; return [i.width, i.height]; })())"
+    },
+    {
+     "js": "E(() => (() => { const i = new Image(); i.width = 1e10; c.appendChild(i); return [i.width, i.height]; })())"
+    },
+    {
+     "js": "E(() => (() => { const i = new Image(); i.style.width = '10.6px'; i.style.height = '7.4px'; c.appendChild(i); return [i.width, i.height]; })())"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+// Source: Geometry Interfaces Module Level 1, W3C Editor's Draft,
+// https://drafts.fxtf.org/geometry/ (§3 "The DOMRect interfaces" and §4
+// "The DOMRectList interface"), copied on 2026-10-28.
+//
+// This file includes material copied from Geometry Interfaces Module
+// Level 1, https://drafts.fxtf.org/geometry/. Copyright © 2026 World Wide
+// Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to `DOMRectReadOnly`, `DOMRect`, `DOMRectInit` and
+// `DOMRectList` (feature 7b of M8). Changes:
+//
+// - `[Exposed=(Window,Worker)]` and `[Serializable]` are `[Exposed=Window]`
+//   (no workers, no `structuredClone` yet).
+// - `[Default] object toJSON()` is `object toJSON()`: the generator has no
+//   default toJSON; the binding builds the object with the eight members.
+// - `DOMRect` has no `[LegacyWindowAlias=SVGRect]` (Chromium 148 has no
+//   `SVGRect` alias on `window`).
+
+[Exposed=Window]
+interface DOMRectReadOnly {
+  constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double width = 0, optional unrestricted double height = 0);
+
+  [NewObject] static DOMRectReadOnly fromRect(optional DOMRectInit other = {});
+
+  readonly attribute unrestricted double x;
+  readonly attribute unrestricted double y;
+  readonly attribute unrestricted double width;
+  readonly attribute unrestricted double height;
+  readonly attribute unrestricted double top;
+  readonly attribute unrestricted double right;
+  readonly attribute unrestricted double bottom;
+  readonly attribute unrestricted double left;
+
+  object toJSON();
+};
+
+[Exposed=Window]
+interface DOMRect : DOMRectReadOnly {
+  constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double width = 0, optional unrestricted double height = 0);
+
+  [NewObject] static DOMRect fromRect(optional DOMRectInit other = {});
+
+  attribute unrestricted double x;
+  attribute unrestricted double y;
+  attribute unrestricted double width;
+  attribute unrestricted double height;
+};
+
+dictionary DOMRectInit {
+  unrestricted double x = 0;
+  unrestricted double y = 0;
+  unrestricted double width = 0;
+  unrestricted double height = 0;
+};
+
+[Exposed=Window]
+interface DOMRectList {
+  readonly attribute unsigned long length;
+  getter DOMRect? item(unsigned long index);
+};

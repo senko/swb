@@ -268,9 +268,10 @@ impl Gen<'_> {
                     literal(&name)
                 ),
                 TypeKind::Integer(crate::ast::IntegerType::UnsignedLong) => format!(
-                    "b::reflect::set_unsigned_long::<H>({}, this, {}, b::reflect::UnsignedLimit::None, None, value)",
+                    "b::reflect::set_unsigned_long::<H>({}, this, {}, {}, None, value)",
                     cx(iface),
-                    literal(&name)
+                    literal(&name),
+                    unsigned_limit(attr, Reflect::Plain)?
                 ),
                 _ => {
                     return Err(err(
@@ -1257,7 +1258,7 @@ fn unsigned_limit(attr: &Attribute, kind: Reflect) -> Result<String, Error> {
         }
         return Err(err(
             &attr.place,
-            "[ReflectRange] needs two integers and [Reflect]",
+            "[ReflectRange] needs two integers and [Reflect] or [ReflectSetter]",
         ));
     }
     Ok(match kind {

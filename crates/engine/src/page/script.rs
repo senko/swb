@@ -219,10 +219,11 @@ impl Page {
         Some(result)
     }
 
-    /// Does what the scripts of the task asked for: scrolls an element
-    /// into view (after `focus()`), follows a link or submits a form
-    /// (`a.click()`, `form.submit()`). A task that makes several
-    /// navigation requests navigates to the last one.
+    /// Does what the scripts of the task asked for: the scroll into view of
+    /// a `focus()` that no geometry query of the task applied, the `scroll`
+    /// events of the scrolls of the task (in the next frame), a link to
+    /// follow or a form to submit (`a.click()`, `form.submit()`). A task
+    /// that makes several navigation requests navigates to the last one.
     fn act_on_script_requests(&mut self) {
         let Some(doc) = self.doc.as_deref_mut() else {
             return;
@@ -230,6 +231,10 @@ impl Page {
         let requests = doc.take_script_requests();
         if let Some(node) = requests.scroll_into_view {
             self.scroll_into_view(node);
+        }
+        if self.doc.as_deref().is_some_and(|d| !d.scrolled.is_empty()) {
+            self.update_hover(false);
+            self.note_scroll(None);
         }
         match requests.navigation {
             Some(ScriptNavigation::Link(url)) => {

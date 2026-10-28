@@ -1,0 +1,130 @@
+// Sources:
+// - CSSOM View Module, W3C Editor's Draft, https://drafts.csswg.org/cssom-view/
+//   (§4 "Extensions to the Window Interface", §4.3 "The Screen Interface",
+//   §5 "Extensions to the Document Interface", §6 "Extensions to the
+//   Element Interface", §7 "Extensions to the HTMLElement Interface"),
+//   copied on 2026-10-28;
+// - Screen Orientation, W3C Working Draft, https://www.w3.org/TR/screen-orientation/
+//   (the partial `Screen` and `ScreenOrientation`), copied on 2026-10-28.
+//
+// This file includes material copied from these documents. Copyright © 2026
+// World Wide Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut and changed this file for feature 7b of M8:
+//
+// - Window: no `matchMedia` (7b2), `visualViewport`, `moveTo`, `moveBy`,
+//   `resizeTo`, `resizeBy`. `Screen` has Chromium's `availLeft` and
+//   `availTop` (no specification) and the `orientation` of Screen
+//   Orientation; `ScreenOrientation` has `type` and `angle` only (no
+//   `lock`, `unlock`, `onchange`). The enums `OrientationType` is
+//   `DOMString` here.
+// - Document: no `caretPositionFromPoint`. Element: no `getBoxQuads`,
+//   `checkVisibility`, `currentCSSZoom`. The `MouseEvent` part is in
+//   pointer-events.idl.
+// - The scroll methods return `undefined` as in the specification. Chromium
+//   148 returns a rejected promise instead of throwing when an argument does
+//   not convert (`scrollTo(5)`, `{behavior: 'fast'}`); swb throws the
+//   `TypeError` (a departure).
+
+enum ScrollBehavior { "auto", "instant", "smooth" };
+
+dictionary ScrollOptions {
+  ScrollBehavior behavior = "auto";
+};
+
+dictionary ScrollToOptions : ScrollOptions {
+  unrestricted double left;
+  unrestricted double top;
+};
+
+partial interface Window {
+  [SameObject, Replaceable] readonly attribute Screen screen;
+
+  // viewport
+  [Replaceable] readonly attribute long innerWidth;
+  [Replaceable] readonly attribute long innerHeight;
+
+  // viewport scrolling
+  [Replaceable] readonly attribute double scrollX;
+  [Replaceable] readonly attribute double pageXOffset;
+  [Replaceable] readonly attribute double scrollY;
+  [Replaceable] readonly attribute double pageYOffset;
+  undefined scroll(optional ScrollToOptions options = {});
+  undefined scroll(unrestricted double x, unrestricted double y);
+  undefined scrollTo(optional ScrollToOptions options = {});
+  undefined scrollTo(unrestricted double x, unrestricted double y);
+  undefined scrollBy(optional ScrollToOptions options = {});
+  undefined scrollBy(unrestricted double x, unrestricted double y);
+
+  // client
+  [Replaceable] readonly attribute long screenX;
+  [Replaceable] readonly attribute long screenLeft;
+  [Replaceable] readonly attribute long screenY;
+  [Replaceable] readonly attribute long screenTop;
+  [Replaceable] readonly attribute long outerWidth;
+  [Replaceable] readonly attribute long outerHeight;
+  [Replaceable] readonly attribute double devicePixelRatio;
+};
+
+[Exposed=Window]
+interface Screen {
+  readonly attribute long availWidth;
+  readonly attribute long availHeight;
+  readonly attribute long width;
+  readonly attribute long height;
+  readonly attribute unsigned long colorDepth;
+  readonly attribute unsigned long pixelDepth;
+  readonly attribute long availLeft;
+  readonly attribute long availTop;
+  [SameObject] readonly attribute ScreenOrientation orientation;
+};
+
+[Exposed=Window]
+interface ScreenOrientation : EventTarget {
+  readonly attribute unsigned short angle;
+  readonly attribute DOMString type;
+};
+
+partial interface Document {
+  Element? elementFromPoint(double x, double y);
+  sequence<Element> elementsFromPoint(double x, double y);
+  readonly attribute Element? scrollingElement;
+};
+
+enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
+
+dictionary ScrollIntoViewOptions : ScrollOptions {
+  ScrollLogicalPosition block = "start";
+  ScrollLogicalPosition inline = "nearest";
+};
+
+partial interface Element {
+  DOMRectList getClientRects();
+  [NewObject] DOMRect getBoundingClientRect();
+
+  undefined scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+  undefined scroll(optional ScrollToOptions options = {});
+  undefined scroll(unrestricted double x, unrestricted double y);
+  undefined scrollTo(optional ScrollToOptions options = {});
+  undefined scrollTo(unrestricted double x, unrestricted double y);
+  undefined scrollBy(optional ScrollToOptions options = {});
+  undefined scrollBy(unrestricted double x, unrestricted double y);
+  attribute unrestricted double scrollTop;
+  attribute unrestricted double scrollLeft;
+  readonly attribute long scrollWidth;
+  readonly attribute long scrollHeight;
+  readonly attribute long clientTop;
+  readonly attribute long clientLeft;
+  readonly attribute long clientWidth;
+  readonly attribute long clientHeight;
+};
+
+partial interface HTMLElement {
+  readonly attribute Element? offsetParent;
+  readonly attribute long offsetTop;
+  readonly attribute long offsetLeft;
+  readonly attribute long offsetWidth;
+  readonly attribute long offsetHeight;
+};

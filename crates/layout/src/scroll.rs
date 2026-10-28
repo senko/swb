@@ -322,6 +322,28 @@ pub(crate) fn scrollable_overflow(b: &BoxFragment, inflow: Size) -> Rect {
     with_descendants(b, extent)
 }
 
+/// The size of the scrolling area of box `b` (CSSOM View `scrollWidth` and
+/// `scrollHeight`, <https://drafts.csswg.org/cssom-view/#scrolling-area>):
+/// the scrollable overflow rectangle of a scroll container; for another
+/// box its padding box with the border boxes of the descendants for which
+/// it is in the chain of containing blocks (no end padding: Chromium 148
+/// gives a `div` of 100x50 px with a child of 300x100 px a scrolling area
+/// of 300x100).
+pub fn scrolling_area(b: &BoxFragment) -> Size {
+    if let Some(overflow) = b.scrollable_overflow {
+        return Size::new(overflow.width, overflow.height);
+    }
+    let port = b.scrollport();
+    let extent = Extent {
+        left: port.x,
+        top: port.y,
+        right: port.right(),
+        bottom: port.bottom(),
+    };
+    let area = with_descendants(b, extent);
+    Size::new(area.width, area.height)
+}
+
 /// The scrollable overflow rectangle of scroll container `b` after its
 /// absolutely positioned descendants were laid out (they are placeholders
 /// when `block::layout_sized` computes the rectangle): its rectangle with

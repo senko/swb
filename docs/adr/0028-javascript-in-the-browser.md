@@ -2403,6 +2403,126 @@ serializer's tests are in `swb_style::cssom::resolved`):
   centering of an empty flex item with `margin: auto`), the values follow
   swb's layout (backlog).
 
+Feature 7b notes (7b1: geometry, scrolling from scripts, the window's
+metrics, `elementFromPoint`, `offsetX` of dispatched events, the scroll of
+`focus()`, `img.width`; `innerText`, `matchMedia`, the rendering update
+with `requestAnimationFrame` and the SVG geometry methods are 7b2.
+Measured with `tools/probes/web-geometry.json` (25 cases, 162 queries) and
+`tools/probes/web-scroll.json` (7 cases, 113 queries), three equal
+Chromium runs each; the Rust test is `crates/engine/tests/geometry.rs`
+with the cases in `geometry/cases.rs` and the departures in
+`geometry/departures.rs`):
+
+- **Where it lives.** The IDL is `idl/cssom-view.idl` (the partial
+  `Window`, `Document`, `Element` and `HTMLElement` of CSSOM View, `Screen`
+  and `ScreenOrientation`) and `idl/geometry.idl` (`DOMRectReadOnly`,
+  `DOMRect`, `DOMRectList`); the bindings are `crates/web/src/cssom_view.rs`;
+  the engine side is `document/geometry.rs` behind new `EngineHost` methods
+  (`client_rects`, `offset_metrics`, `client_metrics`, `scroll_metrics`,
+  `scroll_element`, `scroll_viewport`, `scroll_into_view`,
+  `scrolling_element`, `viewport`, `elements_from_point`, `content_size`,
+  `event_origins`).
+- **Flushes and the deadline.** Each query that needs layout calls
+  `script_layout_flush` (a forced run in `flushes`) and the binding calls
+  `Runtime::check_time` after it: a loop of `style.width` writes and
+  `offsetWidth` reads on a page of 50,000 elements ends at the task's time
+  limit. The window's metrics, `scrollX` and `scrollY` need no flush.
+- **Two indexes per layout.** The boxes of the layout (first border box,
+  union, borders, paddings, whether it is a part of an inline box, and
+  where the first fragment is, for its scrolling area) are built by one walk
+  per layout serial; the client rectangles (each box fragment as painted:
+  transforms, sticky and fixed positioning, the scroll offsets of scroll
+  containers; the boxes inside an `<svg>`; the content of a closed
+  `details`) by one walk per layout serial and scroll state. Reading the
+  geometry of every element of a page costs one layout and one or two
+  walks (hostile case `bounding-rect-every-element-js-on`).
+- **Units (Chromium 148).** Rectangles are in layout units (1/64 px) where
+  no transform applies; the content size, each padding and each border
+  are snapped separately (a box of 100.4 px with paddings of 0.3 px is
+  100.984375 px wide). Through a transform, the four corners are mapped in
+  `f32` and the size is the difference of the edges (translateX(3.3px) of
+  a box at 8 px gives x 11.300000190734863 and width 7.999999046325684;
+  rotate(45deg) gives Chromium's values exactly). `offset*`, `client*`,
+  `scrollWidth` and `scrollHeight` are the layout-unit values rounded,
+  halves up (each on its own: `offsetWidth` of 100.890625 at x 46.5 is
+  101). Scroll offsets are whole px, halves up (`scrollTo(0, 10.5)` gives
+  11), clamped; NaN and the infinities are 0.
+- **Chromium behaviour found.** `getBoundingClientRect` is the union of
+  the client rectangles that are not empty (an empty `span` gives its zero
+  width rectangle); a new `DOMRect` at each call, `getClientRects` a new
+  `DOMRectList`. `offsetParent`: the nearest positioned or transformed
+  ancestor, the body, or for a static element a `td`, `th` or `table`;
+  `null` for the root, the body, fixed boxes and boxes without a box. With
+  the body as offset parent the offsets are relative to the border box of
+  the root element (with `html { margin: 5px }` a box at 23 px has
+  `offsetLeft` 18); with none, to the initial containing block. A `br` has
+  an offset parent but `offset*` 0 (Chromium lays it out as text), while
+  its client rectangle is the line's. A stuck sticky box has its sticky
+  offset in `offsetTop`. Inline boxes have `client*` and `scroll*` 0. The
+  root element in standards mode and the body in quirks mode have the
+  viewport as client area; both the root and (in quirks mode) the body
+  have the viewport's scrolling area as `scrollWidth`; other boxes the
+  padding box with the overflow of their descendants (no end padding). In
+  quirks mode the body's `scrollTop` is the viewport's and the root's is 0;
+  in standards mode the reverse. `scrollTo(x, y, z)` takes the two-number
+  form, `scrollTo({top: 50}, 7)` too (the object is NaN, so 0).
+  `scrollIntoView()`: `true` is block start and inline nearest, `false`
+  block end, `null` and `undefined` the dictionary's defaults, other values
+  booleans; all scroll containers (also `overflow: hidden`) then the
+  viewport. `elementFromPoint` rounds the point (799.9 is outside an
+  800 px viewport), gives the root element where no box is, skips
+  `pointer-events: none` and hidden boxes; `elementsFromPoint` lists the
+  hit boxes topmost first and ends with the root. `screen` is the
+  viewport (800x600 in the probe, `colorDepth` 24,
+  `landscape-primary`), `outerWidth` equals `innerWidth`, `screenX` 0.
+  `scroll` events: one per target and frame, in the order the targets
+  scrolled (a scroll container before the document if it scrolled first),
+  also after a scroll back to the old position; none for a scroll to the
+  current position; the document's bubbles to the window. A dispatched
+  `MouseEvent` gets `offsetX` relative to the padding edge of the target
+  (with the viewport's scroll, while `pageX` adds the scroll only with a
+  `view`) and `layerX` relative to the border box of the nearest
+  positioned inclusive ancestor (the page origin without one); a document
+  or a detached target keeps the page values. `focus()` scrolls at once
+  (center if needed: `scrollY` right after it shows the scroll), but not
+  when the element has the focus already. swb keeps the request and
+  scrolls at the next geometry query or `scrollX`/`scrollY` read of the
+  task, or when the task ends, so a loop of 4,000 "append an input,
+  `focus()`" on a page of 20,000 elements stays without layouts (hostile
+  case `append-focus-loop-js-on`; scrolling at each call would lay out
+  4,000 times). Departure (7b1 review): a script can tell the difference
+  when it removes or hides the element before that point. Chromium has
+  scrolled (`focus(); remove(); scrollY` gives 1223 on the review's
+  page), swb has not (0). The focus change restyles, so swb cannot scroll
+  at once without a layout.
+  `img.width` of a rendered image is its rendered content width (at most
+  33554428), otherwise the attribute.
+- **Changes outside the bindings.** The engine records each scroll of the
+  viewport and of a scroll container (`DocumentState::scrolled`, also the
+  scrolls of a task), and the frame fires `scroll` in that order; before,
+  it compared positions and fired the document first. `pointer-events:
+  none` HTML boxes and text have no hit region (before, only SVG shapes
+  used the property); this also changes the user's clicks with JavaScript
+  off, as in Chromium. `img` `width` and `height` use `[ReflectSetter]`,
+  which now takes `[ReflectRange]`.
+- **Departures.** Chromium 148 returns a rejected promise when an argument
+  of a scroll method does not convert (`scrollTo(5)`, `behavior: 'fast'`);
+  swb throws the `TypeError` of the specification's IDL. `behavior:
+  'smooth'` scrolls at once (Chromium animates). An inline box without
+  borders, padding and background gets one rectangle per line in swb;
+  Chromium gives the rectangles of its children (a culled inline). swb's
+  layout does not snap each length to layout units (flex shares, `right:
+  10%`: 1/64 px off). Matrices are `f32` (the last digits of skews
+  differ). No boxes for SVG `text` and `foreignObject`, nor for an `area`
+  without an image. The table's `clientWidth` (Chromium: its wrapper box).
+  The quirks-mode root and body are not stretched to the viewport
+  (backlog of 7a2). The largest box is 33554432 px (Chromium 33554428).
+  `Screen` lacks `onchange` and `isExtended`, `ScreenOrientation` `lock`,
+  `unlock` and `onchange`; no `scrollIntoViewIfNeeded`,
+  `caretPositionFromPoint`. `screen` is the viewport also in the GUI.
+  The `offsetX` of the user's events (6d2) stays relative to the border
+  box (backlog).
+
 ### 11. Events from the engine to scripts
 
 **Dispatch** follows DOM §2.9: the event path, capture and bubble,

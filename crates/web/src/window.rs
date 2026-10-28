@@ -28,7 +28,9 @@ use swb_js::{
 use crate::bindings::{self as b, Cx, Platform};
 use crate::dom::lists;
 use crate::generated as g;
-use crate::generated::types::{DomStringOrFunction, EventOrUndefined, VoidFunction};
+use crate::generated::types::{
+    DomStringOrFunction, EventOrUndefined, ScrollToOptions, VoidFunction,
+};
 use crate::state::{WebState, state, state_mut};
 
 impl g::window::WindowImpl for WebState {
@@ -93,6 +95,92 @@ impl g::window::WindowImpl for WebState {
         pseudo_elt: Option<Option<String>>,
     ) -> b::Result<Gc<Object>> {
         crate::cssom::computed_style(cx, elt, pseudo_elt.flatten().as_deref())
+    }
+
+    // ----- CSSOM View (`cssom_view.rs`) -----
+
+    fn screen(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::cssom_view::screen(cx)
+    }
+
+    fn inner_width(cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(crate::cssom_view::viewport_size(cx.rt)?.0)
+    }
+
+    fn inner_height(cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(crate::cssom_view::viewport_size(cx.rt)?.1)
+    }
+
+    fn scroll_x(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_position(cx.rt)?.0)
+    }
+
+    fn page_x_offset(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_position(cx.rt)?.0)
+    }
+
+    fn scroll_y(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_position(cx.rt)?.1)
+    }
+
+    fn page_y_offset(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        Ok(crate::cssom_view::scroll_position(cx.rt)?.1)
+    }
+
+    fn screen_x(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(0)
+    }
+
+    fn screen_left(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(0)
+    }
+
+    fn screen_y(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(0)
+    }
+
+    fn screen_top(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(0)
+    }
+
+    fn outer_width(cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(crate::cssom_view::viewport_size(cx.rt)?.0)
+    }
+
+    fn outer_height(cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
+        Ok(crate::cssom_view::viewport_size(cx.rt)?.1)
+    }
+
+    fn device_pixel_ratio(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
+        crate::cssom_view::device_pixel_ratio(cx.rt)
+    }
+
+    fn scroll_1(cx: &mut Cx<'_>, _this: Platform, options: ScrollToOptions) -> b::Result<()> {
+        let request = crate::cssom_view::options_request(&options, false);
+        crate::cssom_view::scroll(cx.rt, None, request)
+    }
+
+    fn scroll_2(cx: &mut Cx<'_>, _this: Platform, x: f64, y: f64) -> b::Result<()> {
+        let request = crate::cssom_view::point_request(x, y, false);
+        crate::cssom_view::scroll(cx.rt, None, request)
+    }
+
+    fn scroll_to_1(cx: &mut Cx<'_>, this: Platform, options: ScrollToOptions) -> b::Result<()> {
+        Self::scroll_1(cx, this, options)
+    }
+
+    fn scroll_to_2(cx: &mut Cx<'_>, this: Platform, x: f64, y: f64) -> b::Result<()> {
+        Self::scroll_2(cx, this, x, y)
+    }
+
+    fn scroll_by_1(cx: &mut Cx<'_>, _this: Platform, options: ScrollToOptions) -> b::Result<()> {
+        let request = crate::cssom_view::options_request(&options, true);
+        crate::cssom_view::scroll(cx.rt, None, request)
+    }
+
+    fn scroll_by_2(cx: &mut Cx<'_>, _this: Platform, x: f64, y: f64) -> b::Result<()> {
+        let request = crate::cssom_view::point_request(x, y, true);
+        crate::cssom_view::scroll(cx.rt, None, request)
     }
 
     fn report_error(cx: &mut Cx<'_>, this: Platform, e: Value) -> b::Result<()> {
