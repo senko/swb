@@ -1,0 +1,666 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "longhand-colors",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"color\", [\"red\", \"RED\", \"#f00\", \"#FF0000\", \"#f008\", \"#ff000080\", \"rgb(255,0,0)\", \"rgb(255 0 0 / 50%)\", \"rgba(0,0,0,0.5)\", \"rgba(0,0,0,0)\", \"transparent\", \"currentColor\", \"CurrentColor\", \"hsl(120, 100%, 50%)\", \"hsla(120,100%,50%,0.3)\", \"rgb(10.5, 20, 30)\", \"rgba(0,0,0,0.123456)\", \"rgba(0,0,0,0.3)\", \"rgba(1,2,3,0.25)\", \"rgba(1,2,3,.1)\", \"rgb(300,-5,0)\", \"rgb(50%,0%,10%)\", \"foo\", \"#ggg\", \"Canvas\", \"canvastext\", \"-webkit-link\", \"lab(50% 20 30)\", \"oklch(0.5 0.1 120)\", \"color(srgb 1 0 0)\", \"color-mix(in srgb, red, blue)\", \"hwb(120 0% 0%)\", \"rgb(0 0 0 / 0.5)\", \"#ABCDEF\", \"aliceblue\", \"rgba(255,0,0,1)\", \"rgb(1,2,3,0.5)\", \"  red  \", \"red !important\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-color\", [\"red\", \"#0f0\"]))"
+    },
+    {
+     "js": "E(() => P(\"border-top-color\", [\"currentcolor\", \"blue\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-lengths",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"width\", [\"10px\", \"10PX\", \"0\", \"0.5em\", \".5em\", \"10.0px\", \"1e2px\", \"50%\", \"auto\", \"calc(10px + 5px)\", \"calc(100% - 10px)\", \"calc(10px*2)\", \"calc( 50% + 2em )\", \"calc(100%/3)\", \"-10px\", \"10vw\", \"3rem\", \"1in\", \"1cm\", \"12pt\", \"1mm\", \"1q\", \"1pc\", \"2ex\", \"2ch\", \"min-content\", \"fit-content\", \"max-content\", \"10\", \"1.23456789px\", \"0.0001px\", \"1e-7px\", \"123456789px\", \"1234567.5px\", \"0.1px\", \"33.333333px\", \"+5px\", \"-0px\", \"0.000001px\", \"1e21px\", \"fit-content(10px)\", \"10px 20px\", \"stretch\", \"-webkit-fill-available\", \"min(10px, 5%)\", \"max(1px,2px)\", \"clamp(1px, 5%, 10px)\"]))"
+    },
+    {
+     "js": "E(() => P(\"margin-top\", [\"auto\", \"-10px\", \"0\", \"5%\", \"-0.5em\"]))"
+    },
+    {
+     "js": "E(() => P(\"top\", [\"auto\", \"0\", \"-3px\", \"10%\"]))"
+    },
+    {
+     "js": "E(() => P(\"min-width\", [\"auto\", \"0\", \"10px\"]))"
+    },
+    {
+     "js": "E(() => P(\"max-height\", [\"none\", \"10px\"]))"
+    },
+    {
+     "js": "E(() => P(\"padding-left\", [\"0\", \"1px\", \"-1px\"]))"
+    },
+    {
+     "js": "E(() => P(\"border-top-width\", [\"thin\", \"medium\", \"thick\", \"0\", \"2px\"]))"
+    },
+    {
+     "js": "E(() => P(\"letter-spacing\", [\"normal\", \"0\", \"1px\", \"0.1em\"]))"
+    },
+    {
+     "js": "E(() => P(\"word-spacing\", [\"normal\", \"2px\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-indent\", [\"10px\", \"5%\", \"0\"]))"
+    },
+    {
+     "js": "E(() => P(\"outline-offset\", [\"0\", \"2px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-keywords",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"display\", [\"block\", \"BLOCK\", \"inline-block\", \"flex\", \"grid\", \"none\", \"contents\", \"table-cell\", \"list-item\", \"inline flex\", \"block flow\", \"inline-flex\", \"flow-root\", \"inline-grid\", \"table\", \"-webkit-box\", \"ruby\", \"math\"]))"
+    },
+    {
+     "js": "E(() => P(\"position\", [\"absolute\", \"sticky\", \"-webkit-sticky\", \"fixed\", \"static\", \"relative\"]))"
+    },
+    {
+     "js": "E(() => P(\"float\", [\"left\", \"none\", \"inline-start\"]))"
+    },
+    {
+     "js": "E(() => P(\"clear\", [\"both\"]))"
+    },
+    {
+     "js": "E(() => P(\"visibility\", [\"hidden\", \"collapse\"]))"
+    },
+    {
+     "js": "E(() => P(\"overflow-x\", [\"hidden\", \"auto\", \"clip\", \"overlay\"]))"
+    },
+    {
+     "js": "E(() => P(\"white-space\", [\"nowrap\", \"pre-wrap\", \"pre-line\", \"break-spaces\", \"normal\", \"pre\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-align\", [\"center\", \"-webkit-center\", \"start\", \"justify\", \"match-parent\", \"LEFT\"]))"
+    },
+    {
+     "js": "E(() => P(\"cursor\", [\"pointer\", \"default\", \"url(a.png), auto\", \"url(a.png) 1 2, pointer\", \"grab\", \"zoom-in\"]))"
+    },
+    {
+     "js": "E(() => P(\"box-sizing\", [\"border-box\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-transform\", [\"uppercase\", \"none\"]))"
+    },
+    {
+     "js": "E(() => P(\"word-break\", [\"break-all\", \"break-word\"]))"
+    },
+    {
+     "js": "E(() => P(\"overflow-wrap\", [\"anywhere\", \"break-word\"]))"
+    },
+    {
+     "js": "E(() => P(\"pointer-events\", [\"none\", \"auto\", \"visiblePainted\"]))"
+    },
+    {
+     "js": "E(() => P(\"user-select\", [\"none\", \"text\", \"all\"]))"
+    },
+    {
+     "js": "E(() => P(\"-webkit-user-select\", [\"none\"]))"
+    },
+    {
+     "js": "E(() => P(\"vertical-align\", [\"middle\", \"-2px\", \"10%\", \"baseline\", \"text-top\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-overflow\", [\"ellipsis\", \"clip\"]))"
+    },
+    {
+     "js": "E(() => P(\"table-layout\", [\"fixed\"]))"
+    },
+    {
+     "js": "E(() => P(\"border-collapse\", [\"collapse\"]))"
+    },
+    {
+     "js": "E(() => P(\"list-style-type\", [\"disc\", \"DECIMAL\", \"none\", \"'-'\", \"\\\"*\\\"\", \"lower-roman\", \"foo\"]))"
+    },
+    {
+     "js": "E(() => P(\"list-style-position\", [\"inside\"]))"
+    },
+    {
+     "js": "E(() => P(\"direction\", [\"rtl\"]))"
+    },
+    {
+     "js": "E(() => P(\"unicode-bidi\", [\"isolate\", \"bidi-override\"]))"
+    },
+    {
+     "js": "E(() => P(\"object-fit\", [\"cover\"]))"
+    },
+    {
+     "js": "E(() => P(\"scrollbar-width\", [\"none\", \"thin\"]))"
+    },
+    {
+     "js": "E(() => P(\"hyphens\", [\"auto\"]))"
+    },
+    {
+     "js": "E(() => P(\"caption-side\", [\"bottom\"]))"
+    },
+    {
+     "js": "E(() => P(\"empty-cells\", [\"hide\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-decoration-line\", [\"underline\", \"underline overline\", \"overline underline\", \"line-through underline\", \"none\"]))"
+    },
+    {
+     "js": "E(() => P(\"text-decoration-style\", [\"dotted\"]))"
+    },
+    {
+     "js": "E(() => P(\"flex-direction\", [\"column\"]))"
+    },
+    {
+     "js": "E(() => P(\"flex-wrap\", [\"wrap\"]))"
+    },
+    {
+     "js": "E(() => P(\"justify-content\", [\"center\", \"space-between\", \"flex-start\", \"safe center\", \"normal\", \"left\"]))"
+    },
+    {
+     "js": "E(() => P(\"align-items\", [\"center\", \"baseline\", \"first baseline\", \"last baseline\", \"stretch\", \"normal\"]))"
+    },
+    {
+     "js": "E(() => P(\"align-self\", [\"auto\", \"flex-end\"]))"
+    },
+    {
+     "js": "E(() => P(\"align-content\", [\"space-around\"]))"
+    },
+    {
+     "js": "E(() => P(\"justify-items\", [\"legacy center\", \"center legacy\", \"start\"]))"
+    },
+    {
+     "js": "E(() => P(\"justify-self\", [\"end\"]))"
+    },
+    {
+     "js": "E(() => P(\"contain\", [\"strict\", \"content\", \"layout paint\", \"paint layout\", \"size layout style paint\"]))"
+    },
+    {
+     "js": "E(() => P(\"border-top-style\", [\"solid\", \"none\", \"hidden\", \"double\", \"inset\"]))"
+    },
+    {
+     "js": "E(() => P(\"outline-style\", [\"auto\", \"solid\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-style\", [\"italic\", \"oblique\", \"oblique 10deg\", \"normal\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-variant-caps\", [\"small-caps\", \"all-small-caps\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-stretch\", [\"condensed\", \"75%\", \"normal\", \"ultra-expanded\", \"150.5%\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-attachment\", [\"fixed\", \"scroll, local\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-repeat\", [\"no-repeat\", \"repeat-x\", \"repeat-y\", \"repeat no-repeat\", \"repeat repeat\", \"space round\", \"no-repeat, repeat\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-clip\", [\"text\", \"padding-box\"]))"
+    },
+    {
+     "js": "E(() => P(\"fill-rule\", [\"evenodd\"]))"
+    },
+    {
+     "js": "E(() => P(\"stroke-linecap\", [\"round\"]))"
+    },
+    {
+     "js": "E(() => P(\"shape-rendering\", [\"crispEdges\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-mode\", [\"alpha\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-type\", [\"alpha\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-numbers",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"opacity\", [\"0.5\", \".5\", \"50%\", \"1.0\", \"2\", \"-1\", \"0\", \"1\", \"0.333333333\", \"1e-3\", \"calc(0.5 + 0.1)\"]))"
+    },
+    {
+     "js": "E(() => P(\"z-index\", [\"10\", \"auto\", \"1.5\", \"-1\", \"+3\", \"0\", \"2147483648\", \"1e3\"]))"
+    },
+    {
+     "js": "E(() => P(\"flex-grow\", [\"1\", \"1.5\", \"0\", \"-1\"]))"
+    },
+    {
+     "js": "E(() => P(\"flex-shrink\", [\"0\", \"2\"]))"
+    },
+    {
+     "js": "E(() => P(\"order\", [\"-1\", \"3\"]))"
+    },
+    {
+     "js": "E(() => P(\"line-height\", [\"1.5\", \"normal\", \"20px\", \"150%\", \"0\", \"1\", \"1.25em\", \"-1\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-weight\", [\"bold\", \"700\", \"550\", \"normal\", \"bolder\", \"lighter\", \"100\", \"1000\", \"0\", \"1\", \"400.5\"]))"
+    },
+    {
+     "js": "E(() => P(\"tab-size\", [\"4\", \"10px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => P(\"column-count\", [\"auto\", \"3\"]))"
+    },
+    {
+     "js": "E(() => P(\"fill-opacity\", [\"0.5\", \"50%\"]))"
+    },
+    {
+     "js": "E(() => P(\"stroke-width\", [\"1\", \"2px\", \"5%\"]))"
+    },
+    {
+     "js": "E(() => P(\"stroke-miterlimit\", [\"4\"]))"
+    },
+    {
+     "js": "E(() => P(\"stroke-dasharray\", [\"none\", \"1 2\", \"1,2\", \"5px 10%\"]))"
+    },
+    {
+     "js": "E(() => P(\"aspect-ratio\", [\"auto\", \"16 / 9\", \"16/9\", \"2\", \"auto 1/1\", \"1 / 1 auto\", \"0.5\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-size\", [\"12px\", \"medium\", \"larger\", \"120%\", \"1.2em\", \"XX-Small\", \"xxx-large\", \"0\", \"smaller\", \"math\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-fonts",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"font-family\", [\"Arial\", \"\\\"Times New Roman\\\"\", \"sans-serif\", \"'a b'\", \"Arial  ,  Helvetica\", \"Helvetica Neue\", \"\\\"Arial\\\"\", \"SANS-SERIF\", \"'sans-serif'\", \"system-ui\", \"-apple-system\", \"BlinkMacSystemFont, 'Segoe UI', Roboto\", \"a\\\\,b\", \"\\\"a\\\\\\\"b\\\"\", \"1abc\", \"serif, monospace\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-feature-settings\", [\"normal\", \"\\\"liga\\\" 0\", \"'smcp', 'kern' 1\", \"\\\"liga\\\" on\"]))"
+    },
+    {
+     "js": "E(() => P(\"font-variation-settings\", [\"normal\", \"\\\"wght\\\" 400\", \"'wdth' 75.5\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-transforms",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"transform\", [\"none\", \"translate(10px, 20px)\", \"translate(10px,20px)\", \"translateX(10px)\", \"translate(10px)\", \"rotate(45deg)\", \"scale(2)\", \"scale(1.5, 2)\", \"matrix(1,0,0,1,0,0)\", \"translate3d(1px,2px,3px)\", \"translate3d(10px, 20px, 0)\", \"rotate(0.5turn)\", \"skewX(10deg)\", \"translate(0)\", \"translateX(0)\", \"translate(10px) rotate(5deg)\", \"TRANSLATE(1PX)\", \"rotate(0)\", \"scale3d(1,2,3)\", \"matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)\", \"perspective(100px)\", \"translateY(-50%)\", \"rotateX(10deg)\", \"rotateZ(1rad)\", \"skew(10deg, 20deg)\", \"skew(10deg)\", \"scaleX(-1)\", \"translate(calc(10px + 5px))\", \"rotate(90grad)\"]))"
+    },
+    {
+     "js": "E(() => P(\"-webkit-transform\", [\"rotate(1deg)\"]))"
+    },
+    {
+     "js": "E(() => P(\"transform-origin\", [\"center\", \"left top\", \"top left\", \"10px 20px\", \"50% 50% 0\", \"50% 50%\", \"right\", \"bottom\", \"0 0\", \"center center\", \"left 10px\", \"10px 20px 5px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-images",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"background-image\", [\"url(a.png)\", \"url(\\\"a.png\\\")\", \"url('a b.png')\", \"none\", \"linear-gradient(red, blue)\", \"linear-gradient(to right, red 0%, blue 100%)\", \"linear-gradient(45deg,red,blue)\", \"radial-gradient(circle, red, blue)\", \"url(a.png), none\", \"url(data:image/png;base64,AA==)\", \"url()\", \"image-set(url(a.png) 1x)\", \"-webkit-linear-gradient(top, red, blue)\", \"repeating-linear-gradient(red 0, blue 10px)\", \"conic-gradient(red, blue)\", \"linear-gradient(rgba(0,0,0,.5), #fff)\"]))"
+    },
+    {
+     "js": "E(() => P(\"list-style-image\", [\"none\", \"url(a.png)\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-image\", [\"url(a.svg)\", \"none\"]))"
+    },
+    {
+     "js": "E(() => P(\"content\", [\"\\\"a\\\"\", \"none\", \"normal\", \"counter(x)\", \"attr(title)\", \"\\\"a\\\" \\\"b\\\"\", \"url(a.png)\", \"counters(x, '.')\", \"open-quote\", \"''\", \"\\\"\\\\\\\"\\\"\", \"\\\"a\\\" attr(x) counter(y, upper-roman)\", \"\\\"x\\\" / \\\"alt\\\"\"]))"
+    },
+    {
+     "js": "E(() => P(\"counter-reset\", [\"x 1\", \"x\", \"none\", \"x 1 y\", \"x -1\", \"list-item\"]))"
+    },
+    {
+     "js": "E(() => P(\"counter-increment\", [\"x\", \"x 2\"]))"
+    },
+    {
+     "js": "E(() => P(\"clip-path\", [\"none\", \"inset(10px)\", \"circle(50%)\", \"url(#a)\", \"polygon(0 0, 10px 0, 0 10px)\", \"inset(1px 2px round 3px)\"]))"
+    },
+    {
+     "js": "E(() => P(\"clip\", [\"rect(1px, 2px, 3px, 4px)\", \"rect(1px 2px 3px 4px)\", \"auto\", \"rect(auto, auto, auto, auto)\"]))"
+    },
+    {
+     "js": "E(() => P(\"fill\", [\"red\", \"none\", \"url(#g)\", \"url(#g) blue\", \"context-fill\", \"currentcolor\"]))"
+    },
+    {
+     "js": "E(() => P(\"stroke\", [\"none\", \"#000\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-positions",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"background-position-x\", [\"left\", \"10px\", \"50%\", \"right 10px\", \"center\", \"left, right\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-position-y\", [\"top\", \"bottom 5px\"]))"
+    },
+    {
+     "js": "E(() => P(\"background-size\", [\"cover\", \"contain\", \"10px auto\", \"auto\", \"auto auto\", \"50% 50%\", \"10px\", \"cover, 10px 20px\"]))"
+    },
+    {
+     "js": "E(() => P(\"object-position\", [\"center\", \"left top\", \"10px 20px\", \"right 10px bottom 5px\", \"50% 50%\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-size\", [\"contain\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-repeat\", [\"no-repeat\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-composite\", [\"add\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => P(\"mask-clip\", [\"no-clip\"]))"
+    },
+    {
+     "js": "E(() => P(\"-webkit-mask-position-x\", [\"left\"]))"
+    },
+    {
+     "js": "E(() => P(\"border-top-left-radius\", [\"5px\", \"5px 10px\", \"5px 5px\", \"50%\", \"0\"]))"
+    },
+    {
+     "js": "E(() => P(\"-swb-border-spacing-horizontal\", [\"1px\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-grid",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"grid-template-columns\", [\"1fr 1fr\", \"repeat(3, 1fr)\", \"100px auto\", \"none\", \"[a] 10px [b c] 1fr\", \"minmax(100px, 1fr) 2fr\", \"repeat(auto-fill, minmax(100px, 1fr))\", \"subgrid\", \"fit-content(100px)\", \"repeat(2, [a] 10px)\", \"masonry\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-template-rows\", [\"auto\", \"10px 20px\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-template-areas\", [\"none\", \"\\\"a b\\\" \\\"c d\\\"\", \"'a  b'  'c d'\", \"\\\"a . b\\\"\", \"\\\"a ... b\\\"\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-auto-columns\", [\"1fr\", \"100px 200px\", \"minmax(10px, auto)\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-auto-rows\", [\"auto\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-auto-flow\", [\"row\", \"column\", \"dense\", \"row dense\", \"dense column\", \"column dense\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-row-start\", [\"1\", \"auto\", \"span 2\", \"a\", \"a 2\", \"2 a\", \"span a\", \"-1\", \"span 2 a\"]))"
+    },
+    {
+     "js": "E(() => P(\"grid-column-end\", [\"span 3\", \"auto\"]))"
+    },
+    {
+     "js": "E(() => P(\"row-gap\", [\"normal\", \"10px\", \"5%\"]))"
+    },
+    {
+     "js": "E(() => P(\"column-gap\", [\"normal\", \"1em\"]))"
+    },
+    {
+     "js": "E(() => P(\"column-width\", [\"auto\", \"100px\"]))"
+    },
+    {
+     "js": "E(() => P(\"contain-intrinsic-width\", [\"none\", \"100px\", \"auto 100px\", \"auto none\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-custom",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"--x\", [\"10px\", \"  a  b  \", \"red\", \"{a:b}\", \"\", \"  \", \"  10px  /* c */  \", \"var(--y)\", \"initial\", \"INHERIT\", \"a!important\"]))"
+    },
+    {
+     "js": "E(() => P(\"--Foo\", [\"bar\"]))"
+    },
+    {
+     "js": "E(() => P(\"color\", [\"var(--c)\", \"var(--c, red)\", \"VAR(--c)\", \"  var( --c )  \", \"env(foo)\", \"var(--c) !important\"]))"
+    },
+    {
+     "js": "E(() => P(\"width\", [\"calc(var(--w) * 2)\"]))"
+    },
+    {
+     "js": "E(() => P(\"margin\", [\"var(--m)\", \"1px var(--m)\"]))"
+    },
+    {
+     "js": "E(() => P(\"border\", [\"var(--b)\"]))"
+    },
+    {
+     "js": "E(() => P(\"font\", [\"var(--f)\"]))"
+    }
+   ]
+  },
+  {
+   "name": "longhand-wide",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => P(\"color\", [\"inherit\", \"INITIAL\", \"unset\", \"revert\", \"revert-layer\", \"inherit inherit\", \"default\"]))"
+    },
+    {
+     "js": "E(() => P(\"margin\", [\"inherit\", \"initial\", \"unset\", \"revert\"]))"
+    },
+    {
+     "js": "E(() => P(\"border\", [\"initial\"]))"
+    },
+    {
+     "js": "E(() => P(\"background\", [\"inherit\"]))"
+    },
+    {
+     "js": "E(() => P(\"font\", [\"inherit\"]))"
+    },
+    {
+     "js": "E(() => P(\"--x\", [\"inherit\"]))"
+    }
+   ]
+  },
+  {
+   "name": "shorthands",
+   "html": "<!DOCTYPE html><html><head><title>t</title></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction A(e) { const r = []; for (let i = 0; i < e.style.length; i++) r.push(e.style[i] + ':' + e.style.getPropertyValue(e.style[i]) + (e.style.getPropertyPriority(e.style[i]) ? '!' : '')); return r.join('; '); }\nfunction P(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '}'; }); }\nfunction S(p, vs) { return vs.map(v => { const e = document.createElement('div'); e.style.setProperty(p, v); return v + ' => [' + e.style.getPropertyValue(p) + '] {' + e.getAttribute('style') + '} ' + A(e); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => S(\"margin\", [\"1px\", \"1px 2px\", \"1px 2px 3px\", \"1px 2px 3px 4px\", \"auto\", \"0\", \"1px 1px 1px 1px\", \"1px 2px 1px 2px\", \"1px 2px 3px 2px\", \"0 auto\", \"1px 2px 3px 4px 5px\", \"1px,2px\"]))"
+    },
+    {
+     "js": "E(() => S(\"padding\", [\"1px 2px\", \"0\", \"-1px\"]))"
+    },
+    {
+     "js": "E(() => S(\"inset\", [\"0\", \"1px auto\", \"auto\"]))"
+    },
+    {
+     "js": "E(() => S(\"margin-block\", [\"1px\", \"1px 2px\", \"auto 1px\"]))"
+    },
+    {
+     "js": "E(() => S(\"margin-inline\", [\"1px 2px\"]))"
+    },
+    {
+     "js": "E(() => S(\"padding-inline\", [\"3px\"]))"
+    },
+    {
+     "js": "E(() => S(\"inset-inline\", [\"1px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border\", [\"1px solid red\", \"solid\", \"1px\", \"none\", \"2px dashed\", \"red\", \"0\", \"medium none currentcolor\", \"1px solid\", \"solid red 1px\", \"thin solid #f00\", \"1px solid rgba(0,0,0,.1)\", \"1px 2px solid\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-top\", [\"1px solid red\", \"none\", \"2px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-left\", [\"thick double blue\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-width\", [\"1px 2px\", \"1px\", \"thin medium\", \"1px 2px 3px 4px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-style\", [\"solid dashed\", \"none\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-color\", [\"red blue\", \"red\", \"red #f00\", \"currentcolor\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-block\", [\"1px solid red\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-inline-width\", [\"1px 2px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-radius\", [\"5px\", \"5px 10px\", \"5px / 10px\", \"1px 2px 3px 4px / 5px 6px\", \"50%\", \"0\", \"5px 5px\", \"1px 2px 3px\", \"1px / 1px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-spacing\", [\"1px\", \"1px 2px\", \"0\"]))"
+    },
+    {
+     "js": "E(() => S(\"outline\", [\"1px solid red\", \"none\", \"auto\", \"2px dotted\", \"red\", \"0\", \"thin\"]))"
+    },
+    {
+     "js": "E(() => S(\"background\", [\"red\", \"url(a.png) no-repeat center\", \"none\", \"red url(a.png)\", \"transparent\", \"url(a.png) center / cover no-repeat\", \"url(a.png) 0 0 repeat-x\", \"#fff url(a.png) repeat-y left top\", \"linear-gradient(red, blue)\", \"url(a.png), red\", \"url(a.png) fixed\", \"0 0\", \"content-box\", \"padding-box content-box\", \"url(a.png) left 10px top 5px / 10px 20px no-repeat scroll border-box padding-box red\", \"url(a.png), url(b.png) no-repeat\", \"center\"]))"
+    },
+    {
+     "js": "E(() => S(\"background-position\", [\"center\", \"left top\", \"10px 20px\", \"right 10px bottom 5px\", \"50%\", \"top\", \"0 0, center\", \"left 10px top\"]))"
+    },
+    {
+     "js": "E(() => S(\"font\", [\"12px Arial\", \"bold 12px/1.5 Arial, sans-serif\", \"italic small-caps bold 12px Arial\", \"12px/20px sans-serif\", \"caption\", \"menu\", \"small-caption\", \"message-box\", \"icon\", \"status-bar\", \"normal 400 16px/normal serif\", \"condensed 12px a\", \"italic 12px a\", \"16px\", \"12px \\\"Times New Roman\\\"\", \"oblique 10deg 12px a\", \"bold italic 12px a\", \"1.2em/1.2 a\", \"x-large a\", \"100 12px a\", \"small-caps 12px a\", \"normal normal 12px a\"]))"
+    },
+    {
+     "js": "E(() => S(\"font-variant\", [\"small-caps\", \"normal\", \"none\", \"all-small-caps\", \"common-ligatures\"]))"
+    },
+    {
+     "js": "E(() => S(\"list-style\", [\"none\", \"square inside\", \"disc\", \"url(a.png)\", \"inside\", \"square url(a.png) inside\", \"decimal outside none\", \"none square\", \"none none\"]))"
+    },
+    {
+     "js": "E(() => S(\"text-decoration\", [\"underline\", \"underline red dotted\", \"none\", \"red\", \"underline overline\", \"line-through 2px\", \"underline solid\"]))"
+    },
+    {
+     "js": "E(() => S(\"flex\", [\"1\", \"auto\", \"none\", \"1 1 0\", \"2 3 10px\", \"0 0 auto\", \"1 0\", \"10px\", \"0\", \"1 1 0%\", \"1 1 auto\", \"initial\", \"2 2\", \"1 auto\", \"content\", \"0 1 auto\", \"1 1 0px\"]))"
+    },
+    {
+     "js": "E(() => S(\"flex-flow\", [\"row wrap\", \"column\", \"wrap\", \"row nowrap\", \"wrap-reverse column-reverse\"]))"
+    },
+    {
+     "js": "E(() => S(\"gap\", [\"10px\", \"10px 20px\", \"normal\", \"1em normal\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid-gap\", [\"5px\"]))"
+    },
+    {
+     "js": "E(() => S(\"columns\", [\"3\", \"100px\", \"100px 3\", \"auto\", \"auto auto\", \"3 auto\"]))"
+    },
+    {
+     "js": "E(() => S(\"overflow\", [\"hidden\", \"hidden auto\", \"auto\", \"visible hidden\", \"clip\"]))"
+    },
+    {
+     "js": "E(() => S(\"place-items\", [\"center\", \"start end\", \"center legacy\", \"baseline\"]))"
+    },
+    {
+     "js": "E(() => S(\"place-content\", [\"center\", \"space-between center\"]))"
+    },
+    {
+     "js": "E(() => S(\"place-self\", [\"auto\", \"start end\"]))"
+    },
+    {
+     "js": "E(() => S(\"contain-intrinsic-size\", [\"100px\", \"100px 200px\", \"auto 100px\", \"none\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid-row\", [\"1\", \"1 / 3\", \"span 2\", \"a\", \"1 / span 2\", \"auto\", \"a / b\", \"auto / auto\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid-column\", [\"2 / -1\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid-area\", [\"1 / 2\", \"a\", \"1 / 2 / 3 / 4\", \"auto\", \"1\", \"a / b / c\", \"1 / 2 / 3\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid-template\", [\"none\", \"100px / 1fr 1fr\", \"\\\"a b\\\" 10px / 1fr 1fr\", \"auto 1fr / auto\"]))"
+    },
+    {
+     "js": "E(() => S(\"grid\", [\"none\", \"100px / 1fr\", \"auto-flow / 1fr 1fr\", \"\\\"a\\\" 10px / 1fr\", \"1fr / auto-flow dense 100px\"]))"
+    },
+    {
+     "js": "E(() => S(\"mask\", [\"url(a.svg)\", \"none\", \"url(a.svg) no-repeat center / contain\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-mask\", [\"url(a.svg)\"]))"
+    },
+    {
+     "js": "E(() => S(\"mask-position\", [\"center\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-mask-position\", [\"left top\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-mask-origin\", [\"content-box\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-mask-clip\", [\"text\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-mask-composite\", [\"source-over\"]))"
+    },
+    {
+     "js": "E(() => S(\"word-wrap\", [\"break-word\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-box-sizing\", [\"border-box\"]))"
+    },
+    {
+     "js": "E(() => S(\"margin-inline-start\", [\"5px\"]))"
+    },
+    {
+     "js": "E(() => S(\"inline-size\", [\"10px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-start-start-radius\", [\"3px\"]))"
+    },
+    {
+     "js": "E(() => S(\"overflow-inline\", [\"hidden\"]))"
+    },
+    {
+     "js": "E(() => S(\"inset-block-start\", [\"1px\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-flex\", [\"1\"]))"
+    },
+    {
+     "js": "E(() => S(\"-webkit-border-radius\", [\"4px\"]))"
+    },
+    {
+     "js": "E(() => S(\"border-block-start\", [\"1px solid red\"]))"
+    },
+    {
+     "js": "E(() => S(\"font-width\", [\"condensed\"]))"
+    },
+    {
+     "js": "E(() => S(\"text-decoration-thickness\", [\"2px\"]))"
+    },
+    {
+     "js": "E(() => S(\"text-underline-offset\", [\"2px\"]))"
+    }
+   ]
+  }
+ ]
+}

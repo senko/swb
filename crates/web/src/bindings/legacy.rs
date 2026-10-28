@@ -88,6 +88,11 @@ pub struct Legacy {
     pub override_builtins: bool,
     /// `[LegacyUnenumerableNamedProperties]`.
     pub unenumerable: bool,
+    /// `[SwbPropertyNames]`: the named setter takes only supported names
+    /// (others are ordinary properties), and the deletion of a supported
+    /// name succeeds without a change (Chromium's `CSSStyleDeclaration`,
+    /// whose names act as attributes).
+    pub property_names: bool,
     /// The unforgeable property names (§3.9).
     pub unforgeable: &'static [&'static str],
 }
@@ -131,10 +136,13 @@ pub fn set(
             cx.set_indexed(rt, setter, index, value)?;
             return Ok(SetAnswer::Done(true));
         }
-        if let Some(Named {
-            set: Some(setter), ..
-        }) = spec.named
+        if let Some(
+            named @ Named {
+                set: Some(setter), ..
+            },
+        ) = spec.named
             && let Some(name) = name_of(rt, key)
+            && (!spec.property_names || cx.is_supported(rt, named, &name)?)
         {
             cx.set_named(rt, setter, key, name, value)?;
             return Ok(SetAnswer::Done(true));
@@ -186,6 +194,9 @@ pub fn define_own_property(
         return Ok(None);
     }
     let creating = !cx.is_supported(rt, named, &name)?;
+    if creating && spec.property_names {
+        return Ok(None);
+    }
     if spec.override_builtins || rt.stored_own_property(object, key)?.is_none() {
         match named.set {
             None if !creating => return Ok(Some(false)),
@@ -217,7 +228,7 @@ pub fn delete(
         && cx.visible(rt, key)?
     {
         let Some(deleter) = named.delete else {
-            return Ok(Some(false));
+            return Ok(Some(spec.property_names));
         };
         let done = deleter(rt, cx.realm, cx.this, name);
         return Ok(Some(

@@ -4,6 +4,46 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-28: M8 feature 7a1, style from scripts: invalidation, counters, `element.style`
+
+- Feature 7a is split: 7a1 is everything except `getComputedStyle`,
+  which is 7a2.
+- The journal drain marks the styles dirty only for changes in the
+  document. Changes in detached subtrees and in template contents keep
+  the styles.
+- `focus()` after a DOM change computes the style of the element and
+  its ancestors only (`compute_element_styles`, "the style of one
+  element on demand" of ADR 0028 section 9). A unit test checks that
+  the result equals the full restyle. 2,000 times "append an input,
+  `focus()`" on a page of 20,000 elements reached the 5 s task limit;
+  now they take 0.21 s.
+- Style and layout runs are counted per document, with the runs that
+  script queries force apart (`flushes` in `--bench` and `page.info`).
+  The loads of the three JS targets force none.
+- `element.style`: a `CSSStyleDeclaration` over the `style` attribute
+  with Chromium's serialization of specified values (843 measured
+  values) and of shorthands. The property names are named properties
+  of the object, as in Chromium, so feature tests see what swb parses.
+  `CSS.supports` and `CSS.escape`.
+- Decisions (ADR 0028 "Feature 7a notes"): the declaration block keeps
+  Chromium's text per longhand, validated by swb's parsers; the new
+  extended attribute `[SwbPropertyNames]`; `grid`, `mask` and
+  multi-layer backgrounds are kept as written.
+- Learned from the probes: the property names are own, enumerable data
+  properties of each declaration; `delete style.color` is true and
+  changes nothing; important declarations move to the end of
+  `cssText`; numbers have 6 significant digits; `#hex` and `hsl()`
+  become `rgb()`, but color names stay names.
+- Review fixes: `outline: auto` sets `outline-style`, as in Chromium
+  (it set the color); `CSS.supports` takes `!important` in a
+  declaration; the declaration blocks of elements that are not
+  connected go when 4,096 blocks exist, since nodes live as long as
+  their document and the blocks of thrown-away elements stayed too.
+- JS off: snapshot identical, perf within noise. Hostile set 193 cases,
+  192 ok + the known failure (5 new).
+
+Next: feature 7a2, `getComputedStyle`.
+
 ## 2026-10-25: M8 feature 6d2, the user's input as DOM events
 
 - With JavaScript on, the engine's input is DOM events: pointer and

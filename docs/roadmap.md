@@ -2976,19 +2976,55 @@ Steps:
       (JS off: pixels 0.9988); the 821 boxes and the pixels of JS on
       and JS off are equal. Load time 20 ms with JavaScript on, 19 ms
       off (best of 7, virtual time).
-   7. Style and layout from scripts (`implementer-hard`), two sessions.
-      - 7a: invalidation from the journal, the flushes for queries
+   7. Style and layout from scripts (`implementer-hard`), three
+      sessions (7a is split in 7a1 and 7a2).
+      - 7a1: invalidation from the journal, the flushes for queries
         (ADR 0028 section 9), counters of forced style and layout runs
         per load (in `--bench` and `page.info`); `element.style`
         (`CSSStyleDeclaration` over the style attribute: properties,
         `setProperty`, `removeProperty`, `getPropertyValue`,
-        `cssText`, camel-case names); `getComputedStyle` with resolved
-        values serialized as Chromium does, for the properties that
-        `style` computes; `CSS.supports`. Tests: probe cases for the
-        serialization of each property group (colors, lengths,
-        percentages resolved by layout, `auto`, shorthands from
-        `style`), style changes that change layout (class toggles,
-        `hidden`, inserted style elements).
+        `cssText`, camel-case names); `CSS.supports`. Tests: probe
+        cases for the serialization of the specified values of each
+        property group and of the shorthands.
+        Done 2026-10-28. A drain marks the styles dirty only for
+        changes in the document; changes in detached subtrees and
+        template contents keep them. `focus()` after a DOM change
+        computes the style of the element and its ancestors only
+        (`compute_element_styles`, "the style of one element on
+        demand" of ADR 0028 section 9): 2,000 times "append an input,
+        `focus()`" on a page of 20,000 elements reached the 5 s task
+        limit, now 0.21 s. `FlushCounters` per document count all style
+        and layout runs, the forced ones and the element style runs,
+        with their times (`flushes` in `--bench` and `page.info`).
+        `element.style` keeps for each longhand the text that Chromium
+        serializes, after swb's own parser accepted the value;
+        shorthands are expanded when set and put together when read.
+        The property names are named properties of the object, as in
+        Chromium (new extended attribute `[SwbPropertyNames]`), so
+        `'transform' in el.style` answers what swb parses. `CSS.supports`
+        and `CSS.escape` are written by hand (the generator has no
+        namespaces). Probes `web-cssom-style.json` (12 cases, 95
+        queries, 3 departures) and `web-cssom-values.json` (843 values,
+        20 departures where swb's parsers differ from Chromium's).
+        Runtime +7.8 KB. JS-off snapshot identical, perf within noise;
+        hostile set 193 cases, 192 ok + the known failure (5 new). The
+        loads of the three JS targets force no style or layout run.
+        Review fixes: `outline: auto` sets `outline-style` (it set the
+        color); `CSS.supports` takes `!important` in a declaration;
+        the blocks of elements that are not connected go when 4,096
+        blocks exist (150,000 thrown-away elements with three style
+        writes each: peak memory 341 MiB before, 207 MiB now); a test of
+        `page.info.flushes`.
+      - 7a2: `getComputedStyle` with resolved values serialized as
+        Chromium does, for the properties that `style` computes, also
+        for `::before` and `::after`. Values that layout resolves need
+        a layout flush from a script task: the page lends its font
+        context with the document state (7b uses the same path). Tests:
+        probe cases for the serialization of each property group
+        (colors, lengths, percentages resolved by layout, `auto`,
+        transforms as matrices), style changes that change layout
+        (class toggles, `hidden`, inserted and removed style elements,
+        `style` writes).
       - 7b: geometry (`getBoundingClientRect`, `getClientRects`,
         `offsetTop/Left/Width/Height/Parent`, `client*`, `scroll*`),
         scrolling from scripts (`scrollTop` and `scrollLeft` setters,
@@ -3168,9 +3204,6 @@ Steps:
 - DOM: `Document::nodes` never shrinks, and the node limit counts every
   node ever created (immortal nodes, ADR 0028 section 3). A page that
   re-renders for hours reaches the limit; node reclamation is the fix.
-- Engine (found in feature 3b): a change in a detached subtree or in
-  template contents marks the styles dirty (the drain does not check
-  that a change is in the document). Fix when 7a counts forced restyles.
 - Engine: `img` elements that are not in the document do not load
   (`new Image()` with `src` loads in browsers; in swb it loads when it
   is inserted). Do it with `complete`, `naturalWidth` and the `load`
@@ -3542,7 +3575,8 @@ Steps:
   being rendered (`display: none`) keeps the focus until the engine's
   next fixup; the handler table grows with the document.
 - `web`, 8a (found in the 6d1 review): lazy creation of the interface
-  objects. A runtime now costs about 1.13 MB and 3.1 ms at creation,
+  objects. A runtime now costs about 1.14 MB and 3.3 ms at creation
+  (after 7a1),
   past the limit of about 1 ms or 1 MB in ADR 0028 (section 5, "Feature
   6c notes"). Do it before 8a adds the next interfaces.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
@@ -3550,11 +3584,6 @@ Steps:
   line of the attribute); swb counts from the handler body (1:7). Some
   compile error messages differ (`if (x) {`: Chromium "Unexpected end of
   input", swb "Unexpected token ')'").
-- Engine, 7a (found in the 6d1 review): the focusability check of
-  `focus()` restyles the whole document after each DOM change: 2,000
-  times "append an input, `focus()`" take 3.0 s, and 4,000 reach the
-  script time limit. The invalidation from the journal (7a) removes the
-  full restyle.
 - `web` (found in the 6d1 review): writes to `Attr.nodeValue` and
   `Attr.textContent` do not change the attribute (and so not its
   handler). There is no `innerText` setter and no
@@ -3612,6 +3641,35 @@ Steps:
 - `web` (found in the 6b review): `Object.getOwnPropertyNames` of an
   `HTMLCollection` with an expando lists the expandos before the named
   properties; Chromium lists the named properties first.
+- `style` (found by the CSSOM probe in feature 7a1): swb's parsers
+  differ from Chromium's. Chromium accepts and swb rejects: hashless
+  colors in quirks mode, `display: math`, `tab-size: <length>`,
+  `fill: context-fill`, `subgrid`, the `clip-path` shapes (`inset()`,
+  `circle()`, `polygon()`), 3D transforms. swb accepts and Chromium
+  rejects: `width: fit-content(10px)`, `position: -webkit-sticky`,
+  `text-align: match-parent`. `font-tech()` is false in `@supports`.
+- `web`, `element.style` (feature 7a1): `grid`, `grid-template`,
+  `mask`, the system fonts, multi-layer `background` and a
+  `text-decoration` with a thickness are kept as written (their
+  longhands read `""`); whitespace runs in custom
+  properties collapse; `lab()` and `oklch()` keep their units as
+  written; no `all`; `length` and `item()` cover swb's longhands only.
+  The block of an element of another document (template contents, a
+  `DOMParser` document) uses the quirks mode of the window's document.
+- `web`, `element.style` (feature 7a1): each write serializes the whole
+  block into the attribute: 10,000 `setProperty` calls on one element
+  whose block grows to 10,000 declarations take 3.3 s (quadratic;
+  hostile case `many-custom-properties-js-on`). Chromium serializes
+  when the attribute is read. Do it if a page needs it.
+- Engine (found in the 7a1 review, also before 7a1): a change of the
+  states of form controls or of the focus by a script property write
+  (`:checked`, `:indeterminate`, `:invalid`, `:placeholder-shown`,
+  `:focus-within`) does not invalidate the style before a `focus()`
+  later in the same task, so its focusability check sees the old
+  styles. Chromium sees the new ones.
+- `web` (found in the 7a1 review): the conversion to `DOMString` turns
+  lone surrogates into U+FFFD (`CSS.escape('a\ud800b')`, `style`
+  values); Chromium keeps them.
 
 ## Backlog from M6
 

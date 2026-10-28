@@ -208,6 +208,7 @@ impl ScriptRuntime {
             let window_properties = crate::window::define_class(rt)?;
             g::create_interfaces::<WebState>(rt, 0)?;
             crate::window::install(rt, 0, window_properties)?;
+            crate::cssom::install_css_namespace(rt, 0)?;
             g::init_global::<WebState>(rt, 0, crate::state::NOT_A_NODE)
         };
         setup(&mut rt).map_err(|e| internal(&e))?;

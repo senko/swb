@@ -111,6 +111,9 @@ struct Batch {
     removal: bool,
     /// True if a removed subtree has a `style` or `link` element.
     sheet_removed: bool,
+    /// True if a change was in the document (not in a detached subtree or
+    /// in template contents): only those can change the styles.
+    in_document: bool,
 }
 
 impl Batch {
@@ -202,7 +205,16 @@ impl DocumentState {
         let mut batch = Batch::default();
         let mut visited = HashSet::new();
         let mut removed_visited = HashSet::new();
+        let mut connected = Connected::new(&self.dom);
         for change in journal.iter() {
+            if !batch.in_document {
+                let target = match &change {
+                    Change::Children { parent, .. } => *parent,
+                    Change::Attribute { element, .. } => *element,
+                    Change::Text { node, .. } => *node,
+                };
+                batch.in_document = connected.check(target);
+            }
             match change {
                 Change::Children {
                     parent,
@@ -374,7 +386,7 @@ impl DocumentState {
         self.start_plan(plan, false);
         if stylist_dirty {
             self.invalidate_style();
-        } else {
+        } else if batch.in_document {
             self.invalidate_styles();
         }
     }
@@ -560,6 +572,49 @@ impl DocumentState {
         {
             self.selection = None;
         }
+    }
+}
+
+/// Answers whether nodes are in the document, with the answers for the
+/// ancestors that it walked kept for the next question. A drain of many
+/// entries in one detached tree (a script that builds a deep chain before
+/// it inserts it) walks each ancestor once.
+struct Connected<'a> {
+    dom: &'a Document,
+    known: HashMap<NodeId, bool>,
+    path: Vec<NodeId>,
+}
+
+impl<'a> Connected<'a> {
+    fn new(dom: &'a Document) -> Self {
+        Connected {
+            dom,
+            known: HashMap::new(),
+            path: Vec::new(),
+        }
+    }
+
+    /// True if `node` is in the document (its root is the document node).
+    fn check(&mut self, node: NodeId) -> bool {
+        if self.dom.get(node).is_none() {
+            return false;
+        }
+        self.path.clear();
+        let mut current = node;
+        let answer = loop {
+            if let Some(&known) = self.known.get(&current) {
+                break known;
+            }
+            self.path.push(current);
+            match self.dom.parent(current) {
+                Some(parent) => current = parent,
+                None => break current == NodeId::DOCUMENT,
+            }
+        };
+        for &n in &self.path {
+            self.known.insert(n, answer);
+        }
+        answer
     }
 }
 

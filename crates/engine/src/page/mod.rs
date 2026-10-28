@@ -89,6 +89,66 @@ pub struct StageTimings {
     pub raster: Duration,
 }
 
+/// The style and layout runs of a document since it was created, and their
+/// time (ADR 0028 section 9). A full run is *forced* if a query of a
+/// script caused it (`DocumentState::query_layout`: geometry and
+/// layout-dependent `getComputedStyle` values), not the rendering of a
+/// frame or the load pipeline. *Element* runs compute the style of one
+/// element and its ancestors for a query while the styles of the document
+/// are outdated (the focusability check of `focus()`); queries cause them
+/// too, but they are counted apart, not as forced style runs.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FlushCounters {
+    /// Full style runs (all elements).
+    pub style_runs: u32,
+    /// The time of the full style runs.
+    pub style_time: Duration,
+    /// Layout runs.
+    pub layout_runs: u32,
+    /// The time of the layout runs.
+    pub layout_time: Duration,
+    /// The full style runs that a script query forced.
+    pub forced_style_runs: u32,
+    /// Their time.
+    pub forced_style_time: Duration,
+    /// The layout runs that a script query forced.
+    pub forced_layout_runs: u32,
+    /// Their time.
+    pub forced_layout_time: Duration,
+    /// Style runs of one element and its ancestors for a script query.
+    pub element_style_runs: u32,
+    /// Their time.
+    pub element_style_time: Duration,
+}
+
+impl FlushCounters {
+    /// Records a full style run of `time`.
+    pub(crate) fn style(&mut self, time: Duration, forced: bool) {
+        self.style_runs = self.style_runs.saturating_add(1);
+        self.style_time += time;
+        if forced {
+            self.forced_style_runs = self.forced_style_runs.saturating_add(1);
+            self.forced_style_time += time;
+        }
+    }
+
+    /// Records a layout run of `time`.
+    pub(crate) fn layout(&mut self, time: Duration, forced: bool) {
+        self.layout_runs = self.layout_runs.saturating_add(1);
+        self.layout_time += time;
+        if forced {
+            self.forced_layout_runs = self.forced_layout_runs.saturating_add(1);
+            self.forced_layout_time += time;
+        }
+    }
+
+    /// Records a style run of one element and its ancestors.
+    pub(crate) fn element_style(&mut self, time: Duration) {
+        self.element_style_runs = self.element_style_runs.saturating_add(1);
+        self.element_style_time += time;
+    }
+}
+
 /// Configuration of a page.
 pub struct PageConfig {
     /// Fetches resources.

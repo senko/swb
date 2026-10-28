@@ -5,7 +5,7 @@
 use swb_layout::Size;
 use swb_paint::Pixmap;
 
-use super::{Page, StageTimings};
+use super::{FlushCounters, Page, StageTimings};
 use crate::document::Rendering;
 
 impl Page {
@@ -40,6 +40,14 @@ impl Page {
         self.doc
             .as_ref()
             .map_or_else(StageTimings::default, |d| d.timings)
+    }
+
+    /// The style and layout runs of the current document (zero without
+    /// one).
+    pub fn flush_counters(&self) -> FlushCounters {
+        self.doc
+            .as_ref()
+            .map_or_else(FlushCounters::default, |d| d.flushes)
     }
 
     /// Discards the parsed stylesheets, the styles, the layout and the

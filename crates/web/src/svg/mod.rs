@@ -141,6 +141,10 @@ impl g::svg_element::SVGElementImpl for WebState {
         crate::html::element::dataset(cx, this)
     }
 
+    fn style(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        crate::cssom::style(cx, this)
+    }
+
     fn tab_index(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
         crate::html::element::tab_index(cx, this)
     }

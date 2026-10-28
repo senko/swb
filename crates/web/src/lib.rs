@@ -38,6 +38,7 @@
 
 pub mod bindings;
 mod clock;
+mod cssom;
 mod document_load;
 mod dom;
 mod errors;

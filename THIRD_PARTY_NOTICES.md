@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and nine W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and ten W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -188,6 +188,21 @@ The license text is in the section of W3C High Resolution Time below.
 
 > This software or document includes material copied from or derived
 > from Scalable Vector Graphics (SVG) 2, https://www.w3.org/TR/SVG2/.
+> Copyright © 2026 World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
+## W3C CSS Object Model: IDL (W3C Software and Document License)
+
+`crates/web/idl/cssom.idl` contains the `CSSStyleDeclaration` interface,
+the `ElementCSSInlineStyle` mixin and the typedef `CSSOMString` from CSS
+Object Model (CSSOM) (W3C Editor's Draft, https://drafts.csswg.org/cssom/,
+copied on 2026-10-28); swb cut the file to these, made `parentRule` an
+`object?` and added two special operations of its own (the header of the
+file says why). The license text is in the section of W3C High Resolution
+Time below.
+
+> This software or document includes material copied from or derived
+> from CSS Object Model (CSSOM), https://drafts.csswg.org/cssom/.
 > Copyright © 2026 World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 

@@ -649,6 +649,32 @@ fn the_javascript_setting_applies_to_the_next_document() {
     stop(client, thread);
 }
 
+/// `page.info.flushes` counts the style and layout runs of the document;
+/// `focus()` after a DOM change computes the style of one element.
+#[test]
+fn page_info_counts_the_flushes() {
+    let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);
+    let mut client = Client::connect(port).unwrap();
+    client
+        .navigate(
+            "data:text/html,<!DOCTYPE html><div id=m>x</div><script>\
+             const i = document.createElement('input'); document.body.append(i); i.focus();\
+             </script>",
+        )
+        .unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let m = client.query_selector("#m").unwrap().unwrap();
+    rect(&mut client, m);
+    let flushes = &client.info().unwrap()["flushes"];
+    assert!(flushes["style"].as_u64().unwrap() >= 1, "{flushes}");
+    assert!(flushes["layout"].as_u64().unwrap() >= 1, "{flushes}");
+    assert!(flushes["layoutMs"].as_f64().is_some(), "{flushes}");
+    assert_eq!(flushes["elementStyle"], 1, "{flushes}");
+    assert_eq!(flushes["forcedStyle"], 0, "{flushes}");
+    assert_eq!(flushes["forcedLayout"], 0, "{flushes}");
+    stop(client, thread);
+}
+
 #[test]
 fn the_javascript_option_of_the_session() {
     let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);

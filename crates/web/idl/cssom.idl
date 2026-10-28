@@ -1,0 +1,54 @@
+// Source: CSS Object Model (CSSOM), W3C Editor's Draft,
+// https://drafts.csswg.org/cssom/ (§6.7 "CSS Declarations",
+// `CSSStyleDeclaration`, and §7.1 "The ElementCSSInlineStyle Mixin"),
+// copied on 2026-10-28.
+//
+// This file includes material copied from CSS Object Model (CSSOM),
+// https://drafts.csswg.org/cssom/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to `CSSStyleDeclaration` and `ElementCSSInlineStyle`
+// (M8 feature 7a). Changes:
+//
+// - `parentRule` is `object?` (no `CSSRule` yet; it is always null for the
+//   declarations of a `style` attribute).
+// - The camel-cased, webkit-cased and dashed attributes of each supported
+//   property (CSSOM §6.7.1) are not attributes here: the two special
+//   operations at the end are swb's own, and `[SwbPropertyNames]` makes
+//   them act like attributes. Chromium has them as properties of each
+//   instance too (measured: `style.hasOwnProperty('color')` is true and
+//   `CSSStyleDeclaration.prototype` has only `cssText`, `length`,
+//   `parentRule`, `cssFloat` and the operations), so the names list what
+//   swb parses, without an accessor pair per property.
+// - `MathMLElement includes ElementCSSInlineStyle` is cut (no
+//   `MathMLElement` interface).
+//
+// The `CSS` namespace (`CSS.supports`, `CSS.escape`) is written by hand
+// (`crates/web/src/cssom.rs`): the generator has no namespaces.
+
+typedef DOMString CSSOMString;
+
+[Exposed=Window, SwbPropertyNames]
+interface CSSStyleDeclaration {
+  [CEReactions] attribute [LegacyNullToEmptyString] CSSOMString cssText;
+  readonly attribute unsigned long length;
+  getter CSSOMString item(unsigned long index);
+  CSSOMString getPropertyValue(CSSOMString property);
+  CSSOMString getPropertyPriority(CSSOMString property);
+  [CEReactions] undefined setProperty(CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
+  [CEReactions] CSSOMString removeProperty(CSSOMString property);
+  readonly attribute object? parentRule;
+  [CEReactions] attribute [LegacyNullToEmptyString] CSSOMString cssFloat;
+
+  getter CSSOMString (DOMString name);
+  setter undefined (DOMString name, [LegacyNullToEmptyString] CSSOMString value);
+};
+
+interface mixin ElementCSSInlineStyle {
+  [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+};
+
+HTMLElement includes ElementCSSInlineStyle;
+SVGElement includes ElementCSSInlineStyle;

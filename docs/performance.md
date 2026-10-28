@@ -40,9 +40,22 @@ within one layout pass). `--bench` prints JSON:
   "stages": {
     "layout": {"first_ms": 0.43, "median_ms": 0.305},
     ...
+  },
+  "flushes": {
+    "style": {"runs": 1, "ms": 0.08},
+    "layout": {"runs": 1, "ms": 0.43},
+    "forced_style": {"runs": 0, "ms": 0.0},
+    "forced_layout": {"runs": 0, "ms": 0.0},
+    "element_style": {"runs": 0, "ms": 0.0}
   }
 }
 ```
+
+`flushes` counts the style and layout runs of the load (up to and
+including the first render, before the N runs): all full runs, the runs
+that script queries forced, and the computations of the style of one
+element and its ancestors (ADR 0028 section 9). With JavaScript off, the
+forced and element counts are 0.
 
 `first_ms` is the time at the end of loading: the last time each stage ran
 while the page loaded (stages run again when stylesheets and images

@@ -131,6 +131,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
         named: Some(b::legacy::Named { names: legacy_names::<H>, is_supported: legacy_is_supported::<H>, get: legacy_named_get::<H>, set: Some(legacy_named_set::<H>), delete: Some(legacy_named_delete::<H>) }),
         override_builtins: false,
         unenumerable: false,
+        property_names: false,
         unforgeable: &[],
     }
 }

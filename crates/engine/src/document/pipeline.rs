@@ -1,7 +1,11 @@
 //! The rendering pipeline of a document: style, layout, display list and
 //! raster, with per-stage timings, and their invalidation (ADR 0028
 //! section 9). Each stage runs when something needs it (a frame, a query)
-//! and its input changed; a flush after no change does nothing.
+//! and its input changed; a flush after no change does nothing. A query of
+//! a script that needs the style of one element while the styles are
+//! outdated computes that element and its ancestors only
+//! ([`DocumentState::query_element_style`]). The runs are counted in
+//! [`DocumentState::flushes`], those that script queries force apart.
 
 use std::time::Instant;
 
@@ -43,6 +47,7 @@ impl DocumentState {
     /// Drops the styles and everything after them (the styles are dirty).
     pub(crate) fn invalidate_styles(&mut self) {
         self.styles = None;
+        self.element_styles.clear();
         self.invalidate_layout();
     }
 
@@ -89,6 +94,67 @@ impl DocumentState {
         if (self.styles.is_none() || self.styles_stale) && self.stylesheets_settled() {
             self.compute_styles();
         }
+    }
+
+    /// A layout flush for a query of a script: the runs count as forced.
+    pub fn query_layout(&mut self, fonts: &mut FontContext) {
+        let outer = std::mem::replace(&mut self.in_query, true);
+        self.update_layout(fonts);
+        self.in_query = outer;
+    }
+
+    /// The computed style of the element `node` for a query of a script,
+    /// with its ancestors' styles computed too (ADR 0028 section 9, "the
+    /// style of one element on demand"): from the styles of the document
+    /// if they are current and `node` has one, else from the cascade of
+    /// `node` and its ancestors, which is kept until the next change
+    /// ([`DocumentState::element_styles`]). The DOM changes are processed
+    /// first. `None` if the element is not in the document or the style
+    /// sheets have not arrived (rendering waits for them).
+    pub(crate) fn query_element_style(
+        &mut self,
+        node: swb_dom::NodeId,
+    ) -> Option<std::sync::Arc<swb_style::ComputedStyle>> {
+        self.process_changes();
+        if !self.styles_stale
+            && let Some(style) = self.styles.as_ref().and_then(|s| s.get(node))
+        {
+            return Some(std::sync::Arc::clone(style));
+        }
+        if let Some(style) = self.element_styles.get(&node) {
+            return Some(std::sync::Arc::clone(style));
+        }
+        if !self.stylesheets_settled() {
+            return None;
+        }
+        if self.images.sources_outdated {
+            self.select_image_sources();
+        }
+        let env = self.media_environment();
+        self.ensure_stylist(&env);
+        // The states of the form controls only if a selector depends on
+        // them: their rebuild after a DOM change walks the document.
+        if self
+            .stylist
+            .as_ref()
+            .is_some_and(|s| s.state_dependencies().intersects(swb_style::CONTROL_STATES))
+        {
+            self.refresh_forms();
+        }
+        let stylist = self.stylist.as_ref()?;
+        let started = Instant::now();
+        let chain = swb_style::compute_element_styles(
+            &self.dom,
+            stylist,
+            &env,
+            &self.states,
+            self.base_url.value(),
+            node,
+        );
+        self.flushes.element_style(started.elapsed());
+        let style = chain.last().map(|(_, s)| std::sync::Arc::clone(s));
+        self.element_styles.extend(chain);
+        style
     }
 
     /// Brings styles and layout up to date (a layout flush). Rendering
@@ -156,6 +222,7 @@ impl DocumentState {
         let started = Instant::now();
         let fragments = swb_layout::layout(&input, fonts);
         self.timings.layout = started.elapsed();
+        self.flushes.layout(self.timings.layout, self.in_query);
         log::debug!("layout: {:?}", self.timings.layout);
         self.scrollers.update(&fragments);
         self.fragments = Some(fragments);
@@ -237,31 +304,37 @@ impl DocumentState {
         Some((node, to_u32(start), to_u32(end)))
     }
 
-    /// Computes the styles: builds the stylist first if it is dirty, from
-    /// the parsed sheets (a sheet is parsed once, at its first use).
+    /// Builds the stylist if it is dirty, from the parsed sheets (a sheet
+    /// is parsed once, at its first use).
+    fn ensure_stylist(&mut self, env: &MediaEnvironment) {
+        if self.stylist.is_some() {
+            return;
+        }
+        let started = Instant::now();
+        let mut stylist = Stylist::new(self.dom.quirks_mode);
+        for sheet in self.sheets.iter_mut() {
+            if let Some(media) = &sheet.media
+                && !MediaQueryList::parse_str(media).matches(env)
+            {
+                continue;
+            }
+            let base_url = sheet.base_url.clone();
+            if let Some(parsed) = sheet.parsed() {
+                stylist.add_author_sheet(parsed, &base_url);
+            }
+        }
+        self.stylist = Some(stylist);
+        self.timings.stylesheets = started.elapsed();
+    }
+
+    /// Computes the styles, after the stylist if it is dirty.
     fn compute_styles(&mut self) {
         self.refresh_forms();
         if self.images.sources_outdated {
             self.select_image_sources();
         }
         let env = self.media_environment();
-        if self.stylist.is_none() {
-            let started = Instant::now();
-            let mut stylist = Stylist::new(self.dom.quirks_mode);
-            for sheet in self.sheets.iter_mut() {
-                if let Some(media) = &sheet.media
-                    && !MediaQueryList::parse_str(media).matches(&env)
-                {
-                    continue;
-                }
-                let base_url = sheet.base_url.clone();
-                if let Some(parsed) = sheet.parsed() {
-                    stylist.add_author_sheet(parsed, &base_url);
-                }
-            }
-            self.stylist = Some(stylist);
-            self.timings.stylesheets = started.elapsed();
-        }
+        self.ensure_stylist(&env);
         let Some(stylist) = &self.stylist else {
             return;
         };
@@ -274,10 +347,12 @@ impl DocumentState {
             self.base_url.value(),
         );
         self.timings.style = started.elapsed();
+        self.flushes.style(self.timings.style, self.in_query);
         log::debug!("style: {:?}", self.timings.style);
         let image_urls = styles.image_urls();
         self.styles = Some(styles);
         self.styles_stale = false;
+        self.element_styles.clear();
         for url in image_urls {
             if let Ok(url) = Url::parse(&url) {
                 self.start_image(url);

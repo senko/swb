@@ -47,7 +47,7 @@ use swb_paint::DisplayList;
 use swb_style::{ElementStates, StyleMap, Stylist};
 
 use crate::forms::Forms;
-use crate::page::StageTimings;
+use crate::page::{FlushCounters, StageTimings};
 use crate::resources::{Images, Requests, ScriptFetches, Sheets};
 use crate::scrollers::Scrollers;
 use crate::selection::{Selection, TreeOrder};
@@ -179,6 +179,15 @@ pub struct DocumentState {
     pub(crate) layout_serial: u64,
     pub(crate) display_list: Option<DisplayList>,
     pub(crate) timings: StageTimings,
+    /// The style and layout runs of the document.
+    pub(crate) flushes: FlushCounters,
+    /// True while a query of a script flushes style or layout (the runs
+    /// count as forced).
+    pub(crate) in_query: bool,
+    /// The styles of single elements and their ancestors, computed for
+    /// queries while `styles` is `None` (ADR 0028 section 9); dropped with
+    /// the styles and at each change of the element states.
+    pub(crate) element_styles: std::collections::HashMap<NodeId, Arc<swb_style::ComputedStyle>>,
     /// The DOM generation at the last drain of the journal.
     drained: Option<u64>,
     /// The loads that the document started, for the tests of resource
@@ -239,6 +248,9 @@ impl DocumentState {
                 parse: init.parse,
                 ..StageTimings::default()
             },
+            flushes: FlushCounters::default(),
+            in_query: false,
+            element_styles: std::collections::HashMap::new(),
             drained: None,
             #[cfg(test)]
             load_log: Vec::new(),
@@ -623,6 +635,7 @@ impl DocumentState {
         if changed.is_empty() {
             return (false, old_focus);
         }
+        self.element_styles.clear();
         let affected = self
             .stylist
             .as_ref()

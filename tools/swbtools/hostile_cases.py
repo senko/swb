@@ -2792,3 +2792,106 @@ def wheel_listeners_10000_js_on() -> Page:
 def hover_100000_paragraphs_js_on() -> Page:
     body = "<style>body{margin:0}p{margin:0;height:10px}</style>" + "<p><b>x</b></p>" * 100_000
     return Page(doc(body + "<script>document.title = 'hover';</script>"))
+
+
+@case(
+    "4,000 times: append an input to a page of 20,000 elements and focus() it, with "
+    "JavaScript on: the focusability check computes the style of the input and its "
+    "ancestors, not of the whole document (feature 7a; it restyled the document after "
+    "each change before)",
+    swb_args=("--js",),
+    time_limit_s=5,
+    rss_limit_mib=1024,
+)
+def append_focus_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; document.addEventListener('focusin', () => n++); "
+        "const box = document.getElementById('box'); "
+        "for (let i = 0; i < 4000; i++) { const e = document.createElement('input'); "
+        "box.appendChild(e); e.focus(); } console.log('focused ' + n);</script>"
+    )
+    body = "<div>" + "<p><b>x</b></p>" * 10_000 + "</div><div id=box></div>" + script
+    return Page(doc(body, "input:focus { color: red } p b { font-weight: normal }"))
+
+
+@case(
+    "20,000 times on a page of 50,000 elements: write element.style.left, read it back and "
+    "call focus(), with JavaScript on: each write changes the attribute, and the "
+    "focusability check after it computes one element's style (feature 7a)",
+    swb_args=("--js",),
+    time_limit_s=6,
+    rss_limit_mib=1024,
+)
+def style_write_query_loop_js_on() -> Page:
+    script = (
+        "<script>const e = document.getElementById('t'); let s = 0; "
+        "for (let i = 0; i < 20000; i++) { e.style.left = i + 'px'; "
+        "s += parseInt(e.style.left); e.focus(); } console.log('sum ' + s);</script>"
+    )
+    rows = "<p><b>x</b></p>" * 25_000
+    body = "<div>" + rows + "</div><input id=t style='position:relative'>" + script
+    return Page(doc(body))
+
+
+@case(
+    "Huge values through element.style with JavaScript on: cssText of 800,000 declarations "
+    "(9.6 MB), a custom property of 10 MB, a font-family list of 1,000,000 names, and an "
+    "invalid width of 10 MB (feature 7a)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def huge_style_values_js_on() -> Page:
+    script = (
+        "<script>const e = document.getElementById('t'); "
+        "e.style.cssText = 'color: red; '.repeat(800000); const a = e.style.length; "
+        "e.style.setProperty('--x', 'x'.repeat(10000000)); "
+        "e.style.fontFamily = 'a,'.repeat(1000000) + 'b'; "
+        "e.style.width = '1'.repeat(10000000); "
+        "console.log('lengths ' + a + ' ' + e.style.length + ' ' + "
+        "e.getAttribute('style').length);</script>"
+    )
+    return Page(doc("<p id=t>x</p>" + script))
+
+
+@case(
+    "100,000 setAttribute('style') writes with a read of element.style after each, and "
+    "100,000 elements that each get a property written through element.style, with "
+    "JavaScript on: a read parses the attribute only after it changed, and each element "
+    "keeps one declaration block (feature 7a)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def style_attribute_writes_js_on() -> Page:
+    script = (
+        "<script>const t = document.getElementById('t'); let n = 0; "
+        "for (let i = 0; i < 100000; i++) { t.setAttribute('style', 'width: ' + i + 'px'); "
+        "if (t.style.width === i + 'px') n++; } "
+        "const box = document.getElementById('box'); "
+        "for (let i = 0; i < 100000; i++) { const p = document.createElement('i'); "
+        "p.style.color = i % 2 ? 'red' : 'blue'; box.appendChild(p); } "
+        "console.log('styles ' + n + ' ' + box.children.length);</script>"
+    )
+    return Page(doc("<p id=t>x</p><div id=box></div>" + script))
+
+
+@case(
+    "One element with 200,000 distinct custom properties in cssText, then 10,000 "
+    "setProperty calls of new custom properties on another element, with JavaScript on: "
+    "the parse of cssText is linear; each write serializes the block of its element "
+    "(feature 7a)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def many_custom_properties_js_on() -> Page:
+    script = (
+        "<script>const a = document.getElementById('a'), b = document.getElementById('b'); "
+        "let css = ''; for (let i = 0; i < 200000; i++) css += '--p' + i + ': ' + i + '; '; "
+        "a.style.cssText = css; "
+        "for (let i = 0; i < 10000; i++) b.style.setProperty('--q' + i, 'v'); "
+        "console.log('custom ' + a.style.length + ' ' + b.style.length + ' ' + "
+        "a.style.getPropertyValue('--p199999'));</script>"
+    )
+    return Page(doc("<p id=a>x</p><p id=b>y</p>" + script))

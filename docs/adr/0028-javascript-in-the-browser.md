@@ -2169,6 +2169,130 @@ page would spend up to 3 s in style alone. The plan:
   does); they come with the first target that needs them.
 - `CSS.supports`: through the `@supports` parser of `css`.
 
+Feature 7a notes (7a1: invalidation, counters, `element.style`,
+`CSS.supports`; `getComputedStyle` is 7a2. Measured with
+`tools/probes/web-cssom-style.json` (12 cases, 95 queries) and
+`tools/probes/web-cssom-values.json` (843 property values), three equal
+Chromium runs each; the Rust tests are `crates/web/tests/cssom_style.rs`
+and `swb_style::cssom` (`cssom/tests.rs`)):
+
+- **Invalidation (section 9).** The journal drain marks the styles dirty
+  only if a change was in the document: the parent of a child-list
+  change, the element of an attribute change or the node of a text change
+  is connected (a walk to the root with the answers kept per drain, so a
+  deep detached tree costs each ancestor once). Changes in detached
+  subtrees and in template contents keep the styles; their insertion is a
+  change in the document. (This closes the backlog item of feature 3b.)
+- **The style of one element on demand (section 9, plan item 2).**
+  `swb_style::compute_element_styles` runs the cascade of an element and
+  its ancestors, from the document element down, with the code of the
+  full cascade (`Styler::style_element`, without the Bloom filter and
+  without pseudo-elements, `use` instances and counters); the result
+  equals the full styles for these elements (unit test). Descendants of
+  `display: none` get styles too (the full cascade skips them;
+  `getComputedStyle` needs them). `DocumentState::query_element_style`
+  reads the full styles when they are current, else this chain, kept in
+  `element_styles` until the styles or the element states change. It
+  rebuilds the form control states only if a selector depends on them
+  (their rebuild walks the document; no rule of the user-agent sheet
+  does), and uses the state set without per-document tables
+  (`StateSet::lazy`). The
+  focusability check of `focus()` uses it after a DOM change: 4,000
+  times "append an input to a page of 20,000 elements, `focus()`" took
+  the 5 s time limit before (2,000: the limit too, 10.5 s for the process)
+  and take 0.28 s for the whole process now (2,000: 0.21 s; hostile case
+  `append-focus-loop-js-on`).
+- **Counters (section 9, plan item 1).** `DocumentState::flushes`
+  (`FlushCounters`): the full style runs, the layout runs, the full runs
+  that a script query forced (`query_layout` sets the flag `in_query`
+  that marks them), and the element style runs
+  (`query_element_style`), each with its time, per document. `--bench`
+  prints them as `flushes` (of the load, before the benchmark's own
+  runs), `page.info` as `flushes`. In 7a1 nothing calls `query_layout`,
+  so the forced counts stay 0; the only runs that a query causes are the
+  element style runs of `focus()`. `getComputedStyle` (7a2) and the
+  geometry of 7b call `query_element_style` and `query_layout`.
+- **`element.style` (section 10).** `swb_style::cssom::StyleDeclarations`
+  is the declaration block: longhands only, as Chromium's (a shorthand
+  sets each longhand; reading or serializing a shorthand puts it
+  together), each value kept as Chromium serializes it, checked with
+  swb's own property parsers (by name), so a property or value that swb
+  does not parse is ignored. Logical properties are their own longhands
+  (Chromium keeps `margin-inline-start` apart from `margin-left`; swb's
+  cascade maps them when it parses the attribute). The binding
+  (`crates/web/src/cssom.rs`) keeps one block per element with the
+  attribute text and the DOM generation it was built for; a read parses
+  again only if the attribute changed; a change writes the block's
+  `cssText` through the attribute funnel. Nodes live as long as their
+  document (section 3), so when 4,096 blocks exist, the blocks of
+  elements that are not connected go (review fix: 150,000 thrown-away
+  elements with three writes each kept 1.4 KB per element); the next
+  limit is twice the blocks that stay. A read builds such a block again
+  from the attribute; the parse moves `!important` declarations to the
+  end, so the order of their `cssText` can change (departure). The
+  property names are named
+  properties of the object (`[SwbPropertyNames]` in `idl/cssom.idl`,
+  measured: in Chromium `style.hasOwnProperty('color')` is true and
+  `CSSStyleDeclaration.prototype` has only `cssText`, `length`,
+  `parentRule`, `cssFloat` and the operations). `[SwbPropertyNames]`
+  (generator and `bindings/legacy.rs`): the named setter takes only
+  supported names (`style.foo = 1` is an expando, as in Chromium), and
+  `delete style.color` succeeds without a change. The names listed by
+  `Object.keys` are the camel-cased and webkit-cased names (sorted, as
+  Chromium); a name exists exactly when swb parses the property, so
+  `'transform' in el.style` answers truthfully. No accessor pair per
+  property is created, so the interface adds little to the runtime
+  (senko.net, release, seven interleaved runs: heap 1,132,705 → 1,140,510
+  bytes, creation 3.32 → 3.28 ms median, within noise).
+- **Chromium behaviour found.** Values: keywords lower case, numbers
+  with six significant digits in `%g` form (`1.23457e+08`, `1e-07`), `0`
+  as `0px` (`0deg` in rotations), units lower case, `#hex` and
+  `rgb()`/`hsl()`/`hwb()` as `rgb(r, g, b)` or `rgba(..., a)` with the
+  alpha in two decimals when they round-trip, else three (`#f008` is
+  `0.533`), names stay names, `calc()` sums of one unit computed
+  (`calc(15px)`, `max(1px,2px)` is `calc(2px)`), `url("...")`, strings
+  in double quotes, font families unquoted when they are one identifier,
+  quoted when several or a quoted generic name, and per-property
+  rewritings (x/y order of `transform-origin`, `background-repeat:
+  repeat no-repeat` is `repeat-x`, `counter-reset: x` is `x 0`,
+  `display: inline flex` is `inline-flex`, `aspect-ratio: 2` is
+  `2 / 1`, and others in `cssom/longhand.rs`). Shorthands: omitted
+  longhands are `initial` (`outline`, `list-style`, `text-decoration`,
+  `background`) or the initial value (`border`: `medium`, `none`,
+  `currentcolor`; `font`: `normal`; `flex-flow`, `columns`); `border`
+  also resets the five `border-image` longhands (swb keeps them as
+  longhands that only `border` sets, so `cssText` writes
+  `border-image: initial` as Chromium); a shorthand's value leaves out
+  the omitted parts (`border: none` reads as `""`, `outline: red solid
+  1px` is `red solid 1px` in Chromium's order); `flex: 1` is `1 1 0%`.
+  `cssText` parsing: the last declaration of a property wins, an
+  important one over the others, and the important declarations come
+  last. `setProperty` with an unknown priority does nothing; a property
+  write (`style.color = ...`) has no priority, so it drops `!important`;
+  `null` empties, `undefined` is the string. `removeProperty` of a
+  shorthand returns `""` (CSSOM says its value). `cssText = ...` always
+  writes the attribute, also `""`; `removeProperty` of a property that is
+  not there does not. In quirks mode unitless lengths take `px` for the
+  properties of the quirk.
+- **Departures.** `length` and `item()` list swb's longhands (Chromium's
+  `font` sets 19, swb's 9; Chromium's `text-decoration` has a thickness);
+  `grid`, `grid-template`, `mask`, system fonts in `font`, backgrounds
+  of several layers and a `text-decoration` with a thickness
+  (`line-through 2px`) are kept as written and their longhands read as
+  `""` (as for `var()`); whitespace runs in custom property values
+  collapse; `lab()` and the other CSS Color 4 functions keep their units;
+  `!important` inside a `var()` value is not taken as the priority; `all`
+  is not supported; `Object.keys` lists the names before the expandos
+  (Web IDL; Chromium after). Where swb's parsers differ from Chromium's
+  (no `clip-path` shapes, no 3D transforms, no hashless colors in quirks
+  mode, `position: -webkit-sticky` accepted), the block follows swb's
+  parsers: the value list of `web-cssom-values.json` marks these rows.
+  `CSS` has `supports` and `escape` only (written by hand: the generator
+  has no namespaces); `font-tech()` in a condition is false. A
+  declaration in a condition may be `!important` (Chromium, measured:
+  `CSS.supports('display: flex !important')` is true, a second
+  `!important` makes it false); the two-argument form takes no priority.
+
 ### 11. Events from the engine to scripts
 
 **Dispatch** follows DOM §2.9: the event path, capture and bubble,

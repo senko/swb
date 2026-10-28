@@ -91,32 +91,62 @@ fn compute_styles_with_options(
     use_filter: bool,
 ) -> StyleMap {
     let state_set = StateSet::new(doc, states);
-    let quirks = stylist.quirks();
-    let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
-    let mut styler = Styler {
-        doc,
-        states: &state_set,
-        cx: CascadeContext {
-            stylist,
-            env,
-            quirks,
-            root_font_size: env.root_font_size,
-            initial: ComputedStyle::initial(),
-        },
-        media: stylist.evaluate_media(env),
-        matching: MatchingContext::new(if quirks {
-            swb_css::QuirksMode::Quirks
-        } else {
-            swb_css::QuirksMode::NoQuirks
-        }),
-        hints: HintContext::new(doc, author.clone(), quirks),
-        author,
-        filter: use_filter.then(AncestorFilter::new),
-        shared: HashMap::new(),
-        scratch: Vec::new(),
-        matched: Vec::new(),
-    };
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, use_filter);
     styler.run()
+}
+
+/// Computes the styles of the element `node` and of its ancestor elements,
+/// from the document element down, as [`compute_styles`] computes them
+/// (ADR 0028 section 9, "the style of one element on demand"). Unlike
+/// [`compute_styles`], the descendants of `display: none` elements get
+/// styles too. Empty if `node` is not an element of the document tree.
+/// Pseudo-elements, `use` instances and counters are not computed.
+pub fn compute_element_styles(
+    doc: &Document,
+    stylist: &Stylist,
+    env: &MediaEnvironment,
+    states: &ElementStates,
+    base_url: &Url,
+    node: NodeId,
+) -> Vec<(NodeId, Arc<ComputedStyle>)> {
+    let Some(root) = doc.document_element() else {
+        return Vec::new();
+    };
+    if doc.element(node).is_none() {
+        return Vec::new();
+    }
+    let mut chain: Vec<NodeId> = std::iter::once(node)
+        .chain(doc.ancestors(node).take_while(|&n| n != NodeId::DOCUMENT))
+        .collect();
+    if chain.last() != Some(&root) || doc.parent(root) != Some(NodeId::DOCUMENT) {
+        return Vec::new();
+    }
+    chain.reverse();
+    // Without the per-document tables: a pass over the document would
+    // cost more than the cascade of a few elements.
+    let state_set = StateSet::lazy(doc, states);
+    let mut styler = Styler::new(doc, &state_set, stylist, env, base_url, false);
+    let mut parent = Arc::clone(&styler.cx.initial);
+    let mut layout_parent = None;
+    let mut out = Vec::with_capacity(chain.len());
+    for id in chain {
+        let Some(el) = DomElement::new(doc, id, &state_set) else {
+            // Only elements are between an element and the document
+            // element.
+            return Vec::new();
+        };
+        let is_root = id == root;
+        let style = styler.style_element(&el, &parent, layout_parent, is_root);
+        if is_root {
+            styler.cx.root_font_size = style.font_size;
+        }
+        if style.display != Display::Contents {
+            layout_parent = Some(style.display);
+        }
+        parent = Arc::clone(&style);
+        out.push((id, style));
+    }
+    out
 }
 
 /// What a shareable element style depends on. The parent style is
@@ -167,7 +197,44 @@ struct Styler<'a> {
     matched: Vec<u32>,
 }
 
-impl Styler<'_> {
+impl<'a> Styler<'a> {
+    /// A styler for the elements of `doc`, with the ancestor Bloom filter
+    /// if `use_filter`.
+    fn new(
+        doc: &'a Document,
+        states: &'a StateSet<'a>,
+        stylist: &'a Stylist,
+        env: &'a MediaEnvironment,
+        base_url: &Url,
+        use_filter: bool,
+    ) -> Self {
+        let quirks = stylist.quirks();
+        let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
+        Styler {
+            doc,
+            states,
+            cx: CascadeContext {
+                stylist,
+                env,
+                quirks,
+                root_font_size: env.root_font_size,
+                initial: ComputedStyle::initial(),
+            },
+            media: stylist.evaluate_media(env),
+            matching: MatchingContext::new(if quirks {
+                swb_css::QuirksMode::Quirks
+            } else {
+                swb_css::QuirksMode::NoQuirks
+            }),
+            hints: HintContext::new(doc, author.clone(), quirks),
+            author,
+            filter: use_filter.then(AncestorFilter::new),
+            shared: HashMap::new(),
+            scratch: Vec::new(),
+            matched: Vec::new(),
+        }
+    }
+
     fn run(&mut self) -> StyleMap {
         let mut map = StyleMap::with_capacity(self.doc.len());
         let Some(root) = self.doc.document_element() else {

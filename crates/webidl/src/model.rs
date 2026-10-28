@@ -26,6 +26,7 @@ const INTERFACE_ATTRS: &[&str] = &[
     "LegacyOverrideBuiltIns",
     "LegacyUnenumerableNamedProperties",
     "SwbEnumerableNamedProperties",
+    "SwbPropertyNames",
     "Serializable",
     "Transferable",
     "SecureContext",

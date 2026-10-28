@@ -136,7 +136,13 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   "hoveredLink": null,
   "cursor": "default",
   "javascript": false,
-  "documentJavascript": false
+  "documentJavascript": false,
+  "flushes": {
+    "style": 1, "styleMs": 0.08, "layout": 1, "layoutMs": 0.41,
+    "forcedStyle": 0, "forcedStyleMs": 0.0,
+    "forcedLayout": 0, "forcedLayoutMs": 0.0,
+    "elementStyle": 0, "elementStyleMs": 0.0
+  }
 }
 ```
 
@@ -147,6 +153,12 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 - `javascript`: the JavaScript setting (what the next document gets).
 - `documentJavascript`: the value that the current document was created
   with (its scripting flag).
+- `flushes`: the style and layout runs of the current document, as
+  counts and milliseconds (ADR 0028 section 9). `style` and `layout`
+  count all full runs; `forcedStyle` and `forcedLayout` count the runs
+  that a script query caused; `elementStyle` counts the computations of
+  the style of one element and its ancestors (for example for `focus()`
+  after a DOM change).
 
 ### The JavaScript setting
 

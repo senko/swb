@@ -1099,7 +1099,15 @@ click the next one (the click-in-progress flag and the recursion budget),
 handlers, `focus()` on 100,000 inputs in a loop with a `:focus` rule (the
 restyle waits for the flush), and a `submit` handler that calls
 `requestSubmit()` and `submit()` and a `reset` handler that calls
-`reset()`, with a loop of 100,000 `requestSubmit()` calls. The cases with
+`reset()`, with a loop of 100,000 `requestSubmit()` calls. Cases for the
+style from scripts of feature 7a: 4,000 times "append an input to a page
+of 20,000 elements and `focus()` it" (one element's style per check),
+20,000 `element.style` writes each followed by a read and `focus()` on a
+page of 50,000 elements, huge values (`cssText` of 800,000 declarations,
+a 10 MB custom property, a `font-family` of 1,000,000 names, a 10 MB
+invalid width), 100,000 `setAttribute('style')` writes with reads and
+100,000 elements with an inline style, and 200,000 custom properties in
+one `cssText` with 10,000 `setProperty` calls. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2511,7 +2519,30 @@ code for them (a unit test of the generator checks the glue).
   a style, a link, an image and boxes reaches style, layout and the loads,
   its scripts do not run, and the documents of `DOMParser` and
   `createHTMLDocument` are not rendered and load nothing (a node that
-  moves into the page does).
+  moves into the page does). Feature 7a: `element.style` writes (a
+  property, `setProperty` with a priority against a sheet's
+  `!important`, `cssText`, `removeProperty`, `display: none`) restyle and
+  lay out, and `focus()` after DOM changes computes the styles of the
+  element and its ancestors only (the flush counters show no full
+  restyle in the task).
+- `crates/web/tests/cssom_style.rs`: `element.style` and the `CSS`
+  namespace (feature 7a): every case of `tools/probes/web-cssom-style.json`
+  (12 cases, 95 queries: the `style` attribute and its block, the property
+  names and feature tests, the objects and their descriptors, priorities,
+  `cssText`, shorthands, values, the quirks mode, `CSS.supports`,
+  `CSS.escape`) with Chromium's values (`tests/cssom_style/cases.rs`,
+  generated from the probe's `--json` output; three equal Chromium runs);
+  `SWB_VALUES` has three departures (the properties that swb does not
+  parse, `font-tech()`, the members of `CSS`); also a loop of 20,000 reads
+  and writes and the object across a collection. The values of each
+  property are tested in `swb_style` (`cssom/tests.rs`): the 843 values of
+  `tools/probes/web-cssom-values.json` (`cssom/chromium_rows.rs`, generated
+  from its `--json` output) with the departures listed in the test, and
+  the block algorithms (priorities, shorthands from longhands, `cssText`
+  parsing, removal, the quirks mode, `CSS.supports`, `CSS.escape`).
+  `engine/src/document/tests.rs` has the invalidation from the journal
+  (changes in detached subtrees and template contents keep the styles),
+  the element styles against the full styles and the flush counters.
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

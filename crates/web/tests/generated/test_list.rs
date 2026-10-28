@@ -68,6 +68,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
         named: None,
         override_builtins: false,
         unenumerable: false,
+        property_names: false,
         unforgeable: &[],
     }
 }

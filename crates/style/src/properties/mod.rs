@@ -308,6 +308,13 @@ fn lookup_property(name: &str) -> Option<(PropertyId, bool)> {
     ShorthandId::from_alias(name).map(|s| (PropertyId::Shorthand(s), false))
 }
 
+/// True if swb parses declarations of the property `name` (lower case;
+/// not custom properties): its own, aliases and the accepted but ignored
+/// ones.
+pub(crate) fn is_known_property(name: &str) -> bool {
+    lookup_property(name).is_some() || IGNORED_PROPERTIES.contains(&name) || name == "mask-type"
+}
+
 /// True if a value contains `var()` or `env()` references.
 pub(crate) fn has_references(value: &[ComponentValue]) -> bool {
     contains_function(value, "var") || contains_function(value, "env")

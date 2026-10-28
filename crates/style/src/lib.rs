@@ -28,6 +28,7 @@
 //!   `font_settings`: `font-variation-settings` and `font-feature-settings`.
 //! - `counters`: CSS counters and list item ordinal values, resolved
 //!   after the cascade; `counter_style`: the text of a counter value.
+//! - `cssom`: the declaration blocks of `element.style` and `CSS.supports`.
 //! - `style_map`: the result for a document; `content`: the text of
 //!   generated content.
 //!
@@ -39,6 +40,7 @@ mod computed;
 mod content;
 mod counter_style;
 mod counters;
+pub mod cssom;
 mod custom;
 mod element;
 mod element_kinds;
@@ -53,7 +55,7 @@ mod stylist;
 mod svg_attributes;
 mod values;
 
-pub use cascade::compute_styles;
+pub use cascade::{compute_element_styles, compute_styles};
 pub use computed::{ComputedStyle, CustomProperties};
 pub use content::content_text;
 pub use element::{

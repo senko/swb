@@ -139,6 +139,11 @@ impl g::html_element::HTMLElementImpl for WebState {
         dataset(cx, this)
     }
 
+    /// `style`: the one `CSSStyleDeclaration` of the element.
+    fn style(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::cssom::style(cx, this)
+    }
+
     fn tab_index(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
         tab_index(cx, this)
     }

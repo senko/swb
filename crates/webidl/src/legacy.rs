@@ -37,6 +37,11 @@ pub(crate) struct Legacy<'a> {
     /// `[LegacyUnenumerableNamedProperties]` on the interface or an
     /// ancestor.
     pub(crate) unenumerable: bool,
+    /// `[SwbPropertyNames]` (swb's, for `CSSStyleDeclaration`): the named
+    /// properties behave like attributes of the prototype, as in Chromium:
+    /// a write of a name that is not supported makes an ordinary property,
+    /// and a deletion of a supported name succeeds and changes nothing.
+    pub(crate) property_names: bool,
 }
 
 impl Legacy<'_> {
@@ -105,6 +110,7 @@ impl Model {
         };
         for owner in self.chain(iface) {
             legacy.override_builtins |= owner.ext_attrs.has("LegacyOverrideBuiltIns");
+            legacy.property_names |= owner.ext_attrs.has("SwbPropertyNames");
             for member in &owner.members {
                 let Member::Operation(op) = member else {
                     continue;
@@ -176,6 +182,7 @@ impl Model {
         for name in [
             "LegacyOverrideBuiltIns",
             "LegacyUnenumerableNamedProperties",
+            "SwbPropertyNames",
         ] {
             if let Some(attr) = iface.ext_attrs.get(name)
                 && legacy.named_getter.is_none()

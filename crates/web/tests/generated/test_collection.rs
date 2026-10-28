@@ -104,6 +104,7 @@ fn legacy<H: super::Bindings>() -> b::legacy::Legacy {
         named: Some(b::legacy::Named { names: legacy_names::<H>, is_supported: legacy_is_supported::<H>, get: legacy_named_get::<H>, set: None, delete: None }),
         override_builtins: false,
         unenumerable: true,
+        property_names: false,
         unforgeable: &[],
     }
 }

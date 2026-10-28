@@ -208,6 +208,103 @@ fn attribute_and_text_changes_restyle_and_lay_out() {
     });
 }
 
+/// `element.style` writes the attribute that the cascade reads (feature
+/// 7a): a property write, `setProperty` with a priority, `cssText`,
+/// `removeProperty` and a property of a shorthand restyle and lay out.
+#[test]
+fn element_style_restyles_and_lays_out() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-element-style");
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>body { margin: 0 } #a { height: 20px !important }</style>\
+             <div id=a>a</div><div id=b>b</div>",
+        );
+        let (mut page, _) = load(&url);
+        assert_eq!(rect(&mut page, "a").height, 20.0);
+        run(
+            &mut page,
+            "document.getElementById('b').style.height = '30px'",
+        );
+        assert_eq!(rect(&mut page, "b").height, 30.0);
+        run(
+            &mut page,
+            "document.getElementById('b').style.color = 'red'",
+        );
+        assert_eq!(color(&mut page, "b"), RED);
+        // The sheet's `!important` wins over a normal inline value, not
+        // over an important one.
+        run(
+            &mut page,
+            "document.getElementById('a').style.height = '40px'",
+        );
+        assert_eq!(rect(&mut page, "a").height, 20.0);
+        run(
+            &mut page,
+            "document.getElementById('a').style.setProperty('height', '40px', 'important')",
+        );
+        assert_eq!(rect(&mut page, "a").height, 40.0);
+        run(
+            &mut page,
+            "document.getElementById('b').style.cssText = 'margin: 5px 0 0; height: 10px'",
+        );
+        assert_eq!(rect(&mut page, "b").y, 45.0);
+        assert_eq!(color(&mut page, "b"), Rgba::BLACK);
+        run(
+            &mut page,
+            "document.getElementById('b').style.removeProperty('margin-top')",
+        );
+        assert_eq!(rect(&mut page, "b").y, 40.0);
+        run(
+            &mut page,
+            "document.getElementById('b').style.display = 'none'",
+        );
+        let b = node(&page, "b");
+        assert_eq!(
+            page.styles().unwrap().get(b).unwrap().display,
+            swb_style::Display::None
+        );
+        let attribute = run(
+            &mut page,
+            "document.getElementById('b').getAttribute('style')",
+        );
+        assert_eq!(
+            attribute,
+            r#""margin-right: 0px; margin-bottom: 0px; margin-left: 0px; height: 10px; display: none;""#
+        );
+    });
+}
+
+/// After each DOM change, `focus()` computes the style of the element and
+/// its ancestors only (feature 7a): no full restyle, and the result is
+/// that of the full styles (an input under `display: none` or with
+/// `visibility: hidden` cannot take the focus).
+#[test]
+fn focus_after_a_change_styles_one_element() {
+    on_page_thread(|| {
+        let site = Site::new("script-dom-focus-element-style");
+        let url = site.page(
+            "page.html",
+            "<!DOCTYPE html><style>.h { display: none } .v input { visibility: hidden }</style>\
+             <div id=box></div><div class=h id=h></div><div class=v id=v></div>",
+        );
+        let (mut page, _) = load(&url);
+        let before = page.flush_counters();
+        let answer = run(
+            &mut page,
+            "{ const r = []; for (const id of ['box', 'h', 'v', 'box']) { \
+             const e = document.createElement('input'); document.getElementById(id).appendChild(e); \
+             e.focus(); r.push(document.activeElement === e); } r }",
+        );
+        assert_eq!(answer, "[true,false,false,true]");
+        let after = page.flush_counters();
+        // The task ran no full restyle (the layout after it ran one).
+        assert_eq!(after.forced_style_runs, before.forced_style_runs);
+        assert!(after.element_style_runs >= before.element_style_runs + 4);
+        assert!(after.style_runs > before.style_runs);
+    });
+}
+
 #[test]
 fn inserted_style_sheets_and_images_apply_and_load() {
     on_page_thread(|| {

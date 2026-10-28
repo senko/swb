@@ -9,7 +9,8 @@
 //! flush (`styles_stale`), so a loop of 100,000 `focus()` calls does not
 //! compute the styles 100,000 times. Whether an element can be focused
 //! uses the styles of the last flush (`display` and `visibility`), not a
-//! layout.
+//! layout; after a DOM change, the styles of the element and its
+//! ancestors only (feature 7a, [`DocumentState::query_element_style`]).
 
 use swb_dom::NodeId;
 use swb_net::Url;
@@ -63,17 +64,30 @@ impl DocumentState {
         // The styles of the last flush are enough, also when only the
         // focus made them stale; computing them again for each call would
         // make a loop of `focus()` calls quadratic.
-        if self.styles.is_none() {
-            self.update_style();
+        if let Some(styles) = &self.styles {
+            return styles.get(node).is_some_and(|s| {
+                s.display != Display::None && s.visibility == Visibility::Visible
+            });
         }
-        // Without styles (the style sheets have not loaded) nothing is
-        // rendered yet; the element counts as rendered.
-        let Some(styles) = &self.styles else {
+        // After a DOM change: the styles of the element and its ancestors
+        // only, not of the whole document (a loop of "append an input,
+        // `focus()`" would restyle the document at each step). The result
+        // is that of a full restyle: an element is not rendered if it or
+        // an ancestor has `display: none` (a full restyle gives such
+        // descendants no style).
+        let Some(style) = self.query_element_style(node) else {
+            // Without styles (the style sheets have not loaded) nothing is
+            // rendered yet; the element counts as rendered.
             return true;
         };
-        styles
-            .get(node)
-            .is_some_and(|s| s.display != Display::None && s.visibility == Visibility::Visible)
+        if style.display == Display::None || style.visibility != Visibility::Visible {
+            return false;
+        }
+        let dom = &self.dom;
+        let styles = &self.element_styles;
+        dom.ancestors(node)
+            .take_while(|&n| n != NodeId::DOCUMENT)
+            .all(|n| styles.get(&n).is_some_and(|s| s.display != Display::None))
     }
 
     /// Moves the focus. The styles that depend on `:focus` are outdated
@@ -87,6 +101,7 @@ impl DocumentState {
         if changed.is_empty() {
             return;
         }
+        self.element_styles.clear();
         let affected = self
             .stylist
             .as_ref()

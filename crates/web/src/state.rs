@@ -50,6 +50,8 @@ pub(crate) enum Slot {
     ClassName,
     /// `Document.implementation`.
     Implementation,
+    /// `ElementCSSInlineStyle.style`.
+    Style,
     /// `document.forms` and the other collections of a document.
     Collection(crate::dom::DocCollection),
 }
@@ -130,6 +132,9 @@ pub(crate) struct WebState {
     pub(crate) performance: Option<Gc<Object>>,
     /// The script elements and the script lists of the window's document.
     pub(crate) scripts: crate::scripts::Scripts,
+    /// The declaration blocks of the `style` attributes that scripts read
+    /// or changed (`element.style`).
+    pub(crate) style_blocks: crate::cssom::StyleBlocks,
 }
 
 impl HostState for WebState {

@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use swb_engine::{
-    Evaluation, EvaluationId, EvaluationStart, JsonForm, Key, LoadState, Modifiers, MouseButton,
-    NodeId, Page, Point, Rect, Size, Url, check_scale, check_viewport_size,
+    Evaluation, EvaluationId, EvaluationStart, FlushCounters, JsonForm, Key, LoadState, Modifiers,
+    MouseButton, NodeId, Page, Point, Rect, Size, Url, check_scale, check_viewport_size,
 };
 use swb_net::CookieJar;
 
@@ -284,6 +284,25 @@ fn info(page: &mut Page) -> Value {
         "cursor": page.cursor().as_str(),
         "javascript": page.javascript(),
         "documentJavascript": page.document_has_scripting(),
+        "flushes": flushes_json(page.flush_counters()),
+    })
+}
+
+/// The style and layout runs of the document (ADR 0028 section 9): counts
+/// and milliseconds, all runs and those that script queries forced.
+fn flushes_json(c: FlushCounters) -> Value {
+    let ms = |d: Duration| (d.as_secs_f64() * 1e6).round() / 1e3;
+    json!({
+        "style": c.style_runs,
+        "styleMs": ms(c.style_time),
+        "layout": c.layout_runs,
+        "layoutMs": ms(c.layout_time),
+        "forcedStyle": c.forced_style_runs,
+        "forcedStyleMs": ms(c.forced_style_time),
+        "forcedLayout": c.forced_layout_runs,
+        "forcedLayoutMs": ms(c.forced_layout_time),
+        "elementStyle": c.element_style_runs,
+        "elementStyleMs": ms(c.element_style_time),
     })
 }
 

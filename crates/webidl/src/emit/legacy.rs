@@ -219,11 +219,12 @@ impl Gen<'_> {
             .join(", ");
         let _ = writeln!(
             glue,
-            "/// The indexed and named properties of `{0}` (Web IDL §3.9).\nfn legacy<{bound}>() -> b::legacy::Legacy {{\n    b::legacy::Legacy {{\n        interface: {1},\n        dom_exception: super::DOM_EXCEPTION,\n        indexed: {indexed},\n        named: {named},\n        override_builtins: {2},\n        unenumerable: {3},\n        unforgeable: &[{unforgeable}],\n    }}\n}}\n",
+            "/// The indexed and named properties of `{0}` (Web IDL §3.9).\nfn legacy<{bound}>() -> b::legacy::Legacy {{\n    b::legacy::Legacy {{\n        interface: {1},\n        dom_exception: super::DOM_EXCEPTION,\n        indexed: {indexed},\n        named: {named},\n        override_builtins: {2},\n        unenumerable: {3},\n        property_names: {4},\n        unforgeable: &[{unforgeable}],\n    }}\n}}\n",
             iface.name,
             literal(&iface.name),
             legacy.override_builtins,
-            legacy.unenumerable
+            legacy.unenumerable,
+            legacy.property_names
         );
         hook_wrappers(iface, glue);
     }

@@ -418,3 +418,124 @@ fn a_selection_of_some_images_does_not_scan_all_images() {
     assert_eq!(doc.images.forget_calls, 1);
     assert!(doc.images.by_url.is_empty());
 }
+
+#[test]
+fn changes_outside_the_document_keep_the_styles() {
+    let mut doc = walked(
+        "<style>.on{color:red}</style><p id=p>x</p><template id=t><b>y</b></template>",
+        &url(),
+    );
+    doc.update_style();
+    let runs = doc.flushes.style_runs;
+    // A detached subtree: built, its attributes and text changed.
+    let div = doc
+        .change_dom(|dom| {
+            let div = dom.create_element(html_name(local_name!("div")), Vec::new())?;
+            let span = dom.create_element(html_name(local_name!("span")), Vec::new())?;
+            dom.append_child(div, span)?;
+            dom.set_attr(span, "class", "on")?;
+            let text = dom.create_text("t")?;
+            dom.append_child(span, text)?;
+            dom.set_data(text, "u")?;
+            Ok::<_, swb_dom::DomError>(div)
+        })
+        .unwrap();
+    assert!(doc.styles.is_some(), "a detached change keeps the styles");
+    // Template contents are not in the document either.
+    let template = element(&doc, "t");
+    let contents = doc
+        .dom()
+        .element(template)
+        .and_then(|e| e.template_contents)
+        .unwrap();
+    let b = doc.dom().children(contents).next().unwrap();
+    doc.change_dom(|dom| dom.set_attr(b, "class", "on"))
+        .unwrap();
+    assert!(
+        doc.styles.is_some(),
+        "a change in template contents keeps the styles"
+    );
+    doc.update_style();
+    assert_eq!(doc.flushes.style_runs, runs);
+    // The insertion of the subtree changes the styles.
+    let body = doc.dom().body().unwrap();
+    doc.change_dom(|dom| dom.append_child(body, div)).unwrap();
+    assert!(doc.styles.is_none());
+    // A change in a subtree after its removal in the same drain: the
+    // removal was in the document.
+    doc.update_style();
+    let p = element(&doc, "p");
+    doc.change_dom(|dom| {
+        dom.remove(p);
+        dom.set_attr(p, "class", "on")
+    })
+    .unwrap();
+    assert!(doc.styles.is_none());
+}
+
+#[test]
+fn a_deep_detached_chain_keeps_the_styles() {
+    let mut doc = walked("<p id=p>x</p>", &url());
+    doc.update_style();
+    // 50,000 levels built top-down: each entry's parent is deeper. The
+    // check walks each ancestor once per drain.
+    doc.change_dom(|dom| {
+        let mut parent = dom.create_element(html_name(local_name!("div")), Vec::new())?;
+        for _ in 0..50_000 {
+            let child = dom.create_element(html_name(local_name!("div")), Vec::new())?;
+            dom.append_child(parent, child)?;
+            parent = child;
+        }
+        Ok::<_, swb_dom::DomError>(())
+    })
+    .unwrap();
+    assert!(doc.styles.is_some());
+}
+
+#[test]
+fn element_styles_equal_the_full_styles() {
+    let html = "<style>body{color:blue} .x{display:none} .x .y{visibility:hidden} \
+                p+p{font-size:20px} :root{font-size:10px} b{line-height:2rem}</style>\
+                <div class=x><span class=y id=s>a</span></div><p>1</p><p id=q>2<b id=b>3</b></p>";
+    let mut doc = walked(html, &url());
+    let b = element(&doc, "b");
+    let s = element(&doc, "s");
+    let q = element(&doc, "q");
+    assert!(doc.styles.is_none());
+    let one = doc.query_element_style(b).unwrap();
+    assert_eq!(doc.flushes.element_style_runs, 1);
+    assert_eq!(doc.flushes.style_runs, 0);
+    // The ancestors are kept: no second run for `q`.
+    let q_style = doc.query_element_style(q).unwrap();
+    assert_eq!(doc.flushes.element_style_runs, 1);
+    // A descendant of `display: none` gets a style too.
+    let hidden = doc.query_element_style(s).unwrap();
+    assert_eq!(hidden.visibility, swb_style::Visibility::Hidden);
+    doc.update_style();
+    let full = doc.styles().unwrap();
+    assert_eq!(*one, **full.get(b).unwrap());
+    assert_eq!(*q_style, **full.get(q).unwrap());
+    assert_eq!(one.font_size, 20.0);
+    assert!(full.get(s).is_none());
+    let full_b = Arc::clone(full.get(b).unwrap());
+    // With current styles the query reads them.
+    let again = doc.query_element_style(b).unwrap();
+    assert!(Arc::ptr_eq(&again, &full_b));
+}
+
+#[test]
+fn layout_queries_count_as_forced() {
+    let mut doc = walked("<p id=p>x</p>", &url());
+    let mut fonts = swb_text::FontContext::for_tests();
+    doc.update_layout(&mut fonts);
+    assert_eq!((doc.flushes.style_runs, doc.flushes.layout_runs), (1, 1));
+    assert_eq!(doc.flushes.forced_layout_runs, 0);
+    let p = element(&doc, "p");
+    doc.change_dom(|dom| dom.set_attr(p, "class", "a")).unwrap();
+    doc.query_layout(&mut fonts);
+    doc.query_layout(&mut fonts);
+    let f = doc.flushes;
+    assert_eq!((f.style_runs, f.layout_runs), (2, 2));
+    assert_eq!((f.forced_style_runs, f.forced_layout_runs), (1, 1));
+    assert!(f.forced_layout_time <= f.layout_time);
+}

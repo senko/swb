@@ -54,8 +54,7 @@ macro_rules! longhands {
             }
 
             /// The CSS name.
-            #[cfg(test)]
-            fn name(self) -> &'static str {
+            pub(crate) fn name(self) -> &'static str {
                 match self {
                     $(LonghandId::$id => $name),+
                 }

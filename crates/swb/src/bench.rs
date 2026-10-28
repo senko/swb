@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use serde_json::json;
-use swb_engine::{Page, Pixmap, StageTimings, Url};
+use swb_engine::{FlushCounters, Page, Pixmap, StageTimings, Url};
 use swb_net::{Destination, Fetcher, Request, fetch_following_redirects};
 
 /// Runs the benchmark for the loaded `page` and prints the result.
@@ -30,6 +30,8 @@ pub(crate) fn run(
     // arrive), and the first raster.
     page.render(&mut pixmap);
     let first = page.timings();
+    // The style and layout runs of the load, before the runs below.
+    let flushes = page.flush_counters();
 
     let response = fetch_following_redirects(
         fetcher.as_ref(),
@@ -74,9 +76,23 @@ pub(crate) fn run(
             "display_list": stage(first.display_list, pick(|t| t.display_list)),
             "raster": stage(first.raster, pick(|t| t.raster)),
         },
+        "flushes": flushes_json(&flushes),
     });
     println!("{}", serde_json::to_string_pretty(&result)?);
     Ok(())
+}
+
+/// The style and layout runs of the load (ADR 0028 section 9): all runs,
+/// the runs that script queries forced, and the element style runs.
+fn flushes_json(c: &FlushCounters) -> serde_json::Value {
+    let runs = |n: u32, d: Duration| json!({ "runs": n, "ms": ms(d) });
+    json!({
+        "style": runs(c.style_runs, c.style_time),
+        "layout": runs(c.layout_runs, c.layout_time),
+        "forced_style": runs(c.forced_style_runs, c.forced_style_time),
+        "forced_layout": runs(c.forced_layout_runs, c.forced_layout_time),
+        "element_style": runs(c.element_style_runs, c.element_style_time),
+    })
 }
 
 fn viewport_pixmap(page: &Page) -> Result<Pixmap> {
