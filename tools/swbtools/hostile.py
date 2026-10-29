@@ -190,6 +190,7 @@ def write_case(case: Case, directory: Path) -> Path:
     page = case.build()
     for name, content in page.files.items():
         data = content.encode() if isinstance(content, str) else content
+        (directory / name).parent.mkdir(parents=True, exist_ok=True)
         (directory / name).write_bytes(data)
     index = directory / "index.html"
     index.write_text(page.html, encoding="utf-8")
@@ -200,14 +201,17 @@ def run_case(case: Case, binary: Path, root: Path) -> RunResult:
     """Writes and runs one case in `root/NAME/`."""
     directory = root / case.name
     index = write_case(case, directory)
+    # `{dir}` in an option is the directory of the case (a fixture to
+    # replay); a case with a `url` opens that URL, not `index.html`.
+    extra = [arg.replace("{dir}", str(directory.resolve())) for arg in case.swb_args]
     command = swb.hostile_command(
         binary,
-        index.resolve().as_uri(),
+        case.url or index.resolve().as_uri(),
         VIEWPORT,
         math.ceil(case.time_limit_s),
         directory / "boxes.json",
         directory / "screenshot.png",
-        list(case.swb_args),
+        extra,
     )
     cap = min(2 * case.rss_limit_mib, MAX_RSS_CAP_MIB)
     log.info("running %s", " ".join(command))

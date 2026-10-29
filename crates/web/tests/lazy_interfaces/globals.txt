@@ -225,6 +225,8 @@ onrejectionhandled:aec
 onstorage:aec
 onunhandledrejection:aec
 onunload:aec
+localStorage:aec
+sessionStorage:aec
 atob:dwec
 btoa:dwec
 cancelAnimationFrame:dwec
@@ -330,6 +332,7 @@ Navigator:dwc
 History:dwc
 Location:dwc
 PopStateEvent:dwc
+Storage:dwc
 SubmitEvent:dwc
 HashChangeEvent:dwc
 MessageEvent:dwc

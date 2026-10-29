@@ -324,7 +324,7 @@ impl g::storage_event::StorageEventImpl for WebState {
             old_value: init.old_value,
             new_value: init.new_value,
             url: init.url,
-            storage_area: init.storage_area,
+            storage_area: init.storage_area.map(|area| area.object),
         };
         make(cx, kind, flags, other)
     }
@@ -374,7 +374,7 @@ impl g::storage_event::StorageEventImpl for WebState {
         old_value: Option<String>,
         new_value: Option<String>,
         url: String,
-        storage_area: Option<Gc<Object>>,
+        storage_area: Option<Platform>,
     ) -> b::Result<()> {
         if init(cx, this, kind, bubbles, cancelable)? {
             *other_mut(cx, this)? = Other::Storage {
@@ -382,7 +382,7 @@ impl g::storage_event::StorageEventImpl for WebState {
                 old_value,
                 new_value,
                 url,
-                storage_area,
+                storage_area: storage_area.map(|area| area.object),
             };
         }
         Ok(())

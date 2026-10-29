@@ -46,11 +46,17 @@
 //!   `text_codec` (`TextEncoder`, `TextDecoder`) and `idle_callbacks`
 //!   (`requestIdleCallback`; the engine runs the idle periods through
 //!   [`ScriptRuntime::run_idle_callbacks`]).
+//! - Cookies and Web Storage (feature 8b): `cookie` (`document.cookie`
+//!   over the page's jar, through [`EngineHost::cookie_string`] and
+//!   [`EngineHost::set_cookie`]) and `storage` (`localStorage` and
+//!   `sessionStorage` over a [`StorageStore`] that the page owns and lends
+//!   through [`EngineHost::storage`]).
 
 mod animation_frames;
 mod base64;
 pub mod bindings;
 mod clock;
+mod cookie;
 mod crypto;
 mod cssom;
 mod cssom_view;
@@ -72,6 +78,7 @@ mod performance_observer;
 mod runtime;
 mod scripts;
 mod state;
+mod storage;
 mod structured;
 mod svg;
 mod text_codec;
@@ -91,5 +98,9 @@ pub use runtime::{
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
 pub use scripts::{FetchedScript, is_javascript_mime_type};
+pub use storage::{
+    AREA_COST_BYTES, AREA_QUOTA_UNITS, KEY_COST_BYTES, MAX_KEYS_PER_AREA, QuotaExceeded,
+    SharedStorage, StorageKind, StorageStore, TOTAL_LIMIT_BYTES,
+};
 pub use structured::Serialized;
 pub use swb_js::{ConsoleLevel, ScriptError};

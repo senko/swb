@@ -47,8 +47,8 @@ The browser today (M7):
   order, form control state, disabled elements) is built once per
   document.
 - `net`: fetches run on worker threads; the engine polls completions.
-  Fixture replay has no cookie jar, stores only `Content-Type` and
-  `Location`, and swb does not check CORS.
+  Fixture replay has a cookie jar for scripts only (feature 8b), stores
+  only `Content-Type` and `Location`, and swb does not check CORS.
 - Threads: the engine runs on the GUI's main thread or on the headless
   runner's thread. ADR 0026 section 9 requires a stack of at least
   8 MiB for JavaScript.
@@ -2835,12 +2835,91 @@ the worker threads, the cookie jar and the replay of fixtures.
   page gets an in-memory jar too, so scripts can store and read
   cookies (replay ignores the request cookies).
 - **Storage:** `localStorage` and `sessionStorage` per origin, in
-  memory, for the life of the process, 5 MiB per origin (measure
-  Chromium's limit); a write past it throws `QuotaExceededError`; the
+  memory, for the life of the process, 5,242,880 code units per origin
+  (measured in Chromium, feature 8b); a write past it throws `QuotaExceededError`; the
   `storage` event goes to other documents of the origin (in M8 there
   are none).
 - Each document has at most 64 requests from scripts in flight; others
   wait in a queue.
+
+Feature 8b notes (`document.cookie`, `localStorage`, `sessionStorage`;
+measured in `tools/probes/web-cookies.json` and `web-storage.json`, three
+equal Chromium runs each):
+
+- **`document.cookie`** (`web/src/cookie.rs`). The getter and setter call
+  `EngineHost::cookie_string` and `set_cookie`; the engine's document goes
+  to the jar of the page's loader (`CookieJar::script_cookie_string`,
+  `set_script_cookie`: the non-HTTP API of RFC 6265bis §5.7 and §5.8, ADR
+  0012). A document without a browsing context (`createHTMLDocument`,
+  `DOMParser`, template contents) and a document whose URL is not `http:`
+  or `https:` (`file:`, `about:`) read `""` and ignore writes; a `data:`
+  document throws `SecurityError` ("Cookies are disabled inside 'data:'
+  URLs."). The `SecurityError` of other opaque origins (sandboxed frames)
+  cannot occur: swb has no frames. `navigator.cookieEnabled` is true on
+  every page (Chromium: true on `file:` pages too). The replayed fixture
+  has an in-memory jar (`ReplayFetcher`) that only scripts fill; it sends no
+  `Cookie` header. JavaScript off leaves it empty. A lone surrogate in the
+  cookie string becomes U+FFFD (`USVString`); Chromium's jar stops
+  answering the page after such a write (measured), which swb does not
+  copy. Departures from Chromium: none that the probe shows (123 queries
+  equal). The jar rules that Chromium's answers changed (a cookie replaced
+  with a new value moves behind the others, with the same value it keeps
+  its place; `Partitioned` needs `Secure`; `__Host-` and
+  `Domain=<IP host>`, a tab inside a name or value) are in ADR 0012.
+- **`localStorage` and `sessionStorage`** (`web/src/storage.rs`). The
+  `Storage` interface has the members in Chromium's prototype order; the
+  named properties use the legacy platform object support (ADR 0028 feature
+  4c1), so `localStorage.x = 1`, `'x' in localStorage`, `delete
+  localStorage.x`, `Object.keys` and `JSON.stringify` work. The data is a
+  `StorageStore` that the `Page` owns and lends to each document
+  (`EngineHost::storage`): both kinds per origin, in memory;
+  `localStorage` for the process and `sessionStorage` for the page; both
+  survive navigations. The origin is that of an `http:` or `https:` URL;
+  all `file:` documents share `file://` (Chromium's `file:` pages have
+  storage); `data:` throws `SecurityError` "Storage is disabled inside
+  'data:' URLs." and other URLs "Access is denied for this document."
+  (the second text is Chromium's default, not measured: the probe tool
+  cannot open such a top-level document). `window.localStorage` returns
+  the same object each time.
+- **Quota** (measured): 5,242,880 UTF-16 code units of all keys and values
+  of an area together, in `localStorage` and in `sessionStorage`, each per
+  origin (an emoji counts 2, a key counts as much as a value, a replaced
+  value counts the difference, an equal value is no write). A write past it
+  throws a `DOMException` `QuotaExceededError` (code 22) "Failed to execute
+  'setItem' on 'Storage': Setting the value of 'KEY' exceeded the quota.",
+  for `localStorage.x = v` "Failed to set a named property 'x' on
+  'Storage': ..."; the area stays as it was. swb bounds what Chromium does
+  not: 100,000 keys per area and 64 MiB of memory over all areas of both
+  kinds and all origins (UTF-8 bytes of keys and values, 64 more per key,
+  the origin and 64 more per area); a write past either throws the same
+  error. A replaced value gets a new allocation and removals shrink the
+  area's tables, so the memory follows the count. See the table in
+  section 16.
+- **One page per process.** `localStorage` lives for the process because
+  the `Page` owns the store and swb has one `Page` per process (GUI,
+  headless runner, automation server). With tabs or several pages, the
+  `localStorage` areas must move out of `Page` into a store that all
+  pages share (`sessionStorage` stays per page).
+- **Order of keys** (`key(i)`, `Object.keys`): Chromium's order is that of
+  a hash table and cannot be matched; swb uses the order of insertion,
+  except that `removeItem` moves the last key to the place of the removed
+  one (an O(1) removal). The standard leaves the order open.
+- **Departures** (rows in `crates/web/tests/storage.rs`): a name that the
+  prototype hides (`getItem`) is a stored key but not listed by
+  `Object.keys`; `localStorage.getItem = x` and `localStorage.length = 7`
+  go to the named setter (Web IDL; Chromium makes an own property, or
+  ignores the write for the accessor `length`) (feature 4c1);
+  `QuotaExceededError` is a plain `DOMException` (no subclass, no `quota`
+  and `requested`, no `stack`); lone surrogates in keys and values become
+  U+FFFD (section 3; Chromium keeps them).
+- **`StorageEvent`**: `storageArea` is a `Storage` (a `TypeError` for any
+  other object, as in Chromium). No `storage` event fires in M8: it goes
+  only to the other documents of the origin, and a page has one document and
+  no frames. A second document would get it as a new `Task` variant, queued
+  by the writing document for each other document of the origin and run by
+  `runtime.rs::run_task`, which dispatches a `StorageEvent` (`key`,
+  `oldValue`, `newValue`, `url`, `storageArea`) at the window of the
+  receiving document.
 
 ### 13. Other APIs
 
@@ -3224,7 +3303,9 @@ Per document, all settings with these defaults:
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
 | Script fetches in flight (feature 5c) | 64 | queued |
 | Fetched script text that has not run, per document (feature 5c) | 256 MiB | the script fails as a network error (`error` event, warning) |
-| `localStorage` per origin | 5 MiB | `QuotaExceededError` |
+| `localStorage` and `sessionStorage`, each per origin (feature 8b): UTF-16 code units of all keys and values | 5,242,880 (Chromium's quota, measured) | `QuotaExceededError`; the area stays as it was |
+| Keys in one storage area (feature 8b) | 100,000 | `QuotaExceededError` (Chromium has none: its quota in code units allows millions of one-unit keys, which would cost about 100 bytes of memory each) |
+| All storage areas of both kinds and all origins together, in bytes: UTF-8 bytes of keys and values, 64 per key, the origin and 64 per area (feature 8b) | 64 MiB | `QuotaExceededError` (a session that visits many origins holds at most 64 MiB of storage: twelve full areas of ASCII text, four of CJK text) |
 | Mutation observer records waiting | 1,000,000 | further records dropped with a warning |
 | Structured clone (feature 8a1): nesting depth, items, bytes of strings and buffers | 4,096, 4,194,304, 512 MiB | `RangeError` (depth) or `RangeError` "The value is too large to clone." |
 | State of one history entry (feature 8a1) | 4 MiB (the history keeps 50 entries) | `DataCloneError` |

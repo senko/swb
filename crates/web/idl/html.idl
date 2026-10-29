@@ -6,7 +6,8 @@
 // document collections, getElementsByName and HTMLTemplateElement on
 // 2026-10-24; Location, History, PopStateEvent, `structuredClone` and the
 // `location` and `history` members of Window and Document on 2026-10-29;
-// Navigator and its mixins, `navigator`, `atob` and `btoa` on 2026-10-29).
+// Navigator and its mixins, `navigator`, `atob` and `btoa` on 2026-10-29;
+// Storage, its Window mixins and `Document.cookie` on 2026-10-29).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -1218,12 +1219,41 @@ interface mixin DocumentAndElementEventHandlers {
   attribute EventHandler onpaste;
 };
 
+// Web Storage (HTML §12.2, feature 8b, copied on 2026-10-29,
+// https://html.spec.whatwg.org/multipage/webstorage.html) and
+// `Document.cookie` (HTML §3.1.5, copied on 2026-10-29,
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie).
+// swb lists the members of Storage in the order of Chromium's prototype
+// (`length`, then the operations by name), which `for in` shows.
+
+interface mixin WindowLocalStorage {
+  readonly attribute Storage localStorage;
+};
+interface mixin WindowSessionStorage {
+  readonly attribute Storage sessionStorage;
+};
+Window includes WindowLocalStorage;
+Window includes WindowSessionStorage;
+
+[Exposed=Window]
+interface Storage {
+  readonly attribute unsigned long length;
+  undefined clear();
+  getter DOMString? getItem(DOMString key);
+  DOMString? key(unsigned long index);
+  deleter undefined removeItem(DOMString key);
+  setter undefined setItem(DOMString key, DOMString value);
+};
+
+partial interface Document {
+  attribute USVString cookie;
+};
+
 // The events of HTML that createEvent() names: SubmitEvent (§4.10.18.6),
 // HashChangeEvent (§7.4.6), MessageEvent (§9.3), StorageEvent (Web Storage),
 // BeforeUnloadEvent (§7.4.6.3) and DragEvent (§6.11.3). `ports` of
-// MessageEvent, `storageArea` and `dataTransfer` use `object` where swb has
-// no MessagePort, Storage or DataTransfer. HashChangeEvent has no init
-// method, as in Chromium.
+// MessageEvent and `dataTransfer` use `object` where swb has no MessagePort
+// or DataTransfer. HashChangeEvent has no init method, as in Chromium.
 
 [Exposed=Window]
 interface SubmitEvent : Event {
@@ -1278,9 +1308,9 @@ interface StorageEvent : Event {
   readonly attribute DOMString? oldValue;
   readonly attribute DOMString? newValue;
   readonly attribute USVString url;
-  readonly attribute object? storageArea;
+  readonly attribute Storage? storageArea;
 
-  undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional DOMString? key = null, optional DOMString? oldValue = null, optional DOMString? newValue = null, optional USVString url = "", optional object? storageArea = null);
+  undefined initStorageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional DOMString? key = null, optional DOMString? oldValue = null, optional DOMString? newValue = null, optional USVString url = "", optional Storage? storageArea = null);
 };
 
 dictionary StorageEventInit : EventInit {
@@ -1288,7 +1318,7 @@ dictionary StorageEventInit : EventInit {
   DOMString? oldValue = null;
   DOMString? newValue = null;
   USVString url = "";
-  object? storageArea = null;
+  Storage? storageArea = null;
 };
 
 [Exposed=Window]

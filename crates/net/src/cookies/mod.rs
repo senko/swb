@@ -24,9 +24,21 @@
 //!   used ones are evicted down to 150) and 3300 in total (down to 3000).
 //! - Third-party cookies (`SameSite=None; Secure`) are allowed.
 //!
-//! Not supported: the non-HTTP API (`document.cookie`, so `HttpOnly` has no
-//! effect yet), `Partitioned` cookies (the attribute is ignored, so they
-//! are stored unpartitioned), cookie priorities, Chromium's "Lax+POST"
+//! The non-HTTP API (`document.cookie`, feature 8b): [`CookieJar::set_script_cookie`]
+//! and [`CookieJar::script_cookie_string`] use the same rules as a response
+//! and a request of the document itself, except that a script cannot set
+//! an `HttpOnly` cookie, cannot replace or delete one, and does not see
+//! one (§5.7 steps 12 and 23, §5.8 step 2). A tab inside a name or a value
+//! rejects a script's cookie (measured in Chromium).
+//!
+//! A new cookie that replaces another with a different value gets a new
+//! creation time (the draft keeps the old one; with the same value swb
+//! keeps it too), and `Partitioned` without `Secure` is rejected. Both are
+//! measured in Chromium with scripts and applied to `Set-Cookie` too (one
+//! store for both APIs).
+//!
+//! Not supported: partitioning (a `Partitioned` cookie is stored
+//! unpartitioned), cookie priorities, Chromium's "Lax+POST"
 //! exception for new cookies without `SameSite`, and persistence: the jar
 //! lives in memory and is empty when swb starts.
 
@@ -38,7 +50,7 @@ use std::fmt;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use log::{Level, log};
+use log::{Level, debug, log};
 use url::Url;
 
 use crate::headers::Headers;
@@ -177,6 +189,24 @@ impl CookieJar {
         self.store_response_cookies_at(request, headers, unix_now());
     }
 
+    /// Returns the cookies that a script at `url` sees (the getter of
+    /// `document.cookie`, the "non-HTTP API" of §5.8): the value of a
+    /// `Cookie` header without the `HttpOnly` cookies, for a request from
+    /// the document itself (same-site). An empty string if none applies or
+    /// if `url` is not an `http:` or `https:` URL.
+    pub fn script_cookie_string(&self, url: &Url) -> String {
+        self.script_cookie_string_at(url, unix_now())
+    }
+
+    /// Stores the cookie of `line`, a string that a script wrote to
+    /// `document.cookie` at `url` (the "non-HTTP API" of §5.7). It follows
+    /// the rules of a response from `url` to its own document, and a script
+    /// cannot set `HttpOnly` or replace or delete an `HttpOnly` cookie. A
+    /// rejected cookie is ignored with a debug message.
+    pub fn set_script_cookie(&self, url: &Url, line: &str) {
+        self.set_script_cookie_at(url, line, unix_now());
+    }
+
     /// Returns all cookies that have not expired, oldest first.
     pub fn cookies(&self) -> Vec<Cookie> {
         self.lock().all(unix_now())
@@ -213,6 +243,24 @@ impl CookieJar {
         }
     }
 
+    pub(crate) fn script_cookie_string_at(&self, url: &Url, now: i64) -> String {
+        if !has_cookies(url) {
+            return String::new();
+        }
+        self.lock()
+            .header(&script_access(url, now))
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn set_script_cookie_at(&self, url: &Url, line: &str, now: i64) {
+        if !has_cookies(url) {
+            return;
+        }
+        if let Err(reason) = self.lock().set(line, &script_access(url, now)) {
+            debug!("{url}: script cookie {} rejected: {reason}", log_name(line));
+        }
+    }
+
     fn lock(&self) -> MutexGuard<'_, Store> {
         // The store has no invariants that a panic could break halfway.
         self.store.lock().unwrap_or_else(PoisonError::into_inner)
@@ -237,6 +285,18 @@ fn access(request: &Request, now: i64) -> Access<'_> {
         context: SameSiteContext::of(request),
         safe_method: request.method.is_safe(),
         now,
+        non_http: false,
+    }
+}
+
+/// The access of a script of the document at `url`: same-site, `GET`.
+fn script_access(url: &Url, now: i64) -> Access<'_> {
+    Access {
+        url,
+        context: SameSiteContext::SameSite,
+        safe_method: true,
+        now,
+        non_http: true,
     }
 }
 

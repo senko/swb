@@ -49,6 +49,10 @@ class Case:
     """The reason, if swb has a known bug that this case shows."""
     expect_log: str | None = None
     swb_args: tuple[str, ...] = ()
+    """Options for swb; `{dir}` stands for the directory of the case."""
+    url: str | None = None
+    """The URL to open instead of `index.html` (with `--replay {dir}`: a page
+    of an `http:` origin, which cookies need)."""
 
 
 CASES: list[Case] = []
@@ -62,6 +66,7 @@ def case(
     known_failure: str | None = None,
     expect_log: str | None = None,
     swb_args: tuple[str, ...] = (),
+    url: str | None = None,
 ) -> Callable[[Callable[[], Page]], Callable[[], Page]]:
     """Registers the decorated generator as a case."""
 
@@ -77,6 +82,7 @@ def case(
                 known_failure,
                 expect_log,
                 swb_args,
+                url,
             )
         )
         return build
@@ -3374,3 +3380,98 @@ def random_values_over_limit_js_on() -> Page:
         "console.log('errors ' + errors + ' ids ' + ids.size);</script>"
     )
     return Page(doc("<p>random</p>" + script))
+
+
+def replay_page(html: str) -> Page:
+    """A page of `http://hostile.test/` that a replayed fixture serves, for
+    the cases that need an `http:` origin (cookies)."""
+    manifest = {
+        "version": 1,
+        "entries": [
+            {
+                "method": "GET",
+                "url": REPLAY_URL,
+                "status": 200,
+                "headers": [["content-type", "text/html; charset=utf-8"]],
+                "body": "files/index.html",
+            }
+        ],
+    }
+    return Page(
+        html,
+        {"manifest.json": json.dumps(manifest), "files/index.html": html},
+    )
+
+
+REPLAY_URL = "http://hostile.test/index.html"
+
+
+@case(
+    "localStorage and sessionStorage written in loops past their quota of 5,242,880 code "
+    "units, the errors caught: 1 MiB values, 100-unit values under distinct keys, 200,000 "
+    "one-unit keys (the limit of 100,000 keys), then reads, removals and clear, with "
+    "JavaScript on (feature 8b)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def storage_past_quota_js_on() -> Page:
+    script = (
+        "<script>let ok = 0, errors = 0; "
+        "for (let i = 0; i < 40; i++) { "
+        "try { localStorage.setItem('big' + i, 'x'.repeat(1 << 20)); "
+        "ok++; } catch (e) { errors += e.name === 'QuotaExceededError' ? 1 : 0; } } "
+        "localStorage.clear(); "
+        "for (let i = 0; i < 200000; i++) { "
+        "try { sessionStorage.setItem('key-' + i, 'v'.repeat(100)); "
+        "ok++; } catch (e) { errors++; } } "
+        "sessionStorage.clear(); "
+        "for (let i = 0; i < 200000; i++) { try { localStorage['k' + i] = ''; ok++; } "
+        "catch (e) { errors++; } } "
+        "const n = localStorage.length; let sum = 0; "
+        "for (let i = 0; i < 1000; i++) sum += localStorage.key(i).length; "
+        "for (let i = 0; i < 100000; i++) localStorage.removeItem('k' + i); "
+        "console.log('ok ' + ok + ' errors ' + errors + ' keys ' + n + ' after ' "
+        "+ localStorage.length + ' ' + sum);"
+        "</script>"
+    )
+    return Page(doc("<p>storage</p>" + script))
+
+
+@case(
+    "100,000 distinct cookies set through document.cookie and read back every 100 sets (the "
+    "jar keeps at most 180 per site and 3,300 in all), then a read loop of 100,000 reads with "
+    "the jar full, with JavaScript on and an http: page from a replayed fixture (feature 8b)",
+    swb_args=("--js", "--replay", "{dir}"),
+    time_limit_s=10,
+    url="http://hostile.test/index.html",
+)
+def cookies_flood_js_on() -> Page:
+    script = (
+        "<script>let longest = 0; "
+        "for (let i = 0; i < 100000; i++) { document.cookie = 'c' + i + '=' + 'v'.repeat(20); "
+        "if (i % 100 === 0) longest = Math.max(longest, document.cookie.length); } "
+        "let total = 0; for (let i = 0; i < 100000; i++) total += document.cookie.length; "
+        "console.log('longest ' + longest + ' total ' + total + ' now ' "
+        "+ document.cookie.split('; ').length);"
+        "</script>"
+    )
+    return replay_page(doc("<p>cookies</p>" + script))
+
+
+@case(
+    "400 cookies of 4,000 bytes under two paths set through document.cookie (the per-site "
+    "limit of 180 keeps 150), then 5,000 reads of a cookie string of about 600 KB, with "
+    "JavaScript on and an http: page from a replayed fixture (feature 8b)",
+    swb_args=("--js", "--replay", "{dir}"),
+    time_limit_s=10,
+    url="http://hostile.test/index.html",
+)
+def cookies_big_values_js_on() -> Page:
+    script = (
+        "<script>let sizes = 0; "
+        "for (let i = 0; i < 400; i++) { document.cookie = 'big' + i + '=' + 'x'.repeat(4000) "
+        "+ '; Path=' + (i % 2 ? '/' : '/index.html'); } "
+        "for (let i = 0; i < 5000; i++) sizes += document.cookie.length; "
+        "console.log('sizes ' + sizes);</script>"
+    )
+    return replay_page(doc("<p>cookies</p>" + script))

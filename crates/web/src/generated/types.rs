@@ -935,7 +935,7 @@ pub struct StorageEventInit {
     /// `oldValue`.
     pub old_value: Option<String>,
     /// `storageArea`.
-    pub storage_area: Option<swb_js::Gc<swb_js::Object>>,
+    pub storage_area: Option<b::Platform>,
     /// `url`.
     pub url: String,
 }
@@ -957,7 +957,7 @@ impl StorageEventInit {
         let v = b::convert::member(rt, object, "oldValue")?;
         let old_value = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.member("oldValue", "StorageEventInit"))? };
         let v = b::convert::member(rt, object, "storageArea")?;
-        let storage_area = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::object(v).map(Some) }).map_err(|e| e.member("storageArea", "StorageEventInit"))? };
+        let storage_area = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::platform(rt, v, super::STORAGE, "Storage").map(Some) }).map_err(|e| e.member("storageArea", "StorageEventInit"))? };
         let v = b::convert::member(rt, object, "url")?;
         let url = if v.is_undefined() { String::new() } else { b::convert::usv_string(rt, v).map_err(|e| e.member("url", "StorageEventInit"))? };
         Ok(StorageEventInit { bubbles, cancelable, composed, key, new_value, old_value, storage_area, url })
@@ -978,7 +978,7 @@ impl StorageEventInit {
         b::to_js::dictionary_member(rt, object, "newValue", value)?;
         let value = (match self.old_value.clone() { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
         b::to_js::dictionary_member(rt, object, "oldValue", value)?;
-        let value = (match self.storage_area { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
+        let value = (match self.storage_area { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0.object)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
         b::to_js::dictionary_member(rt, object, "storageArea", value)?;
         let value = b::to_js::string(rt, &self.url.clone())?;
         b::to_js::dictionary_member(rt, object, "url", value)?;

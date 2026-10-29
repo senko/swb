@@ -317,8 +317,9 @@ A cookie:
 - `sameSite`: `Strict`, `Lax`, `None`, or `Default` (no attribute or an
   unknown value; treated as `Lax`).
 - `expires`: seconds since the Unix epoch, or `null` for a session cookie.
-- With `--replay`, there are no cookies: fixtures do not store
-  `Set-Cookie` headers. All pages of one swb process share one cookie jar
+- With `--replay`, the jar holds only the cookies that scripts stored
+  (`document.cookie`, with JavaScript on): fixtures do not store
+  `Set-Cookie` headers. `cookies.get` also lists `HttpOnly` cookies. All pages of one swb process share one cookie jar
   ([ADR 0012](adr/0012-cookies.md)).
 
 ### browser

@@ -104,6 +104,8 @@ pub(crate) struct DocumentInit {
     pub(crate) images: Images,
     /// The page's loader.
     pub(crate) loader: Rc<Loader>,
+    /// The page's Web Storage.
+    pub(crate) storage: swb_web::SharedStorage,
     /// The viewport.
     pub(crate) view: View,
     /// Where to scroll after the first layout.
@@ -119,6 +121,8 @@ pub struct DocumentState {
     /// The parser while a parse in steps goes on.
     pub(crate) parser: Option<HtmlParser>,
     pub(crate) loader: Rc<Loader>,
+    /// The page's Web Storage (`localStorage`, `sessionStorage`).
+    storage: swb_web::SharedStorage,
     /// The running requests of the document's subresources.
     pub(crate) requests: Requests,
     /// The fetches of the scripts of script elements: the queue beyond the
@@ -249,6 +253,7 @@ impl DocumentState {
             dom: init.dom,
             parser: init.parser,
             loader: init.loader,
+            storage: init.storage,
             requests: Requests::default(),
             script_fetches: ScriptFetches::default(),
             parser_drain: false,
@@ -349,6 +354,25 @@ impl swb_web::EngineHost for DocumentState {
 
     fn navigation_info(&self) -> swb_web::NavigationInfo {
         self.navigation
+    }
+
+    /// `document.cookie`: the jar of the page's fetcher, without the
+    /// `HttpOnly` cookies. A page without a jar (a test fetcher) has none.
+    fn cookie_string(&self) -> String {
+        self.loader
+            .cookie_jar()
+            .map(|jar| jar.script_cookie_string(&self.url))
+            .unwrap_or_default()
+    }
+
+    fn set_cookie(&mut self, line: &str) {
+        if let Some(jar) = self.loader.cookie_jar() {
+            jar.set_script_cookie(&self.url, line);
+        }
+    }
+
+    fn storage(&self) -> Option<swb_web::SharedStorage> {
+        Some(Rc::clone(&self.storage))
     }
 
     fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {

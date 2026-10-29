@@ -110,6 +110,17 @@ impl g::window::WindowImpl for WebState {
         crate::navigator::navigator_object(cx)
     }
 
+    /// `localStorage` (HTML §12.2.3): one object per window; a
+    /// `SecurityError` for a document without storage.
+    fn local_storage(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::storage::storage_object(cx, crate::storage::StorageKind::Local)
+    }
+
+    /// `sessionStorage` (HTML §12.2.2).
+    fn session_storage(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::storage::storage_object(cx, crate::storage::StorageKind::Session)
+    }
+
     /// `crypto` (Web Crypto §10): one object per window.
     fn crypto(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
         crate::crypto::crypto_object(cx)

@@ -15,6 +15,8 @@ use swb_dom::{Document, NodeId, ParseStep, TextPosition};
 use swb_style::cssom::resolved::PseudoElement;
 use swb_style::{ComputedStyle, ElementStates};
 
+use crate::storage::SharedStorage;
+
 /// The result of a script write to the value of a control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ControlWrite {
@@ -156,6 +158,28 @@ pub trait EngineHost: Any {
     /// How the document was reached, and what the response was.
     fn navigation_info(&self) -> NavigationInfo {
         NavigationInfo::default()
+    }
+
+    /// The cookies that a script of the document sees (`document.cookie`,
+    /// feature 8b): the page's jar without the `HttpOnly` cookies. The
+    /// bindings call it only for a document with an `http:` or `https:`
+    /// URL. The default has no jar.
+    fn cookie_string(&self) -> String {
+        String::new()
+    }
+
+    /// Stores the cookie of a string that a script wrote to
+    /// `document.cookie`. Rejected cookies are ignored.
+    fn set_cookie(&mut self, line: &str) {
+        let _ = line;
+    }
+
+    /// The Web Storage of the page, shared by its documents (the engine
+    /// creates one store for the page). The default has none; the
+    /// runtime then uses a store of its own, which lasts as long as the
+    /// runtime.
+    fn storage(&self) -> Option<SharedStorage> {
+        None
     }
 
     /// The DOM of the document.

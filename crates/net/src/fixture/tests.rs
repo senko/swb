@@ -409,21 +409,23 @@ fn extending_fetches_only_missing_requests() {
     assert!(after.len() > before.len());
 }
 
-/// Recording keeps the cookies of the network fetcher; replay has none.
+/// Recording keeps the cookies of the network fetcher; replay has a jar of
+/// its own, for scripts, that no request uses.
 #[test]
-fn only_the_network_fetcher_has_a_cookie_jar() {
+fn replay_has_a_jar_for_scripts_only() {
     let dir = TempDir::new();
     let recorder = RecordingFetcher::new(crate::NetworkFetcher::new(), dir.path()).unwrap();
     let jar = recorder.cookie_jar().unwrap();
     assert!(std::ptr::eq(jar, recorder.inner().cookie_jar().unwrap()));
     let extending = ExtendingFetcher::new(crate::NetworkFetcher::new(), dir.path()).unwrap();
     assert!(extending.cookie_jar().is_some());
-    assert!(
-        ReplayFetcher::load(dir.path())
-            .unwrap()
-            .cookie_jar()
-            .is_none()
-    );
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    let jar = replay.cookie_jar().unwrap();
+    assert_eq!(jar.cookies(), []);
+    let page = Url::parse("https://a.test/").unwrap();
+    jar.set_script_cookie(&page, "s=1");
+    assert_eq!(jar.script_cookie_string(&page), "s=1");
+    assert_eq!(jar.cookies().len(), 1);
     assert!(
         RecordingFetcher::new(site(), dir.path())
             .unwrap()

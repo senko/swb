@@ -3282,6 +3282,41 @@ Steps:
         (path, expiry, `HttpOnly` invisible), storage across documents
         of one origin in one session; hostile: storage past its quota,
         thousands of cookies.
+        Done 2026-10-29. `net` has the non-HTTP API of RFC 6265bis
+        (`CookieJar::script_cookie_string`, `set_script_cookie`): a
+        script cannot set, replace, delete or read an `HttpOnly`
+        cookie. Fixture replay has an in-memory jar that only scripts
+        fill. `document.cookie` (`cookie.rs`): cookie-averse documents
+        (not `http:`/`https:`, no browsing context) read "" and ignore
+        writes, `data:` throws `SecurityError`. Chromium's answers
+        changed three jar rules for both APIs (ADR 0012): a replacing
+        cookie with a new value gets a new creation time (with the same
+        value it keeps the old one), `Partitioned` needs `Secure`,
+        `__Host-` accepts `Domain=<IP host>`. `Storage`,
+        `localStorage`, `sessionStorage` (`storage.rs`) with named
+        properties; the page owns the store: `localStorage` per origin
+        for the process, `sessionStorage` per origin per page; `file:`
+        documents share one origin, as in Chromium. Quota 5,242,880
+        UTF-16 code units per area (measured); swb adds 100,000 keys
+        per area and 64 MiB over all areas (bytes). No `storage` event
+        fires (no other documents in M8). Probes `web-cookies.json`
+        (123 queries, equal) and `web-storage.json` (120 queries, 16
+        listed departures: key order, lone surrogates, names hidden by
+        the prototype, `QuotaExceededError` as a plain `DOMException`),
+        three equal Chromium runs each; engine tests
+        `script_storage.rs`. Wikipedia's `document.cookie` error is
+        gone; its `compare --js` geometry .181 → .425 and pixels .9735
+        → .9742, but size .705 → .465 and relative .635 → .461: the
+        scripts now run and MediaWiki asks for `web2017-polyfills`
+        because `IntersectionObserver` and `fetch` are missing
+        (features 9a and 10a), so a `load.php` batch is not in the
+        fixture and 10 collapsible tables stay hidden. Other targets
+        unchanged; JS off: snapshot identical; runtime heap +0.8 KB;
+        hostile 219 cases, 218 ok + the known failure (3 new). Review
+        fixes: a cookie rewritten with the same value moved behind the
+        others (Chromium keeps its place); the total storage bound
+        counted UTF-16 units of UTF-8 strings (up to 3 bytes each) and
+        a shorter value kept the allocation of the longer one.
    9. Observers and forms (`implementer`), two sessions.
       - 9a: `MutationObserver` (all options, `takeRecords`,
         `disconnect`, records from the parser), `IntersectionObserver`
@@ -3845,8 +3880,25 @@ Steps:
   to the last mark would make it constant); Chromium runs idle callbacks
   only when the compositor is quiet, swb in the first gap after the
   load (check on a target whether a page's idle work comes earlier than
-  in Chromium); `navigator.cookieEnabled` is true while
-  `document.cookie` is missing (feature 8b).
+  in Chromium).
+- `net`/`web`/`engine` (found in feature 8b and its review): measure the
+  three jar rules of 8b (creation time on replace, `Partitioned` needs
+  `Secure`, `__Host-` with `Domain=<IP>`) and the tab rule of scripts
+  for `Set-Cookie` headers (a probe server that sends headers);
+  `QuotaExceededError` as its own class (`quota`, `requested`);
+  `new Document()` and `document.implementation.createDocument`; the
+  `storage` event once a second document exists (frames, windows; a
+  `Task` variant, ADR 0028 section 12 notes); lone surrogates in
+  `DOMString`s (storage keys and values become U+FFFD); `Object.keys` of
+  a legacy platform object omits names that the prototype hides
+  (Chromium lists them); the text of the opaque-origin storage
+  `SecurityError` is not measured; the `localStorage` areas must move
+  out of `Page` when swb has tabs or several pages. Wikipedia with
+  JavaScript: MediaWiki loads `web2017-polyfills` unless
+  `IntersectionObserver` and `fetch` exist (features 9a and 10a); until
+  then its `load.php` batch is not in the fixture, and 10 collapsible
+  tables stay hidden (`compare --js` size .465, relative .461); check
+  after 10a that the URL matches the fixture.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

@@ -220,11 +220,20 @@ fn order_is_longer_path_then_creation() {
         header_for(&jar, "https://a.test/a/b/c"),
         Some("deep=1; mid=1; first=1; second=1".into())
     );
-    // A replaced cookie keeps its creation time, so its position.
+    // A cookie that replaces another with a new value gets a new creation
+    // time, as in Chromium (the draft keeps the old one), so it moves
+    // behind the others.
     set(&jar, &from, &["first=2"]);
     assert_eq!(
         header_for(&jar, "https://a.test/"),
-        Some("first=2; second=1".into())
+        Some("second=1; first=2".into())
+    );
+    // With the same value it keeps its creation time, also when other
+    // attributes change (Chromium).
+    set(&jar, &from, &["second=1; Max-Age=1000; SameSite=Strict"]);
+    assert_eq!(
+        header_for(&jar, "https://a.test/"),
+        Some("second=1; first=2".into())
     );
 }
 
@@ -317,7 +326,7 @@ fn insecure_urls_leave_secure_cookies_alone() {
     );
     assert_eq!(
         header_for(&jar, "http://www.example.com/"),
-        Some("id=4; other=1".into())
+        Some("other=1; id=4".into())
     );
 
     // The reverse: an insecure URL cannot set a domain cookie that would
@@ -412,7 +421,7 @@ fn cookie_prefixes() {
         assert_eq!(names(&jar).len(), usize::from(accepted), "{line}");
     }
     // On a host without a registrable domain, `Domain=<the host>` gives a
-    // host-only cookie, but `__Host-` forbids the attribute itself.
+    // host-only cookie, which `__Host-` accepts (measured in Chromium).
     for (from, domain) in [
         ("https://127.0.0.1/", "127.0.0.1"),
         ("http://localhost/", "localhost"),
@@ -423,9 +432,8 @@ fn cookie_prefixes() {
             &navigation(from),
             &[&format!("__Host-x=1; Secure; Path=/; Domain={domain}")],
         );
-        assert_eq!(names(&jar).len(), 0, "{from}");
-        set(&jar, &navigation(from), &["__Host-x=1; Secure; Path=/"]);
         assert_eq!(names(&jar), ["__Host-x"], "{from}");
+        assert!(jar.cookies()[0].host_only);
     }
 }
 
@@ -674,6 +682,146 @@ fn hostile_set_cookie_values_do_not_panic() {
             set_at(&jar, &request, &lines, i64::MAX);
             set_at(&jar, &request, &lines, i64::MIN);
             let _ = header(&jar, &request);
+        }
+    }
+}
+
+// The non-HTTP API (`document.cookie`).
+
+fn script_set(jar: &CookieJar, page: &str, line: &str) {
+    jar.set_script_cookie_at(&url(page), line, NOW);
+}
+
+fn script_read(jar: &CookieJar, page: &str) -> String {
+    jar.script_cookie_string_at(&url(page), NOW)
+}
+
+#[test]
+fn script_sets_and_reads_cookies() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/dir/page.html";
+    script_set(&jar, page, "a=1");
+    script_set(&jar, page, "b=2; Path=/");
+    assert_eq!(script_read(&jar, page), "a=1; b=2");
+    // The request side sees them too; `a` has the default path `/dir`.
+    assert_eq!(
+        header_for(&jar, "https://a.test/dir/x"),
+        Some("a=1; b=2".into())
+    );
+    assert_eq!(script_read(&jar, "https://a.test/other"), "b=2");
+    // A script never reads other hosts, and only http(s) documents have a
+    // jar.
+    assert_eq!(script_read(&jar, "https://b.test/"), "");
+    assert_eq!(script_read(&jar, "file:///tmp/x.html"), "");
+    script_set(&jar, "data:text/html,x", "d=1");
+    assert_eq!(jar.cookies().len(), 2);
+}
+
+#[test]
+fn script_cookie_attributes_follow_the_jar() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/";
+    script_set(&jar, page, "gone=1; Max-Age=0");
+    script_set(&jar, page, "old=1; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+    script_set(&jar, page, "far=1; Path=/zzz");
+    script_set(&jar, page, "sec=1; Secure");
+    script_set(&jar, page, "__Secure-p=1");
+    script_set(&jar, page, "__Host-p=1; Secure; Path=/");
+    script_set(&jar, page, "other=1; Domain=other.test");
+    script_set(&jar, page, "ok=1; Domain=a.test; SameSite=Strict");
+    assert_eq!(script_read(&jar, page), "sec=1; __Host-p=1; ok=1");
+    // Over http, a Secure cookie is rejected (a.test is not loopback).
+    script_set(&jar, "http://a.test/", "insecure=1; Secure");
+    assert_eq!(script_read(&jar, page), "sec=1; __Host-p=1; ok=1");
+    // Loopback counts as secure.
+    script_set(&jar, "http://127.0.0.1:8000/", "l=1; Secure");
+    assert_eq!(script_read(&jar, "http://127.0.0.1:8000/"), "l=1");
+}
+
+#[test]
+fn script_cannot_set_replace_delete_or_read_http_only_cookies() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/";
+    set(
+        &jar,
+        &navigation(page),
+        &[
+            "sid=secret; HttpOnly",
+            "pub=1",
+            "other=2; HttpOnly; Path=/x",
+        ],
+    );
+    // The request sends the HttpOnly cookie; the script does not see it.
+    assert_eq!(header_for(&jar, page), Some("sid=secret; pub=1".into()));
+    assert_eq!(script_read(&jar, page), "pub=1");
+    // Not set from a script.
+    script_set(&jar, page, "mine=1; HttpOnly");
+    assert_eq!(names(&jar), ["sid", "pub", "other"]);
+    // Not replaced, not deleted.
+    script_set(&jar, page, "sid=forged");
+    script_set(&jar, page, "sid=; Max-Age=0");
+    script_set(&jar, page, "sid=; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+    assert_eq!(header_for(&jar, page), Some("sid=secret; pub=1".into()));
+    // A cookie of the same name at another path is a different cookie.
+    script_set(&jar, page, "other=3; Path=/y");
+    assert_eq!(names(&jar), ["sid", "pub", "other", "other"]);
+    // A script replaces its own cookie.
+    script_set(&jar, page, "pub=2");
+    assert_eq!(script_read(&jar, page), "pub=2");
+    // A response may replace an HttpOnly cookie.
+    set(&jar, &navigation(page), &["sid=new; HttpOnly"]);
+    assert_eq!(header_for(&jar, page), Some("pub=2; sid=new".into()));
+}
+
+#[test]
+fn partitioned_needs_secure() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/";
+    script_set(&jar, page, "p1=1; Partitioned");
+    script_set(&jar, page, "p2=1; Partitioned; Secure");
+    assert_eq!(script_read(&jar, page), "p2=1");
+}
+
+#[test]
+fn script_cookie_strings_with_tabs_and_controls() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/";
+    for line in [
+        "a=b\tc",
+        "a\tb=c",
+        "a=b; pa\tth=/",
+        "a=b; Path=/x\ty",
+        "a=b\u{1}",
+        "a=b\nc",
+        "a=b; Path=/\u{7f}",
+        "a=1; Path=/\u{1}",
+    ] {
+        script_set(&jar, page, line);
+    }
+    assert_eq!(script_read(&jar, page), "");
+    script_set(&jar, page, "\tt=1\t; Path=/\t");
+    script_set(&jar, page, "u=2;\tSecure");
+    assert_eq!(script_read(&jar, page), "t=1; u=2");
+}
+
+#[test]
+fn script_cookies_obey_the_limits_and_never_panic() {
+    let jar = CookieJar::new();
+    let page = "https://a.test/";
+    script_set(&jar, page, &format!("big={}", "x".repeat(4093)));
+    script_set(&jar, page, &format!("big2={}", "x".repeat(4093)));
+    assert_eq!(names(&jar), ["big"]);
+    for i in 0..400 {
+        script_set(&jar, page, &format!("k{i}={i}"));
+    }
+    assert!(jar.cookies().len() <= MAX_COOKIES_PER_DOMAIN);
+    assert!(jar.cookies().len() >= COOKIES_PER_DOMAIN_AFTER_PURGE);
+    assert!(script_read(&jar, page).contains("k399=399"));
+    assert!(!script_read(&jar, page).contains("k0=0"));
+    for line in ["", ";", "=", "a=b; Domain=..", "__Host-=x", "\u{e9}=\u{fc}"] {
+        for page in ["https://a.test/", "http://[::1]/", "https://a..test/"] {
+            script_set(&jar, page, line);
+            let _ = script_read(&jar, page);
         }
     }
 }

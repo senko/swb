@@ -402,6 +402,15 @@ impl g::document::DocumentImpl for WebState {
         Ok(dom(cx.rt)?.get_element_by_id(this, &element_id))
     }
 
+    /// `document.cookie` (HTML §3.1.5, feature 8b): the page's jar.
+    fn cookie(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        crate::cookie::read(cx, is_main(this))
+    }
+
+    fn set_cookie(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        crate::cookie::write(cx, is_main(this), &value)
+    }
+
     fn referrer(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         if !is_main(this) {
             return Ok(String::new());

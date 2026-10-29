@@ -99,6 +99,12 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute HTMLCollection applets`.
     fn applets(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `attribute USVString cookie`.
+    fn cookie(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute USVString cookie`.
+    fn set_cookie(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
     /// `readonly attribute boolean hidden`.
     fn hidden(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
@@ -566,6 +572,24 @@ fn get_applets<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let result = <H as DocumentImpl>::applets(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_cookie<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "cookie"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::cookie(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_cookie<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Document", "cookie"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
+        <H as DocumentImpl>::set_cookie(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -2481,6 +2505,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "scripts", (Some(get_scripts::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "anchors", (Some(get_anchors::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "applets", (Some(get_applets::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "cookie", (Some(get_cookie::<H> as swb_js::NativeFn), Some(set_cookie::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "hidden", (Some(get_hidden::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "visibilityState", (Some(get_visibility_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "children", (Some(get_children::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

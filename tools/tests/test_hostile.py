@@ -51,7 +51,10 @@ def test_every_case_generates_a_bounded_page():
         assert page.html.strip(), case.name
         assert page.size() < MAX_PAGE_BYTES, case.name
         for name in page.files:
-            assert "/" not in name and name != "index.html", case.name
+            # A subdirectory is fine (the body files of a fixture); the
+            # path stays inside the case directory.
+            assert not name.startswith("/") and ".." not in name, case.name
+            assert name != "index.html", case.name
 
 
 def test_the_known_failures_of_the_backlog_are_in_the_set():

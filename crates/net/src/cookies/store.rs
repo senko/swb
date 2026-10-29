@@ -52,6 +52,10 @@ pub(super) struct Access<'a> {
     pub(super) safe_method: bool,
     /// The current time.
     pub(super) now: i64,
+    /// True for a script (`document.cookie`, the "non-HTTP API" of §5.7
+    /// and §5.8): it cannot set, replace or delete an `HttpOnly` cookie and
+    /// it does not see one.
+    pub(super) non_http: bool,
 }
 
 /// Why a cookie was not stored.
@@ -85,6 +89,13 @@ pub(super) enum Rejection {
     /// A `__Host-` cookie without `Secure`, with `Domain`, or with a path
     /// other than `/`.
     HostPrefix,
+    /// `Partitioned` without `Secure` (Chromium rejects it).
+    PartitionedWithoutSecure,
+    /// `HttpOnly` from a script (§5.7 step 12).
+    HttpOnlyFromScript,
+    /// A script tried to replace or delete an `HttpOnly` cookie (§5.7
+    /// step 23).
+    OverwritesHttpOnly,
 }
 
 impl fmt::Display for Rejection {
@@ -102,6 +113,9 @@ impl fmt::Display for Rejection {
             Rejection::CrossSite => "cross-site request",
             Rejection::SecurePrefix => "__Secure- prefix without Secure",
             Rejection::HostPrefix => "__Host- prefix requirements not met",
+            Rejection::PartitionedWithoutSecure => "Partitioned without Secure",
+            Rejection::HttpOnlyFromScript => "HttpOnly from a script",
+            Rejection::OverwritesHttpOnly => "a script would replace an HttpOnly cookie",
         })
     }
 }
@@ -121,6 +135,7 @@ impl Rejection {
                 | Rejection::NoneWithoutSecure
                 | Rejection::SecurePrefix
                 | Rejection::HostPrefix
+                | Rejection::PartitionedWithoutSecure
         )
     }
 }
@@ -128,7 +143,8 @@ impl Rejection {
 #[derive(Debug)]
 struct StoredCookie {
     cookie: Cookie,
-    /// Creation order. A cookie that replaces another keeps its value.
+    /// Creation order. A cookie that replaces another keeps the old value
+    /// if its own value is the same, else it gets a new one.
     created: u64,
     last_access: u64,
 }
@@ -155,8 +171,21 @@ impl Store {
     /// a request (§5.6 and §5.7).
     pub(super) fn set(&mut self, line: &str, access: &Access<'_>) -> Result<(), Rejection> {
         let host = access.url.host_str().ok_or(Rejection::NoHost)?;
-        let set_cookie = parse::parse(line, access.now).ok_or(Rejection::Malformed)?;
+        let parsed = if access.non_http {
+            parse::parse_script(line, access.now)
+        } else {
+            parse::parse(line, access.now)
+        };
+        let set_cookie = parsed.ok_or(Rejection::Malformed)?;
         let cookie = create(set_cookie, host, access)?;
+        if access.non_http {
+            if cookie.http_only {
+                return Err(Rejection::HttpOnlyFromScript);
+            }
+            if self.replaces_http_only_cookie(&cookie, access.now) {
+                return Err(Rejection::OverwritesHttpOnly);
+            }
+        }
         if !cookie.secure
             && !site::is_secure(access.url)
             && self.overlays_secure_cookie(&cookie, access.now)
@@ -189,6 +218,7 @@ impl Store {
                     && path_matches(path, &cookie.path)
                     && (!cookie.secure || secure)
                     && is_sent(cookie.same_site, access.context, access.safe_method)
+                    && !(access.non_http && cookie.http_only)
             })
             .collect();
         if list.is_empty() {
@@ -239,6 +269,18 @@ impl Store {
         self.clock
     }
 
+    /// §5.7 step 23: true if `new` would replace (or, expired, delete) an
+    /// `HttpOnly` cookie.
+    fn replaces_http_only_cookie(&self, new: &Cookie, now: i64) -> bool {
+        self.groups
+            .get(site::site_host(&new.domain))
+            .is_some_and(|group| {
+                group.iter().any(|c| {
+                    c.cookie.http_only && !c.cookie.is_expired(now) && c.cookie.same_identity(new)
+                })
+            })
+    }
+
     /// §5.7 step 16: a request that is not secure must not set a cookie
     /// that would overlay a `Secure` cookie with the same name.
     fn overlays_secure_cookie(&self, new: &Cookie, now: i64) -> bool {
@@ -257,7 +299,8 @@ impl Store {
     }
 
     /// §5.7 steps 22 and 23: replaces a cookie with the same name, domain,
-    /// host-only flag and path, keeping its creation time; then evicts
+    /// host-only flag and path (with a new creation time if the value
+    /// changes); then evicts
     /// expired cookies and applies the limits. An expired cookie only
     /// removes the cookie that it replaces.
     fn insert(&mut self, cookie: Cookie, now: i64) {
@@ -265,9 +308,17 @@ impl Store {
         let tick = self.tick();
         let group = self.groups.entry(key.clone()).or_default();
         group.retain(|c| !c.cookie.is_expired(now));
+        // Deviation from §5.7 step 22.2, measured in Chromium: the cookie
+        // that replaces another one keeps the old creation time only if the
+        // value is the same (other attributes may change); with a new value
+        // it gets a new creation time, so it moves to the end of the
+        // cookies with its path length.
         let mut created = tick;
         if let Some(index) = group.iter().position(|c| c.cookie.same_identity(&cookie)) {
-            created = group.swap_remove(index).created;
+            let old = group.swap_remove(index);
+            if old.cookie.value == cookie.value {
+                created = old.created;
+            }
         }
         if !cookie.is_expired(now) {
             group.push(StoredCookie {
@@ -346,16 +397,19 @@ fn create(set_cookie: SetCookie, host: &str, access: &Access<'_>) -> Result<Cook
     if set_cookie.secure && !site::is_secure(access.url) {
         return Err(Rejection::SecureFromInsecureUrl);
     }
+    if set_cookie.partitioned && !set_cookie.secure {
+        return Err(Rejection::PartitionedWithoutSecure);
+    }
     match set_cookie.same_site {
         SameSite::None if !set_cookie.secure => return Err(Rejection::NoneWithoutSecure),
         SameSite::None => {}
         _ if access.context == SameSiteContext::CrossSite => return Err(Rejection::CrossSite),
         _ => {}
     }
-    // Not `host_only`: a host without a registrable domain turns
-    // `Domain=<the host>` into a host-only cookie, but `__Host-` forbids the
-    // attribute itself, as in Chromium.
-    let host_path = set_cookie.domain.is_none() && path_attribute.is_some() && path == "/";
+    // `host_only`, not the absence of the attribute: a host without a
+    // registrable domain turns `Domain=<the host>` into a host-only cookie,
+    // and `__Host-` accepts it (measured in Chromium, `127.0.0.1`).
+    let host_path = host_only && path_attribute.is_some() && path == "/";
     check_prefixes(&set_cookie, host_path)?;
     Ok(Cookie {
         expires: set_cookie.expiry(),

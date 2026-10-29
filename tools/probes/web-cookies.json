@@ -1,0 +1,456 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "cookie-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "[location.protocol, location.hostname, navigator.cookieEnabled, typeof document.cookie, document.cookie]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set.name, 'cookie' in document, document.hasOwnProperty('cookie'), 'cookie' in HTMLDocument.prototype]; })()"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'cookie').get.call({}))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'cookie').set.call({}, 'a=1'))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'cookie').set.call(document))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'cookie').set.call(document, 'cs=1'))"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = 'a=1', document.cookie, window.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = 5, document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = null, document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = undefined, document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = { toString() { return 'obj=1'; } }, document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); return [document.cookie = ['arr=2'], document.cookie]; })()"
+    },
+    {
+     "js": "E(() => { wipe(); document.cookie = Symbol('s'); })"
+    },
+    {
+     "js": "E(() => { wipe(); document.cookie = { toString() { throw new Error('boom'); } }; })"
+    },
+    {
+     "js": "(() => { wipe(); document.cookie = 'a=1'; document.cookie = 'b=2'; return [document.cookie, document.cookie === document.cookie, typeof document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); document.cookie = 'a=1'; const first = document.cookie; document.cookie = 'a=2'; return [first, document.cookie]; })()"
+    },
+    {
+     "js": "(() => { wipe(); document.cookie = 'a=1'; document.cookie = 'b=2'; document.cookie = 'a=3'; return document.cookie; })()"
+    },
+    {
+     "js": "wipe()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-parsing",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "set('a=1; ')"
+    },
+    {
+     "js": "set('b=2;')"
+    },
+    {
+     "js": "set('c=3 ; ')"
+    },
+    {
+     "js": "(wipe(), set('  d  =  4  ; '))"
+    },
+    {
+     "js": "(wipe(), set('e'))"
+    },
+    {
+     "js": "(wipe(), set('=f'))"
+    },
+    {
+     "js": "(wipe(), set(' = g '))"
+    },
+    {
+     "js": "(wipe(), set('='))"
+    },
+    {
+     "js": "(wipe(), set(''))"
+    },
+    {
+     "js": "(wipe(), set(';'))"
+    },
+    {
+     "js": "(wipe(), set('h=i=j'))"
+    },
+    {
+     "js": "(wipe(), set('k=l;m=n'))"
+    },
+    {
+     "js": "(wipe(), set('a b=c d'))"
+    },
+    {
+     "js": "(wipe(), set('q=\"quoted value\"'))"
+    },
+    {
+     "js": "(wipe(), set('tab=a\\tb'))"
+    },
+    {
+     "js": "(wipe(), set('ctl=a\\u0001b'))"
+    },
+    {
+     "js": "(wipe(), set('nl=a\\nb'))"
+    },
+    {
+     "js": "(wipe(), set('cr=a\\rb'))"
+    },
+    {
+     "js": "(wipe(), set('nul=a\\u0000b'))"
+    },
+    {
+     "js": "(wipe(), set('del=a\\u007fb'))"
+    },
+    {
+     "js": "(wipe(), set('ue=é€'))"
+    },
+    {
+     "js": "(wipe(), set('é=1'))"
+    },
+    {
+     "js": "(wipe(), set('emoji=😀'))"
+    },
+    {
+     "js": "(wipe(), set('\\ta=1\\t'))"
+    },
+    {
+     "js": "(wipe(), set('a\\tb=1'))"
+    },
+    {
+     "js": "(wipe(), set('a=1; pa\\tth=/'))"
+    },
+    {
+     "js": "(wipe(), set('a=1; path=/x\\ty'))"
+    },
+    {
+     "js": "(wipe(), set('a=1; path=/\\t'))"
+    },
+    {
+     "js": "(wipe(), set('a=1;\\tsecure'))"
+    },
+    {
+     "js": "(wipe(), set('ctlattr=1; path=/\\u0001'))"
+    },
+    {
+     "js": "(wipe(), set('ctlattr=1; path=/\\u007f'))"
+    },
+    {
+     "js": "(wipe(), set('A=1; B=2; a=3'))"
+    },
+    {
+     "js": "(wipe(), set('semi=1;;;; secure ; ;'))"
+    },
+    {
+     "js": "(wipe(), set('a=1,b=2'))"
+    },
+    {
+     "js": "(wipe(), [set('dup=1'), set('dup=2'), set('Dup=3')])"
+    },
+    {
+     "js": "(wipe(), [set('x=1'), set('y=2'), set('x=3'), set('z=4')])"
+    },
+    {
+     "js": "(wipe(), [set('x=1; path=/'), set('x=2'), document.cookie.split('; ').length])"
+    },
+    {
+     "js": "wipe()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-attributes",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=/zzz'), set('q=1; path=/'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=' + location.pathname), set('q=1; path=' + location.pathname + '/more'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=/case-'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=' + location.pathname.replace(/\\/[^/]*$/, '')), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=relative'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path='), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; path=/; path=/zzz'), set('q=1; path=/zzz; path=/'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('p=1; PATH=/'), set('q=1; Path = / '), names()])"
+    },
+    {
+     "js": "(wipe(), [set('s=1; secure'), set('t=1; Secure=no'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('h=1; HttpOnly'), set('i=1; httponly=x'), set('j=1; HTTPONLY'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('d=1; domain=127.0.0.1'), set('e=1; domain=.127.0.0.1'), set('f=1; domain=example.com'), set('g=1; domain=localhost'), set('h=1; domain='), names()])"
+    },
+    {
+     "js": "(wipe(), [set('d=1; domain=1.0.0.127'), set('e=1; domain=0.1'), set('f=1; domain=127.0.0'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; max-age=0'), set('b=1; max-age=-5'), set('c=1; max-age=1000'), set('d=1; max-age=abc'), set('e=1; max-age=1.5'), set('f=1; max-age=+5'), set('g=1; max-age=' ), set('h=1; max-age=99999999999999999999'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; expires=Thu, 01 Jan 1970 00:00:00 GMT'), set('b=1; expires=Fri, 01 Jan 2100 00:00:00 GMT'), set('c=1; expires=garbage'), set('d=1; expires=Wed, 21 Oct 2015 07:28:00 GMT'), set('e=1; expires=Tue, 01-Jan-2030 00:00:00 GMT'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1'), set('a=; max-age=0'), set('b=2; path=/'), set('b=; max-age=0'), set('c=3; path=/'), set('c=; max-age=0; path=/'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; max-age=100'), set('a=2; max-age=0; path=/zzz'), set('a=3; expires=Thu, 01 Jan 1970 00:00:00 GMT'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; max-age=1000; expires=Thu, 01 Jan 1970 00:00:00 GMT'), set('b=1; max-age=0; expires=Fri, 01 Jan 2100 00:00:00 GMT'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; samesite=lax'), set('b=1; samesite=strict'), set('c=1; samesite=none'), set('d=1; samesite=none; secure'), set('e=1; samesite=bogus'), set('f=1; SameSite'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; priority=high'), set('b=1; partitioned'), set('c=1; unknown=attr'), set('d=1; unknown=attr'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('__Host-a=1'), set('__Host-b=1; secure'), set('__Host-c=1; secure; path=/'), set('__Host-d=1; secure; path=/; domain=127.0.0.1'), set('__Secure-e=1'), set('__Secure-f=1; secure'), set('__host-g=1; secure; path=/'), set('__secure-h=1'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('__Host-=1; secure; path=/'), set('__Host-x'), set('__Secure-x'), set('=__Host-n'), set('=__Secure-n'), set('__Host-y=1; secure; path=/x'), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; ' + 'x=y; '.repeat(200)), set('b=1; foo=' + 'z'.repeat(5000)), set('c=1; path=/' + 'p'.repeat(1030)), set('d=1; domain=' + 'a'.repeat(1030)), set('e=1; path=/; ' + 'x'.repeat(2000)), names()])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/zzz; path=/' + 'p'.repeat(1030)), names()])"
+    },
+    {
+     "js": "wipe()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-paths-order",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=1'), set('c=1; path=' + location.pathname), set('d=1; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('a=2'), document.cookie, set('a=3; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1'), set('b=2'), set('a=3'), document.cookie, set('b=; max-age=0'), set('b=4'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=3; path=/'), document.cookie, set('a=; max-age=0; path=/'), set('a=5; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=1; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=1; path=/; max-age=1000'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=1; path=/; samesite=lax'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=1; path=/; secure'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('__Host-a=1; path=/; secure'), set('b=2; path=/'), set('c=3; path=/'), set('b=2; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=1; path=/; httponly'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/'), set('b=2; path=/'), set('a=2; path=/'), set('a=1; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('same=1; domain=127.0.0.1; path=/'), set('same=2; path=/'), document.cookie])"
+    },
+    {
+     "js": "(wipe(), [set('x=1; path=/'), set('x=2; path=/;'), set('=n1; path=/'), set('n2; path=/'), document.cookie])"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-limits",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "(wipe(), [set('a=' + 'x'.repeat(4094)).length, set('b=' + 'x'.repeat(4094)).length])"
+    },
+    {
+     "js": "(wipe(), [set('a=' + 'x'.repeat(4095)).length, names()])"
+    },
+    {
+     "js": "(wipe(), [set('a'.repeat(4096) + '=').length, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('a'.repeat(4097) + '=').length, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('=' + 'v'.repeat(4096)).length, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('=' + 'v'.repeat(4097)).length, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('a=' + 'é'.repeat(2047)).length, set('b=' + 'é'.repeat(2048)).length])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/' + 'p'.repeat(1022)).length > 0, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/' + 'p'.repeat(1023)).length > 0, names().length])"
+    },
+    {
+     "js": "(wipe(), [set('a=1; path=/' + 'p'.repeat(1024)).length > 0, names().length])"
+    },
+    {
+     "js": "(() => { wipe(); let peak = 0, low = 1e9; for (let i = 0; i < 400; i++) { document.cookie = 'k' + i + '=' + i; const n = names().length; if (n < peak) low = Math.min(low, n); peak = Math.max(peak, n); } return [peak <= 180, peak >= 170, low >= 150, low < 175]; })()"
+    },
+    {
+     "js": "(() => { wipe(); for (let i = 0; i < 400; i++) { document.cookie = 'k' + i + '=' + i; } const n = names(); return [n.length >= 150 && n.length <= 180, n.includes('k399'), n.includes('k398'), !n.includes('k0'), !n.includes('k1')]; })()"
+    },
+    {
+     "js": "wipe()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-expiry",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "wipe()"
+    },
+    {
+     "js": "(async () => { wipe(); document.cookie = 'short=1; max-age=1'; document.cookie = 'long=1; max-age=100'; document.cookie = 'session=1'; const before = names(); await wait(1500); return [before, names()]; })()"
+    },
+    {
+     "js": "(async () => { wipe(); document.cookie = 'soon=1; expires=' + new Date(Date.now() + 1000).toUTCString(); const before = names(); await wait(1500); return [before, names()]; })()"
+    },
+    {
+     "js": "wipe()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "cookie-averse-file",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[location.protocol, navigator.cookieEnabled, document.cookie]"
+    },
+    {
+     "js": "[(document.cookie = 'fa=1'), document.cookie]"
+    },
+    {
+     "js": "E(() => { document.cookie = 'fb=1; path=/'; return document.cookie; })"
+    }
+   ]
+  },
+  {
+   "name": "cookie-no-browsing-context",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction wipe() { const paths = ['/']; for (let i = 1; i <= location.pathname.length; i++) paths.push(location.pathname.slice(0, i)); paths.push(location.pathname + '/more'); for (let round = 0; round < 3; round++) { for (const part of document.cookie.split('; ')) { if (!part) continue; const name = part.includes('=') ? part.split('=')[0] : ''; for (const p of paths) { document.cookie = name + '=x; max-age=0; path=' + p; document.cookie = name + '=x; max-age=0; secure; path=' + p; } } } }\nfunction set(s) { document.cookie = s; return document.cookie; }\nfunction names() { return document.cookie.split('; ').filter(Boolean).map((c) => c.split('=')[0]).sort(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => document.implementation.createHTMLDocument('t').cookie)"
+    },
+    {
+     "js": "E(() => { const d = document.implementation.createHTMLDocument('t'); d.cookie = 'ch=1'; return [d.cookie, document.cookie]; })"
+    },
+    {
+     "js": "E(() => new DOMParser().parseFromString('<p>x', 'text/html').cookie)"
+    },
+    {
+     "js": "E(() => document.implementation.createHTMLDocument('t').defaultView)"
+    },
+    {
+     "js": "E(() => { const t = document.createElement('template'); t.innerHTML = '<p>'; return t.content.ownerDocument.cookie; })"
+    }
+   ]
+  }
+ ]
+}

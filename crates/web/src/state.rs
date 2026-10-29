@@ -147,6 +147,11 @@ pub(crate) struct WebState {
     /// the first access.
     pub(crate) screen: Option<Gc<Object>>,
     pub(crate) screen_orientation: Option<Gc<Object>>,
+    /// The window's `localStorage` and `sessionStorage` objects (in the
+    /// order of `StorageKind`), made at the first access, and the store of
+    /// the runtime when the engine lends none (`storage.rs`).
+    pub(crate) storage_objects: [Option<Gc<Object>>; 2],
+    pub(crate) own_storage: Option<crate::storage::SharedStorage>,
     /// The script elements and the script lists of the window's document.
     pub(crate) scripts: crate::scripts::Scripts,
     /// The declaration blocks of the `style` attributes that scripts read
@@ -202,6 +207,9 @@ impl HostState for WebState {
         .flatten()
         {
             tracer.object(object);
+        }
+        for object in self.storage_objects.iter().flatten() {
+            tracer.object(*object);
         }
         if let Some(cache) = &self.history_state {
             cache.trace(tracer);

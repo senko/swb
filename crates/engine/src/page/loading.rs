@@ -289,6 +289,7 @@ impl Page {
             content_type: parsed.content_type,
             images,
             loader: Rc::clone(&self.loader),
+            storage: Rc::clone(&self.storage),
             view: self.view,
             scroll_target,
             parse: parsed.parse,

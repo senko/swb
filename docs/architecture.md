@@ -267,8 +267,21 @@ Rules:
   grouped by registrable domain (Public Suffix List, `net/src/site.rs`).
   Each `Request` carries its `initiator` (the origin of the document that
   started it); with `Destination::Document` (a top-level navigation) this
-  gives the `SameSite` context. In memory only; fixture replay has no
-  cookies (ADR 0012).
+  gives the `SameSite` context. In memory only. Scripts use the non-HTTP
+  API of the jar (`script_cookie_string`, `set_script_cookie`: no
+  `HttpOnly` cookies are set, replaced, deleted or read);
+  `document.cookie` (`web/src/cookie.rs`) reaches the jar through the
+  document's loader (`EngineHost::cookie_string`). `ReplayFetcher` has an
+  in-memory jar of its own that only scripts use: a replay sends no
+  `Cookie` header and the fixtures have no `Set-Cookie` (ADR 0012, ADR 0028
+  section 12).
+- **Web Storage** (`web`, `engine`): `StorageStore` (`web/src/storage.rs`)
+  holds the `localStorage` and `sessionStorage` areas by origin, in memory.
+  The `Page` creates one and lends a handle to each document
+  (`EngineHost::storage`), so the data outlives the documents of the
+  page. swb has one `Page` per process, so `localStorage` lives for the
+  process; with several pages its areas must move to a store that the
+  pages share. Quota and bounds: ADR 0028 section 16.
 
 ## Units
 

@@ -966,7 +966,9 @@ other queries still run, and the exit status is 1.
 
 `--with-swb` also renders each case in swb (`--headless --test-fonts
 --size WxH --dump-boxes`; binary: `--swb PATH`, `$SWB`,
-`target/release/swb`, `target/debug/swb`). For each `boxes` element it
+`target/release/swb`, `target/debug/swb`; the last two are relative to
+the current directory, so a run for another tree, such as the review
+tree, needs `--swb` with that tree's binary). For each `boxes` element it
 reads the same index of `document.querySelectorAll('*')` from swb's dump
 and prints swb's box and the deltas below the Chromium line, with `!` if a delta is above
 `--tolerance` (default 1 px). If the tag at that index differs, or only one
@@ -1146,7 +1148,12 @@ of 1 ms), 1,100,000 idle callbacks requested in one task (the limit of
 measures while two observers wait (the buffer and the queues keep 131,072
 entries), `TextDecoder` on a 60 MiB buffer, a 100 MiB buffer (a `RangeError`)
 and 64 chunks in stream mode, and `getRandomValues` over its limit 100,000
-times with 200,000 `randomUUID` calls. The cases with
+times with 200,000 `randomUUID` calls. Cases for feature 8b: `setItem` in
+loops past the quota of both storages (errors caught, the loop goes on; the
+limit of 100,000 keys), and 100,000 distinct cookies through
+`document.cookie` and a read loop with a full jar, and 400 cookies of
+4,000 bytes (these open an `http:` page from a replayed fixture; see `url`
+below). The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -1196,7 +1203,12 @@ description names the limit and the ADR. Size the page just past the limit
 (at most 20 MB; `tools/tests/test_hostile.py` checks this and that names are
 unique). Options: `time_limit_s` and `rss_limit_mib` where an ADR documents
 a higher cost, `expect_log` (a part of the warning that swb logs when the
-limit acts), `swb_args` (for example `--full-page`, `--scale 8`, `--js`) and
+limit acts), `swb_args` (for example `--full-page`, `--scale 8`, `--js`;
+`{dir}` stands for the directory of the case, so that a case can write a
+fixture and pass `--replay {dir}`), `url` (the URL to open instead of
+`index.html`, for a page that needs an `http:` origin, with a replayed
+fixture whose `manifest.json` the case writes; `replay_page` in
+`hostile_cases.py` makes one) and
 `known_failure="reason"` for an open bug. Put the bug in the backlog in
 `docs/roadmap.md`; when it is fixed, `just hostile` reports `unexpected pass`
 and the mark goes.
@@ -1244,8 +1256,10 @@ reach 1. `geometry` is the main metric.
   recorded; the third capture step makes the fixture complete again.
 - The fixture stores only `content-type` and `location`. Responses that
   depend on other headers (for example `Content-Security-Policy`) behave
-  differently from the live site, in both browsers. Replays have no
-  cookies.
+  differently from the live site, in both browsers. A replay sends no
+  `Cookie` header and has no `Set-Cookie`; with JavaScript on, scripts can
+  store and read cookies in an in-memory jar (`document.cookie`, feature
+  8b), which a page without scripts leaves empty.
 - Record fixtures logged out: a fixture stores the page as the recording
   session saw it, and a page recorded after a login contains session data
   (on Hacker News, the `auth=` tokens of the `logout` and `vote` links).

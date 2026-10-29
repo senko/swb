@@ -86,9 +86,25 @@ does what Chromium does:
   value would replace the jar's cookies and would be sent again on every
   redirect hop, also to other sites.
 
-Not implemented: the non-HTTP API (`document.cookie`; `HttpOnly` is stored
-but has no effect yet), `Partitioned` (the attribute is ignored, so such
-cookies are stored unpartitioned), `Priority`, the `__Http-` prefixes,
+Feature 8b of M8 (ADR 0028 section 12) added the non-HTTP API for
+`document.cookie`: `CookieJar::script_cookie_string` and
+`set_script_cookie` follow §5.7 and §5.8 for a script of the document
+itself (same-site context): a script cannot set `HttpOnly`, cannot replace
+or delete an `HttpOnly` cookie and does not see one. Measurements in
+Chromium (`tools/probes/web-cookies.json`) changed three rules for both
+APIs: a cookie that replaces another with a different value gets a new
+creation time (so it moves behind the others in the `Cookie` header; the
+draft keeps the old time), and with the same value it keeps the old time,
+also when other attributes change;
+`Partitioned` without `Secure` is rejected; and `__Host-` accepts
+`Domain=<the host>` when the host has no registrable domain (the cookie is
+host-only). The three rules were measured with `document.cookie` only (the
+probe server cannot send `Set-Cookie`); swb applies them to responses too,
+so that one store has one set of rules. For scripts only: a tab
+inside a name or a value rejects the cookie.
+
+Not implemented: partitioning (`Partitioned` cookies are stored
+unpartitioned), `Priority`, the `__Http-` prefixes,
 Chromium's "Lax+POST" exception (a cookie without `SameSite` younger than
 2 minutes is sent with a cross-site top-level `POST`), and the optional
 redirect-chain rule for `SameSite` (Chromium has it off by default).
@@ -144,12 +160,14 @@ hop, so every hop sends and stores cookies.
   swb process does. Record fixtures without logging in: a page recorded
   after a login contains session data (on Hacker News, the `auth=` tokens
   of the `logout` and `vote` links), and the fixtures are committed.
-- `ReplayFetcher` has no jar. Fixtures store only `content-type` and
-  `location` (see `swb_net::fixture`), so a replay never sees `Set-Cookie`.
-  Keep it that way: replays then do not depend on cookie state.
+- `ReplayFetcher` has a jar of its own (feature 8b of M8) that only
+  scripts use. Fixtures store only `content-type` and `location` (see
+  `swb_net::fixture`), so a replay never sees `Set-Cookie`, and it sends no
+  `Cookie` header. Keep it that way: replays then do not depend on cookie
+  state, and a page without scripts leaves the jar empty.
 - `Fetcher::cookie_jar()` gives access to the jar: `NetworkFetcher`
-  returns its jar, the recording fetchers return the jar of the fetcher
-  they wrap, other fetchers return none. `Loader::cookie_jar()` and
+  returns its jar, `ReplayFetcher` its script jar, the recording fetchers
+  return the jar of the fetcher they wrap, other fetchers return none. `Loader::cookie_jar()` and
   `Page::cookie_jar()` pass it on. The automation methods `cookies.get` and
   `cookies.clear` use it.
 
@@ -256,6 +274,5 @@ everything. Each redirect hop computes its own context.
   (`example.com`): `.test` is not in the list, so `a.test` has no
   registrable domain.
 - Later work: the initiator for reload and history traversal,
-  persistence, `document.cookie` (with JavaScript), frames (a "site for
-  cookies" field on `Request`), `Partitioned` cookies, the
+  persistence, frames (a "site for cookies" field on `Request`), the
   redirect-tainted `Origin`, `Sec-Fetch-*` and `Referer` headers.

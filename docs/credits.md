@@ -137,6 +137,10 @@ Format: source, license (for code), what it influenced.
   `encoding_rs` and the forgiving-base64 decode (`crates/web/src/base64.rs`,
   `text_codec.rs`).
 - RFC 9562 (UUID version 4) — `crates/web/src/crypto.rs`.
+- WHATWG HTML (Web Storage, `Document.cookie`), M8 feature 8b — the IDL
+  of `Storage` and `document.cookie` (BSD-3-Clause, as above); the
+  `Storage` methods and the cookie-averse checks
+  (`crates/web/src/storage.rs`, `cookie.rs`).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)
@@ -239,7 +243,8 @@ Format: source, license (for code), what it influenced.
   WHATWG URL `application/x-www-form-urlencoded` serializer; Infra
   newline normalization; RFC 7578 (`multipart/form-data`)
 - RFC 6265bis (IETF draft, HTTP State Management Mechanism) — cookie
-  parsing, storage, retrieval and `SameSite` (`net/src/cookies/`)
+  parsing, storage, retrieval and `SameSite` (`net/src/cookies/`); the
+  non-HTTP API for `document.cookie` (§5.7, §5.8; M8 feature 8b)
 - WHATWG Fetch, "append a request `Origin` header" — the `Origin` header
   of `POST` requests
 

@@ -11,6 +11,7 @@ use log::warn;
 
 use super::{body_path, entry_url, fixture_error, read_manifest};
 use crate::builtin;
+use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::fetch::Fetcher;
 use crate::headers::Headers;
@@ -28,6 +29,10 @@ pub struct ReplayFetcher {
     dir: PathBuf,
     /// Keyed by (url, method).
     entries: HashMap<(String, String), ReplayEntry>,
+    /// The jar for scripts (`document.cookie`, ADR 0028 section 12). A
+    /// replay sends no `Cookie` header and the fixtures have no
+    /// `Set-Cookie` header, so only scripts use it.
+    cookies: CookieJar,
 }
 
 struct ReplayEntry {
@@ -71,6 +76,7 @@ impl ReplayFetcher {
         Ok(ReplayFetcher {
             dir: dir.to_path_buf(),
             entries,
+            cookies: CookieJar::new(),
         })
     }
 
@@ -113,6 +119,12 @@ impl Fetcher for ReplayFetcher {
             redirected: false,
         })
     }
+
+    /// The in-memory jar of the replay, empty until a script stores a
+    /// cookie.
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        Some(&self.cookies)
+    }
 }
 
 impl fmt::Debug for ReplayFetcher {
@@ -120,6 +132,7 @@ impl fmt::Debug for ReplayFetcher {
         f.debug_struct("ReplayFetcher")
             .field("dir", &self.dir)
             .field("entries", &self.entries.len())
+            .field("cookies", &self.cookies)
             .finish()
     }
 }

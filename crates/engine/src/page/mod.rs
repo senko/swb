@@ -216,6 +216,10 @@ pub struct Page {
     /// Shared with the document state, which starts the loads of its
     /// subresources.
     loader: Rc<Loader>,
+    /// The Web Storage of the page (ADR 0028 section 12): `localStorage`
+    /// and `sessionStorage` by origin, lent to each document. They outlive
+    /// the documents.
+    storage: swb_web::SharedStorage,
     fonts: FontContext,
     history: History,
     pending: Option<PendingNavigation>,
@@ -276,6 +280,7 @@ impl Page {
                 config.network_threads,
                 config.notify,
             )),
+            storage: swb_web::StorageStore::shared(),
             fonts,
             history: History::default(),
             pending: None,
@@ -842,8 +847,9 @@ impl Page {
         self.error.as_deref()
     }
 
-    /// The cookie jar of the page's fetcher, if it has one (a fetcher that
-    /// replays a fixture has none).
+    /// The cookie jar of the page's fetcher, if it has one. The network
+    /// fetcher and the fixture replay have one; `document.cookie` reads
+    /// and writes it (ADR 0028 section 12).
     pub fn cookie_jar(&self) -> Option<&CookieJar> {
         self.loader.cookie_jar()
     }

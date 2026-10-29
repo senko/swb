@@ -21,14 +21,14 @@ pub trait StorageEventImpl: b::Host {
     /// `readonly attribute USVString url`.
     fn url(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<String>;
 
-    /// `readonly attribute object? storageArea`.
+    /// `readonly attribute Storage? storageArea`.
     fn storage_area(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `constructor(DOMString type, optional StorageEventInit eventInitDict)`.
     fn constructor(cx: &mut b::Cx<'_>, type_: String, event_init_dict: super::types::StorageEventInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-    /// `undefined initStorageEvent(DOMString type, optional boolean bubbles, optional boolean cancelable, optional DOMString? key, optional DOMString? oldValue, optional DOMString? newValue, optional USVString url, optional object? storageArea)`.
-    fn init_storage_event(cx: &mut b::Cx<'_>, this: b::Platform, type_: String, bubbles: bool, cancelable: bool, key: Option<String>, old_value: Option<String>, new_value: Option<String>, url: String, storage_area: Option<swb_js::Gc<swb_js::Object>>) -> b::Result<()>;
+    /// `undefined initStorageEvent(DOMString type, optional boolean bubbles, optional boolean cancelable, optional DOMString? key, optional DOMString? oldValue, optional DOMString? newValue, optional USVString url, optional Storage? storageArea)`.
+    fn init_storage_event(cx: &mut b::Cx<'_>, this: b::Platform, type_: String, bubbles: bool, cancelable: bool, key: Option<String>, old_value: Option<String>, new_value: Option<String>, url: String, storage_area: Option<b::Platform>) -> b::Result<()>;
 
 }
 
@@ -103,7 +103,7 @@ fn op_init_storage_event<H: StorageEventImpl>(rt: &mut swb_js::Runtime, call: &s
         let v = rt.arg(call, 6);
         let a6 = if v.is_undefined() { String::new() } else { b::convert::usv_string(rt, v).map_err(|e| e.argument(6))? };
         let v = rt.arg(call, 7);
-        let a7 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::object(v).map(Some) }).map_err(|e| e.argument(7))? };
+        let a7 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::platform(rt, v, super::STORAGE, "Storage").map(Some) }).map_err(|e| e.argument(7))? };
         <H as StorageEventImpl>::init_storage_event(&mut b::Cx::new(rt, call, super::STORAGE_EVENT), this, a0, a1, a2, a3, a4, a5, a6, a7)?;
         Ok(swb_js::Value::Undefined)
     })

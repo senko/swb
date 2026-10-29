@@ -40,6 +40,7 @@ fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState 
         encoding: encoding_rs::UTF_8,
         images: Images::default(),
         loader: Rc::new(Loader::new(Arc::new(NoNetwork), 1, Arc::new(|| {}))),
+        storage: swb_web::StorageStore::shared(),
         view: View {
             viewport: Size::new(1280.0, 800.0),
             scale: 1.0,

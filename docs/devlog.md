@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-29: M8 feature 8b, cookies and storage
+
+- `document.cookie` reads and writes the page's jar through the
+  non-HTTP API of RFC 6265bis: scripts never set, replace, delete or
+  read `HttpOnly` cookies. Fixture replay has an in-memory jar that only
+  scripts fill. Documents that are not `http:`/`https:` or have no
+  browsing context read "" and ignore writes; `data:` throws.
+- `localStorage` and `sessionStorage`: `Storage` objects with named
+  properties over a store that the page owns, per origin, in memory.
+  Chromium's quota: 5,242,880 UTF-16 code units per area. swb adds
+  100,000 keys per area and 64 MiB over all areas. No `storage` event:
+  there is no second document in M8.
+- Learned from Chromium: a cookie rewritten with a new value moves
+  behind the others, with the same value it keeps its place;
+  `Partitioned` needs `Secure`; `__Host-` accepts `Domain=<IP host>`;
+  a tab in a script's cookie rejects it; `file:` pages share one
+  storage area; the key order of `Storage` is a hash order.
+- Review fixes: a cookie rewritten with the same value moved behind the
+  others; the total storage bound counted UTF-16 units of UTF-8 strings,
+  and a shorter value kept the allocation of the longer one.
+- Targets: Wikipedia's `document.cookie` error is gone. Its scripts now
+  run further and ask for `web2017-polyfills` (no `IntersectionObserver`
+  and `fetch` yet), a `load.php` batch that the fixture lacks, so 10
+  collapsible tables stay hidden: `compare --js` geometry .181 → .425,
+  but size .705 → .465 and relative .635 → .461 until features 9a and
+  10a. Other targets unchanged; JS off: snapshot identical. Hostile set
+  219 cases, 218 ok + the known failure (3 new).
+
+Next: feature 9a (`MutationObserver`, `IntersectionObserver`,
+`ResizeObserver`).
+
 ## 2026-10-29: M8 feature 8a2, `navigator`, `performance`, `crypto`, text codecs, idle callbacks
 
 - `navigator` with stable values that do not claim to be Chromium;

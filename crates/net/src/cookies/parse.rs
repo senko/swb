@@ -37,6 +37,9 @@ pub(super) struct SetCookie {
     pub(super) path: Option<String>,
     pub(super) secure: bool,
     pub(super) http_only: bool,
+    /// `Partitioned` (the jar does not partition, but Chromium rejects the
+    /// attribute without `Secure`).
+    pub(super) partitioned: bool,
     /// `SameSite`, or [`SameSite::Default`] without the attribute.
     pub(super) same_site: SameSite,
 }
@@ -74,6 +77,7 @@ pub(super) fn parse(line: &str, now: i64) -> Option<SetCookie> {
         path: None,
         secure: false,
         http_only: false,
+        partitioned: false,
         same_site: SameSite::Default,
     };
     for attribute in attributes.split(';') {
@@ -87,8 +91,27 @@ pub(super) fn parse(line: &str, now: i64) -> Option<SetCookie> {
     Some(cookie)
 }
 
+/// Parses a cookie string that a script wrote (the non-HTTP API,
+/// `document.cookie`). It is [`parse`] with one more rule, measured in
+/// Chromium: a tab inside a name or a value (also of an attribute) rejects
+/// the cookie; tabs at the ends are removed as usual.
+pub(super) fn parse_script(line: &str, now: i64) -> Option<SetCookie> {
+    if has_inner_tab(line) {
+        return None;
+    }
+    parse(line, now)
+}
+
+/// True if a name or a value of `line` has a tab after it is trimmed.
+fn has_inner_tab(line: &str) -> bool {
+    line.split(';').any(|part| {
+        let (name, value) = part.split_once('=').unwrap_or((part, ""));
+        trim_wsp(name).contains('\t') || trim_wsp(value).contains('\t')
+    })
+}
+
 /// Processes one cookie attribute (§5.6.1 to §5.6.7). Unknown attributes
-/// (`Partitioned`, `Priority` and others) are ignored.
+/// (`Priority` and others) are ignored.
 fn apply_attribute(cookie: &mut SetCookie, name: &str, value: &str, now: i64) {
     let is = |expected: &str| name.eq_ignore_ascii_case(expected);
     if is("expires") {
@@ -114,6 +137,8 @@ fn apply_attribute(cookie: &mut SetCookie, name: &str, value: &str, now: i64) {
         cookie.secure = true;
     } else if is("httponly") {
         cookie.http_only = true;
+    } else if is("partitioned") {
+        cookie.partitioned = true;
     } else if is("samesite") {
         cookie.same_site = if value.eq_ignore_ascii_case("none") {
             SameSite::None
