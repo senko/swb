@@ -50,6 +50,14 @@ pub(crate) enum Task {
     /// Run the script of a `javascript:` URL that a link or a form
     /// navigates to (HTML "navigate to a javascript: URL" queues a task).
     JavascriptUrl(String),
+    /// Fire `hashchange` at the window after a navigation to a fragment
+    /// (HTML "navigate to a fragment" queues a global task).
+    HashChange {
+        /// `oldURL`.
+        old_url: String,
+        /// `newURL`.
+        new_url: String,
+    },
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

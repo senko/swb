@@ -297,6 +297,7 @@ impl Page {
             .url()
             .fragment()
             .and_then(|fragment| indicated(doc.dom(), fragment));
+        doc.history = self.history_info();
         if !doc.is_loading() {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }

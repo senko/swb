@@ -87,6 +87,8 @@ Performance:dwc
 window:ae
 self:aec
 document:ae
+location:ae
+history:aec
 frames:aec
 length:aec
 top:ae
@@ -232,6 +234,7 @@ scrollBy:dwec
 scrollTo:dwec
 setInterval:dwec
 setTimeout:dwec
+structuredClone:dwec
 Window:dwc
 HTMLDocument:dwc
 HTMLElement:dwc
@@ -315,6 +318,9 @@ HTMLScriptElement:dwc
 ErrorEvent:dwc
 PromiseRejectionEvent:dwc
 PageTransitionEvent:dwc
+History:dwc
+Location:dwc
+PopStateEvent:dwc
 SubmitEvent:dwc
 HashChangeEvent:dwc
 MessageEvent:dwc
@@ -369,6 +375,8 @@ InputEvent:dwc
 KeyboardEvent:dwc
 CompositionEvent:dwc
 TextEvent:dwc
+URL:dwc
+URLSearchParams:dwc
 DOMException:dwc
 MediaQueryList:dwc
 MediaQueryListEvent:dwc

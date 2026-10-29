@@ -1,0 +1,56 @@
+// Source: URL Standard, https://url.spec.whatwg.org/, the URL and
+// URLSearchParams interfaces, copied on 2026-10-29.
+//
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
+// licensed under the Creative Commons Attribution 4.0 International
+// License; "to the extent portions of it are incorporated into source
+// code, such portions in the source code are licensed under the BSD
+// 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
+// THIRD_PARTY_NOTICES.md for the license text.
+//
+// swb cut this file to the two interfaces of the standard's API section
+// (feature 8a1 of M8); the standard has no other interface. Both are
+// complete. Chromium's `URL` also has the static `createObjectURL` and
+// `revokeObjectURL` of the File API, which swb does not have (no `Blob`).
+// `Exposed=*` is `Exposed=Window` here (swb has no workers).
+
+[Exposed=Window]
+interface URL {
+  constructor(USVString url, optional USVString base);
+  static URL? parse(USVString url, optional USVString base);
+  static boolean canParse(USVString url, optional USVString base);
+
+  stringifier attribute USVString href;
+  readonly attribute USVString origin;
+  attribute USVString protocol;
+  attribute USVString username;
+  attribute USVString password;
+  attribute USVString host;
+  attribute USVString hostname;
+  attribute USVString port;
+  attribute USVString pathname;
+  attribute USVString search;
+  [SameObject] readonly attribute URLSearchParams searchParams;
+  attribute USVString hash;
+
+  USVString toJSON();
+};
+
+[Exposed=Window]
+interface URLSearchParams {
+  constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = "");
+
+  readonly attribute unsigned long size;
+
+  undefined append(USVString name, USVString value);
+  undefined delete(USVString name, optional USVString value);
+  USVString? get(USVString name);
+  sequence<USVString> getAll(USVString name);
+  boolean has(USVString name, optional USVString value);
+  undefined set(USVString name, USVString value);
+
+  undefined sort();
+
+  iterable<USVString, USVString>;
+  stringifier;
+};

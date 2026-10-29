@@ -143,6 +143,7 @@ impl ScriptRuntime {
         }
         if let Ok(scripts) = scripts_mut(&mut self.rt) {
             scripts.phase = Phase::Loaded;
+            scripts.in_load_event = true;
         }
         // The task's error is reported and counted by the task.
         let _ = self.task("the load event", |rt| {
@@ -157,6 +158,9 @@ impl ScriptRuntime {
             crate::scripts::fire(rt, DispatchTarget::Window, &pageshow).map_err(task_error)?;
             Ok(())
         });
+        if let Ok(scripts) = scripts_mut(&mut self.rt) {
+            scripts.in_load_event = false;
+        }
     }
 
     /// True once the `load` event of the document fired (or its load was

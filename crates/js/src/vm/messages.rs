@@ -234,6 +234,40 @@ impl Runtime {
         None
     }
 
+    /// The text of an object whose `toString` is not
+    /// `Object.prototype.toString` (a class with a `toString` method,
+    /// `Location`, `URL`): V8 does not name its constructor; it shows the
+    /// builtin tag, which is its `@@toStringTag` data property, else
+    /// "Object" (measured in Chromium 148).
+    fn custom_to_string_text(&self, object: Gc<Object>) -> Option<String> {
+        if !matches!(
+            self.heap.object(object).map(|o| &o.kind),
+            Ok(ObjectKind::Ordinary | ObjectKind::Host(_) | ObjectKind::HostExotic(_))
+        ) || !self.has_custom_to_string(object)
+        {
+            return None;
+        }
+        let tag = self.symbol_key(super::WellKnown::ToStringTag);
+        Some(match self.chain_data_value_of(object, tag) {
+            Some(Value::String(tag)) => format!("[object {}]", self.clipped_text(tag)),
+            _ => "[object Object]".to_owned(),
+        })
+    }
+
+    /// True if the `toString` that the prototype chain gives `object` (a
+    /// data property) is not `Object.prototype.toString`.
+    fn has_custom_to_string(&self, object: Gc<Object>) -> bool {
+        let key = PropertyKey::String(self.vm.atoms.to_string);
+        let Some(found) = self.chain_data_value_of(object, key) else {
+            return false;
+        };
+        let default = self
+            .intrinsic(0, super::Intrinsic::ObjectPrototype)
+            .ok()
+            .and_then(|proto| self.chain_data_value_of(proto, key));
+        Some(found) != default
+    }
+
     /// An own data property that holds a string.
     pub(crate) fn own_data_string(&self, object: Gc<Object>, name: Gc<JsString>) -> Option<String> {
         match self
@@ -306,6 +340,9 @@ impl Runtime {
                 Some(target) => self.object_text(target),
                 None => "#<Object>".to_owned(),
             };
+        }
+        if let Some(text) = self.custom_to_string_text(object) {
+            return text;
         }
         match self.heap.object(object).map(|o| &o.kind) {
             Ok(ObjectKind::Array { .. }) => "[object Array]".to_owned(),

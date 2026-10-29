@@ -210,6 +210,9 @@ pub(crate) struct Scripts {
     pub(crate) parse_end_deferred: bool,
     /// HTML "page showing".
     pub(crate) page_showing: bool,
+    /// True while the `load` event is dispatched: the document is not
+    /// "completely loaded" yet (HTML "completely finished loading").
+    pub(crate) in_load_event: bool,
 }
 
 impl Default for Scripts {
@@ -230,11 +233,24 @@ impl Default for Scripts {
             parser_waited: false,
             parse_end_deferred: false,
             page_showing: false,
+            in_load_event: false,
         }
     }
 }
 
 impl Scripts {
+    /// True if the document is "completely loaded" (HTML "completely
+    /// finished loading"): its `load` event has fired and finished, or the
+    /// runtime never started a load. A navigation through `location`
+    /// before that replaces the current entry.
+    pub(crate) fn completely_loaded(&self) -> bool {
+        !self.in_load_event
+            && matches!(
+                self.phase,
+                Phase::NotStarted | Phase::Loaded | Phase::Unloaded
+            )
+    }
+
     /// True if the element has a result (not "uninitialized").
     pub(crate) fn has_result(&self, node: NodeId) -> bool {
         self.elements

@@ -37,6 +37,7 @@ pub use host::{
     Attributes, ClassId, ClassSpec, DefineOwnPropertyHook, DeleteHook, EventHandler, GetHook,
     GetOwnPropertyHook, GlobalHook, HostHooks, HostState, Interface, InterfaceHook, LazyHooks,
     OwnKeysHook, PreventExtensionsHook, Refusal, RefusalHook, ScriptIterator, SetAnswer, SetHook,
+    Slots,
 };
 pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};

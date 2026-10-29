@@ -1133,7 +1133,13 @@ interfaces: every global name read in 1,000 rounds (as an identifier, as
 `window[name]`, with `getOwnPropertyDescriptor`), and every interface
 name deleted, overwritten or redefined before its first use, then 32,000
 elements of 16 kinds created, checked against their constructors and
-appended. The cases with
+appended. Cases for feature 8a1: 100,000 `pushState` and `replaceState`
+calls with objects as state followed by 100,000 `location.hash` changes
+with `popstate` and `hashchange` listeners (the history keeps 50 entries,
+all 100,000 events run), a `hashchange` handler that sets the hash
+again, and `structuredClone` of a chain 200,000 levels deep (a
+`RangeError` at 4,096), an array of 150,000 objects, a map of 100,000
+entries, four buffers of 16 MB and a string of 8 MB. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2637,6 +2643,53 @@ code for them (a unit test of the generator checks the glue).
   `crates/web/tests/document_load.rs` has the unload (`pagehide`,
   `unload`), a parse that goes on after the document's scripts stopped,
   and the readiness without a parse.
+- Feature 8a1 (`URL`, `URLSearchParams`, `location`, `history`,
+  `popstate`, `hashchange`, `structuredClone`):
+  `crates/web/tests/url.rs` and `structured_clone.rs` run every case of
+  `tools/probes/web-url.json` (27 cases, 787 queries: the interface
+  objects, parsing with and without a base on special, `file:`, opaque and
+  other URLs, every attribute and setter on six kinds of URL,
+  `searchParams` linked both ways, the constructors, methods and iteration
+  of `URLSearchParams`) and `tools/probes/web-structured-clone.json` (11
+  cases, 177 queries: every type, the errors and their messages, transfer,
+  deep and wide graphs) with Chromium's values
+  (`tests/url/cases.rs`, `tests/structured_clone/cases.rs`, made from
+  `just probe --json` by comparing three runs; `tests/url.rs` lists the
+  departures). `tools/probes/web-location-history.json` (37 cases) is
+  checked with `just probe --with-swb`: the cases run in a page of their own
+  (`"steps": [{"wait": 0}]`, so that the history of the tab does not carry
+  over) from an HTTP server (`resources`), and report `history.length`
+  relative to the length at `load`. A navigation to another document
+  destroys the page that the probe evaluates in, so the cases `nav-*`,
+  `set-*`, `replace-other-page`, `assign-other-page` and `reload-keeps-state`
+  pass the length before the navigation to the next document in its query
+  (`?L0=N`), mark the entry with `history.replaceState({m: 1}, '')` before
+  the navigation, and let the next document report the length difference,
+  `history.state`, the path, the query and the hash (`"steps": [{"wait":
+  700}]` waits for the navigation). A case whose navigation runs during the
+  load of the first document can fail in Chromium with "Execution context
+  was destroyed" when the probe's wait for fonts races with it; the file
+  keeps only cases that were stable, and the boundary of "completely loaded"
+  (a `load` handler replaces, a task after `load` pushes) is in
+  `script_location.rs`. The `same-url-*` cases log `popstate`/`hashchange`
+  with the state and report length and state after a navigation to the URL
+  of the document. Its departures are the invalid-URL text of messages, the
+  own `valueOf`, `ancestorOrigins` and the symbol of `location`.
+  `crates/engine/tests/script_location.rs`
+  checks what needs a page: the fragment navigation (URL and length at
+  once, `popstate` in the call, `hashchange` as a task, the scroll), the
+  entries of `replace`, `assign`, `href`, `reload` and `go(0)` (requests
+  counted), traversal between documents with the state of the entry, the
+  order of a script's `back()` with the tasks of the page, the cap of 50
+  entries after 100,000 `pushState` calls, a `hashchange` handler that
+  changes the hash, a `javascript:` URL and the scroll restoration modes;
+  `location.replace()` and `assign()` leave the new document no state, a
+  navigation to the URL of the document keeps the state, the 64 pending
+  traversals and the single reload, and the replace of a navigation before
+  the `load` event finished.
+  The hostile set has four cases (`push-state-and-hash-loops-js-on`,
+  `hash-change-endless-js-on`, `structured-clone-large-js-on`,
+  `history-traversal-loop-js-on`).
 
 They run every case with and without the GC stress mode and check that no
 collection found a stale root. The expected values come from Chromium

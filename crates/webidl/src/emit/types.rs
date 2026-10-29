@@ -442,8 +442,9 @@ impl Gen<'_> {
                 ));
             }
             (TypeKind::Union(_), _) => {
+                // The value is made first: it can borrow the runtime.
                 return Ok(format!(
-                    "{p}{}::from_js(rt, {realm}, {js_value})?",
+                    "{{ let d = {js_value}; {p}{}::from_js(rt, {realm}, d)? }}",
                     self.union(&t)
                 ));
             }

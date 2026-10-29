@@ -35,7 +35,7 @@ use swb_web::{
 };
 
 use super::{HistoryHandling, Page};
-use crate::document::{DocumentState, ScriptNavigation};
+use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation};
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
 /// 60 Hz), so that the embedder's loop stays responsive.
@@ -235,6 +235,7 @@ impl Page {
             return;
         };
         let requests = doc.take_script_requests();
+        self.apply_state_changes(requests.state_changes);
         if let Some(node) = requests.scroll_into_view {
             self.scroll_into_view(node);
         }
@@ -257,7 +258,20 @@ impl Page {
                     initiator,
                 );
             }
+            Some(ScriptNavigation::Location { url, replace }) => {
+                self.location_navigate(url, replace);
+            }
+            Some(ScriptNavigation::Reload) => self.reload(),
             None => {}
+        }
+        for delta in requests.traversals {
+            match delta {
+                0 => self.reload(),
+                delta if self.traversals.len() < MAX_PENDING_TRAVERSALS => {
+                    self.traversals.push_back(delta as isize);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -293,6 +307,7 @@ impl Page {
     pub fn pump(&mut self) -> Pump {
         let mut changed = self.process_network();
         changed |= self.run_due_tasks() > 0;
+        changed |= self.run_traversal();
         changed |= self.run_frame();
         Pump {
             changed,
@@ -315,6 +330,21 @@ impl Page {
         ran
     }
 
+    /// Runs the first traversal of the session history that scripts asked
+    /// for (a task of its own, after the due tasks). True if it ran.
+    fn run_traversal(&mut self) -> bool {
+        if self.lent {
+            return false;
+        }
+        match self.traversals.pop_front() {
+            Some(delta) => {
+                self.traverse(delta);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// True if a task of the document is due at the page time now.
     fn task_due(&self) -> bool {
         self.script
@@ -325,6 +355,9 @@ impl Page {
 
     /// The page time of the next task of the document.
     fn next_task_time(&self) -> Option<f64> {
+        if !self.traversals.is_empty() {
+            return Some(self.clock.now());
+        }
         let tasks = self.script.as_ref()?.next_task_time();
         match (tasks, self.frame_time()) {
             (Some(task), Some(frame)) => Some(task.min(frame)),
@@ -360,7 +393,7 @@ impl Page {
     /// time. A frame that only runs animation frame callbacks does not
     /// count: a page with a `requestAnimationFrame` loop can be idle.
     pub fn is_idle(&mut self, quiet: Duration) -> bool {
-        if self.is_loading() {
+        if self.is_loading() || !self.traversals.is_empty() {
             return false;
         }
         let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;

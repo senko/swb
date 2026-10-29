@@ -46,6 +46,23 @@ impl g::window::WindowImpl for WebState {
         Ok(NodeId::DOCUMENT)
     }
 
+    fn location(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::location::location_object(cx)
+    }
+
+    fn history(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::location::history_object(cx)
+    }
+
+    fn structured_clone(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        value: Value,
+        options: crate::generated::types::StructuredSerializeOptions,
+    ) -> b::Result<Value> {
+        crate::structured::structured_clone(cx, value, options)
+    }
+
     fn frames(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
         Ok(this.object)
     }

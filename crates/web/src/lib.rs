@@ -55,12 +55,15 @@ mod events;
 pub mod generated;
 mod host;
 mod html;
+mod location;
 mod media_queries;
 mod runtime;
 mod scripts;
 mod state;
+mod structured;
 mod svg;
 mod timers;
+mod url_api;
 mod window;
 
 pub use clock::{ClockMode, PageClock};
@@ -74,4 +77,5 @@ pub use runtime::{
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
 pub use scripts::{FetchedScript, is_javascript_mime_type};
+pub use structured::Serialized;
 pub use swb_js::{ConsoleLevel, ScriptError};

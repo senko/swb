@@ -110,6 +110,18 @@ Format: source, license (for code), what it influenced.
   `crates/engine/src/page/frame.rs`).
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,
   https://fetch.spec.whatwg.org/, https://encoding.spec.whatwg.org/
+  The IDL of `URL` and `URLSearchParams` is copied into
+  `crates/web/idl/url.idl` (BSD-3-Clause for IDL in source code, WHATWG
+  IPR policy 7.1.1); the API setters (state override) and the
+  `URLSearchParams` algorithms of `crates/web/src/url_api.rs`, on top of
+  the `url` crate.
+- WHATWG HTML Living Standard, M8 feature 8a1 — the IDL of `Location`,
+  `History`, `PopStateEvent` and `structuredClone`, copied into
+  `crates/web/idl/html.idl` (BSD-3-Clause, as above); the structured
+  serialize and deserialize algorithms (§2.7,
+  `crates/web/src/structured.rs`), the `Location` setters, the URL and
+  history update steps and the fragment navigation
+  (`crates/web/src/location.rs`, `crates/engine/src/document/history_api.rs`).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

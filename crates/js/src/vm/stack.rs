@@ -68,6 +68,16 @@ pub struct ErrorData {
 }
 
 impl ErrorData {
+    /// The data of an error whose `stack` text is `stack` (an error that
+    /// structured clone made: no frames).
+    pub(crate) fn with_stack(stack: Value) -> ErrorData {
+        ErrorData {
+            frames: Box::default(),
+            stack,
+            building: false,
+        }
+    }
+
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for frame in &self.frames {
             if let Some(function) = frame.function {

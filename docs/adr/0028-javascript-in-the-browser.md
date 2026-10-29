@@ -1947,6 +1947,28 @@ lists the design; these are the parts to build):
    the hook registered in the realm (a later use creates them again), and
    a termination is kept in `terminating`, so every time check repeats it
    until the task ends. The hooks run no script code.
+10. **Reading and making the objects that structured clone handles**
+    (M8, feature 8a1; `host/inspect.rs`). `Runtime::slots_of(object)` gives
+    the kind of an object and the internal slots that structured clone
+    reads (`Slots`: ordinary, array with its length, `[[DateValue]]`, the
+    source and flags of a `RegExp`, `Map`, `Set`, `ArrayBuffer` with its
+    maximum length and detached state, a typed array or `DataView` with
+    its buffer, offset and fixed or tracking length, an error, the wrapped
+    primitive of a Boolean, Number, String, BigInt or Symbol object, a
+    function, and `Other` for the kinds that do not clone). It runs no
+    script code. `collection_entries`, `buffer_bytes`, `string_units`,
+    `bigint_parts` read the contents; `create_date`, `create_regexp`,
+    `create_collection` with `collection_add`, `create_array_buffer`,
+    `create_view`, `create_wrapper`, `create_error` (an error with the
+    given message and `stack` text, without captured frames, and no
+    `message` property unless given), `string_from_units`,
+    `key_from_units` and `bigint_from_parts` make them, with the
+    prototypes of a realm. Strings travel as code units (`Vec<u16>`), so
+    unpaired surrogates survive. `uncloneable_text` words the object in a
+    `DataCloneError` (a function's whole source, else the engine's
+    message text). `Runtime::display` of a host object with a `toString`
+    other than `Object.prototype.toString` (`Location`, `URL`) is
+    `[object Name]`, as V8 words it.
 
 ### 7. The event loop
 
@@ -2855,6 +2877,155 @@ are not obvious from the specifications:
   `customElements`) stay absent until a page needs them. Absent is
   safer than a stub that pretends to work.
 
+Feature 8a1 notes (`URL`, `URLSearchParams`, `location`, `history`,
+`popstate`, `hashchange`, `structuredClone`; measured with
+`tools/probes/web-url.json` (27 cases, 787 queries), `web-structured-clone.json`
+(11 cases, 177 queries) and `web-location-history.json` (37 cases), three Chromium runs each with equal values; the Rust tests are
+`crates/web/tests/url.rs`, `structured_clone.rs` and
+`crates/engine/tests/script_location.rs`, and three hostile cases):
+
+- **`URL` and `URLSearchParams`** (`web/src/url_api.rs`, `idl/url.idl`) keep a
+  `url::Url` and, once read, the `searchParams` object, linked both ways: a
+  change of the list sets the query (the "update steps"), a new `search` or
+  `href` sets the list. The attribute setters follow the standard's API
+  setters on top of the crate's: `host` splits the port, `port` and
+  `protocol` read the leading digits or scheme, an empty host is refused
+  when the URL has credentials or a port, tab and newline are removed, and
+  `search = "?"` removes the query and encodes `'` for every scheme
+  (Chromium, measured). `location` uses the same setters on a copy of the
+  document's URL. Departures, all in `tests/url.rs` with the reason: a
+  space in a host is refused (Chromium percent-encodes it); `file://localhost/a`
+  has an empty host (Chromium keeps `localhost`); `protocol` does not
+  convert between special and non-special schemes or from an opaque path
+  (Chromium does); the empty first segments of a `file:` path go; `chrome:`
+  has an opaque origin; no `createObjectURL` and `revokeObjectURL`.
+  `URL.origin` of a `file:` URL is `file://`, as Chromium has it.
+- **Structured clone** (`web/src/structured.rs`). `Serialized` is a record
+  that owns its data: a table of items that refer to one another by index
+  (objects, arrays with holes and extra keys, dates, regular expressions,
+  maps, sets, buffers, views that share their buffer, errors,
+  `DOMException`, wrapper objects) and strings as code units. It outlives the
+  heap, so a history entry keeps it, and one record can be read many times.
+  Both walks are iterative with an explicit stack, in the order of the
+  recursive algorithm, so getters run in Chromium's order. Limits: depth
+  4,096 (a `RangeError` with Chromium's words; Chromium's own depends on its
+  stack, 4,442 measured), 4,194,304 items, 512 MiB of strings and buffers,
+  and 4 MiB for the state of a history entry (a `DataCloneError`; Chromium's
+  limit is not measured).
+  The objects are read and made with the API of section 6, item 10. Chromium
+  behaviour that the probe fixes: the prototype of an object becomes
+  `Object.prototype`; only own enumerable string keys, with `Get`
+  for accessors; `Date` and `RegExp` lose `lastIndex` and extra properties;
+  errors keep `name` (only the standard names, else `Error`), `message`
+  (an own data property), `stack` (the text) and `cause` (own data
+  property, non-enumerable), in the order `stack`, `message`, `cause`;
+  `DataCloneError` words ("`() => 1 could not be cloned.`", "`HTMLBodyElement object
+  could not be cloned.`", "`#<Promise> could not be cloned.`",
+  "`An ArrayBuffer is detached and could not be cloned.`", "`Value at index 0
+  does not have a transferable type.`"); resizable buffers keep their maximum
+  and a length-tracking view keeps tracking; `transfer` moves `ArrayBuffer`s
+  (the clone has the bytes, the original is detached after a clone that
+  succeeded). Departures: platform objects other than `DOMException`
+  (`DOMRect`, `Blob`, `ImageData`, ...) throw `DataCloneError` (Chromium
+  clones them); an error whose `message` is an accessor makes the text of
+  `stack` at the first read of `stack` (swb builds it lazily), so the
+  getter runs.
+- **`location`** (`web/src/location.rs`) is one object, the value of
+  `window.location` and `document.location`, with the members as own
+  properties (`[LegacyUnforgeable]`, also `toString`), an immutable
+  prototype and `[PutForwards=href]`. A write is a request that the page
+  carries out when the task ends (`EngineHost::request_navigation`,
+  `request_reload`), except a change of the fragment alone (a URL equal to
+  the document's but for the fragment): the document's URL and
+  `history.length` change at once, `popstate` fires inside the call and
+  `hashchange` as a task (Chromium, measured: `location.hash = 'x'; LOG`
+  gives `popstate`, then the rest of the script, microtasks and timers
+  that were queued before, then `hashchange`); the page adds or replaces
+  the entry, sets `:target`, scrolls and focuses the target when the task
+  ends. `location.hash` keeps an empty fragment (`#`), `URL.hash` does not;
+  the same hash is no navigation; `replace` adds no entry. An invalid URL
+  is a `SyntaxError` ("'x' is not a valid URL."); `protocol` with an
+  invalid scheme "is an invalid protocol."; a `javascript:` URL queues its
+  script as a task. Departures: the invalid URL is quoted as written
+  (Chromium prints its canonical form, `http://[bad/`, `http:`);
+  `ancestorOrigins`, the own `valueOf` and the own symbol key of Chromium's
+  `Location` do not exist; the text `[object Location]` of messages comes
+  from the `toString` rule of section 6, item 10.
+- **`history`** (`web/src/location.rs`, `engine/src/document/history_api.rs`,
+  `engine/src/page/history_api.rs`). The page keeps the history
+  (`history.rs`: up to 50 entries as Chromium, measured through `history.length`;
+  each entry has its URL, scroll, state and scroll restoration mode); the
+  document keeps a copy for scripts (index, length, state) and a list of
+  changes. `pushState` and `replaceState` serialize the state first (a
+  `DataCloneError` leaves everything as it was), resolve the URL against the
+  base URL (an empty URL is none; Chromium's rule: no credentials, same
+  scheme, host and port; a `file:` or opaque document may change only the
+  query and fragment; a failure is a `SecurityError` with Chromium's words),
+  and change the document's URL, its base URL and `history.state` at once;
+  the page applies the changes in order after the task; the entry that a
+  push leaves keeps the scroll position of the call. `history.state` is the
+  same object until the entry's state changes, and the `state` of
+  `popstate` is that object. `back`, `forward` and `go` drop a call whose
+  target is out of range at the call and queue the others; the page runs
+  each as a task of its own after the tasks that are due (Chromium: the
+  timer queued before `back()` runs first, two `back()` calls go two entries
+  back, `back(); forward()` does not return), `go(0)` reloads. A traversal
+  within the document fires `popstate` and, if the URLs differ only in the
+  fragment, `hashchange`; one to another document loads it (the entry's state
+  comes with it) and fires no `popstate`. A traversal restores the scroll
+  position unless the entry's `scrollRestoration` is `"manual"`; an invalid
+  value of `scrollRestoration` is ignored (the generator now does this for
+  every enumeration-typed attribute, Web IDL §3.7.6).
+- **Which navigations replace, and what they do with the state** (fix round
+  after the review of 8a1; `web-location-history.json` has the cases, three
+  equal Chromium runs). The history handling of a page's navigation is
+  `Push`, `Replace` (a new document takes the entry: `location.replace()`
+  to another URL, a navigation before the load ended) or `Reload` (the same
+  document again). `Replace` and a push to the URL of the current entry
+  clear the entry's state (`History::replace_document`), so a new,
+  possibly cross-origin, document never reads the old document's
+  `history.state`; a reload and a traversal keep the entry's own state,
+  unless the server redirects them to another origin: then the state and
+  the scroll restoration mode go too (`History::replace_current`; found
+  in the delta review, not measured in Chromium).
+  Rules, all measured: (1) a navigation through `location` before the
+  document is completely loaded replaces the entry (HTML "Location-object
+  navigate"). "Completely loaded" is the end of the `load` event: inline
+  scripts, `DOMContentLoaded` and `load` handlers replace, a task after
+  `load` pushes (`Scripts::completely_loaded`, `in_load_event`). It holds for
+  fragments too (`location.hash = 'x'` in an inline script adds no entry).
+  Not measured: transient user activation (a click is not a navigation by
+  script here). (2) A navigation to the URL of the document is a
+  replacement (HTML "navigate"): with a fragment it is a navigation to a
+  fragment that adds no entry, keeps `history.state`, fires `popstate` with
+  `state` `null` and no `hashchange`; without a fragment it is a reload
+  (`Reload`: the state stays, Chromium measured with `location.href =
+  location.href`, `port = port`, `host = host`). Setters that leave the URL
+  unchanged follow the same rule (`port = 'abc'` fires `popstate` as
+  above); `protocol = 'ftp'` does nothing in Chromium and in swb. (3) `hostname = ''` and `host = ''` on a special
+  URL throw a `SyntaxError` in Chromium (`'http://:PORT/path#f' is not a
+  valid URL.`); the standard's parser fails and the URL stays. swb throws
+  too. Departure not done: Chromium loads a new document for `location.search
+  = ''` when the URL has a fragment (it probably writes `?`); swb treats it
+  as the same URL.
+  The `SecurityError` text of `pushState()` names the origin `null` for a
+  `file:` or opaque origin (`location.origin` of a `file:` URL stays
+  `file://`).
+- **Bound on the traversals** (`MAX_PENDING_TRAVERSALS`, 64). A script
+  that calls `back()`, `forward()` and `go()` in a loop made one queue
+  entry per call (758 MiB, 32 s for 7 million rounds). Now a task's request
+  list takes at most 64 traversals and one `go(0)`, and the page's queue
+  holds at most 64; the calls over the bound are dropped. Departure:
+  Chromium throttles history calls by rate (not measured further), so a
+  loop of 1,000 `back()` calls may go back farther in Chromium than the
+  first 64 in swb. The hostile case
+  `history-traversal-loop-js-on` has 1,000,000 rounds (1.2 s, 35 MiB).
+- **Not done / backlog:** Chromium's `Navigation API`, `history.length` of
+  `about:blank` frames, `location.ancestorOrigins`, the cloneable platform
+  objects other than `DOMException`, the transfer of other types, and the
+  throttling of `pushState` loops (none visible in Chromium: 1,000 calls
+  in a loop all took effect).
+
 ### 14. Frames and media: out of scope
 
 M8 does not render `iframe`, `frame` or `object` documents and runs no
@@ -2915,6 +3086,9 @@ Per document, all settings with these defaults:
 | Fetched script text that has not run, per document (feature 5c) | 256 MiB | the script fails as a network error (`error` event, warning) |
 | `localStorage` per origin | 5 MiB | `QuotaExceededError` |
 | Mutation observer records waiting | 1,000,000 | further records dropped with a warning |
+| Structured clone (feature 8a1): nesting depth, items, bytes of strings and buffers | 4,096, 4,194,304, 512 MiB | `RangeError` (depth) or `RangeError` "The value is too large to clone." |
+| State of one history entry (feature 8a1) | 4 MiB (the history keeps 50 entries) | `DataCloneError` |
+| Traversals of the session history that wait (`back()`, `forward()`, `go()`; feature 8a1) | 64 per task and 64 in the page's queue; one `go(0)` per task | later calls are dropped |
 
 The budget of long tasks (feature 5b): the time limit of a task and the
 stop after three terminations do not bound a page of many scripts that

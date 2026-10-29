@@ -65,6 +65,19 @@ pub enum EventInterface {
     /// An event of the user's input: a mouse, pointer, wheel, keyboard or
     /// input event ([`UserEvent`]).
     User(Box<UserEvent>),
+    /// `PopStateEvent` (`popstate`): the state of the entry that became
+    /// current, deserialized when the event is made (`None` is `null`).
+    PopState {
+        /// `state`.
+        state: Option<Rc<crate::Serialized>>,
+    },
+    /// `HashChangeEvent` (`hashchange`).
+    HashChange {
+        /// `oldURL`.
+        old_url: String,
+        /// `newURL`.
+        new_url: String,
+    },
 }
 
 /// An event that the engine fires (DOM "fire an event"): `isTrusted` is
@@ -160,6 +173,27 @@ pub(crate) fn dispatch_trusted(
                 Extra::Other(Box::new(super::misc::Other::Submit { submitter })),
             )
         }
+        EventInterface::PopState { state } => {
+            let state = match state {
+                Some(record) => crate::location::state_value(rt, 0, record)
+                    .map_err(|_| VmError::type_error("the state of the history entry"))?,
+                None => Value::Null,
+            };
+            (
+                g::POP_STATE_EVENT,
+                Extra::Other(Box::new(super::misc::Other::PopState {
+                    state,
+                    has_ua_visual_transition: false,
+                })),
+            )
+        }
+        EventInterface::HashChange { old_url, new_url } => (
+            g::HASH_CHANGE_EVENT,
+            Extra::Other(Box::new(super::misc::Other::HashChange {
+                old_url: old_url.clone(),
+                new_url: new_url.clone(),
+            })),
+        ),
         EventInterface::User(user) => {
             // Chromium makes a `wheel` event cancelable only when a
             // listener on its path can cancel it.

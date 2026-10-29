@@ -38,6 +38,7 @@
 
 mod handler;
 pub(crate) mod hooks;
+mod inspect;
 mod interface;
 mod lazy;
 mod ops;
@@ -49,6 +50,7 @@ pub use hooks::{
     DefineOwnPropertyHook, DeleteHook, GetHook, GetOwnPropertyHook, HostHooks, OwnKeysHook,
     PreventExtensionsHook, Refusal, RefusalHook, SetAnswer, SetHook,
 };
+pub use inspect::Slots;
 pub use interface::{Attributes, Interface};
 pub use lazy::{GlobalHook, InterfaceHook, LazyHooks};
 pub use ops::ScriptIterator;

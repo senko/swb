@@ -130,6 +130,11 @@ pub(crate) struct WebState {
     pub(crate) event_loop: EventLoop,
     /// The window's `Performance` object, made at the first access.
     pub(crate) performance: Option<Gc<Object>>,
+    /// The window's `Location` and `History` objects, made at the first
+    /// access, and the deserialized `history.state` (`location.rs`).
+    pub(crate) location: Option<Gc<Object>>,
+    pub(crate) history: Option<Gc<Object>>,
+    pub(crate) history_state: Option<crate::location::StateCache>,
     /// The window's `Screen` object and its `ScreenOrientation`, made at
     /// the first access.
     pub(crate) screen: Option<Gc<Object>>,
@@ -174,11 +179,20 @@ impl HostState for WebState {
         if let Some(event) = self.current_event {
             tracer.object(event);
         }
-        for object in [self.performance, self.screen, self.screen_orientation]
-            .into_iter()
-            .flatten()
+        for object in [
+            self.performance,
+            self.screen,
+            self.screen_orientation,
+            self.location,
+            self.history,
+        ]
+        .into_iter()
+        .flatten()
         {
             tracer.object(object);
+        }
+        if let Some(cache) = &self.history_state {
+            cache.trace(tracer);
         }
         self.event_loop.trace(tracer);
         self.animation_frames.trace(tracer);

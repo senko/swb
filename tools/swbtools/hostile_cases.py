@@ -3186,3 +3186,86 @@ def global_names_replaced_before_use_js_on() -> Page:
         "console.log('ok ' + ok + ' ' + names.length);</script>"
     )
     return Page(doc("<p>replaced</p>" + script))
+
+
+@case(
+    "100,000 pushState and replaceState calls with objects as state, then 100,000 location.hash "
+    "changes with popstate and hashchange listeners, with JavaScript on: the session history "
+    "keeps 50 entries, the state is serialized once per call, and the 100,000 hashchange "
+    "tasks run after the loop (feature 8a1)",
+    swb_args=("--js", "--settle-ms", "2000"),
+    time_limit_s=10,
+    rss_limit_mib=1536,
+)
+def push_state_and_hash_loops_js_on() -> Page:
+    script = (
+        "<script>let pops = 0, hashes = 0; addEventListener('popstate', () => pops++); "
+        "addEventListener('hashchange', () => hashes++); "
+        "for (let i = 0; i < 100000; i++) { "
+        "history.pushState({i, list: [i, i + 1], at: new Date(i)}, '', '?p=' + (i % 10)); "
+        "if (i % 3 === 0) history.replaceState({i}, ''); } "
+        "const length = history.length; "
+        "for (let i = 0; i < 100000; i++) location.hash = 'h' + i; "
+        "setTimeout(() => console.log('length ' + length + ' pops ' + pops + ' hashes ' + hashes), "
+        "1500);</script>"
+    )
+    return Page(doc("<p>push</p>" + script))
+
+
+@case(
+    "A hashchange handler that sets location.hash again, with JavaScript on: every change is "
+    "a task of its own, the history keeps 50 entries and the page settles after "
+    "--settle-ms (feature 8a1)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=6,
+)
+def hash_change_endless_js_on() -> Page:
+    script = (
+        "<script>let n = 0; addEventListener('hashchange', () => { location.hash = 'n' + n++; }); "
+        "location.hash = 'start';</script>"
+    )
+    return Page(doc("<p>hash</p>" + script))
+
+
+@case(
+    "A loop of 1,000,000 rounds of history.back(), go(0), forward() and location.reload() "
+    "after a few pushState calls, with JavaScript on: at most 64 traversals wait, repeated "
+    "reloads are one, so the page stays small and settles (fix round of feature 8a1)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+)
+def history_traversal_loop_js_on() -> Page:
+    script = (
+        "<script>if (!location.search) { "
+        "for (let i = 0; i < 3; i++) history.pushState(i, '', '?p=' + i); "
+        "let n = 0; for (let i = 0; i < 1000000; i++) { history.back(); history.go(0); "
+        "history.forward(); location.reload(); n++; } "
+        "console.log('rounds ' + n); }</script>"
+    )
+    return Page(doc("<p>traverse</p>" + script))
+
+
+@case(
+    "structuredClone of a chain 200,000 levels deep (a RangeError at 4,096), of an array of "
+    "150,000 objects, of a Map of 100,000 entries, of 4 buffers of 16 MB and of a string of "
+    "8 MB, with JavaScript on: the walks are iterative and bounded by the depth, the item "
+    "and the byte limits (feature 8a1)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def structured_clone_large_js_on() -> Page:
+    script = (
+        "<script>let o = {}; const root = o; "
+        "for (let i = 0; i < 200000; i++) { o.n = {}; o = o.n; } "
+        "let depth = 'cloned'; try { structuredClone(root); } catch (e) { depth = e.name; } "
+        "const a = []; for (let i = 0; i < 150000; i++) a.push({i, s: 'x' + i}); "
+        "const m = new Map(); for (let i = 0; i < 100000; i++) m.set(i, [i]); "
+        "const b = new ArrayBuffer(16 << 20); "
+        "const c = [structuredClone(a).length, structuredClone(m).size]; "
+        "for (let i = 0; i < 4; i++) c.push(structuredClone(b).byteLength); "
+        "c.push(structuredClone('x'.repeat(8 << 20)).length); "
+        "console.log(depth + ' ' + c.join());</script>"
+    )
+    return Page(doc("<p>clone</p>" + script))

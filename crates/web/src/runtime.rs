@@ -327,6 +327,21 @@ impl ScriptRuntime {
         })
     }
 
+    /// The events of a navigation within the document that the page carried
+    /// out (HTML "navigate to a fragment" and "update document for history
+    /// step application"): `popstate` with the state of the entry that
+    /// became current, now, then, if the fragment changed (`hash_change`
+    /// has the old and the new URL), `hashchange` as a task.
+    pub fn same_document_navigation(
+        &mut self,
+        state: Option<Rc<crate::Serialized>>,
+        hash_change: Option<(String, String)>,
+    ) -> Result<(), ScriptError> {
+        self.task("a navigation within the document", |rt| {
+            crate::location::navigated_within_document(rt, state, hash_change).map_err(task_error)
+        })
+    }
+
     /// The user's focus change (a click, Tab): `new` gets the focus, or
     /// with `None` the focus goes away, with the events of the focusing
     /// steps (`change` of an edited control, `blur`, `focusout`, `focus`,
@@ -492,6 +507,13 @@ impl ScriptRuntime {
             }
             Task::JavascriptUrl(source) => self.task("a javascript: URL", |rt| {
                 crate::html::activation::run_javascript_url(rt, &source).map_err(task_error)
+            }),
+            Task::HashChange { old_url, new_url } => self.task("the event 'hashchange'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result =
+                    crate::location::fire_hash_change(rt, old_url, new_url).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
             }),
             Task::FinalizationCleanup => self.task("a finalization registry", |rt| {
                 if let Ok(state) = state_mut(rt) {

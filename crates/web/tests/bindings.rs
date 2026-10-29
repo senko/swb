@@ -1153,7 +1153,7 @@ fn attributes() {
         ),
         (
             "'use strict'; t(() => { new Tester().label = 1; })",
-            "TypeError: Cannot set property label of #<Tester> which has only a getter",
+            "TypeError: Cannot set property label of [object Tester] which has only a getter",
         ),
         (
             "const tt = new Tester(); const a = tt.replaceable; tt.replaceable = 5; const d = Object.getOwnPropertyDescriptor(tt, 'replaceable'); [a, tt.replaceable, d.value, d.writable, d.enumerable, d.configurable, new Tester().replaceable].join()",

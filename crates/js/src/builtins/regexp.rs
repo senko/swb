@@ -113,7 +113,7 @@ impl Runtime {
     /// changes: `ToString` of the pattern and the flags (`undefined` is the
     /// empty string), the check of the flags and the compile. The source
     /// is rooted.
-    pub(super) fn regexp_parse(
+    pub(crate) fn regexp_parse(
         &mut self,
         pattern: Value,
         flags: Value,
@@ -183,7 +183,7 @@ impl Runtime {
     /// new object: a `RegExp` object with `proto`, its slots and
     /// `lastIndex` = 0 (writable, not enumerable, not configurable).
     /// Recorded in the handle scope.
-    pub(super) fn new_regexp_object(
+    pub(crate) fn new_regexp_object(
         &mut self,
         proto: Gc<Object>,
         source: Gc<JsString>,

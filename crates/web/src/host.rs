@@ -518,6 +518,64 @@ pub trait EngineHost: Any {
         swb_css::MediaEnvironment::default()
     }
 
+    // ----- Location and the session history (feature 8a1) -----
+
+    /// The number of entries in the session history (`history.length`).
+    fn history_length(&self) -> usize {
+        1
+    }
+
+    /// The state of the current history entry (`history.state`), or `None`
+    /// for the state `null`.
+    fn history_state(&self) -> Option<std::rc::Rc<crate::Serialized>> {
+        None
+    }
+
+    /// True if `history.scrollRestoration` is `"manual"`.
+    fn scroll_restoration_manual(&self) -> bool {
+        false
+    }
+
+    /// Sets `history.scrollRestoration`.
+    fn set_scroll_restoration(&mut self, manual: bool) {
+        let _ = manual;
+    }
+
+    /// `pushState()` (`replace` false) or `replaceState()`: the document's
+    /// URL becomes `url` (absolute, serialized; `None` keeps it) and the
+    /// current entry's state `state`, at once; the page adds or replaces
+    /// the history entry when the task ends. No load, no `hashchange`.
+    fn push_state(
+        &mut self,
+        state: std::rc::Rc<crate::Serialized>,
+        url: Option<&str>,
+        replace: bool,
+    ) {
+        let _ = (state, url, replace);
+    }
+
+    /// Asks the page to navigate to `url` (absolute, serialized) when the
+    /// task ends: `location.href = url`, `assign` (`replace` false) and
+    /// `replace`. The last request of a task wins. A URL that differs from
+    /// the document's only in the fragment (and has one) is a navigation
+    /// to a fragment: the document's URL and the history length change at
+    /// once, the page adds the entry and scrolls when the task ends, and
+    /// the call returns true; the caller fires `popstate` and
+    /// `hashchange`.
+    fn request_navigation(&mut self, url: &str, replace: bool) -> bool {
+        let _ = (url, replace);
+        false
+    }
+
+    /// Asks the page to reload the document when the task ends.
+    fn request_reload(&mut self) {}
+
+    /// Asks the page to traverse the session history by `delta` entries
+    /// when the task ends (`history.go(delta)`; 0 reloads).
+    fn request_traversal(&mut self, delta: i32) {
+        let _ = delta;
+    }
+
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

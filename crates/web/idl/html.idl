@@ -4,7 +4,8 @@
 // Function and VoidFunction on 2026-10-24; DocumentReadyState,
 // `readyState`, `currentScript` and HTMLScriptElement on 2026-10-24; the
 // document collections, getElementsByName and HTMLTemplateElement on
-// 2026-10-24).
+// 2026-10-24; Location, History, PopStateEvent, `structuredClone` and the
+// `location` and `history` members of Window and Document on 2026-10-29).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -45,7 +46,8 @@
 // timers, `queueMicrotask` and `reportError` (feature 5b), and TimerHandler
 // has no TrustedScript (swb has no Trusted Types). `Function` lacks its
 // [LegacyTreatNonObjectAsNull], which only event handler attributes need.
-// The order of the remaining members is the specification's.
+// The order of the remaining members is the specification's. History and
+// PopStateEvent are complete; Location lacks `ancestorOrigins` (no frames).
 //
 // Three lines are swb's own: the typedef of WindowProxy (without frames,
 // the WindowProxy of a window is the Window object itself, ADR 0028
@@ -63,6 +65,10 @@ interface Window : EventTarget {
   [LegacyUnforgeable] readonly attribute WindowProxy window;
   [Replaceable] readonly attribute WindowProxy self;
   [LegacyUnforgeable] readonly attribute Document document;
+
+  // history and location (feature 8a1)
+  [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
+  readonly attribute History history;
 
   // other browsing contexts
   [Replaceable] readonly attribute WindowProxy frames;
@@ -113,6 +119,11 @@ partial interface Document {
 
   // the current browsing context
   readonly attribute WindowProxy? defaultView;
+};
+
+partial interface Document {
+  // resource metadata management
+  [PutForwards=href, LegacyUnforgeable] readonly attribute Location? location;
 };
 
 partial interface Document {
@@ -936,8 +947,64 @@ interface mixin WindowOrWorkerGlobalScope {
 
   // microtask queuing
   undefined queueMicrotask(VoidFunction callback);
+
+  // structured cloning
+  any structuredClone(any value, optional StructuredSerializeOptions options = {});
 };
 Window includes WindowOrWorkerGlobalScope;
+
+dictionary StructuredSerializeOptions {
+  sequence<object> transfer = [];
+};
+
+// Session history and location (HTML §7.4,
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html; feature
+// 8a1). `Location` lacks `ancestorOrigins` (a DOMStringList of the
+// ancestor frames' origins; swb has no frames). `Window.location` is
+// [PutForwards=href] as the standard has it.
+enum ScrollRestoration { "auto", "manual" };
+
+[Exposed=Window]
+interface History {
+  readonly attribute unsigned long length;
+  attribute ScrollRestoration scrollRestoration;
+  readonly attribute any state;
+  undefined go(optional long delta = 0);
+  undefined back();
+  undefined forward();
+  undefined pushState(any data, DOMString unused, optional USVString? url = null);
+  undefined replaceState(any data, DOMString unused, optional USVString? url = null);
+};
+
+[Exposed=Window]
+interface Location {
+  [LegacyUnforgeable] stringifier attribute USVString href;
+  [LegacyUnforgeable] readonly attribute USVString origin;
+  [LegacyUnforgeable] attribute USVString protocol;
+  [LegacyUnforgeable] attribute USVString host;
+  [LegacyUnforgeable] attribute USVString hostname;
+  [LegacyUnforgeable] attribute USVString port;
+  [LegacyUnforgeable] attribute USVString pathname;
+  [LegacyUnforgeable] attribute USVString search;
+  [LegacyUnforgeable] attribute USVString hash;
+
+  [LegacyUnforgeable] undefined assign(USVString url);
+  [LegacyUnforgeable] undefined replace(USVString url);
+  [LegacyUnforgeable] undefined reload();
+};
+
+[Exposed=Window]
+interface PopStateEvent : Event {
+  constructor(DOMString type, optional PopStateEventInit eventInitDict = {});
+
+  readonly attribute any state;
+  readonly attribute boolean hasUAVisualTransition;
+};
+
+dictionary PopStateEventInit : EventInit {
+  any state = null;
+  boolean hasUAVisualTransition = false;
+};
 
 // Animation frames (HTML §8.10,
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#animation-frames;

@@ -1,0 +1,2559 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "structure",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[typeof URL, URL.length, URL.name, typeof URLSearchParams, URLSearchParams.length, URLSearchParams.name]"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(URL.prototype).sort().join(), Object.getOwnPropertyNames(URL).filter((n) => !/ObjectURL/.test(n)).sort().join(), Object.getOwnPropertyNames(URLSearchParams.prototype).join(), Object.getOwnPropertyNames(URLSearchParams).join()]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(URL.prototype, 'href'); const o = Object.getOwnPropertyDescriptor(URL.prototype, 'origin'); const s = Object.getOwnPropertyDescriptor(URL.prototype, 'searchParams'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof o.get, typeof o.set, typeof s.get, typeof s.set, d.get.name, d.set.name]; })()"
+    },
+    {
+     "js": "[Object.prototype.toString.call(new URL('http://a/')), Object.prototype.toString.call(new URLSearchParams()), URL.prototype[Symbol.toStringTag], URLSearchParams.prototype[Symbol.toStringTag], String(Object.getOwnPropertyDescriptor(URLSearchParams.prototype, Symbol.iterator).value === URLSearchParams.prototype.entries)]"
+    },
+    {
+     "js": "[URL.canParse.length, URL.parse.length, URL.prototype.toJSON.length, URLSearchParams.prototype.append.length, URLSearchParams.prototype.delete.length, URLSearchParams.prototype.get.length, URLSearchParams.prototype.has.length, URLSearchParams.prototype.set.length, URLSearchParams.prototype.sort.length, URLSearchParams.prototype.forEach.length, URLSearchParams.prototype.entries.length]"
+    },
+    {
+     "js": "E(() => URL('http://a/'))"
+    },
+    {
+     "js": "E(() => URLSearchParams())"
+    },
+    {
+     "js": "E(() => new URL())"
+    },
+    {
+     "js": "E(() => new URL('http://a/', undefined).href)"
+    },
+    {
+     "js": "E(() => new URL.prototype.constructor('http://a/').href)"
+    },
+    {
+     "js": "E(() => URL.prototype.href)"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(URL.prototype, 'href').get.call({}))"
+    },
+    {
+     "js": "E(() => URLSearchParams.prototype.get.call({}, 'a'))"
+    },
+    {
+     "js": "E(() => { class U extends URL {} const u = new U('http://a/'); return [u instanceof U, u instanceof URL, u.href, Object.getPrototypeOf(u) === U.prototype]; })"
+    },
+    {
+     "js": "E(() => { class U extends URLSearchParams {} const u = new U('a=1'); return [u instanceof U, u.get('a')]; })"
+    },
+    {
+     "js": "(() => { const u = new URL('http://a/?x=1'); u.foo = 1; return [Object.keys(u).join(), JSON.stringify(u), String(u), u + '', `${u}`, u.toString === Object.prototype.toString]; })()"
+    },
+    {
+     "js": "(() => { const u = new URL('http://a/?x=1'); return [JSON.stringify({u}), u.toJSON(), JSON.stringify(new URLSearchParams('a=1')), String(new URLSearchParams('a=1&b=2'))]; })()"
+    },
+    {
+     "js": "(() => { const u = new URL('http://a/'); return [u.searchParams === u.searchParams, u.searchParams instanceof URLSearchParams]; })()"
+    },
+    {
+     "js": "(() => { const u = new URL('http://a/'); return Object.getOwnPropertyNames(u).length; })()"
+    }
+   ]
+  },
+  {
+   "name": "parse-errors",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => new URL('foo'))"
+    },
+    {
+     "js": "E(() => new URL(''))"
+    },
+    {
+     "js": "E(() => new URL('http://'))"
+    },
+    {
+     "js": "E(() => new URL('http://a b/'))"
+    },
+    {
+     "js": "E(() => new URL('http://[1::2'))"
+    },
+    {
+     "js": "E(() => new URL('/rel', 'foo'))"
+    },
+    {
+     "js": "E(() => new URL('rel', 'http://[bad'))"
+    },
+    {
+     "js": "E(() => new URL('rel', 'x'))"
+    },
+    {
+     "js": "E(() => new URL('http://a:99999/'))"
+    },
+    {
+     "js": "E(() => new URL('http://a/', 'not a url').href)"
+    },
+    {
+     "js": "E(() => new URL('http://a/', null).href)"
+    },
+    {
+     "js": "E(() => new URL('http://a/', {toString() { return 'http://b/'; }}).href)"
+    },
+    {
+     "js": "E(() => new URL({toString() { return '/x'; }}, 'http://b/').href)"
+    },
+    {
+     "js": "E(() => new URL(Symbol()))"
+    },
+    {
+     "js": "E(() => new URL(undefined))"
+    },
+    {
+     "js": "E(() => new URL(null).href)"
+    },
+    {
+     "js": "E(() => new URL('http://\\ud800/'))"
+    },
+    {
+     "js": "[URL.canParse('http://a/'), URL.canParse('foo'), URL.canParse('/x', 'http://a/'), URL.canParse('/x', 'bad'), URL.canParse('http://a/', 'bad'), URL.canParse('', 'http://a/')]"
+    },
+    {
+     "js": "E(() => URL.canParse())"
+    },
+    {
+     "js": "E(() => URL.canParse('x', undefined))"
+    },
+    {
+     "js": "[URL.parse('http://a/').href, URL.parse('foo'), URL.parse('/x', 'http://a/').href, URL.parse('/x', 'bad'), URL.parse('x', undefined)]"
+    },
+    {
+     "js": "E(() => URL.parse())"
+    },
+    {
+     "js": "E(() => URL.parse.call(null, 'http://a/').href)"
+    },
+    {
+     "js": "E(() => new URL('http://a/').constructor === URL)"
+    }
+   ]
+  },
+  {
+   "name": "parse-special",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => P(new URL(\"http://example.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"HTTP://EXAMPLE.COM:80/a/./b/../c?q=1#f\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"https://user:pass@Example.COM:8443/p?x#y\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"https://user@example.com\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"https://:pw@example.com\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://example.com:0/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://example.com:65535/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"https://example.com:443/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"ws://a:80/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"wss://a:443/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"ftp://a:21/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/a b/c%20d/\\u00e9?q=a b&r=\\u00e9#f g \\u00e9\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/?q='\\\"<>`\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/#'\\\"<>` \")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/\\\\\\\\x\\\\\\\\y\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:\\\\\\\\\\\\\\\\a.com\\\\\\\\x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:a.com/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:/a.com/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:///a.com/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"  http://a.com/x \\n\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"htt\\tp://a.\\ncom/\\rx\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/%zz/%41/%2e/%2E%2e/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/a//b///c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/..\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/a/../../..\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com?x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com#x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://m\\u00fcnchen.de/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://xn--mnchen-3ya.de/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://EXAMPLE.com./\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a%2eb.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://127.0.0.1/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://0x7f.1/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://017700000001/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://2130706433/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://1.2.3/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://[::1]/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://[2001:DB8::0:1]:8080/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://[::ffff:1.2.3.4]/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com:/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com:080/x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a_b.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a..b/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://-a.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/\\ud83d\\ude00\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://\\ud83d\\ude00.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://\\uff21\\uff22\\uff23.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a.com/?\\ud83d\\ude00#\\ud83d\\ude00\")))"
+    }
+   ]
+  },
+  {
+   "name": "parse-other",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => P(new URL(\"file:///C:/a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"file://host/a\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"file:a\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"file:///a/../b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"file://localhost/a\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"file:/a\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"FILE:///A\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"mailto:user@example.com?subject=hi\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"mailto:a b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"javascript:alert(1)//x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"javascript:void(0)#f\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"data:text/html,<b>hi</b>#frag\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"data:,a b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"blob:http://a.com/uuid\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"blob:null/uuid\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"blob:foo\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"about:blank\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"about:blank?x#y\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"tel:+1-555\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo://bar/baz?q#f\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo://Bar:80/baz\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo://a b/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:/a/b/../c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:a/b/../c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:///x\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo://\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:?q\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"foo:#f\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"a+b-c.d:rest\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"git+ssh://u@h/p.git\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"chrome://settings/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"view-source:http://a/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://a/\", \"foo:bar\")))"
+    }
+   ]
+  },
+  {
+   "name": "parse-relative",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => P(new URL(\"x\", \"http://a.com/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"/x\", \"http://a.com/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"//h.com/x\", \"http://a.com/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"//h.com/x\", \"https://a.com/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"?q\", \"http://a.com/b/c?old#frag\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"#f\", \"http://a.com/b/c?old#frag\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"\", \"http://a.com/b/c?old#frag\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"../x\", \"http://a.com/b/c/d\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"./x\", \"http://a.com/b/c/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"..\", \"http://a.com/b/c/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\".\", \"http://a.com/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"http://a.com\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"http://a.com/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x?q#f\", \"http://a.com/d/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:x\", \"http://a.com/d/e\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"https:x\", \"http://a.com/d/e\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http:/x\", \"http://a.com/d/e\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"file:///a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"/x\", \"file:///a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"//h/x\", \"file:///a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"mailto:a@b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"#f\", \"mailto:a@b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"data:text/plain,abc\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"#f\", \"data:text/plain,abc\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"foo://h/a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"/x\", \"foo://h/a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"foo:/a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"\\\\\\\\x\", \"http://a/b/c\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x y\", \"http://a/b/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"C:/x\", \"file:///a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"http://other/\", \"http://a/b\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"   x   \", \"http://a/b/\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"x\", \"javascript:void(0)\")))"
+    },
+    {
+     "js": "E(() => P(new URL(\"#x\", \"javascript:void(0)\")))"
+    }
+   ]
+  },
+  {
+   "name": "setters-http-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-http-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-http-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"http://user:pw@a.com:8080/p/a?old=1#oldf\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-https-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-https-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-https-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"https://a.com/x\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-file-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-file-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-file-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"file:///dir/f.txt?q#h\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-mailto-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-mailto-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-mailto-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"mailto:a@b.c?s=1#f\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-foo-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-foo-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-foo-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"foo://host:9/p?q#f\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-data-0",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.href = \"https://x.test/p?q#h\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.href = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.href = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.href = \"mailto:a@b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"https\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"https:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"https://x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"HTTPS:abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"ftp\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"ws\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"file\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"foo\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"mailto\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"1x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"x y\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.protocol = \"http\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.username = \"u\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.username = \"u s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.username = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.password = \"p\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.password = \"p s:r@/?#\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.password = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test/path\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test?x\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-data-1",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test#x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test\\\\\\\\x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"[::1]:3000\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"[::1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \":81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:80\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"h.test:443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"m\\u00fcnchen.de\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.host = \"127.1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"h.test\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"h.test:81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"h.test/x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"h.test?x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"[::1]\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"a b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hostname = \"A.B\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"81abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"abc\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"99999\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"65535\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"65536\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"0\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"00081\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"80\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-data-2",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"443\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \" 81\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"8\\\\t1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"-1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.port = \"1e3\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"/a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"a/b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"/a b?c#d%e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"/a/../b/./c\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"\\\\\\\\a\\\\\\\\b\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"/\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"//x\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.pathname = \"/%41/%zz\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"?q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"??q=1\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"?\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"a b&c='d'#e\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"\\u00e9\\ud83d\\ude00\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.search = \"q=1\\\\n2\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"#f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"##f\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"#\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"a b<>`\\\"'\\u00e9\"; return P(u); })"
+    },
+    {
+     "js": "E(() => { const u = new URL(\"data:text/plain,hello#frag\"); u.hash = \"f\\\\t1\"; return P(u); })"
+    }
+   ]
+  },
+  {
+   "name": "setters-misc",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.href = 'foo'; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.href = 'http://[x'; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.origin = 'http://b/'; return u.href; })"
+    },
+    {
+     "js": "E(() => { 'use strict'; const u = new URL('http://a/'); u.origin = 'http://b/'; })"
+    },
+    {
+     "js": "E(() => { 'use strict'; const u = new URL('http://a/'); u.searchParams = 1; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.port = {toString() { return '81'; }}; return u.port; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.port = 81; return u.port; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.pathname = null; return u.pathname; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.hash = undefined; return u.hash; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.search = Symbol(); })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.hash = '\\ud800'; return u.hash; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/'); u.search = 'x\\ud800'; return u.search; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); const sp = u.searchParams; u.search = 'b=2&c=3'; return [sp.toString(), sp.get('a'), sp.get('b'), sp.size]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); const sp = u.searchParams; u.href = 'http://b/?z=9'; return [sp.toString(), sp === u.searchParams]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); const sp = u.searchParams; u.search = ''; return [sp.toString(), sp.size, u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1#h'); u.searchParams.append('b', '2 3'); return [u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); u.searchParams.delete('a'); return [u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); u.searchParams.set('a', ''); return [u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=%7e+x'); u.searchParams.sort(); return [u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=%7e+x'); const before = u.search; u.searchParams.get('a'); return [u.search === before, u.search]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1&&b'); u.searchParams.append('c', 'd'); return u.search; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?a=1'); u.searchParams.delete('zz'); return u.search; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('mailto:a@b?x=1'); u.searchParams.append('y', '2'); return u.href; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?'); const sp = u.searchParams; return [sp.size, u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?'); u.searchParams.delete('q'); return [u.search, u.href]; })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?x'); u.searchParams.delete('q'); return [u.search, u.href]; })"
+    }
+   ]
+  },
+  {
+   "name": "params-construct",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[S(''), S('a=1&b=2'), S('?a=1&b=2'), S('??a=1'), S('a'), S('a='), S('=b'), S('='), S('a=1&a=2'), S('&&a=1&&'), S('a=b=c'), S('a+b=c+d'), S('a%20b=%41'), S('%zz=%'), S('a=%e9'), S('a=\\u00e9'), S('%F0%9F%98%80=1'), S(' a = b ')]"
+    },
+    {
+     "js": "[S([['a', '1'], ['b', '2']]), S({a: '1', b: '2'}), S(new Map([['a', '1']])), S(new URLSearchParams('x=1')), S(undefined), S(null), S(5), S(true), S({}), S([]), S(new URLSearchParams()), S({toString() { return 'q=7'; }})]"
+    },
+    {
+     "js": "E(() => S([['a']]))"
+    },
+    {
+     "js": "E(() => S([['a', 'b', 'c']]))"
+    },
+    {
+     "js": "E(() => S([1]))"
+    },
+    {
+     "js": "E(() => S(['ab']))"
+    },
+    {
+     "js": "E(() => S([[]]))"
+    },
+    {
+     "js": "E(() => S({a: 1, b: null, c: undefined, d: {}}))"
+    },
+    {
+     "js": "E(() => S(Object.create({inherited: 'x'}, {own: {value: 'y', enumerable: true}, hidden: {value: 'z'}})))"
+    },
+    {
+     "js": "E(() => S({[Symbol('s')]: 'x', k: 'v'}))"
+    },
+    {
+     "js": "E(() => S(new Proxy({a: '1'}, {})))"
+    },
+    {
+     "js": "E(() => S(function () {}))"
+    },
+    {
+     "js": "E(() => S(Symbol()))"
+    },
+    {
+     "js": "E(() => S({a: Symbol()}))"
+    },
+    {
+     "js": "E(() => S([[Symbol(), 'x']]))"
+    },
+    {
+     "js": "E(() => S('\\ud800=\\udc00'))"
+    },
+    {
+     "js": "E(() => [...new URLSearchParams([['\\ud800', 'a\\udfff']])][0].map((s) => s.charCodeAt(0).toString(16)).join())"
+    },
+    {
+     "js": "E(() => S(new Set([['a', '1']])))"
+    },
+    {
+     "js": "E(() => S((function* () { yield ['a', '1']; yield ['b', '2']; })()))"
+    },
+    {
+     "js": "E(() => S({get a() { return 'v'; }}))"
+    },
+    {
+     "js": "E(() => { const o = {a: '1'}; return S(Object.defineProperty(o, 'b', {get() { throw new RangeError('boom'); }, enumerable: true})); })"
+    },
+    {
+     "js": "E(() => new URLSearchParams('a', 'b').toString())"
+    },
+    {
+     "js": "E(() => new URLSearchParams({a: '1', a2: '2'}).toString())"
+    },
+    {
+     "js": "E(() => { const l = [['a', '1']]; const p = new URLSearchParams(l); l.push(['b', '2']); return p.toString(); })"
+    },
+    {
+     "js": "E(() => { const u = new URL('http://a/?x=1'); const p = new URLSearchParams(u.searchParams); p.append('y', '2'); return [p.toString(), u.search]; })"
+    }
+   ]
+  },
+  {
+   "name": "params-methods",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); return [p.get('a'), p.get('b'), p.get('c'), p.getAll('a'), p.getAll('c'), p.has('a'), p.has('c'), p.has('a', '3'), p.has('a', '9'), p.has('a', undefined), p.size]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.delete('a'); return [p.toString(), p.size]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.delete('a', '3'); return [p.toString(), p.size]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.delete('a', undefined); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.delete('a', ''); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.set('a', 'x'); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.set('c', 'x'); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&a=3'); p.append('a', 'x'); p.append('d'  + 1, 5); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('b=2&a=1&c=3&a=0&B=1'); p.sort(); return p.toString(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams([['\\ue000', '1'], ['\\ud83d\\ude00', '2'], ['z', '3'], ['\\uffff', '4']]); p.sort(); return [...p.keys()].map((k) => k.charCodeAt(0).toString(16)).join(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('x=1&x=0&y=1&y=0&x=2'); p.sort(); return p.toString(); })()"
+    },
+    {
+     "js": "E(() => new URLSearchParams().append('a'))"
+    },
+    {
+     "js": "E(() => new URLSearchParams().append())"
+    },
+    {
+     "js": "E(() => new URLSearchParams().get())"
+    },
+    {
+     "js": "E(() => new URLSearchParams().set('a'))"
+    },
+    {
+     "js": "E(() => new URLSearchParams().has())"
+    },
+    {
+     "js": "E(() => new URLSearchParams().delete())"
+    },
+    {
+     "js": "E(() => new URLSearchParams().getAll())"
+    },
+    {
+     "js": "E(() => { const p = new URLSearchParams(); p.append(undefined, null); return p.toString(); })"
+    },
+    {
+     "js": "E(() => { const p = new URLSearchParams(); p.append(1, {}); return p.toString(); })"
+    },
+    {
+     "js": "E(() => { const p = new URLSearchParams(); p.append(Symbol(), 'x'); })"
+    },
+    {
+     "js": "E(() => { const p = new URLSearchParams('a=b'); p.append('\\ud800', 'x'); return p.toString(); })"
+    },
+    {
+     "js": "E(() => URLSearchParams.prototype.append.call(null, 'a', 'b'))"
+    },
+    {
+     "js": "[new URLSearchParams('a=1').toString === URLSearchParams.prototype.toString, typeof URLSearchParams.prototype.toString, URLSearchParams.prototype.toString.length]"
+    },
+    {
+     "js": "[new URLSearchParams('a=\u00e4 \u00f6&b=*-._~!\\'()').toString(), new URLSearchParams({x: 'a/b?c#d&e=f+g%h'}).toString(), new URLSearchParams({'\u00e9': '\ud83d\ude00'}).toString()]"
+    }
+   ]
+  },
+  {
+   "name": "params-iteration",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message; } }\nfunction P(u) { return [u.href, u.origin, u.protocol, u.username, u.password, u.host, u.hostname, u.port, u.pathname, u.search, u.hash]; }\nfunction S(init) { return [...new URLSearchParams(init)].map((p) => p.join('=')).join('&'); }\n</script></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2'); return [[...p].join('|'), [...p.entries()].join('|'), [...p.keys()].join(), [...p.values()].join(), Array.from(p).length]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2'); const out = []; p.forEach(function (v, k, o) { out.push(k + v + (o === p) + (this === undefined ? 'u' : typeof this)); }); return out; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2'); const out = []; p.forEach(function (v, k) { out.push(this.tag + k); }, {tag: 'T'}); return out; })()"
+    },
+    {
+     "js": "E(() => new URLSearchParams('a=1').forEach())"
+    },
+    {
+     "js": "E(() => new URLSearchParams('a=1').forEach(1))"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2&c=3'); const out = []; for (const [k] of p) { out.push(k); if (k === 'a') p.delete('b'); } return out; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1'); const out = []; for (const [k] of p) { out.push(k); if (out.length < 5) p.append(k + 'x', '1'); } return out; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2'); const it = p[Symbol.iterator](); const first = it.next(); p.append('c', '3'); return [first.value.join(), it.next().value.join(), it.next().value.join(), it.next().done, it.next().done]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1'); const it = p.entries(); return [Object.prototype.toString.call(it), typeof it.next, it[Symbol.iterator]() === it, Object.getPrototypeOf(Object.getPrototypeOf(it)) === Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())), Object.getOwnPropertyNames(Object.getPrototypeOf(it)).join(), String(Object.keys(it.next()))]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1'); const it = p.keys(); const r = it.next(); const e = it.next(); return [JSON.stringify(r), JSON.stringify(e), JSON.stringify(it.next())]; })()"
+    },
+    {
+     "js": "E(() => { const p = new URLSearchParams('a=1'); return p.entries().next.call({}); })"
+    },
+    {
+     "js": "(() => { const u = new URL('http://a/?k=1&k=2'); return [...u.searchParams.values()].join(); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1'); const [x] = p; return [Array.isArray(x), x.length]; })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&b=2'); return Object.fromEntries(p); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1&a=2'); return JSON.stringify(Object.fromEntries(p)); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams([['a', '1'], ['a', '2']]); return new Map(p).get('a'); })()"
+    },
+    {
+     "js": "(() => { const p = new URLSearchParams('a=1'); return [typeof p.entries, p.entries === p[Symbol.iterator], p.size]; })()"
+    }
+   ]
+  }
+ ]
+}

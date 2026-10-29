@@ -312,7 +312,7 @@ fn toggle_details(rt: &mut Runtime, summary: NodeId) -> VmResult<()> {
 /// The script of a `javascript:` URL (HTML "navigate to a javascript:
 /// URL"): the part after the scheme, percent-decoded as UTF-8. `None` if
 /// `url` has another scheme.
-fn javascript_source(url: &str) -> Option<String> {
+pub(crate) fn javascript_source(url: &str) -> Option<String> {
     let rest = url
         .trim()
         .get(..11)
@@ -444,7 +444,7 @@ fn javascript_form_action(
 /// a javascript: URL", step "queue a global object task"): it does not
 /// run inside the dispatch of the click or the submission.
 /// <https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url>
-fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult<()> {
+pub(crate) fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult<()> {
     crate::event_loop::queue_task(rt, Task::JavascriptUrl(source))
 }
 

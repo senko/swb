@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-29: M8 feature 8a1, `URL`, `location`, `history`, `structuredClone`
+
+- Feature 8a is split: 8a1 does URLs, `location`, `history` and
+  `structuredClone`; 8a2 does `navigator`, `performance`, `crypto`, the
+  text codecs, idle callbacks and visibility.
+- `URL` and `URLSearchParams` on the `url` crate with the standard's
+  API setters. The crate left an inconsistent URL after an empty host
+  on a non-special URL with a port; the setters refuse that case.
+- `structuredClone`: a record outside the heap, made and read by
+  iterative walks, with `transfer` of `ArrayBuffer`. A small API in
+  `js` reads and makes the objects with internal slots (`Date`, `Map`,
+  buffers, errors).
+- `location` and `history`: navigations from scripts are requests that
+  the page carries out after the task; `pushState`, fragment changes,
+  `history.length` and `state` act at once through the document's copy
+  of the history. 50 entries with their states.
+- Learned from Chromium: `popstate` fires inside the `location.hash`
+  setter and `hashchange` later as a task; a navigation to the same URL
+  replaces the entry; a `location` navigation before the `load` event
+  finished replaces it too.
+- Review fixes: `location.replace` carried `history.state` into the
+  next document, also of another origin, and so did a reload that the
+  server redirected to another origin; a same-URL navigation with a
+  fragment added an entry; the traversal queue had no bound (a loop of
+  `back()` and `go(0)` used 758 MiB).
+- Probes `web-url.json`, `web-location-history.json`,
+  `web-structured-clone.json`. Craigslist's `location` reads work.
+  JS off: snapshot identical. Hostile set 211 cases, 210 ok + the known
+  failure (4 new).
+
+Next: feature 8a2.
+
 ## 2026-10-29: M8 lazy interfaces
 
 - The Web IDL interfaces are created at their first use. The runtime

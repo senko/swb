@@ -14,7 +14,7 @@ use std::fmt::Write as _;
 
 use crate::Error;
 use crate::ast::{Argument, Attribute, ExtValue, Member, Operation, Place, TypeKind};
-use crate::model::{Iface, exposed_in_window};
+use crate::model::{Iface, Kind, exposed_in_window};
 
 use super::Gen;
 use super::names::{constant, ident, literal, snake};
@@ -298,9 +298,22 @@ impl Gen<'_> {
             "b::Cx::new(rt, call, CLASS)",
             &format!("b::Cx::new(rt, call, super::{})", constant(&iface.name)),
         );
+        // Web IDL §3.7.6 (attribute setters): a string that is not a value of
+        // an enumeration type is ignored, without an exception.
+        let is_enum = matches!(
+            &self.model.resolve(&attr.ty).kind,
+            TypeKind::Named(name) if self.model.kind(name) == Some(Kind::Enum)
+        );
+        let value = if is_enum {
+            format!(
+                "match {convert} {{\n            Ok(value) => value,\n            Err(b::Exception::Type(_) | b::Exception::NotOfType(_)) => return Ok(swb_js::Value::Undefined),\n            Err(error) => return Err(error.nested()),\n        }}"
+            )
+        } else {
+            format!("{convert}.map_err(b::Exception::nested)?")
+        };
         let _ = writeln!(
             glue,
-            "{head}        let v = rt.arg(call, 0);\n        let value = {convert}.map_err(b::Exception::nested)?;\n        {call_impl}?;\n        Ok(swb_js::Value::Undefined)\n    }})\n}}\n"
+            "{head}        let v = rt.arg(call, 0);\n        let value = {value};\n        {call_impl}?;\n        Ok(swb_js::Value::Undefined)\n    }})\n}}\n"
         );
         Ok(())
     }
@@ -1057,9 +1070,15 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
             || "op_to_string::<H>".to_owned(),
             |attr| format!("get_{}::<H>", snake(&attr.name)),
         );
+        // A [LegacyUnforgeable] stringifier attribute makes `toString` an
+        // own property of each object (`Location`).
+        let unforgeable = stringifier_attr.is_some_and(|a| a.ext_attrs.has("LegacyUnforgeable"));
+        let (object, attributes) = member_place(unforgeable, global);
         definitions.push((
             "toString".to_owned(),
-            format!("    rt.define_method(realm, target, \"toString\", 0, {func}, swb_js::Attributes::MEMBER)?;"),
+            format!(
+                "    rt.define_method(realm, {object}, \"toString\", 0, {func}, {attributes})?;"
+            ),
         ));
     }
     for (_, line) in definitions {

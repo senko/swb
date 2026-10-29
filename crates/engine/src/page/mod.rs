@@ -32,6 +32,7 @@
 mod events;
 mod forms;
 mod frame;
+mod history_api;
 mod input;
 mod loading;
 mod pipeline;
@@ -177,8 +178,12 @@ impl PageConfig {
 enum HistoryHandling {
     /// Add an entry (or replace the current one if the URL is the same).
     Push,
-    /// Replace the current entry (reload).
+    /// Replace the current entry with a new document (`location.replace()`,
+    /// a navigation while the document loads): the entry's state goes.
     Replace,
+    /// Replace the current entry with a new load of the same page
+    /// (reload): the entry keeps its state.
+    Reload,
     /// Make the entry at this index current (back and forward).
     Traverse(usize),
 }
@@ -251,6 +256,11 @@ pub struct Page {
     /// document has a copy.
     view: View,
     input: input::InputState,
+    /// The traversals of the session history that scripts asked for
+    /// (`history.back()`, `go()`): each is a task that runs after the tasks
+    /// that are due (`pump`). The deltas are relative to the entry that is
+    /// current when the traversal runs.
+    traversals: std::collections::VecDeque<isize>,
 }
 
 impl Page {
@@ -284,6 +294,7 @@ impl Page {
                 color_scheme: swb_css::ColorScheme::Light,
             },
             input: input::InputState::default(),
+            traversals: std::collections::VecDeque::new(),
         }
     }
 
@@ -452,10 +463,15 @@ impl Page {
             initiator: current.and_then(|c| c.initiator.clone()),
             document: self.document_number,
         });
+        let old_url = self.doc.as_ref().map(|d| d.url().to_string());
         let target = self.set_target(Some(&fragment));
         self.set_document_url(url.clone());
         self.scroll_to_fragment(&fragment);
         self.focus_fragment_target(target);
+        self.sync_history_info();
+        if let Some(old_url) = old_url {
+            self.same_document_events(None, Some((old_url, url.to_string())));
+        }
         true
     }
 
@@ -485,7 +501,7 @@ impl Page {
             self.start_navigation(
                 entry.commit.url,
                 entry.commit.post,
-                HistoryHandling::Replace,
+                HistoryHandling::Reload,
                 Some(scroll),
                 entry.commit.initiator,
             );
@@ -577,7 +593,13 @@ impl Page {
         let Some(target) = self.history_index().checked_add_signed(delta) else {
             return false;
         };
-        let Some(Entry { commit, scroll }) = self.history.get(target).cloned() else {
+        let Some(Entry {
+            commit,
+            scroll,
+            state,
+            manual_scroll,
+        }) = self.history.get(target).cloned()
+        else {
             return false;
         };
         let same_document =
@@ -592,17 +614,29 @@ impl Page {
             // loading.
             self.save_scroll();
             self.history.go_to(target);
+            let old_url = self.doc.as_ref().map(|d| d.url().clone());
             let fragment_target = self.set_target(commit.url.fragment());
-            self.set_document_url(commit.url);
-            self.scroll_to(scroll);
+            self.set_document_url(commit.url.clone());
+            if !manual_scroll {
+                self.scroll_to(scroll);
+            }
             self.focus_fragment_target(fragment_target);
+            self.sync_history_info();
+            // `hashchange` only if the URLs differ in the fragment alone.
+            let hash_change = old_url
+                .filter(|old| {
+                    old.fragment() != commit.url.fragment()
+                        && strip_fragment(old) == strip_fragment(&commit.url)
+                })
+                .map(|old| (old.to_string(), commit.url.to_string()));
+            self.same_document_events(state, hash_change);
             return true;
         }
         self.start_navigation(
             commit.url,
             None,
             HistoryHandling::Traverse(target),
-            Some(scroll),
+            (!manual_scroll).then_some(scroll),
             commit.initiator,
         );
         true
@@ -681,7 +715,8 @@ impl Page {
         match pending.as_ref().map(|p| p.handling) {
             Some(HistoryHandling::Push) if redirected_post => self.history.push_new(commit),
             Some(HistoryHandling::Push) | None => self.history.push(commit),
-            Some(HistoryHandling::Replace) => self.history.replace_current(commit),
+            Some(HistoryHandling::Replace) => self.history.replace_document(commit),
+            Some(HistoryHandling::Reload) => self.history.replace_current(commit),
             Some(HistoryHandling::Traverse(index)) => {
                 self.history.go_to(index);
                 self.history.replace_current(commit);
@@ -720,7 +755,7 @@ impl Page {
     fn set_document_url(&mut self, url: Url) {
         self.url = Some(url.clone());
         if let Some(doc) = self.doc.as_deref_mut() {
-            doc.url = url;
+            doc.set_url(url);
         }
     }
 

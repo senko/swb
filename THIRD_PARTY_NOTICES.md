@@ -76,12 +76,16 @@ https://creativecommons.org/licenses/by/4.0/. The changes are swb's.
 
 ## WHATWG DOM, HTML and Web IDL Standards: IDL (BSD-3-Clause)
 
-`crates/web/idl/dom.idl`, `crates/web/idl/html.idl` and
+`crates/web/idl/dom.idl`, `crates/web/idl/html.idl`,
+`crates/web/idl/url.idl` and
 `crates/web/idl/webidl.idl` contain IDL blocks copied from the DOM Living
 Standard (https://dom.spec.whatwg.org/) and the Web IDL Living Standard
-(https://webidl.spec.whatwg.org/), both last updated 19 October 2026, and
+(https://webidl.spec.whatwg.org/), both last updated 19 October 2026, the
+URL Living Standard (https://url.spec.whatwg.org/, the `URL` and
+`URLSearchParams` interfaces, copied on 29 October 2026) and
 the HTML Living Standard (https://html.spec.whatwg.org/), copied on 23
-and 24 October 2026, cut by swb to the members that it implements (the
+and 24 October 2026 (`Location`, `History`, `PopStateEvent` and
+`structuredClone` on 29 October 2026), cut by swb to the members that it implements (the
 headers of the files say what was cut; `html.idl` adds one typedef of
 swb's own). The standards are licensed under CC BY 4.0, and "to the extent portions of it are
 incorporated into source code, such portions in the source code are

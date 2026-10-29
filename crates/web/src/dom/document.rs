@@ -389,6 +389,15 @@ impl g::document::DocumentImpl for WebState {
         Ok(engine(cx.rt)?.referrer())
     }
 
+    /// `document.location` (HTML §7.4.1): the window's `Location`; null for
+    /// a document without a browsing context.
+    fn location(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        if !is_main(this) {
+            return Ok(None);
+        }
+        Ok(Some(crate::location::location_object(cx)?))
+    }
+
     /// The window of the main document, or null.
     fn default_view(
         cx: &mut Cx<'_>,

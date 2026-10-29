@@ -29,6 +29,11 @@ pub(crate) enum ScriptNavigation {
     Link(Url),
     /// Submit a form.
     Form(FormRequest),
+    /// `location.href = url`, `assign()` (`replace` false) and `replace()`
+    /// to a URL that is not a fragment of this document.
+    Location { url: Url, replace: bool },
+    /// `location.reload()`.
+    Reload,
 }
 
 /// The requests of the scripts of one task that the page acts on when the
@@ -42,7 +47,23 @@ pub(crate) struct ScriptRequests {
     /// in Chromium) or when the task ends, whichever comes first, so that a
     /// loop of `focus()` calls does not lay out at each call.
     pub(crate) scroll_into_view: Option<NodeId>,
+    /// The changes of the session history that scripts made
+    /// (`pushState()`, `replaceState()`, navigations to a fragment), in
+    /// order; the page applies them before it acts on `navigation` and
+    /// `traversal`.
+    pub(crate) state_changes: Vec<super::history_api::StateChange>,
+    /// The `history.go()`, `back()` and `forward()` calls of the task, in
+    /// order (0 reloads; it is in the list at most once). At most
+    /// [`MAX_PENDING_TRAVERSALS`]: later calls are dropped.
+    pub(crate) traversals: Vec<i32>,
 }
+
+/// The most traversals of the session history that are waiting (in a task's
+/// requests, and in the page's queue): a script that calls `back()`,
+/// `forward()` and `go()` in a loop must not grow memory or keep the page
+/// busy. Departure: Chromium throttles history calls by rate (not measured
+/// further); swb drops the calls over this bound.
+pub(crate) const MAX_PENDING_TRAVERSALS: usize = 64;
 
 impl DocumentState {
     /// The requests that scripts made since the last call.

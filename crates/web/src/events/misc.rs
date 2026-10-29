@@ -14,7 +14,7 @@ use crate::bindings::{self as b, Cx, NodeId, Platform};
 use crate::generated as g;
 use crate::generated::types::{
     DeviceMotionEventInit, DeviceOrientationEventInit, HashChangeEventInit, MessageEventInit,
-    StorageEventInit, SubmitEventInit, TransitionEventInit,
+    PopStateEventInit, StorageEventInit, SubmitEventInit, TransitionEventInit,
 };
 use crate::state::WebState;
 
@@ -27,6 +27,10 @@ pub(crate) enum Other {
     HashChange {
         old_url: String,
         new_url: String,
+    },
+    PopState {
+        state: Value,
+        has_ua_visual_transition: bool,
     },
     Message {
         data: Value,
@@ -72,6 +76,7 @@ impl Other {
                 storage_area: Some(object),
                 ..
             } => tracer.object(*object),
+            Other::PopState { state, .. } => tracer.value(*state),
             Other::Message {
                 data,
                 source,
@@ -202,6 +207,38 @@ impl g::hash_change_event::HashChangeEventImpl for WebState {
         match other(cx, this)? {
             Other::HashChange { new_url, .. } => Ok(new_url.clone()),
             _ => Ok(String::new()),
+        }
+    }
+}
+
+impl g::pop_state_event::PopStateEventImpl for WebState {
+    fn constructor(
+        cx: &mut Cx<'_>,
+        kind: String,
+        init: PopStateEventInit,
+    ) -> b::Result<Gc<Object>> {
+        let flags = (init.bubbles, init.cancelable, init.composed);
+        let other = Other::PopState {
+            state: init.state,
+            has_ua_visual_transition: init.has_ua_visual_transition,
+        };
+        make(cx, kind, flags, other)
+    }
+
+    fn state(cx: &mut Cx<'_>, this: Platform) -> b::Result<Value> {
+        match other(cx, this)? {
+            Other::PopState { state, .. } => Ok(*state),
+            _ => Ok(Value::Null),
+        }
+    }
+
+    fn has_ua_visual_transition(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
+        match other(cx, this)? {
+            Other::PopState {
+                has_ua_visual_transition,
+                ..
+            } => Ok(*has_ua_visual_transition),
+            _ => Ok(false),
         }
     }
 }

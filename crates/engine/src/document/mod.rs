@@ -29,6 +29,7 @@
 mod changes;
 mod derived;
 mod geometry;
+mod history_api;
 mod inner_text;
 mod loads;
 mod pipeline;
@@ -59,10 +60,11 @@ use crate::selection::{Selection, TreeOrder};
 use crate::web_fonts::WebFonts;
 
 pub(crate) use derived::Derived;
+pub(crate) use history_api::{HistoryInfo, StateChange};
 pub(crate) use pipeline::Rendering;
 pub use queries::ElementScroll;
 pub(crate) use queries::{indicated, is_rendered_in};
-pub(crate) use script_actions::{ScriptNavigation, ScriptRequests};
+pub(crate) use script_actions::{MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
 
 /// What the document knows of its viewport: the page sets it.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -176,6 +178,8 @@ pub struct DocumentState {
     pub(crate) styles_stale: bool,
     /// What scripts asked for during the task (navigation, scrolling).
     pub(crate) script_requests: ScriptRequests,
+    /// The session history as scripts see it; the page keeps it current.
+    pub(crate) history: HistoryInfo,
     /// The text control that the user edited since its last `change` event
     /// (or since it got the focus), with its value before the first edit.
     /// `change` fires when the control commits, if the value differs.
@@ -270,6 +274,7 @@ impl DocumentState {
             styles: None,
             styles_stale: false,
             script_requests: ScriptRequests::default(),
+            history: HistoryInfo::default(),
             commit_baseline: None,
             fragments: None,
             layout_serial: 0,
@@ -543,6 +548,47 @@ impl swb_web::EngineHost for DocumentState {
 
     fn media_environment(&self) -> swb_css::MediaEnvironment {
         DocumentState::media_environment(self)
+    }
+
+    fn history_length(&self) -> usize {
+        self.history.length.max(1)
+    }
+
+    fn history_state(&self) -> Option<Rc<swb_web::Serialized>> {
+        self.history.state.clone()
+    }
+
+    fn scroll_restoration_manual(&self) -> bool {
+        self.history.manual_scroll
+    }
+
+    fn set_scroll_restoration(&mut self, manual: bool) {
+        self.history.manual_scroll = manual;
+    }
+
+    fn push_state(&mut self, state: Rc<swb_web::Serialized>, url: Option<&str>, replace: bool) {
+        self.script_push_state(state, url, replace);
+    }
+
+    fn request_navigation(&mut self, url: &str, replace: bool) -> bool {
+        self.script_request_navigation(url, replace)
+    }
+
+    fn request_reload(&mut self) {
+        self.script_requests.navigation = Some(ScriptNavigation::Reload);
+    }
+
+    fn request_traversal(&mut self, delta: i32) {
+        // Chromium drops a call whose target is out of range of the history
+        // as it is at the call (`back()` after `forward()` is not undone).
+        let target = i64::try_from(self.history.index).unwrap_or(i64::MAX) + i64::from(delta);
+        let list = &mut self.script_requests.traversals;
+        if list.len() >= MAX_PENDING_TRAVERSALS || (delta == 0 && list.contains(&0)) {
+            return;
+        }
+        if delta == 0 || (0..i64::try_from(self.history.length).unwrap_or(0)).contains(&target) {
+            list.push(delta);
+        }
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {

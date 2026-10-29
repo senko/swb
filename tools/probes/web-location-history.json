@@ -1,0 +1,524 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "reads",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "[rel(location.href), location.pathname.replace(/case-\\d+/g, 'C'), location.search, location.hash, location.protocol, location.hostname, location.port === location.host.split(':')[1], location.origin === 'http://' + location.host, location.toString() === location.href, String(location) === location.href, document.location === location, window.location === location, location + '' === location.href, JSON.stringify(location) === '{}']"
+    },
+    {
+     "js": "[HL(), history.state, history.scrollRestoration, typeof history, Object.prototype.toString.call(history), Object.prototype.toString.call(location), typeof Location, typeof History, typeof PopStateEvent, typeof HashChangeEvent]"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "structure",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "[Object.getOwnPropertyNames(location).join(), Object.getOwnPropertyNames(Location.prototype).join(), Object.getOwnPropertySymbols(location).length, Object.getPrototypeOf(location) === Location.prototype, Reflect.ownKeys(location).length]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(location, 'href'); const o = Object.getOwnPropertyDescriptor(location, 'origin'); const a = Object.getOwnPropertyDescriptor(location, 'assign'); const t = Object.getOwnPropertyDescriptor(location, 'toString'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof o.get, typeof o.set, o.enumerable, o.configurable, typeof a.value, a.writable, a.enumerable, a.configurable, t && [typeof t.value, t.writable, t.enumerable, t.configurable]]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'location'); const dd = Object.getOwnPropertyDescriptor(document, 'location'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof dd.get, typeof dd.set, dd.enumerable, dd.configurable, 'location' in Document.prototype, Object.getOwnPropertyDescriptor(Document.prototype, 'location') === undefined]; })()"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(History.prototype).join(), Object.getOwnPropertyNames(PopStateEvent.prototype).join(), Object.getOwnPropertyNames(History).join(), Object.getOwnPropertyNames(Location).join()]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(History.prototype, 'scrollRestoration'); const l = Object.getOwnPropertyDescriptor(History.prototype, 'length'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof l.get, typeof l.set, History.prototype.pushState.length, History.prototype.replaceState.length, History.prototype.go.length, History.prototype.back.length]; })()"
+    },
+    {
+     "js": "E(() => { Object.defineProperty(location, 'href', {value: 'x'}); })"
+    },
+    {
+     "js": "E(() => delete location.href)"
+    },
+    {
+     "js": "E(() => { 'use strict'; delete location.href; })"
+    },
+    {
+     "js": "E(() => { Object.defineProperty(window, 'location', {value: 1}); })"
+    },
+    {
+     "js": "E(() => { Object.setPrototypeOf(location, {}); })"
+    },
+    {
+     "js": "E(() => Object.isExtensible(location) + ':' + Object.isFrozen(location))"
+    },
+    {
+     "js": "E(() => { Location.prototype.assign.call({}, 'x'); })"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Location.prototype, 'href').get.call(location).length > 0)"
+    },
+    {
+     "js": "E(() => new Location())"
+    },
+    {
+     "js": "E(() => new History())"
+    },
+    {
+     "js": "E(() => Location())"
+    },
+    {
+     "js": "[Location.name, Location.length, History.name, PopStateEvent.name, PopStateEvent.length]"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "errors",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "E(() => location.assign('http://[bad'))"
+    },
+    {
+     "js": "E(() => location.replace('http://'))"
+    },
+    {
+     "js": "E(() => { location.href = 'http://[bad'; })"
+    },
+    {
+     "js": "E(() => location.assign())"
+    },
+    {
+     "js": "E(() => { location = 'http://[bad'; })"
+    },
+    {
+     "js": "E(() => { location.protocol = 'x y'; })"
+    },
+    {
+     "js": "E(() => { location.protocol = '1'; })"
+    },
+    {
+     "js": "E(() => { location.protocol = ''; })"
+    },
+    {
+     "js": "E(() => location.reload.length + ':' + location.assign.length + ':' + location.replace.length)"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "hash-sync",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const out = []; out.push(HL()); location.hash = 'a'; out.push(location.hash, rel(location.href), HL(), document.URL === location.href, document.documentURI === location.href); location.hash = '#b'; out.push(location.hash, HL()); location.hash = '#b'; out.push(location.hash, HL()); location.hash = ''; out.push(JSON.stringify(location.hash), rel(location.href), HL()); location.hash = '#'; out.push(JSON.stringify(location.hash), rel(location.href), HL()); return out; })()"
+    },
+    {
+     "js": "(async () => { await wait(50); return LOG; })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "hash-events",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(async () => { LOG.length = 0; setTimeout(() => LOG.push('timer0'), 0); Promise.resolve().then(() => LOG.push('micro')); location.hash = 'x'; LOG.push('after-set'); await wait(60); return LOG.slice(); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; location.hash = 'x'; await wait(30); LOG.push('same'); location.hash = 'x'; await wait(30); location.hash = 'y y'; await wait(30); return [LOG.slice(), location.hash, HL()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; location.replace('#r'); LOG.push(location.hash + HL()); await wait(30); location.assign('#s'); LOG.push(location.hash + HL()); await wait(30); location.href = '#t'; await wait(30); location = '#u'; await wait(30); document.location = '#v'; await wait(30); document.location.hash = 'w'; await wait(30); return [LOG.slice(), HL()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; location.hash = 'frag'; await wait(30); const y = scrollY; LOG.push('y>0:' + (y > 3000)); location.hash = ''; await wait(30); LOG.push('y0:' + scrollY); location.hash = 'nonexistent'; await wait(30); LOG.push('y-kept:' + scrollY); return LOG.slice(); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; let n = 0; addEventListener('hashchange', function f() { if (n++ < 3) location.hash = 'n' + n; }); location.hash = 'n0'; await wait(100); return [LOG.length, location.hash, HL()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const h = (e) => { e.preventDefault(); LOG.push('h'); }; addEventListener('hashchange', h); location.hash = 'p'; await wait(30); removeEventListener('hashchange', h); return [LOG.slice(), location.hash]; })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "pushstate",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const out = [HL(), history.state]; history.pushState({a: 1}, '', '/p1'); out.push(HL(), JSON.stringify(history.state), rel(location.href), location.pathname.replace(/case-\\d+/g, 'C'), history.state === history.state); history.replaceState({b: 2}, 'ignored title', '?q=1'); out.push(HL(), JSON.stringify(history.state), rel(location.href)); history.pushState(null, ''); out.push(HL(), history.state, rel(location.href)); history.pushState(1, '', '#h'); out.push(HL(), history.state, rel(location.href), location.hash); history.pushState('s', '', ''); out.push(rel(location.href), history.state); return out; })()"
+    },
+    {
+     "js": "(async () => { await wait(50); return LOG.slice(); })()"
+    },
+    {
+     "js": "(() => { const o = {x: [1, 2, {y: new Date(0)}]}; history.pushState(o, ''); const s = history.state; return [s !== o, s.x[2].y instanceof Date, s.x[2].y.getTime(), s === history.state]; })()"
+    },
+    {
+     "js": "(() => { history.pushState(new Map([[1, 2]]), ''); return [history.state instanceof Map, history.state.get(1)]; })()"
+    },
+    {
+     "js": "E(() => history.pushState(() => 1, ''))"
+    },
+    {
+     "js": "E(() => history.pushState(Symbol(), ''))"
+    },
+    {
+     "js": "E(() => history.replaceState({f() {}}, ''))"
+    },
+    {
+     "js": "E(() => history.pushState())"
+    },
+    {
+     "js": "E(() => history.pushState(1))"
+    },
+    {
+     "js": "E(() => history.replaceState(1))"
+    },
+    {
+     "js": "(() => { const n = HL(); try { history.pushState(() => 1, ''); } catch (e) {} return [HL() - n]; })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, undefined); history.pushState(2, null); history.pushState(3, {toString() { return 't'; }}); return history.state; })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', undefined); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', null); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', 0); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', {toString() { return '/obj'; }}); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '/a/b/../c?q#f g'); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '//' + location.host + '/proto-rel'); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '  /sp  '); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', 'rel-seg'); return rel(location.href); })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '?'); return rel(location.href) + '|' + location.search; })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '#'); return rel(location.href) + '|' + location.hash; })()"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'http://other.example/'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'https://' + location.host + '/'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'http://u:p@' + location.host + '/'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'http://' + location.hostname + ':1/'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'http://[bad'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'data:text/html,x'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'javascript:void(0)'))"
+    },
+    {
+     "js": "E(() => history.replaceState(1, '', 'http://other.example/'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'about:blank'))"
+    },
+    {
+     "js": "E(() => history.pushState(1, '', 'http://' + location.host + '/x#y'))"
+    },
+    {
+     "js": "(() => { const d = []; for (const u of ['/a', '/b']) { history.pushState(u, '', u); d.push(location.pathname.replace(/case-\\d+/g, 'C')); } return d; })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '/lenbase'); const l = HL(); history.replaceState(2, ''); return [l, HL(), history.state]; })()"
+    },
+    {
+     "js": "(() => { return [document.URL === location.href, document.documentURI === location.href, document.baseURI === location.href, new URL('rel', document.baseURI).pathname.slice(-8)]; })()"
+    },
+    {
+     "js": "(() => { history.pushState(1, '', '/dir/page'); const a = document.createElement('a'); a.setAttribute('href', 'sib'); document.body.appendChild(a); return [a.href.replace(location.origin, ''), document.baseURI.replace(location.origin, ''), new URL('x', location.href).href.replace(location.origin, '')]; })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "traversal",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState('a', '', '/a'); history.pushState('b', '', '/b'); const out = [HL()]; history.back(); out.push('sync:' + location.pathname.replace(/case-\\d+/g, 'C') + ':' + JSON.stringify(history.state)); await wait(60); out.push('after:' + rel(location.href) + ':' + JSON.stringify(history.state)); history.forward(); await wait(60); out.push(rel(location.href)); history.go(-2); await wait(60); out.push(rel(location.href)); history.go(2); await wait(60); out.push(rel(location.href)); return [out, LOG.slice()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState('a', '', '/a'); const n = HL(); history.go(5); await wait(40); history.go(-9); await wait(40); history.go(1); await wait(40); history.go('-1'); await wait(40); return [rel(location.href), LOG.slice(), HL() === n]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; location.hash = 'h1'; await wait(30); history.pushState('s', '', '#h2'); await wait(30); history.back(); await wait(60); history.back(); await wait(60); history.forward(); await wait(60); history.forward(); await wait(60); return LOG.slice(); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState('s1', '', '/p'); location.hash = 'z'; await wait(30); history.back(); await wait(60); history.back(); await wait(60); return LOG.slice(); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const order = []; history.pushState('x', '', '/o'); setTimeout(() => LOG.push('t0'), 0); Promise.resolve().then(() => LOG.push('micro')); history.back(); LOG.push('after-back'); await wait(60); return LOG.slice(); })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/a'); history.pushState(2, '', '/b'); history.back(); history.back(); await wait(80); return [rel(location.href), LOG.slice()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/a'); history.back(); history.forward(); await wait(80); return [rel(location.href), LOG.slice()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/a'); history.pushState(2, '', '/b'); history.back(); await wait(60); history.pushState(3, '', '/c'); const l = HL(); history.forward(); await wait(60); return [l, rel(location.href), LOG.slice(), HL()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/a'); history.back(); await wait(60); history.replaceState({r: 1}, ''); history.forward(); await wait(60); history.back(); await wait(60); return [JSON.stringify(history.state), LOG.slice()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/a'); history.back(); await wait(60); const s0 = history.state; history.forward(); await wait(60); const s1 = history.state; history.back(); await wait(60); return [s0, s1, history.state === s0]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const st = {k: 1}; history.pushState(st, '', '/a'); history.pushState(null, '', '/b'); let got; addEventListener('popstate', (e) => { got = e.state; }); history.back(); await wait(60); return [got !== st, got.k, got === history.state]; })()"
+    },
+    {
+     "js": "(async () => { const y0 = scrollY; window.scrollTo(0, 500); history.pushState(1, '', '/s'); window.scrollTo(0, 900); history.back(); await wait(80); const a = scrollY; history.forward(); await wait(80); return [y0, a, scrollY]; })()"
+    },
+    {
+     "js": "(async () => { history.scrollRestoration = 'manual'; window.scrollTo(0, 500); history.pushState(1, '', '/s'); window.scrollTo(0, 900); history.back(); await wait(80); const a = scrollY; history.forward(); await wait(80); return [history.scrollRestoration, a, scrollY]; })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "scroll-restoration",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "[history.scrollRestoration, (() => { history.scrollRestoration = 'manual'; return history.scrollRestoration; })(), (() => { history.scrollRestoration = 'bogus'; return history.scrollRestoration; })(), (() => { history.scrollRestoration = 'auto'; return history.scrollRestoration; })()]"
+    },
+    {
+     "js": "(() => { history.scrollRestoration = 'manual'; history.pushState(1, '', '/q'); return history.scrollRestoration; })()"
+    },
+    {
+     "js": "(() => { history.scrollRestoration = 'manual'; location.hash = 'k'; return history.scrollRestoration; })()"
+    },
+    {
+     "js": "E(() => { 'use strict'; history.scrollRestoration = 'bogus'; })"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "events",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const e = new PopStateEvent('popstate', {state: {a: 1}}); return [e.state.a, e.type, e.bubbles, e.cancelable, e.isTrusted, e.hasUAVisualTransition, e instanceof Event, Object.prototype.toString.call(e)]; })()"
+    },
+    {
+     "js": "(() => { const e = new PopStateEvent('popstate'); return [e.state, e.type]; })()"
+    },
+    {
+     "js": "E(() => new PopStateEvent())"
+    },
+    {
+     "js": "(() => { const e = new HashChangeEvent('hashchange', {oldURL: 'a', newURL: 'b'}); return [e.oldURL, e.newURL, e.type, e.bubbles, e instanceof Event]; })()"
+    },
+    {
+     "js": "(() => { const e = new HashChangeEvent('hashchange'); return [e.oldURL, e.newURL]; })()"
+    },
+    {
+     "js": "(() => { const out = []; onpopstate = (e) => out.push(1); out.push(typeof onpopstate); onpopstate = null; return out; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; const out = []; window.onpopstate = (e) => out.push('on:' + e.state); window.onhashchange = (e) => out.push('onh'); history.pushState('p', '', '/e'); history.back(); await wait(60); window.onpopstate = null; window.onhashchange = null; return [out, LOG.slice()]; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; let ph; addEventListener('popstate', (e) => { ph = [e.target === window, e.currentTarget === window, e.eventPhase]; }); history.pushState(1, '', '/e'); history.back(); await wait(60); return ph; })()"
+    },
+    {
+     "js": "(async () => { LOG.length = 0; history.pushState(1, '', '/e'); document.addEventListener('popstate', () => LOG.push('doc')); document.body.addEventListener('popstate', () => LOG.push('body')); history.back(); await wait(60); return LOG.slice(); })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "limits",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const out = [history.length > 0]; for (let i = 0; i < 60; i++) history.pushState(i, '', '?i=' + i); out.push(history.length, history.state); return out; })()"
+    },
+    {
+     "js": "(() => { let err = null; let n = 0; try { for (let i = 0; i < 1000; i++) { history.pushState(i, '', '?j=' + i); n++; } } catch (e) { err = e.constructor.name + ':' + e.message; } return [n, history.length, history.state, location.search, err]; })()"
+    },
+    {
+     "js": "(async () => { await wait(300); const s = history.state; history.pushState('later', '', '?later'); return [history.state, location.search]; })()"
+    }
+   ],
+   "resources": {
+    "r.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "file-origin",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=top>top</div><div style='height:3000px'></div><a id=frag name=frag>frag</a><div style='height:3000px'></div><script>\nlet L0 = history.length;\naddEventListener('load', () => { L0 = history.length; });\nfunction HL() { return history.length - L0 + 1; }\nfunction norm(t) { return typeof t === 'string' ? t.replace(/file:\\/\\/\\/tmp\\/swb-[^\\/]*\\//g, 'file:///DIR/').replace(/127\\.0\\.0\\.1:\\d+/g, 'HOST').replace(/case-\\d+/g, 'C') : t; }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return norm((e instanceof DOMException ? 'DOMException ' + e.name + ' [' + e.code + ']' : e.constructor.name) + ': ' + e.message); } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction rel(u) { return u.replace(location.origin, '').replace(/case-\\d+/g, 'C'); }\nconst LOG = [];\naddEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + rel(location.href) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\naddEventListener('hashchange', (e) => LOG.push('hash:' + rel(e.oldURL) + '>' + rel(e.newURL) + ':' + e.isTrusted + ':' + (e.target === window) + ':' + e.bubbles + ':' + e.cancelable));\n</script></body></html>",
+   "steps": [
+    {
+     "wait": 0
+    }
+   ],
+   "measure": [
+    {
+     "js": "E(() => history.pushState(1, '', '/other-path'))"
+    },
+    {
+     "js": "E(() => { history.pushState(1, '', '?q'); return [location.search, HL()]; })"
+    },
+    {
+     "js": "E(() => { history.pushState(1, '', '#frag'); return [location.hash, HL()]; })"
+    },
+    {
+     "js": "E(() => { history.pushState(1, '', location.href.replace(/[^/]*$/, 'other.html')); return 'ok'; })"
+    },
+    {
+     "js": "[location.origin, location.protocol, location.host, location.hostname, location.port, location.pathname.slice(-10)]"
+    }
+   ]
+  },
+    {"name": "nav-load-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; location.search='?L0='+L0; }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-load-hash", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; location.hash='#x'; }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-load-hash-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; location.hash='#x'; location.search='?L0='+L0; }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-dcl-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; addEventListener('DOMContentLoaded',()=>{location.search='?L0='+L0;}); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-later-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; addEventListener('load',()=>setTimeout(()=>{location.search='?L0='+L0;},50)); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-later-hash", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; addEventListener('load',()=>setTimeout(()=>{location.hash='#x';},50)); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-later-hash-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; addEventListener('load',()=>setTimeout(()=>{location.hash='#x'; location.search='?L0='+L0;},50)); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-load-assign", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; location.assign('?L0='+L0); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-load-push-then-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; history.pushState(1,''); location.search='?L0='+L0; }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "nav-later-push-then-search", "html": "<!DOCTYPE html><script>if(!location.search){ var L0=history.length; addEventListener('load',()=>setTimeout(()=>{history.pushState(1,''); location.search='?L0='+L0;},50)); }</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); const b=m?+m[1]:window.L0; return [history.length-b, location.hash, typeof window.L0]})()"}]},
+    {"name": "set-pathname", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.pathname=location.pathname.split('/').slice(0,-1).concat('r.html').join('/'); },50));</script>", "resources": {"r.html": {"text": "<!DOCTYPE html><p>r", "content_type": "text/html"}}, "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "set-search", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.search='?L0='+L0+'&stage=2&b=1'; },50));</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "set-port-same", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.port=location.port; },50));</script>", "resources": {"r.html": {"text": "<!DOCTYPE html><p>r", "content_type": "text/html"}}, "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "set-host-same", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.host=location.host; },50));</script>", "resources": {"r.html": {"text": "<!DOCTYPE html><p>r", "content_type": "text/html"}}, "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "set-hash", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.hash='#z'; },50));</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "set-href-same", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.href=location.href; },50));</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "replace-other-page", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.replace(location.pathname.split('/').slice(0,-1).concat('r.html').join('/')+location.search); },50));</script>", "resources": {"r.html": {"text": "<!DOCTYPE html><p>r", "content_type": "text/html"}}, "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "assign-other-page", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.assign(location.pathname.split('/').slice(0,-1).concat('r.html').join('/')+location.search); },50));</script>", "resources": {"r.html": {"text": "<!DOCTYPE html><p>r", "content_type": "text/html"}}, "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "reload-keeps-state", "html": "<!DOCTYPE html><script>var m=/L0=(\\d+)/.exec(location.search), L0=m?+m[1]:0; if(!m) location.replace('?L0='+history.length); else if(!/stage=2/.test(location.search)) addEventListener('load',()=>setTimeout(()=>{ history.replaceState({m:1},'','?L0='+L0+'&stage=2'); location.reload(); },50));</script>", "steps": [{"wait": 700}], "measure": [{"js": "(()=>{const m=/L0=(\\d+)/.exec(location.search); return [history.length-(+m[1]), JSON.stringify(history.state), location.pathname.replace(/case-\\d+/g,'C'), location.search.replace(/L0=\\d+/,'L0=N'), location.hash]})()"}]},
+    {"name": "same-url-href", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.href=location.href; await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "same-url-assign", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.assign(location.href); await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "same-url-replace", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.replace(location.href); await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "same-url-hostname-empty", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; let err=''; try{location.hostname='';}catch(e){err=e.name+': '+e.message.replace(/:\\d+\\//,':P/');} await wait(100); return [err, LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "same-url-port-abc", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.port='abc'; await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "same-url-protocol-ftp", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.protocol='ftp'; await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]},
+    {"name": "diff-fragment-href", "html": "<!DOCTYPE html><script>const LOG=[]; addEventListener('popstate',e=>LOG.push('pop:'+JSON.stringify(e.state))); addEventListener('hashchange',e=>LOG.push('hash')); function wait(ms){return new Promise(r=>setTimeout(r,ms))}; const L0=history.length;</script>", "resources": {"r.txt": {"text": "x"}}, "measure": [{"js": "(async()=>{location.hash='#a'; await wait(100); history.replaceState({m:2},''); const L1=history.length; LOG.length=0; location.href='#b'; await wait(100); return [LOG.join(), history.length-L1, location.hash, JSON.stringify(history.state)]})()"}]}
+ ]
+}

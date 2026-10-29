@@ -3193,20 +3193,60 @@ Steps:
    snapshot are unchanged; hostile 207 cases, 206 ok + the known
    failure (2 new). The review compared 190 more script cases with the
    base build: all equal.
-   8. Window and document APIs (`implementer`), two sessions.
-      - 8a: `location` (reads, `assign`, `replace`, `reload`, the
-        `href` and `hash` setters), `history` (`pushState`,
-        `replaceState`, `state`, `back`, `forward`, `go`), `popstate`,
-        `hashchange`, `structuredClone`; `navigator` (ADR 0028 section
-        13), `performance` (`now`, `timeOrigin`, `timing`, `mark`,
-        `measure`, `getEntries*`, the navigation entry),
-        `PerformanceObserver` (marks and measures only),
-        `crypto.getRandomValues`, `randomUUID`, `URL`,
-        `URLSearchParams`, `atob`, `btoa`, `TextEncoder`,
-        `TextDecoder`, `requestIdleCallback`, `document.hidden` and
-        `visibilityState` (`visible`), `visibilitychange`. Tests:
-        probe cases (URL parsing and serialization, history entries and
-        events, `structuredClone` of each type and the errors).
+   8. Window and document APIs (`implementer`), three sessions.
+      - 8a, split into two sessions (2026-10-29: too large for one).
+      - 8a1: `URL` and `URLSearchParams` over the `url` crate;
+        `location` (reads, `assign`, `replace`, `reload`, the setters
+        of `href`, `hash` and the other parts, `window.location = url`,
+        `document.location`), `history` (`length`, `state`,
+        `scrollRestoration`, `pushState`, `replaceState`, `back`,
+        `forward`, `go`) over the engine's session history, `popstate`,
+        `hashchange`, `structuredClone` (ADR 0028 section 13). Tests:
+        probe cases (URL parsing, serialization and setters, location
+        reads and same-document changes, history entries and events,
+        `structuredClone` of each type and the errors); Craigslist's
+        `location` reads.
+        Done 2026-10-29. `URL` and `URLSearchParams` (`url_api.rs`) on
+        the `url` crate with the standard's API setters; the setters
+        refuse an empty host with credentials or a port, which left the
+        crate's URL inconsistent. `structuredClone` as a record outside
+        the heap (`structured.rs`, iterative walks, `transfer` of
+        `ArrayBuffer`, Chromium's messages; limits: depth 4,096, 4M
+        items, 512 MiB, 4 MiB for a history state), with a small API in
+        `js` to read and make the objects with internal slots
+        (`host/inspect.rs`, ADR 0028 section 6 item 10). `location` and
+        `history`: navigations are requests that the page carries out
+        after the task; `pushState`, fragment navigation,
+        `history.length` and `state` act at once through the document's
+        copy of the history; `popstate` inside the call, `hashchange` as
+        a task; traversals are tasks; the history keeps 50 entries with
+        their states and scroll modes. As measured in Chromium: a
+        navigation to the same URL replaces (with a fragment: `popstate`
+        only), a `location` navigation before the `load` event finished
+        replaces, a replace navigation gives the new document a null
+        state, at most 64 pending traversals and one `go(0)` per task.
+        Probes `web-url.json` (787 queries, 36 listed departures),
+        `web-location-history.json` (37 cases, 6 listed departures),
+        `web-structured-clone.json` (177 queries, equal), three equal
+        Chromium runs each; engine tests `script_location.rs`.
+        Craigslist's `search` and `origin` errors are gone; `compare
+        --js` scores unchanged; JS off: snapshot identical; runtime heap
+        +1.6 KB; hostile 211 cases, 210 ok + the known failure (4 new).
+        Review fixes: `location.replace` carried `history.state` into
+        the next document, also of another origin, and so did a reload
+        or traversal that the server redirected to another origin (now
+        the state and the scroll mode go); a navigation to the
+        same URL with a fragment added an entry and fired `hashchange`;
+        the traversal queue had no bound (a `back`/`go(0)` loop: 32 s,
+        758 MiB; now 1.2 s, 35 MiB for 1,000,000 rounds); the origin of
+        a `file:` document in the `SecurityError` text is `null`.
+      - 8a2: `navigator` (ADR 0028 section 13), `performance` (`now`,
+        `timeOrigin`, `timing`, `navigation`, `mark`, `measure`,
+        `getEntries*`, the navigation entry), `PerformanceObserver`
+        (marks and measures only), `crypto.getRandomValues`,
+        `randomUUID`, `atob`, `btoa`, `TextEncoder`, `TextDecoder`,
+        `requestIdleCallback`, `document.hidden` and `visibilityState`
+        (`visible`), `visibilitychange`. Tests: probe cases for each.
       - 8b: `document.cookie` with the jar (also in replay, ADR 0028
         section 12), `localStorage` and `sessionStorage` (named
         properties, quota, the `storage` event), the in-memory storage
@@ -3737,6 +3777,26 @@ Steps:
   in proportion to the document: 200 clicks of detached elements while
   2,000 elements are appended take 0.2 s, 1.7 s at 8,000 elements (same
   at a543e9d).
+- `engine` (found in the 8a1 review): a script or a link can navigate
+  the top-level document to a `data:` URL (`is_loadable`); Chromium
+  blocks such navigations.
+- `web`/`engine` (found in feature 8a1): `window.name`; cloneable
+  platform objects other than `DOMException` (`DOMRect`, `DOMPoint`,
+  `ImageData`, `Blob`) and the transfer of types other than
+  `ArrayBuffer`; `Location.ancestorOrigins` and its own `valueOf`;
+  Chromium's percent-encoding of a space in a host and its `protocol`
+  changes between special and non-special schemes (swb follows the
+  standard); Chromium's text of invalid URLs in `SyntaxError` messages;
+  a script's traversal changes the URL after the script's task, Chromium
+  in the traversal task (a timer queued after `back()` sees the new URL
+  one pump early); Chromium's limit of `history.state` size and its rate
+  throttle of history calls are not measured (swb: 4 MiB, 64 pending
+  traversals); transient activation is not looked at for `location`
+  navigations during the load; `location.search = ''` on a URL with a
+  fragment loads a new document in Chromium (swb: same URL, the state
+  stays); the `stack` of errors is built at its first read, so an
+  accessor `message` runs then, also inside `structuredClone`. `Intl`
+  is missing (one probe query was dropped).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some
