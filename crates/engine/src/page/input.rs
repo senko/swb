@@ -78,6 +78,11 @@ pub(super) struct InputState {
     pub(super) frame_due: Option<f64>,
     /// The page time of the last frame.
     pub(super) last_frame: Option<f64>,
+    /// The page time at which the next idle period can start (the end of
+    /// the last one; `idle.rs`).
+    pub(super) idle_next: f64,
+    /// The idle periods since the last task or network completion.
+    pub(super) idle_streak: u32,
     /// The viewport changed its size since the last frame: the frame fires
     /// `resize`.
     pub(super) resized: bool,

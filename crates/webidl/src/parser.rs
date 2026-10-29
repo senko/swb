@@ -38,6 +38,16 @@ struct Parser<'a> {
 
 type Result<T> = std::result::Result<T, Error>;
 
+/// The buffer source types of Web IDL §2.13.28 that the generator knows:
+/// each is an `object` with a check (`SwbBuffer` names it).
+const BUFFER_TYPES: &[&str] = &[
+    "ArrayBuffer",
+    "ArrayBufferView",
+    "BufferSource",
+    "AllowSharedBufferSource",
+    "Uint8Array",
+];
+
 impl Parser<'_> {
     // --- Tokens ---
 
@@ -567,10 +577,25 @@ impl Parser<'_> {
             self.single_type()?
         };
         let nullable = self.eat_char('?');
+        // The buffer source types are `object` to the generator, with the
+        // name for the check and for the message (feature 8a2).
+        let mut ext_attrs = ExtAttrs::default();
+        let kind = match kind {
+            TypeKind::Named(name) if BUFFER_TYPES.contains(&name.as_str()) => {
+                ext_attrs.0.push(ExtAttr {
+                    name: "SwbBuffer".to_owned(),
+                    value: ExtValue::Ident(name),
+                    args: None,
+                    place: self.place(),
+                });
+                TypeKind::Object
+            }
+            other => other,
+        };
         Ok(Type {
             kind,
             nullable,
-            ext_attrs: ExtAttrs::default(),
+            ext_attrs,
         })
     }
 

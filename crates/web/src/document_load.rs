@@ -41,6 +41,7 @@ use swb_dom::{NodeId, ParseStep};
 use crate::event_loop::{Task, queue_task};
 use crate::events::{DispatchTarget, EventInterface, TrustedEvent};
 use crate::generated::types::DocumentReadyState;
+use crate::performance::Milestone;
 use crate::runtime::{ScriptRuntime, task_error};
 use crate::scripts::{FetchedScript, Phase, Prepared, WhenReady, scripts, scripts_mut};
 use crate::state::engine_mut;
@@ -60,6 +61,8 @@ impl ScriptRuntime {
         }
         scripts.phase = Phase::Parsing;
         scripts.readiness = DocumentReadyState::Loading;
+        crate::performance::record(&mut self.rt, Milestone::DomLoading);
+        crate::performance::record_url(&mut self.rt);
         self.parse();
     }
 
@@ -147,12 +150,15 @@ impl ScriptRuntime {
         }
         // The task's error is reported and counted by the task.
         let _ = self.task("the load event", |rt| {
+            crate::performance::record(rt, Milestone::LoadStart);
             set_readiness(rt, DocumentReadyState::Complete)?;
             let load = TrustedEvent {
                 legacy_target_override: true,
                 ..TrustedEvent::new("load")
             };
-            crate::scripts::fire(rt, DispatchTarget::Window, &load).map_err(task_error)?;
+            let fired = crate::scripts::fire(rt, DispatchTarget::Window, &load);
+            crate::performance::record(rt, Milestone::LoadEnd);
+            fired.map_err(task_error)?;
             scripts_mut(rt).map_err(task_error)?.page_showing = true;
             let pageshow = page_transition("pageshow");
             crate::scripts::fire(rt, DispatchTarget::Window, &pageshow).map_err(task_error)?;
@@ -314,6 +320,7 @@ impl ScriptRuntime {
             scripts.phase = Phase::Deferred;
             scripts.pending_parsing_blocking = None;
         }
+        crate::performance::record(&mut self.rt, Milestone::DomInteractive);
         let _ = self.task("readystatechange", |rt| {
             set_readiness(rt, DocumentReadyState::Interactive)
         });
@@ -351,12 +358,14 @@ impl ScriptRuntime {
             scripts.phase = Phase::AfterContentLoaded;
         }
         let _ = self.task("DOMContentLoaded", |rt| {
+            crate::performance::record(rt, Milestone::ContentLoadedStart);
             let event = TrustedEvent {
                 bubbles: true,
                 ..TrustedEvent::new("DOMContentLoaded")
             };
-            crate::scripts::fire(rt, DispatchTarget::Node(NodeId::DOCUMENT), &event)
-                .map_err(task_error)?;
+            let fired = crate::scripts::fire(rt, DispatchTarget::Node(NodeId::DOCUMENT), &event);
+            crate::performance::record(rt, Milestone::ContentLoadedEnd);
+            fired.map_err(task_error)?;
             Ok(())
         });
     }

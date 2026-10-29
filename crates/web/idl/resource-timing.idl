@@ -1,0 +1,57 @@
+// Source: Resource Timing, W3C Editor's Draft,
+// https://w3c.github.io/resource-timing/, copied on 2026-10-29.
+//
+// This file includes material copied from Resource Timing,
+// https://w3c.github.io/resource-timing/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to the parent of PerformanceNavigationTiming (feature
+// 8a2 of M8): swb records no resource entries, so `PerformanceResourceTiming`
+// is only the interface of the navigation entry and has no constructor. It
+// has the attributes of Chromium 148 that the draft defines, without
+// `serverTiming`, `workerRouterEvaluationStart`, `workerCacheLookupStart`,
+// `workerMatchedRouterSource` and `workerFinalRouterSource`. `ByteString`
+// is a `DOMString` in the glue (the values are ASCII). The two methods of
+// Performance exist because pages call them without checks; with no
+// resource entries, they do nothing.
+
+[Exposed=Window]
+interface PerformanceResourceTiming : PerformanceEntry {
+  readonly attribute DOMString initiatorType;
+  readonly attribute DOMString deliveryType;
+  readonly attribute DOMString nextHopProtocol;
+  readonly attribute DOMHighResTimeStamp workerStart;
+  readonly attribute DOMHighResTimeStamp redirectStart;
+  readonly attribute DOMHighResTimeStamp redirectEnd;
+  readonly attribute DOMHighResTimeStamp fetchStart;
+  readonly attribute DOMHighResTimeStamp domainLookupStart;
+  readonly attribute DOMHighResTimeStamp domainLookupEnd;
+  readonly attribute DOMHighResTimeStamp connectStart;
+  readonly attribute DOMHighResTimeStamp connectEnd;
+  readonly attribute DOMHighResTimeStamp secureConnectionStart;
+  readonly attribute DOMHighResTimeStamp requestStart;
+  readonly attribute DOMHighResTimeStamp finalResponseHeadersStart;
+  readonly attribute DOMHighResTimeStamp firstInterimResponseStart;
+  readonly attribute DOMHighResTimeStamp responseStart;
+  readonly attribute DOMHighResTimeStamp responseEnd;
+  readonly attribute unsigned long long transferSize;
+  readonly attribute unsigned long long encodedBodySize;
+  readonly attribute unsigned long long decodedBodySize;
+  readonly attribute unsigned short responseStatus;
+  readonly attribute RenderBlockingStatusType renderBlockingStatus;
+  readonly attribute DOMString contentType;
+  readonly attribute DOMString contentEncoding;
+  object toJSON();
+};
+
+enum RenderBlockingStatusType {
+  "blocking",
+  "non-blocking"
+};
+
+partial interface Performance {
+  undefined clearResourceTimings();
+  undefined setResourceTimingBufferSize(unsigned long maxSize);
+};

@@ -105,6 +105,37 @@ impl g::window::WindowImpl for WebState {
         Ok(object)
     }
 
+    /// `navigator` (HTML §8.9): one object per window.
+    fn navigator(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::navigator::navigator_object(cx)
+    }
+
+    /// `crypto` (Web Crypto §10): one object per window.
+    fn crypto(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::crypto::crypto_object(cx)
+    }
+
+    fn btoa(_cx: &mut Cx<'_>, _this: Platform, data: String) -> b::Result<String> {
+        crate::base64::encode(&data).ok_or_else(crate::base64::encode_error)
+    }
+
+    fn atob(_cx: &mut Cx<'_>, _this: Platform, data: String) -> b::Result<String> {
+        crate::base64::decode(&data).map_err(crate::base64::decode_error)
+    }
+
+    fn request_idle_callback(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        callback: crate::generated::types::IdleRequestCallback,
+        options: crate::generated::types::IdleRequestOptions,
+    ) -> b::Result<u32> {
+        crate::idle_callbacks::request(cx, callback.0, &options)
+    }
+
+    fn cancel_idle_callback(cx: &mut Cx<'_>, _this: Platform, handle: u32) -> b::Result<()> {
+        crate::idle_callbacks::cancel(cx.rt, handle)
+    }
+
     fn get_computed_style(
         cx: &mut Cx<'_>,
         _this: Platform,
@@ -251,17 +282,6 @@ impl g::window::WindowImpl for WebState {
     fn queue_microtask(cx: &mut Cx<'_>, _this: Platform, callback: VoidFunction) -> b::Result<()> {
         crate::timers::queue_microtask(cx, callback);
         Ok(())
-    }
-}
-
-/// `Performance` (HR Time §5): the time of the document's clock.
-impl g::performance::PerformanceImpl for WebState {
-    fn time_origin(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
-        Ok(state(cx.rt)?.clock.time_origin())
-    }
-
-    fn now(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
-        Ok(state(cx.rt)?.clock.now())
     }
 }
 

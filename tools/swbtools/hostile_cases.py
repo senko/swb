@@ -3269,3 +3269,108 @@ def structured_clone_large_js_on() -> Page:
         "console.log(depth + ' ' + c.join());</script>"
     )
     return Page(doc("<p>clone</p>" + script))
+
+
+@case(
+    "Endless loops of requestIdleCallback with JavaScript on, one with idle time and one with a "
+    "timeout of 1 ms: an idle period starts only when no task and no frame is due and lasts "
+    "at most 50 ms (a loop alone runs 20 times a second; with a task due every millisecond, "
+    "about 1,000 times), and the page settles after --settle-ms (feature 8a2)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=6,
+)
+def idle_callback_loops_js_on() -> Page:
+    script = (
+        "<script>let idle = 0, timed = 0; "
+        "function f() { idle++; requestIdleCallback(f); } f(); "
+        "function g() { timed++; requestIdleCallback(g, { timeout: 1 }); } g(); "
+        "setTimeout(() => console.log('idle ' + idle + ' timed ' + timed), 1200);</script>"
+    )
+    return Page(doc("<p>idle</p>" + script))
+
+
+@case(
+    "1,100,000 requestIdleCallback requests in one task, each with a timeout, with JavaScript "
+    "on: the limit of 1,048,576 waiting callbacks ends the task (ADR 0028 section 16, "
+    "feature 8a2)",
+    swb_args=("--js", "--settle-ms", "300"),
+    time_limit_s=10,
+    rss_limit_mib=2048,
+    expect_log="too many idle callbacks",
+)
+def idle_callback_flood_js_on() -> Page:
+    script = (
+        "<script>let n = 0; "
+        "for (let i = 0; i < 1100000; i++) { requestIdleCallback(() => n++, { timeout: 5000 }); } "
+        "console.log('not reached');</script>"
+    )
+    return Page(doc("<p>flood</p>" + script))
+
+
+@case(
+    "performance.mark and performance.measure 400,000 times in a loop with details, with "
+    "JavaScript on, while two observers wait for them and getEntries is called: the buffer "
+    "keeps 131,072 entries and the queue of an observer 131,072 (ADR 0028 section 16, "
+    "feature 8a2)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=15,
+    rss_limit_mib=2048,
+    expect_log="performance entry buffer is full",
+)
+def performance_mark_loop_js_on() -> Page:
+    script = (
+        "<script>let delivered = 0; "
+        "for (let k = 0; k < 2; k++) new PerformanceObserver((list) => { "
+        "delivered += list.getEntries().length; }).observe({ entryTypes: ['mark', 'measure'] }); "
+        "for (let i = 0; i < 400000; i++) { "
+        "performance.mark('m' + (i % 100), { detail: { i } }); "
+        "if (i % 4 === 0) performance.measure('d' + (i % 50), 'm' + (i % 100)); } "
+        "const all = performance.getEntries().length; performance.clearMarks(); "
+        "performance.clearMeasures(); "
+        "setTimeout(() => console.log('buffer ' + all + ' delivered ' + delivered), 300);</script>"
+    )
+    return Page(doc("<p>marks</p>" + script))
+
+
+@case(
+    "TextDecoder on buffers of 60 MiB (decoded), 100 MiB (a RangeError) and 64 chunks of 1 MiB "
+    "in stream mode, TextEncoder on a string of 16 MB, with JavaScript on: the decoder works "
+    "in chunks of 1 MiB and takes at most 64 MiB at a time (feature 8a2)",
+    swb_args=("--js",),
+    time_limit_s=12,
+)
+def text_decoder_huge_js_on() -> Page:
+    script = (
+        "<script>const out = []; "
+        "out.push(new TextDecoder().decode(new Uint8Array(60 << 20).fill(97)).length); "
+        "try { new TextDecoder().decode(new Uint8Array(100 << 20)); } "
+        "catch (e) { out.push(e.name); } "
+        "const d = new TextDecoder('windows-1252'); "
+        "const chunk = new Uint8Array(1 << 20).fill(0x80); "
+        "let n = 0; for (let i = 0; i < 64; i++) n += d.decode(chunk, { stream: true }).length; "
+        "out.push(n); out.push(new TextEncoder().encode('é'.repeat(8 << 20)).length); "
+        "console.log(out.join());</script>"
+    )
+    return Page(doc("<p>decode</p>" + script))
+
+
+@case(
+    "crypto.getRandomValues over its limit 100,000 times (a QuotaExceededError), 2,000 times "
+    "with the largest array, on a DataView and on float arrays, and crypto.randomUUID 200,000 "
+    "times, with JavaScript on (feature 8a2)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def random_values_over_limit_js_on() -> Page:
+    script = (
+        "<script>const big = new Uint8Array(65537), ok = new Uint8Array(65536); let errors = 0; "
+        "for (let i = 0; i < 100000; i++) { try { crypto.getRandomValues(big); } "
+        "catch (e) { errors += e.name === 'QuotaExceededError' ? 1 : 0; } } "
+        "for (let i = 0; i < 2000; i++) { crypto.getRandomValues(ok); "
+        "try { crypto.getRandomValues(new Float32Array(2)); } catch (e) { errors++; } "
+        "try { crypto.getRandomValues(new DataView(new ArrayBuffer(8))); } "
+        "catch (e) { errors++; } } "
+        "const ids = new Set(); for (let i = 0; i < 200000; i++) ids.add(crypto.randomUUID()); "
+        "console.log('errors ' + errors + ' ids ' + ids.size);</script>"
+    )
+    return Page(doc("<p>random</p>" + script))

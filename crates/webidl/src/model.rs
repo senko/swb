@@ -63,7 +63,13 @@ const OPERATION_ATTRS: &[&str] = &[
     "Exposed",
     "SecureContext",
 ];
-const TYPE_ATTRS: &[&str] = &["Clamp", "EnforceRange", "LegacyNullToEmptyString"];
+const TYPE_ATTRS: &[&str] = &[
+    "Clamp",
+    "EnforceRange",
+    "LegacyNullToEmptyString",
+    "AllowShared",
+    "SwbBuffer",
+];
 
 /// What a name stands for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -433,8 +439,8 @@ impl Model {
             }
             Member::Attribute(a) => {
                 check_attrs(&a.ext_attrs, ATTRIBUTE_ATTRS, &a.place, "attribute")?;
-                if a.is_static {
-                    return error(&a.place, "static attributes are not generated yet");
+                if a.is_static && !a.readonly {
+                    return error(&a.place, "only readonly static attributes are generated");
                 }
                 self.check_type(&a.ty, &a.place)
             }

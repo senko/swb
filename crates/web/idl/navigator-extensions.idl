@@ -1,0 +1,23 @@
+// Source: three partial interfaces of Navigator from W3C documents, copied
+// on 2026-10-29: `maxTouchPoints` from Pointer Events Level 4
+// (https://www.w3.org/TR/pointerevents/), `webdriver` from WebDriver
+// (https://w3c.github.io/webdriver/, NavigatorAutomationInformation) and
+// `doNotTrack` from Tracking Preference Expression
+// (https://www.w3.org/TR/tracking-dnt/).
+//
+// This file includes material copied from Pointer Events,
+// https://www.w3.org/TR/pointerevents/; WebDriver,
+// https://w3c.github.io/webdriver/; and Tracking Preference Expression
+// (DNT), https://www.w3.org/TR/tracking-dnt/. Copyright © 2026 World Wide
+// Web Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// The interface Navigator is in html.idl (feature 8a2 of M8). The mixin
+// NavigatorAutomationInformation of WebDriver is a partial interface here.
+
+partial interface Navigator {
+  readonly attribute long maxTouchPoints;
+  readonly attribute boolean webdriver;
+  readonly attribute DOMString? doNotTrack;
+};

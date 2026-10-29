@@ -448,6 +448,37 @@ impl ScriptRuntime {
         !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.animation_frames.is_empty())
     }
 
+    // ----- Idle periods (step 4 of the event loop; feature 8a2) -----
+
+    /// True if an idle callback waits: the engine starts an idle period
+    /// for it when no task and no frame is due.
+    pub fn has_idle_callbacks(&self) -> bool {
+        !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.idle.is_empty())
+    }
+
+    /// An idle period that ends at the page time `deadline`: the callbacks
+    /// that wait now run, each as a task of its own, with an `IdleDeadline`
+    /// for that deadline. The period ends early when the (real) clock
+    /// reaches the deadline. Callbacks that they request wait for the next
+    /// period. Returns the number of callbacks that ran.
+    pub fn run_idle_callbacks(&mut self, deadline: f64) -> usize {
+        let mut ran = 0;
+        for handle in crate::idle_callbacks::handles(&self.rt) {
+            if self.stopped || (!self.clock.is_virtual() && self.clock.now() >= deadline) {
+                break;
+            }
+            if !crate::idle_callbacks::waits(&self.rt, handle) {
+                continue;
+            }
+            // Errors are reported.
+            let _ = self.task("an idle callback", |rt| {
+                crate::idle_callbacks::run(rt, handle, Some(deadline))
+            });
+            ran += 1;
+        }
+        ran
+    }
+
     /// CSSOM View "evaluate media queries and report changes": a `change`
     /// event at each `MediaQueryList` with listeners whose result changed,
     /// as one task. Nothing without such lists; returns true if the task
@@ -493,6 +524,12 @@ impl ScriptRuntime {
             }
             Task::NotifyRejections => self.task("unhandled rejections", |rt| {
                 crate::event_loop::notify_rejections(rt).map_err(task_error)
+            }),
+            Task::PerformanceObservers => self.task("performance observers", |rt| {
+                crate::performance_observer::deliver(rt)
+            }),
+            Task::IdleTimeout(handle) => self.task("an idle callback", |rt| {
+                crate::idle_callbacks::run(rt, handle, None)
             }),
             Task::ParserResume => {
                 self.resume_parser();

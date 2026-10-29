@@ -1,0 +1,28 @@
+// Source: Cooperative Scheduling of Background Tasks, W3C Candidate
+// Recommendation Draft, https://w3c.github.io/requestidlecallback/, copied
+// on 2026-10-29.
+//
+// This file includes material copied from Cooperative Scheduling of
+// Background Tasks, https://w3c.github.io/requestidlecallback/. Copyright ©
+// 2026 World Wide Web Consortium.
+// https://www.w3.org/copyright/software-license-2023/ (W3C Software and
+// Document License; the full notice is in THIRD_PARTY_NOTICES.md).
+//
+// The file is complete (feature 8a2 of M8).
+
+partial interface Window {
+  unsigned long requestIdleCallback(IdleRequestCallback callback, optional IdleRequestOptions options = {});
+  undefined cancelIdleCallback(unsigned long handle);
+};
+
+dictionary IdleRequestOptions {
+  unsigned long timeout;
+};
+
+[Exposed=Window]
+interface IdleDeadline {
+  DOMHighResTimeStamp timeRemaining();
+  readonly attribute boolean didTimeout;
+};
+
+callback IdleRequestCallback = undefined (IdleDeadline deadline);

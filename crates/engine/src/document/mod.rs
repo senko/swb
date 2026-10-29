@@ -180,6 +180,9 @@ pub struct DocumentState {
     pub(crate) script_requests: ScriptRequests,
     /// The session history as scripts see it; the page keeps it current.
     pub(crate) history: HistoryInfo,
+    /// How the document was reached and what the response was, for the
+    /// navigation entry of the performance timeline (feature 8a2).
+    pub(crate) navigation: swb_web::NavigationInfo,
     /// The text control that the user edited since its last `change` event
     /// (or since it got the focus), with its value before the first edit.
     /// `change` fires when the control commits, if the value differs.
@@ -275,6 +278,7 @@ impl DocumentState {
             styles_stale: false,
             script_requests: ScriptRequests::default(),
             history: HistoryInfo::default(),
+            navigation: swb_web::NavigationInfo::default(),
             commit_baseline: None,
             fragments: None,
             layout_serial: 0,
@@ -337,6 +341,14 @@ impl swb_web::EngineHost for DocumentState {
 
     fn content_type(&self) -> &str {
         &self.content_type
+    }
+
+    fn user_agent(&self) -> &'static str {
+        swb_net::USER_AGENT
+    }
+
+    fn navigation_info(&self) -> swb_web::NavigationInfo {
+        self.navigation
     }
 
     fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {

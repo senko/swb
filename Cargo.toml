@@ -68,6 +68,11 @@ rustls-native-certs = "0.8"
 sha2 = "0.11"
 ureq = { version = "3.4", default-features = false, features = ["rustls-no-provider"] }
 
+# web (script bindings)
+# The operating system's random source for `crypto.getRandomValues`
+# (ADR 0028 section 13). The version that the dependency tree already has.
+getrandom = "0.3"
+
 # dom
 encoding_rs = "0.8"
 html5ever = "0.40"

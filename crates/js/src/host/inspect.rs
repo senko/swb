@@ -175,6 +175,53 @@ impl Runtime {
         Ok(bytes)
     }
 
+    /// The bytes `offset..offset + length` of an `ArrayBuffer` (a copy);
+    /// empty if it is detached or not a buffer, or the range is outside it
+    /// (feature 8a2: `TextDecoder.decode` of a view).
+    pub fn buffer_range(
+        &mut self,
+        buffer: Gc<Object>,
+        offset: usize,
+        length: usize,
+    ) -> VmResult<Vec<u8>> {
+        let bytes = self
+            .heap
+            .array_buffer(buffer)?
+            .and_then(|data| data.bytes())
+            .and_then(|all| all.get(offset..offset.checked_add(length)?))
+            .map(<[u8]>::to_vec)
+            .unwrap_or_default();
+        self.charge_bytes(bytes.len())?;
+        Ok(bytes)
+    }
+
+    /// Copies `bytes` into an `ArrayBuffer` at `offset` (feature 8a2:
+    /// `crypto.getRandomValues`, `TextEncoder.encodeInto`). Returns false,
+    /// writing nothing, if the object is no buffer, is detached or the
+    /// range is outside it.
+    pub fn write_buffer_bytes(
+        &mut self,
+        buffer: Gc<Object>,
+        offset: usize,
+        bytes: &[u8],
+    ) -> VmResult<bool> {
+        let object = self.heap.object_mut(buffer)?;
+        let ObjectKind::ArrayBuffer(data) = &mut object.kind else {
+            return Ok(false);
+        };
+        let Some(target) = data.bytes_mut() else {
+            return Ok(false);
+        };
+        let Some(end) = offset.checked_add(bytes.len()) else {
+            return Ok(false);
+        };
+        let Some(range) = target.get_mut(offset..end) else {
+            return Ok(false);
+        };
+        range.copy_from_slice(bytes);
+        Ok(true)
+    }
+
     /// The number of code units of a string (no copy, no flattening).
     pub fn string_unit_count(&self, string: Gc<JsString>) -> VmResult<usize> {
         Ok(self.heap.string(string)?.len())

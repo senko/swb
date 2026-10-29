@@ -38,6 +38,12 @@ pub(crate) enum Task {
     Timer { id: i32, handle: u64 },
     /// Fire `unhandledrejection` for the noted promises.
     NotifyRejections,
+    /// Give the entries that were queued to the `PerformanceObserver`
+    /// objects (HTML "queue a `PerformanceObserver` task").
+    PerformanceObservers,
+    /// The `timeout` of an idle callback is over: run it if it still
+    /// waits (`requestIdleCallback`).
+    IdleTimeout(u32),
     /// Run the cleanup of a finalization registry.
     FinalizationCleanup,
     /// Let the parser go on after a wait (`document_load.rs`).

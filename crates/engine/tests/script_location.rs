@@ -240,6 +240,25 @@ fn push_state_changes_the_url_and_history_back_fires_popstate() {
 }
 
 #[test]
+fn the_navigation_entry_keeps_the_url_of_the_navigation() {
+    // Measured in Chromium (feature 8a2 review): `replaceState` and a
+    // fragment change before the first read do not change the `name` of
+    // the navigation entry.
+    on_page_thread(|| {
+        let (mut page, _site) = open(B_PAGE);
+        assert_eq!(
+            text(
+                &mut page,
+                "history.replaceState(null, '', '/p/a?x#h'); location.hash = 'z'; performance.getEntriesByType('navigation')[0].name"
+            ),
+            A
+        );
+        settle(&mut page);
+        assert_eq!(url(&page), "https://site.test/p/a?x#z");
+    });
+}
+
+#[test]
 fn the_state_of_an_entry_survives_a_load_of_its_document_again() {
     on_page_thread(|| {
         let (mut page, _) = open(B_PAGE);

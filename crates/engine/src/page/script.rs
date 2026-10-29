@@ -306,9 +306,17 @@ impl Page {
     /// loops.
     pub fn pump(&mut self) -> Pump {
         let mut changed = self.process_network();
-        changed |= self.run_due_tasks() > 0;
+        let tasks = self.run_due_tasks();
+        if changed || tasks > 0 {
+            self.input.idle_streak = 0;
+        }
+        changed |= tasks > 0;
         changed |= self.run_traversal();
         changed |= self.run_frame();
+        // Step 4 of the event loop: idle callbacks, if nothing else ran.
+        if !changed {
+            changed |= self.run_idle();
+        }
         Pump {
             changed,
             next: self.next_task_instant(),
@@ -359,10 +367,11 @@ impl Page {
             return Some(self.clock.now());
         }
         let tasks = self.script.as_ref()?.next_task_time();
-        match (tasks, self.frame_time()) {
-            (Some(task), Some(frame)) => Some(task.min(frame)),
-            (task, frame) => task.or(frame),
-        }
+        [self.frame_time(), self.idle_time()]
+            .into_iter()
+            .flatten()
+            .chain(tasks)
+            .reduce(f64::min)
     }
 
     /// When the next task of the document is due, in real time; in virtual
@@ -402,6 +411,7 @@ impl Page {
             .into_iter()
             .chain(self.frame_work_due())
             .any(|time| time <= horizon)
+            || self.idle_work_before(horizon)
         {
             return false;
         }

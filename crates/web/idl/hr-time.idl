@@ -1,5 +1,6 @@
 // Source: High Resolution Time, W3C Editor's Draft of 1 September 2026,
-// https://w3c.github.io/hr-time/, copied on 2026-10-23.
+// https://w3c.github.io/hr-time/, copied on 2026-10-23 (`toJSON` on
+// 2026-10-29).
 //
 // This file includes material copied from High Resolution Time,
 // https://w3c.github.io/hr-time/. Copyright © 2026 World Wide Web
@@ -7,9 +8,14 @@
 // (W3C Software and Document License; the full notice is in
 // THIRD_PARTY_NOTICES.md).
 //
-// swb cut this file to the typedef DOMHighResTimeStamp, `now()` and
-// `timeOrigin` of Performance (without `toJSON`), and the `performance`
-// attribute of WindowOrWorkerGlobalScope (feature 5b of M8).
+// swb cut this file to the typedef DOMHighResTimeStamp, `now()`, `timeOrigin`
+// and `toJSON()` of Performance, and the `performance` attribute of
+// WindowOrWorkerGlobalScope (features 5b and 8a2 of M8). `[Default] object
+// toJSON()` is `object toJSON()`: the generator has no default toJSON; the
+// binding builds the object (`timeOrigin`, `timing`, `navigation`, as
+// Chromium has it). The other Performance members are in
+// performance-timeline.idl, user-timing.idl, navigation-timing.idl and
+// resource-timing.idl.
 
 typedef double DOMHighResTimeStamp;
 
@@ -17,6 +23,7 @@ typedef double DOMHighResTimeStamp;
 interface Performance : EventTarget {
   DOMHighResTimeStamp now();
   readonly attribute DOMHighResTimeStamp timeOrigin;
+  object toJSON();
 };
 
 partial interface mixin WindowOrWorkerGlobalScope {

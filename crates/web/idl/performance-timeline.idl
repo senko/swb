@@ -1,0 +1,65 @@
+// Source: Performance Timeline, W3C Editor's Draft,
+// https://w3c.github.io/performance-timeline/, copied on 2026-10-29.
+//
+// This file includes material copied from Performance Timeline,
+// https://w3c.github.io/performance-timeline/. Copyright © 2026 World Wide
+// Web Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to what Chromium 148 has (feature 8a2 of M8): the draft's
+// `id` and `navigationId` attributes of PerformanceEntry do not exist in
+// Chromium (measured: the prototype has `name`, `entryType`, `startTime`,
+// `duration` and `toJSON`), so they are left out. `[Default] object toJSON()`
+// is `object toJSON()`: the generator has no default toJSON, and the binding
+// builds the object with the four attributes and the members of the
+// subinterface. `supportedEntryTypes` is a `static readonly attribute`
+// (`[SameObject]` is done by the binding). The interfaces are `Exposed=Window`
+// (swb has no workers).
+
+partial interface Performance {
+  PerformanceEntryList getEntries();
+  PerformanceEntryList getEntriesByType(DOMString type);
+  PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
+};
+
+typedef sequence<PerformanceEntry> PerformanceEntryList;
+
+[Exposed=Window]
+interface PerformanceEntry {
+  readonly attribute DOMString name;
+  readonly attribute DOMString entryType;
+  readonly attribute DOMHighResTimeStamp startTime;
+  readonly attribute DOMHighResTimeStamp duration;
+  object toJSON();
+};
+
+callback PerformanceObserverCallback = undefined (PerformanceObserverEntryList entries,
+                                                 PerformanceObserver observer,
+                                                 optional PerformanceObserverCallbackOptions options = {});
+
+[Exposed=Window]
+interface PerformanceObserver {
+  constructor(PerformanceObserverCallback callback);
+  undefined observe(optional PerformanceObserverInit options = {});
+  undefined disconnect();
+  PerformanceEntryList takeRecords();
+  static readonly attribute FrozenArray<DOMString> supportedEntryTypes;
+};
+
+dictionary PerformanceObserverCallbackOptions {
+  unsigned long long droppedEntriesCount;
+};
+
+dictionary PerformanceObserverInit {
+  sequence<DOMString> entryTypes;
+  DOMString type;
+  boolean buffered;
+};
+
+[Exposed=Window]
+interface PerformanceObserverEntryList {
+  PerformanceEntryList getEntries();
+  PerformanceEntryList getEntriesByType(DOMString type);
+  PerformanceEntryList getEntriesByName(DOMString name, optional DOMString type);
+};

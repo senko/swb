@@ -80,6 +80,8 @@ CharacterData:dwc
 Text:dwc
 ProcessingInstruction:dwc
 Comment:dwc
+TextDecoder:dwc
+TextEncoder:dwc
 DOMRectReadOnly:dwc
 DOMRect:dwc
 DOMRectList:dwc
@@ -89,6 +91,7 @@ self:aec
 document:ae
 location:ae
 history:aec
+navigator:aec
 frames:aec
 length:aec
 top:ae
@@ -109,6 +112,7 @@ outerHeight:aec
 devicePixelRatio:aec
 event:aec
 performance:aec
+crypto:aec
 onabort:aec
 onauxclick:aec
 onbeforeinput:aec
@@ -221,7 +225,10 @@ onrejectionhandled:aec
 onstorage:aec
 onunhandledrejection:aec
 onunload:aec
+atob:dwec
+btoa:dwec
 cancelAnimationFrame:dwec
+cancelIdleCallback:dwec
 clearInterval:dwec
 clearTimeout:dwec
 getComputedStyle:dwec
@@ -229,6 +236,7 @@ matchMedia:dwec
 queueMicrotask:dwec
 reportError:dwec
 requestAnimationFrame:dwec
+requestIdleCallback:dwec
 scroll:dwec
 scrollBy:dwec
 scrollTo:dwec
@@ -318,6 +326,7 @@ HTMLScriptElement:dwc
 ErrorEvent:dwc
 PromiseRejectionEvent:dwc
 PageTransitionEvent:dwc
+Navigator:dwc
 History:dwc
 Location:dwc
 PopStateEvent:dwc
@@ -326,6 +335,13 @@ HashChangeEvent:dwc
 MessageEvent:dwc
 StorageEvent:dwc
 BeforeUnloadEvent:dwc
+PerformanceTiming:dwc
+PerformanceNavigation:dwc
+PerformanceEntry:dwc
+PerformanceObserver:dwc
+PerformanceObserverEntryList:dwc
+IdleDeadline:dwc
+PerformanceResourceTiming:dwc
 SVGElement:dwc
 SVGAnimatedString:dwc
 SVGGraphicsElement:dwc
@@ -377,10 +393,14 @@ CompositionEvent:dwc
 TextEvent:dwc
 URL:dwc
 URLSearchParams:dwc
+PerformanceMark:dwc
+PerformanceMeasure:dwc
+Crypto:dwc
 DOMException:dwc
 MediaQueryList:dwc
 MediaQueryListEvent:dwc
 ScreenOrientation:dwc
+PerformanceNavigationTiming:dwc
 MouseEvent:dwc
 WheelEvent:dwc
 PointerEvent:dwc

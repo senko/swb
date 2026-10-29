@@ -77,7 +77,7 @@ impl Page {
 
     /// True if the document has a runtime whose scripts can run (not
     /// stopped by the time limits): only then are frames due.
-    fn frames_run(&self) -> bool {
+    pub(super) fn frames_run(&self) -> bool {
         self.script.as_ref().is_some_and(|s| !s.stopped())
     }
 

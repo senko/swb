@@ -118,8 +118,46 @@ pub struct EventOrigins {
     pub layer: (f64, f64),
 }
 
+/// How the document was reached (`performance.navigation.type`, the
+/// `type` of the navigation entry; HTML "navigate", reload, traversal).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NavigationKind {
+    /// A new navigation (a link, the address bar, `location`).
+    #[default]
+    Navigate,
+    /// A reload.
+    Reload,
+    /// A traversal of the session history (back, forward, `go`).
+    BackForward,
+}
+
+/// What the engine knows of the navigation that made the document (the
+/// navigation entry of the performance timeline, feature 8a2): swb's loader
+/// gives no times for the phases of the request, only the result.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NavigationInfo {
+    /// How the document was reached.
+    pub kind: NavigationKind,
+    /// The HTTP status of the response (0 for a document that did not
+    /// come from the network).
+    pub status: u16,
+    /// The size of the response body in bytes.
+    pub body_bytes: u64,
+}
+
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
+    /// The user agent string (`navigator.userAgent`, ADR 0025): the one
+    /// that requests send.
+    fn user_agent(&self) -> &'static str {
+        "Mozilla/5.0 (X11; Linux x86_64) swb"
+    }
+
+    /// How the document was reached, and what the response was.
+    fn navigation_info(&self) -> NavigationInfo {
+        NavigationInfo::default()
+    }
+
     /// The DOM of the document.
     fn dom(&self) -> &Document;
 

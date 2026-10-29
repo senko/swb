@@ -30,12 +30,19 @@ pub(crate) type Departure = (&'static str, usize, &'static str, &'static str);
 pub(crate) struct TestDocument {
     pub(crate) dom: Document,
     pub(crate) parser: Option<HtmlParser>,
+    /// The size of the page in bytes (the navigation entry of the
+    /// performance timeline).
+    pub(crate) bytes: u64,
 }
 
 impl TestDocument {
     /// A parsed document (no parser).
     pub(crate) fn parsed(dom: Document) -> TestDocument {
-        TestDocument { dom, parser: None }
+        TestDocument {
+            dom,
+            parser: None,
+            bytes: 0,
+        }
     }
 
     /// A document that the runtime parses in steps.
@@ -45,6 +52,7 @@ impl TestDocument {
         TestDocument {
             dom,
             parser: Some(parser),
+            bytes: html.len() as u64,
         }
     }
 }
@@ -98,6 +106,14 @@ impl EngineHost for TestDocument {
 
     fn content_type(&self) -> &'static str {
         "text/html"
+    }
+
+    fn navigation_info(&self) -> swb_web::NavigationInfo {
+        swb_web::NavigationInfo {
+            kind: swb_web::NavigationKind::Navigate,
+            status: 200,
+            body_bytes: self.bytes,
+        }
     }
 
     fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {

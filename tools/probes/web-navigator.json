@@ -1,0 +1,138 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "navigator-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof Navigator, Navigator.length, Navigator.name, Object.prototype.toString.call(navigator), navigator === navigator, window.navigator === navigator, navigator instanceof Navigator, navigator.constructor === Navigator]"
+    },
+    {
+     "js": "E(() => new Navigator())"
+    },
+    {
+     "js": "E(() => Navigator())"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'navigator'); return [d.enumerable, d.configurable, typeof d.get, typeof d.set, d.get.name]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(navigator).length"
+    },
+    {
+     "js": "['appCodeName','appName','appVersion','platform','product','productSub','userAgent','vendor','vendorSub','language','languages','onLine','cookieEnabled','hardwareConcurrency','maxTouchPoints','webdriver','doNotTrack','javaEnabled','pdfViewerEnabled'].map(n => n in Navigator.prototype).join()"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent').get.call({}))"
+    },
+    {
+     "js": "E(() => navigator.javaEnabled.call({}))"
+    },
+    {
+     "js": "[navigator.javaEnabled.name, navigator.javaEnabled.length, navigator.javaEnabled(), typeof navigator.javaEnabled]"
+    },
+    {
+     "js": "(() => { navigator.userAgent = 'x'; navigator.foo = 1; return [navigator.userAgent === 'x', navigator.foo]; })()"
+    },
+    {
+     "js": "(() => { 'use strict'; try { navigator.userAgent = 'x'; return 'no error'; } catch (e) { return e.name + ': ' + e.message; } })()"
+    },
+    {
+     "js": "Object.getOwnPropertyDescriptor(Navigator.prototype, Symbol.toStringTag).value"
+    }
+   ]
+  },
+  {
+   "name": "navigator-values",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[navigator.appCodeName, navigator.appName, navigator.product, navigator.productSub, navigator.vendorSub]"
+    },
+    {
+     "js": "[navigator.language, navigator.languages, navigator.onLine, navigator.cookieEnabled, navigator.maxTouchPoints, navigator.doNotTrack, navigator.pdfViewerEnabled]"
+    },
+    {
+     "js": "[Object.isFrozen(navigator.languages), navigator.languages === navigator.languages, Array.isArray(navigator.languages), navigator.languages[0] === navigator.language]"
+    },
+    {
+     "js": "[navigator.userAgent.startsWith('Mozilla/5.0 ('), navigator.appVersion === navigator.userAgent.replace('Mozilla/', ''), typeof navigator.platform, navigator.platform.length > 0, typeof navigator.vendor]"
+    },
+    {
+     "js": "[typeof navigator.hardwareConcurrency, Number.isInteger(navigator.hardwareConcurrency), navigator.hardwareConcurrency >= 1]"
+    },
+    {
+     "js": "[typeof navigator.userAgent, typeof navigator.webdriver, typeof navigator.maxTouchPoints, typeof navigator.onLine]"
+    }
+   ]
+  },
+  {
+   "name": "navigator-departures",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "navigator.vendor"
+    },
+    {
+     "js": "navigator.webdriver"
+    },
+    {
+     "js": "navigator.userAgent.includes('Chrome')"
+    },
+    {
+     "js": "'userAgentData' in navigator"
+    },
+    {
+     "js": "typeof navigator.sendBeacon"
+    },
+    {
+     "js": "[typeof navigator.plugins, typeof navigator.mimeTypes, typeof navigator.mediaDevices, typeof navigator.serviceWorker, typeof navigator.permissions]"
+    },
+    {
+     "js": "window.clientInformation === navigator"
+    }
+   ]
+  },
+  {
+   "name": "visibility",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof document.hidden, document.hidden, document.visibilityState, 'hidden' in Document.prototype, 'visibilityState' in Document.prototype, Object.getOwnPropertyDescriptor(Document.prototype, 'hidden').get.name, typeof Object.getOwnPropertyDescriptor(Document.prototype, 'hidden').set, Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState').get.name, typeof Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState').set]"
+    },
+    {
+     "js": "[document.onvisibilitychange, 'onvisibilitychange' in document, 'onvisibilitychange' in window]"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'hidden').get.call({}))"
+    },
+    {
+     "js": "(() => { const d = document.implementation.createHTMLDocument(''); return [d.hidden, d.visibilityState]; })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString('<p>x', 'text/html'); return [d.hidden, d.visibilityState]; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; document.addEventListener('visibilitychange', () => log('event')); await wait(150); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(() => { L.length = 0; document.onvisibilitychange = (e) => log([e.type, e.bubbles, e.cancelable, e.target === document]); document.dispatchEvent(new Event('visibilitychange')); document.onvisibilitychange = null; return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(() => { document.hidden = true; return [document.hidden, document.visibilityState]; })()"
+    },
+    {
+     "js": "document.webkitHidden"
+    }
+   ]
+  }
+ ]
+}

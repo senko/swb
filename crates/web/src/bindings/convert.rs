@@ -259,6 +259,39 @@ pub fn object(value: Value) -> Result<Gc<Object>> {
     }
 }
 
+/// A buffer source type (Web IDL §3.2.25 to §3.2.27): an `ArrayBuffer`
+/// and/or a view, by `name` (`ArrayBuffer`, `ArrayBufferView`,
+/// `BufferSource`, `AllowSharedBufferSource` or `Uint8Array`). swb has no
+/// shared memory, so the shared types are the plain ones.
+pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<Object>> {
+    if let Value::Object(object) = value {
+        let accepted = match rt.slots_of(object)? {
+            swb_js::Slots::ArrayBuffer { .. } => {
+                matches!(
+                    name,
+                    "ArrayBuffer" | "BufferSource" | "AllowSharedBufferSource"
+                )
+            }
+            swb_js::Slots::View { element, .. } => match name {
+                "ArrayBufferView" | "BufferSource" | "AllowSharedBufferSource" => true,
+                "Uint8Array" => element == Some("Uint8"),
+                _ => false,
+            },
+            _ => false,
+        };
+        if accepted {
+            return Ok(object);
+        }
+    }
+    // Chromium names the union `ArrayBuffer` in its message (measured:
+    // `new TextDecoder().decode(5)`).
+    let shown = match name {
+        "BufferSource" | "AllowSharedBufferSource" => "ArrayBuffer",
+        other => other,
+    };
+    Err(Exception::NotOfType(shown.into()))
+}
+
 /// An interface type that inherits from `Node`: the node of a wrapper of
 /// `class` or of a subclass.
 pub fn node(

@@ -21,6 +21,12 @@ enum Level {
 }
 
 impl Runtime {
+    /// `SetIntegrityLevel(object, frozen)` for the host (the bindings'
+    /// `FrozenArray` values, Web IDL §3.2.23).
+    pub fn freeze(&mut self, object: Gc<Object>) -> VmResult<()> {
+        self.set_integrity_level(object, Level::Frozen)
+    }
+
     /// `SetIntegrityLevel` (§7.3.15); a `false` result of
     /// `[[PreventExtensions]]` (a typed array that tracks the length of
     /// its buffer or views a resizable one; a proxy throws its own error)

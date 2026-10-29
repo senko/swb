@@ -3247,6 +3247,34 @@ Steps:
         `randomUUID`, `atob`, `btoa`, `TextEncoder`, `TextDecoder`,
         `requestIdleCallback`, `document.hidden` and `visibilityState`
         (`visible`), `visibilitychange`. Tests: probe cases for each.
+        Done 2026-10-29. `navigator` with stable values that do not
+        claim to be Chromium (`userAgent` unchanged, `webdriver` false,
+        no `userAgentData`, `sendBeacon` or `plugins`); `performance`
+        (`now`, `timeOrigin`, `toJSON`, `timing`, `navigation`, `mark`,
+        `measure` with the option forms and Chromium's errors,
+        `getEntries*`, `clear*`, the navigation entry; a buffer of
+        131,072 entries); `PerformanceObserver` (`mark`, `measure`,
+        `navigation` with `buffered`, delivery as a task);
+        `crypto.getRandomValues` and `randomUUID` over `getrandom`;
+        `atob` and `btoa`; `TextEncoder` and `TextDecoder` over
+        `encoding_rs` (input up to 64 MiB); `requestIdleCallback` as
+        step 4 of the event loop (a period of at most 50 ms when no task
+        or frame is due, 20 loop iterations a second, `timeout`; in
+        virtual time `timeRemaining()` charges 0.1 ms a call);
+        `document.hidden` and `visibilityState`. Not done:
+        `visibilitychange` (the engine has no hidden state; backlog).
+        Generator: static readonly attributes, buffer source types,
+        frozen `FrozenArray` results. Probes `web-navigator.json` (35
+        queries), `web-crypto-encoding.json` (127), `web-performance.json`
+        (183), `web-idle.json` (33), three equal Chromium runs each; 17
+        listed departures. `compare --js` scores unchanged (no target
+        error was about these APIs); JS off: snapshot identical; runtime
+        heap +2.9 KB; hostile 216 cases, 215 ok + the known failure (5
+        new). Review fixes: the navigation entry's `name` followed
+        `pushState` and `replaceState` (now the URL when the parse
+        starts, as in Chromium); `measure()` copied the whole buffer at
+        each mark lookup (the mark loop case: 4.8 → 1.6 s); a canceled
+        idle callback counted as run.
       - 8b: `document.cookie` with the jar (also in replay, ADR 0028
         section 12), `localStorage` and `sessionStorage` (named
         properties, quota, the `storage` event), the in-memory storage
@@ -3797,6 +3825,28 @@ Steps:
   stays); the `stack` of errors is built at its first read, so an
   accessor `message` runs then, also inside `structuredClone`. `Intl`
   is missing (one probe query was dropped).
+- `web`/`engine` (found in feature 8a2 and its review): `navigator.plugins`
+  and `mimeTypes` (Chromium 148: empty arrays; fingerprinting code reads
+  `navigator.plugins.length` and throws without them) and
+  `window.clientInformation`; `visibilitychange` and `document.hidden`
+  from the GUI (a minimized window or a hidden tab; the engine needs a
+  `Page::set_visible` that fires the event as a task and stops frames);
+  the `resource`, `visibility-state`, `paint`, `largest-contentful-paint`,
+  `layout-shift`, `longtask` and `event` entry types, and the request
+  phases of the navigation entry (times from `net`);
+  `PerformanceObserver.supportedEntryTypes` as one frozen array
+  (`[SameObject]` for a static attribute in the generator);
+  `crypto.subtle` (`digest` first) and the secure-context rule of
+  `randomUUID`; a `TextDecoder` result above 64 MiB (convert into the
+  string in a stream), `TextDecoderStream`; `buffer_range` copies and
+  `TextDecoder` builds its string before the heap counts the bytes (a
+  peak of 406 MiB for 64 MiB of input); `measure()` with the name of
+  an old mark scans the buffer (1.9 ms in a full buffer; a map from name
+  to the last mark would make it constant); Chromium runs idle callbacks
+  only when the compositor is quiet, swb in the first gap after the
+  load (check on a target whether a page's idle work comes earlier than
+  in Chromium); `navigator.cookieEnabled` is true while
+  `document.cookie` is missing (feature 8b).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

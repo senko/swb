@@ -178,6 +178,24 @@ impl Gen<'_> {
                 "    /// The getter of `{}`, written by hand (`[SwbCustom]`).\n    fn {fn_name}(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn>;\n",
                 attr.name
             );
+        } else if reflect.is_none() && attr.is_static {
+            // A static attribute (feature 8a2) has no `this`: the getter
+            // is a function of the context alone.
+            claim(&fn_name, &attr.place)?;
+            let _ = writeln!(
+                trait_items,
+                "    /// `static readonly attribute {} {}`.\n    fn {fn_name}(cx: &mut b::Cx<'_>) -> b::Result<{out_ty}>;\n",
+                self.idl_text(&attr.ty),
+                attr.name
+            );
+            let value = self.rust_to_js(&attr.ty, "result", "call.realm()", true, 0);
+            let _ = writeln!(
+                glue,
+                "fn get_{getter}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        let result = <H as {}Impl>::{fn_name}({})?;\n        Ok({value}?)\n    }})\n}}\n",
+                iface.name,
+                iface.name,
+                cx(iface)
+            );
         } else if reflect.is_none() {
             claim(&fn_name, &attr.place)?;
             let _ = writeln!(
@@ -981,7 +999,11 @@ fn define_attributes(iface: &Iface, global: bool, out: &mut String) {
         } else {
             format!("Some(set_{getter}::<H> as swb_js::NativeFn)")
         };
-        let (object, attributes) = member_place(attr.ext_attrs.has("LegacyUnforgeable"), global);
+        let (object, attributes) = if attr.is_static {
+            ("interface.object", "swb_js::Attributes::MEMBER")
+        } else {
+            member_place(attr.ext_attrs.has("LegacyUnforgeable"), global)
+        };
         let _ = writeln!(
             out,
             "    rt.define_accessor(realm, {object}, {}, (Some({get} as swb_js::NativeFn), {set}), {attributes})?;",

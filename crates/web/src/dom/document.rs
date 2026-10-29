@@ -252,6 +252,26 @@ impl g::document::DocumentImpl for WebState {
         Ok(crate::scripts::ready_state(cx.rt, this)?)
     }
 
+    /// `document.hidden` (Page Visibility §4): swb's window is always
+    /// visible; a document without a browsing context is hidden. The
+    /// engine never fires `visibilitychange` (the GUI does not tell the
+    /// engine about minimizing yet).
+    fn hidden(_cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(!is_main(this))
+    }
+
+    fn visibility_state(
+        _cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<crate::generated::types::VisibilityState> {
+        use crate::generated::types::VisibilityState;
+        Ok(if is_main(this) {
+            VisibilityState::Visible
+        } else {
+            VisibilityState::Hidden
+        })
+    }
+
     fn current_script(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
         if !is_main(this) {
             return Ok(None);

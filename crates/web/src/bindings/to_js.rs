@@ -48,6 +48,20 @@ pub fn sequence<T>(
     Ok(rt.new_array_of(realm, &values)?.into())
 }
 
+/// A `FrozenArray` (Web IDL §3.2.23): [`sequence`], then frozen.
+pub fn frozen_sequence<T>(
+    rt: &mut Runtime,
+    realm: u32,
+    items: &[T],
+    f: impl FnMut(&mut Runtime, &T) -> VmResult<Value>,
+) -> VmResult<Value> {
+    let array = sequence(rt, realm, items, f)?;
+    if let Value::Object(object) = array {
+        rt.freeze(object)?;
+    }
+    Ok(array)
+}
+
 /// A record: a new object of `realm` with a data property per entry.
 pub fn record<V>(
     rt: &mut Runtime,

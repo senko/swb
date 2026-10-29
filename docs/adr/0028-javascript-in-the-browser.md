@@ -2023,7 +2023,8 @@ paint.
 
 **`requestIdleCallback`:** runs in step 4 with an `IdleDeadline` of at
 most 50 ms; with a `timeout`, a timer task runs it if it is not idle in
-time.
+time. (Feature 8a2: the idle period ends at the next task or frame, and the
+next one starts when the last ended; see "Feature 8a2 notes", section 13.)
 
 **Time budget per task.** Before each task (and each checkpoint, and
 each rendering update callback) the engine sets the runtime's deadline
@@ -3026,6 +3027,145 @@ Feature 8a1 notes (`URL`, `URLSearchParams`, `location`, `history`,
   throttling of `pushState` loops (none visible in Chromium: 1,000 calls
   in a loop all took effect).
 
+Feature 8a2 notes (`navigator`, `performance`, `PerformanceObserver`,
+`crypto`, `atob`, `btoa`, `TextEncoder`, `TextDecoder`,
+`requestIdleCallback`, `document.hidden`; measured with
+`tools/probes/web-navigator.json` (35 queries), `web-crypto-encoding.json`
+(127), `web-performance.json` (183) and `web-idle.json` (33), three equal
+Chromium runs each; the Rust tests are `crates/web/tests/navigator.rs`,
+`crypto_encoding.rs`, `performance.rs`, `crates/engine/tests/script_idle.rs`
+and unit tests per module, and five hostile cases):
+
+- **Generator and engine additions.** `swb-webidl` generates `static readonly
+  attribute` (the getter has no `this`; the accessor is on the interface
+  object), the buffer source types (`ArrayBuffer`, `ArrayBufferView`,
+  `BufferSource`, `AllowSharedBufferSource`, `Uint8Array`: an `object` with
+  a check, `b::convert::buffer`; the message names the type, and the unions
+  are `ArrayBuffer` as in Chromium) and `FrozenArray` results as frozen
+  arrays (`b::to_js::frozen_sequence`). `js` has three small host calls:
+  `Runtime::freeze`, `write_buffer_bytes` and `buffer_range`. The only new
+  crate dependency is `getrandom 0.3` (MIT or Apache-2.0, already in the
+  tree through other crates; ADR 0003 checked, `cargo deny` passes);
+  `encoding_rs` was a workspace dependency.
+- **`navigator`** (`navigator.rs`). `userAgent` is the string of swb's
+  requests (`EngineHost::user_agent`, ADR 0025) and `appVersion` is that
+  string without `Mozilla/`. Values that describe the machine or the browser
+  are stable and do not claim to be Chromium: `platform` is the operating
+  system and CPU of the build (`Linux x86_64`), `vendor` is empty (Chromium:
+  `Google Inc.`), `language` and `languages` are `en-US` and `["en-US"]`
+  (`languages` is a new frozen array at each read, as in Chromium),
+  `hardwareConcurrency` is 4 (swb has no workers; a constant keeps runs and
+  tests equal), `onLine` and `cookieEnabled` are true, `maxTouchPoints` is 0,
+  `doNotTrack` null, `pdfViewerEnabled` and `javaEnabled()` false.
+  `webdriver` is false: the standard says true when the browser is under
+  WebDriver control, and swb's automation API is not WebDriver (Chromium under
+  Playwright says true; a page that tests it would treat swb as a robot).
+  The constants `appCodeName`, `appName`, `product`, `productSub` and
+  `vendorSub` are the standard's. Absent: `userAgentData` (swb does not claim
+  to be Chromium), `sendBeacon` (feature 10b), `plugins` and `mimeTypes`
+  (backlog: pages read `navigator.plugins.length` for fingerprinting; they
+  would throw), `clientInformation`, and the feature-detection members of
+  section 13's list.
+- **`performance`** (`performance.rs`, `performance_observer.rs`).
+  `now()` and `timeOrigin` are the document clock of feature 5b. The buffer
+  holds marks and measures in order of making, at most 131,072; the
+  navigation entry is the implicit first one; `getEntries*` filter and sort
+  by `startTime` (a stable sort; measured: equal times keep the order of
+  making, also between marks and measures). A `PerformanceMark` made by the
+  constructor is not in the buffer. `detail` is structured-cloned at the
+  call and deserialized at the first read; the same object comes back.
+  `mark` and `measure` follow User Timing with Chromium's words
+  (the `PerformanceTiming` names are not mark names, a negative `startTime`,
+  the checks of a non-empty options dictionary, `The mark 'x' does not
+  exist.`, a negative time stamp, `InvalidAccessError` for a load step that
+  did not happen yet); `measure` takes the names of the `PerformanceTiming`
+  attributes as marks. The load milestones (`domLoading`, `domInteractive`,
+  `domContentLoadedEventStart/End`, `domComplete`, `loadEventStart/End`) are
+  recorded by `document_load.rs` in page time; `fetchStart` and the phases up
+  to `responseEnd` are 0 (the loader gives no times for the phases of the
+  request), `unloadEvent*`, `redirect*` and `secureConnectionStart` are 0, and
+  the steps that did not happen yet are 0 (Chromium: the same). The navigation
+  entry's `name` is the document URL when the parse starts: `pushState`,
+  `replaceState` and fragment changes do not change it (measured in the
+  review; before the fix it was the URL at the first read). It has `type`
+  (navigate, reload, back_forward, from the page's handling
+  of the navigation: `EngineHost::navigation_info`), `responseStatus` and the
+  body size (`transferSize` is the body size: the loader does not keep the
+  headers' size); `PerformanceTiming` values are whole milliseconds since the
+  epoch.
+  `PerformanceObserver` supports `mark`, `measure` and `navigation` (the last
+  with `type` and `buffered` only); other types are ignored, as in Chromium
+  (which prints a console warning; swb logs at debug level). `entryTypes`
+  replaces the types, `type` adds one, the two forms do not mix (an
+  `InvalidModificationError`, and `disconnect()` does not reset that: measured),
+  `buffered` queues the entries that exist. A new entry is queued at each
+  observer that observes its type; the delivery is one task ("queue a
+  PerformanceObserver task", `Task::PerformanceObservers`) in the order of
+  the first `observe`, with a microtask checkpoint after each callback;
+  measured: the callback runs after the microtasks of the calling script and
+  before a `setTimeout(f, 0)` that the script set later, with `this` the
+  observer and the arguments `(list, observer, { droppedEntriesCount: 0 })`.
+  A queue holds 131,072 entries.
+- **`crypto`** (`crypto.rs`). `getRandomValues` takes integer typed arrays
+  (`DataView` and float arrays: `TypeMismatchError` with the type's name), at
+  most 65,536 bytes (`QuotaExceededError` with the length in the message),
+  no resizable buffer; a detached buffer gives a view of length 0.
+  `randomUUID` makes a version 4 UUID from 16 random bytes. The source is the
+  operating system's (`getrandom`). `randomUUID` is not hidden on an insecure
+  origin (swb has no secure-context concept; Chromium hides it there). No
+  `subtle`.
+- **`atob` and `btoa`** (`base64.rs`): the forgiving-base64 decode of the
+  Infra Standard and the encode of a binary string; Chromium's words for the
+  `InvalidCharacterError`, and a character above U+00FF in the input of `atob`
+  has its own message.
+- **`TextEncoder` and `TextDecoder`** (`text_codec.rs`). The encoder makes
+  UTF-8 (a lone surrogate becomes U+FFFD, as the conversion of `USVString`
+  does). The decoder is `encoding_rs`' decoder (the labels of the Encoding
+  Standard; `replacement` and its labels, and an unknown one, are a
+  `RangeError`; `encoding` is the lower-case name); `stream` carries the state
+  to the next call; the BOM is removed once unless `ignoreBOM`; `fatal` throws
+  a `TypeError` and the next call starts again. A call takes at most 64 MiB of
+  input (a `RangeError`; Chromium decodes 300 MiB, measured): the decoder works
+  in chunks of 1 MiB, but the result is one string on the heap.
+- **Idle callbacks** (`idle_callbacks.rs`, `page/idle.rs`; section 7, step 4).
+  See the architecture document for the engine side. Measured: handles count
+  from 1; the callbacks of a period run in the order of their handles after the
+  timers and frames that are due; a callback requested inside a period waits
+  for the next one; `timeout` is converted as an unsigned long (so `-1` is
+  4,294,967,295 ms, `"x"` is 0 and 0 means none) and queues a task
+  (`Task::IdleTimeout`) that runs the callback with `didTimeout` true and
+  `timeRemaining()` 0; the task is removed when the callback runs or is
+  canceled. A loop of `requestIdleCallback` in its callback runs 20 times a
+  second. In virtual time `timeRemaining()` charges 0.1 ms of page time at
+  each call (never past the deadline), so a loop on it ends and a headless run
+  is the same each time. Order against `requestAnimationFrame` in one script:
+  Chromium varies between runs (idle first or frame first); swb runs the frame
+  first.
+- **`document.hidden`** is false and `visibilityState` `"visible"` for the
+  window's document; a document without a browsing context (`DOMParser`,
+  `createHTMLDocument`) is hidden, as in Chromium (measured). `visibilitychange`
+  is never fired by the engine. Backlog: the GUI should tell the page when the
+  window is minimized or the tab is hidden (`hidden` true, `visibilitychange`
+  at the document, then `pagehide`-like state saving by pages).
+- **Departures** (all in the Rust tests with the reason): no `visibility-state`
+  entry (Chromium 148 adds one to the timeline) and no `resource` entries;
+  `supportedEntryTypes` is `["mark","measure","navigation"]` and a new frozen
+  array at each read (Chromium: one array); the navigation entry has 39 keys in
+  `toJSON` where Chromium has 47 (no `activationStart`, `notRestoredReasons`,
+  `confidence`, `serverTiming` and the four worker router members); no phases of
+  the request (0 where Chromium has small positive times); no `unloadEvent*`
+  times (Chromium shows the unload of the blank page that precedes a `file:`
+  document); no `performance.eventCounts`, `memory`, `interactionCount` and
+  `onresourcetimingbufferfull`; `performance.now()` has exact tenths (Chromium's
+  values carry floating point noise below 1e-6 ms); `navigator.webdriver`,
+  `vendor`, `userAgent`, `hardwareConcurrency` as above; the 64 MiB limit of
+  `decode`; no `crypto.subtle`; no `webkitHidden` and `webkitVisibilityState`.
+- **Not done / backlog:** `navigator.plugins`, `mimeTypes`, `clientInformation`;
+  resource entries and `PerformanceResourceTiming` of subresources; the Event
+  Timing, Paint Timing and Long Tasks entry types; `PerformanceObserver` with
+  `durationThreshold`; `visibilitychange` from the GUI; `TextDecoderStream` and
+  `TextEncoderStream` (no streams); the secure-context rule for `randomUUID`.
+
 ### 14. Frames and media: out of scope
 
 M8 does not render `iframe`, `frame` or `object` documents and runs no
@@ -3089,6 +3229,10 @@ Per document, all settings with these defaults:
 | Structured clone (feature 8a1): nesting depth, items, bytes of strings and buffers | 4,096, 4,194,304, 512 MiB | `RangeError` (depth) or `RangeError` "The value is too large to clone." |
 | State of one history entry (feature 8a1) | 4 MiB (the history keeps 50 entries) | `DataCloneError` |
 | Traversals of the session history that wait (`back()`, `forward()`, `go()`; feature 8a1) | 64 per task and 64 in the page's queue; one `go(0)` per task | later calls are dropped |
+| Marks and measures in the performance entry buffer (feature 8a2) | 131,072 | later entries are made and returned but not kept; one warning |
+| Entries that wait in the queue of one `PerformanceObserver` (feature 8a2) | 131,072 | later entries are not queued for that observer |
+| Idle callbacks that wait (feature 8a2) | 1,048,576 | the task ends (termination, warning) |
+| Input bytes of one `TextDecoder.decode` call (feature 8a2) | 64 MiB | `RangeError` |
 
 The budget of long tasks (feature 5b): the time limit of a task and the
 stop after three terminations do not bound a page of many scripts that

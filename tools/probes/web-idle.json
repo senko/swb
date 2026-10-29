@@ -1,0 +1,120 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "idle-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof requestIdleCallback, requestIdleCallback.length, cancelIdleCallback.length, requestIdleCallback.name, typeof IdleDeadline, Object.getOwnPropertyNames(IdleDeadline.prototype).sort().join(), Object.getOwnPropertyDescriptor(window, 'requestIdleCallback').enumerable, Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback').writable]"
+    },
+    {
+     "js": "E(() => requestIdleCallback())"
+    },
+    {
+     "js": "E(() => requestIdleCallback(5))"
+    },
+    {
+     "js": "E(() => requestIdleCallback({}))"
+    },
+    {
+     "js": "E(() => requestIdleCallback(() => {}, 5))"
+    },
+    {
+     "js": "E(() => typeof requestIdleCallback(() => {}, { timeout: -1 }))"
+    },
+    {
+     "js": "E(() => typeof requestIdleCallback(() => {}, { timeout: 'x' }))"
+    },
+    {
+     "js": "E(() => typeof requestIdleCallback(() => {}, null))"
+    },
+    {
+     "js": "E(() => new IdleDeadline())"
+    },
+    {
+     "js": "E(() => cancelIdleCallback())"
+    },
+    {
+     "js": "E(() => cancelIdleCallback(12345))"
+    },
+    {
+     "js": "E(() => cancelIdleCallback('x'))"
+    },
+    {
+     "js": "E(() => cancelIdleCallback(-1))"
+    },
+    {
+     "js": "E(() => { const a = requestIdleCallback(() => {}); const b = requestIdleCallback(() => {}); cancelIdleCallback(a); cancelIdleCallback(b); return [typeof a, b - a, requestIdleCallback(() => {}) - b, a > 0]; })"
+    },
+    {
+     "js": "E(() => requestIdleCallback.call({}, () => {}) > 0)"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(IdleDeadline.prototype, 'didTimeout').get.call({}))"
+    }
+   ]
+  },
+  {
+   "name": "idle-run",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { log(['idle', d.constructor.name, d.didTimeout, typeof d.timeRemaining(), d.timeRemaining() <= 50, d.timeRemaining() > 0, Object.getOwnPropertyNames(d).length, Object.prototype.toString.call(d)]); }); log('sync'); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback(() => log('idle')); setTimeout(() => log('t0'), 0); Promise.resolve().then(() => log('micro')); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const h = requestIdleCallback(() => log('idle')); cancelIdleCallback(h); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback(() => log('a')); requestIdleCallback(() => log('b')); requestIdleCallback(() => { log('c'); requestIdleCallback(() => log('d')); }); await wait(300); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { log(['tr', d.timeRemaining() > 0, d.timeRemaining() <= 50, d.didTimeout]); }, { timeout: 20 }); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback(function () { log(['this', String(this === window), arguments.length]); }); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback(function () { 'use strict'; log(['strict this', String(this)]); }); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const errors = []; const h = (e) => errors.push(e.message); addEventListener('error', h); requestIdleCallback(() => { throw new Error('boom'); }); requestIdleCallback(() => log('after')); await wait(250); removeEventListener('error', h); return JSON.stringify([errors, L]); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const hs = []; for (let i = 0; i < 3; i++) hs.push(requestIdleCallback(() => log('cb' + i))); cancelIdleCallback(hs[1]); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const hs = []; hs.push(requestIdleCallback(() => { log('first'); cancelIdleCallback(hs[1]); })); hs.push(requestIdleCallback(() => log('second'))); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { let n = 0; while (d.timeRemaining() > 0 && n < 1e7) n++; log(['spin', n < 1e7]); }); await wait(300); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { const a = d.timeRemaining(); const b = d.timeRemaining(); log([a >= b, a <= 50, b >= 0]); }); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; let n = 0; let stop = false; function f() { n++; if (!stop) requestIdleCallback(f); } f(); await wait(1000); stop = true; return [n > 5, n <= 100]; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; let n = 0; function f(d) { n++; log(Math.round(d.timeRemaining())); if (n < 4) requestIdleCallback(f); } requestIdleCallback(f); await wait(500); return JSON.stringify(L.map((x) => (x > 40 ? 'long' : x > 0 ? 'short' : 'zero'))); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; let f = 0; let stop = false; function loop() { f++; if (!stop) requestAnimationFrame(loop); } loop(); let ic = 0; function idle(d) { ic++; log(Math.round(d.timeRemaining())); if (!stop) requestIdleCallback(idle); } requestIdleCallback(idle); await wait(500); stop = true; await wait(100); return [f > 20, ic > 5, L.length > 5, L.every((x) => x >= 0 && x <= 50)]; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { log(['to', d.didTimeout]); }, { timeout: 5000 }); await wait(250); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; requestIdleCallback((d) => { log(['t0', d.didTimeout]); }, { timeout: 0 }); await wait(250); return JSON.stringify(L); })()"
+    }
+   ]
+  }
+ ]
+}

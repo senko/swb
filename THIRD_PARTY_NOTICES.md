@@ -77,15 +77,18 @@ https://creativecommons.org/licenses/by/4.0/. The changes are swb's.
 ## WHATWG DOM, HTML and Web IDL Standards: IDL (BSD-3-Clause)
 
 `crates/web/idl/dom.idl`, `crates/web/idl/html.idl`,
-`crates/web/idl/url.idl` and
+`crates/web/idl/url.idl`, `crates/web/idl/encoding.idl` and
 `crates/web/idl/webidl.idl` contain IDL blocks copied from the DOM Living
 Standard (https://dom.spec.whatwg.org/) and the Web IDL Living Standard
 (https://webidl.spec.whatwg.org/), both last updated 19 October 2026, the
 URL Living Standard (https://url.spec.whatwg.org/, the `URL` and
-`URLSearchParams` interfaces, copied on 29 October 2026) and
+`URLSearchParams` interfaces, copied on 29 October 2026), the Encoding
+Standard (https://encoding.spec.whatwg.org/, `TextDecoder` and
+`TextEncoder`, copied on 29 October 2026) and
 the HTML Living Standard (https://html.spec.whatwg.org/), copied on 23
 and 24 October 2026 (`Location`, `History`, `PopStateEvent` and
-`structuredClone` on 29 October 2026), cut by swb to the members that it implements (the
+`structuredClone`, and `Navigator` with its mixins, `atob` and `btoa`, on 29
+October 2026), cut by swb to the members that it implements (the
 headers of the files say what was cut; `html.idl` adds one typedef of
 swb's own). The standards are licensed under CC BY 4.0, and "to the extent portions of it are
 incorporated into source code, such portions in the source code are
@@ -250,11 +253,41 @@ text is in the next section.
 > Copyright © World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 
+## W3C Performance, Scheduling, Visibility, Crypto, WebDriver and DNT specifications: IDL (W3C Software and Document License)
+
+Eight files in `crates/web/idl/` (feature 8a2 of M8) contain IDL blocks, copied
+on 29 October 2026 and cut by swb to the members that it implements (the
+headers of the files say what was cut and changed):
+`performance-timeline.idl` (Performance Timeline,
+https://w3c.github.io/performance-timeline/), `user-timing.idl` (User Timing,
+https://w3c.github.io/user-timing/), `navigation-timing.idl` (Navigation
+Timing Level 2, https://w3c.github.io/navigation-timing/),
+`resource-timing.idl` (Resource Timing,
+https://w3c.github.io/resource-timing/), `requestidlecallback.idl`
+(Cooperative Scheduling of Background Tasks,
+https://w3c.github.io/requestidlecallback/), `page-visibility.idl` (Page
+Visibility Level 2, https://w3c.github.io/page-visibility/), `webcrypto.idl`
+(Web Cryptography Level 2, https://w3c.github.io/webcrypto/) and
+`navigator-extensions.idl` (the `maxTouchPoints` attribute of Pointer Events,
+https://www.w3.org/TR/pointerevents/; the `webdriver` attribute of WebDriver,
+https://w3c.github.io/webdriver/; the `doNotTrack` attribute of Tracking
+Preference Expression, https://www.w3.org/TR/tracking-dnt/). The license text
+is in the next section.
+
+> This software or document includes material copied from or derived
+> from Performance Timeline, User Timing, Navigation Timing Level 2, Resource
+> Timing, Cooperative Scheduling of Background Tasks, Page Visibility Level 2,
+> Web Cryptography Level 2, Pointer Events, WebDriver and Tracking Preference
+> Expression (DNT), all at https://www.w3.org/ and https://w3c.github.io/.
+> Copyright © 2026 World Wide Web Consortium.
+> https://www.w3.org/copyright/software-license-2023/
+
 ## W3C High Resolution Time: IDL (W3C Software and Document License)
 
 `crates/web/idl/hr-time.idl` contains the typedef `DOMHighResTimeStamp`
-from High Resolution Time (W3C Editor's Draft of 1 September 2026,
-https://w3c.github.io/hr-time/); swb cut the file to this typedef. The
+and the `Performance` interface (`now`, `timeOrigin`, `toJSON`) from High
+Resolution Time (W3C Editor's Draft of 1 September 2026,
+https://w3c.github.io/hr-time/); swb cut the file to these. The
 owner allowed this license for IDL data files (ADR 0003, 2026-10-22).
 
 > This software or document includes material copied from or derived

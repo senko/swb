@@ -12,6 +12,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+encoding_rs.workspace = true
+getrandom.workspace = true
 log.workspace = true
 swb-css.workspace = true
 swb-dom.workspace = true

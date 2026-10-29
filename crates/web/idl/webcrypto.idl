@@ -1,0 +1,24 @@
+// Source: Web Cryptography Level 2, W3C Editor's Draft,
+// https://w3c.github.io/webcrypto/, copied on 2026-10-29.
+//
+// This file includes material copied from Web Cryptography Level 2,
+// https://w3c.github.io/webcrypto/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to `Crypto` without `subtle` (no SubtleCrypto, no
+// CryptoKey: feature 8a2 of M8) and to the `crypto` attribute of
+// WindowOrWorkerGlobalScope. `randomUUID` is not `[SecureContext]` here:
+// swb has no secure-context concept, and Chromium hides it on an insecure
+// origin that is not local.
+
+[Exposed=Window]
+interface Crypto {
+  ArrayBufferView getRandomValues(ArrayBufferView array);
+  DOMString randomUUID();
+};
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  [SameObject] readonly attribute Crypto crypto;
+};

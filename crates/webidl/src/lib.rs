@@ -397,6 +397,29 @@ mod tests {
     }
 
     #[test]
+    fn static_attributes_buffer_types_and_frozen_arrays() {
+        let idl = "[Exposed=Window] interface S {\n  static readonly attribute FrozenArray<DOMString> types;\n  readonly attribute FrozenArray<DOMString> languages;\n  undefined fill(ArrayBufferView array, [AllowShared] Uint8Array bytes, optional AllowSharedBufferSource source);\n};";
+        let s = file(idl, "s.rs");
+        // A static attribute has no `this`; its accessor is on the
+        // interface object.
+        assert!(s.contains("    fn types(cx: &mut b::Cx<'_>) -> b::Result<Vec<String>>;"));
+        assert!(s.contains(
+            "rt.define_accessor(realm, interface.object, \"types\", (Some(get_types::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;"
+        ));
+        assert!(s.contains("b::to_js::frozen_sequence(rt,"));
+        // The buffer source types are objects with a check that names them.
+        assert!(s.contains("array: swb_js::Gc<swb_js::Object>"));
+        assert!(s.contains("b::convert::buffer(rt, v, \"ArrayBufferView\")"));
+        assert!(s.contains("b::convert::buffer(rt, v, \"Uint8Array\")"));
+        assert!(s.contains("b::convert::buffer(rt, v, \"AllowSharedBufferSource\")"));
+        // A writable static attribute is not generated.
+        assert!(
+            error("[Exposed=Window] interface S { static attribute long x; };")
+                .contains("only readonly static attributes are generated")
+        );
+    }
+
+    #[test]
     fn a_trait_without_items_has_a_blanket_implementation() {
         let idl = "[Exposed=Window] interface Empty {};\n[Exposed=Window] interface Full { readonly attribute long x; };";
         assert!(file(idl, "empty.rs").contains("impl<T: b::Host> EmptyImpl for T {}"));

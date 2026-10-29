@@ -1,0 +1,606 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "structure",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof Performance, typeof PerformanceEntry, typeof PerformanceMark, typeof PerformanceMeasure, typeof PerformanceObserver, typeof PerformanceObserverEntryList, typeof PerformanceTiming, typeof PerformanceNavigation, typeof PerformanceNavigationTiming, typeof PerformanceResourceTiming]"
+    },
+    {
+     "js": "[Object.getPrototypeOf(PerformanceMark).name, Object.getPrototypeOf(PerformanceMeasure).name, Object.getPrototypeOf(PerformanceNavigationTiming).name, Object.getPrototypeOf(PerformanceResourceTiming).name, Object.getPrototypeOf(Performance).name]"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(PerformanceEntry.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceMark.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceMeasure.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceObserver.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceObserverEntryList.prototype).sort().join()]"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(PerformanceTiming.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceNavigation.prototype).sort().join()]"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(Performance.prototype).filter((n) => !['memory', 'eventCounts', 'interactionCount', 'onresourcetimingbufferfull'].includes(n)).sort().join()"
+    },
+    {
+     "js": "E(() => new PerformanceEntry())"
+    },
+    {
+     "js": "E(() => new PerformanceMeasure())"
+    },
+    {
+     "js": "E(() => new Performance())"
+    },
+    {
+     "js": "E(() => new PerformanceTiming())"
+    },
+    {
+     "js": "E(() => new PerformanceNavigation())"
+    },
+    {
+     "js": "E(() => new PerformanceNavigationTiming())"
+    },
+    {
+     "js": "E(() => new PerformanceObserverEntryList())"
+    },
+    {
+     "js": "E(() => PerformanceMark('x'))"
+    },
+    {
+     "js": "[String(performance), String(PerformanceMark.prototype), String(performance.timing), String(performance.navigation), Object.prototype.toString.call(new PerformanceObserver(() => {}))]"
+    },
+    {
+     "js": "[PerformanceMark.length, PerformanceMark.name, PerformanceObserver.length, PerformanceNavigation.TYPE_NAVIGATE, PerformanceNavigation.TYPE_RELOAD, PerformanceNavigation.TYPE_BACK_FORWARD, PerformanceNavigation.TYPE_RESERVED, performance.navigation.TYPE_RELOAD]"
+    },
+    {
+     "js": "[performance instanceof EventTarget, typeof Object.getOwnPropertyDescriptor(window, 'performance').set, Object.getOwnPropertyDescriptor(window, 'performance').enumerable, Object.getOwnPropertyDescriptor(Performance.prototype, 'timing').get.name, Object.getOwnPropertyDescriptor(Performance.prototype, 'timing').set]"
+    },
+    {
+     "js": "[performance.timing === performance.timing, performance.navigation === performance.navigation, performance === window.performance]"
+    },
+    {
+     "js": "E(() => { performance.timing = 5; return typeof performance.timing; })"
+    },
+    {
+     "js": "E(() => performance.now.call({}))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(PerformanceEntry.prototype, 'name').get.call({}))"
+    },
+    {
+     "js": "E(() => PerformanceEntry.prototype.toJSON.call({}))"
+    }
+   ]
+  },
+  {
+   "name": "now",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const a = performance.now(); const b = performance.now(); return [typeof a, b >= a, a >= 0, performance.now.length, typeof performance.timeOrigin, performance.timeOrigin > 1e12]; })()"
+    },
+    {
+     "js": "Math.abs(performance.timeOrigin + performance.now() - Date.now()) < 5000"
+    },
+    {
+     "js": "Object.keys(performance.toJSON()).join()"
+    },
+    {
+     "js": "(() => { const j = performance.toJSON(); return [typeof j.timeOrigin, j.timing === performance.timing, j.navigation === performance.navigation, JSON.stringify(j).includes('navigationStart')]; })()"
+    },
+    {
+     "js": "(() => { const t = performance.timing; return [t.navigationStart > 1e12, t.navigationStart === Math.floor(performance.timeOrigin), t.fetchStart >= t.navigationStart, t.responseEnd >= t.fetchStart, t.domLoading >= t.navigationStart, t.domInteractive >= t.domLoading, t.domComplete >= t.domInteractive, t.loadEventEnd >= t.loadEventStart, t.loadEventStart >= t.domContentLoadedEventEnd, t.redirectStart, t.redirectEnd, t.secureConnectionStart]; })()"
+    },
+    {
+     "js": "Object.keys(performance.timing.toJSON()).sort().join()"
+    },
+    {
+     "js": "Object.entries(performance.timing.toJSON()).filter(([k, v]) => v === 0 && !k.startsWith('unload')).map(([k]) => k).sort().join()"
+    },
+    {
+     "js": "(() => { const t = performance.timing; return Object.keys(Object.getPrototypeOf(t)).length; })()"
+    },
+    {
+     "js": "[performance.navigation.type, performance.navigation.redirectCount, Object.keys(performance.navigation.toJSON()).join(), JSON.stringify(performance.navigation)]"
+    },
+    {
+     "js": "E(() => performance.setResourceTimingBufferSize())"
+    },
+    {
+     "js": "[performance.setResourceTimingBufferSize(10), performance.clearResourceTimings(), performance.getEntriesByType('resource').length]"
+    }
+   ]
+  },
+  {
+   "name": "navigation-entry",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const e = performance.getEntriesByType('navigation'); return [e.length, e[0].constructor.name, e[0] === performance.getEntriesByType('navigation')[0], e[0] === performance.getEntries()[0], performance.getEntriesByName(location.href)[0] === e[0], performance.getEntriesByName(location.href, 'navigation').length, performance.getEntriesByName(location.href, 'mark').length]; })()"
+    },
+    {
+     "js": "(() => { const n = performance.getEntriesByType('navigation')[0]; return [n.entryType, n.name === location.href, n.startTime, n.type, n.redirectCount, n.initiatorType, n.responseStatus, n.transferSize > 0, n.encodedBodySize, n.decodedBodySize, n.renderBlockingStatus, n.contentType, n.workerStart, n.criticalCHRestart, n.deliveryType, n.contentEncoding, n.redirectStart, n.redirectEnd]; })()"
+    },
+    {
+     "js": "(() => { const n = performance.getEntriesByType('navigation')[0]; return [n.domainLookupStart >= n.fetchStart, n.domainLookupEnd >= n.domainLookupStart, n.connectStart >= n.domainLookupEnd, n.connectEnd >= n.connectStart, n.secureConnectionStart, n.requestStart >= n.fetchStart, n.responseStart >= n.requestStart, n.responseEnd >= n.responseStart]; })()"
+    },
+    {
+     "js": "(() => { const n = performance.getEntriesByType('navigation')[0]; return [n.domInteractive >= 0, n.domContentLoadedEventStart >= n.domInteractive, n.domContentLoadedEventEnd >= n.domContentLoadedEventStart, n.domComplete >= n.domContentLoadedEventEnd, n.loadEventStart >= n.domComplete, n.loadEventEnd >= n.loadEventStart, n.duration === n.loadEventEnd, n.duration >= 0]; })()"
+    },
+    {
+     "js": "Object.keys(performance.getEntriesByType('navigation')[0].toJSON()).slice(0, 4).join()"
+    },
+    {
+     "js": "(() => { const j = performance.getEntriesByType('navigation')[0].toJSON(); return [j.entryType, j.name === location.href, j.type, j.duration >= 0, 'domInteractive' in j, 'loadEventEnd' in j, 'transferSize' in j]; })()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(PerformanceNavigationTiming.prototype).filter((n) => !['activationStart', 'confidence', 'notRestoredReasons'].includes(n)).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(PerformanceResourceTiming.prototype).filter((n) => !/^worker(Router|Cache|Matched|Final)|serverTiming/.test(n)).sort().join()"
+    },
+    {
+     "js": "performance.getEntries().map((e) => e.entryType).join()"
+    }
+   ]
+  },
+  {
+   "name": "navigation-departures",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const t = performance.timing; return [t.unloadEventStart === 0, t.unloadEventEnd === 0]; })()"
+    },
+    {
+     "js": "(() => { const n = performance.getEntriesByType('navigation')[0]; return [n.unloadEventStart === 0, n.unloadEventEnd === 0, n.responseEnd > 0, n.nextHopProtocol === '', typeof n.activationStart, typeof n.notRestoredReasons, typeof n.confidence, typeof n.serverTiming]; })()"
+    },
+    {
+     "js": "[typeof performance.eventCounts, typeof performance.memory, typeof performance.interactionCount, typeof performance.onresourcetimingbufferfull]"
+    },
+    {
+     "js": "JSON.stringify(PerformanceObserver.supportedEntryTypes)"
+    },
+    {
+     "js": "PerformanceObserver.supportedEntryTypes === PerformanceObserver.supportedEntryTypes"
+    },
+    {
+     "js": "Object.keys(performance.getEntriesByType('navigation')[0].toJSON()).length"
+    }
+   ]
+  },
+  {
+   "name": "marks",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const m = performance.mark('a'); return [m instanceof PerformanceMark, m instanceof PerformanceEntry, m.name, m.entryType, m.duration, typeof m.startTime, m.startTime >= 0, m.detail, JSON.stringify(Object.keys(m.toJSON())), Object.getOwnPropertyNames(m).length, performance.getEntriesByName('a')[0] === m, performance.getEntriesByName('a').length]; })()"
+    },
+    {
+     "js": "(() => { const m = performance.mark('b', { detail: { x: 1 }, startTime: 5 }); return [m.startTime, JSON.stringify(m.detail), m.detail === m.detail, JSON.stringify(m)]; })()"
+    },
+    {
+     "js": "E(() => performance.mark('c', { startTime: -1 }))"
+    },
+    {
+     "js": "E(() => performance.mark('c', { startTime: NaN }))"
+    },
+    {
+     "js": "E(() => performance.mark('c', { startTime: 'x' }))"
+    },
+    {
+     "js": "E(() => performance.mark())"
+    },
+    {
+     "js": "E(() => performance.mark('navigationStart'))"
+    },
+    {
+     "js": "E(() => performance.mark('loadEventEnd'))"
+    },
+    {
+     "js": "E(() => performance.mark('', { detail: function () {} }).name)"
+    },
+    {
+     "js": "E(() => performance.mark('x', 5))"
+    },
+    {
+     "js": "E(() => performance.mark('x', null).startTime >= 0)"
+    },
+    {
+     "js": "E(() => performance.mark('x2', undefined).startTime >= 0)"
+    },
+    {
+     "js": "E(() => performance.mark('u', { detail: undefined }).detail)"
+    },
+    {
+     "js": "E(() => performance.mark('u2').detail)"
+    },
+    {
+     "js": "E(() => performance.mark('u3', { detail: null }).detail)"
+    },
+    {
+     "js": "E(() => Object.prototype.toString.call(performance.mark('u4', { detail: new Date(0) }).detail))"
+    },
+    {
+     "js": "E(() => performance.mark('u5', { detail: { f() {} } }))"
+    },
+    {
+     "js": "E(() => { const d = { a: [1, { b: 2 }] }; const m = performance.mark('u6', { detail: d }); return [m.detail !== d, JSON.stringify(m.detail)]; })"
+    },
+    {
+     "js": "E(() => { const m = new PerformanceMark('ctor', { startTime: 7, detail: 'd' }); return [m.name, m.startTime, m.detail, performance.getEntriesByName('ctor').length, m.entryType, m instanceof PerformanceMark]; })"
+    },
+    {
+     "js": "E(() => new PerformanceMark())"
+    },
+    {
+     "js": "E(() => new PerformanceMark('navigationStart'))"
+    },
+    {
+     "js": "E(() => new PerformanceMark('n', { startTime: -1 }))"
+    },
+    {
+     "js": "E(() => { class M extends PerformanceMark {} const m = new M('sub'); return [m instanceof M, m.name, Object.getPrototypeOf(m) === M.prototype]; })"
+    },
+    {
+     "js": "E(() => performance.mark('nn', { startTime: 0 }).startTime)"
+    },
+    {
+     "js": "E(() => performance.mark('nn', { startTime: 1e9 }).startTime)"
+    },
+    {
+     "js": "E(() => performance.mark(undefined).name)"
+    },
+    {
+     "js": "E(() => performance.mark(null).name)"
+    },
+    {
+     "js": "E(() => performance.mark(12).name)"
+    },
+    {
+     "js": "E(() => performance.mark({ toString() { return 'obj'; } }).name)"
+    },
+    {
+     "js": "E(() => performance.mark('s\\ud800').name.length)"
+    },
+    {
+     "js": "E(() => [Object.getOwnPropertyDescriptor(PerformanceEntry.prototype, 'name').get.call(performance.mark('de')), Object.getOwnPropertyDescriptor(PerformanceMark.prototype, 'detail').get.call(performance.mark('de2'))])"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(PerformanceMark.prototype, 'detail').get.call(performance.measure('de3')))"
+    },
+    {
+     "js": "E(() => { const m = performance.mark('tj', { detail: { a: 1 }, startTime: 3 }); const j = m.toJSON(); return [JSON.stringify(j), Object.keys(j).join()]; })"
+    }
+   ]
+  },
+  {
+   "name": "measures",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { performance.mark('a', { startTime: 10 }); performance.mark('b', { startTime: 4 }); return 'ok'; })"
+    },
+    {
+     "js": "(() => { const m = performance.measure('m1', 'a'); return [m instanceof PerformanceMeasure, m.entryType, m.name, m.startTime, typeof m.duration, JSON.stringify(m.detail), Object.getPrototypeOf(m) === PerformanceMeasure.prototype]; })()"
+    },
+    {
+     "js": "E(() => performance.measure('m2', 'nomark'))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', 'a', 'nomark'))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { start: 'nomark' }))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { end: 'nomark' }))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { start: 1, end: 2, duration: 3 }))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { duration: 3 }))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { detail: 1 }))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', {}, 'a').name)"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { start: 'a' }, 'a'))"
+    },
+    {
+     "js": "E(() => performance.measure('m2', { end: 1 }, 'a'))"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m3', { start: 1, duration: 3 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m4', { end: 10, duration: 3 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m5', { start: 10, end: 4 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6', 'a', 'b'); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6b', { start: 'a', end: 'b' }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6c', { start: 'b', end: 7.5 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6d', { start: 2, end: 'a' }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6e', { start: 'a', duration: 2 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6f', { end: 'a', duration: 2 }); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6g', 'a', undefined); return [m.startTime, typeof m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6h', undefined, 'a'); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m6i', null, 'a'); return [m.startTime, m.duration]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m7', 'navigationStart'); return [m.startTime, m.duration >= 0]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m8', 'fetchStart', 'responseEnd'); return [m.startTime, m.duration >= 0]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m8b', 'domLoading'); return [m.startTime >= 0, m.duration >= 0]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m8c', 'domInteractive', 'domComplete'); return [m.startTime >= 0, m.duration >= 0]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m10', { start: 2, detail: [1] }); return [m.startTime, JSON.stringify(m.detail), m.detail === m.detail]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m11', undefined, undefined); return [m.startTime, m.duration >= 0]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m12', null); return [m.startTime]; })"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m12b'); return [m.startTime, m.duration >= 0, m.detail]; })"
+    },
+    {
+     "js": "E(() => performance.measure())"
+    },
+    {
+     "js": "E(() => performance.measure('m13', 5))"
+    },
+    {
+     "js": "E(() => performance.measure('m13', { start: 'a' }).startTime)"
+    },
+    {
+     "js": "E(() => performance.measure('m13', { start: -1 }))"
+    },
+    {
+     "js": "E(() => performance.measure('m14', { start: 3, detail: function () {} }))"
+    },
+    {
+     "js": "E(() => { const m = performance.measure('m15', { start: 2, end: 5, detail: { k: 'v' } }); return [m.startTime, m.duration, JSON.stringify(m.detail), JSON.stringify(m.toJSON())]; })"
+    },
+    {
+     "js": "E(() => { const t = { get start() { L.push('start'); return 1; }, get end() { L.push('end'); return 2; }, get duration() { L.push('duration'); return undefined; }, get detail() { L.push('detail'); return 0; } }; L.length = 0; performance.measure('m16', t); return JSON.stringify(L); })"
+    }
+   ]
+  },
+  {
+   "name": "entries",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { performance.mark('p1', { startTime: 50 }); performance.measure('p2', { start: 50, duration: 0 }); performance.mark('p3', { startTime: 50 }); performance.measure('p4', { start: 50, duration: 3 }); return performance.getEntries().filter((e) => e.startTime === 50).map((e) => e.name).join(); })"
+    },
+    {
+     "js": "E(() => { performance.mark('s', { startTime: 30 }); performance.mark('s2', { startTime: 10 }); performance.measure('s3', { start: 20, duration: 1 }); return performance.getEntries().filter((e) => ['s', 's2', 's3'].includes(e.name)).map((e) => e.name).join(); })"
+    },
+    {
+     "js": "performance.getEntriesByType('mark').map((e) => e.name).join()"
+    },
+    {
+     "js": "performance.getEntriesByType('measure').map((e) => e.name).join()"
+    },
+    {
+     "js": "performance.getEntries().filter((e) => e.entryType === 'mark' || e.entryType === 'measure').map((e) => e.entryType + ':' + e.name).join()"
+    },
+    {
+     "js": "E(() => [performance.getEntriesByName('p1', 'mark').length, performance.getEntriesByName('p1', 'measure').length, performance.getEntriesByName('p1', 'x').length, performance.getEntriesByType('nothing').length, performance.getEntriesByName('nothing').length])"
+    },
+    {
+     "js": "E(() => performance.getEntriesByName())"
+    },
+    {
+     "js": "E(() => performance.getEntriesByType())"
+    },
+    {
+     "js": "E(() => performance.getEntriesByName('p2', undefined).length)"
+    },
+    {
+     "js": "E(() => performance.getEntriesByName('p2', null).length)"
+    },
+    {
+     "js": "E(() => performance.getEntriesByName(undefined).length)"
+    },
+    {
+     "js": "E(() => { const a = performance.getEntriesByType('mark'); const b = performance.getEntriesByType('mark'); return [a !== b, Array.isArray(a), a[0] === b[0]]; })"
+    },
+    {
+     "js": "E(() => { performance.clearMarks('p1'); return performance.getEntriesByType('mark').map((e) => e.name).join(); })"
+    },
+    {
+     "js": "E(() => { performance.clearMarks('nothing'); return performance.getEntriesByType('mark').length; })"
+    },
+    {
+     "js": "E(() => { performance.clearMarks(); return [performance.getEntriesByType('mark').length, performance.getEntriesByType('measure').length]; })"
+    },
+    {
+     "js": "E(() => { performance.clearMeasures('p2'); const n = performance.getEntriesByType('measure').filter((e) => e.name === 'p2').length; return n; })"
+    },
+    {
+     "js": "E(() => { performance.clearMeasures(); return performance.getEntriesByType('measure').length; })"
+    },
+    {
+     "js": "E(() => { performance.mark('c1'); performance.clearMarks(undefined); return performance.getEntriesByType('mark').length; })"
+    },
+    {
+     "js": "E(() => { performance.mark('c2'); performance.clearMarks(null); return performance.getEntriesByType('mark').length; })"
+    },
+    {
+     "js": "E(() => [performance.clearMarks(), performance.clearMeasures(), performance.clearMarks.length, performance.clearMeasures.length, performance.getEntries.length, performance.getEntriesByName.length, performance.getEntriesByType.length, performance.mark.length, performance.measure.length])"
+    },
+    {
+     "js": "E(() => { for (let i = 0; i < 1000; i++) performance.mark('bulk' + i, { startTime: 1000 - i }); const e = performance.getEntriesByType('mark'); return [e.length, e[0].name, e[999].name]; })"
+    },
+    {
+     "js": "E(() => { const e = performance.getEntriesByType('mark'); return e.every((x, i) => i === 0 || e[i - 1].startTime <= x.startTime); })"
+    }
+   ]
+  },
+  {
+   "name": "observer",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof PerformanceObserver, PerformanceObserver.length, Object.getOwnPropertyNames(PerformanceObserver.prototype).sort().join(), Object.getOwnPropertyNames(PerformanceObserver).sort().join(), Object.isFrozen(PerformanceObserver.supportedEntryTypes), Object.getOwnPropertyDescriptor(PerformanceObserver, 'supportedEntryTypes').set, PerformanceObserver.supportedEntryTypes.includes('mark'), PerformanceObserver.supportedEntryTypes.includes('measure'), PerformanceObserver.supportedEntryTypes.includes('navigation')]"
+    },
+    {
+     "js": "E(() => new PerformanceObserver())"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(5))"
+    },
+    {
+     "js": "E(() => PerformanceObserver(() => {}))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver({ handleEvent() {} }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe())"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({}))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ entryTypes: [] }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ entryTypes: ['mark'], type: 'mark' }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ entryTypes: 'mark' }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ entryTypes: ['nothing'] }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ type: 'nothing' }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe({ type: 'mark', buffered: true }))"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).takeRecords().length)"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).disconnect())"
+    },
+    {
+     "js": "E(() => { const o = new PerformanceObserver(() => {}); o.observe({ type: 'mark' }); o.observe({ entryTypes: ['mark'] }); })"
+    },
+    {
+     "js": "E(() => { const o = new PerformanceObserver(() => {}); o.observe({ entryTypes: ['mark'] }); o.observe({ type: 'mark' }); })"
+    },
+    {
+     "js": "E(() => { const o = new PerformanceObserver(() => {}); o.observe({ type: 'mark' }); o.observe({ type: 'measure' }); })"
+    },
+    {
+     "js": "E(() => new PerformanceObserver(() => {}).observe.call({}, { type: 'mark' }))"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list, obs, opts) => { log([list.constructor.name, list.getEntries().length, list.getEntries().map((e) => e.name).join(), obs === o, typeof opts, JSON.stringify(opts), Object.getOwnPropertyNames(PerformanceObserverEntryList.prototype).sort().join()]); }); o.observe({ entryTypes: ['mark', 'measure'] }); performance.mark('o1'); performance.mark('o2'); log('sync'); await wait(0); log('after0'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver(function () { log(['this', this === o]); }); o.observe({ type: 'mark' }); performance.mark('t1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log(list.getEntries().map((e) => e.name).join()); }); o.observe({ entryTypes: ['mark'] }); performance.mark('p1x'); setTimeout(() => log('t0'), 0); Promise.resolve().then(() => log('micro')); await wait(100); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ type: 'mark', buffered: true }); log('sync'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ entryTypes: ['mark'], buffered: true }); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver(() => { log('cb'); }); o.observe({ type: 'mark' }); performance.mark('q1'); const r = o.takeRecords(); const r2 = o.takeRecords(); await wait(50); o.disconnect(); return JSON.stringify([r.map((e) => e.name), r2.length, L]); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver(() => { log('cb'); }); o.observe({ type: 'mark' }); performance.mark('r1'); o.disconnect(); await wait(50); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().map((e) => e.name).join()); }); o.observe({ type: 'mark' }); performance.mark('s1'); await wait(50); performance.mark('s2'); performance.measure('ignored', 's1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().map((e) => e.entryType + e.name).join()); }); o.observe({ type: 'mark' }); o.observe({ type: 'measure' }); performance.mark('t1'); performance.measure('t2', 't1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().map((e) => e.entryType + e.name).join()); }); o.observe({ entryTypes: ['mark'] }); o.observe({ entryTypes: ['measure'] }); performance.mark('t1'); performance.measure('t2', 't1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb1 ' + list.getEntries().map((e) => e.name).join()); }); const o2 = new PerformanceObserver((list) => { log('cb2 ' + list.getEntries().map((e) => e.name).join()); }); o.observe({ type: 'mark' }); o2.observe({ type: 'mark' }); performance.mark('v1'); await wait(50); o.disconnect(); o2.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver(() => { log('cb1'); throw new Error('boom'); }); o.observe({ type: 'mark' }); performance.mark('w1'); await wait(50); performance.mark('w2'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const errors = []; const h = (e) => errors.push(e.message); addEventListener('error', h); const o = new PerformanceObserver(() => { throw new Error('boom'); }); o.observe({ type: 'mark' }); performance.mark('w3'); await wait(50); o.disconnect(); removeEventListener('error', h); return JSON.stringify(errors); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; window.once = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().map((e) => e.name).join()); if (!window.once) { window.once = 1; performance.mark('x2'); } }); o.observe({ type: 'mark' }); performance.mark('x1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().map((e) => e.name).join()); }); o.observe({ type: 'mark' }); performance.mark('y1'); performance.clearMarks(); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { const a = list.getEntries(); log([a.length, list.getEntriesByType('mark').length, list.getEntriesByName('z1').length, list.getEntriesByName('z1', 'measure').length, a[0] === performance.getEntriesByName('z1')[0]]); }); o.observe({ type: 'mark' }); performance.mark('z1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log(list.getEntries().map((e) => e.name).join()); }); o.observe({ type: 'mark' }); performance.mark('k2', { startTime: 20 }); performance.mark('k1', { startTime: 10 }); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ type: 'mark' }); for (let i = 0; i < 3; i++) performance.mark('l' + i); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ type: 'navigation', buffered: true }); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ entryTypes: ['navigation'] }); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log('cb ' + list.getEntries().length); }); o.observe({ type: 'mark' }); o.observe({ type: 'mark', buffered: true }); await wait(50); o.disconnect(); return JSON.stringify(L.length > 0); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log(list.getEntries().length); }); o.observe({ type: 'mark' }); o.disconnect(); o.observe({ type: 'measure' }); performance.mark('d1'); performance.measure('d2', 'd1'); await wait(50); o.disconnect(); return JSON.stringify(L); })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new PerformanceObserver((list) => { log(list.getEntries().length); }); o.observe({ entryTypes: ['mark'] }); o.disconnect(); o.observe({ type: 'mark' }); return 'ok'; })()"
+    }
+   ]
+  }
+ ]
+}

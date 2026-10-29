@@ -33,6 +33,7 @@ mod events;
 mod forms;
 mod frame;
 mod history_api;
+mod idle;
 mod input;
 mod loading;
 mod pipeline;
@@ -205,6 +206,9 @@ struct PendingNavigation {
     initiator: Option<Origin>,
     /// True if the document arrived after a redirect.
     redirected: bool,
+    /// The HTTP status and the body size of the response, once it arrived
+    /// (the navigation entry of the performance timeline).
+    response: Option<(u16, u64)>,
 }
 
 /// A page.
@@ -580,6 +584,7 @@ impl Page {
             post: commit.post,
             initiator: commit.initiator,
             redirected: false,
+            response: None,
         });
         self.url = Some(commit.url);
         self.show_message(
@@ -671,6 +676,7 @@ impl Page {
             post: post.clone(),
             initiator: initiator.clone(),
             redirected: false,
+            response: None,
         });
         self.state = LoadState::LoadingDocument;
         self.error = None;
@@ -725,6 +731,34 @@ impl Page {
         match pending.and_then(|p| p.restore_scroll) {
             Some(position) => Some(ScrollTarget::Position(position)),
             None => url.fragment().map(|f| ScrollTarget::Fragment(f.to_owned())),
+        }
+    }
+
+    /// Records the status and the body size of the response of the pending
+    /// navigation, for the navigation entry of the performance timeline.
+    pub(super) fn set_response(&mut self, status: u16, body_bytes: u64) {
+        if let Some(pending) = &mut self.pending {
+            pending.response = Some((status, body_bytes));
+        }
+    }
+
+    /// How the pending navigation reaches its document, for scripts
+    /// (`performance.navigation`, the navigation entry).
+    pub(super) fn navigation_info(&self) -> swb_web::NavigationInfo {
+        let Some(pending) = &self.pending else {
+            return swb_web::NavigationInfo::default();
+        };
+        let (status, body_bytes) = pending.response.unwrap_or_default();
+        swb_web::NavigationInfo {
+            kind: match pending.handling {
+                HistoryHandling::Reload => swb_web::NavigationKind::Reload,
+                HistoryHandling::Traverse(_) => swb_web::NavigationKind::BackForward,
+                HistoryHandling::Push | HistoryHandling::Replace => {
+                    swb_web::NavigationKind::Navigate
+                }
+            },
+            status,
+            body_bytes,
         }
     }
 

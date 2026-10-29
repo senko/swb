@@ -1,0 +1,22 @@
+// Source: Page Visibility Level 2, W3C Editor's Draft,
+// https://w3c.github.io/page-visibility/, copied on 2026-10-29.
+//
+// This file includes material copied from Page Visibility Level 2,
+// https://w3c.github.io/page-visibility/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut the partial Document interface to `hidden` and `visibilityState`
+// (feature 8a2 of M8). `onvisibilitychange` is in html.idl with Chromium's
+// other document event handlers. Chromium's document also has
+// `webkitHidden` and `webkitVisibilityState`, which swb does not have.
+
+enum VisibilityState {
+  "hidden", "visible"
+};
+
+partial interface Document {
+  readonly attribute boolean hidden;
+  readonly attribute VisibilityState visibilityState;
+};

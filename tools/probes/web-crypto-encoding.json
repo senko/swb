@@ -1,0 +1,414 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "crypto",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof crypto, Object.prototype.toString.call(crypto), Object.getOwnPropertyNames(Crypto.prototype).filter((n) => n !== 'subtle').sort().join(), crypto === crypto, window.crypto === crypto, Object.getOwnPropertyDescriptor(window, 'crypto').enumerable, typeof Object.getOwnPropertyDescriptor(window, 'crypto').set, Crypto.length]"
+    },
+    {
+     "js": "E(() => new Crypto())"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues())"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(5))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues([1, 2]))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Float32Array(2)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Float64Array(2)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new DataView(new ArrayBuffer(8))))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new ArrayBuffer(8)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Uint8Array(65537)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Uint8Array(65536)).length)"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Uint32Array(16385)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Uint32Array(16384)).length)"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new BigUint64Array(8192)).length)"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new BigUint64Array(8193)))"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues(new Uint8Array(0)).length)"
+    },
+    {
+     "js": "E(() => [crypto.getRandomValues(new Uint8ClampedArray(4)).length, crypto.getRandomValues(new Int8Array(4)).length, crypto.getRandomValues(new Int16Array(4)).length, crypto.getRandomValues(new Uint16Array(4)).length, crypto.getRandomValues(new Int32Array(4)).length, crypto.getRandomValues(new BigInt64Array(4)).length])"
+    },
+    {
+     "js": "E(() => { const a = new Uint8Array(32); const r = crypto.getRandomValues(a); return [r === a, a.some((x) => x !== 0)]; })"
+    },
+    {
+     "js": "E(() => { const a = new Uint32Array(64); crypto.getRandomValues(a); return [a.some((x) => x > 0xffff), new Set(a).size > 32]; })"
+    },
+    {
+     "js": "E(() => { const b = new ArrayBuffer(16); const a = new Uint8Array(b, 4, 8); crypto.getRandomValues(a); const all = new Uint8Array(b); return [all.slice(0, 4).every((x) => x === 0), all.slice(12).every((x) => x === 0), all.slice(4, 12).some((x) => x !== 0)]; })"
+    },
+    {
+     "js": "E(() => crypto.getRandomValues.call({}, new Uint8Array(1)))"
+    },
+    {
+     "js": "E(() => { const rb = new ArrayBuffer(4, { maxByteLength: 8 }); return crypto.getRandomValues(new Uint8Array(rb)).length; })"
+    },
+    {
+     "js": "E(() => { const x = new Uint8Array(4); structuredClone(x.buffer, { transfer: [x.buffer] }); return crypto.getRandomValues(x).length; })"
+    },
+    {
+     "js": "E(() => { const a = crypto.randomUUID(); return [typeof a, a.length, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(a), crypto.randomUUID() !== crypto.randomUUID(), crypto.randomUUID.length, crypto.randomUUID.name]; })"
+    },
+    {
+     "js": "E(() => crypto.randomUUID.call({}))"
+    },
+    {
+     "js": "typeof crypto.subtle"
+    }
+   ]
+  },
+  {
+   "name": "base64",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof atob, atob.length, btoa.length, atob.name, btoa.name, Object.getOwnPropertyDescriptor(window, 'atob').enumerable, Object.getOwnPropertyDescriptor(window, 'atob').writable, Object.getOwnPropertyDescriptor(window, 'btoa').configurable]"
+    },
+    {
+     "js": "E(() => atob())"
+    },
+    {
+     "js": "E(() => btoa())"
+    },
+    {
+     "js": "[btoa(''), btoa('a'), btoa('ab'), btoa('abc'), btoa('abcd'), btoa('ÿ\\u0000\\u0080'), btoa(null), btoa(undefined), btoa(12), btoa({ toString() { return 'xy'; } })]"
+    },
+    {
+     "js": "E(() => btoa('Ā'))"
+    },
+    {
+     "js": "E(() => btoa('\\ud800'))"
+    },
+    {
+     "js": "E(() => btoa('a€'))"
+    },
+    {
+     "js": "[atob(''), atob('YQ=='), atob('YQ'), atob('YWI='), atob('YWI'), atob('YWJj'), atob(' Y W J j '), atob('YW\\nJj'), atob('YQ==\\n'), atob('/+8=').split('').map((c) => c.charCodeAt(0)).join(), atob(null), JSON.stringify(atob('/w=='))]"
+    },
+    {
+     "js": "E(() => atob('Y'))"
+    },
+    {
+     "js": "E(() => atob('YQ='))"
+    },
+    {
+     "js": "E(() => atob('YQ==='))"
+    },
+    {
+     "js": "E(() => atob('YQ=a'))"
+    },
+    {
+     "js": "E(() => atob('Y=Q='))"
+    },
+    {
+     "js": "E(() => atob('Y*Q='))"
+    },
+    {
+     "js": "E(() => atob('-_'))"
+    },
+    {
+     "js": "E(() => atob('ĀAAA'))"
+    },
+    {
+     "js": "E(() => atob('YQ== '))"
+    },
+    {
+     "js": "E(() => atob('A'))"
+    },
+    {
+     "js": "E(() => atob('AAAAA'))"
+    },
+    {
+     "js": "E(() => atob('AAAAAA'))"
+    },
+    {
+     "js": "E(() => atob('AAAAAA=='))"
+    },
+    {
+     "js": "E(() => atob('AAAA='))"
+    },
+    {
+     "js": "E(() => atob('AAA=='))"
+    },
+    {
+     "js": "E(() => atob('AAAA===='))"
+    },
+    {
+     "js": "E(() => atob('YR=='))"
+    },
+    {
+     "js": "E(() => atob('YWJ='))"
+    },
+    {
+     "js": "E(() => atob(' YQ=='))"
+    },
+    {
+     "js": "E(() => { const all = Array.from({ length: 256 }, (_, i) => String.fromCharCode(i)).join(''); return atob(btoa(all)) === all; })"
+    },
+    {
+     "js": "E(() => btoa('x'.repeat(100000)).length)"
+    }
+   ]
+  },
+  {
+   "name": "text-encoder",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof TextEncoder, TextEncoder.length, Object.getOwnPropertyNames(TextEncoder.prototype).sort().join(), new TextEncoder().encoding, Object.prototype.toString.call(new TextEncoder())]"
+    },
+    {
+     "js": "E(() => TextEncoder())"
+    },
+    {
+     "js": "[U(new TextEncoder().encode('a€😀')), U(new TextEncoder().encode()), U(new TextEncoder().encode(undefined)), U(new TextEncoder().encode(null)), U(new TextEncoder().encode('\\ud800')), U(new TextEncoder().encode('x\\udc00y')), new TextEncoder().encode('ab') instanceof Uint8Array, new TextEncoder().encode('ab').buffer.byteLength]"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(4); const r = new TextEncoder().encodeInto('a€b', d); return [r.read, r.written, U(d), Object.keys(r).join(), Object.getPrototypeOf(r) === Object.prototype]; })"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(4); const r = new TextEncoder().encodeInto('€€', d); return [r.read, r.written, U(d)]; })"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(4); const r = new TextEncoder().encodeInto('😀😀', d); return [r.read, r.written, U(d)]; })"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(3); const r = new TextEncoder().encodeInto('😀', d); return [r.read, r.written, U(d)]; })"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(0); const r = new TextEncoder().encodeInto('a', d); return [r.read, r.written]; })"
+    },
+    {
+     "js": "E(() => { const d = new Uint8Array(8); const r = new TextEncoder().encodeInto('\\ud800a', d); return [r.read, r.written, U(d)]; })"
+    },
+    {
+     "js": "E(() => { const b = new ArrayBuffer(8); const d = new Uint8Array(b, 2, 3); new TextEncoder().encodeInto('abcdef', d); return U(new Uint8Array(b)); })"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a', new Uint16Array(2)))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a', new ArrayBuffer(2)))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a'))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a', [1]))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a', new Uint8ClampedArray(2)))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encodeInto('a', new DataView(new ArrayBuffer(2))))"
+    },
+    {
+     "js": "E(() => new TextEncoder().encode.call({}))"
+    },
+    {
+     "js": "E(() => U(new TextEncoder().encode('é'.repeat(100000))).length)"
+    }
+   ]
+  },
+  {
+   "name": "text-decoder",
+   "html": "<!DOCTYPE html><html><head></head><body><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction U(a) { return Array.from(a).join(); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof TextDecoder, TextDecoder.length, Object.getOwnPropertyNames(TextDecoder.prototype).sort().join(), Object.prototype.toString.call(new TextDecoder())]"
+    },
+    {
+     "js": "E(() => TextDecoder())"
+    },
+    {
+     "js": "E(() => new TextDecoder().encoding + ' ' + new TextDecoder().fatal + ' ' + new TextDecoder().ignoreBOM)"
+    },
+    {
+     "js": "[new TextDecoder('UTF-8').encoding, new TextDecoder(' utf8 ').encoding, new TextDecoder('latin1').encoding, new TextDecoder('ascii').encoding, new TextDecoder('utf-16').encoding, new TextDecoder('utf-16be').encoding, new TextDecoder('windows-1251').encoding, new TextDecoder('sjis').encoding, new TextDecoder('gbk').encoding, new TextDecoder('big5').encoding, new TextDecoder('euc-kr').encoding, new TextDecoder('koi8-r').encoding, new TextDecoder('macintosh').encoding, new TextDecoder('x-user-defined').encoding, new TextDecoder('iso-8859-2').encoding, new TextDecoder('gb2312').encoding, new TextDecoder('us-ascii').encoding, new TextDecoder('utf-16le').encoding].join()"
+    },
+    {
+     "js": "E(() => new TextDecoder('nope'))"
+    },
+    {
+     "js": "E(() => new TextDecoder(''))"
+    },
+    {
+     "js": "E(() => new TextDecoder('replacement'))"
+    },
+    {
+     "js": "E(() => new TextDecoder('iso-2022-kr'))"
+    },
+    {
+     "js": "E(() => new TextDecoder('hz-gb-2312'))"
+    },
+    {
+     "js": "E(() => new TextDecoder(undefined).encoding)"
+    },
+    {
+     "js": "E(() => new TextDecoder(null))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-8', null).encoding)"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-8', 5))"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder('utf-8', { fatal: 1, ignoreBOM: 'x' }); return [d.fatal, d.ignoreBOM]; })"
+    },
+    {
+     "js": "[new TextDecoder().decode(new Uint8Array([0xe2, 0x82, 0xac, 0x61])), new TextDecoder().decode(), new TextDecoder().decode(undefined), new TextDecoder().decode(new Uint8Array([0xef, 0xbb, 0xbf, 0x61])).length, new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array([0xef, 0xbb, 0xbf, 0x61])).length]"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(null))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(5))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode('abc'))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode([1, 2]))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode({}))"
+    },
+    {
+     "js": "[new TextDecoder().decode(new Uint8Array([0x61, 0xff, 0x62])), new TextDecoder().decode(new Uint8Array([0xe2, 0x82])), new TextDecoder().decode(new Uint8Array([0xf0, 0x9f, 0x98, 0x80])), new TextDecoder().decode(new Uint8Array([0xc0, 0x80])).length, new TextDecoder().decode(new Uint8Array([0xed, 0xa0, 0x80])).length]"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array([0x61, 0xff])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array([0xe2, 0x82])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-16le', { fatal: true }).decode(new Uint8Array([0x00, 0xd8])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-16le').decode(new Uint8Array([0x61, 0, 0x62, 0])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-16be').decode(new Uint8Array([0, 0x61, 0, 0x62])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('utf-16le').decode(new Uint8Array([0xff, 0xfe, 0x61, 0])).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder('latin1').decode(new Uint8Array([0x80, 0xe9, 0xff])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('windows-1252').decode(new Uint8Array([0x80, 0x9f, 0x81])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('windows-1251').decode(new Uint8Array([0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('shift_jis').decode(new Uint8Array([0x82, 0xa0, 0x82, 0xa2])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('gbk').decode(new Uint8Array([0xc4, 0xe3, 0xba, 0xc3])))"
+    },
+    {
+     "js": "E(() => new TextDecoder('x-user-defined').decode(new Uint8Array([0x41, 0x80, 0xff])).split('').map((c) => c.charCodeAt(0).toString(16)).join())"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); const a = d.decode(new Uint8Array([0xe2, 0x82]), { stream: true }); const b = d.decode(new Uint8Array([0xac])); return [a, b]; })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); const a = d.decode(new Uint8Array([0xe2, 0x82]), { stream: true }); const b = d.decode(); return [a, b.length, b.charCodeAt(0)]; })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); const a = d.decode(new Uint8Array([0xe2, 0x82]), { stream: true }); const b = d.decode(new Uint8Array([0x61])); const c = d.decode(new Uint8Array([0xac])); return [a, b.length, b.charCodeAt(0), c.length, c]; })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); return [d.decode(new Uint8Array([0xef, 0xbb]), { stream: true }), d.decode(new Uint8Array([0xbf, 0x61]), { stream: true }), d.decode(new Uint8Array([0xef, 0xbb, 0xbf]), { stream: true }).length, d.decode().length]; })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); return [d.decode(new Uint8Array([0xef, 0xbb, 0xbf, 0x61])).length, d.decode(new Uint8Array([0xef, 0xbb, 0xbf, 0x61])).length]; })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder('utf-8', { fatal: true }); try { d.decode(new Uint8Array([0xff])); } catch (e) {} return d.decode(new Uint8Array([0x61])); })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder('utf-8', { fatal: true }); d.decode(new Uint8Array([0xe2]), { stream: true }); try { d.decode(new Uint8Array([0x61]), { stream: true }); } catch (e) { return e.name; } })"
+    },
+    {
+     "js": "E(() => { const d = new TextDecoder(); d.decode(new Uint8Array([0xe2]), { stream: true }); return d.decode(new Uint8Array([0x61])).length; })"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint16Array([0x6261])))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new DataView(new ArrayBuffer(2), 1, 1)).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array([0x61, 0x62, 0x63]).subarray(1)))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array([0x61, 0x62, 0x63]).buffer))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Float32Array([1])).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array([0, 0])).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array([0xe2, 0x82]), 5))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array([0x61]), { stream: 'yes' }))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode.call({}))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(TextDecoder.prototype, 'encoding').get.call({}))"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array(1 << 20)).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder('windows-1252').decode(new Uint8Array(30 << 20).fill(0x80)).length)"
+    },
+    {
+     "js": "E(() => new TextDecoder().decode(new Uint8Array(100 << 20)).length)"
+    }
+   ]
+  }
+ ]
+}

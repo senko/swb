@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-29: M8 feature 8a2, `navigator`, `performance`, `crypto`, text codecs, idle callbacks
+
+- `navigator` with stable values that do not claim to be Chromium;
+  `userAgent` is swb's string. `webdriver` is false: swb's automation
+  is not WebDriver.
+- `performance`: the entry buffer with `mark`, `measure` (all option
+  forms, Chromium's errors), `getEntries*`, `clear*`, `timing`,
+  `navigation` and the navigation entry. The runtime records the load
+  milestones; the request phases are 0 (the loader gives no times).
+  `PerformanceObserver` delivers in a task after the microtasks of the
+  script, as Chromium does.
+- `crypto.getRandomValues` and `randomUUID` over `getrandom`; `atob` and
+  `btoa` with the forgiving base64; `TextEncoder` and `TextDecoder` over
+  `encoding_rs`.
+- `requestIdleCallback` is step 4 of the event loop: a period runs when
+  no task and no frame is due and lasts until the next task or frame, at
+  most 50 ms. A loop of idle callbacks runs 20 times a second and does
+  not keep `waitForIdle` waiting. In virtual time `timeRemaining()`
+  charges 0.1 ms per call, so loops on it end.
+- The generator got static readonly attributes, the buffer source types
+  and frozen `FrozenArray` results; `js` got `freeze`,
+  `write_buffer_bytes` and `buffer_range`.
+- Learned from Chromium: the observer callback runs before a later
+  `setTimeout(0)`; `disconnect()` does not allow the other form of
+  `observe()`; `getEntries()` sorts stably by `startTime`; documents
+  without a browsing context are hidden; the order of idle callbacks and
+  animation frames varies between runs; the navigation entry keeps the
+  URL of the navigation after `replaceState`.
+- Review fixes: the navigation entry's `name` followed `replaceState`;
+  `measure()` copied the whole entry buffer at each mark lookup.
+- Targets: `compare --js` scores unchanged; no target error was about
+  these APIs (the remaining Wikipedia error is `document.cookie`,
+  feature 8b). Runtime heap +2.9 KB. Hostile set 216 cases, 215 ok + the
+  known failure (5 new).
+
+Next: feature 8b (cookies and storage).
+
 ## 2026-10-29: M8 feature 8a1, `URL`, `location`, `history`, `structuredClone`
 
 - Feature 8a is split: 8a1 does URLs, `location`, `history` and

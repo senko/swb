@@ -1,0 +1,56 @@
+// Source: Encoding Standard, https://encoding.spec.whatwg.org/, the
+// TextDecoder and TextEncoder interfaces, copied on 2026-10-29.
+//
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
+// licensed under the Creative Commons Attribution 4.0 International
+// License; "to the extent portions of it are incorporated into source
+// code, such portions in the source code are licensed under the BSD
+// 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
+// THIRD_PARTY_NOTICES.md for the license text.
+//
+// swb cut this file to TextDecoder and TextEncoder with their mixins and
+// dictionaries (feature 8a2 of M8); it has no TextDecoderStream and no
+// TextEncoderStream (no streams). `Exposed=*` is `Exposed=Window` here
+// (swb has no workers). The buffer source types are `object` to the
+// generator, which checks them (`SwbBuffer`).
+
+interface mixin TextDecoderCommon {
+  readonly attribute DOMString encoding;
+  readonly attribute boolean fatal;
+  readonly attribute boolean ignoreBOM;
+};
+
+dictionary TextDecoderOptions {
+  boolean fatal = false;
+  boolean ignoreBOM = false;
+};
+
+dictionary TextDecodeOptions {
+  boolean stream = false;
+};
+
+[Exposed=Window]
+interface TextDecoder {
+  constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
+
+  USVString decode(optional AllowSharedBufferSource input, optional TextDecodeOptions options = {});
+};
+TextDecoder includes TextDecoderCommon;
+
+interface mixin TextEncoderCommon {
+  readonly attribute DOMString encoding;
+};
+
+dictionary TextEncoderEncodeIntoResult {
+  unsigned long long read;
+  unsigned long long written;
+};
+
+[Exposed=Window]
+interface TextEncoder {
+  constructor();
+
+  [NewObject] Uint8Array encode(optional USVString input = "");
+  TextEncoderEncodeIntoResult encodeInto(USVString source, [AllowShared] Uint8Array destination);
+};
+TextEncoder includes TextEncoderCommon;

@@ -168,6 +168,7 @@ impl Page {
         if response.redirected {
             self.set_redirected();
         }
+        self.set_response(response.status, response.body.len() as u64);
         let content_type = response.content_type();
         let essence = content_type
             .as_ref()
@@ -261,6 +262,7 @@ impl Page {
     /// Commits the pending navigation with the document `parsed`. `images`
     /// contains images that are already loaded.
     fn set_document(&mut self, parsed: Parsed, url: Url, images: Images) {
+        let navigation = self.navigation_info();
         let scroll_target = self.commit_navigation(&url);
         // The old document sees `pagehide` and `unload` first.
         self.unload_document();
@@ -298,6 +300,7 @@ impl Page {
             .fragment()
             .and_then(|fragment| indicated(doc.dom(), fragment));
         doc.history = self.history_info();
+        doc.navigation = navigation;
         if !doc.is_loading() {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }

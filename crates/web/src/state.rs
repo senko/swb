@@ -130,6 +130,14 @@ pub(crate) struct WebState {
     pub(crate) event_loop: EventLoop,
     /// The window's `Performance` object, made at the first access.
     pub(crate) performance: Option<Gc<Object>>,
+    /// The entry buffer, the observers and the load times (`performance.rs`).
+    pub(crate) perf: crate::performance::PerfState,
+    /// The window's map of idle callbacks (`idle_callbacks.rs`).
+    pub(crate) idle: crate::idle_callbacks::IdleCallbacks,
+    /// The window's `Navigator` and `Crypto` objects, made at the first
+    /// access.
+    pub(crate) navigator: Option<Gc<Object>>,
+    pub(crate) crypto: Option<Gc<Object>>,
     /// The window's `Location` and `History` objects, made at the first
     /// access, and the deserialized `history.state` (`location.rs`).
     pub(crate) location: Option<Gc<Object>>,
@@ -179,8 +187,12 @@ impl HostState for WebState {
         if let Some(event) = self.current_event {
             tracer.object(event);
         }
+        self.perf.trace(tracer);
+        self.idle.trace(tracer);
         for object in [
             self.performance,
+            self.navigator,
+            self.crypto,
             self.screen,
             self.screen_orientation,
             self.location,

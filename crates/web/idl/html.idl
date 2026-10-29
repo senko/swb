@@ -5,7 +5,8 @@
 // `readyState`, `currentScript` and HTMLScriptElement on 2026-10-24; the
 // document collections, getElementsByName and HTMLTemplateElement on
 // 2026-10-24; Location, History, PopStateEvent, `structuredClone` and the
-// `location` and `history` members of Window and Document on 2026-10-29).
+// `location` and `history` members of Window and Document on 2026-10-29;
+// Navigator and its mixins, `navigator`, `atob` and `btoa` on 2026-10-29).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -69,6 +70,9 @@ interface Window : EventTarget {
   // history and location (feature 8a1)
   [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
   readonly attribute History history;
+
+  // the user agent (feature 8a2)
+  readonly attribute Navigator navigator;
 
   // other browsing contexts
   [Replaceable] readonly attribute WindowProxy frames;
@@ -939,6 +943,10 @@ interface mixin WindowOrWorkerGlobalScope {
   // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope-mixin
   undefined reportError(any e);
 
+  // base64 utility methods (feature 8a2)
+  DOMString btoa(DOMString data);
+  ByteString atob(DOMString data);
+
   // timers
   long setTimeout(TimerHandler handler, optional long timeout = 0, any... arguments);
   undefined clearTimeout(optional long id = 0);
@@ -955,6 +963,60 @@ Window includes WindowOrWorkerGlobalScope;
 
 dictionary StructuredSerializeOptions {
   sequence<object> transfer = [];
+};
+
+// The Navigator object (HTML §8.9, feature 8a2,
+// https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object,
+// copied on 2026-10-29). swb cut the mixins to the members that pages read:
+// NavigatorID lacks the obsolete `taintEnabled` and `oscpu`; NavigatorPlugins
+// has `javaEnabled()` and `pdfViewerEnabled` but no `plugins` and
+// `mimeTypes` (no PluginArray, MimeTypeArray, Plugin, MimeType); there are no
+// NavigatorContentUtils members. NavigatorConcurrentHardware is from the
+// HTML standard's workers section (copied on the same day). `maxTouchPoints`,
+// `webdriver` and `doNotTrack` are in navigator-extensions.idl.
+[Exposed=Window]
+interface Navigator {
+  // objects implementing this interface also implement the interfaces given below
+};
+Navigator includes NavigatorID;
+Navigator includes NavigatorLanguage;
+Navigator includes NavigatorOnLine;
+Navigator includes NavigatorCookies;
+Navigator includes NavigatorPlugins;
+Navigator includes NavigatorConcurrentHardware;
+
+interface mixin NavigatorID {
+  readonly attribute DOMString appCodeName; // constant "Mozilla"
+  readonly attribute DOMString appName; // constant "Netscape"
+  readonly attribute DOMString appVersion;
+  readonly attribute DOMString platform;
+  readonly attribute DOMString product; // constant "Gecko"
+  readonly attribute DOMString productSub;
+  readonly attribute DOMString userAgent;
+  readonly attribute DOMString vendor;
+  readonly attribute DOMString vendorSub; // constant ""
+};
+
+interface mixin NavigatorLanguage {
+  readonly attribute DOMString language;
+  readonly attribute FrozenArray<DOMString> languages;
+};
+
+interface mixin NavigatorOnLine {
+  readonly attribute boolean onLine;
+};
+
+interface mixin NavigatorCookies {
+  readonly attribute boolean cookieEnabled;
+};
+
+interface mixin NavigatorPlugins {
+  boolean javaEnabled();
+  readonly attribute boolean pdfViewerEnabled;
+};
+
+interface mixin NavigatorConcurrentHardware {
+  readonly attribute unsigned long long hardwareConcurrency;
 };
 
 // Session history and location (HTML §7.4,

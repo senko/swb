@@ -1,0 +1,41 @@
+// Source: User Timing, W3C Editor's Draft,
+// https://w3c.github.io/user-timing/, copied on 2026-10-29.
+//
+// This file includes material copied from User Timing,
+// https://w3c.github.io/user-timing/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// The file is complete (feature 8a2 of M8), with `Exposed=Window` (swb has
+// no workers).
+
+dictionary PerformanceMarkOptions {
+  any detail;
+  DOMHighResTimeStamp startTime;
+};
+
+dictionary PerformanceMeasureOptions {
+  any detail;
+  (DOMString or DOMHighResTimeStamp) start;
+  DOMHighResTimeStamp duration;
+  (DOMString or DOMHighResTimeStamp) end;
+};
+
+partial interface Performance {
+  PerformanceMark mark(DOMString markName, optional PerformanceMarkOptions markOptions = {});
+  undefined clearMarks(optional DOMString markName);
+  PerformanceMeasure measure(DOMString measureName, optional (DOMString or PerformanceMeasureOptions) startOrMeasureOptions = {}, optional DOMString endMark);
+  undefined clearMeasures(optional DOMString measureName);
+};
+
+[Exposed=Window]
+interface PerformanceMark : PerformanceEntry {
+  constructor(DOMString markName, optional PerformanceMarkOptions markOptions = {});
+  readonly attribute any detail;
+};
+
+[Exposed=Window]
+interface PerformanceMeasure : PerformanceEntry {
+  readonly attribute any detail;
+};

@@ -1139,7 +1139,14 @@ with `popstate` and `hashchange` listeners (the history keeps 50 entries,
 all 100,000 events run), a `hashchange` handler that sets the hash
 again, and `structuredClone` of a chain 200,000 levels deep (a
 `RangeError` at 4,096), an array of 150,000 objects, a map of 100,000
-entries, four buffers of 16 MB and a string of 8 MB. The cases with
+entries, four buffers of 16 MB and a string of 8 MB. Cases for feature 8a2:
+endless `requestIdleCallback` loops (one with idle time, one with a timeout
+of 1 ms), 1,100,000 idle callbacks requested in one task (the limit of
+1,048,576 ends it), 400,000 `performance.mark` calls with details and
+measures while two observers wait (the buffer and the queues keep 131,072
+entries), `TextDecoder` on a 60 MiB buffer, a 100 MiB buffer (a `RangeError`)
+and 64 chunks in stream mode, and `getRandomValues` over its limit 100,000
+times with 200,000 `randomUUID` calls. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2690,6 +2697,36 @@ code for them (a unit test of the generator checks the glue).
   The hostile set has four cases (`push-state-and-hash-loops-js-on`,
   `hash-change-endless-js-on`, `structured-clone-large-js-on`,
   `history-traversal-loop-js-on`).
+- Feature 8a2 (`navigator`, `performance`, `PerformanceObserver`, `crypto`,
+  `atob`, `btoa`, `TextEncoder`, `TextDecoder`, `requestIdleCallback`,
+  `document.hidden`): `crates/web/tests/navigator.rs`, `crypto_encoding.rs`
+  and `performance.rs` and `crates/engine/tests/script_idle.rs` run every
+  case of `tools/probes/web-navigator.json` (35 queries),
+  `web-crypto-encoding.json` (127), `web-performance.json` (183) and
+  `web-idle.json` (33) with Chromium's values (`tests/navigator/cases.rs`
+  and the others, made from `just probe --json` by comparing three runs),
+  in virtual time and with the GC stress mode; the departures are listed in
+  the test files with their reasons. A query whose Chromium value depends on
+  time or on the machine (random values, `performance.now()`, the number of
+  cores) checks a shape. The `performance` file has the navigation entry's
+  checks as comparisons (`domInteractive >= 0`) because the web tests'
+  virtual clock stands still during the load; the engine runs the page
+  with a clock that moves. `script_idle.rs` has what needs a page: the
+  order of idle callbacks, timers and microtasks, the deadline that the
+  next timer sets, the next period starting after the last ended, the
+  `timeout` option, a callback with a timeout that ran before the timeout,
+  a loop of idle callbacks (20 a second, and the page is idle for
+  `waitForIdle`), `waitForIdle` waiting for a single callback, idle
+  callbacks beside an animation frame loop, and `timeRemaining()` ending a
+  loop in virtual time. Unit tests are in `base64.rs`, `crypto.rs`,
+  `text_codec.rs`, `performance.rs`, `performance_observer.rs` and
+  `crates/webidl` (static attributes, buffer types, frozen arrays). The
+  hostile set has five cases (`idle-callback-loops-js-on`,
+  `idle-callback-flood-js-on`, `performance-mark-loop-js-on`,
+  `text-decoder-huge-js-on`, `random-values-over-limit-js-on`). The
+  `lazy_interfaces/globals.txt` list was regenerated from a release build
+  (`globals.py`-style: `Reflect.ownKeys(window)` with the attributes of each
+  key, printed by `swb --headless --js --eval=...` on the test page).
 
 They run every case with and without the GC stress mode and check that no
 collection found a stale root. The expected values come from Chromium

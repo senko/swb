@@ -122,6 +122,21 @@ Format: source, license (for code), what it influenced.
   `crates/web/src/structured.rs`), the `Location` setters, the URL and
   history update steps and the fragment navigation
   (`crates/web/src/location.rs`, `crates/engine/src/document/history_api.rs`).
+- W3C Performance Timeline, User Timing, Navigation Timing Level 2,
+  Resource Timing, Cooperative Scheduling of Background Tasks, Page
+  Visibility Level 2, Web Cryptography Level 2, Pointer Events, WebDriver
+  and Tracking Preference Expression, M8 feature 8a2 — the IDL copied
+  into `crates/web/idl/` (W3C Software and Document License,
+  `THIRD_PARTY_NOTICES.md`); the `mark()` and `measure()` steps
+  (`crates/web/src/performance.rs`), the PerformanceObserver tasks
+  (`performance_observer.rs`), the idle period steps
+  (`idle_callbacks.rs`, `crates/engine/src/page/idle.rs`).
+- WHATWG Encoding Standard, Infra Standard and HTML (`Navigator`, `atob`,
+  `btoa`), M8 feature 8a2 — the IDL of `TextDecoder`, `TextEncoder` and
+  `Navigator` (BSD-3-Clause, as above); the `TextDecoder` algorithms over
+  `encoding_rs` and the forgiving-base64 decode (`crates/web/src/base64.rs`,
+  `text_codec.rs`).
+- RFC 9562 (UUID version 4) — `crates/web/src/crypto.rs`.
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

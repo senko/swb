@@ -40,10 +40,18 @@
 //!   change events); the engine runs the steps of a frame through
 //!   [`ScriptRuntime::evaluate_media_queries`] and
 //!   [`ScriptRuntime::run_animation_frame_callbacks`].
+//! - Browser services (feature 8a2): `navigator`, `performance` (the entry
+//!   buffer, marks, measures, the navigation entry) with
+//!   `performance_observer`, `crypto`, `base64` (`atob`, `btoa`),
+//!   `text_codec` (`TextEncoder`, `TextDecoder`) and `idle_callbacks`
+//!   (`requestIdleCallback`; the engine runs the idle periods through
+//!   [`ScriptRuntime::run_idle_callbacks`]).
 
 mod animation_frames;
+mod base64;
 pub mod bindings;
 mod clock;
+mod crypto;
 mod cssom;
 mod cssom_view;
 mod document_load;
@@ -55,13 +63,18 @@ mod events;
 pub mod generated;
 mod host;
 mod html;
+mod idle_callbacks;
 mod location;
 mod media_queries;
+mod navigator;
+mod performance;
+mod performance_observer;
 mod runtime;
 mod scripts;
 mod state;
 mod structured;
 mod svg;
+mod text_codec;
 mod timers;
 mod url_api;
 mod window;
@@ -69,9 +82,10 @@ mod window;
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlWrite, DomRect, EngineHost, EventOrigins, OffsetMetrics, ScrollAlign, ScrollMetrics,
-    ScrollRequest, Viewport,
+    ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo, NavigationKind, OffsetMetrics,
+    ScrollAlign, ScrollMetrics, ScrollRequest, Viewport,
 };
+pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,

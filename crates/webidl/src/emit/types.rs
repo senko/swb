@@ -221,7 +221,12 @@ impl Gen<'_> {
             TypeKind::DomString => format!("b::convert::dom_string(rt, {v})"),
             TypeKind::UsvString => format!("b::convert::usv_string(rt, {v})"),
             TypeKind::ByteString => format!("b::convert::byte_string(rt, {v})"),
-            TypeKind::Object => format!("b::convert::object({v})"),
+            TypeKind::Object => match t.ext_attrs.get("SwbBuffer").map(|a| &a.value) {
+                Some(crate::ast::ExtValue::Ident(name)) => {
+                    format!("b::convert::buffer(rt, {v}, {})", literal(name))
+                }
+                _ => format!("b::convert::object({v})"),
+            },
             TypeKind::Promise(_) => format!("b::convert::promise(rt, {realm}, {v})"),
             TypeKind::Named(name) => match self.model.kind(name) {
                 Some(Kind::Interface) if self.model.is_node(name) => format!(
@@ -331,8 +336,14 @@ impl Gen<'_> {
                     format!("{item}.clone()")
                 };
                 let convert = self.rust_to_js(inner, &owned, realm, out, depth + 1);
+                // A `FrozenArray` is a frozen array (Web IDL §3.2.23).
+                let function = if matches!(t.kind, TypeKind::FrozenArray(_)) {
+                    "frozen_sequence"
+                } else {
+                    "sequence"
+                };
                 format!(
-                    "b::to_js::sequence(rt, {realm}, &{e}, |{}, {item}| {convert})",
+                    "b::to_js::{function}(rt, {realm}, &{e}, |{}, {item}| {convert})",
                     rt_param(&convert)
                 )
             }
