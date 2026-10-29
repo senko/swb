@@ -62,7 +62,7 @@ pub(super) fn construct<H: DOMExceptionImpl>(rt: &mut swb_js::Runtime, call: &sw
 /// with their members (the parent's interface must exist).
 pub fn define<H: DOMExceptionImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
     let interface = rt.begin_interface(realm, super::DOM_EXCEPTION)?;
-    b::glue::inherit_error_prototype(rt, realm, interface)?;
+    b::glue::inherit_error_prototype::<H>(rt, realm, interface)?;
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "name", (Some(get_name::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

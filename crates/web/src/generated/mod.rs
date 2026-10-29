@@ -4,7 +4,8 @@
 //! The generated binding glue (ADR 0028 section 5): one module per
 //! interface with the trait of its hand-written behaviour, `types` with
 //! the dictionaries, enumerations, unions and callbacks, the class
-//! numbers, [`define_classes`] and [`create_interfaces`].
+//! numbers, [`define_classes`], [`create_interfaces`] and the hooks of the
+//! lazy creation of interfaces ([`create_interface`], [`global_value`]).
 
 pub mod screen;
 pub mod css_style_declaration;
@@ -695,346 +696,365 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     Ok(())
 }
 
-/// Creates the interfaces of the set in `realm` and defines the exposed
-/// ones on the global object.
+/// The properties of the global object that the exposed interfaces
+/// define, in their order (Web IDL §3.7.1, §3.7.2); the number of a lazy
+/// property is its index.
+pub const GLOBALS: &[b::glue::GlobalName] = &[
+    b::glue::GlobalName { name: "Screen", class: SCREEN, factory: false },
+    b::glue::GlobalName { name: "CSSStyleDeclaration", class: CSS_STYLE_DECLARATION, factory: false },
+    b::glue::GlobalName { name: "DOMParser", class: DOM_PARSER, factory: false },
+    b::glue::GlobalName { name: "Event", class: EVENT, factory: false },
+    b::glue::GlobalName { name: "CustomEvent", class: CUSTOM_EVENT, factory: false },
+    b::glue::GlobalName { name: "EventTarget", class: EVENT_TARGET, factory: false },
+    b::glue::GlobalName { name: "Node", class: NODE, factory: false },
+    b::glue::GlobalName { name: "Document", class: DOCUMENT, factory: false },
+    b::glue::GlobalName { name: "DOMImplementation", class: DOM_IMPLEMENTATION, factory: false },
+    b::glue::GlobalName { name: "DocumentType", class: DOCUMENT_TYPE, factory: false },
+    b::glue::GlobalName { name: "DocumentFragment", class: DOCUMENT_FRAGMENT, factory: false },
+    b::glue::GlobalName { name: "NodeList", class: NODE_LIST, factory: false },
+    b::glue::GlobalName { name: "HTMLCollection", class: HTML_COLLECTION, factory: false },
+    b::glue::GlobalName { name: "Element", class: ELEMENT, factory: false },
+    b::glue::GlobalName { name: "NamedNodeMap", class: NAMED_NODE_MAP, factory: false },
+    b::glue::GlobalName { name: "Attr", class: ATTR, factory: false },
+    b::glue::GlobalName { name: "DOMTokenList", class: DOM_TOKEN_LIST, factory: false },
+    b::glue::GlobalName { name: "CharacterData", class: CHARACTER_DATA, factory: false },
+    b::glue::GlobalName { name: "Text", class: TEXT, factory: false },
+    b::glue::GlobalName { name: "ProcessingInstruction", class: PROCESSING_INSTRUCTION, factory: false },
+    b::glue::GlobalName { name: "Comment", class: COMMENT, factory: false },
+    b::glue::GlobalName { name: "DOMRectReadOnly", class: DOM_RECT_READ_ONLY, factory: false },
+    b::glue::GlobalName { name: "DOMRect", class: DOM_RECT, factory: false },
+    b::glue::GlobalName { name: "DOMRectList", class: DOM_RECT_LIST, factory: false },
+    b::glue::GlobalName { name: "Performance", class: PERFORMANCE, factory: false },
+    b::glue::GlobalName { name: "Window", class: WINDOW, factory: false },
+    b::glue::GlobalName { name: "HTMLDocument", class: HTML_DOCUMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLElement", class: HTML_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLUnknownElement", class: HTML_UNKNOWN_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "DOMStringMap", class: DOM_STRING_MAP, factory: false },
+    b::glue::GlobalName { name: "HTMLHtmlElement", class: HTML_HTML_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLHeadElement", class: HTML_HEAD_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTitleElement", class: HTML_TITLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLBaseElement", class: HTML_BASE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLLinkElement", class: HTML_LINK_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMetaElement", class: HTML_META_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLStyleElement", class: HTML_STYLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLBodyElement", class: HTML_BODY_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLHeadingElement", class: HTML_HEADING_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLParagraphElement", class: HTML_PARAGRAPH_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLHRElement", class: HTMLHR_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLPreElement", class: HTML_PRE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLQuoteElement", class: HTML_QUOTE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLOListElement", class: HTMLO_LIST_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLUListElement", class: HTMLU_LIST_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMenuElement", class: HTML_MENU_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLLIElement", class: HTMLLI_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDListElement", class: HTMLD_LIST_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDivElement", class: HTML_DIV_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLAnchorElement", class: HTML_ANCHOR_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDataElement", class: HTML_DATA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTimeElement", class: HTML_TIME_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLSpanElement", class: HTML_SPAN_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLBRElement", class: HTMLBR_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLModElement", class: HTML_MOD_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLPictureElement", class: HTML_PICTURE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLSourceElement", class: HTML_SOURCE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "Image", class: HTML_IMAGE_ELEMENT, factory: true },
+    b::glue::GlobalName { name: "HTMLImageElement", class: HTML_IMAGE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLIFrameElement", class: HTMLI_FRAME_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLEmbedElement", class: HTML_EMBED_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLObjectElement", class: HTML_OBJECT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMediaElement", class: HTML_MEDIA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLVideoElement", class: HTML_VIDEO_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLAudioElement", class: HTML_AUDIO_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTrackElement", class: HTML_TRACK_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMapElement", class: HTML_MAP_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLAreaElement", class: HTML_AREA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableElement", class: HTML_TABLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableCaptionElement", class: HTML_TABLE_CAPTION_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableColElement", class: HTML_TABLE_COL_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableSectionElement", class: HTML_TABLE_SECTION_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableRowElement", class: HTML_TABLE_ROW_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTableCellElement", class: HTML_TABLE_CELL_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFormElement", class: HTML_FORM_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLLabelElement", class: HTML_LABEL_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLInputElement", class: HTML_INPUT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLButtonElement", class: HTML_BUTTON_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLSelectElement", class: HTML_SELECT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDataListElement", class: HTML_DATA_LIST_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLOptGroupElement", class: HTML_OPT_GROUP_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "Option", class: HTML_OPTION_ELEMENT, factory: true },
+    b::glue::GlobalName { name: "HTMLOptionElement", class: HTML_OPTION_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTextAreaElement", class: HTML_TEXT_AREA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLOutputElement", class: HTML_OUTPUT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLProgressElement", class: HTML_PROGRESS_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMeterElement", class: HTML_METER_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFieldSetElement", class: HTML_FIELD_SET_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLLegendElement", class: HTML_LEGEND_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLSelectedContentElement", class: HTML_SELECTED_CONTENT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDetailsElement", class: HTML_DETAILS_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDialogElement", class: HTML_DIALOG_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFormControlsCollection", class: HTML_FORM_CONTROLS_COLLECTION, factory: false },
+    b::glue::GlobalName { name: "RadioNodeList", class: RADIO_NODE_LIST, factory: false },
+    b::glue::GlobalName { name: "HTMLOptionsCollection", class: HTML_OPTIONS_COLLECTION, factory: false },
+    b::glue::GlobalName { name: "HTMLSlotElement", class: HTML_SLOT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLCanvasElement", class: HTML_CANVAS_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLMarqueeElement", class: HTML_MARQUEE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFrameSetElement", class: HTML_FRAME_SET_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFrameElement", class: HTML_FRAME_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLDirectoryElement", class: HTML_DIRECTORY_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLFontElement", class: HTML_FONT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLParamElement", class: HTML_PARAM_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLTemplateElement", class: HTML_TEMPLATE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "HTMLScriptElement", class: HTML_SCRIPT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "ErrorEvent", class: ERROR_EVENT, factory: false },
+    b::glue::GlobalName { name: "PromiseRejectionEvent", class: PROMISE_REJECTION_EVENT, factory: false },
+    b::glue::GlobalName { name: "PageTransitionEvent", class: PAGE_TRANSITION_EVENT, factory: false },
+    b::glue::GlobalName { name: "SubmitEvent", class: SUBMIT_EVENT, factory: false },
+    b::glue::GlobalName { name: "HashChangeEvent", class: HASH_CHANGE_EVENT, factory: false },
+    b::glue::GlobalName { name: "MessageEvent", class: MESSAGE_EVENT, factory: false },
+    b::glue::GlobalName { name: "StorageEvent", class: STORAGE_EVENT, factory: false },
+    b::glue::GlobalName { name: "BeforeUnloadEvent", class: BEFORE_UNLOAD_EVENT, factory: false },
+    b::glue::GlobalName { name: "SVGElement", class: SVG_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGAnimatedString", class: SVG_ANIMATED_STRING, factory: false },
+    b::glue::GlobalName { name: "SVGGraphicsElement", class: SVG_GRAPHICS_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGGeometryElement", class: SVG_GEOMETRY_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGSVGElement", class: SVGSVG_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGRect", class: SVG_RECT, factory: false },
+    b::glue::GlobalName { name: "SVGGElement", class: SVGG_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGDefsElement", class: SVG_DEFS_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGDescElement", class: SVG_DESC_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGMetadataElement", class: SVG_METADATA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTitleElement", class: SVG_TITLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGSymbolElement", class: SVG_SYMBOL_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGUseElement", class: SVG_USE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGSwitchElement", class: SVG_SWITCH_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGStyleElement", class: SVG_STYLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGPathElement", class: SVG_PATH_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGRectElement", class: SVG_RECT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGCircleElement", class: SVG_CIRCLE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGEllipseElement", class: SVG_ELLIPSE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGLineElement", class: SVG_LINE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGPolylineElement", class: SVG_POLYLINE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGPolygonElement", class: SVG_POLYGON_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTextContentElement", class: SVG_TEXT_CONTENT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTextPositioningElement", class: SVG_TEXT_POSITIONING_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTextElement", class: SVG_TEXT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTSpanElement", class: SVGT_SPAN_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGTextPathElement", class: SVG_TEXT_PATH_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGImageElement", class: SVG_IMAGE_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGForeignObjectElement", class: SVG_FOREIGN_OBJECT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGMarkerElement", class: SVG_MARKER_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGGradientElement", class: SVG_GRADIENT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGLinearGradientElement", class: SVG_LINEAR_GRADIENT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGRadialGradientElement", class: SVG_RADIAL_GRADIENT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGStopElement", class: SVG_STOP_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGPatternElement", class: SVG_PATTERN_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGClipPathElement", class: SVG_CLIP_PATH_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGMaskElement", class: SVG_MASK_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGScriptElement", class: SVG_SCRIPT_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGAElement", class: SVGA_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "SVGViewElement", class: SVG_VIEW_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "TransitionEvent", class: TRANSITION_EVENT, factory: false },
+    b::glue::GlobalName { name: "DeviceMotionEvent", class: DEVICE_MOTION_EVENT, factory: false },
+    b::glue::GlobalName { name: "DeviceOrientationEvent", class: DEVICE_ORIENTATION_EVENT, factory: false },
+    b::glue::GlobalName { name: "UIEvent", class: UI_EVENT, factory: false },
+    b::glue::GlobalName { name: "FocusEvent", class: FOCUS_EVENT, factory: false },
+    b::glue::GlobalName { name: "InputEvent", class: INPUT_EVENT, factory: false },
+    b::glue::GlobalName { name: "KeyboardEvent", class: KEYBOARD_EVENT, factory: false },
+    b::glue::GlobalName { name: "CompositionEvent", class: COMPOSITION_EVENT, factory: false },
+    b::glue::GlobalName { name: "TextEvent", class: TEXT_EVENT, factory: false },
+    b::glue::GlobalName { name: "DOMException", class: DOM_EXCEPTION, factory: false },
+    b::glue::GlobalName { name: "MediaQueryList", class: MEDIA_QUERY_LIST, factory: false },
+    b::glue::GlobalName { name: "MediaQueryListEvent", class: MEDIA_QUERY_LIST_EVENT, factory: false },
+    b::glue::GlobalName { name: "ScreenOrientation", class: SCREEN_ORIENTATION, factory: false },
+    b::glue::GlobalName { name: "MouseEvent", class: MOUSE_EVENT, factory: false },
+    b::glue::GlobalName { name: "WheelEvent", class: WHEEL_EVENT, factory: false },
+    b::glue::GlobalName { name: "PointerEvent", class: POINTER_EVENT, factory: false },
+    b::glue::GlobalName { name: "DragEvent", class: DRAG_EVENT, factory: false },
+];
+
+/// Registers the hooks of lazy creation, keeps the built-in objects that
+/// interfaces use, creates the interfaces of the `[Global]` interface and
+/// its ancestors in `realm`, and defines the properties of the global
+/// object for all exposed interfaces in their order: the interface objects
+/// of those interfaces, lazy properties for the others, whose interface is
+/// created at the first read or the first object of the class (ADR 0028
+/// section 5, "Lazy interfaces notes").
 #[allow(clippy::too_many_lines)]
 pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {
-    let interface = screen::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Screen", interface)?;
-    let interface = css_style_declaration::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "CSSStyleDeclaration", interface)?;
-    let interface = dom_parser::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMParser", interface)?;
-    let interface = event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Event", interface)?;
-    let interface = custom_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "CustomEvent", interface)?;
+    rt.set_lazy_hooks(swb_js::LazyHooks { interface: create_interface::<H>, global: global_value::<H> });
+    b::glue::keep_builtins::<H>(rt, realm)?;
+    b::glue::expose_lazy(rt, realm, GLOBALS, 0)?; // Screen
+    b::glue::expose_lazy(rt, realm, GLOBALS, 1)?; // CSSStyleDeclaration
+    b::glue::expose_lazy(rt, realm, GLOBALS, 2)?; // DOMParser
+    b::glue::expose_lazy(rt, realm, GLOBALS, 3)?; // Event
+    b::glue::expose_lazy(rt, realm, GLOBALS, 4)?; // CustomEvent
     let interface = event_target::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "EventTarget", interface)?;
-    let interface = node::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Node", interface)?;
-    let interface = document::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Document", interface)?;
-    let interface = dom_implementation::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMImplementation", interface)?;
-    let interface = document_type::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DocumentType", interface)?;
-    let interface = document_fragment::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DocumentFragment", interface)?;
-    let interface = node_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "NodeList", interface)?;
-    let interface = html_collection::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLCollection", interface)?;
-    let interface = element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Element", interface)?;
-    let interface = named_node_map::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "NamedNodeMap", interface)?;
-    let interface = attr::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Attr", interface)?;
-    let interface = dom_token_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMTokenList", interface)?;
-    let interface = character_data::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "CharacterData", interface)?;
-    let interface = text::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Text", interface)?;
-    let interface = processing_instruction::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "ProcessingInstruction", interface)?;
-    let interface = comment::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Comment", interface)?;
-    let interface = dom_rect_read_only::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMRectReadOnly", interface)?;
-    let interface = dom_rect::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMRect", interface)?;
-    let interface = dom_rect_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMRectList", interface)?;
-    let interface = performance::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Performance", interface)?;
+    b::glue::expose_lazy(rt, realm, GLOBALS, 6)?; // Node
+    b::glue::expose_lazy(rt, realm, GLOBALS, 7)?; // Document
+    b::glue::expose_lazy(rt, realm, GLOBALS, 8)?; // DOMImplementation
+    b::glue::expose_lazy(rt, realm, GLOBALS, 9)?; // DocumentType
+    b::glue::expose_lazy(rt, realm, GLOBALS, 10)?; // DocumentFragment
+    b::glue::expose_lazy(rt, realm, GLOBALS, 11)?; // NodeList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 12)?; // HTMLCollection
+    b::glue::expose_lazy(rt, realm, GLOBALS, 13)?; // Element
+    b::glue::expose_lazy(rt, realm, GLOBALS, 14)?; // NamedNodeMap
+    b::glue::expose_lazy(rt, realm, GLOBALS, 15)?; // Attr
+    b::glue::expose_lazy(rt, realm, GLOBALS, 16)?; // DOMTokenList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 17)?; // CharacterData
+    b::glue::expose_lazy(rt, realm, GLOBALS, 18)?; // Text
+    b::glue::expose_lazy(rt, realm, GLOBALS, 19)?; // ProcessingInstruction
+    b::glue::expose_lazy(rt, realm, GLOBALS, 20)?; // Comment
+    b::glue::expose_lazy(rt, realm, GLOBALS, 21)?; // DOMRectReadOnly
+    b::glue::expose_lazy(rt, realm, GLOBALS, 22)?; // DOMRect
+    b::glue::expose_lazy(rt, realm, GLOBALS, 23)?; // DOMRectList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 24)?; // Performance
     let interface = window::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Window", interface)?;
-    let interface = html_document::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDocument", interface)?;
-    let interface = html_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLElement", interface)?;
-    let interface = html_unknown_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLUnknownElement", interface)?;
-    let interface = dom_string_map::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMStringMap", interface)?;
-    let interface = html_html_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLHtmlElement", interface)?;
-    let interface = html_head_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLHeadElement", interface)?;
-    let interface = html_title_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTitleElement", interface)?;
-    let interface = html_base_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLBaseElement", interface)?;
-    let interface = html_link_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLLinkElement", interface)?;
-    let interface = html_meta_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMetaElement", interface)?;
-    let interface = html_style_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLStyleElement", interface)?;
-    let interface = html_body_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLBodyElement", interface)?;
-    let interface = html_heading_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLHeadingElement", interface)?;
-    let interface = html_paragraph_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLParagraphElement", interface)?;
-    let interface = htmlhr_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLHRElement", interface)?;
-    let interface = html_pre_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLPreElement", interface)?;
-    let interface = html_quote_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLQuoteElement", interface)?;
-    let interface = htmlo_list_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLOListElement", interface)?;
-    let interface = htmlu_list_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLUListElement", interface)?;
-    let interface = html_menu_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMenuElement", interface)?;
-    let interface = htmlli_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLLIElement", interface)?;
-    let interface = htmld_list_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDListElement", interface)?;
-    let interface = html_div_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDivElement", interface)?;
-    let interface = html_anchor_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLAnchorElement", interface)?;
-    let interface = html_data_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDataElement", interface)?;
-    let interface = html_time_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTimeElement", interface)?;
-    let interface = html_span_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLSpanElement", interface)?;
-    let interface = htmlbr_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLBRElement", interface)?;
-    let interface = html_mod_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLModElement", interface)?;
-    let interface = html_picture_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLPictureElement", interface)?;
-    let interface = html_source_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLSourceElement", interface)?;
-    let interface = html_image_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLImageElement", interface)?;
-    let interface = htmli_frame_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLIFrameElement", interface)?;
-    let interface = html_embed_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLEmbedElement", interface)?;
-    let interface = html_object_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLObjectElement", interface)?;
-    let interface = html_media_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMediaElement", interface)?;
-    let interface = html_video_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLVideoElement", interface)?;
-    let interface = html_audio_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLAudioElement", interface)?;
-    let interface = html_track_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTrackElement", interface)?;
-    let interface = html_map_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMapElement", interface)?;
-    let interface = html_area_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLAreaElement", interface)?;
-    let interface = html_table_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableElement", interface)?;
-    let interface = html_table_caption_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableCaptionElement", interface)?;
-    let interface = html_table_col_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableColElement", interface)?;
-    let interface = html_table_section_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableSectionElement", interface)?;
-    let interface = html_table_row_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableRowElement", interface)?;
-    let interface = html_table_cell_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTableCellElement", interface)?;
-    let interface = html_form_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFormElement", interface)?;
-    let interface = html_label_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLLabelElement", interface)?;
-    let interface = html_input_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLInputElement", interface)?;
-    let interface = html_button_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLButtonElement", interface)?;
-    let interface = html_select_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLSelectElement", interface)?;
-    let interface = html_data_list_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDataListElement", interface)?;
-    let interface = html_opt_group_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLOptGroupElement", interface)?;
-    let interface = html_option_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLOptionElement", interface)?;
-    let interface = html_text_area_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTextAreaElement", interface)?;
-    let interface = html_output_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLOutputElement", interface)?;
-    let interface = html_progress_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLProgressElement", interface)?;
-    let interface = html_meter_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMeterElement", interface)?;
-    let interface = html_field_set_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFieldSetElement", interface)?;
-    let interface = html_legend_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLLegendElement", interface)?;
-    let interface = html_selected_content_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLSelectedContentElement", interface)?;
-    let interface = html_details_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDetailsElement", interface)?;
-    let interface = html_dialog_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDialogElement", interface)?;
-    let interface = html_form_controls_collection::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFormControlsCollection", interface)?;
-    let interface = radio_node_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "RadioNodeList", interface)?;
-    let interface = html_options_collection::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLOptionsCollection", interface)?;
-    let interface = html_slot_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLSlotElement", interface)?;
-    let interface = html_canvas_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLCanvasElement", interface)?;
-    let interface = html_marquee_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLMarqueeElement", interface)?;
-    let interface = html_frame_set_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFrameSetElement", interface)?;
-    let interface = html_frame_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFrameElement", interface)?;
-    let interface = html_directory_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLDirectoryElement", interface)?;
-    let interface = html_font_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLFontElement", interface)?;
-    let interface = html_param_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLParamElement", interface)?;
-    let interface = html_template_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLTemplateElement", interface)?;
-    let interface = html_script_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HTMLScriptElement", interface)?;
-    let interface = error_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "ErrorEvent", interface)?;
-    let interface = promise_rejection_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "PromiseRejectionEvent", interface)?;
-    let interface = page_transition_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "PageTransitionEvent", interface)?;
-    let interface = submit_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SubmitEvent", interface)?;
-    let interface = hash_change_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "HashChangeEvent", interface)?;
-    let interface = message_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "MessageEvent", interface)?;
-    let interface = storage_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "StorageEvent", interface)?;
-    let interface = before_unload_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "BeforeUnloadEvent", interface)?;
-    let interface = svg_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGElement", interface)?;
-    let interface = svg_animated_string::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGAnimatedString", interface)?;
-    let interface = svg_graphics_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGGraphicsElement", interface)?;
-    let interface = svg_geometry_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGGeometryElement", interface)?;
-    let interface = svgsvg_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGSVGElement", interface)?;
-    let interface = svg_rect::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGRect", interface)?;
-    let interface = svgg_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGGElement", interface)?;
-    let interface = svg_defs_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGDefsElement", interface)?;
-    let interface = svg_desc_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGDescElement", interface)?;
-    let interface = svg_metadata_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGMetadataElement", interface)?;
-    let interface = svg_title_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTitleElement", interface)?;
-    let interface = svg_symbol_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGSymbolElement", interface)?;
-    let interface = svg_use_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGUseElement", interface)?;
-    let interface = svg_switch_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGSwitchElement", interface)?;
-    let interface = svg_style_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGStyleElement", interface)?;
-    let interface = svg_path_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGPathElement", interface)?;
-    let interface = svg_rect_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGRectElement", interface)?;
-    let interface = svg_circle_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGCircleElement", interface)?;
-    let interface = svg_ellipse_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGEllipseElement", interface)?;
-    let interface = svg_line_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGLineElement", interface)?;
-    let interface = svg_polyline_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGPolylineElement", interface)?;
-    let interface = svg_polygon_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGPolygonElement", interface)?;
-    let interface = svg_text_content_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTextContentElement", interface)?;
-    let interface = svg_text_positioning_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTextPositioningElement", interface)?;
-    let interface = svg_text_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTextElement", interface)?;
-    let interface = svgt_span_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTSpanElement", interface)?;
-    let interface = svg_text_path_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGTextPathElement", interface)?;
-    let interface = svg_image_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGImageElement", interface)?;
-    let interface = svg_foreign_object_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGForeignObjectElement", interface)?;
-    let interface = svg_marker_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGMarkerElement", interface)?;
-    let interface = svg_gradient_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGGradientElement", interface)?;
-    let interface = svg_linear_gradient_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGLinearGradientElement", interface)?;
-    let interface = svg_radial_gradient_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGRadialGradientElement", interface)?;
-    let interface = svg_stop_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGStopElement", interface)?;
-    let interface = svg_pattern_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGPatternElement", interface)?;
-    let interface = svg_clip_path_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGClipPathElement", interface)?;
-    let interface = svg_mask_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGMaskElement", interface)?;
-    let interface = svg_script_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGScriptElement", interface)?;
-    let interface = svga_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGAElement", interface)?;
-    let interface = svg_view_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "SVGViewElement", interface)?;
-    let interface = transition_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TransitionEvent", interface)?;
-    let interface = device_motion_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DeviceMotionEvent", interface)?;
-    let interface = device_orientation_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DeviceOrientationEvent", interface)?;
-    let interface = ui_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "UIEvent", interface)?;
-    let interface = focus_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "FocusEvent", interface)?;
-    let interface = input_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "InputEvent", interface)?;
-    let interface = keyboard_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "KeyboardEvent", interface)?;
-    let interface = composition_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "CompositionEvent", interface)?;
-    let interface = text_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TextEvent", interface)?;
-    let interface = dom_exception::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMException", interface)?;
-    let interface = media_query_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "MediaQueryList", interface)?;
-    let interface = media_query_list_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "MediaQueryListEvent", interface)?;
-    let interface = screen_orientation::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "ScreenOrientation", interface)?;
-    let interface = mouse_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "MouseEvent", interface)?;
-    let interface = wheel_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "WheelEvent", interface)?;
-    let interface = pointer_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "PointerEvent", interface)?;
-    let interface = drag_event::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DragEvent", interface)?;
+    b::glue::expose_lazy(rt, realm, GLOBALS, 26)?; // HTMLDocument
+    b::glue::expose_lazy(rt, realm, GLOBALS, 27)?; // HTMLElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 28)?; // HTMLUnknownElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 29)?; // DOMStringMap
+    b::glue::expose_lazy(rt, realm, GLOBALS, 30)?; // HTMLHtmlElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 31)?; // HTMLHeadElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 32)?; // HTMLTitleElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 33)?; // HTMLBaseElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 34)?; // HTMLLinkElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 35)?; // HTMLMetaElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 36)?; // HTMLStyleElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 37)?; // HTMLBodyElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 38)?; // HTMLHeadingElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 39)?; // HTMLParagraphElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 40)?; // HTMLHRElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 41)?; // HTMLPreElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 42)?; // HTMLQuoteElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 43)?; // HTMLOListElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 44)?; // HTMLUListElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 45)?; // HTMLMenuElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 46)?; // HTMLLIElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 47)?; // HTMLDListElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 48)?; // HTMLDivElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 49)?; // HTMLAnchorElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 50)?; // HTMLDataElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 51)?; // HTMLTimeElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 52)?; // HTMLSpanElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 53)?; // HTMLBRElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 54)?; // HTMLModElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 55)?; // HTMLPictureElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 56)?; // HTMLSourceElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 57)?; // Image
+    b::glue::expose_lazy(rt, realm, GLOBALS, 58)?; // HTMLImageElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 59)?; // HTMLIFrameElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 60)?; // HTMLEmbedElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 61)?; // HTMLObjectElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 62)?; // HTMLMediaElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 63)?; // HTMLVideoElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 64)?; // HTMLAudioElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 65)?; // HTMLTrackElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 66)?; // HTMLMapElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 67)?; // HTMLAreaElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 68)?; // HTMLTableElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 69)?; // HTMLTableCaptionElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 70)?; // HTMLTableColElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 71)?; // HTMLTableSectionElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 72)?; // HTMLTableRowElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 73)?; // HTMLTableCellElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 74)?; // HTMLFormElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 75)?; // HTMLLabelElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 76)?; // HTMLInputElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 77)?; // HTMLButtonElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 78)?; // HTMLSelectElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 79)?; // HTMLDataListElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 80)?; // HTMLOptGroupElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 81)?; // Option
+    b::glue::expose_lazy(rt, realm, GLOBALS, 82)?; // HTMLOptionElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 83)?; // HTMLTextAreaElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 84)?; // HTMLOutputElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 85)?; // HTMLProgressElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 86)?; // HTMLMeterElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 87)?; // HTMLFieldSetElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 88)?; // HTMLLegendElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 89)?; // HTMLSelectedContentElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 90)?; // HTMLDetailsElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 91)?; // HTMLDialogElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 92)?; // HTMLFormControlsCollection
+    b::glue::expose_lazy(rt, realm, GLOBALS, 93)?; // RadioNodeList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 94)?; // HTMLOptionsCollection
+    b::glue::expose_lazy(rt, realm, GLOBALS, 95)?; // HTMLSlotElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 96)?; // HTMLCanvasElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 97)?; // HTMLMarqueeElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 98)?; // HTMLFrameSetElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 99)?; // HTMLFrameElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 100)?; // HTMLDirectoryElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 101)?; // HTMLFontElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 102)?; // HTMLParamElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 103)?; // HTMLTemplateElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 104)?; // HTMLScriptElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 105)?; // ErrorEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 106)?; // PromiseRejectionEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 107)?; // PageTransitionEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 108)?; // SubmitEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 109)?; // HashChangeEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 110)?; // MessageEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 111)?; // StorageEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 112)?; // BeforeUnloadEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 113)?; // SVGElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 114)?; // SVGAnimatedString
+    b::glue::expose_lazy(rt, realm, GLOBALS, 115)?; // SVGGraphicsElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 116)?; // SVGGeometryElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 117)?; // SVGSVGElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 118)?; // SVGRect
+    b::glue::expose_lazy(rt, realm, GLOBALS, 119)?; // SVGGElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 120)?; // SVGDefsElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 121)?; // SVGDescElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 122)?; // SVGMetadataElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 123)?; // SVGTitleElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 124)?; // SVGSymbolElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 125)?; // SVGUseElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 126)?; // SVGSwitchElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 127)?; // SVGStyleElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 128)?; // SVGPathElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 129)?; // SVGRectElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 130)?; // SVGCircleElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 131)?; // SVGEllipseElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 132)?; // SVGLineElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 133)?; // SVGPolylineElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 134)?; // SVGPolygonElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 135)?; // SVGTextContentElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 136)?; // SVGTextPositioningElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 137)?; // SVGTextElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 138)?; // SVGTSpanElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 139)?; // SVGTextPathElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 140)?; // SVGImageElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 141)?; // SVGForeignObjectElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 142)?; // SVGMarkerElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 143)?; // SVGGradientElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 144)?; // SVGLinearGradientElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 145)?; // SVGRadialGradientElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 146)?; // SVGStopElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 147)?; // SVGPatternElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 148)?; // SVGClipPathElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 149)?; // SVGMaskElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 150)?; // SVGScriptElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 151)?; // SVGAElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 152)?; // SVGViewElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 153)?; // TransitionEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 154)?; // DeviceMotionEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 155)?; // DeviceOrientationEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 156)?; // UIEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 157)?; // FocusEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 158)?; // InputEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 159)?; // KeyboardEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 160)?; // CompositionEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 161)?; // TextEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 162)?; // DOMException
+    b::glue::expose_lazy(rt, realm, GLOBALS, 163)?; // MediaQueryList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 164)?; // MediaQueryListEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 165)?; // ScreenOrientation
+    b::glue::expose_lazy(rt, realm, GLOBALS, 166)?; // MouseEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 167)?; // WheelEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 168)?; // PointerEvent
+    b::glue::expose_lazy(rt, realm, GLOBALS, 169)?; // DragEvent
     // Web IDL §3.7.3: the prototypes of a [Global] interface and of its
     // ancestors are immutable prototype objects.
     b::glue::immutable_prototypes(rt, realm, &[WINDOW, EVENT_TARGET])?;
@@ -1048,4 +1068,194 @@ pub fn init_global<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, data: swb_
     rt.init_global(realm, WINDOW, data)?;
     let global = rt.global(realm)?;
     rt.set_immutable_prototype(global)
+}
+
+/// Creates the interface of `class` in `realm` with its members, after the
+/// interfaces of its ancestors (the interface hook of lazy creation).
+#[allow(clippy::too_many_lines)]
+pub fn create_interface<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, class: swb_js::ClassId) -> swb_js::VmResult<()> {
+    if rt.interface(realm, class).is_some() {
+        return Ok(());
+    }
+    if let Some(parent) = rt.class_parent(class) {
+        create_interface::<H>(rt, realm, parent)?;
+    }
+    match class {
+        SCREEN => screen::define::<H>(rt, realm)?,
+        CSS_STYLE_DECLARATION => css_style_declaration::define::<H>(rt, realm)?,
+        DOM_PARSER => dom_parser::define::<H>(rt, realm)?,
+        EVENT => event::define::<H>(rt, realm)?,
+        CUSTOM_EVENT => custom_event::define::<H>(rt, realm)?,
+        EVENT_TARGET => event_target::define::<H>(rt, realm)?,
+        NODE => node::define::<H>(rt, realm)?,
+        DOCUMENT => document::define::<H>(rt, realm)?,
+        DOM_IMPLEMENTATION => dom_implementation::define::<H>(rt, realm)?,
+        DOCUMENT_TYPE => document_type::define::<H>(rt, realm)?,
+        DOCUMENT_FRAGMENT => document_fragment::define::<H>(rt, realm)?,
+        NODE_LIST => node_list::define::<H>(rt, realm)?,
+        HTML_COLLECTION => html_collection::define::<H>(rt, realm)?,
+        ELEMENT => element::define::<H>(rt, realm)?,
+        NAMED_NODE_MAP => named_node_map::define::<H>(rt, realm)?,
+        ATTR => attr::define::<H>(rt, realm)?,
+        DOM_TOKEN_LIST => dom_token_list::define::<H>(rt, realm)?,
+        CHARACTER_DATA => character_data::define::<H>(rt, realm)?,
+        TEXT => text::define::<H>(rt, realm)?,
+        PROCESSING_INSTRUCTION => processing_instruction::define::<H>(rt, realm)?,
+        COMMENT => comment::define::<H>(rt, realm)?,
+        DOM_RECT_READ_ONLY => dom_rect_read_only::define::<H>(rt, realm)?,
+        DOM_RECT => dom_rect::define::<H>(rt, realm)?,
+        DOM_RECT_LIST => dom_rect_list::define::<H>(rt, realm)?,
+        PERFORMANCE => performance::define::<H>(rt, realm)?,
+        WINDOW => window::define::<H>(rt, realm)?,
+        HTML_DOCUMENT => html_document::define::<H>(rt, realm)?,
+        HTML_ELEMENT => html_element::define::<H>(rt, realm)?,
+        HTML_UNKNOWN_ELEMENT => html_unknown_element::define::<H>(rt, realm)?,
+        DOM_STRING_MAP => dom_string_map::define::<H>(rt, realm)?,
+        HTML_HTML_ELEMENT => html_html_element::define::<H>(rt, realm)?,
+        HTML_HEAD_ELEMENT => html_head_element::define::<H>(rt, realm)?,
+        HTML_TITLE_ELEMENT => html_title_element::define::<H>(rt, realm)?,
+        HTML_BASE_ELEMENT => html_base_element::define::<H>(rt, realm)?,
+        HTML_LINK_ELEMENT => html_link_element::define::<H>(rt, realm)?,
+        HTML_META_ELEMENT => html_meta_element::define::<H>(rt, realm)?,
+        HTML_STYLE_ELEMENT => html_style_element::define::<H>(rt, realm)?,
+        HTML_BODY_ELEMENT => html_body_element::define::<H>(rt, realm)?,
+        HTML_HEADING_ELEMENT => html_heading_element::define::<H>(rt, realm)?,
+        HTML_PARAGRAPH_ELEMENT => html_paragraph_element::define::<H>(rt, realm)?,
+        HTMLHR_ELEMENT => htmlhr_element::define::<H>(rt, realm)?,
+        HTML_PRE_ELEMENT => html_pre_element::define::<H>(rt, realm)?,
+        HTML_QUOTE_ELEMENT => html_quote_element::define::<H>(rt, realm)?,
+        HTMLO_LIST_ELEMENT => htmlo_list_element::define::<H>(rt, realm)?,
+        HTMLU_LIST_ELEMENT => htmlu_list_element::define::<H>(rt, realm)?,
+        HTML_MENU_ELEMENT => html_menu_element::define::<H>(rt, realm)?,
+        HTMLLI_ELEMENT => htmlli_element::define::<H>(rt, realm)?,
+        HTMLD_LIST_ELEMENT => htmld_list_element::define::<H>(rt, realm)?,
+        HTML_DIV_ELEMENT => html_div_element::define::<H>(rt, realm)?,
+        HTML_ANCHOR_ELEMENT => html_anchor_element::define::<H>(rt, realm)?,
+        HTML_DATA_ELEMENT => html_data_element::define::<H>(rt, realm)?,
+        HTML_TIME_ELEMENT => html_time_element::define::<H>(rt, realm)?,
+        HTML_SPAN_ELEMENT => html_span_element::define::<H>(rt, realm)?,
+        HTMLBR_ELEMENT => htmlbr_element::define::<H>(rt, realm)?,
+        HTML_MOD_ELEMENT => html_mod_element::define::<H>(rt, realm)?,
+        HTML_PICTURE_ELEMENT => html_picture_element::define::<H>(rt, realm)?,
+        HTML_SOURCE_ELEMENT => html_source_element::define::<H>(rt, realm)?,
+        HTML_IMAGE_ELEMENT => html_image_element::define::<H>(rt, realm)?,
+        HTMLI_FRAME_ELEMENT => htmli_frame_element::define::<H>(rt, realm)?,
+        HTML_EMBED_ELEMENT => html_embed_element::define::<H>(rt, realm)?,
+        HTML_OBJECT_ELEMENT => html_object_element::define::<H>(rt, realm)?,
+        HTML_MEDIA_ELEMENT => html_media_element::define::<H>(rt, realm)?,
+        HTML_VIDEO_ELEMENT => html_video_element::define::<H>(rt, realm)?,
+        HTML_AUDIO_ELEMENT => html_audio_element::define::<H>(rt, realm)?,
+        HTML_TRACK_ELEMENT => html_track_element::define::<H>(rt, realm)?,
+        HTML_MAP_ELEMENT => html_map_element::define::<H>(rt, realm)?,
+        HTML_AREA_ELEMENT => html_area_element::define::<H>(rt, realm)?,
+        HTML_TABLE_ELEMENT => html_table_element::define::<H>(rt, realm)?,
+        HTML_TABLE_CAPTION_ELEMENT => html_table_caption_element::define::<H>(rt, realm)?,
+        HTML_TABLE_COL_ELEMENT => html_table_col_element::define::<H>(rt, realm)?,
+        HTML_TABLE_SECTION_ELEMENT => html_table_section_element::define::<H>(rt, realm)?,
+        HTML_TABLE_ROW_ELEMENT => html_table_row_element::define::<H>(rt, realm)?,
+        HTML_TABLE_CELL_ELEMENT => html_table_cell_element::define::<H>(rt, realm)?,
+        HTML_FORM_ELEMENT => html_form_element::define::<H>(rt, realm)?,
+        HTML_LABEL_ELEMENT => html_label_element::define::<H>(rt, realm)?,
+        HTML_INPUT_ELEMENT => html_input_element::define::<H>(rt, realm)?,
+        HTML_BUTTON_ELEMENT => html_button_element::define::<H>(rt, realm)?,
+        HTML_SELECT_ELEMENT => html_select_element::define::<H>(rt, realm)?,
+        HTML_DATA_LIST_ELEMENT => html_data_list_element::define::<H>(rt, realm)?,
+        HTML_OPT_GROUP_ELEMENT => html_opt_group_element::define::<H>(rt, realm)?,
+        HTML_OPTION_ELEMENT => html_option_element::define::<H>(rt, realm)?,
+        HTML_TEXT_AREA_ELEMENT => html_text_area_element::define::<H>(rt, realm)?,
+        HTML_OUTPUT_ELEMENT => html_output_element::define::<H>(rt, realm)?,
+        HTML_PROGRESS_ELEMENT => html_progress_element::define::<H>(rt, realm)?,
+        HTML_METER_ELEMENT => html_meter_element::define::<H>(rt, realm)?,
+        HTML_FIELD_SET_ELEMENT => html_field_set_element::define::<H>(rt, realm)?,
+        HTML_LEGEND_ELEMENT => html_legend_element::define::<H>(rt, realm)?,
+        HTML_SELECTED_CONTENT_ELEMENT => html_selected_content_element::define::<H>(rt, realm)?,
+        HTML_DETAILS_ELEMENT => html_details_element::define::<H>(rt, realm)?,
+        HTML_DIALOG_ELEMENT => html_dialog_element::define::<H>(rt, realm)?,
+        HTML_FORM_CONTROLS_COLLECTION => html_form_controls_collection::define::<H>(rt, realm)?,
+        RADIO_NODE_LIST => radio_node_list::define::<H>(rt, realm)?,
+        HTML_OPTIONS_COLLECTION => html_options_collection::define::<H>(rt, realm)?,
+        HTML_SLOT_ELEMENT => html_slot_element::define::<H>(rt, realm)?,
+        HTML_CANVAS_ELEMENT => html_canvas_element::define::<H>(rt, realm)?,
+        HTML_MARQUEE_ELEMENT => html_marquee_element::define::<H>(rt, realm)?,
+        HTML_FRAME_SET_ELEMENT => html_frame_set_element::define::<H>(rt, realm)?,
+        HTML_FRAME_ELEMENT => html_frame_element::define::<H>(rt, realm)?,
+        HTML_DIRECTORY_ELEMENT => html_directory_element::define::<H>(rt, realm)?,
+        HTML_FONT_ELEMENT => html_font_element::define::<H>(rt, realm)?,
+        HTML_PARAM_ELEMENT => html_param_element::define::<H>(rt, realm)?,
+        HTML_TEMPLATE_ELEMENT => html_template_element::define::<H>(rt, realm)?,
+        HTML_SCRIPT_ELEMENT => html_script_element::define::<H>(rt, realm)?,
+        ERROR_EVENT => error_event::define::<H>(rt, realm)?,
+        PROMISE_REJECTION_EVENT => promise_rejection_event::define::<H>(rt, realm)?,
+        PAGE_TRANSITION_EVENT => page_transition_event::define::<H>(rt, realm)?,
+        SUBMIT_EVENT => submit_event::define::<H>(rt, realm)?,
+        HASH_CHANGE_EVENT => hash_change_event::define::<H>(rt, realm)?,
+        MESSAGE_EVENT => message_event::define::<H>(rt, realm)?,
+        STORAGE_EVENT => storage_event::define::<H>(rt, realm)?,
+        BEFORE_UNLOAD_EVENT => before_unload_event::define::<H>(rt, realm)?,
+        SVG_ELEMENT => svg_element::define::<H>(rt, realm)?,
+        SVG_ANIMATED_STRING => svg_animated_string::define::<H>(rt, realm)?,
+        SVG_GRAPHICS_ELEMENT => svg_graphics_element::define::<H>(rt, realm)?,
+        SVG_GEOMETRY_ELEMENT => svg_geometry_element::define::<H>(rt, realm)?,
+        SVGSVG_ELEMENT => svgsvg_element::define::<H>(rt, realm)?,
+        SVG_RECT => svg_rect::define::<H>(rt, realm)?,
+        SVGG_ELEMENT => svgg_element::define::<H>(rt, realm)?,
+        SVG_DEFS_ELEMENT => svg_defs_element::define::<H>(rt, realm)?,
+        SVG_DESC_ELEMENT => svg_desc_element::define::<H>(rt, realm)?,
+        SVG_METADATA_ELEMENT => svg_metadata_element::define::<H>(rt, realm)?,
+        SVG_TITLE_ELEMENT => svg_title_element::define::<H>(rt, realm)?,
+        SVG_SYMBOL_ELEMENT => svg_symbol_element::define::<H>(rt, realm)?,
+        SVG_USE_ELEMENT => svg_use_element::define::<H>(rt, realm)?,
+        SVG_SWITCH_ELEMENT => svg_switch_element::define::<H>(rt, realm)?,
+        SVG_STYLE_ELEMENT => svg_style_element::define::<H>(rt, realm)?,
+        SVG_PATH_ELEMENT => svg_path_element::define::<H>(rt, realm)?,
+        SVG_RECT_ELEMENT => svg_rect_element::define::<H>(rt, realm)?,
+        SVG_CIRCLE_ELEMENT => svg_circle_element::define::<H>(rt, realm)?,
+        SVG_ELLIPSE_ELEMENT => svg_ellipse_element::define::<H>(rt, realm)?,
+        SVG_LINE_ELEMENT => svg_line_element::define::<H>(rt, realm)?,
+        SVG_POLYLINE_ELEMENT => svg_polyline_element::define::<H>(rt, realm)?,
+        SVG_POLYGON_ELEMENT => svg_polygon_element::define::<H>(rt, realm)?,
+        SVG_TEXT_CONTENT_ELEMENT => svg_text_content_element::define::<H>(rt, realm)?,
+        SVG_TEXT_POSITIONING_ELEMENT => svg_text_positioning_element::define::<H>(rt, realm)?,
+        SVG_TEXT_ELEMENT => svg_text_element::define::<H>(rt, realm)?,
+        SVGT_SPAN_ELEMENT => svgt_span_element::define::<H>(rt, realm)?,
+        SVG_TEXT_PATH_ELEMENT => svg_text_path_element::define::<H>(rt, realm)?,
+        SVG_IMAGE_ELEMENT => svg_image_element::define::<H>(rt, realm)?,
+        SVG_FOREIGN_OBJECT_ELEMENT => svg_foreign_object_element::define::<H>(rt, realm)?,
+        SVG_MARKER_ELEMENT => svg_marker_element::define::<H>(rt, realm)?,
+        SVG_GRADIENT_ELEMENT => svg_gradient_element::define::<H>(rt, realm)?,
+        SVG_LINEAR_GRADIENT_ELEMENT => svg_linear_gradient_element::define::<H>(rt, realm)?,
+        SVG_RADIAL_GRADIENT_ELEMENT => svg_radial_gradient_element::define::<H>(rt, realm)?,
+        SVG_STOP_ELEMENT => svg_stop_element::define::<H>(rt, realm)?,
+        SVG_PATTERN_ELEMENT => svg_pattern_element::define::<H>(rt, realm)?,
+        SVG_CLIP_PATH_ELEMENT => svg_clip_path_element::define::<H>(rt, realm)?,
+        SVG_MASK_ELEMENT => svg_mask_element::define::<H>(rt, realm)?,
+        SVG_SCRIPT_ELEMENT => svg_script_element::define::<H>(rt, realm)?,
+        SVGA_ELEMENT => svga_element::define::<H>(rt, realm)?,
+        SVG_VIEW_ELEMENT => svg_view_element::define::<H>(rt, realm)?,
+        TRANSITION_EVENT => transition_event::define::<H>(rt, realm)?,
+        DEVICE_MOTION_EVENT => device_motion_event::define::<H>(rt, realm)?,
+        DEVICE_ORIENTATION_EVENT => device_orientation_event::define::<H>(rt, realm)?,
+        UI_EVENT => ui_event::define::<H>(rt, realm)?,
+        FOCUS_EVENT => focus_event::define::<H>(rt, realm)?,
+        INPUT_EVENT => input_event::define::<H>(rt, realm)?,
+        KEYBOARD_EVENT => keyboard_event::define::<H>(rt, realm)?,
+        COMPOSITION_EVENT => composition_event::define::<H>(rt, realm)?,
+        TEXT_EVENT => text_event::define::<H>(rt, realm)?,
+        DOM_EXCEPTION => dom_exception::define::<H>(rt, realm)?,
+        MEDIA_QUERY_LIST => media_query_list::define::<H>(rt, realm)?,
+        MEDIA_QUERY_LIST_EVENT => media_query_list_event::define::<H>(rt, realm)?,
+        SCREEN_ORIENTATION => screen_orientation::define::<H>(rt, realm)?,
+        MOUSE_EVENT => mouse_event::define::<H>(rt, realm)?,
+        WHEEL_EVENT => wheel_event::define::<H>(rt, realm)?,
+        POINTER_EVENT => pointer_event::define::<H>(rt, realm)?,
+        DRAG_EVENT => drag_event::define::<H>(rt, realm)?,
+        _ => return Err(swb_js::VmError::type_error("a class without an interface")),
+    };
+    Ok(())
+}
+
+/// The value of the lazy global property `id` (an index of [`GLOBALS`]) in
+/// `realm` (the global hook of lazy creation).
+pub fn global_value<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, id: u32) -> swb_js::VmResult<swb_js::Value> {
+    b::glue::global_value::<H>(rt, realm, GLOBALS, id)
 }

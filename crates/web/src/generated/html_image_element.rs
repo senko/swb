@@ -341,6 +341,6 @@ pub fn define<H: HTMLImageElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     rt.define_accessor(realm, target, "fetchPriority", (Some(get_fetch_priority::<H> as swb_js::NativeFn), Some(set_fetch_priority::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     let factory = rt.define_constructor(realm, interface.prototype, "Image", 0, construct_image::<H>)?;
-    b::glue::expose_function(rt, realm, "Image", factory)?;
+    b::glue::keep_factory::<H>(rt, realm, "Image", factory)?;
     Ok(interface)
 }

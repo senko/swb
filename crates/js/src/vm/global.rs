@@ -38,6 +38,12 @@ impl Runtime {
         while let Some(object) = current {
             if let Some(property) = self.heap.get_own_property(object, key)? {
                 return Ok(Some(match property {
+                    // An interface object that is created at its first
+                    // read (`host/lazy.rs`).
+                    Property::Data {
+                        value: Value::Lazy(id),
+                        ..
+                    } => Lookup::Value(self.resolve_lazy(object, key, id)?),
                     Property::Data { value, .. } => Lookup::Value(value),
                     Property::Accessor { get, .. } if get.is_undefined() => {
                         Lookup::Value(Value::Undefined)
@@ -120,8 +126,10 @@ impl Runtime {
                             receiver: record.global.into(),
                         }
                     }),
-                    Some(value) => Some(GetResult::Value(value)),
-                    None => None,
+                    // No entry is made for a lazy value and no slot gets one
+                    // back; a miss is the safe answer anyway.
+                    Some(value) if !value.is_lazy() => Some(GetResult::Value(value)),
+                    Some(_) | None => None,
                 })
             }
             _ => Ok(None),
@@ -247,6 +255,15 @@ impl Runtime {
             if let Some(found) = shape.find(key, &self.heap.arenas.key_lists)? {
                 let accessor = found.flags.accessor();
                 if write && (object != record.global || accessor || !found.flags.writable()) {
+                    return Ok(SiteCache::Empty);
+                }
+                // A lazy value that is not created yet (`host/lazy.rs`).
+                if !accessor
+                    && object_record
+                        .slots
+                        .get(found.slot as usize)
+                        .is_some_and(|value| value.is_lazy())
+                {
                     return Ok(SiteCache::Empty);
                 }
                 return Ok(SiteCache::GlobalProperty {

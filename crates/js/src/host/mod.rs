@@ -22,6 +22,9 @@
 //! - **The global object** ([`Runtime::init_global`]): the realm's global
 //!   object becomes a host object of a class without hooks, with that
 //!   class's prototype; it stays cacheable.
+//! - **Lazy creation** (`lazy.rs`): the host creates an interface at its
+//!   first use ([`Runtime::interface_or_create`]) and the value of a
+//!   global property at its first read ([`Runtime::define_lazy_global`]).
 //! - **Host state** ([`HostState`]): the runtime's host data, traced by the
 //!   collector as a root, so the binding state (the wrappers, the
 //!   listeners, the timers) needs no persistent root per value.
@@ -36,6 +39,7 @@
 mod handler;
 pub(crate) mod hooks;
 mod interface;
+mod lazy;
 mod ops;
 
 use std::any::Any;
@@ -46,6 +50,7 @@ pub use hooks::{
     PreventExtensionsHook, Refusal, RefusalHook, SetAnswer, SetHook,
 };
 pub use interface::{Attributes, Interface};
+pub use lazy::{GlobalHook, InterfaceHook, LazyHooks};
 pub use ops::ScriptIterator;
 
 use crate::error::Termination;
@@ -177,6 +182,8 @@ pub trait HostState: Any {
 pub(crate) struct Host {
     pub(crate) classes: Vec<HostClass>,
     pub(crate) state: Option<Box<dyn HostState>>,
+    /// The hooks of lazy creation (`lazy.rs`).
+    pub(crate) lazy: Option<LazyHooks>,
 }
 
 impl Host {
@@ -252,22 +259,20 @@ impl Runtime {
 
     /// A new host object of `class` with `data`, whose prototype is the
     /// class's prototype in `realm` ([`Runtime::create_interface`] made
-    /// it). Recorded in the current handle scope if one is open (inside a
-    /// native function); otherwise the host roots it (stores it in its
-    /// traced host state) before anything can collect. The allocation
-    /// itself never collects.
+    /// it, or the host's hook makes it now:
+    /// [`Runtime::interface_or_create`]). Recorded in the current handle
+    /// scope if one is open (inside a native function); otherwise the host
+    /// roots it (stores it in its traced host state) before anything can
+    /// collect. Neither the allocation nor the creation of the interface
+    /// collects (a creation runs in a no-GC region, `lazy.rs`), so the
+    /// caller's values need no roots for this call.
     pub fn new_host_object(
         &mut self,
         realm: u32,
         class: ClassId,
         data: HostData,
     ) -> VmResult<Gc<Object>> {
-        let prototype = self
-            .interface(realm, class)
-            .ok_or(VmError::invariant(
-                "a host object of a class without an interface in the realm",
-            ))?
-            .prototype;
+        let prototype = self.interface_or_create(realm, class)?.prototype;
         self.new_host_object_with_proto(Some(prototype), class, data)
     }
 

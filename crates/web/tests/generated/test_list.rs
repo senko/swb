@@ -118,10 +118,10 @@ pub fn define<H: TestListImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     let interface = rt.begin_interface(realm, super::TEST_LIST)?;
     let target = interface.prototype;
     let _ = target;
-    b::iterable::define_value_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_value_iterator::<H>(rt, realm, interface.prototype)?;
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "item", 1, op_item::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -139,7 +139,7 @@ pub fn define<H: TestFormImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     let target = interface.prototype;
     let _ = target;
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -309,7 +309,7 @@ impl Runtime {
         if let Some((data, index)) = self.typed_numeric(object, key)? {
             return self.typed_own_property(&data, index);
         }
-        Ok(self.heap.get_own_property(object, key)?)
+        self.own_property_resolved(object, key)
     }
 
     /// `O.[[Get]](P, Receiver)` along a prototype chain that has a proxy

@@ -167,6 +167,12 @@ impl Page {
             return;
         }
         self.run_task(ScriptRuntime::fire_load_event);
+        if let Some(runtime) = &self.script {
+            log::debug!(
+                "load event fired (script heap {} bytes)",
+                runtime.heap_size()
+            );
+        }
     }
 
     /// True if the document has a script runtime whose `load` event has

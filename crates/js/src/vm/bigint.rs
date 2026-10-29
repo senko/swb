@@ -389,7 +389,7 @@ impl Runtime {
                     self.value_text(primitive)
                 )));
             }
-            Value::Object(_) | Value::Empty | Value::Cell(_) => {
+            Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::invariant(
                     "ToBigInt of a value that is not a primitive",
                 ));

@@ -103,8 +103,7 @@ impl<'a> Cx<'a> {
             Some(call) => self.rt.prototype_from_new_target(call, self.class)?,
             None => {
                 self.rt
-                    .interface(self.realm, self.class)
-                    .ok_or(VmError::type_error("Illegal constructor"))?
+                    .interface_or_create(self.realm, self.class)?
                     .prototype
             }
         };
@@ -204,14 +203,21 @@ pub enum HandlerTarget {
 
 /// The state of the glue in a runtime: the templates of the
 /// `[LegacyUnforgeable]` members (an object per realm and interface that
-/// holds the accessors, which every instance shares) and the iterator
-/// prototype objects of pair iterators.
+/// holds the accessors, which every instance shares), the iterator
+/// prototype objects of pair iterators, the legacy factory functions and
+/// the built-in objects that interfaces use, kept from before any script
+/// ran (interfaces are created at their first use, ADR 0028 section 5,
+/// "Lazy interfaces notes").
 #[derive(Debug, Default)]
 pub struct GlueState {
     pub(crate) unforgeable: Vec<((u32, ClassId), Gc<Object>)>,
     /// The iterator prototype objects of the interfaces with pair
     /// iterators (Web IDL §3.7.9.2), per realm and iterator class.
     pub(crate) iterator_prototypes: Vec<((u32, ClassId), Gc<Object>)>,
+    /// The legacy factory functions (`Image`), per realm and name.
+    pub(crate) factories: Vec<((u32, &'static str), Gc<Object>)>,
+    /// The built-in objects of each realm that the glue uses.
+    pub(crate) builtins: Vec<(u32, glue::Builtins)>,
 }
 
 impl GlueState {
@@ -220,6 +226,12 @@ impl GlueState {
     pub fn trace(&self, tracer: &mut Tracer<'_>) {
         for (_, object) in self.unforgeable.iter().chain(&self.iterator_prototypes) {
             tracer.object(*object);
+        }
+        for (_, object) in &self.factories {
+            tracer.object(*object);
+        }
+        for (_, builtins) in &self.builtins {
+            builtins.trace(tracer);
         }
     }
 }

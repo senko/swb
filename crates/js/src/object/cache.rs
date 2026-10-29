@@ -439,6 +439,12 @@ impl Heap {
                     crate::error::Error::invariant("a shape entry outside the slots"),
                 )?;
                 let accessor = found.flags.accessor();
+                // A lazy value of a global object: no entry, and the
+                // runtime creates the value on its generic path
+                // (`host/lazy.rs`).
+                if !accessor && first.is_lazy() {
+                    return Ok((GetResult::Generic, SiteCache::Empty));
+                }
                 let result = if accessor {
                     getter_result(first, receiver)
                 } else {

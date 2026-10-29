@@ -223,7 +223,10 @@ impl Runtime {
         for _ in 0..CHAIN_LIMIT {
             let object = current?;
             match self.heap.get_own_property(object, key) {
-                Ok(Some(Property::Data { value, .. })) => return Some(value),
+                // A lazy value of a global object is not created here.
+                Ok(Some(Property::Data { value, .. })) => {
+                    return (!value.is_internal()).then_some(value);
+                }
                 Ok(Some(Property::Accessor { .. })) => return None,
                 _ => current = self.heap.get_prototype_of(object).ok().flatten(),
             }
@@ -493,7 +496,9 @@ impl Runtime {
             Value::Symbol(_) => "symbol".to_owned(),
             Value::BigInt(_) => "bigint".to_owned(),
             Value::Object(_) if self.is_callable(value).unwrap_or(false) => "function".to_owned(),
-            Value::Object(_) | Value::Empty | Value::Cell(_) => "object".to_owned(),
+            Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
+                "object".to_owned()
+            }
         }
     }
 
@@ -545,7 +550,7 @@ impl Runtime {
             Value::Symbol(s) => self.key_text(PropertyKey::Symbol(s)),
             Value::BigInt(b) => self.bigint_text(b),
             Value::Object(o) => self.object_text(o),
-            Value::Empty | Value::Cell(_) => "(internal)".to_owned(),
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => "(internal)".to_owned(),
         }
     }
 

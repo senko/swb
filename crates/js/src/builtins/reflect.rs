@@ -71,7 +71,7 @@ pub(super) fn not_a_function_of(rt: &Runtime, method: &str, value: Value) -> VmE
         Value::String(_) => Some("string"),
         Value::Symbol(_) => Some("symbol"),
         Value::BigInt(_) => Some("bigint"),
-        Value::Object(_) | Value::Empty | Value::Cell(_) => Some("object"),
+        Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => Some("object"),
     };
     let which = match kind {
         None => "null".to_owned(),

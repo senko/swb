@@ -90,7 +90,7 @@ impl Heap {
                     hasher.write_u64(*limb);
                 }
             }
-            Value::Empty | Value::Cell(_) => {
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(Error::invariant(
                     "an internal value used as a collection key",
                 ));

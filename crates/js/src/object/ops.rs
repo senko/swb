@@ -323,6 +323,19 @@ impl Heap {
         roots: &dyn RootSource,
     ) -> Result<bool> {
         let current = self.get_own_property(object, key)?;
+        // A definition that keeps the value of a lazy property needs the
+        // value: the runtime creates it first (`host/lazy.rs`).
+        if let Some(Property::Data {
+            value: Value::Lazy(_),
+            ..
+        }) = current
+            && desc.value.is_none()
+            && !desc.is_accessor()
+        {
+            return Err(Error::invariant(
+                "a definition that keeps a lazy value that is not created",
+            ));
+        }
         let extensible = self.object(object)?.extensible;
         match validate_and_apply(self, extensible, &desc, current)? {
             Apply::Reject => Ok(false),
@@ -444,6 +457,12 @@ impl Heap {
                 return Ok(found);
             }
             match self.own_property_of(record, key)? {
+                // A lazy value of a global object: the runtime creates it
+                // on its generic path (`host/lazy.rs`).
+                Some(Property::Data {
+                    value: Value::Lazy(_),
+                    ..
+                }) => return Ok(GetResult::Generic),
                 Some(Property::Data { value, .. }) => return Ok(GetResult::Value(value)),
                 Some(Property::Accessor { get, .. }) => {
                     if get.is_undefined() {

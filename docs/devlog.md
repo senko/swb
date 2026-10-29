@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-29: M8 lazy interfaces
+
+- The Web IDL interfaces are created at their first use. The runtime
+  creates the realm, `Window` and `EventTarget`, the named properties
+  object, the `CSS` namespace and the serializer. Every other interface
+  (interface object, prototype with its members, factory functions) is
+  created when a script reads its name on the window, or when the
+  bindings make an object of the class (a wrapper, an event, an
+  exception).
+- Engine: a third internal value, `Value::Lazy`, marks a global
+  property whose value the host creates at its first read. The heap's
+  [[Get]] walks hand it to the generic path; `[[GetOwnProperty]]` and
+  the global lookup create it; the inline caches never hold it. A
+  creation runs in a no-GC region and is rolled back when it fails
+  (ADR 0028 section 5, "Lazy interfaces notes", and section 6 item 9).
+- Generator: a table of the window's properties in the old order, a
+  dispatch from class to `define`, and the built-ins that the
+  interfaces use, read before any script runs.
+- Runtime creation: 1.20 MB → 445 KB of heap, 3.3 → 1.5 ms
+  (senko.net). Scripts see no difference: the window's keys, attributes
+  and order, the probe files, `compare --js`, test262 and the JS-off
+  snapshot are unchanged; the review compared 190 more script cases
+  with the base build. Hostile set 207 cases, 206 ok + the known
+  failure (2 new).
+- Learned: one native function object costs about 370 B, and the
+  bindings make about 2,050. Creating the accessor functions only when
+  a script reflects them would cut the cost of the interfaces that
+  pages use (backlog).
+
+Next: feature 8a (location, history, navigator, performance, URL).
+
 ## 2026-10-29: M8 feature 7b2, the rendering update, `innerText`, `matchMedia`
 
 - The scroll methods return `undefined`, and a rejected promise instead

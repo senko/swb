@@ -196,7 +196,12 @@ mod tests {
             module.contains("pub const ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(2);")
         );
         assert!(module.contains("swb_js::ClassSpec::new(\"Element\").parent(NODE)"));
-        assert!(module.contains("b::glue::expose(rt, realm, \"Node\", interface)?;"));
+        // Without a `[Global]` interface every interface is lazy: a global
+        // property in the order of the classes, and a dispatch from the
+        // class to its `define`.
+        assert!(module.contains("b::glue::expose_lazy(rt, realm, GLOBALS, 1)?; // Node"));
+        assert!(module.contains("        NODE => node::define::<H>(rt, realm)?,"));
+        assert!(module.contains("rt.set_lazy_hooks(swb_js::LazyHooks { interface: create_interface::<H>, global: global_value::<H> });"));
     }
 
     #[test]
@@ -257,9 +262,9 @@ mod tests {
         assert!(c.contains("let result = <H as CImpl>::item(&mut b::Cx::without_call(rt, realm, super::C), this, index)?;"));
         assert!(c.contains("unenumerable: true,"));
         assert!(c.contains("prevent_extensions: Some(b::legacy::prevent_extensions),"));
-        assert!(
-            c.contains("b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;")
-        );
+        assert!(c.contains(
+            "b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;"
+        ));
         // The subclass gets hooks that call the parent's trait.
         let d = file(idl, "d.rs");
         assert!(d.contains("<H as super::c::CImpl>::named_getter(&mut b::Cx::without_call(rt, realm, super::C), this, name)?;"));
@@ -267,7 +272,7 @@ mod tests {
         let module = file(idl, "mod.rs");
         assert!(module.contains("swb_js::ClassSpec::new(\"D\").parent(C).hooks(d::hooks::<H>())"));
         let l = file(idl, "l.rs");
-        assert!(l.contains("b::iterable::define_value_iterator(rt, realm, interface.prototype)?;\n    rt.define_method(realm, target, \"item\""));
+        assert!(l.contains("b::iterable::define_value_iterator::<H>(rt, realm, interface.prototype)?;\n    rt.define_method(realm, target, \"item\""));
     }
 
     #[test]
@@ -304,13 +309,18 @@ mod tests {
         assert!(img.contains("pub(super) fn construct<H: ImgImpl>("));
         assert!(img.contains("Err(b::Exception::type_error(\"Illegal constructor\"))"));
         // `define` makes the functions with the prototype of the
-        // interface and a `length` of the required arguments (0 and 1), and
-        // defines them on the global object, after `constructor` of the
-        // prototype.
-        assert!(img.contains("rt.end_interface(interface)?;\n    let factory = rt.define_constructor(realm, interface.prototype, \"Img\", 0, construct_img::<H>)?;\n    b::glue::expose_function(rt, realm, \"Img\", factory)?;"));
+        // interface and a `length` of the required arguments (0 and 1),
+        // after `constructor` of the prototype, and keeps them for the
+        // global object.
+        assert!(img.contains("rt.end_interface(interface)?;\n    let factory = rt.define_constructor(realm, interface.prototype, \"Img\", 0, construct_img::<H>)?;\n    b::glue::keep_factory::<H>(rt, realm, \"Img\", factory)?;"));
         assert!(img.contains(
             "rt.define_constructor(realm, interface.prototype, \"Opt\", 1, construct_opt::<H>)?;"
         ));
+        // The global object gets them as lazy properties, before the
+        // interface object (the order of the eager creation).
+        let module = file(idl, "mod.rs");
+        assert!(module.contains("    b::glue::GlobalName { name: \"Img\", class: IMG, factory: true },\n    b::glue::GlobalName { name: \"Opt\", class: IMG, factory: true },\n    b::glue::GlobalName { name: \"Img\", class: IMG, factory: false },"));
+        assert!(module.contains("    b::glue::expose_lazy(rt, realm, GLOBALS, 3)?; // Img\n    b::glue::expose_lazy(rt, realm, GLOBALS, 4)?; // Opt\n    b::glue::expose_lazy(rt, realm, GLOBALS, 5)?; // Img\n"));
         // An interface that is not exposed in `Window` gets no function.
         let hidden = file(
             "[Exposed=Worker, LegacyFactoryFunction=W()] interface W {};",
@@ -413,6 +423,8 @@ mod tests {
             "b::glue::define_class(rt, swb_js::ClassSpec::new(\"H Iterator\"), H_ITERATOR)?;"
         ));
         assert!(module.contains("b::glue::immutable_prototypes(rt, realm, &[WINDOW])?;"));
+        // The `[Global]` interface is created with the runtime.
+        assert!(module.contains("    let interface = window::define::<H>(rt, realm)?;\n    b::glue::expose(rt, realm, \"Window\", interface)?;"));
         assert!(module.contains("pub fn init_global<H: Bindings>("));
     }
 

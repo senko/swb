@@ -345,11 +345,7 @@ impl Runtime {
             _ => None,
         };
         let realm = realm.unwrap_or(call.realm());
-        self.interface(realm, class)
-            .map(|interface| interface.prototype)
-            .ok_or(VmError::invariant(
-                "a constructor of a class without an interface in the realm",
-            ))
+        Ok(self.interface_or_create(realm, class)?.prototype)
     }
 
     /// Makes the global object of `realm` a host object of `class` with
@@ -363,12 +359,7 @@ impl Runtime {
         if self.vm.host.class(class.index())?.hooks.is_some() {
             return Err(VmError::invariant("a global object of a class with hooks"));
         }
-        let prototype = self
-            .interface(realm, class)
-            .ok_or(VmError::invariant(
-                "a global object of a class without an interface in the realm",
-            ))?
-            .prototype;
+        let prototype = self.interface_or_create(realm, class)?.prototype;
         let global = self.global_object(realm)?;
         let slot = HostSlot::new(class.index(), data)?;
         if let HostData::Generic(generic) = data {

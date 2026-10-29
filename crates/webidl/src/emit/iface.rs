@@ -853,7 +853,7 @@ impl Gen<'_> {
             "    let interface = rt.begin_interface(realm, {class})?;"
         );
         if iface.name == "DOMException" {
-            out.push_str("    b::glue::inherit_error_prototype(rt, realm, interface)?;\n");
+            out.push_str("    b::glue::inherit_error_prototype::<H>(rt, realm, interface)?;\n");
         }
         let target = if global {
             "rt.global(realm)?"
@@ -1070,7 +1070,7 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
 /// The legacy factory functions of an interface (`[LegacyFactoryFunction=
 /// Image(optional unsigned long width)]`) as operations without a name:
 /// the factory's name and its arguments.
-fn factory_operations(iface: &Iface) -> Vec<(String, Operation)> {
+pub(super) fn factory_operations(iface: &Iface) -> Vec<(String, Operation)> {
     iface
         .ext_attrs
         .0
@@ -1099,8 +1099,10 @@ fn factory_operations(iface: &Iface) -> Vec<(String, Operation)> {
 }
 
 /// The functions of the legacy factory functions: each is a constructor
-/// whose `prototype` is the interface prototype object, a property of the
-/// global object (Web IDL §3.7.2).
+/// whose `prototype` is the interface prototype object (Web IDL §3.7.2),
+/// kept in the glue state; `create_interfaces` makes it a property of the
+/// global object (a lazy one, or at once for an interface that is created
+/// with the runtime).
 fn define_factories(factories: &[OpGroup<'_>], out: &mut String) {
     for group in factories {
         let Some(name) = &group.factory else {
@@ -1114,7 +1116,7 @@ fn define_factories(factories: &[OpGroup<'_>], out: &mut String) {
             .unwrap_or(0);
         let _ = writeln!(
             out,
-            "    let factory = rt.define_constructor(realm, interface.prototype, {}, {length}, construct_{}::<H>)?;\n    b::glue::expose_function(rt, realm, {}, factory)?;",
+            "    let factory = rt.define_constructor(realm, interface.prototype, {}, {length}, construct_{}::<H>)?;\n    b::glue::keep_factory::<H>(rt, realm, {}, factory)?;",
             literal(name),
             snake(name),
             literal(name)

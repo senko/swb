@@ -50,6 +50,13 @@ pub enum Value {
     /// frame that declares it (ADR 0026 section 3). Only the interpreter
     /// reads it; it never reaches a script or the object model.
     Cell(Gc<ValueCell>),
+    /// Internal: the value of a property of a global object that the host
+    /// creates at its first read (an interface object, ADR 0028 section
+    /// 5, "Lazy interfaces notes"), with the host's number for it. Only a
+    /// data property of a global object holds it ([`crate::Runtime::define_lazy_global`]);
+    /// every path that reads a property value for a script or for the host
+    /// resolves it first (`host/lazy.rs`), so it never reaches a script.
+    Lazy(u32),
 }
 
 impl Value {
@@ -89,10 +96,16 @@ impl Value {
         matches!(self, Value::Empty)
     }
 
-    /// Whether this is one of the internal variants (`Empty`, `Cell`),
-    /// which never reach a script or the object model.
+    /// Whether this is one of the internal variants (`Empty`, `Cell`,
+    /// `Lazy`), which never reach a script.
     pub fn is_internal(self) -> bool {
-        matches!(self, Value::Empty | Value::Cell(_))
+        matches!(self, Value::Empty | Value::Cell(_) | Value::Lazy(_))
+    }
+
+    /// Whether this is the internal `Lazy` marker of a property that is
+    /// not created yet.
+    pub fn is_lazy(self) -> bool {
+        matches!(self, Value::Lazy(_))
     }
 }
 
@@ -209,6 +222,7 @@ impl Heap {
             (Value::Symbol(x), Value::Symbol(y)) => x == y,
             (Value::Object(x), Value::Object(y)) => x == y,
             (Value::Cell(x), Value::Cell(y)) => x == y,
+            (Value::Lazy(x), Value::Lazy(y)) => x == y,
             (Value::BigInt(x), Value::BigInt(y)) => x == y || self.bigint(x)? == self.bigint(y)?,
             _ => false,
         })

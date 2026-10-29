@@ -293,7 +293,7 @@ impl Runtime {
                 "Cannot convert a Symbol value to a number",
             )),
             Value::BigInt(_) => Err(VmError::type_error(NOT_A_NUMBER)),
-            Value::Object(_) | Value::Empty | Value::Cell(_) => {
+            Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 Err(VmError::invariant("ToPrimitive returned an object"))
             }
         }
@@ -318,7 +318,7 @@ impl Runtime {
                 ));
             }
             Value::BigInt(b) => self.bigint_to_string(b, 10)?,
-            Value::Object(_) | Value::Empty | Value::Cell(_) => {
+            Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::invariant("ToPrimitive returned an object"));
             }
         };
@@ -375,7 +375,7 @@ impl Runtime {
             Value::String(s) => !self.heap.string(s)?.is_empty(),
             Value::Symbol(_) | Value::Object(_) => true,
             Value::BigInt(b) => !self.heap.bigint(b)?.is_zero(),
-            Value::Empty | Value::Cell(_) => {
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::invariant("ToBoolean of an internal value"));
             }
         })
@@ -404,7 +404,7 @@ impl Runtime {
             Value::Bool(b) => (ObjectKind::BooleanWrapper(b), Intrinsic::BooleanPrototype),
             Value::Symbol(s) => (ObjectKind::SymbolWrapper(s), Intrinsic::SymbolPrototype),
             Value::BigInt(b) => (ObjectKind::BigIntWrapper(b), Intrinsic::BigIntPrototype),
-            Value::Empty | Value::Cell(_) => {
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::type_error("Cannot convert value to object"));
             }
         };
@@ -443,7 +443,7 @@ impl Runtime {
                     atoms.object
                 }
             }
-            Value::Empty | Value::Cell(_) => {
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::invariant("typeof of an internal value"));
             }
         })

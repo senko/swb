@@ -39,7 +39,8 @@ pub(crate) enum ProtoSet {
 impl Runtime {
     /// `[[GetOwnProperty]]` (§10.1.5, with §10.4.3.5 for String objects).
     /// The character of a String object is a new string, recorded in the
-    /// current handle scope.
+    /// current handle scope. A lazy property of a global object is
+    /// created first (`host/lazy.rs`).
     pub(crate) fn own_property(
         &mut self,
         object: Gc<Object>,
@@ -61,13 +62,15 @@ impl Runtime {
                 configurable: false,
             }));
         }
-        Ok(self.heap.get_own_property(object, key)?)
+        self.own_property_resolved(object, key)
     }
 
     /// `[[DefineOwnProperty]]` (§10.1.6, §10.4.2.1, §10.4.3.2, §10.4.5).
     /// For the `length` of an array, a string or object in `[[Value]]` is
     /// converted first (`ArraySetLength` steps 3 to 5, which can run
-    /// script code); so is the value of an element of a typed array.
+    /// script code); so is the value of an element of a typed array. A
+    /// descriptor that keeps the current value (no value, no accessor)
+    /// first creates a lazy value of a global object (`host/lazy.rs`).
     pub(crate) fn define_own_property(
         &mut self,
         object: Gc<Object>,
@@ -85,6 +88,9 @@ impl Runtime {
             && matches!(self.heap.object(object)?.kind, ObjectKind::Array { .. })
         {
             desc.value = Some(self.convert_array_length(value)?);
+        }
+        if desc.value.is_none() && !desc.is_accessor() {
+            self.resolve_own_lazy(object, key)?;
         }
         Ok(self.heap.define_own_property(object, key, desc, &self.vm)?)
     }

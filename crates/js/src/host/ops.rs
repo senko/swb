@@ -59,7 +59,9 @@ impl Runtime {
 
     /// The own property `key` that `object` stores (`OrdinaryGetOwnProperty`,
     /// ECMA-262 §10.1.5.1), without the hooks of a host object: the
-    /// expandos of a legacy platform object. A proxy has none.
+    /// expandos of a legacy platform object. A proxy has none. A lazy
+    /// value of a global object (`lazy.rs`), which this read cannot
+    /// create, is an internal error: legacy platform objects have none.
     pub fn stored_own_property(
         &self,
         object: Gc<Object>,
@@ -68,7 +70,15 @@ impl Runtime {
         if self.heap.is_proxy(object)? {
             return Ok(None);
         }
-        Ok(self.heap.get_own_property(object, key)?)
+        match self.heap.get_own_property(object, key)? {
+            Some(Property::Data {
+                value: Value::Lazy(_),
+                ..
+            }) => Err(VmError::invariant(
+                "a stored read of a lazy property that is not created",
+            )),
+            property => Ok(property),
+        }
     }
 
     /// `GetV(base, key)` (ECMA-262 §7.3.3): a getter runs as a re-entry.

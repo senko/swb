@@ -3137,3 +3137,52 @@ def match_media_loop_js_on() -> Page:
         "m.addListener(() => n++); kept.push(m); } console.log('matched ' + n);</script>"
     )
     return Page(doc("<p>x</p>" + script))
+
+
+@case(
+    "Every global name read in 1,000 rounds (as an identifier, as window[name] and every "
+    "50th round with getOwnPropertyDescriptor), with JavaScript on: each lazy interface is "
+    "created once, and the reads of the identifiers stay cached (ADR 0028 section 5, lazy "
+    "interfaces)",
+    swb_args=("--js",),
+    time_limit_s=4,
+    rss_limit_mib=1024,
+)
+def global_names_read_loop_js_on() -> Page:
+    script = (
+        "<script>const names = Object.getOwnPropertyNames(window); let n = 0; "
+        "const reads = names.map(k => new Function('return typeof ' + k)); "
+        "for (let round = 0; round < 1000; round++) "
+        "for (let i = 0; i < names.length; i++) { const k = names[i]; "
+        "if (reads[i]() === 'function') n++; if (window[k] !== undefined) n++; "
+        "if (round % 50 === 0 && Object.getOwnPropertyDescriptor(window, k)) n++; } "
+        "console.log('reads ' + n);</script>"
+    )
+    return Page(doc("<p>names</p>" + script))
+
+
+@case(
+    "Every interface name deleted, overwritten or redefined before its first use, then "
+    "32,000 elements of 16 kinds created and appended, every 500th clicked first, with "
+    "JavaScript on: the "
+    "prototype chains stay whole and nothing breaks (ADR 0028 section 5, lazy interfaces)",
+    swb_args=("--js",),
+    time_limit_s=4,
+    rss_limit_mib=1024,
+)
+def global_names_replaced_before_use_js_on() -> Page:
+    script = (
+        "<script>const all = Object.getOwnPropertyNames(window), define = Object.defineProperty; "
+        "const names = all.slice(all.indexOf('Screen')).filter(k => /^[A-Z]/.test(k)); "
+        "names.forEach((k, i) => { if (i % 3 === 0) delete window[k]; "
+        "else if (i % 3 === 1) window[k] = i; "
+        "else define(window, k, { value: null, writable: false }); }); "
+        "let ok = 0; for (const tag of ['div', 'span', 'img', 'option', 'svg', 'table', 'input', "
+        "'select', 'form', 'a', 'p', 'canvas', 'video', 'template', 'textarea', 'unknown-x']) { "
+        "for (let i = 0; i < 2000; i++) { const e = document.createElement(tag); "
+        "if (e instanceof Object.getPrototypeOf(e).constructor) ok++; "
+        "e.onclick = ev => { if (ev instanceof Object.getPrototypeOf(ev).constructor) ok++; }; "
+        "if (i % 500 === 0) e.click(); document.body.appendChild(e); } } "
+        "console.log('ok ' + ok + ' ' + names.length);</script>"
+    )
+    return Page(doc("<p>replaced</p>" + script))

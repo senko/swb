@@ -87,7 +87,7 @@ fn to_array_length(value: Value) -> Result<u32> {
         Value::BigInt(_) => {
             return Err(Error::type_error(BIGINT_LENGTH));
         }
-        Value::String(_) | Value::Object(_) | Value::Empty | Value::Cell(_) => {
+        Value::String(_) | Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
             return Err(Error::invariant(
                 "ArraySetLength needs a primitive; the caller applies ToNumber to strings and objects",
             ));

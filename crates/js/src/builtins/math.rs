@@ -398,7 +398,7 @@ enum State {
 /// `typeof` of a primitive for V8's message.
 fn type_name(value: Value) -> &'static str {
     match value {
-        Value::Undefined | Value::Empty | Value::Cell(_) => "undefined",
+        Value::Undefined | Value::Empty | Value::Cell(_) | Value::Lazy(_) => "undefined",
         Value::Null | Value::Object(_) => "object",
         Value::Bool(_) => "boolean",
         Value::Int(_) | Value::Double(_) => "number",

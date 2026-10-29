@@ -4,7 +4,8 @@
 //! The generated binding glue (ADR 0028 section 5): one module per
 //! interface with the trait of its hand-written behaviour, `types` with
 //! the dictionaries, enumerations, unions and callbacks, the class
-//! numbers, [`define_classes`] and [`create_interfaces`].
+//! numbers, [`define_classes`], [`create_interfaces`] and the hooks of the
+//! lazy creation of interfaces ([`create_interface`], [`global_value`]).
 
 pub mod dom_exception;
 pub mod window;
@@ -74,34 +75,48 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     Ok(())
 }
 
-/// Creates the interfaces of the set in `realm` and defines the exposed
-/// ones on the global object.
+/// The properties of the global object that the exposed interfaces
+/// define, in their order (Web IDL §3.7.1, §3.7.2); the number of a lazy
+/// property is its index.
+pub const GLOBALS: &[b::glue::GlobalName] = &[
+    b::glue::GlobalName { name: "DOMException", class: DOM_EXCEPTION, factory: false },
+    b::glue::GlobalName { name: "Window", class: WINDOW, factory: false },
+    b::glue::GlobalName { name: "Node", class: NODE, factory: false },
+    b::glue::GlobalName { name: "TestElement", class: TEST_ELEMENT, factory: false },
+    b::glue::GlobalName { name: "Tester", class: TESTER, factory: false },
+    b::glue::GlobalName { name: "TestList", class: TEST_LIST, factory: false },
+    b::glue::GlobalName { name: "TestCollection", class: TEST_COLLECTION, factory: false },
+    b::glue::GlobalName { name: "TestOptionList", class: TEST_OPTION_LIST, factory: false },
+    b::glue::GlobalName { name: "TestStringMap", class: TEST_STRING_MAP, factory: false },
+    b::glue::GlobalName { name: "TestStorage", class: TEST_STORAGE, factory: false },
+    b::glue::GlobalName { name: "TestForm", class: TEST_FORM, factory: false },
+    b::glue::GlobalName { name: "TestHeaders", class: TEST_HEADERS, factory: false },
+];
+
+/// Registers the hooks of lazy creation, keeps the built-in objects that
+/// interfaces use, creates the interfaces of the `[Global]` interface and
+/// its ancestors in `realm`, and defines the properties of the global
+/// object for all exposed interfaces in their order: the interface objects
+/// of those interfaces, lazy properties for the others, whose interface is
+/// created at the first read or the first object of the class (ADR 0028
+/// section 5, "Lazy interfaces notes").
 #[allow(clippy::too_many_lines)]
 pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<()> {
-    let interface = dom_exception::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "DOMException", interface)?;
+    rt.set_lazy_hooks(swb_js::LazyHooks { interface: create_interface::<H>, global: global_value::<H> });
+    b::glue::keep_builtins::<H>(rt, realm)?;
+    b::glue::expose_lazy(rt, realm, GLOBALS, 0)?; // DOMException
     let interface = window::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "Window", interface)?;
-    let interface = node::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Node", interface)?;
-    let interface = test_element::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestElement", interface)?;
-    let interface = tester::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "Tester", interface)?;
-    let interface = test_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestList", interface)?;
-    let interface = test_collection::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestCollection", interface)?;
-    let interface = test_option_list::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestOptionList", interface)?;
-    let interface = test_string_map::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestStringMap", interface)?;
-    let interface = test_storage::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestStorage", interface)?;
-    let interface = test_form::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestForm", interface)?;
-    let interface = test_headers::define::<H>(rt, realm)?;
-    b::glue::expose(rt, realm, "TestHeaders", interface)?;
+    b::glue::expose_lazy(rt, realm, GLOBALS, 2)?; // Node
+    b::glue::expose_lazy(rt, realm, GLOBALS, 3)?; // TestElement
+    b::glue::expose_lazy(rt, realm, GLOBALS, 4)?; // Tester
+    b::glue::expose_lazy(rt, realm, GLOBALS, 5)?; // TestList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 6)?; // TestCollection
+    b::glue::expose_lazy(rt, realm, GLOBALS, 7)?; // TestOptionList
+    b::glue::expose_lazy(rt, realm, GLOBALS, 8)?; // TestStringMap
+    b::glue::expose_lazy(rt, realm, GLOBALS, 9)?; // TestStorage
+    b::glue::expose_lazy(rt, realm, GLOBALS, 10)?; // TestForm
+    b::glue::expose_lazy(rt, realm, GLOBALS, 11)?; // TestHeaders
     // Web IDL §3.7.3: the prototypes of a [Global] interface and of its
     // ancestors are immutable prototype objects.
     b::glue::immutable_prototypes(rt, realm, &[WINDOW])?;
@@ -115,4 +130,38 @@ pub fn init_global<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, data: swb_
     rt.init_global(realm, WINDOW, data)?;
     let global = rt.global(realm)?;
     rt.set_immutable_prototype(global)
+}
+
+/// Creates the interface of `class` in `realm` with its members, after the
+/// interfaces of its ancestors (the interface hook of lazy creation).
+#[allow(clippy::too_many_lines)]
+pub fn create_interface<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, class: swb_js::ClassId) -> swb_js::VmResult<()> {
+    if rt.interface(realm, class).is_some() {
+        return Ok(());
+    }
+    if let Some(parent) = rt.class_parent(class) {
+        create_interface::<H>(rt, realm, parent)?;
+    }
+    match class {
+        DOM_EXCEPTION => dom_exception::define::<H>(rt, realm)?,
+        WINDOW => window::define::<H>(rt, realm)?,
+        NODE => node::define::<H>(rt, realm)?,
+        TEST_ELEMENT => test_element::define::<H>(rt, realm)?,
+        TESTER => tester::define::<H>(rt, realm)?,
+        TEST_LIST => test_list::define::<H>(rt, realm)?,
+        TEST_COLLECTION => test_collection::define::<H>(rt, realm)?,
+        TEST_OPTION_LIST => test_option_list::define::<H>(rt, realm)?,
+        TEST_STRING_MAP => test_string_map::define::<H>(rt, realm)?,
+        TEST_STORAGE => test_storage::define::<H>(rt, realm)?,
+        TEST_FORM => test_form::define::<H>(rt, realm)?,
+        TEST_HEADERS => test_headers::define::<H>(rt, realm)?,
+        _ => return Err(swb_js::VmError::type_error("a class without an interface")),
+    };
+    Ok(())
+}
+
+/// The value of the lazy global property `id` (an index of [`GLOBALS`]) in
+/// `realm` (the global hook of lazy creation).
+pub fn global_value<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32, id: u32) -> swb_js::VmResult<swb_js::Value> {
+    b::glue::global_value::<H>(rt, realm, GLOBALS, id)
 }

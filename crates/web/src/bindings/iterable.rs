@@ -6,7 +6,9 @@
 //!   `entries`, `keys`, `values` and `forEach` are those functions, and
 //!   `@@iterator` of every interface that declares an indexed property
 //!   getter is `%Array.prototype.values%` ([`define_value_iterator`],
-//!   [`define_indexed_iterator`]).
+//!   [`define_indexed_iterator`]). The functions are those that the realm
+//!   had before any script ran (`glue::Builtins`): an interface is created
+//!   at its first use, maybe after a script replaced them.
 //! - A pair iterator (`iterable<K, V>`) has `entries` (also `@@iterator`),
 //!   `keys`, `values` and `forEach` of its own; the first three return a
 //!   default iterator object ([`new_iterator`]), a host object of the
@@ -56,31 +58,21 @@ impl GenericData for IteratorState {
     }
 }
 
-/// A function of `%Array.prototype%` of `realm` (read from the global
-/// object before any script runs).
-fn array_function(rt: &mut Runtime, realm: u32, name: &str) -> VmResult<Value> {
-    let prototype = global_prototype(rt, realm, "Array")?;
-    let key = rt.key_from_str(name)?;
-    rt.get_key(prototype.into(), key)
-}
-
-/// `C.prototype` of the global constructor `C` of `realm`.
-fn global_prototype(rt: &mut Runtime, realm: u32, name: &str) -> VmResult<Gc<Object>> {
-    let global = rt.global(realm)?;
-    let key = rt.key_from_str(name)?;
-    let constructor = rt.get_key(global.into(), key)?;
-    let key = rt.key_from_str("prototype")?;
-    match rt.get_key(constructor, key)? {
-        Value::Object(prototype) => Ok(prototype),
-        _ => Err(VmError::type_error("a built-in prototype is missing")),
-    }
-}
-
 /// The value iterator of an interface (§3.7.9 step 2): `entries`, `keys`,
-/// `values` and `forEach` of `%Array.prototype%` on the prototype.
-pub fn define_value_iterator(rt: &mut Runtime, realm: u32, prototype: Gc<Object>) -> VmResult<()> {
-    for name in ["entries", "keys", "values", "forEach"] {
-        let function = array_function(rt, realm, name)?;
+/// `values` and `forEach` of `%Array.prototype%` on the prototype (the
+/// functions as they were before any script ran, [`super::glue::Builtins`]).
+pub fn define_value_iterator<H: Host>(
+    rt: &mut Runtime,
+    realm: u32,
+    prototype: Gc<Object>,
+) -> VmResult<()> {
+    let builtins = super::glue::builtins::<H>(rt, realm)?;
+    for (name, function) in [
+        ("entries", builtins.array_entries),
+        ("keys", builtins.array_keys),
+        ("values", builtins.array_values),
+        ("forEach", builtins.array_for_each),
+    ] {
         rt.define_value(prototype, name, function, Attributes::MEMBER)?;
     }
     Ok(())
@@ -88,12 +80,12 @@ pub fn define_value_iterator(rt: &mut Runtime, realm: u32, prototype: Gc<Object>
 
 /// `@@iterator` of an interface with an indexed property getter (§3.7.9
 /// step 1): `%Array.prototype.values%`, not enumerable.
-pub fn define_indexed_iterator(
+pub fn define_indexed_iterator<H: Host>(
     rt: &mut Runtime,
     realm: u32,
     prototype: Gc<Object>,
 ) -> VmResult<()> {
-    let values = array_function(rt, realm, "values")?;
+    let values = super::glue::builtins::<H>(rt, realm)?.array_values;
     let key = rt.iterator_key();
     rt.define_value_with_key(prototype, key, values, Attributes::HIDDEN)
 }
@@ -121,10 +113,11 @@ pub fn iterator_prototype<H: Host>(
     next: swb_js::NativeFn,
 ) -> VmResult<Gc<Object>> {
     let prototype = rt.new_plain_object(realm)?;
-    glue_state::<H>(rt)?
-        .iterator_prototypes
-        .push(((realm, class), prototype));
-    let parent = global_prototype(rt, realm, "Iterator")?;
+    // A creation that failed may have left one: the new one replaces it.
+    let prototypes = &mut glue_state::<H>(rt)?.iterator_prototypes;
+    prototypes.retain(|(key, _)| *key != (realm, class));
+    prototypes.push(((realm, class), prototype));
+    let parent = super::glue::builtins::<H>(rt, realm)?.iterator_prototype;
     rt.heap_mut()
         .set_prototype_of(prototype, Some(parent))
         .map_err(VmError::from)?;

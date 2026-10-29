@@ -469,7 +469,10 @@ boolean, 32-bit integer, double, and handles to a string, symbol,
 five pieces (tag, a byte, two bytes, four bytes, eight bytes) in the
 interpreter loop (section 15). One internal variant, `Empty`, marks uninitialized
 bindings and array holes. It never reaches a script: every path out of
-the VM and the object model converts or rejects it. The layout stays
+the VM and the object model converts or rejects it. (Two more internal
+variants came later: `Cell`, the cell of a captured binding in a register,
+section 3; and `Lazy`, the value of a global property that the host
+creates at its first read, ADR 0028 section 6, item 9.) The layout stays
 behind a small API, so NaN-boxing can come later if measurements show a
 need. The integer variant holds the integral results of integer
 operations; `-0` and overflow give doubles. Built-in functions and the

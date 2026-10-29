@@ -200,6 +200,6 @@ pub fn define<H: HTMLOptionElementImpl>(rt: &mut swb_js::Runtime, realm: u32) ->
     rt.define_accessor(realm, target, "index", (Some(get_index::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     let factory = rt.define_constructor(realm, interface.prototype, "Option", 0, construct_option::<H>)?;
-    b::glue::expose_function(rt, realm, "Option", factory)?;
+    b::glue::keep_factory::<H>(rt, realm, "Option", factory)?;
     Ok(interface)
 }

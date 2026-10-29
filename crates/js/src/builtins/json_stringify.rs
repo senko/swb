@@ -420,10 +420,12 @@ fn fast_get(rt: &Runtime, holder: Gc<Object>, key: PropertyKey) -> Option<Value>
         PropertyKey::Index(index) => {
             let values = rt.heap.dense_elements(holder).ok()??;
             let value = *values.get(index as usize)?;
-            (!value.is_empty() && !matches!(value, Value::Cell(_))).then_some(value)
+            (!value.is_internal()).then_some(value)
         }
+        // A lazy value (only a global object has one, and it is not an
+        // ordinary object) takes the general path, which resolves it.
         PropertyKey::String(_) => match rt.heap.get_own_property(holder, key).ok()?? {
-            Property::Data { value, .. } => Some(value),
+            Property::Data { value, .. } => (!value.is_internal()).then_some(value),
             Property::Accessor { .. } => None,
         },
         PropertyKey::Symbol(_) => None,
@@ -439,7 +441,9 @@ fn primitive(value: Value) -> Option<Resolved> {
         Value::String(string) => Resolved::String(string),
         Value::Int(_) | Value::Double(_) => Resolved::Number(value.as_number().unwrap_or(0.0)),
         Value::Undefined | Value::Symbol(_) => Resolved::Undefined,
-        Value::BigInt(_) | Value::Object(_) | Value::Empty | Value::Cell(_) => return None,
+        Value::BigInt(_) | Value::Object(_) | Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
+            return None;
+        }
     })
 }
 

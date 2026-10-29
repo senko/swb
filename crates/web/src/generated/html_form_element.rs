@@ -407,7 +407,7 @@ pub fn define<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> s
     rt.define_method(realm, target, "requestSubmit", 0, op_request_submit::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "reset", 0, op_reset::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "submit", 0, op_submit::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

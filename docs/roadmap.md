@@ -3152,6 +3152,47 @@ Steps:
       pass with `--with-swb` except the listed departures; the
       `compare --js` scores are unchanged (Wikipedia's script error and
       Craigslist's `location` reads remain for 8a and later).
+   Lazy interfaces (before 8a; `implementer-hard`; `js`, `webidl`,
+   `web`): lazy creation of the interface objects (backlog item of the
+   6d1 review). Measured before (a543e9d, release, warm): the realm
+   costs 274 KB and 0.33 ms, the interfaces 907 KB and 1.2 ms (about
+   2,050 native functions of about 370 B each), the serializer 15 KB;
+   a page's runtime costs 1.20 MB and about 3.4 ms, past the limit of
+   about 1 ms or 1 MB of ADR 0028. Scope: only the `Window` interface
+   and its chain are created with the runtime; every other exposed
+   interface object, its prototype and its parents are created at the
+   first use: a read of its global name, a wrapper or a host object of
+   the class, a legacy factory function (`Image`, `Option`, `Audio`).
+   Scripts cannot tell the difference: the global properties keep
+   their order and attributes; `delete`, assignment and
+   `defineProperty` before the first use act as on the real value;
+   each class has one interface object per realm whatever creates it
+   first. Tests: each way to observe a global property, identity across
+   the creation paths, the property order of the global, a failure
+   during creation (heap limit); all probe files, `compare --js` and
+   test262 unchanged. Exit: a runtime costs at most about 500 KB.
+   Done 2026-10-29. The runtime creates the realm, `Window`,
+   `EventTarget`, the named properties object, the `CSS` namespace and
+   the serializer; every other interface is created at its first use.
+   Engine: the internal value `Value::Lazy` marks a global property that
+   the host creates at its first read; the heap's [[Get]] walks hand it
+   to the generic path, `[[GetOwnProperty]]` and the global lookup
+   create it, the caches never hold it; `set_lazy_hooks`,
+   `define_lazy_global`, `interface_or_create`; a creation runs in a
+   no-GC region and is rolled back when it fails (ADR 0028 section 5,
+   "Lazy interfaces notes", and section 6 item 9). Generator: `GLOBALS`,
+   `create_interface`, `global_value`; factory functions and the
+   built-ins that the interfaces use are kept in the glue state, read
+   before any script. Runtime heap at creation 1,197,385 → 445,466
+   bytes, 3.3 → 1.5 ms (senko.net); heap after the load: Hacker News
+   0.80 MB, Wikipedia 1.43 MB, Craigslist 1.09 MB. The window's own
+   keys, attributes and order are unchanged (a recorded list in
+   `crates/web/tests/lazy_interfaces/globals.txt`, to regenerate after
+   IDL changes); all 28 `web-*.json` probe files give equal swb results
+   (4,837 rows), `compare --js`, test262 (40,286) and the JS-off
+   snapshot are unchanged; hostile 207 cases, 206 ok + the known
+   failure (2 new). The review compared 190 more script cases with the
+   base build: all equal.
    8. Window and document APIs (`implementer`), two sessions.
       - 8a: `location` (reads, `assign`, `replace`, `reload`, the
         `href` and `hash` setters), `history` (`pushState`,
@@ -3675,11 +3716,27 @@ Steps:
   empty handler attribute differs from Chromium; an element that stops
   being rendered (`display: none`) keeps the focus until the engine's
   next fixup; the handler table grows with the document.
-- `web`, 8a (found in the 6d1 review): lazy creation of the interface
-  objects. A runtime now costs about 1.20 MB and 3.4 ms at creation
-  (after 7b2),
-  past the limit of about 1 ms or 1 MB in ADR 0028 (section 5, "Feature
-  6c notes"). Do it before 8a adds the next interfaces.
+- `js`/`web` (found in the lazy interfaces feature): a native function
+  object costs about 370 B of heap, and the bindings make about 2,050
+  (the getter and setter of each attribute, each operation). The
+  `Window` members alone are about 150 KB of the 445 KB of a new
+  runtime, and a page that uses the DOM creates `Node`, `Element`,
+  `HTMLElement` and `Document` with hundreds more. Options: create the
+  accessor functions only when a script reflects them
+  (`getOwnPropertyDescriptor`), or a smaller native function object.
+- `js` (found in the lazy interfaces feature): `Object.assign` reads
+  each source property with `[[GetOwnProperty]]` where the enumerable
+  flag would do, so `Object.assign({}, window)` and
+  `Object.getOwnPropertyDescriptors(window)` create every interface
+  (correct, but slow). A creation near the heap limit does not collect
+  first (it runs in a no-GC region), so with much garbage it fails
+  where a collection would have made room; the runtime is then dropped
+  as after any heap-limit stop. No test for the time limit inside a
+  creation (the heap limit has one).
+- `engine` (found in the lazy interfaces feature): `click()` takes time
+  in proportion to the document: 200 clicks of detached elements while
+  2,000 elements are appended take 0.2 s, 1.7 s at 8,000 elements (same
+  at a543e9d).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

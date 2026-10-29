@@ -279,7 +279,7 @@ pub fn define<H: CSSStyleDeclarationImpl>(rt: &mut swb_js::Runtime, realm: u32) 
     rt.define_method(realm, target, "item", 1, op_item::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "removeProperty", 1, op_remove_property::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setProperty", 2, op_set_property::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

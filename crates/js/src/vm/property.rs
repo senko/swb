@@ -245,7 +245,7 @@ impl Runtime {
             Value::Symbol(_) => Intrinsic::SymbolPrototype,
             Value::BigInt(_) => Intrinsic::BigIntPrototype,
             Value::Object(object) => return self.get_with_receiver(object, key, base),
-            Value::Empty | Value::Cell(_) => {
+            Value::Empty | Value::Cell(_) | Value::Lazy(_) => {
                 return Err(VmError::invariant("a property read of an internal value"));
             }
         };

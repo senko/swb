@@ -236,7 +236,7 @@ pub fn define<H: NamedNodeMapImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_
     rt.define_method(realm, target, "removeNamedItemNS", 2, op_remove_named_item_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setNamedItem", 1, op_set_named_item::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "setNamedItemNS", 1, op_set_named_item_ns::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

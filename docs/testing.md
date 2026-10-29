@@ -1128,7 +1128,12 @@ rendering update of feature 7b2: a `requestAnimationFrame` loop that
 changes and reads layout in each of 120 frames of virtual time, a
 callback that never returns (three time limits stop the scripts),
 `innerText` of a page of 260,000 elements, and 1,000,000 `matchMedia`
-calls with 100,000 lists that have listeners. The cases with
+calls with 100,000 lists that have listeners. Cases for the lazy
+interfaces: every global name read in 1,000 rounds (as an identifier, as
+`window[name]`, with `getOwnPropertyDescriptor`), and every interface
+name deleted, overwritten or redefined before its first use, then 32,000
+elements of 16 kinds created, checked against their constructors and
+appended. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```

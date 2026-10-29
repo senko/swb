@@ -393,7 +393,7 @@ impl Gen<'_> {
         let value_iterator = iterable.is_some_and(|it| it.key.is_none());
         if value_iterator {
             first.push_str(
-                "    b::iterable::define_value_iterator(rt, realm, interface.prototype)?;\n",
+                "    b::iterable::define_value_iterator::<H>(rt, realm, interface.prototype)?;\n",
             );
         }
         if iterable.is_some_and(|it| it.key.is_some()) {
@@ -405,7 +405,7 @@ impl Gen<'_> {
         }
         if value_iterator || self.model.declares_indexed_getter(iface) {
             last.push_str(
-                "    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;\n",
+                "    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;\n",
             );
         }
         (first, last)

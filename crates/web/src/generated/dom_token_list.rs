@@ -234,7 +234,7 @@ pub fn define<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_
     let interface = rt.begin_interface(realm, super::DOM_TOKEN_LIST)?;
     let target = interface.prototype;
     let _ = target;
-    b::iterable::define_value_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_value_iterator::<H>(rt, realm, interface.prototype)?;
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "value", (Some(get_value::<H> as swb_js::NativeFn), Some(set_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "add", 0, op_add::<H>, swb_js::Attributes::MEMBER)?;
@@ -245,7 +245,7 @@ pub fn define<H: DOMTokenListImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_
     rt.define_method(realm, target, "supports", 1, op_supports::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "toggle", 1, op_toggle::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "toString", 0, get_value::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

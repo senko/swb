@@ -187,7 +187,8 @@ impl Tracer<'_> {
             | Value::Bool(_)
             | Value::Int(_)
             | Value::Double(_)
-            | Value::Empty => {}
+            | Value::Empty
+            | Value::Lazy(_) => {}
         }
     }
 

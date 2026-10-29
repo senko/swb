@@ -157,7 +157,7 @@ pub fn define<H: TestCollectionImpl>(rt: &mut swb_js::Runtime, realm: u32) -> sw
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "item", 1, op_item::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "namedItem", 1, op_named_item::<H>, swb_js::Attributes::MEMBER)?;
-    b::iterable::define_indexed_iterator(rt, realm, interface.prototype)?;
+    b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

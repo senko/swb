@@ -111,6 +111,8 @@ document; a document whose runtime failed (heap-limit termination,
 section 7) can drop it at once; there is no state to clear between
 documents. The cost of a runtime is the creation of its realm and the
 binding prototypes, about once per navigation (to measure in feature 4c).
+(Lazy interfaces: most interfaces are created at their first use now;
+the numbers are in "Lazy interfaces notes", section 5.)
 
 **Threads.** The runtime is not `Send` (ADR 0026), so it lives on the
 thread of its page: the event loop runs on that thread, between the
@@ -1148,7 +1150,8 @@ Chromium runs with equal results; the Rust tests are
 - **Cost.** The interfaces are created when the runtime is created:
   1.55 ms and 464 KB of heap before, 1.57 ms and 725 KB after (senko.net,
   release build). That is below the limit of about 1 ms or 1 MB, so no
-  lazy creation.
+  lazy creation. (Superseded: "Lazy interfaces notes" at the end of this
+  section has the numbers of the lazy creation.)
 - **Not done:** the obsolete members, the selection members of `input` and
   `textarea`, constraint validation, `files`, `valueAsNumber`, `labels`,
   `iframe.contentWindow`, `canvas.getContext`, the media playback members,
@@ -1277,7 +1280,8 @@ tests in `crates/engine/tests/script_dom.rs`):
   and the two factory functions are created with the runtime: 1.51 ms and
   727,173 B of heap before, 1.56 ms and 763,589 B after (senko.net, release
   build, best of 5; the noise is 1.5 to 2.4 ms). That is far below the limit
-  of about 1 ms or 1 MB, so no lazy creation.
+  of about 1 ms or 1 MB, so no lazy creation. (Superseded: see "Lazy
+  interfaces notes".)
 
 Feature 6d1 notes (the event interfaces, the event handlers, focus, `click()`
 and the form methods; measured with `tools/probes/web-input-events.json` (7
@@ -1483,7 +1487,8 @@ queries), three equal Chromium runs each; the Rust tests are
   interfaces. Runtime creation now takes about 1.13 MB and 3.1 ms in total.
   That is past the limit of about 1 ms or 1 MB, which applies to the total.
   The interface objects get lazy creation in a later feature;
-  the roadmap backlog holds the item. JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
+  the roadmap backlog holds the item. (Done: "Lazy interfaces notes" has
+  the new numbers.) JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
   ms (base 20 and 13), with the boxes and pixels of the JavaScript-off run.
 
 Feature 6d2 notes (the engine's input as DOM events; measured with
@@ -1707,6 +1712,81 @@ tests are
   after `mousedown`). `space_down` is cleared when the focus changes or
   another key goes down.
 
+Lazy interfaces notes (M8, before feature 8a; the engine part is section 6,
+item 9; the tests are `crates/js/tests/lazy_globals.rs` and
+`crates/web/tests/lazy_interfaces.rs`):
+
+- **What the runtime creates at once.** The realm, the classes, `Window`
+  and its ancestor `EventTarget` (the global object needs their
+  prototypes, and the members of `Window` are own properties of the global
+  object, whose key order they fix), the named properties object, the
+  `CSS` namespace (about 1.5 KB: kept eager; a lazy value for one object
+  is not worth a hook) and the serializer (15 KB, 0.12 ms: it must capture
+  the built-ins before any page script, so it stays eager). Every other
+  interface (the interface object, the prototype with its members, the
+  `[LegacyUnforgeable]` template, the legacy factory functions) is created
+  at its first use, after its ancestors.
+- **The global properties.** The generated `create_interfaces` defines the
+  properties of all exposed interfaces in the order of the eager creation:
+  the interface objects of `Window`'s chain, and a lazy property
+  (`Runtime::define_lazy_global`) for every other interface object and
+  every legacy factory function (`Image` before `HTMLImageElement`, as
+  before). The generated `GLOBALS` lists them; the number of a lazy
+  property is its index. A lazy property has its attributes from the
+  start (writable, not enumerable, configurable), so
+  `Object.getOwnPropertyNames(window)`, `Reflect.ownKeys`, `in`,
+  `hasOwnProperty`, `for`-`in` and `Object.keys` create nothing, and
+  `delete`, an assignment and a definition with a value or an accessor
+  replace the property without a creation. A read (an identifier,
+  `typeof`, `window.X`, `globalThis[X]`, `with`, `Reflect.get`,
+  `getOwnPropertyDescriptor(s)`, a proxy over the window) calls the
+  generated `global_value`, which creates the interface and gives its
+  interface object, or the factory function that the interface's `define`
+  kept in the glue state. A definition that keeps the value
+  (`{ enumerable: true }`, `Object.freeze(window)`) creates it first.
+  `Object.getOwnPropertyDescriptors(window)` and `Object.assign({},
+  window)` create every interface (they read every property).
+- **Interfaces of objects.** `new_host_object`,
+  `prototype_from_new_target` and `Cx::new_instance` call the generated
+  `create_interface` (a dispatch from the class to its module's `define`,
+  after the parent's), so node wrappers, events, exceptions, collections
+  and constructors create what they need. Each class has one interface
+  object per realm, in the realm's table; `global_value` reads it from
+  there. So `document.body.constructor === HTMLBodyElement` holds in
+  either order, and a wrapper of a node whose interface name a script
+  deleted or replaced still gets the whole prototype chain.
+- **Built-in objects.** What `define` read from the global object before
+  (`Error.prototype` for `DOMException`, `Array.prototype.entries`,
+  `keys`, `values` and `forEach` for value iterators, `Iterator.prototype`
+  for pair iterators) is read once when the runtime is created
+  (`glue::keep_builtins`) and kept in the glue state: a script can replace
+  the global properties before an interface is created, and Web IDL names
+  the intrinsics.
+- **Failures.** A creation runs in a no-GC region (section 6, item 9). The
+  heap limit during a creation ends the task (the check after the region,
+  and the termination repeats until the task ends); the runtime is then
+  dropped (section 16). A failed creation forgets the interfaces that it
+  registered in the realm's table, so a later use creates them again from
+  the start; the glue replaces the `[LegacyUnforgeable]` template, the
+  iterator prototype and the factory functions of such a class when it
+  creates them again. (The time limit can meet a creation only at a time
+  charge, for example the key list of a template copy; a creation takes
+  well under 1 ms.)
+- **Cost** (release, senko.net, the log line "script runtime created in",
+  seven interleaved runs of the build before and after): heap 1,197,385
+  bytes before, 445,466 after; creation median 3.27 ms before, 1.52 ms
+  after (two series: 3.47 and 1.56 ms). A page pays the rest at the
+  first use of each interface: all interfaces together are the 0.75 MB
+  and about 1.5 ms of before. The script heap after the `load` event
+  (debug log line "load event fired"): Hacker News 797,904 bytes,
+  Wikipedia 1,431,347, the Craigslist posting 1,087,271, senko.net
+  591,103. The loads of the three JavaScript targets did not change
+  (best of five: 21/93/17 ms before, 21/92/21 ms after in one series,
+  24/99/20 and 22/95/20 ms in another).
+  Departures: none that a script can observe; the base list of the
+  global object's own keys with their attributes is the test's
+  `lazy_interfaces/globals.txt`.
+
 ### 6. Changes to `js`
 
 The embedding API grows by what the bindings need (ADR 0026 section 12
@@ -1835,6 +1915,38 @@ lists the design; these are the parts to build):
    (backlog item of M7 13e).
    (Feature 4a: done; `Runtime::set_heap_limit` changes the limit between
    tasks.)
+9. **Lazy creation of interfaces** (M8, lazy interfaces; the design is in
+   "Lazy interfaces notes", section 5; `host/lazy.rs`). The host registers
+   two hooks, `Runtime::set_lazy_hooks(LazyHooks { interface, global })`:
+   `interface(rt, realm, class)` creates the interface of a class with its
+   ancestors; `global(rt, realm, id)` gives the value of a lazy property
+   of the global object. `Runtime::interface_or_create` is
+   `Runtime::interface` with the hook for a missing interface;
+   `new_host_object` and `prototype_from_new_target` (and so
+   `Cx::new_instance`) use it, `Runtime::interface` stays the query
+   without creation. `Runtime::define_lazy_global(realm, name, id)` defines
+   a writable, not enumerable, configurable data property whose value is
+   a third internal value variant, `Value::Lazy(id)` (beside `Empty` and
+   `Cell`, ADR 0026 section 7), which never reaches a script: the heap's
+   `[[Get]]` walks (`Heap::get`, `get_for_cache`) answer `Generic` for it,
+   so the runtime takes its generic `[[Get]]`; the runtime's
+   `[[GetOwnProperty]]` (`own_property`, `own_property_stored`) and the
+   global name lookup (`get_global`) call the hook, store the value in the
+   slot (the attributes stay) and go on with it; a definition that keeps
+   the value (no `[[Value]]`, no accessor) resolves it first, and the heap
+   refuses such a definition on an unresolved marker as an internal error;
+   `global_entry` and `get_for_cache` make no cache entry for a slot that
+   holds it, and `cached_global_get` misses on one; `stored_own_property`
+   (the expandos of legacy platform objects) refuses it, and the message
+   and JSON helpers that read raw slots skip it. Only the host writes the
+   marker, before any script; a slot never gets it back. A hook runs in a
+   no-GC region and a handle scope (`lazy_region`): a creation allocates
+   in the middle of a property read or a wrapper creation, so the caller's
+   values need no roots; the heap limit is checked at the end
+   (`check_room`). After a failure the region forgets the interfaces that
+   the hook registered in the realm (a later use creates them again), and
+   a termination is kept in `terminating`, so every time check repeats it
+   until the task ends. The hooks run no script code.
 
 ### 7. The event loop
 
