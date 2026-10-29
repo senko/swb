@@ -108,6 +108,7 @@ impl Page {
         if viewport == self.view.viewport && (scale - self.view.scale).abs() < f32::EPSILON {
             return;
         }
+        let resized = viewport != self.view.viewport;
         self.view.viewport = viewport;
         self.view.scale = scale;
         // Image sources (selected at the next style computation) and media
@@ -115,6 +116,29 @@ impl Page {
         if let Some(doc) = self.doc.as_deref_mut() {
             doc.set_view(self.view);
         }
+        // The next frame fires `resize` and evaluates the media queries of
+        // scripts.
+        self.input.resized |= resized;
+        self.request_frame();
+    }
+
+    /// Changes `prefers-color-scheme` (light by default). The styles are
+    /// computed again, and the next frame evaluates the media queries of
+    /// scripts.
+    pub fn set_color_scheme(&mut self, dark: bool) {
+        let scheme = if dark {
+            swb_css::ColorScheme::Dark
+        } else {
+            swb_css::ColorScheme::Light
+        };
+        if scheme == self.view.color_scheme {
+            return;
+        }
+        self.view.color_scheme = scheme;
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.set_view(self.view);
+        }
+        self.request_frame();
     }
 
     /// Shows or hides the overlay scroll indicators of the scroll

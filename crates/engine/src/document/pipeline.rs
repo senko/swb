@@ -58,6 +58,7 @@ impl DocumentState {
         self.used_boxes = None;
         self.geometry = None;
         self.client_rects = None;
+        self.svg_geometry = None;
     }
 
     /// Drops the styles of single elements and pseudo-elements that
@@ -84,13 +85,14 @@ impl DocumentState {
         }
     }
 
-    /// The media environment of the document: the viewport, the scale
-    /// and the scripting flag.
+    /// The media environment of the document: the viewport, the scale,
+    /// the color scheme and the scripting flag.
     pub(crate) fn media_environment(&self) -> MediaEnvironment {
         MediaEnvironment {
             viewport_width: self.view.viewport.width,
             viewport_height: self.view.viewport.height,
             device_pixel_ratio: self.view.scale,
+            prefers_color_scheme: self.view.color_scheme,
             scripting: self.dom.scripting(),
             ..MediaEnvironment::default()
         }

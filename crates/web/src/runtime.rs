@@ -425,6 +425,52 @@ impl ScriptRuntime {
         crate::state::state(&self.rt).map_or(0, |s| s.event_loop.timers.len())
     }
 
+    // ----- The rendering update (HTML §8.1.7.3; feature 7b2) -----
+
+    /// True if an animation frame callback waits: the engine runs a frame
+    /// for it.
+    pub fn has_animation_frame_callbacks(&self) -> bool {
+        !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.animation_frames.is_empty())
+    }
+
+    /// CSSOM View "evaluate media queries and report changes": a `change`
+    /// event at each `MediaQueryList` with listeners whose result changed,
+    /// as one task. Nothing without such lists; returns true if the task
+    /// ran.
+    pub fn evaluate_media_queries(&mut self) -> bool {
+        if self.stopped || !crate::media_queries::any_registered(&self.rt) {
+            return false;
+        }
+        // Errors are reported.
+        let _ = self.task("media query changes", |rt| {
+            set_listener_checkpoints(rt, true);
+            let result = crate::media_queries::report_changes(rt).map_err(task_error);
+            set_listener_checkpoints(rt, false);
+            result
+        });
+        true
+    }
+
+    /// HTML "run the animation frame callbacks": the callbacks that wait
+    /// now, each as a task of its own, with the time of the frame
+    /// (`frame_time`, in page time, as `performance.now()` gives it).
+    /// Callbacks that they request wait for the next frame.
+    pub fn run_animation_frame_callbacks(&mut self, frame_time: f64) {
+        if self.stopped {
+            return;
+        }
+        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.clock.at(frame_time));
+        for handle in crate::animation_frames::handles(&self.rt) {
+            if self.stopped {
+                return;
+            }
+            // Errors are reported.
+            let _ = self.task("an animation frame callback", |rt| {
+                crate::animation_frames::run(rt, handle, now)
+            });
+        }
+    }
+
     fn run_task(&mut self, task: Task) -> Result<(), ScriptError> {
         match task {
             Task::Timer { id, handle } => {

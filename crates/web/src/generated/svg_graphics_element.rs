@@ -9,9 +9,20 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `SVGGraphicsElement`.
 pub trait SVGGraphicsElementImpl: b::Host {
+    /// `SVGRect getBBox(optional SVGBoundingBoxOptions options)`.
+    fn get_b_box(cx: &mut b::Cx<'_>, this: b::NodeId, options: super::types::SVGBoundingBoxOptions) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
 }
 
-impl<T: b::Host> SVGGraphicsElementImpl for T {}
+fn op_get_b_box<H: SVGGraphicsElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("SVGGraphicsElement", "getBBox"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SVG_GRAPHICS_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { super::types::SVGBoundingBoxOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::SVGBoundingBoxOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
+        let result = <H as SVGGraphicsElementImpl>::get_b_box(&mut b::Cx::new(rt, call, super::SVG_GRAPHICS_ELEMENT), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
 
 /// Creates the interface object and the prototype of `SVGGraphicsElement` in `realm`
 /// with their members (the parent's interface must exist).
@@ -19,6 +30,7 @@ pub fn define<H: SVGGraphicsElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -
     let interface = rt.begin_interface(realm, super::SVG_GRAPHICS_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_method(realm, target, "getBBox", 0, op_get_b_box::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

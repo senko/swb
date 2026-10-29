@@ -33,6 +33,18 @@ pub trait HTMLElementImpl: b::Host {
     /// The setter of `attribute boolean spellcheck`.
     fn set_spellcheck(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
 
+    /// `attribute DOMString innerText`.
+    fn inner_text(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString innerText`.
+    fn set_inner_text(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `attribute DOMString outerText`.
+    fn outer_text(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString outerText`.
+    fn set_outer_text(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
     /// `readonly attribute Element? offsetParent`.
     fn offset_parent(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -244,6 +256,42 @@ fn set_autocapitalize<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let v = rt.arg(call, 0);
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
         b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "autocapitalize", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_inner_text<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "innerText"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::inner_text(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_inner_text<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "innerText"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_inner_text(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_outer_text<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "outerText"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::outer_text(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_outer_text<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "outerText"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string_null_empty(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_outer_text(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2001,6 +2049,8 @@ pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_j
     rt.define_accessor(realm, target, "draggable", (Some(get_draggable::<H> as swb_js::NativeFn), Some(set_draggable::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "spellcheck", (Some(get_spellcheck::<H> as swb_js::NativeFn), Some(set_spellcheck::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "autocapitalize", (Some(get_autocapitalize::<H> as swb_js::NativeFn), Some(set_autocapitalize::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "innerText", (Some(get_inner_text::<H> as swb_js::NativeFn), Some(set_inner_text::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "outerText", (Some(get_outer_text::<H> as swb_js::NativeFn), Some(set_outer_text::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "inputMode", (Some(get_input_mode::<H> as swb_js::NativeFn), Some(set_input_mode::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "enterKeyHint", (Some(get_enter_key_hint::<H> as swb_js::NativeFn), Some(set_enter_key_hint::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetParent", (Some(get_offset_parent::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

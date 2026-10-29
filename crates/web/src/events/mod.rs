@@ -6,6 +6,8 @@
 //! (<https://html.spec.whatwg.org/multipage/webappapis.html#promiserejectionevent>),
 //! `PageTransitionEvent`
 //! (<https://html.spec.whatwg.org/multipage/nav-history-apis.html#pagetransitionevent>),
+//! `MediaQueryListEvent`
+//! (<https://drafts.csswg.org/cssom-view/#mediaquerylistevent>, feature 7b2)
 //! and `document.createEvent`
 //! (<https://dom.spec.whatwg.org/#dom-document-createevent>).
 //!
@@ -45,7 +47,8 @@ use swb_js::{
 use crate::bindings::{self as b, Cx, Exception, NodeId, Platform};
 use crate::generated as g;
 use crate::generated::types::{
-    CustomEventInit, ErrorEventInit, EventInit, PageTransitionEventInit, PromiseRejectionEventInit,
+    CustomEventInit, ErrorEventInit, EventInit, MediaQueryListEventInit, PageTransitionEventInit,
+    PromiseRejectionEventInit,
 };
 use crate::state::{WebState, state};
 
@@ -74,6 +77,8 @@ pub(crate) enum Extra {
     PromiseRejection { promise: Gc<Object>, reason: Value },
     /// `PageTransitionEvent.persisted`.
     PageTransition { persisted: bool },
+    /// `MediaQueryListEvent` (CSSOM View §4.2).
+    MediaQuery { media: String, matches: bool },
     /// The UI events: `UIEvent` and its subclasses (`ui.rs`, `mouse.rs`).
     Ui(Box<ui::Fields>),
     /// `SubmitEvent`, `MessageEvent` and the other events of `misc.rs`.
@@ -178,7 +183,7 @@ impl GenericData for EventData {
             }
         }
         match &self.extra {
-            Extra::None | Extra::PageTransition { .. } => {}
+            Extra::None | Extra::PageTransition { .. } | Extra::MediaQuery { .. } => {}
             Extra::Ui(fields) => fields.trace(tracer),
             Extra::Other(other) => other.trace(tracer),
             Extra::Custom { detail } => tracer.value(*detail),
@@ -197,6 +202,7 @@ impl GenericData for EventData {
             } => message.capacity() + filename.capacity(),
             Extra::Ui(fields) => fields.heap_size(),
             Extra::Other(other) => other.heap_size(),
+            Extra::MediaQuery { media, .. } => media.capacity(),
             _ => 0,
         };
         self.kind.capacity() + self.path.capacity() * size_of::<PathItem>() + extra
@@ -498,6 +504,35 @@ impl g::page_transition_event::PageTransitionEventImpl for WebState {
     fn persisted(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
         match this_data(cx, this)?.extra {
             Extra::PageTransition { persisted } => Ok(persisted),
+            _ => Ok(false),
+        }
+    }
+}
+
+impl g::media_query_list_event::MediaQueryListEventImpl for WebState {
+    fn constructor(
+        cx: &mut Cx<'_>,
+        kind: String,
+        init: MediaQueryListEventInit,
+    ) -> b::Result<Gc<Object>> {
+        let event = base(init.bubbles, init.cancelable, init.composed);
+        let extra = Extra::MediaQuery {
+            media: init.media,
+            matches: init.matches,
+        };
+        construct(cx, kind, &event, extra)
+    }
+
+    fn media(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        match &this_data(cx, this)?.extra {
+            Extra::MediaQuery { media, .. } => Ok(media.clone()),
+            _ => Ok(String::new()),
+        }
+    }
+
+    fn matches(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
+        match this_data(cx, this)?.extra {
+            Extra::MediaQuery { matches, .. } => Ok(matches),
             _ => Ok(false),
         }
     }

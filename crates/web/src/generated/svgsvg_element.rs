@@ -9,9 +9,20 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `SVGSVGElement`.
 pub trait SVGSVGElementImpl: b::Host {
+    /// `SVGRect createSVGRect()`.
+    fn create_svg_rect(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `Element? getElementById(DOMString elementId)`.
     fn get_element_by_id(cx: &mut b::Cx<'_>, this: b::NodeId, element_id: String) -> b::Result<Option<b::NodeId>>;
 
+}
+
+fn op_create_svg_rect<H: SVGSVGElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("SVGSVGElement", "createSVGRect"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SVGSVG_ELEMENT)?;
+        let result = <H as SVGSVGElementImpl>::create_svg_rect(&mut b::Cx::new(rt, call, super::SVGSVG_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
 }
 
 fn op_get_element_by_id<H: SVGSVGElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -31,6 +42,7 @@ pub fn define<H: SVGSVGElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb
     let interface = rt.begin_interface(realm, super::SVGSVG_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_method(realm, target, "createSVGRect", 0, op_create_svg_rect::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getElementById", 1, op_get_element_by_id::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)

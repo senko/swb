@@ -89,20 +89,22 @@ impl Name {
     }
 }
 
-/// The object that holds a handler map: a node or the window.
+/// The object that holds a handler map: a node, the window, or another
+/// event target by the handle of its listener data (`MediaQueryList`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Key {
     Node(NodeId),
     Window,
+    Constructed(Gc<Generic>),
 }
 
 impl Key {
-    /// The key of a listener target; none for a constructed target.
-    pub(crate) fn of(target: TargetKind) -> Option<Key> {
+    /// The key of a listener target.
+    pub(crate) fn of(target: TargetKind) -> Key {
         match target {
-            TargetKind::Node(node) => Some(Key::Node(node)),
-            TargetKind::Window => Some(Key::Window),
-            TargetKind::Constructed(_) => None,
+            TargetKind::Node(node) => Key::Node(node),
+            TargetKind::Window => Key::Window,
+            TargetKind::Constructed(handle) => Key::Constructed(handle),
         }
     }
 
@@ -110,6 +112,7 @@ impl Key {
         match self {
             Key::Node(node) => TargetKind::Node(node),
             Key::Window => TargetKind::Window,
+            Key::Constructed(handle) => TargetKind::Constructed(handle),
         }
     }
 }
@@ -147,9 +150,12 @@ pub(crate) struct Handlers {
 impl Handlers {
     /// Reports the functions and the marker to the collector.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        for entry in self.entries.values() {
+        for ((key, _), entry) in &self.entries {
             if let Value_::Function(function) = entry.value {
                 tracer.object(function);
+            }
+            if let Key::Constructed(handle) = key {
+                tracer.generic(*handle);
             }
         }
         if let Some(marker) = self.marker {
@@ -179,7 +185,8 @@ pub(crate) fn with_context<R>(
 /// window-reflecting handlers of `body` and `frameset`.
 fn resolve(dom: &Document, target: HandlerTarget, name: &Name) -> Key {
     match target {
-        HandlerTarget::Window => Key::Window,
+        // `key_of` takes the objects; the window stands in here.
+        HandlerTarget::Window | HandlerTarget::Object(_) => Key::Window,
         HandlerTarget::Node(node) => {
             if name.reflects_to_window() && is_body_or_frameset(dom, node) {
                 Key::Window
@@ -316,12 +323,15 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
     if entry.registered {
         return Ok(());
     }
-    if state(rt)?.listener_count >= MAX_DOCUMENT_LISTENERS {
+    let target = key.target();
+    // The lists of other targets are in the JavaScript heap (as for
+    // `addEventListener`).
+    let in_document = !matches!(target, TargetKind::Constructed(_));
+    if in_document && state(rt)?.listener_count >= MAX_DOCUMENT_LISTENERS {
         log::warn!("a document has more than {MAX_DOCUMENT_LISTENERS} event listeners");
         return Err(rt.terminate("too many event listeners in the document"));
     }
     let callback = marker(rt)?;
-    let target = key.target();
     let passive = default_passive(rt, target, name.event)?;
     let listener = Listener {
         callback,
@@ -332,7 +342,9 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
         handler: Some(name),
     };
     with_listeners(rt, target, |list| list.add(name.event, listener))?;
-    state_mut(rt)?.listener_count += 1;
+    if in_document {
+        state_mut(rt)?.listener_count += 1;
+    }
     if let Some(entry) = state_mut(rt)?.handlers.entries.get_mut(&(key, name.attr)) {
         entry.registered = true;
     }
@@ -368,7 +380,7 @@ pub(crate) fn get(rt: &mut Runtime, target: HandlerTarget, attr: &str) -> VmResu
     let Some(name) = lookup(attr) else {
         return Ok(Value::Null);
     };
-    let key = resolve(dom(rt)?, target, name);
+    let key = key_of(rt, target, name)?;
     sync(rt, key.target())?;
     let context = getter_context(dom(rt)?, target, name);
     let saved = state_mut(rt)?.handlers.context.replace(context);
@@ -390,11 +402,28 @@ pub(crate) fn set(
     let Some(name) = lookup(attr) else {
         return Ok(());
     };
-    let key = resolve(dom(rt)?, target, name);
+    let key = key_of(rt, target, name)?;
     sync(rt, key.target())?;
     match value {
-        Value::Object(object) => set_value(rt, key, name, Value_::Function(object)),
+        Value::Object(object) => {
+            set_value(rt, key, name, Value_::Function(object))?;
+            if let HandlerTarget::Object(target) = target {
+                crate::media_queries::register(rt, target)?;
+            }
+            Ok(())
+        }
         _ => deactivate(rt, key, name),
+    }
+}
+
+/// The key of the handler `name` of an IDL attribute's target.
+fn key_of(rt: &Runtime, target: HandlerTarget, name: &Name) -> VmResult<Key> {
+    match target {
+        HandlerTarget::Object(object) => match super::target::kind_of(rt, object)? {
+            TargetKind::Constructed(handle) => Ok(Key::Constructed(handle)),
+            _ => Err(VmError::type_error("Illegal invocation")),
+        },
+        _ => Ok(resolve(dom(rt)?, target, name)),
     }
 }
 
@@ -417,6 +446,7 @@ fn current_value(rt: &mut Runtime, key: Key, name: &'static Name) -> VmResult<Op
 fn getter_context(dom: &Document, target: HandlerTarget, name: &Name) -> Cow<'static, str> {
     let interface = match target {
         HandlerTarget::Window => "Window",
+        HandlerTarget::Object(_) => "EventTarget",
         HandlerTarget::Node(NodeId::DOCUMENT) => "Document",
         HandlerTarget::Node(node) => {
             if dom.element(node).is_some_and(|e| e.name.ns == ns!(svg)) {
@@ -541,9 +571,7 @@ pub(crate) fn call(
     handle: Gc<Generic>,
     this: Gc<Object>,
 ) -> VmResult<()> {
-    let Some(key) = Key::of(target) else {
-        return Ok(());
-    };
+    let key = Key::of(target);
     let Some(function) = current_value(rt, key, name)? else {
         return Ok(());
     };

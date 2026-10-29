@@ -98,6 +98,7 @@ interface Tester {
   DOMString callbackInterface(TestListener listener);
   Promise<any> promised(Promise<any> p);
   Promise<any> rejects(DOMString kind);
+  [SwbRejectsOnError] long softly(long n);
   any echoAny(any value);
   object echoObject(object value);
   DOMString unions(ElementOrString a, (long or boolean) b, (sequence<long> or record<DOMString, long> or DOMString) c, (TestOptions or boolean) d);

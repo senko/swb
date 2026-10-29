@@ -789,7 +789,7 @@ fn op_get_bounding_client_rect<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &
 }
 
 fn op_scroll_into_view<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Element", "scrollIntoView"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Element", "scrollIntoView"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         let v = rt.arg(call, 0);
         let a0 = if v.is_undefined() { super::types::BooleanOrScrollIntoViewOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::BooleanOrScrollIntoViewOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(0))? };
@@ -799,7 +799,7 @@ fn op_scroll_into_view<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
 }
 
 fn op_scroll<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Element", "scroll"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Element", "scroll"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         match call.argc().min(2) {
             0 => {
@@ -827,7 +827,7 @@ fn op_scroll<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
 }
 
 fn op_scroll_to<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Element", "scrollTo"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Element", "scrollTo"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         match call.argc().min(2) {
             0 => {
@@ -855,7 +855,7 @@ fn op_scroll_to<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
 }
 
 fn op_scroll_by<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Element", "scrollBy"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Element", "scrollBy"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::ELEMENT)?;
         match call.argc().min(2) {
             0 => {

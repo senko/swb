@@ -41,6 +41,19 @@ pub fn run_promise(
 ) -> VmResult<NativeReturn> {
     let error = match body(rt) {
         Ok(value) => return Ok(NativeReturn::Value(value)),
+        // Chromium names the operation in the message of a failed brand
+        // check here, unlike in an exception that is thrown (measured with
+        // the scroll methods).
+        Err(Exception::Js(VmError::Raise {
+            kind: swb_js::ThrowKind::TypeError,
+            message,
+        })) if message == "Illegal invocation" => throw(
+            rt,
+            call.realm(),
+            context,
+            dom_exception,
+            Exception::Type(message),
+        ),
         Err(exception) => throw(rt, call.realm(), context, dom_exception, exception),
     };
     let reason = match error {

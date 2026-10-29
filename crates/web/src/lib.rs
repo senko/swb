@@ -35,7 +35,13 @@
 //!   `load`, `pageshow`, the unload). The engine lends the parser and
 //!   fetches the scripts ([`EngineHost::parse_step`],
 //!   [`EngineHost::fetch_script`], [`ScriptRuntime::script_fetched`]).
+//! - The rendering update (feature 7b2): `animation_frames`
+//!   (`requestAnimationFrame`) and `media_queries` (`matchMedia` and the
+//!   change events); the engine runs the steps of a frame through
+//!   [`ScriptRuntime::evaluate_media_queries`] and
+//!   [`ScriptRuntime::run_animation_frame_callbacks`].
 
+mod animation_frames;
 pub mod bindings;
 mod clock;
 mod cssom;
@@ -49,6 +55,7 @@ mod events;
 pub mod generated;
 mod host;
 mod html;
+mod media_queries;
 mod runtime;
 mod scripts;
 mod state;

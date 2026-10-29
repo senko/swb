@@ -3,8 +3,8 @@
 //! interaction source: the page hit-tests, fires the events at the target,
 //! and runs the default action only if no listener canceled the event. This
 //! file has the events of the pointer, the mouse, the wheel, the keys and
-//! the edits, and the frame that fires `scroll`; `input.rs` has the flow
-//! of each input and calls these functions when
+//! the edits (the frame that fires `scroll` is in `frame.rs`); `input.rs`
+//! has the flow of each input and calls these functions when
 //! [`Page::script_input`] is true.
 //!
 //! Specifications: UI Events (<https://www.w3.org/TR/uievents/>: mouse,
@@ -29,19 +29,8 @@ use swb_web::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind,
 use super::Page;
 use crate::input::{KeyInfo, Modifiers, MouseButton};
 
-/// The length of a frame in milliseconds of page time (60 Hz).
-const FRAME_MS: f64 = 1000.0 / 60.0;
-
 /// The pointer id of the mouse in Chromium's pointer events.
 const MOUSE_POINTER_ID: i32 = 1;
-
-/// The scroll offsets that `scroll` events were fired for, to find what
-/// scrolled since the last frame.
-#[derive(Clone, Debug, Default)]
-pub(super) struct ScrollSeen {
-    document: Point,
-    elements: HashMap<NodeId, Point>,
-}
 
 /// The boxes of the elements for the layout and the scroll offsets they
 /// were collected for.
@@ -626,105 +615,5 @@ impl Page {
             self.input.window_blurred = false;
             self.run_task(|s| s.window_focus(true));
         }
-    }
-
-    // ----- Scroll events -----
-
-    /// Notes that something may have scrolled (`element`: the scroll
-    /// container that the caller scrolled, if it is one): the frame fires
-    /// `scroll` events for what did, in the order it scrolled (CSSOM View
-    /// "pending scroll event targets"; the document recorded the scrolls of
-    /// the viewport and of its scroll containers, also those of a script
-    /// task, in `DocumentState::scrolled`).
-    pub(super) fn note_scroll(&mut self, element: Option<NodeId>) {
-        let scrolled = self
-            .doc
-            .as_deref_mut()
-            .map(|d| std::mem::take(&mut d.scrolled))
-            .unwrap_or_default();
-        if self.script.is_none() {
-            return;
-        }
-        for node in scrolled.into_iter().chain(element) {
-            if !self.input.scroll_order.contains(&node) {
-                self.input.scroll_order.push(node);
-            }
-        }
-        if self.input.frame_due.is_none() {
-            self.input.frame_due = Some(self.clock.now() + FRAME_MS);
-        }
-    }
-
-    /// The page time of the next frame that has work, if any.
-    pub(super) fn frame_time(&self) -> Option<f64> {
-        self.input.frame_due
-    }
-
-    /// The rendering update of a frame that is due (HTML "update the
-    /// rendering", <https://drafts.csswg.org/cssom-view/#run-the-scroll-steps>):
-    /// fires `scroll` once at each target that scrolled since the last
-    /// frame (the document for the viewport), in the order they scrolled
-    /// (measured in Chromium 148: a container that a script scrolled before
-    /// the viewport gets its event first; a scroll back to the old position
-    /// still fires). Targets whose offsets changed without a note (a layout
-    /// clamped them) follow, the document first, then in tree order.
-    /// Returns true if an event was fired.
-    pub(super) fn run_frame(&mut self) -> bool {
-        let Some(due) = self.input.frame_due else {
-            return false;
-        };
-        if due > self.clock.now() || !self.script_input() {
-            return false;
-        }
-        self.input.frame_due = None;
-        let Some(doc) = self.doc.as_deref() else {
-            return false;
-        };
-        let seen = std::mem::take(&mut self.input.scroll_seen);
-        let current = ScrollSeen {
-            document: doc.scroll,
-            elements: doc.scrollers.offsets().clone(),
-        };
-        let mut targets = std::mem::take(&mut self.input.scroll_order);
-        if current.document != seen.document && !targets.contains(&NodeId::DOCUMENT) {
-            targets.push(NodeId::DOCUMENT);
-        }
-        let unnoted: std::collections::HashSet<NodeId> = current
-            .elements
-            .iter()
-            .filter(|(node, offset)| seen.elements.get(node) != Some(offset))
-            .map(|(node, _)| *node)
-            .chain(
-                seen.elements
-                    .keys()
-                    .filter(|node| !current.elements.contains_key(node))
-                    .copied(),
-            )
-            .filter(|node| !targets.contains(node))
-            .collect();
-        if !unnoted.is_empty() {
-            let doc = self.document();
-            targets.extend(doc.into_iter().flat_map(|d| {
-                d.descendants(NodeId::DOCUMENT)
-                    .filter(|n| unnoted.contains(n))
-                    .collect::<Vec<_>>()
-            }));
-        }
-        self.input.scroll_seen = current;
-        let fired = !targets.is_empty();
-        for node in targets {
-            self.fire_scroll(node, node == NodeId::DOCUMENT);
-        }
-        fired
-    }
-
-    /// Fires `scroll` at `node` (it bubbles for the document only).
-    fn fire_scroll(&mut self, node: NodeId, bubbles: bool) {
-        if !self.is_connected(node) {
-            return;
-        }
-        let mut event = TrustedEvent::new("scroll");
-        event.bubbles = bubbles;
-        self.dispatch_event(DispatchTarget::Node(node), &event);
     }
 }

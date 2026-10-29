@@ -1,6 +1,9 @@
 // Source: Scalable Vector Graphics (SVG) 2, W3C Candidate Recommendation Snapshot,
 // https://www.w3.org/TR/SVG2/ (Appendix A, IDL Definitions,
-// https://www.w3.org/TR/SVG2/idl.html), copied on 2026-10-24.
+// https://www.w3.org/TR/SVG2/idl.html), copied on 2026-10-24. `SVGRect`
+// describes the members that Chromium 148 exposes (four `float`
+// attributes, measured with the probe tool); SVG 1.1 defined the
+// interface, SVG 2 replaced it with `DOMRect`.
 //
 // This file includes material copied from Scalable Vector Graphics (SVG) 2,
 // https://www.w3.org/TR/SVG2/. Copyright © 2026 World Wide Web Consortium.
@@ -24,12 +27,15 @@
 //   `r`, `viewBox`, `transform`, `points`, `href` (SVGURIReference),
 //   `target` of `a`, `requiredExtensions` and `systemLanguage` (SVGTests),
 //   the gradient, pattern, marker and text members, `pathLength`.
-// - Members that depend on layout or on geometry types that swb has not
-//   (feature 7b): `getBBox`, `getCTM`, `getScreenCTM`, `getTotalLength`,
-//   `getPointAtLength`, `isPointInFill`, `isPointInStroke`, the text
-//   measuring methods, `createSVGPoint` and the other factory methods of
-//   SVGSVGElement, `currentScale`, `currentTranslate`,
-//   `getIntersectionList` and its relatives, the redraw methods.
+// - Members that depend on layout or on geometry types that swb has not:
+//   `getCTM`, `getScreenCTM`, `getPointAtLength`, `isPointInFill`,
+//   `isPointInStroke`, the text measuring methods, `createSVGPoint` and
+//   the other factory methods of SVGSVGElement except `createSVGRect`,
+//   `currentScale`, `currentTranslate`, `getIntersectionList` and its
+//   relatives, the redraw methods. `getBBox`, `getTotalLength` and
+//   `createSVGRect` are here since feature 7b2; they return Chromium's
+//   `SVGRect` (see above) where SVG 2 says `DOMRect` (measured in Chromium
+//   148: `getBBox() instanceof DOMRect` is false).
 // - `crossOrigin` of SVGImageElement and SVGScriptElement (Chromium reads
 //   it as an ordinary property), `referrerPolicy` and the URL members of
 //   SVGAElement, `sheet` of SVGStyleElement (LinkStyle),
@@ -69,17 +75,35 @@ interface SVGAnimatedString {
   readonly attribute DOMString animVal;
 };
 
+dictionary SVGBoundingBoxOptions {
+  boolean fill = true;
+  boolean stroke = false;
+  boolean markers = false;
+  boolean clipped = false;
+};
+
 [Exposed=Window]
 interface SVGGraphicsElement : SVGElement {
+  SVGRect getBBox(optional SVGBoundingBoxOptions options = {});
 };
 
 [Exposed=Window]
 interface SVGGeometryElement : SVGGraphicsElement {
+  float getTotalLength();
 };
 
 [Exposed=Window]
 interface SVGSVGElement : SVGGraphicsElement {
+  SVGRect createSVGRect();
   Element? getElementById(DOMString elementId);
+};
+
+[Exposed=Window]
+interface SVGRect {
+  attribute float x;
+  attribute float y;
+  attribute float width;
+  attribute float height;
 };
 
 [Exposed=Window]

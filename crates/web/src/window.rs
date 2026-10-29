@@ -183,6 +183,22 @@ impl g::window::WindowImpl for WebState {
         crate::cssom_view::scroll(cx.rt, None, request)
     }
 
+    fn match_media(cx: &mut Cx<'_>, _this: Platform, query: String) -> b::Result<Gc<Object>> {
+        crate::media_queries::match_media(cx, &query)
+    }
+
+    fn request_animation_frame(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        callback: crate::generated::types::FrameRequestCallback,
+    ) -> b::Result<u32> {
+        crate::animation_frames::request(cx.rt, callback.0)
+    }
+
+    fn cancel_animation_frame(cx: &mut Cx<'_>, _this: Platform, handle: u32) -> b::Result<()> {
+        crate::animation_frames::cancel(cx.rt, handle)
+    }
+
     fn report_error(cx: &mut Cx<'_>, this: Platform, e: Value) -> b::Result<()> {
         crate::timers::report_error(cx, this, e)
     }

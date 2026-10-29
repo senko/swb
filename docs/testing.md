@@ -933,7 +933,10 @@ temporary directory, loaded by navigation.
   `Tab`, `Space`, `ArrowDown`, `a`, ...); `{"wheel": [dx, dy]}` turns the
   wheel at the pointer position; `{"wait": 100}` runs the event loop for
   100 ms; `{"focus": "#a"}` calls `focus()` in the page; `{"eval":
-  "expression"}` runs a script. A click moves the pointer first (also
+  "expression"}` runs a script; `{"viewport": [500, 600]}` resizes the
+  viewport (Playwright's `set_viewport_size`; swb's `page.setViewport`);
+  `{"colorScheme": "dark"}` sets `prefers-color-scheme` (Playwright's
+  `emulate_media`; swb's `Page::set_color_scheme`; feature 7b2). A click moves the pointer first (also
   when it is there), as Playwright does. swb runs the tasks that are due
   after each step (a `javascript:` link, a `setTimeout(0)`), as Chromium runs
   them while Playwright waits for its next call. A failed step ends the
@@ -1007,7 +1010,10 @@ statement, as for Chromium's `Runtime.evaluate`; the evaluation is not in a
 function), and, if the result is a promise, waits for it (as `await`: a
 settled promise gives its value, a rejected one gives an error; swb runs
 its event loop meanwhile, at most `--timeout` seconds, then the answer is
-`{"error": "Error: the promise did not settle in time"}`). It prints
+`{"error": "Error: the promise did not settle in time"}`). Between two
+EXPRs swb runs the tasks that are due at that moment (feature 7b2), as
+Chromium does between two calls of the probe: the notification of a
+promise that one expression rejected fires before the next. It prints
 exactly one line to stdout per EXPR, in order, and nothing else to stdout
 (logs go to stderr):
 
@@ -1117,7 +1123,12 @@ timer while 300 web fonts load. Cases for the geometry of scripts
 a page of 50,000 elements, the rectangles and offsets of every element of a
 page of 100,000 elements, 1,000,000 script scrolls with reads between
 them, `elementFromPoint` at every second px of the viewport, and huge and
-non-finite scroll offsets on a page 1e9 px high. The cases with
+non-finite scroll offsets on a page 1e9 px high. Cases for the
+rendering update of feature 7b2: a `requestAnimationFrame` loop that
+changes and reads layout in each of 120 frames of virtual time, a
+callback that never returns (three time limits stop the scripts),
+`innerText` of a page of 260,000 elements, and 1,000,000 `matchMedia`
+calls with 100,000 lists that have listeners. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2576,14 +2587,31 @@ code for them (a unit test of the generator checks the glue).
   scrolled, flex, grid, table, SVG and `details` boxes, rounding, the root
   and the body in standards and quirks mode, `DOMRect`, the window's
   metrics, `elementFromPoint`, `offsetX` of dispatched events, the scroll
-  of `focus()`, `img.width`) and of `tools/probes/web-scroll.json` (7
-  cases, 113 queries: the scroll methods, clamping, `scrollIntoView`, the
-  order of `scroll` events, huge sizes) with Chromium's values
+  of `focus()`, `img.width`) and of `tools/probes/web-scroll.json` (8
+  cases, 123 queries: the scroll methods, clamping, `scrollIntoView`, the
+  order of `scroll` events, huge sizes, the rejected promises of feature
+  7b2) with Chromium's values
   (`geometry/cases.rs`, generated from the probes' `--json` output, three
   equal Chromium runs); `geometry/departures.rs` lists the departures with
   their reasons. Also: the flush counters of geometry reads, a loop of
   style writes and geometry reads that ends at the task deadline, and the
-  order of the `scroll` events of script scrolls.
+  order of the `scroll` events of script scrolls. The tasks that are due
+  run between two queries, as between two calls of the probe.
+- `crates/engine/tests/rendering.rs`: the rendered text and the rendering
+  update (feature 7b2): every case of `tools/probes/web-inner-text.json`
+  (12 cases, 136 queries: `innerText` of blocks, line breaks, hidden and
+  replaced content, tables, white space, `text-transform`, the kinds of
+  boxes; the `innerText` and `outerText` setters), `web-match-media.json`
+  (7 cases, 148 queries: the serialization and evaluation of 110 media
+  queries, the `MediaQueryList` interface, `change` events after the
+  `viewport` and `colorScheme` steps), `web-render-update.json` (6 cases,
+  30 queries: `requestAnimationFrame` and its handles, times and errors, the
+  order of the steps of a frame) and `web-svg-geometry.json` (3 cases, 50
+  queries: `getBBox`, `getTotalLength`, `createSVGRect`), in virtual time,
+  with the steps of the cases; `rendering/departures.rs` lists the
+  departures. Also: the flush counters of `innerText`, a
+  `requestAnimationFrame` loop of 60 frames in a second of virtual time, a
+  callback that never returns, and `change` events after viewport changes.
 - `crates/engine/tests/script_processing.rs`: scripts in the HTML parser
   (feature 5c): every case of `tools/probes/web-scripts.json` with
   Chromium's values (`tests/script_processing/cases.rs`, generated from the

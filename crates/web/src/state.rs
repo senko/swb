@@ -139,6 +139,13 @@ pub(crate) struct WebState {
     /// The declaration blocks of the `style` attributes that scripts read
     /// or changed (`element.style`).
     pub(crate) style_blocks: crate::cssom::StyleBlocks,
+    /// The window's map of animation frame callbacks.
+    pub(crate) animation_frames: crate::animation_frames::AnimationFrames,
+    /// The `MediaQueryList` objects with listeners by their order of
+    /// creation: the handles of their data (`media_queries.rs`).
+    pub(crate) media_queries: std::collections::BTreeMap<u64, Gc<swb_js::Generic>>,
+    /// The `MediaQueryList` objects made so far.
+    pub(crate) media_query_count: u64,
 }
 
 impl HostState for WebState {
@@ -174,6 +181,10 @@ impl HostState for WebState {
             tracer.object(object);
         }
         self.event_loop.trace(tracer);
+        self.animation_frames.trace(tracer);
+        for list in self.media_queries.values() {
+            tracer.generic(*list);
+        }
     }
 }
 

@@ -9,7 +9,8 @@ use swb_layout::{Point, Size};
 use swb_style::{Cursor, ElementStates, UserSelect};
 
 use super::Page;
-use super::events::{Down, ScrollSeen};
+use super::events::Down;
+use super::frame::ScrollSeen;
 use crate::document::is_rendered_in;
 use crate::focus;
 use crate::hit_test::{self, HitResult};
@@ -72,8 +73,14 @@ pub(super) struct InputState {
     pub(super) window_blurred: bool,
     /// The element on which Space went down; it is clicked on release.
     pub(super) space_down: Option<NodeId>,
-    /// The page time of the next frame that fires `scroll` events.
+    /// The page time of the next frame that has work other than animation
+    /// frame callbacks (`scroll` and `resize` events, media queries).
     pub(super) frame_due: Option<f64>,
+    /// The page time of the last frame.
+    pub(super) last_frame: Option<f64>,
+    /// The viewport changed its size since the last frame: the frame fires
+    /// `resize`.
+    pub(super) resized: bool,
     /// The scroll offsets that `scroll` events were last fired for.
     pub(super) scroll_seen: ScrollSeen,
     /// The scroll containers in the order they scrolled since the last

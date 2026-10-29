@@ -28,6 +28,7 @@
 //! a path without data and an empty group do not; a path of one point and a
 //! `line` do (also of length zero).
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -346,6 +347,55 @@ impl SvgContent {
             boxes.push((id, r.total.map_rect(&local)));
         }
         boxes
+    }
+
+    /// For scripts (`getBBox`, `getTotalLength`): for each element that
+    /// draws here, the fill bounding box in its user space (without its own
+    /// transform) and, for a shape, the length of its path; under `None`,
+    /// the box of the content in the user space of the `<svg>`. One call
+    /// serves all the elements of the `<svg>`, so a script that asks for
+    /// many of them resolves the content once.
+    pub fn script_geometry(&self, size: Size) -> HashMap<Option<NodeId>, (Rect, f32)> {
+        let space = self.space(size);
+        let resolved = self.resolve(&space);
+        let mut all = HashMap::new();
+        // The union of the top-level boxes.
+        let mut depth = 0_usize;
+        let mut union_box: Option<Rect> = None;
+        for (n, r) in self.nodes.iter().zip(&resolved) {
+            let id = match n {
+                Node::BeginGroup(group) => {
+                    if depth == 0 {
+                        union_box = union(union_box, r.bbox.map(|b| r.own.map_rect(&b)));
+                    }
+                    depth += 1;
+                    group.node
+                }
+                Node::EndGroup => {
+                    depth = depth.saturating_sub(1);
+                    None
+                }
+                Node::Shape(shape) => {
+                    let contributes = r.geometry.as_ref().is_some_and(|g| g.contributes);
+                    if depth == 0 && contributes {
+                        union_box = union(union_box, r.bbox.map(|b| r.own.map_rect(&b)));
+                    }
+                    shape.node
+                }
+            };
+            if let Some(id) = id {
+                let length = r
+                    .geometry
+                    .as_ref()
+                    .and_then(|g| g.path.as_ref())
+                    .map_or(0.0, |p| p.length());
+                // The first entry of an element wins.
+                all.entry(Some(id))
+                    .or_insert((r.bbox.unwrap_or_default(), length));
+            }
+        }
+        all.insert(None, (union_box.unwrap_or_default(), 0.0));
+        all
     }
 }
 

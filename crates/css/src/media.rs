@@ -162,19 +162,22 @@ enum MediaQuery {
     Invalid,
     Query {
         negated: bool,
+        /// Written with `only` (kept for the serialization).
+        only: bool,
         media_type: TypeMatch,
         condition: Option<Condition>,
     },
 }
 
 /// The media type in a query.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum TypeMatch {
     All,
     Screen,
     Print,
-    /// A valid type that never matches (`tv`, `speech`, unknown names).
-    Other,
+    /// A valid type that never matches (`tv`, `speech`, unknown names), in
+    /// lowercase.
+    Other(Box<str>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -182,9 +185,12 @@ enum Condition {
     Not(Box<Condition>),
     And(Vec<Condition>),
     Or(Vec<Condition>),
+    /// A condition in parentheses: `((color))`, `(not (hover))`.
+    Group(Box<Condition>),
     Feature(Feature),
-    /// `<general-enclosed>`, an unknown feature or an invalid value.
-    Unknown,
+    /// `<general-enclosed>`, an unknown feature or an invalid value, with
+    /// its text (parentheses or function included).
+    Unknown(Box<str>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -192,6 +198,10 @@ struct Feature {
     name: FeatureName,
     /// Empty for the boolean context: `(hover)`.
     comparisons: Vec<(Comparison, Value)>,
+    /// The `min-` or `max-` prefix of the plain form (`(min-width:
+    /// 600px)`), kept for the serialization; `None` for the range form and
+    /// the plain form without prefix.
+    prefix: Option<&'static str>,
 }
 
 /// A comparison `feature <op> value`.
@@ -242,8 +252,12 @@ impl Comparison {
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Value {
     Length(f32, LengthUnit),
-    /// A number, an integer, or a resolution in dppx.
+    /// A unitless 0 as a length.
+    Zero,
+    /// A number or an integer.
     Number(f32),
+    /// A resolution: the value in dppx, and the value and unit as written.
+    Resolution(f32, f32, &'static str),
     Ratio(f32, f32),
     Keyword(&'static str),
 }
@@ -466,6 +480,7 @@ fn parse_query(input: &[ComponentValue]) -> MediaQuery {
     match p.parse_entirely(|p| parse_condition(p, true)) {
         Ok(condition) => MediaQuery::Query {
             negated: false,
+            only: false,
             media_type: TypeMatch::All,
             condition: Some(condition),
         },
@@ -477,18 +492,21 @@ fn parse_query(input: &[ComponentValue]) -> MediaQuery {
 fn parse_typed_query(p: &mut Parser<'_>) -> Result<MediaQuery, ParseError> {
     let mut ident = p.expect_ident()?;
     let mut negated = false;
+    let mut only = false;
     if ident.eq_ignore_ascii_case("not") {
         negated = true;
         ident = p.expect_ident()?;
     } else if ident.eq_ignore_ascii_case("only") {
+        only = true;
         ident = p.expect_ident()?;
     }
-    let media_type = match ident.to_ascii_lowercase().as_str() {
+    let name = ident.to_ascii_lowercase();
+    let media_type = match name.as_str() {
         "all" => TypeMatch::All,
         "screen" => TypeMatch::Screen,
         "print" => TypeMatch::Print,
         "only" | "not" | "and" | "or" | "layer" => return Err(ParseError::Invalid),
-        _ => TypeMatch::Other,
+        _ => TypeMatch::Other(name.into()),
     };
     let condition = if p.expect_ident_matching("and").is_ok() {
         Some(parse_condition(p, false)?)
@@ -497,6 +515,7 @@ fn parse_typed_query(p: &mut Parser<'_>) -> Result<MediaQuery, ParseError> {
     };
     Ok(MediaQuery::Query {
         negated,
+        only,
         media_type,
         condition,
     })
@@ -547,9 +566,10 @@ fn parse_in_parens(p: &mut Parser<'_>) -> Result<Condition, ParseError> {
             Ok(parse_paren_contents(&b.contents))
         }
         // `<general-enclosed>` in function form.
-        Some(ComponentValue::Function(_)) => {
+        Some(value @ ComponentValue::Function(_)) => {
+            let text = value.to_string();
             p.next();
-            Ok(Condition::Unknown)
+            Ok(Condition::Unknown(text.into()))
         }
         Some(_) => Err(ParseError::Unexpected),
         None => Err(ParseError::EndOfInput),
@@ -559,9 +579,15 @@ fn parse_in_parens(p: &mut Parser<'_>) -> Result<Condition, ParseError> {
 /// The contents of `( ... )`: a condition, a feature, or general-enclosed.
 fn parse_paren_contents(contents: &[ComponentValue]) -> Condition {
     if let Ok(condition) = Parser::new(contents).parse_entirely(|p| parse_condition(p, true)) {
-        return condition;
+        return Condition::Group(Box::new(condition));
     }
-    parse_feature(trim_whitespace(contents)).map_or(Condition::Unknown, Condition::Feature)
+    parse_feature(trim_whitespace(contents)).map_or_else(
+        || {
+            let text = crate::serialize::serialize_component_values(trim_whitespace(contents));
+            Condition::Unknown(format!("({text})").into())
+        },
+        Condition::Feature,
+    )
 }
 
 /// Parses `<media-feature>`. Returns `None` for unknown features, invalid
@@ -573,6 +599,7 @@ fn parse_feature(contents: &[ComponentValue]) -> Option<Feature> {
         return prefix.is_none().then_some(Feature {
             name,
             comparisons: Vec::new(),
+            prefix: None,
         });
     }
     // Plain: `(name: value)`.
@@ -584,6 +611,7 @@ fn parse_feature(contents: &[ComponentValue]) -> Option<Feature> {
             return Some(Feature {
                 name,
                 comparisons: vec![(prefix.unwrap_or(Comparison::Eq), value)],
+                prefix: prefix.map(|c| if c == Comparison::Ge { "min-" } else { "max-" }),
             });
         }
     }
@@ -610,6 +638,7 @@ fn parse_range(contents: &[ComponentValue]) -> Option<Feature> {
                 return Some(Feature {
                     name,
                     comparisons: vec![(*op, value)],
+                    prefix: None,
                 });
             }
             let name = feature_name(right)?;
@@ -617,6 +646,7 @@ fn parse_range(contents: &[ComponentValue]) -> Option<Feature> {
             Some(Feature {
                 name,
                 comparisons: vec![(op.flip(), value)],
+                prefix: None,
             })
         }
         ([low, middle, high], [op1, op2]) => {
@@ -631,6 +661,7 @@ fn parse_range(contents: &[ComponentValue]) -> Option<Feature> {
             Some(Feature {
                 name,
                 comparisons: vec![(op1.flip(), low), (*op2, high)],
+                prefix: None,
             })
         }
         _ => None,
@@ -673,7 +704,7 @@ fn parse_value(ty: ValueType, input: &[ComponentValue]) -> Option<Value> {
             ComponentValue::Dimension { number, unit } => {
                 Value::Length(number.value, LengthUnit::from_name(unit)?)
             }
-            ComponentValue::Number(n) if n.value == 0.0 => Value::Length(0.0, LengthUnit::Px),
+            ComponentValue::Number(n) if n.value == 0.0 => Value::Zero,
             ComponentValue::Function(f) => match math_function(&f.name, &f.arguments, None)? {
                 MathValue::Px(px) => Value::Length(px, LengthUnit::Px),
                 MathValue::Number(_) => return None,
@@ -694,13 +725,14 @@ fn parse_value(ty: ValueType, input: &[ComponentValue]) -> Option<Value> {
         }
         ValueType::Resolution => {
             let (value, unit) = p.expect_dimension().ok()?;
-            let dppx = match unit.to_ascii_lowercase().as_str() {
-                "dppx" | "x" => value,
-                "dpi" => value / 96.0,
-                "dpcm" => value * 2.54 / 96.0,
+            let (dppx, unit) = match unit.to_ascii_lowercase().as_str() {
+                "dppx" => (value, "dppx"),
+                "x" => (value, "x"),
+                "dpi" => (value / 96.0, "dpi"),
+                "dpcm" => (value * 2.54 / 96.0, "dpcm"),
                 _ => return None,
             };
-            Value::Number(dppx)
+            Value::Resolution(dppx, value, unit)
         }
         ValueType::Integer => {
             let n = p.expect_integer().ok()?;
@@ -907,6 +939,7 @@ impl MediaQuery {
             negated,
             media_type,
             condition,
+            ..
         } = self
         else {
             return false;
@@ -915,7 +948,7 @@ impl MediaQuery {
             TypeMatch::All => true,
             TypeMatch::Screen => env.media_type == MediaType::Screen,
             TypeMatch::Print => env.media_type == MediaType::Print,
-            TypeMatch::Other => false,
+            TypeMatch::Other(_) => false,
         };
         let condition = condition.as_ref().map_or(Kleene::True, |c| c.evaluate(env));
         let mut result = Kleene::from_bool(type_matches).and(condition);
@@ -936,8 +969,9 @@ impl Condition {
             Condition::Or(list) => list
                 .iter()
                 .fold(Kleene::False, |acc, c| acc.or(c.evaluate(env))),
+            Condition::Group(c) => c.evaluate(env),
             Condition::Feature(f) => Kleene::from_bool(f.evaluate(env)),
-            Condition::Unknown => Kleene::Unknown,
+            Condition::Unknown(_) => Kleene::Unknown,
         }
     }
 }
@@ -968,8 +1002,9 @@ impl Feature {
 /// Compares an environment value with a query value.
 fn compare(actual: &Actual, value: Value, env: &MediaEnvironment) -> Option<std::cmp::Ordering> {
     match (actual, value) {
-        (Actual::Number(a), Value::Number(v)) => a.partial_cmp(&v),
+        (Actual::Number(a), Value::Number(v) | Value::Resolution(v, ..)) => a.partial_cmp(&v),
         (Actual::Number(a), Value::Length(v, unit)) => a.partial_cmp(&unit.to_px(v, env)),
+        (Actual::Number(a), Value::Zero) => a.partial_cmp(&0.0),
         // a/b compared with c/d as a*d with c*b.
         (Actual::Ratio(w, h), Value::Ratio(n, d)) => (w * d).partial_cmp(&(n * h)),
         (Actual::Keyword(a), Value::Keyword(v)) => (*a == v).then_some(std::cmp::Ordering::Equal),
@@ -1045,6 +1080,7 @@ impl fmt::Display for MediaQueryList {
 fn write_query(query: &MediaQuery, out: &mut String) {
     let MediaQuery::Query {
         negated,
+        only,
         media_type,
         condition,
     } = query
@@ -1054,21 +1090,23 @@ fn write_query(query: &MediaQuery, out: &mut String) {
     };
     if *negated {
         out.push_str("not ");
+    } else if *only {
+        out.push_str("only ");
     }
     let type_name = match media_type {
         TypeMatch::All => "all",
         TypeMatch::Screen => "screen",
         TypeMatch::Print => "print",
-        TypeMatch::Other => "unknown",
+        TypeMatch::Other(name) => name,
     };
     match condition {
-        Some(c) if *media_type == TypeMatch::All && !*negated => write_condition(c, out),
+        Some(c) if *media_type == TypeMatch::All && !*negated && !*only => write_condition(c, out),
         Some(c) => {
-            out.push_str(type_name);
+            serialize_identifier(type_name, out);
             out.push_str(" and ");
             write_condition(c, out);
         }
-        None => out.push_str(type_name),
+        None => serialize_identifier(type_name, out),
     }
 }
 
@@ -1078,38 +1116,49 @@ fn write_condition(condition: &Condition, out: &mut String) {
             if i > 0 {
                 out.push_str(word);
             }
-            write_nested_condition(c, out);
+            write_condition(c, out);
         }
     };
     match condition {
         Condition::Not(c) => {
             out.push_str("not ");
-            write_nested_condition(c, out);
+            write_condition(c, out);
         }
         Condition::And(list) => join(list, " and ", out),
         Condition::Or(list) => join(list, " or ", out),
-        Condition::Feature(_) | Condition::Unknown => write_nested_condition(condition, out),
+        Condition::Group(c) => {
+            out.push('(');
+            write_condition(c, out);
+            out.push(')');
+        }
+        Condition::Feature(feature) => {
+            out.push('(');
+            write_feature(feature, out);
+            out.push(')');
+        }
+        Condition::Unknown(text) => out.push_str(text),
     }
 }
 
-/// Writes a condition in parentheses.
-fn write_nested_condition(condition: &Condition, out: &mut String) {
-    out.push('(');
-    match condition {
-        Condition::Feature(feature) => write_feature(feature, out),
-        // General-enclosed text is not kept.
-        Condition::Unknown => out.push_str("unknown"),
-        _ => write_condition(condition, out),
-    }
-    out.push(')');
-}
-
+/// Writes a feature without its parentheses, in the form it was written:
+/// `min-width: 600px`, `width >= 600px`, `400px < width < 900px`.
 fn write_feature(feature: &Feature, out: &mut String) {
     let name = feature.name.info().0;
     match &feature.comparisons[..] {
         [] => serialize_identifier(name, out),
-        [(Comparison::Eq, value)] => {
-            serialize_identifier(name, out);
+        [(Comparison::Eq | Comparison::Ge | Comparison::Le, value)]
+            if feature.prefix.is_some() || feature.comparisons[0].0 == Comparison::Eq =>
+        {
+            match (feature.prefix, name.strip_prefix("-webkit-")) {
+                (Some(prefix), Some(rest)) => {
+                    let _ = write!(out, "-webkit-{prefix}{rest}");
+                }
+                (Some(prefix), None) => {
+                    out.push_str(prefix);
+                    serialize_identifier(name, out);
+                }
+                (None, _) => serialize_identifier(name, out),
+            }
             out.push_str(": ");
             write_value(*value, out);
         }
@@ -1128,11 +1177,15 @@ fn write_feature(feature: &Feature, out: &mut String) {
     }
 }
 
+/// Writes a value as Chromium serializes it: numbers in the shortest form,
+/// units in lowercase, ratios with spaces around the slash.
 fn write_value(value: Value, out: &mut String) {
     let _ = match value {
         Value::Length(v, unit) => write!(out, "{v}{}", unit.name()),
+        Value::Zero => write!(out, "0"),
         Value::Number(v) => write!(out, "{v}"),
-        Value::Ratio(n, d) => write!(out, "{n}/{d}"),
+        Value::Resolution(_, v, unit) => write!(out, "{v}{unit}"),
+        Value::Ratio(n, d) => write!(out, "{n} / {d}"),
         Value::Keyword(k) => write!(out, "{k}"),
     };
 }
@@ -1390,17 +1443,28 @@ mod tests {
             ("not print", "not print"),
             (
                 "only screen and (min-width: 600px)",
-                "screen and (width >= 600px)",
+                "only screen and (min-width: 600px)",
             ),
             ("(400px < width <= 50em)", "(400px < width <= 50em)"),
             ("(1200px > width > 900px)", "(1200px > width > 900px)"),
             ("(width: 600px)", "(width: 600px)"),
-            ("(aspect-ratio: 16/9)", "(aspect-ratio: 16/9)"),
+            ("(aspect-ratio: 16/9)", "(aspect-ratio: 16 / 9)"),
             ("(hover) or (color)", "(hover) or (color)"),
             ("not (hover)", "not (hover)"),
             ("(orientation: LANDSCAPE)", "(orientation: landscape)"),
             ("screen, bad and", "screen, not all"),
-            ("(foo)", "(unknown)"),
+            ("(foo)", "(foo)"),
+            ("(FOO: Bar)", "(FOO: Bar)"),
+            ("((color))", "((color))"),
+            ("(not (color))", "(not (color))"),
+            ("tv", "tv"),
+            ("(max-width: 0)", "(max-width: 0)"),
+            ("(min-resolution: 96DPI)", "(min-resolution: 96dpi)"),
+            (
+                "(-webkit-min-device-pixel-ratio: 2)",
+                "(-webkit-min-device-pixel-ratio: 2)",
+            ),
+            ("(width >= 600px)", "(width >= 600px)"),
         ];
         for (query, expected) in cases {
             assert_eq!(

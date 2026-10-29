@@ -1,0 +1,489 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "blocks",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>  Hello   <b>bold</b>\n world <p>para</p><p>two</p> tail</div><div id=b><div>one</div><div><div>two</div></div>three<span> four </span></div><div id=c><p>x</p></div><div id=d>y</div><div id=e> <span> a </span> <span> b </span> </div><div id=f>a&nbsp;&nbsp;b &nbsp; c</div><div id=g><h1>Head</h1><hr><ul><li>i1</li><li>i2</li></ul><ol><li>o1</li></ol><blockquote>q</blockquote></div><div id=h><dl><dt>t</dt><dd>d</dd></dl><address>ad</address><figure><figcaption>fc</figcaption>f</figure></div><div id=i>a<p></p>b<p> </p>c<div></div>d</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    },
+    {
+     "js": "T(\"i\")"
+    },
+    {
+     "js": "JSON.stringify(document.body.innerText)"
+    },
+    {
+     "js": "JSON.stringify(document.documentElement.innerText)"
+    }
+   ]
+  },
+  {
+   "name": "breaks",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>a<br>b<br><br>c<br></div><div id=b><br>x</div><div id=c>x<br> y</div><div id=d><span>a<br></span>b</div><p id=e>a<br></p><p id=f><br></p><div id=g>a<wbr>b</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T('a').length"
+    }
+   ]
+  },
+  {
+   "name": "hidden",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>a<span style='display:none'>X</span>b</div><div id=b style='display:none'>hid<b>den</b> <p>p</p></div><div id=c>a<span style='visibility:hidden'>X</span>b</div><div id=d style='visibility:hidden'>x<span style='visibility:visible'>V</span>y</div><div id=e>a<span hidden>X</span>b</div><div id=f>a<span style='opacity:0'>O</span>b</div><div id=g style='height:0;overflow:hidden'>clipped</div><div id=h>a<span style='display:contents'>C<b>D</b></span>b</div><span id=i style='display:contents'>c1<b>c2</b></span><div id=j>a<script>var s = 1;</script><style>.x{}</style>b<template>T</template><noscript>N</noscript></div><div id=k style='visibility:hidden'><p>p1</p><p>p2</p></div><div id=l>a<div style='visibility:hidden'>h</div>b</div><div id=m style='content-visibility:hidden'>cv</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    },
+    {
+     "js": "T(\"i\")"
+    },
+    {
+     "js": "T(\"j\")"
+    },
+    {
+     "js": "T(\"k\")"
+    },
+    {
+     "js": "T(\"l\")"
+    },
+    {
+     "js": "T(\"m\")"
+    },
+    {
+     "js": "E(() => document.querySelector('#j script').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('#j style').innerText)"
+    },
+    {
+     "js": "E(() => document.createElement('div').innerText)"
+    },
+    {
+     "js": "E(() => { const d = document.createElement('div'); d.innerHTML = ' a  <p>b</p> c '; return d.innerText; })"
+    },
+    {
+     "js": "E(() => document.querySelector('template').innerText)"
+    },
+    {
+     "js": "E(() => document.head.innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('title').innerText)"
+    }
+   ]
+  },
+  {
+   "name": "tables",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><table id=a><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table><table id=b><caption>cap</caption><thead><tr><th>h1</th><th>h2</th></tr></thead><tbody><tr><td> x </td><td></td><td>z</td></tr></tbody><tfoot><tr><td>f</td></tr></tfoot></table><div id=c>before<table><tr><td>t</td></tr></table>after</div><table id=d><tr><td><p>p</p></td><td><div>dv</div></td></tr></table><div id=e style='display:table'><div style='display:table-row'><div style='display:table-cell'>r1c1</div><div style='display:table-cell'>r1c2</div></div><div style='display:table-row'><div style='display:table-cell'>r2c1</div></div></div><table id=f><tr><td>a</td><td style='display:none'>b</td><td>c</td></tr></table><table id=g><tr><td>a</td></tr><tr style='display:none'><td>b</td></tr><tr><td>c</td></tr></table><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "E(() => document.querySelector('#a tr').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('#a td').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('#b caption').innerText)"
+    }
+   ]
+  },
+  {
+   "name": "white-space",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><pre id=a>  a  b\n\n  c\t d  \n</pre><div id=b style='white-space:pre-wrap'>  a  b \n c  </div><div id=c style='white-space:pre-line'>  a  b \n  c  </div><div id=d style='white-space:nowrap'>  a   b \n c  </div><div id=e>x<pre>\n p </pre>y</div><textarea id=f>  ta\n x</textarea><div id=g style='width:30px'>soft wrapped words here</div><pre id=h>\r\nr\rn</pre><div id=i>a<span style='white-space:pre'>  b  </span>c</div><div id=j>\u00a0x\u00a0</div><div id=k>a\u200bb \u3000c</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    },
+    {
+     "js": "T(\"i\")"
+    },
+    {
+     "js": "T(\"j\")"
+    },
+    {
+     "js": "T(\"k\")"
+    }
+   ]
+  },
+  {
+   "name": "transform",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a style='text-transform:uppercase'>hello World \u00df</div><div id=b style='text-transform:capitalize'>hello wORLD a-b o'k 1st</div><div id=c style='text-transform:lowercase'>HeLLo \u0130 \u03a3</div><div id=d>a<span style='text-transform:uppercase'>bc</span>d</div><div id=e style='text-transform:full-width'>ab1</div><div id=f style='font-variant:small-caps'>small</div><div id=g style='letter-spacing:5px;word-spacing:9px'>a b</div><div id=h style='text-transform:capitalize'><span>ab</span><span>cd</span> ef</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    }
+   ]
+  },
+  {
+   "name": "layout-kinds",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>a<span style='display:inline-block'>ib</span>b</div><div id=b>a<div style='display:inline-block'><p>ib1</p><p>ib2</p></div>b</div><div id=c>a<span style='float:left'>fl</span>b</div><div id=d>a<span style='position:absolute'>abs</span>b</div><div id=e style='display:flex'><span>f1</span><span>f2</span>f3</div><div id=f style='display:grid'><span>g1</span><span>g2</span></div><div id=g>a<span style='display:block'>blk</span>b</div><div id=h style='display:inline'>x<div>y</div>z</div><div id=i>a<li>li</li>b</div><div id=j style='columns:2'>c1 c2</div><div id=k>a<div style='display:inline-flex'><span>if1</span><span>if2</span></div>b</div><div id=l>a<span style='position:relative;top:5px'>rel</span>b</div><div id=m>a<div style='display:flow-root'>fr</div>b</div><div id=n>a<span style='display:table-cell'>tc</span>b</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    },
+    {
+     "js": "T(\"i\")"
+    },
+    {
+     "js": "T(\"j\")"
+    },
+    {
+     "js": "T(\"k\")"
+    },
+    {
+     "js": "T(\"l\")"
+    },
+    {
+     "js": "T(\"m\")"
+    },
+    {
+     "js": "T(\"n\")"
+    }
+   ]
+  },
+  {
+   "name": "generated",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } .x::before { content: 'B' } .x::after { content: 'A' } .y::before { content: 'blk'; display: block }</style></head><body><div id=a class=x>mid</div><div id=b class=y>mid</div><ol id=c><li>one</li><li>two</li></ol><div id=d><q>quoted</q></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    }
+   ]
+  },
+  {
+   "name": "replaced",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>a<img alt=ALT>b</div><div id=b>a<input value=val>b<button>btn</button>c</div><div id=c><select><option>o1</option><option>o2</option></select></div><div id=d><select size=3><option>s1</option><optgroup label=G><option>s2</option></optgroup></select></div><div id=e>a<canvas>fallback</canvas>b</div><div id=f>a<video>vid</video>b<audio>aud</audio>c</div><div id=g>a<iframe>if</iframe>b<object>ob</object>c</div><div id=h>a<svg width=10 height=10><text>svgt</text></svg>b</div><div id=i>a<math><mi>x</mi></math>b</div><div id=j><details><summary>sum</summary>body</details><details open><summary>s2</summary>b2</details></div><div id=k>a<ruby>r<rt>t</rt></ruby>b</div><div id=l><label>lab<input></label><fieldset><legend>leg</legend>fs</fieldset></div><div id=m><progress>pr</progress><meter>me</meter><output>ou</output></div><div id=n><button>b<span>c</span></button><input type=submit><input type=button value=v></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "T(\"c\")"
+    },
+    {
+     "js": "T(\"d\")"
+    },
+    {
+     "js": "T(\"e\")"
+    },
+    {
+     "js": "T(\"f\")"
+    },
+    {
+     "js": "T(\"g\")"
+    },
+    {
+     "js": "T(\"h\")"
+    },
+    {
+     "js": "T(\"i\")"
+    },
+    {
+     "js": "T(\"j\")"
+    },
+    {
+     "js": "T(\"k\")"
+    },
+    {
+     "js": "T(\"l\")"
+    },
+    {
+     "js": "T(\"m\")"
+    },
+    {
+     "js": "T(\"n\")"
+    },
+    {
+     "js": "E(() => document.querySelector('select').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('option').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('textarea, button').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('summary').innerText)"
+    },
+    {
+     "js": "E(() => document.querySelector('details').innerText)"
+    },
+    {
+     "js": "['innerText' in document.querySelector('svg'), 'innerText' in document.querySelector('text'), 'outerText' in document.body, 'innerText' in HTMLElement.prototype, 'innerText' in Element.prototype]"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'innerText').set.length)"
+    }
+   ]
+  },
+  {
+   "name": "quirks",
+   "html": "<html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>a<p>b</p>c</div><table id=b><tr><td>x</td><td>y</td></tr></table><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T(\"a\")"
+    },
+    {
+     "js": "T(\"b\")"
+    },
+    {
+     "js": "JSON.stringify(document.body.innerText)"
+    }
+   ]
+  },
+  {
+   "name": "setter",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><div id=a>old <b>bold</b></div><div id=b></div><pre id=c></pre><div id=d><span id=s>s</span></div><p id=o>x<span id=os>mid</span>y</p><div id=w></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const b = a.querySelector('b'); a.innerText = 'x'; return [K(a), b.parentNode === null] })"
+    },
+    {
+     "js": "E(() => { b.innerText = 'a\\nb'; return [K(b), b.innerHTML] })"
+    },
+    {
+     "js": "E(() => { b.innerText = 'a\\r\\nb\\rc\\n\\nd\\n'; return [K(b), b.innerHTML] })"
+    },
+    {
+     "js": "E(() => { b.innerText = ''; return [K(b), b.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { b.innerText = null; return [K(b), b.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { b.innerText = undefined; return K(b) })"
+    },
+    {
+     "js": "E(() => { b.innerText = 42; return K(b) })"
+    },
+    {
+     "js": "E(() => { b.innerText = '\\n'; return [K(b), b.innerText] })"
+    },
+    {
+     "js": "E(() => { b.innerText = ' a  b '; return [K(b), JSON.stringify(b.innerText)] })"
+    },
+    {
+     "js": "E(() => { b.innerText = '<i>x</i> &amp;'; return [K(b), b.innerHTML] })"
+    },
+    {
+     "js": "E(() => { c.innerText = 'p\\nq'; return [K(c), c.innerHTML, JSON.stringify(c.innerText)] })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.innerText = 'u\\nv'; return [K(e), e.innerText] })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.innerText = 'u\\nv'; return e.innerHTML })"
+    },
+    {
+     "js": "E(() => { b.innerText = 'x'; const t = b.firstChild; b.innerText = 'y'; return [t.parentNode === null, K(b)] })"
+    },
+    {
+     "js": "E(() => { d.innerText = 'n'; return [K(d), s.parentNode === null] })"
+    },
+    {
+     "js": "E(() => { const l = []; const m = new MutationObserver(r => {}); m.observe(b, {childList: true}); b.innerText = 'a\\nb'; const r = m.takeRecords(); return [r.length, r[0] && r[0].addedNodes.length, r[0] && r[0].removedNodes.length] })"
+    },
+    {
+     "js": "E(() => { b.innerText = 'a\\u2028b\\u0085c'; return K(b) })"
+    },
+    {
+     "js": "E(() => { b.innerText = 'x'.repeat(5) + '\\n'.repeat(3); return [b.childNodes.length, K(b)] })"
+    }
+   ]
+  },
+  {
+   "name": "outer-text",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { font: 16px/20px sans-serif } </style></head><body><p id=o>x<span id=os>mid</span>y</p><div id=w><span id=ws>z</span></div><div id=v>q<i id=vi>i</i></div><div id=u><b id=ub>b</b></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(id) { return E(() => document.getElementById(id).innerText); }\nfunction K(n) { return [...n.childNodes].map(c => c.nodeType === 3 ? JSON.stringify(c.data) : c.nodeName).join(' '); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => os.outerText)"
+    },
+    {
+     "js": "E(() => o.outerText)"
+    },
+    {
+     "js": "E(() => { os.outerText = 'A\\nB'; return [K(o), o.innerHTML, o.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { ws.outerText = 'w'; return [K(w), w.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { vi.outerText = ''; return [K(v), v.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('span'); e.outerText = 'x'; return 'no throw' })"
+    },
+    {
+     "js": "E(() => { ub.outerText = null; return [K(u), u.childNodes.length] })"
+    },
+    {
+     "js": "E(() => { document.documentElement.outerText = 'x'; return 'no throw' })"
+    }
+   ]
+  }
+ ]
+}

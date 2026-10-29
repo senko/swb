@@ -1,6 +1,7 @@
 // Sources:
 // - CSSOM View Module, W3C Editor's Draft, https://drafts.csswg.org/cssom-view/
-//   (§4 "Extensions to the Window Interface", §4.3 "The Screen Interface",
+//   (§4 "Extensions to the Window Interface", §4.2 "The MediaQueryList
+//   Interface" and its event, copied on 2026-10-29, §4.3 "The Screen Interface",
 //   §5 "Extensions to the Document Interface", §6 "Extensions to the
 //   Element Interface", §7 "Extensions to the HTMLElement Interface"),
 //   copied on 2026-10-28;
@@ -12,9 +13,9 @@
 // (W3C Software and Document License; the full notice is in
 // THIRD_PARTY_NOTICES.md).
 //
-// swb cut and changed this file for feature 7b of M8:
+// swb cut and changed this file for features 7b1 and 7b2 of M8:
 //
-// - Window: no `matchMedia` (7b2), `visualViewport`, `moveTo`, `moveBy`,
+// - Window: no `visualViewport`, `moveTo`, `moveBy`,
 //   `resizeTo`, `resizeBy`. `Screen` has Chromium's `availLeft` and
 //   `availTop` (no specification) and the `orientation` of Screen
 //   Orientation; `ScreenOrientation` has `type` and `angle` only (no
@@ -23,10 +24,12 @@
 // - Document: no `caretPositionFromPoint`. Element: no `getBoxQuads`,
 //   `checkVisibility`, `currentCSSZoom`. The `MouseEvent` part is in
 //   pointer-events.idl.
-// - The scroll methods return `undefined` as in the specification. Chromium
-//   148 returns a rejected promise instead of throwing when an argument does
-//   not convert (`scrollTo(5)`, `{behavior: 'fast'}`); swb throws the
-//   `TypeError` (a departure).
+// - The specification's scroll methods return `Promise<ScrollResult>`.
+//   Chromium 148 returns `undefined`, and a rejected promise instead of an
+//   exception when an argument does not convert (`scrollTo(5)`,
+//   `{behavior: 'fast'}`, an options getter that throws). swb does the
+//   same: the methods return `undefined` and are `[SwbRejectsOnError]`
+//   (feature 7b2).
 
 enum ScrollBehavior { "auto", "instant", "smooth" };
 
@@ -40,6 +43,7 @@ dictionary ScrollToOptions : ScrollOptions {
 };
 
 partial interface Window {
+  [NewObject] MediaQueryList matchMedia(CSSOMString query);
   [SameObject, Replaceable] readonly attribute Screen screen;
 
   // viewport
@@ -51,12 +55,12 @@ partial interface Window {
   [Replaceable] readonly attribute double pageXOffset;
   [Replaceable] readonly attribute double scrollY;
   [Replaceable] readonly attribute double pageYOffset;
-  undefined scroll(optional ScrollToOptions options = {});
-  undefined scroll(unrestricted double x, unrestricted double y);
-  undefined scrollTo(optional ScrollToOptions options = {});
-  undefined scrollTo(unrestricted double x, unrestricted double y);
-  undefined scrollBy(optional ScrollToOptions options = {});
-  undefined scrollBy(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scroll(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scroll(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scrollTo(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scrollTo(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scrollBy(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scrollBy(unrestricted double x, unrestricted double y);
 
   // client
   [Replaceable] readonly attribute long screenX;
@@ -66,6 +70,27 @@ partial interface Window {
   [Replaceable] readonly attribute long outerWidth;
   [Replaceable] readonly attribute long outerHeight;
   [Replaceable] readonly attribute double devicePixelRatio;
+};
+
+[Exposed=Window]
+interface MediaQueryList : EventTarget {
+  readonly attribute CSSOMString media;
+  readonly attribute boolean matches;
+  undefined addListener(EventListener? callback);
+  undefined removeListener(EventListener? callback);
+           attribute EventHandler onchange;
+};
+
+[Exposed=Window]
+interface MediaQueryListEvent : Event {
+  constructor(CSSOMString type, optional MediaQueryListEventInit eventInitDict = {});
+  readonly attribute CSSOMString media;
+  readonly attribute boolean matches;
+};
+
+dictionary MediaQueryListEventInit : EventInit {
+  CSSOMString media = "";
+  boolean matches = false;
 };
 
 [Exposed=Window]
@@ -104,13 +129,13 @@ partial interface Element {
   DOMRectList getClientRects();
   [NewObject] DOMRect getBoundingClientRect();
 
-  undefined scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
-  undefined scroll(optional ScrollToOptions options = {});
-  undefined scroll(unrestricted double x, unrestricted double y);
-  undefined scrollTo(optional ScrollToOptions options = {});
-  undefined scrollTo(unrestricted double x, unrestricted double y);
-  undefined scrollBy(optional ScrollToOptions options = {});
-  undefined scrollBy(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+  [SwbRejectsOnError] undefined scroll(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scroll(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scrollTo(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scrollTo(unrestricted double x, unrestricted double y);
+  [SwbRejectsOnError] undefined scrollBy(optional ScrollToOptions options = {});
+  [SwbRejectsOnError] undefined scrollBy(unrestricted double x, unrestricted double y);
   attribute unrestricted double scrollTop;
   attribute unrestricted double scrollLeft;
   readonly attribute long scrollWidth;

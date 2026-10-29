@@ -351,13 +351,19 @@ impl Page {
     }
 
     /// True if nothing is loading and no task is due within `quiet` of page
-    /// time.
+    /// time. A frame that only runs animation frame callbacks does not
+    /// count: a page with a `requestAnimationFrame` loop can be idle.
     pub fn is_idle(&mut self, quiet: Duration) -> bool {
         if self.is_loading() {
             return false;
         }
         let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;
-        if self.next_task_time().is_some_and(|time| time <= horizon) {
+        let tasks = self.script.as_ref().and_then(ScriptRuntime::next_task_time);
+        if tasks
+            .into_iter()
+            .chain(self.frame_work_due())
+            .any(|time| time <= horizon)
+        {
             return false;
         }
         // Layout can discover more resources.

@@ -188,6 +188,71 @@ impl SvgPath {
         }
         length as f32
     }
+
+    /// The length of the path (`getTotalLength`): straight segments
+    /// exactly, curves as 64 chords each (in `f64`). A move adds nothing;
+    /// a close adds the line back to the start of the subpath.
+    pub fn length(&self) -> f32 {
+        let mut length = 0.0_f64;
+        let mut current = Point::default();
+        let mut start = Point::default();
+        let xy = |p: Point| (f64::from(p.x), f64::from(p.y));
+        for segment in &self.segments {
+            match *segment {
+                PathSegment::MoveTo(p) => {
+                    current = p;
+                    start = p;
+                }
+                PathSegment::LineTo(p) => {
+                    length += distance(xy(current), xy(p));
+                    current = p;
+                }
+                PathSegment::QuadTo(c, p) => {
+                    let (p0, p1, p2) = (xy(current), xy(c), xy(p));
+                    length += curve_length(|t| lerp(lerp(p0, p1, t), lerp(p1, p2, t), t));
+                    current = p;
+                }
+                PathSegment::CubicTo(c1, c2, p) => {
+                    let (p0, p1, p2, p3) = (xy(current), xy(c1), xy(c2), xy(p));
+                    length += curve_length(|t| {
+                        let a = lerp(lerp(p0, p1, t), lerp(p1, p2, t), t);
+                        let b = lerp(lerp(p1, p2, t), lerp(p2, p3, t), t);
+                        lerp(a, b, t)
+                    });
+                    current = p;
+                }
+                PathSegment::Close => {
+                    length += distance(xy(current), xy(start));
+                    current = start;
+                }
+            }
+        }
+        length as f32
+    }
+}
+
+/// The distance between two points.
+fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
+    (b.0 - a.0).hypot(b.1 - a.1)
+}
+
+/// The length of a curve given by its point at `t` in 0..=1, as 64
+/// chords.
+fn curve_length(at: impl Fn(f64) -> (f64, f64)) -> f64 {
+    const STEPS: u32 = 64;
+    let mut length = 0.0;
+    let mut previous = at(0.0);
+    for step in 1..=STEPS {
+        let next = at(f64::from(step) / f64::from(STEPS));
+        length += distance(previous, next);
+        previous = next;
+    }
+    length
+}
+
+/// The point at `t` between `a` and `b`.
+fn lerp(a: (f64, f64), b: (f64, f64), t: f64) -> (f64, f64) {
+    (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t)
 }
 
 /// The box of points, for [`SvgPath::fill_bounds`].

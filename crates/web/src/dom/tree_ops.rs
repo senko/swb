@@ -202,7 +202,7 @@ pub(crate) fn replace(
 }
 
 /// DOM "replace all" `parent`'s children with `node` (`replaceChildren`).
-pub(super) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
+pub(crate) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, None, false)?;
     crate::html::focus::before_removal(cx.rt, parent, false)?;
     before_move(cx, node)?;

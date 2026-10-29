@@ -22,7 +22,7 @@
 // `inert`, `accessKey`, `draggable`, `spellcheck`, `autocapitalize`,
 // `inputMode`, `enterKeyHint`) and the
 // members of HTMLOrSVGElement without `focus` and `blur` (feature
-// 6d); it lacks `click`, `innerText`, `outerText`, `contentEditable`,
+// 6d; `innerText` and `outerText` since 7b2); it lacks `contentEditable`,
 // `popover`, `attachInternals` and the popover members. No element
 // interface has the obsolete members, `validity` and the other constraint
 // validation members, `labels`, `files`, `valueAsNumber`, `valueAsDate`,
@@ -158,6 +158,8 @@ interface HTMLElement : Element {
   [CEReactions] attribute boolean spellcheck;
   undefined click();
   [CEReactions, Reflect, SwbKeywords="= none off=none on=sentences sentences words characters", SwbInvalid="sentences"] attribute DOMString autocapitalize;
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString innerText;
+  [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerText;
   [CEReactions, Reflect, SwbKeywords="none text tel url email numeric decimal search", SwbMissing="", SwbInvalid=""] attribute DOMString inputMode;
   [CEReactions, Reflect, SwbKeywords="enter done go next previous search send", SwbMissing="", SwbInvalid=""] attribute DOMString enterKeyHint;
 };
@@ -936,6 +938,17 @@ interface mixin WindowOrWorkerGlobalScope {
   undefined queueMicrotask(VoidFunction callback);
 };
 Window includes WindowOrWorkerGlobalScope;
+
+// Animation frames (HTML §8.10,
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#animation-frames;
+// feature 7b2).
+callback FrameRequestCallback = undefined (DOMHighResTimeStamp time);
+
+interface mixin AnimationFrameProvider {
+  unsigned long requestAnimationFrame(FrameRequestCallback callback);
+  undefined cancelAnimationFrame(unsigned long handle);
+};
+Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
 Window includes WindowEventHandlers;
 

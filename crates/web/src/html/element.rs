@@ -167,6 +167,22 @@ impl g::html_element::HTMLElementImpl for WebState {
     fn offset_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<i32> {
         Ok(crate::cssom_view::offset_metrics(cx.rt, this)?.height)
     }
+
+    fn inner_text(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        super::inner_text::get(cx.rt, this)
+    }
+
+    fn set_inner_text(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        super::inner_text::set_inner(cx, this, &value)
+    }
+
+    fn outer_text(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        super::inner_text::get(cx.rt, this)
+    }
+
+    fn set_outer_text(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        super::inner_text::set_outer(cx, this, &value)
+    }
 }
 
 /// `dataset` of an HTML or SVG element.

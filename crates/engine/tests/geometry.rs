@@ -130,6 +130,9 @@ fn run_case(case: &'static Case) -> Vec<String> {
             parse(want)
         };
         let got = answer(&mut page, query);
+        // The tasks that are due run between two queries, as between two
+        // calls of the probe (the notification of a rejected promise).
+        page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
         if got != want {
             failures.push(format!(
                 "{} #{index}: {query}\n  expected: {want}\n  actual:   {got}",

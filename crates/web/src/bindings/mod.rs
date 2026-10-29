@@ -190,14 +190,16 @@ pub trait Host: HostState + Sized {
 }
 
 /// The object an event handler IDL attribute belongs to: a node (a
-/// `body` or `frameset` element forwards some handlers to the window), or
-/// the window.
+/// `body` or `frameset` element forwards some handlers to the window), the
+/// window, or another event target (`MediaQueryList.onchange`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HandlerTarget {
     /// An element or the document.
     Node(NodeId),
     /// The window.
     Window,
+    /// Another platform object that is an `EventTarget`.
+    Object(Gc<Object>),
 }
 
 /// The state of the glue in a runtime: the templates of the

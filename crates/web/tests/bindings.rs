@@ -439,6 +439,13 @@ impl generated::tester::TesterImpl for TestHost {
         })
     }
 
+    fn softly(_cx: &mut Cx<'_>, _this: Platform, n: i32) -> b::Result<i32> {
+        if n < 0 {
+            return Err(Exception::range_error("negative"));
+        }
+        Ok(n * 2)
+    }
+
     fn echo_any(_cx: &mut Cx<'_>, _this: Platform, value: Value) -> b::Result<Value> {
         Ok(value)
     }
@@ -1022,6 +1029,12 @@ fn callbacks_promises_any_object() {
             "TypeError: Failed to execute 'echoObject' on 'Tester': parameter 1 is not of type 'object'.",
         ),
         ("new Tester().custom(21)", "42"),
+        // `[SwbRejectsOnError]`: the value, or a rejected promise for an
+        // exception (also of the brand check and the arguments).
+        (
+            "var out = []; const tt = new Tester(); const r = (p) => p.catch((e) => out.push(e.message)); [tt.softly(4), r(tt.softly(-1)) instanceof Promise, r(tt.softly()) instanceof Promise, r(Tester.prototype.softly.call({}, 1)) instanceof Promise].join()",
+            "8,true,true,true | Failed to execute 'softly' on 'Tester': negative,Failed to execute 'softly' on 'Tester': 1 argument required, but only 0 present.,Failed to execute 'softly' on 'Tester': Illegal invocation",
+        ),
     ]);
 }
 

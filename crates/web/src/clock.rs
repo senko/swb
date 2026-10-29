@@ -172,7 +172,12 @@ impl DocumentClock {
     /// `performance.now()`: the coarsened time since the time origin (HR
     /// Time "current high resolution time").
     pub(crate) fn now(&self) -> f64 {
-        coarsen((self.page.now() - self.origin).max(0.0))
+        self.at(self.page.now())
+    }
+
+    /// The `performance.now()` value of the page time `time`.
+    pub(crate) fn at(&self, time: f64) -> f64 {
+        coarsen((time - self.origin).max(0.0))
     }
 
     /// `performance.timeOrigin`: the wall time of the time origin.

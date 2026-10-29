@@ -78,6 +78,9 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute Performance performance`.
     fn performance(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `MediaQueryList matchMedia(DOMString query)`.
+    fn match_media(cx: &mut b::Cx<'_>, this: b::Platform, query: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `undefined scroll(optional ScrollToOptions options)`.
     fn scroll_1(cx: &mut b::Cx<'_>, this: b::Platform, options: super::types::ScrollToOptions) -> b::Result<()>;
 
@@ -116,6 +119,12 @@ pub trait WindowImpl: b::Host {
 
     /// `undefined queueMicrotask(VoidFunction callback)`.
     fn queue_microtask(cx: &mut b::Cx<'_>, this: b::Platform, callback: super::types::VoidFunction) -> b::Result<()>;
+
+    /// `unsigned long requestAnimationFrame(FrameRequestCallback callback)`.
+    fn request_animation_frame(cx: &mut b::Cx<'_>, this: b::Platform, callback: super::types::FrameRequestCallback) -> b::Result<u32>;
+
+    /// `undefined cancelAnimationFrame(unsigned long handle)`.
+    fn cancel_animation_frame(cx: &mut b::Cx<'_>, this: b::Platform, handle: u32) -> b::Result<()>;
 
 }
 
@@ -2275,8 +2284,19 @@ fn set_onunload<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
     })
 }
 
+fn op_match_media<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "matchMedia"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as WindowImpl>::match_media(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn op_scroll<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Window", "scroll"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Window", "scroll"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
         match call.argc().min(2) {
             0 => {
@@ -2304,7 +2324,7 @@ fn op_scroll<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
 }
 
 fn op_scroll_to<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Window", "scrollTo"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Window", "scrollTo"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
         match call.argc().min(2) {
             0 => {
@@ -2332,7 +2352,7 @@ fn op_scroll_to<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
 }
 
 fn op_scroll_by<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
-    b::glue::run(rt, call, b::Context::Operation("Window", "scrollBy"), super::DOM_EXCEPTION, |rt| {
+    b::glue::run_promise(rt, call, b::Context::Operation("Window", "scrollBy"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
         match call.argc().min(2) {
             0 => {
@@ -2446,6 +2466,28 @@ fn op_queue_microtask<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
         let v = rt.arg(call, 0);
         let a0 = super::types::VoidFunction::from_js(rt, v).map_err(|e| e.argument(0))?;
         <H as WindowImpl>::queue_microtask(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_request_animation_frame<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "requestAnimationFrame"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = super::types::FrameRequestCallback::from_js(rt, v).map_err(|e| e.argument(0))?;
+        let result = <H as WindowImpl>::request_animation_frame(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
+fn op_cancel_animation_frame<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "cancelAnimationFrame"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        <H as WindowImpl>::cancel_animation_frame(&mut b::Cx::new(rt, call, super::WINDOW), this, a0)?;
         Ok(swb_js::Value::Undefined)
     })
 }
@@ -2591,11 +2633,14 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "onstorage", (Some(get_onstorage::<H> as swb_js::NativeFn), Some(set_onstorage::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "onunhandledrejection", (Some(get_onunhandledrejection::<H> as swb_js::NativeFn), Some(set_onunhandledrejection::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "onunload", (Some(get_onunload::<H> as swb_js::NativeFn), Some(set_onunload::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "cancelAnimationFrame", 1, op_cancel_animation_frame::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearInterval", 0, op_clear_interval::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearTimeout", 0, op_clear_timeout::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getComputedStyle", 1, op_get_computed_style::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "matchMedia", 1, op_match_media::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "queueMicrotask", 1, op_queue_microtask::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "reportError", 1, op_report_error::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "requestAnimationFrame", 1, op_request_animation_frame::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "scroll", 0, op_scroll::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "scrollBy", 0, op_scroll_by::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "scrollTo", 0, op_scroll_to::<H>, swb_js::Attributes::MEMBER)?;

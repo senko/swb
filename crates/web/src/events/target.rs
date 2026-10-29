@@ -28,19 +28,25 @@ use crate::state::{WebState, dom, state, state_mut};
 /// 400 bytes). The lists of constructed targets count against the heap.
 pub(super) const MAX_DOCUMENT_LISTENERS: usize = 1 << 18;
 
-/// The data of an `EventTarget` made by its constructor: its listeners.
+/// The data of an `EventTarget` made by its constructor, or of another
+/// event target that is not a node or the window: its listeners, and the
+/// state of a `MediaQueryList`.
 #[derive(Debug, Default)]
 pub(crate) struct TargetData {
     listeners: Listeners,
+    pub(crate) media: Option<Box<crate::media_queries::MediaQueryState>>,
 }
 
 impl GenericData for TargetData {
     fn trace(&self, tracer: &mut Tracer<'_>) {
         self.listeners.trace(tracer);
+        if let Some(media) = &self.media {
+            media.trace(tracer);
+        }
     }
 
     fn heap_size(&self) -> usize {
-        self.listeners.heap_size()
+        self.listeners.heap_size() + self.media.as_ref().map_or(0, |m| m.heap_size())
     }
 }
 
@@ -189,6 +195,9 @@ impl g::event_target::EventTargetImpl for WebState {
         let added = with_listeners(cx.rt, target, |list| list.add(&kind, listener))?;
         if added && in_document {
             state_mut(cx.rt)?.listener_count += 1;
+        }
+        if let TargetKind::Constructed(_) = target {
+            crate::media_queries::register(cx.rt, this.object)?;
         }
         Ok(())
     }

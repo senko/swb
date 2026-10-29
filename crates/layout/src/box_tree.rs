@@ -1600,6 +1600,16 @@ fn apply_text_transform(
     (out, lengths)
 }
 
+/// `text` after `text-transform` as layout applies it, for the rendered
+/// text of scripts (`innerText`). `previous` is the character before the
+/// text on its line (`None` at the start of a line).
+pub fn transform_text(text: &str, transform: TextTransform, previous: Option<char>) -> String {
+    if transform == TextTransform::None {
+        return text.to_owned();
+    }
+    apply_text_transform(text, transform, previous).0
+}
+
 /// The byte offsets of the letters that `capitalize` puts in uppercase.
 fn capitalized_offsets(text: &str, previous: Option<char>) -> Vec<usize> {
     let continues_word = previous.is_some_and(char::is_alphanumeric);

@@ -44,6 +44,7 @@ fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState 
             viewport: Size::new(1280.0, 800.0),
             scale: 1.0,
             indicators: false,
+            color_scheme: swb_css::ColorScheme::Light,
         },
         scroll_target: None,
         parse: Duration::ZERO,

@@ -280,6 +280,8 @@ STEP_KINDS = (
     "wait",
     "focus",
     "eval",
+    "viewport",
+    "colorScheme",
 )
 _POINT_STEPS = ("click", "dblclick", "rightclick", "middleclick", "hover")
 
@@ -317,6 +319,10 @@ def _parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
             ok = _is_point(argument) or (isinstance(argument, str) and bool(argument))
         elif kind == "wheel":
             ok = _is_point(argument)
+        elif kind == "viewport":
+            ok = _is_point(argument) and all(1 <= v <= 16384 for v in argument)
+        elif kind == "colorScheme":
+            ok = argument in ("light", "dark")
         elif kind == "wait":
             ok = isinstance(argument, int) and not isinstance(argument, bool) and argument >= 0
         elif kind in ("mousedown", "mouseup"):
@@ -963,6 +969,10 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]]) -> None:
             await page.evaluate("(s) => document.querySelector(s).focus()", argument)
         elif kind == "eval":
             await page.evaluate(argument)
+        elif kind == "viewport":
+            await page.set_viewport_size({"width": argument[0], "height": argument[1]})
+        elif kind == "colorScheme":
+            await page.emulate_media(color_scheme=argument)
         for modifier in reversed(modifiers):
             await page.keyboard.up(modifier)
 

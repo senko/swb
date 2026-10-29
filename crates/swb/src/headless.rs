@@ -153,6 +153,10 @@ fn evaluate(page: &mut Page, expressions: &[String], timeout: Duration) -> Resul
         let evaluation = page.evaluate_with_timeout(expression, JsonForm::Probe, timeout);
         let line = answer_line(evaluation);
         writeln!(out, "{line}").context("cannot write to standard output")?;
+        // The tasks that are due now run between two expressions, as they
+        // do in Chromium between two calls of the probe (the notification
+        // of a promise that an expression rejected).
+        page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
     }
     out.flush().context("cannot write to standard output")
 }

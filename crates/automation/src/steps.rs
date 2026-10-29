@@ -10,7 +10,9 @@
 //! `mouseup` take a button name at the pointer position; `type` takes
 //! text; `key` a key name with modifiers (`Shift+Tab`); `wheel` takes
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
-//! time; `focus` takes a selector; `eval` takes an expression.
+//! time; `focus` takes a selector; `eval` takes an expression; `viewport`
+//! takes `[width, height]` (`page.setViewport`); `colorScheme` takes
+//! `"light"` or `"dark"` (`prefers-color-scheme`).
 
 use std::time::Duration;
 
@@ -129,6 +131,18 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             let source = argument.as_str().ok_or("eval needs an expression")?;
             page.evaluate(source, JsonForm::Strict);
         }
+        "viewport" => {
+            let size = argument
+                .as_array()
+                .ok_or("viewport needs [width, height]")?;
+            let params = json!({ "width": size.first(), "height": size.get(1) });
+            call(page, "page.setViewport", params)?;
+        }
+        "colorScheme" => match argument.as_str() {
+            Some("dark") => page.set_color_scheme(true),
+            Some("light") => page.set_color_scheme(false),
+            _ => return Err("colorScheme needs \"light\" or \"dark\"".to_owned()),
+        },
         other => return Err(format!("unknown step {other}")),
     }
     Ok(())

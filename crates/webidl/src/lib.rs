@@ -337,6 +337,20 @@ mod tests {
         // The window is the target of its own attributes.
         let window = file(idl, "window.rs");
         assert!(window.contains("b::HandlerTarget::Window, \"onclick\""));
+        // Another object is the target of its own attributes.
+        let other = file(
+            "callback EventHandlerNonNull = any (any event);\ntypedef EventHandlerNonNull? EventHandler;\n[Exposed=Window] interface Q { attribute EventHandler onchange; };",
+            "q.rs",
+        );
+        assert!(other.contains("b::HandlerTarget::Object(this.object), \"onchange\""));
+    }
+
+    #[test]
+    fn rejects_on_error_turns_exceptions_into_promises() {
+        let idl = "[Exposed=Window] interface R { [SwbRejectsOnError] undefined f(long a); undefined g(long a); };";
+        let r = file(idl, "r.rs");
+        assert!(r.contains("fn op_f<H: RImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {\n    b::glue::run_promise("));
+        assert!(r.contains("fn op_g<H: RImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {\n    b::glue::run("));
     }
 
     #[test]

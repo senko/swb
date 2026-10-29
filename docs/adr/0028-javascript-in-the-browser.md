@@ -2523,6 +2523,111 @@ with the cases in `geometry/cases.rs` and the departures in
   The `offsetX` of the user's events (6d2) stays relative to the border
   box (backlog).
 
+Feature 7b2 notes (the scroll methods' errors, `innerText` and
+`outerText`, `matchMedia`, the rendering update with
+`requestAnimationFrame`, the SVG geometry methods of the targets.
+Measured with `tools/probes/web-inner-text.json` (12 cases, 136 queries),
+`web-match-media.json` (7 cases, 148 queries), `web-render-update.json`
+(6 cases, 30 queries), `web-svg-geometry.json` (3 cases, 50 queries) and
+the new case `rejections` of `web-scroll.json`, three equal Chromium runs
+each; the Rust test is `crates/engine/tests/rendering.rs` with the cases in
+`rendering/cases.rs` and the departures in `rendering/departures.rs`):
+
+- **Scroll methods.** CSSOM View now declares `Promise<ScrollResult>`;
+  Chromium 148 returns `undefined`, and a rejected promise instead of an
+  exception when anything before the scroll fails: an argument that does
+  not convert, an options getter that throws, and the brand check (its
+  message then names the operation: "Failed to execute 'scrollTo' on
+  'Window': Illegal invocation"). The rejection is unhandled, so
+  `unhandledrejection` fires. swb's IDL keeps `undefined` and marks the
+  methods `[SwbRejectsOnError]`; the generator gives such operations the
+  promise path of Web IDL §3.7.6 (`glue::run_promise`). The departures of
+  7b1 for these calls are gone.
+- **`innerText`** (HTML §3.2.7). The engine computes the rendered text
+  (`document/inner_text.rs`, the "rendered text collection steps" with the
+  specification's list of strings and required line break counts) from the
+  styles: an element is being rendered if its style and its ancestors' are
+  not `display: none` and no ancestor hides its children (replaced
+  elements and controls, a closed `details`, the non-option children of
+  `select`). So a read costs a style flush (a forced style run), not a
+  layout; Chromium lays out, which no script can tell apart. White space
+  is processed per line as layout does it, `text-transform` with layout's
+  function (`swb_layout::transform_text`). Chromium behaviour found: a
+  floated, absolutely positioned, flex or grid item is a block (the
+  computed `display`); a table cell that is not the last of its row adds a
+  tab, a row that is not the last of its table a line feed, and these
+  separate the runs of line breaks (`<td><p>p</p></td><td><div>dv</div>`
+  gives `p\n\n\t\ndv`); `select` gives its options on lines (not the
+  `optgroup` labels); `textarea`, `input`, `img`, `canvas`, `video`,
+  `audio`, `iframe`, `progress` and `meter` give nothing, `object` its
+  fallback; SVG `text` is a block; `visibility: hidden` text gives nothing
+  but a visible descendant does; `display: none` elements and elements
+  outside the document give their `textContent`; NBSP stays; soft wraps
+  add nothing. The setters make the "rendered text fragment" (one `br` for
+  each `\r\n`, `\n` or `\r`); `outerText` merges the text at its edges with
+  the text nodes next to it, leaves one empty text node for an empty
+  value, and throws `NoModificationAllowedError` ("The element has no
+  parent."). Departures: `content-visibility` (swb has none), MathML
+  (Chromium makes `math` a block with italic letters), no
+  `MutationObserver` to see the one record of the setter.
+- **`matchMedia`** (CSSOM View §4.2). A `MediaQueryList` is an event target
+  whose generic data holds its listeners and its state (the parsed list of
+  `swb_css`, the serialization, the matches state); `matches` evaluates at
+  each read (Chromium: current inside a `resize` listener, before the
+  change events). `onchange` needed a third kind of handler target in the
+  generator and in `events/handlers.rs` (an object that is neither a node
+  nor the window). Only lists with a listener are evaluated in the
+  rendering update, in the order of their creation (measured: the order of
+  `matchMedia` calls, not of the listeners), so lists made in a loop keep
+  nothing alive. The serialization of `swb_css::MediaQueryList` now keeps
+  what Chromium keeps: `only`, unknown media types (`tv`), the
+  `min-`/`max-` form (`(min-width: 500px)`), unitless `0`, the written
+  resolution unit, ratios as `4 / 3`, nested parentheses and the text of
+  `<general-enclosed>` (`(foo: bar)`); invalid queries are `not all`. The
+  media environment gets `prefers-color-scheme` from the page
+  (`Page::set_color_scheme`, light by default; JavaScript off renders as
+  before). Departures: `calc()` in a query is kept as written and cannot
+  use `em` (Chromium simplifies and evaluates it); swb knows
+  `inverted-colors`, Chromium 148 does not.
+- **The rendering update** (section 7; `page/frame.rs`). A frame runs, in
+  HTML's order, `resize` at the window (when the viewport size changed),
+  `scroll` (7b1), the media query changes and the animation frame
+  callbacks; each callback is a task of its own (its deadline, a microtask
+  checkpoint after it). A frame is due one frame length after a scroll, a
+  resize or a change of the media environment, and for animation frame
+  callbacks on a grid of 60 frames per second of page time (the frame time
+  is the grid time, so a late pump keeps the grid; after a pause one frame
+  runs at once, not one per missed frame). In virtual time the clock jumps
+  to the frame like to a task. Style and layout are not part of the frame:
+  they stay lazy (painting in the GUI, queries, screenshots), so a page
+  with an animation loop does not lay out at each frame unless it reads
+  geometry. A page whose only work is a `requestAnimationFrame` loop
+  counts as idle (`Page::is_idle`). Chromium behaviour found: handles start
+  at 1 and grow by one; all callbacks of a frame get the same time, not
+  later than `performance.now()`; callbacks that a callback requests run
+  in the next frame, one that it cancels does not run; `this` is
+  `undefined` (the window in sloppy functions); headless Chromium runs
+  frames 16.7 ms apart on average; `resize` comes before the change events
+  of the same frame, which come before the animation frame callbacks.
+- **SVG geometry.** `getBBox` (the fill box in the element's user space),
+  `getTotalLength` and `createSVGRect` return Chromium's `SVGRect` (SVG
+  1.1, `float` attributes; `getBBox() instanceof DOMRect` is false). The
+  engine finds the content of the outer `<svg>` in the fragment tree and
+  asks it for the boxes and lengths of all its elements at once
+  (`SvgContent::script_geometry`), kept until the next layout (review
+  fix: a loop of `getBBox` and `getTotalLength` over 4,000 paths walked
+  the fragments at each call and took 2.1 s). Of the targets, Leaflet on the
+  Craigslist posting tests `'createSVGRect' in svg` (and so uses its SVG
+  renderer) and calls `getTotalLength` when it spiderfies markers;
+  Wikipedia's startup check tests `'createSVGRect' in svg`. Departures:
+  curves are measured with 64 chords each (a circle of radius 10 is
+  62.839 long; Chromium's approximation gives 62.427); an element that
+  swb does not draw has the length 0 and the box 0, 0, 0, 0, where
+  Chromium computes them from the attributes (`display: none`, detached,
+  in `defs`, and the elements of a nested `<svg>`, which swb draws as
+  part of the outer one); text has no box. The `SVGRect` IDL describes
+  Chromium's measured members.
+
 ### 11. Events from the engine to scripts
 
 **Dispatch** follows DOM §2.9: the event path, capture and bubble,

@@ -4,6 +4,46 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-29: M8 feature 7b2, the rendering update, `innerText`, `matchMedia`
+
+- The scroll methods return `undefined`, and a rejected promise instead
+  of an exception when an argument does not convert (Chromium 148). The
+  generator has `[SwbRejectsOnError]` for this. Pages that call
+  `scrollTo(5)` no longer stop their script.
+- `innerText` and `outerText`: the rendered text from the styles (the
+  specification's rendered text collection steps, which Chromium follows
+  exactly; a style flush, no layout), and the setters with `br`
+  elements.
+- `matchMedia` and `MediaQueryList` with `change` events after a resize
+  or a color scheme change; media queries serialize as in Chromium.
+- The rendering update: `resize`, `scroll`, media query changes and
+  `requestAnimationFrame` callbacks in HTML's order, on a 60 Hz grid of
+  page time (virtual time in headless). Each callback is a task with its
+  own deadline. Style and layout stay lazy. A page whose only work is an
+  animation loop counts as idle.
+- `getBBox`, `getTotalLength` and `createSVGRect` (Chromium's
+  `SVGRect`, not `DOMRect`): Leaflet on Craigslist and Wikipedia's
+  startup check now see SVG support.
+- Probes `web-inner-text.json`, `web-match-media.json`,
+  `web-render-update.json`, `web-svg-geometry.json`; the probe tool has
+  the steps `viewport` and `colorScheme`. `--eval` runs the due tasks
+  between two expressions, as Chromium does between Playwright calls.
+- Feature 7 is done: the three JS targets load without forced style or
+  layout runs (Wikipedia 90 ms, Hacker News 24 ms, Craigslist 19 ms with
+  JavaScript on), and the probe files of feature 7 differ from Chromium
+  only in the listed departures.
+- Review fixes: `getBBox` and `getTotalLength` compute all the elements
+  of an `<svg>` once per layout (a loop over 4,000 paths took 2.1 s,
+  now 10 ms). No frame is due after the scripts were stopped: a
+  pending scroll kept the virtual-time loop of a stopped page from
+  advancing. Elements that swb does not draw (in `defs`, in a nested
+  `<svg>`) are listed departures of `getBBox`.
+- JS off: snapshot identical, perf within noise. Hostile set 205 cases,
+  204 ok + the known failure (4 new). Runtime +19 KB (about 1.20 MB).
+
+Next: feature 8a (window and document APIs), after the lazy creation
+of the interface objects (backlog).
+
 ## 2026-10-28: M8 feature 7b1, geometry and scrolling from scripts
 
 - Feature 7b is split: 7b1 does the geometry, the scrolls from scripts,

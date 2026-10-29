@@ -1,0 +1,177 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "bbox",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif }</style></head><body><svg id=s width=300 height=200 viewBox='0 0 150 100'><rect id=r x=10 y=20 width=30 height=40 transform='translate(5 5)' /><rect id=rr x=0 y=0 width=20 height=10 rx=3 /><circle id=c cx=50 cy=50 r=10 /><ellipse id=e cx=80 cy=20 rx=10 ry=5 /><line id=l x1=0 y1=0 x2=30 y2=40 stroke=black /><polyline id=pl points='0,0 10,0 10,10' /><polygon id=pg points='0,0 10,0 10,10' /><path id=p d='M0 0 L30 40' /><path id=pc d='M0 0 C 10 0 20 10 20 20' /><path id=pq d='M0 0 Q 10 10 20 0 Z' /><path id=pm d='M0 0 L10 0 M20 0 L20 10' /><path id=pa d='M0 0 A 10 10 0 0 1 20 0' /><g id=g transform='translate(100 0)'><rect id=gr x=1 y=2 width=3 height=4 /><circle id=gc cx=10 cy=10 r=2 transform='scale(2)' /></g><g id=ge></g><text id=t x=5 y=90>text</text><rect id=hid x=1 y=1 width=5 height=5 style='display:none' /><path id=pe d='' /></svg><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction R(r) { return [r.x, r.y, r.width, r.height]; }\nfunction B(id) { return E(() => R(document.getElementById(id).getBBox())); }\nfunction L(id) { return E(() => Math.round(document.getElementById(id).getTotalLength() * 1000) / 1000); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "B(\"r\")"
+    },
+    {
+     "js": "B(\"rr\")"
+    },
+    {
+     "js": "B(\"c\")"
+    },
+    {
+     "js": "B(\"e\")"
+    },
+    {
+     "js": "B(\"l\")"
+    },
+    {
+     "js": "B(\"pl\")"
+    },
+    {
+     "js": "B(\"pg\")"
+    },
+    {
+     "js": "B(\"p\")"
+    },
+    {
+     "js": "B(\"pc\")"
+    },
+    {
+     "js": "B(\"pq\")"
+    },
+    {
+     "js": "B(\"pm\")"
+    },
+    {
+     "js": "B(\"pa\")"
+    },
+    {
+     "js": "B(\"g\")"
+    },
+    {
+     "js": "B(\"gr\")"
+    },
+    {
+     "js": "B(\"gc\")"
+    },
+    {
+     "js": "B(\"ge\")"
+    },
+    {
+     "js": "B(\"s\")"
+    },
+    {
+     "js": "B(\"t\")"
+    },
+    {
+     "js": "B(\"hid\")"
+    },
+    {
+     "js": "B(\"pe\")"
+    },
+    {
+     "js": "E(() => { const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); r.setAttribute('width', 5); return R(r.getBBox()); })"
+    },
+    {
+     "js": "E(() => [s.getBBox() instanceof DOMRect, s.getBBox() === s.getBBox(), typeof r.getBBox, r.getBBox.length])"
+    },
+    {
+     "js": "E(() => R(r.getBBox({stroke: true})))"
+    },
+    {
+     "js": "E(() => (r.setAttribute('width', 60), R(r.getBBox())))"
+    }
+   ]
+  },
+  {
+   "name": "length",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif }</style></head><body><svg id=s width=300 height=200 viewBox='0 0 150 100'><rect id=r x=10 y=20 width=30 height=40 transform='translate(5 5)' /><rect id=rr x=0 y=0 width=20 height=10 rx=3 /><circle id=c cx=50 cy=50 r=10 /><ellipse id=e cx=80 cy=20 rx=10 ry=5 /><line id=l x1=0 y1=0 x2=30 y2=40 stroke=black /><polyline id=pl points='0,0 10,0 10,10' /><polygon id=pg points='0,0 10,0 10,10' /><path id=p d='M0 0 L30 40' /><path id=pc d='M0 0 C 10 0 20 10 20 20' /><path id=pq d='M0 0 Q 10 10 20 0 Z' /><path id=pm d='M0 0 L10 0 M20 0 L20 10' /><path id=pa d='M0 0 A 10 10 0 0 1 20 0' /><g id=g transform='translate(100 0)'><rect id=gr x=1 y=2 width=3 height=4 /><circle id=gc cx=10 cy=10 r=2 transform='scale(2)' /></g><g id=ge></g><text id=t x=5 y=90>text</text><rect id=hid x=1 y=1 width=5 height=5 style='display:none' /><path id=pe d='' /></svg><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction R(r) { return [r.x, r.y, r.width, r.height]; }\nfunction B(id) { return E(() => R(document.getElementById(id).getBBox())); }\nfunction L(id) { return E(() => Math.round(document.getElementById(id).getTotalLength() * 1000) / 1000); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L(\"r\")"
+    },
+    {
+     "js": "L(\"rr\")"
+    },
+    {
+     "js": "L(\"c\")"
+    },
+    {
+     "js": "L(\"e\")"
+    },
+    {
+     "js": "L(\"l\")"
+    },
+    {
+     "js": "L(\"pl\")"
+    },
+    {
+     "js": "L(\"pg\")"
+    },
+    {
+     "js": "L(\"p\")"
+    },
+    {
+     "js": "L(\"pc\")"
+    },
+    {
+     "js": "L(\"pq\")"
+    },
+    {
+     "js": "L(\"pm\")"
+    },
+    {
+     "js": "L(\"pa\")"
+    },
+    {
+     "js": "L(\"hid\")"
+    },
+    {
+     "js": "L(\"pe\")"
+    },
+    {
+     "js": "E(() => [typeof p.getTotalLength, p.getTotalLength.length, 'getTotalLength' in g, 'getTotalLength' in t, 'getBBox' in g, 'getBBox' in s])"
+    },
+    {
+     "js": "E(() => { const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', 'M0 0 L3 4'); return p.getTotalLength(); })"
+    },
+    {
+     "js": "E(() => (p.setAttribute('d', 'M0 0 L6 8'), p.getTotalLength()))"
+    }
+   ]
+  },
+  {
+   "name": "factories",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif }</style></head><body><svg id=s width=300 height=200 viewBox='0 0 150 100'><rect id=r x=10 y=20 width=30 height=40 transform='translate(5 5)' /><rect id=rr x=0 y=0 width=20 height=10 rx=3 /><circle id=c cx=50 cy=50 r=10 /><ellipse id=e cx=80 cy=20 rx=10 ry=5 /><line id=l x1=0 y1=0 x2=30 y2=40 stroke=black /><polyline id=pl points='0,0 10,0 10,10' /><polygon id=pg points='0,0 10,0 10,10' /><path id=p d='M0 0 L30 40' /><path id=pc d='M0 0 C 10 0 20 10 20 20' /><path id=pq d='M0 0 Q 10 10 20 0 Z' /><path id=pm d='M0 0 L10 0 M20 0 L20 10' /><path id=pa d='M0 0 A 10 10 0 0 1 20 0' /><g id=g transform='translate(100 0)'><rect id=gr x=1 y=2 width=3 height=4 /><circle id=gc cx=10 cy=10 r=2 transform='scale(2)' /></g><g id=ge></g><text id=t x=5 y=90>text</text><rect id=hid x=1 y=1 width=5 height=5 style='display:none' /><path id=pe d='' /></svg><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction R(r) { return [r.x, r.y, r.width, r.height]; }\nfunction B(id) { return E(() => R(document.getElementById(id).getBBox())); }\nfunction L(id) { return E(() => Math.round(document.getElementById(id).getTotalLength() * 1000) / 1000); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => { const r = s.createSVGRect(); return [R(r), r instanceof DOMRect, String(r), r === s.createSVGRect()]; })"
+    },
+    {
+     "js": "E(() => ['createSVGRect' in s, s.createSVGRect.length, 'createSVGRect' in document.createElementNS('http://www.w3.org/2000/svg', 'svg'), 'createSVGRect' in r])"
+    },
+    {
+     "js": "E(() => { const r = s.createSVGRect(); r.x = 5; r.width = 7; return R(r); })"
+    },
+    {
+     "js": "E(() => SVGSVGElement.prototype.createSVGRect.call(r))"
+    },
+    {
+     "js": "E(() => [typeof SVGRect, s.createSVGRect() instanceof SVGRect, s.getBBox() instanceof SVGRect, Object.getOwnPropertyNames(SVGRect.prototype).sort(), Object.getPrototypeOf(SVGRect.prototype) === Object.prototype])"
+    },
+    {
+     "js": "E(() => { const r = s.createSVGRect(); r.x = 'a'; r.y = 1.5; r.height = -3; return R(r); })"
+    },
+    {
+     "js": "E(() => new SVGRect())"
+    },
+    {
+     "js": "E(() => JSON.stringify(s.createSVGRect()))"
+    },
+    {
+     "js": "E(() => SVGGraphicsElement.prototype.getBBox.call(document.body))"
+    }
+   ]
+  }
+ ]
+}

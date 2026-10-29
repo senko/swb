@@ -19,7 +19,8 @@
 //!   methods `submit()`, `requestSubmit()` and `reset()`;
 //! - `forms.rs`: `form`, `label`, `select`, `option`, `fieldset`,
 //!   `output`, `textarea` and the collections of a form and a select;
-//! - `tables.rs`: `table`, `tbody`, `tr` and `td`.
+//! - `tables.rs`: `table`, `tbody`, `tr` and `td`;
+//! - `inner_text.rs`: `innerText` and `outerText` (feature 7b2).
 //!
 //! Reflected attributes (`[Reflect]` and its variants) are generated from
 //! the IDL (`crates/web/idl/html.idl`); this module has what the standard
@@ -33,6 +34,7 @@ pub(crate) mod focus;
 mod form_controls;
 mod forms;
 mod hyperlink;
+mod inner_text;
 mod owner;
 mod tables;
 mod token_lists;

@@ -3066,3 +3066,74 @@ def computed_style_web_fonts_js_on() -> Page:
         "if (++k == 5) clearInterval(t); }, 100);</script>"
     )
     return Page(doc(spans + script, rules), {"f.ttf": _web_font()})
+
+
+@case(
+    "A requestAnimationFrame loop that changes the width of an element and reads offsetWidth "
+    "in every frame for 2 s of virtual time (120 frames) on a page of 10,000 elements, with "
+    "JavaScript on: each frame lays out once, as in Chromium (feature 7b2)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "2000"),
+    time_limit_s=8,
+)
+def raf_layout_loop_js_on() -> Page:
+    script = (
+        "<script>const e = document.getElementById('t'); let n = 0, s = 0; "
+        "function f() { e.style.width = (n++ % 500) + 'px'; s += e.offsetWidth; "
+        "requestAnimationFrame(f); } requestAnimationFrame(f); "
+        "setTimeout(() => console.log('frames ' + n + ' ' + s), 1900);</script>"
+    )
+    rows = "<p><b>x</b></p>" * 5_000
+    return Page(doc("<div>" + rows + "</div><div id=t></div>" + script))
+
+
+@case(
+    "A requestAnimationFrame callback that never returns and asks for the next frame first, "
+    "with JavaScript on: each callback ends at the time limit of its task (5 s), and the "
+    "scripts of the document stop after the third (feature 7b2)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "1000"),
+    time_limit_s=20,
+    expect_log="the scripts of the document stop",
+)
+def raf_endless_callback_js_on() -> Page:
+    script = (
+        "<script>function f() { requestAnimationFrame(f); for (;;) {} } "
+        "requestAnimationFrame(f);</script>"
+    )
+    return Page(doc("<p>x</p>" + script))
+
+
+@case(
+    "innerText of the body of a page of 200,000 elements three times and of every 100th "
+    "element, with JavaScript on: one style flush, one walk per read (feature 7b2)",
+    swb_args=("--js",),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def inner_text_large_page_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 3; i++) n += document.body.innerText.length; "
+        "const all = document.querySelectorAll('p'); "
+        "for (let i = 0; i < all.length; i += 100) n += all[i].innerText.length; "
+        "console.log('chars ' + n);</script>"
+    )
+    rows = "<p>a <b>b</b> <i>c</i></p><table><tr><td>x</td><td>y</td></tr></table>" * 33_000
+    return Page(doc("<div>" + rows + "</div>" + script))
+
+
+@case(
+    "1,000,000 matchMedia calls with different queries and 100,000 lists with a change "
+    "listener, with JavaScript on: lists without listeners are not kept; the lists with "
+    "listeners are evaluated only when the media environment changes (feature 7b2)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "500"),
+    time_limit_s=8,
+    rss_limit_mib=1536,
+)
+def match_media_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 1000000; i++) "
+        "if (matchMedia('(min-width: ' + (i % 2000) + 'px)').matches) n++; "
+        "const kept = []; for (let i = 0; i < 100000; i++) { "
+        "const m = matchMedia('(max-width: ' + i + 'px)'); "
+        "m.addListener(() => n++); kept.push(m); } console.log('matched ' + n);</script>"
+    )
+    return Page(doc("<p>x</p>" + script))

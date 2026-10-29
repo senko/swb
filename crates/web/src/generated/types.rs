@@ -73,6 +73,55 @@ impl ScrollToOptions {
     }
 }
 
+/// The dictionary `MediaQueryListEventInit`.
+#[derive(Clone, Debug)]
+pub struct MediaQueryListEventInit {
+    /// `bubbles`.
+    pub bubbles: bool,
+    /// `cancelable`.
+    pub cancelable: bool,
+    /// `composed`.
+    pub composed: bool,
+    /// `matches`.
+    pub matches: bool,
+    /// `media`.
+    pub media: String,
+}
+
+impl MediaQueryListEventInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<MediaQueryListEventInit> {
+        let object = b::convert::dictionary_object(value, "MediaQueryListEventInit")?;
+        let v = b::convert::member(rt, object, "bubbles")?;
+        let bubbles = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("bubbles", "EventInit"))? };
+        let v = b::convert::member(rt, object, "cancelable")?;
+        let cancelable = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("cancelable", "EventInit"))? };
+        let v = b::convert::member(rt, object, "composed")?;
+        let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
+        let v = b::convert::member(rt, object, "matches")?;
+        let matches = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("matches", "MediaQueryListEventInit"))? };
+        let v = b::convert::member(rt, object, "media")?;
+        let media = if v.is_undefined() { String::new() } else { b::convert::dom_string(rt, v).map_err(|e| e.member("media", "MediaQueryListEventInit"))? };
+        Ok(MediaQueryListEventInit { bubbles, cancelable, composed, matches, media })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.bubbles))?;
+        b::to_js::dictionary_member(rt, object, "bubbles", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.cancelable))?;
+        b::to_js::dictionary_member(rt, object, "cancelable", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
+        b::to_js::dictionary_member(rt, object, "composed", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.matches))?;
+        b::to_js::dictionary_member(rt, object, "matches", value)?;
+        let value = b::to_js::string(rt, &self.media.clone())?;
+        b::to_js::dictionary_member(rt, object, "media", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `ScrollIntoViewOptions`.
 #[derive(Clone, Debug)]
 pub struct ScrollIntoViewOptions {
@@ -1684,6 +1733,49 @@ impl PointerEventInit {
     }
 }
 
+/// The dictionary `SVGBoundingBoxOptions`.
+#[derive(Clone, Debug)]
+pub struct SVGBoundingBoxOptions {
+    /// `clipped`.
+    pub clipped: bool,
+    /// `fill`.
+    pub fill: bool,
+    /// `markers`.
+    pub markers: bool,
+    /// `stroke`.
+    pub stroke: bool,
+}
+
+impl SVGBoundingBoxOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<SVGBoundingBoxOptions> {
+        let object = b::convert::dictionary_object(value, "SVGBoundingBoxOptions")?;
+        let v = b::convert::member(rt, object, "clipped")?;
+        let clipped = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("clipped", "SVGBoundingBoxOptions"))? };
+        let v = b::convert::member(rt, object, "fill")?;
+        let fill = if v.is_undefined() { true } else { b::convert::boolean(rt, v).map_err(|e| e.member("fill", "SVGBoundingBoxOptions"))? };
+        let v = b::convert::member(rt, object, "markers")?;
+        let markers = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("markers", "SVGBoundingBoxOptions"))? };
+        let v = b::convert::member(rt, object, "stroke")?;
+        let stroke = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("stroke", "SVGBoundingBoxOptions"))? };
+        Ok(SVGBoundingBoxOptions { clipped, fill, markers, stroke })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.clipped))?;
+        b::to_js::dictionary_member(rt, object, "clipped", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.fill))?;
+        b::to_js::dictionary_member(rt, object, "fill", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.markers))?;
+        b::to_js::dictionary_member(rt, object, "markers", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.stroke))?;
+        b::to_js::dictionary_member(rt, object, "stroke", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `TransitionEventInit`.
 #[derive(Clone, Debug)]
 pub struct TransitionEventInit {
@@ -2604,6 +2696,30 @@ impl VoidFunction {
     /// `this`. Call it inside a handle scope that keeps the results alive.
     pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value) -> b::Result<()> {
         let args: Vec<swb_js::Value> = Vec::new();
+        let result = rt.call(self.0.into(), this, &args)?;
+        let _ = result;
+        Ok(())
+    }
+
+}
+
+/// The callback function type `FrameRequestCallback`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FrameRequestCallback(pub swb_js::Gc<swb_js::Object>);
+
+impl FrameRequestCallback {
+    /// Converts a JavaScript value (Web IDL §3.2.19).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<FrameRequestCallback> {
+        Ok(FrameRequestCallback(b::convert::callback_function(rt, value)?))
+    }
+
+    /// Invokes the function (Web IDL §3.11, "invoke a callback function") with
+    /// `this`. Call it inside a handle scope that keeps the results alive.
+    pub fn invoke<H: b::Host>(self, rt: &mut swb_js::Runtime, _realm: u32, this: swb_js::Value, time: f64) -> b::Result<()> {
+        let mut args: Vec<swb_js::Value> = Vec::new();
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(time))?;
+        b::keep(rt, value);
+        args.push(value);
         let result = rt.call(self.0.into(), this, &args)?;
         let _ = result;
         Ok(())

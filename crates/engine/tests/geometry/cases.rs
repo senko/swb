@@ -1531,6 +1531,52 @@ pub(crate) const SCROLL: &[Case] = &[
         ],
     },
     Case {
+        name: "rejections",
+        html: PAGE_26,
+        queries: &[
+            (
+                r"A(() => String(sc.scrollTo({get top() { throw new Error('boom'); }})))",
+                r#""[object Promise]""#,
+            ),
+            (
+                r"(Z(), sc.scrollTo({get top() { throw new Error('boom'); }}).then(() => 'resolved', e => 'rejected ' + e))",
+                r#""rejected Error: boom""#,
+            ),
+            (
+                r"(Z(), target.scrollIntoView({get inline() { throw new Error('boom'); }}).then(() => 'resolved', e => 'rejected ' + e))",
+                r#""rejected Error: boom""#,
+            ),
+            (
+                r"(Z(), scrollBy({get behavior() { throw new TypeError('b2'); }}).then(() => 'resolved', e => 'rejected ' + e))",
+                r#""rejected TypeError: b2""#,
+            ),
+            (
+                r"(Z(), scroll({left: 1, behavior: 'fast'}).then(() => 'resolved', e => 'rejected ' + e))",
+                r#""rejected TypeError: Failed to execute 'scroll' on 'Window': Failed to read the 'behavior' property from 'ScrollOptions': The provided value 'fast' is not a valid enum value of type ScrollBehavior.""#,
+            ),
+            (
+                r"(Z(), scrollIntoView = Element.prototype.scrollIntoView, Promise.resolve(scrollIntoView.call({})).then(() => 'resolved', e => 'rejected ' + e))",
+                r#""rejected TypeError: Failed to execute 'scrollIntoView' on 'Element': Illegal invocation""#,
+            ),
+            (
+                r"(Z(), Promise.resolve(Element.prototype.scrollTo.call(document, 0, 0)).then(v => 'resolved ' + v, e => 'rejected ' + e))",
+                r#""rejected TypeError: Failed to execute 'scrollTo' on 'Element': Illegal invocation""#,
+            ),
+            (
+                r"(Z(), Promise.resolve(scrollTo.call(document.body, 0, 0)).then(v => 'resolved ' + v, e => 'rejected ' + e))",
+                r#""rejected TypeError: Failed to execute 'scrollTo' on 'Window': Illegal invocation""#,
+            ),
+            (
+                r"A(() => (scrollTo({behavior: 'fast'}), scrollTo(0, 30), sc.scrollTo(5), sc.scrollTop = 7, P().concat([sc.scrollTop])))",
+                r"[0, 30, 7]",
+            ),
+            (
+                r"(Z(), new Promise(r => { const l = []; const h = e => { if (/ScrollToOptions/.test(e.reason.message)) l.push(e.reason.constructor.name + ' ' + (e.promise instanceof Promise)); e.preventDefault(); }; addEventListener('unhandledrejection', h); scrollTo(5); setTimeout(() => { removeEventListener('unhandledrejection', h); r(l); }, 50); }))",
+                r#"["TypeError true"]"#,
+            ),
+        ],
+    },
+    Case {
         name: "quirks",
         html: PAGE_27,
         queries: &[

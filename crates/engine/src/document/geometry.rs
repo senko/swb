@@ -65,6 +65,10 @@ pub(crate) struct BoxGeometry {
 /// The boxes of the elements of a layout.
 pub(crate) type GeometryIndex = HashMap<NodeId, BoxGeometry>;
 
+/// `getBBox` and `getTotalLength` of the elements of one outer `<svg>`
+/// (`None`: the `<svg>` itself), from `SvgContent::script_geometry`.
+pub(crate) type SvgGeometry = HashMap<Option<NodeId>, (Rect, f32)>;
+
 /// The client rectangles of the elements at one scroll state, in document
 /// coordinates (CSS px).
 #[derive(Debug, Default)]
@@ -581,6 +585,61 @@ impl DocumentState {
         let width = unit(g.first.width) - unit(left) - unit(right) - unit(pl) - unit(pr);
         let height = unit(g.first.height) - unit(top) - unit(bottom) - unit(pt) - unit(pb);
         Some((f64::from(width.max(0.0)), f64::from(height.max(0.0))))
+    }
+
+    /// `getBBox` and `getTotalLength` of an SVG element (feature 7b2): its
+    /// fill bounding box in its user space and the length of its path,
+    /// from the content of its outer `<svg>` as layout drew it; `None` if
+    /// it is not drawn (not in the document, `display: none`, an element
+    /// that swb draws nothing for).
+    pub(crate) fn script_svg_geometry(&mut self, node: NodeId) -> Option<(DomRect, f64)> {
+        if !self.geometry_flush(node) {
+            return None;
+        }
+        let is_svg = |n: NodeId| {
+            self.dom
+                .element(n)
+                .is_some_and(|e| e.name.ns == ns!(svg) && e.name.local == local_name!("svg"))
+        };
+        let in_svg = |n: NodeId| self.dom.element(n).is_some_and(|e| e.name.ns == ns!(svg));
+        // The outer `<svg>`: the last `svg` element of the chain of SVG
+        // elements from `node` up.
+        let root = std::iter::once(node)
+            .chain(self.dom.ancestors(node))
+            .take_while(|&n| in_svg(n))
+            .filter(|&n| is_svg(n))
+            .last()?;
+        // The geometry of all the elements of the `<svg>`, once per layout:
+        // a loop over its elements walks the fragments once.
+        let serial = self.layout_serial;
+        if self
+            .svg_geometry
+            .as_ref()
+            .is_none_or(|(s, r, _)| *s != serial || *r != root)
+        {
+            let tree = self.fragments.as_ref()?;
+            let mut found = None;
+            tree.walk(|f, _| {
+                if found.is_none()
+                    && let FragmentRef::Box(b) = f
+                    && b.node == Some(root)
+                    && let BoxContent::Svg(svg) = &b.content
+                {
+                    let content = b.content_rect();
+                    found = Some(svg.script_geometry(Size::new(content.width, content.height)));
+                }
+            });
+            self.svg_geometry = Some((serial, root, found.unwrap_or_default()));
+        }
+        let all = &self.svg_geometry.as_ref()?.2;
+        let &(rect, length) = all.get(&(node != root).then_some(node))?;
+        let rect = DomRect {
+            x: f64::from(rect.x),
+            y: f64::from(rect.y),
+            width: f64::from(rect.width),
+            height: f64::from(rect.height),
+        };
+        Some((rect, f64::from(length)))
     }
 
     /// The origins of `offsetX` and `layerX` of a mouse event dispatched at

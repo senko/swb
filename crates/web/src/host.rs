@@ -494,6 +494,30 @@ pub trait EngineHost: Any {
         None
     }
 
+    // ----- Rendered text and media (feature 7b2) -----
+
+    /// The rendered text of `element` (`innerText`, HTML "rendered text
+    /// collection steps"), after a style flush; `None` if the element is
+    /// not being rendered (the caller takes its text content).
+    fn inner_text(&mut self, element: NodeId) -> Option<String> {
+        let _ = element;
+        None
+    }
+
+    /// `getBBox` and `getTotalLength` of an SVG element: its fill bounding
+    /// box in its user space and the length of its path (0 for other
+    /// elements), after a layout flush; `None` if layout drew nothing for
+    /// it.
+    fn svg_geometry(&mut self, element: NodeId) -> Option<(DomRect, f64)> {
+        let _ = element;
+        None
+    }
+
+    /// The media environment of the document (`matchMedia`; no flush).
+    fn media_environment(&self) -> swb_css::MediaEnvironment {
+        swb_css::MediaEnvironment::default()
+    }
+
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

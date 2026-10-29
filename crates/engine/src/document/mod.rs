@@ -29,6 +29,7 @@
 mod changes;
 mod derived;
 mod geometry;
+mod inner_text;
 mod loads;
 mod pipeline;
 mod queries;
@@ -72,6 +73,8 @@ pub(crate) struct View {
     pub(crate) scale: f32,
     /// True to draw overlay scroll indicators (the GUI).
     pub(crate) indicators: bool,
+    /// `prefers-color-scheme` (light unless an embedder sets it).
+    pub(crate) color_scheme: swb_css::ColorScheme,
 }
 
 /// Where to scroll after each layout until the document is loaded.
@@ -205,6 +208,10 @@ pub struct DocumentState {
     /// The client rectangles of the elements at a scroll state, built at
     /// the first query (`geometry.rs`).
     pub(crate) client_rects: Option<geometry::RectIndex>,
+    /// `getBBox` and `getTotalLength` of the elements of one outer `<svg>`
+    /// in the layout with the serial, built at the first query
+    /// (`geometry.rs`).
+    pub(crate) svg_geometry: Option<(u64, NodeId, geometry::SvgGeometry)>,
     /// The elements (the document for the viewport) that scrolled since
     /// the page last fired `scroll` events, in the order they scrolled.
     pub(crate) scrolled: Vec<NodeId>,
@@ -278,6 +285,7 @@ impl DocumentState {
             used_boxes: None,
             geometry: None,
             client_rects: None,
+            svg_geometry: None,
             scrolled: Vec::new(),
             lent_fonts: None,
             drained: None,
@@ -525,6 +533,18 @@ impl swb_web::EngineHost for DocumentState {
         self.script_event_origins(target)
     }
 
+    fn inner_text(&mut self, element: NodeId) -> Option<String> {
+        self.script_inner_text(element)
+    }
+
+    fn svg_geometry(&mut self, element: NodeId) -> Option<(swb_web::DomRect, f64)> {
+        self.script_svg_geometry(element)
+    }
+
+    fn media_environment(&self) -> swb_css::MediaEnvironment {
+        DocumentState::media_environment(self)
+    }
+
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
@@ -702,7 +722,9 @@ impl DocumentState {
         if view == self.view {
             return;
         }
-        let restyle = view.viewport != self.view.viewport || view.scale != self.view.scale;
+        let restyle = view.viewport != self.view.viewport
+            || view.scale != self.view.scale
+            || view.color_scheme != self.view.color_scheme;
         self.view = view;
         if restyle {
             self.images.sources_outdated = true;

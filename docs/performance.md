@@ -156,8 +156,28 @@ process with `--dump-boxes`, best of 5. M8 feature 7b1, 2026-10-28
 No load forces a style or layout run: the scripts of these pages read
 no geometry during the load (Wikipedia stops at its known script error;
 the geometry reads of Craigslist's Leaflet run in handlers). The base
-binary (605938f) loads in 21, 96 and 20 ms. Feature 7b2 records the
-numbers of the feature 7 exit.
+binary (605938f) loads in 21, 96 and 20 ms.
+
+The exit of feature 7 (after 7b2: `innerText`, `matchMedia`, the
+rendering update with `requestAnimationFrame`, the SVG geometry methods),
+2026-10-29, same machine and commands:
+
+| Fixture | style runs (ms) | layout runs (ms) | forced style / layout | element style runs | load, JS on | load, JS off |
+|---|---|---|---|---|---|---|
+| hacker-news | 1 (1.8) | 2 (6.5) | 0 / 0 | 0 | 24 ms | 19 ms |
+| wikipedia-web-browser | 1 (11.2) | 2 (31.2) | 0 / 0 | 0 | 90 ms | 83 ms |
+| craigslist-posting | 1 (0.5) | 1 (1.4) | 0 / 0 | 0 | 19 ms | 13 ms |
+
+The base binary (b5da2c3, 7b1) loads in 23, 97 and 19 ms with JavaScript
+on. The loads still force no style or layout run: Craigslist's scripts
+read `matchMedia` (no flush) and Leaflet now takes its SVG path
+(`createSVGRect`), whose geometry reads run in handlers; animation frames
+do not lay out (style and layout stay lazy). With JavaScript on and
+`compare --js`, the scores are those of 7b1: hacker-news geometry 1.0000,
+pixels 0.9986; wikipedia-web-browser 0.1810, 0.9735 (its script error
+`Cannot read properties of undefined (reading 'match')` stays);
+craigslist-posting 0.1895, 0.7332 (its scripts read `location`, which
+comes with 8a).
 
 ## Script runtime of a document
 
@@ -183,6 +203,12 @@ for 5 interfaces and about 60 members of `Window`, `Document`, `Element`
 and `HTMLElement`), the median time from 3.38 to 3.58 ms (the runs
 overlap: 3.24–3.85 and 2.53–3.72 ms). The lazy creation of interfaces
 (backlog, before 8a) is still open.
+
+M8 feature 7b2, 2026-10-29, seven interleaved runs: the heap grew from
+1,177,969 to 1,197,385 bytes (+19 KB: `MediaQueryList`,
+`MediaQueryListEvent`, `SVGRect` and the new members of `Window`,
+`HTMLElement` and the SVG interfaces); the median time is 3.52 ms before
+and 3.40 ms after (within noise: 2.59–3.93 and 2.43–3.91 ms).
 
 ## JavaScript engine
 

@@ -31,6 +31,7 @@
 
 mod events;
 mod forms;
+mod frame;
 mod input;
 mod loading;
 mod pipeline;
@@ -280,6 +281,7 @@ impl Page {
                 viewport,
                 scale,
                 indicators: false,
+                color_scheme: swb_css::ColorScheme::Light,
             },
             input: input::InputState::default(),
         }

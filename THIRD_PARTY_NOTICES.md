@@ -160,7 +160,9 @@ Time below.
 `crates/web/idl/cssom-view.idl` contains IDL blocks, copied on
 2026-10-28, from CSSOM View Module (W3C Editor's Draft,
 https://drafts.csswg.org/cssom-view/: the partial `Window`, `Document`,
-`Element` and `HTMLElement`, `Screen`, the scroll dictionaries and enums)
+`Element` and `HTMLElement`, `Screen`, the scroll dictionaries and enums;
+on 2026-10-29 `MediaQueryList`, `MediaQueryListEvent` and its init
+dictionary)
 and Screen Orientation (W3C Working Draft,
 https://www.w3.org/TR/screen-orientation/: `ScreenOrientation`, the
 partial `Screen`). `crates/web/idl/geometry.idl` contains IDL blocks,
@@ -205,6 +207,9 @@ https://www.w3.org/TR/SVG2/, Appendix A "IDL Definitions",
 https://www.w3.org/TR/SVG2/idl.html, copied on 2026-10-24); swb cut them to
 the element interfaces that scripts use and added `SVGClipPathElement` and
 `SVGMaskElement` without members (CSS Masking Module Level 1 defines them).
+The `SVGRect` interface in the same file describes the members that
+Chromium exposes (four `float` attributes, measured); it is not from
+the SVG 2 text.
 The owner allowed this license for IDL data files (ADR 0003, 2026-10-22).
 The license text is in the section of W3C High Resolution Time below.
 

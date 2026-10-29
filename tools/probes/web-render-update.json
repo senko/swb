@@ -1,0 +1,155 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "ids",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[requestAnimationFrame(() => {}), requestAnimationFrame(() => {}), requestAnimationFrame(() => {})]"
+    },
+    {
+     "js": "(cancelAnimationFrame(1), [requestAnimationFrame(() => {}), typeof requestAnimationFrame(() => {})])"
+    }
+   ]
+  },
+  {
+   "name": "api",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof requestAnimationFrame, requestAnimationFrame.length, typeof cancelAnimationFrame, cancelAnimationFrame.length]"
+    },
+    {
+     "js": "E(() => requestAnimationFrame())"
+    },
+    {
+     "js": "E(() => requestAnimationFrame(5))"
+    },
+    {
+     "js": "E(() => requestAnimationFrame({handleEvent() {}}))"
+    },
+    {
+     "js": "E(() => cancelAnimationFrame())"
+    },
+    {
+     "js": "E(() => cancelAnimationFrame(999))"
+    },
+    {
+     "js": "E(() => cancelAnimationFrame('x'))"
+    },
+    {
+     "js": "E(() => cancelAnimationFrame(-1))"
+    },
+    {
+     "js": "E(() => requestAnimationFrame.call(null, () => {}) > 0)"
+    },
+    {
+     "js": "E(() => requestAnimationFrame.call({}, () => {}))"
+    },
+    {
+     "js": "new Promise(r => requestAnimationFrame(function (t) { r([typeof t, arguments.length, this === window]); }))"
+    },
+    {
+     "js": "new Promise(r => requestAnimationFrame(function (t) { 'use strict'; r(this === undefined); }))"
+    },
+    {
+     "js": "new Promise(r => { const p = performance.now(); requestAnimationFrame(t => r([t >= p - 20, performance.now() >= t, t - p < 100])); })"
+    },
+    {
+     "js": "new Promise(r => { let a; requestAnimationFrame(t => { a = t; }); requestAnimationFrame(t => r(a === t)); })"
+    },
+    {
+     "js": "frames(2).then(ts => ts[1] > ts[0])"
+    },
+    {
+     "js": "new Promise(r => { const l = []; requestAnimationFrame(t => { l.push('a'); requestAnimationFrame(u => { l.push('inner ' + (u > t)); r(l); }); }); requestAnimationFrame(() => l.push('b')); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; let id; requestAnimationFrame(() => { l.push('a'); cancelAnimationFrame(id); }); id = requestAnimationFrame(() => l.push('b')); requestAnimationFrame(() => { l.push('c'); r(l); }); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; requestAnimationFrame(() => { l.push('a'); Promise.resolve().then(() => l.push('micro')); }); requestAnimationFrame(() => { l.push('b'); r(l); }); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; window.onerror = m => { l.push('onerror ' + m); }; requestAnimationFrame(() => { l.push('a'); throw new Error('boom'); }); requestAnimationFrame(() => { l.push('b'); setTimeout(() => { window.onerror = null; r(l); }, 0); }); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const f = () => l.push('f'); requestAnimationFrame(f); requestAnimationFrame(f); requestAnimationFrame(() => r(l)); })"
+    },
+    {
+     "js": "new Promise(r => { const id = requestAnimationFrame(() => r('ran')); cancelAnimationFrame(id); setTimeout(() => r('canceled'), 100); })"
+    }
+   ]
+  },
+  {
+   "name": "interval",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "frames(21).then(ts => { const d = ts.slice(1).map((t, i) => t - ts[i]); const mean = (ts[20] - ts[0]) / 20; return [Math.round(mean * 10) / 10, d.every(x => x > 10 && x < 25)]; })"
+    }
+   ]
+  },
+  {
+   "name": "order",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=sc style='height:100px;overflow:auto'><div style='height:500px'></div></div><div style='height:3000px'></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\naddEventListener('scroll', () => log.push('scroll')); sc.addEventListener('scroll', () => log.push('sc-scroll')); addEventListener('resize', () => log.push('resize'));</script></body></html>",
+   "measure": [
+    {
+     "js": "after(50).then(() => { log = []; scrollTo(0, 100); sc.scrollTop = 20; requestAnimationFrame(() => log.push('raf')); return after(100); }).then(() => log)"
+    },
+    {
+     "js": "after(50).then(() => { log = []; requestAnimationFrame(() => { log.push('raf1'); scrollTo(0, 200); requestAnimationFrame(() => log.push('raf2')); }); return after(150); }).then(() => log)"
+    },
+    {
+     "js": "after(50).then(() => { log = []; requestAnimationFrame(() => { log.push('raf'); setTimeout(() => log.push('timeout0'), 0); Promise.resolve().then(() => log.push('micro')); }); return after(100); }).then(() => log)"
+    }
+   ]
+  },
+  {
+   "name": "layout",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d style='width:100px'>x</div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\nvar widths = []; function loop(n) { requestAnimationFrame(() => { d.style.width = (100 + n) + 'px'; widths.push(d.offsetWidth); if (n < 5) loop(n + 1); }); } loop(1);</script></body></html>",
+   "measure": [
+    {
+     "js": "after(300).then(() => widths)"
+    },
+    {
+     "js": "frame().then(() => { d.style.width = '50px'; return frame(); }).then(() => getComputedStyle(d).width)"
+    }
+   ]
+  },
+  {
+   "name": "resize-raf",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\nfunction frame() { return new Promise(r => requestAnimationFrame(r)); }\nfunction frames(n) { return new Promise(r => { const ts = []; function f(t) { ts.push(t); if (ts.length === n) r(ts); else requestAnimationFrame(f); } requestAnimationFrame(f); }); }\naddEventListener('resize', () => log.push('resize ' + innerWidth)); function tick() { requestAnimationFrame(() => { log.push('raf ' + innerWidth); if (log.length < 40) tick(); }); }</script></body></html>",
+   "measure": [
+    {
+     "js": "log.filter((x, i) => i === 0 || x !== log[i - 1]).slice(0, 6)"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "eval": "log = []; tick()"
+    },
+    {
+     "wait": 50
+    },
+    {
+     "viewport": [
+      500,
+      600
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ]
+  }
+ ]
+}

@@ -3112,8 +3112,46 @@ Steps:
         `getTotalLength()`; BBC calls `getBBox`). Tests: a rAF loop that
         counts frames in virtual time; hostile: a rAF loop that changes
         layout every frame.
+        Done 2026-10-29. The scroll methods return `undefined`, and a
+        rejected promise where an argument does not convert, an options
+        getter throws or the brand check fails (Chromium 148; generator
+        attribute `[SwbRejectsOnError]`). `innerText` and `outerText`
+        from the styles (`document/inner_text.rs`: the specification's
+        items with required line break counts; a style flush, no
+        layout), with the setters. `matchMedia` and `MediaQueryList` (an
+        event target; `onchange` through a new handler target for
+        objects), `change` events after a resize or a color scheme change
+        (`Page::set_color_scheme`), in the order the lists were made; the
+        media query serializer keeps Chromium's forms. The rendering
+        update (`page/frame.rs`): `resize`, `scroll`, media query changes
+        and `requestAnimationFrame` callbacks in HTML's order, the
+        callbacks on a 60 Hz grid of page time (virtual time in
+        headless), each as a task with its own deadline; style and layout
+        stay lazy; a page with only an animation loop is idle. `getBBox`,
+        `getTotalLength` and `createSVGRect` with Chromium's `SVGRect`.
+        Probes `web-inner-text.json` (12 cases, 136 queries),
+        `web-match-media.json` (7, 148), `web-render-update.json` (6, 30),
+        `web-svg-geometry.json` (3, 50) and the case `rejections` of
+        `web-scroll.json`; 13 departures (rendering) and 29 (geometry)
+        with reasons. The probe tool has the steps `viewport` and
+        `colorScheme`. JS off: snapshot identical, perf within noise;
+        hostile set 205 cases, 204 ok + the known failure (4 new);
+        runtime +19 KB. Review fixes: `getBBox` and `getTotalLength`
+        compute all the elements of an `<svg>` once per layout (4,000
+        paths: 2.1 s before, 10 ms now); no frame is due after the scripts
+        were stopped (a stopped page with a pending scroll kept the
+        virtual-time loop from advancing: 40 s instead of 15 s); animation
+        frame handles never wrap to 0; `SVGRect`'s IDL describes
+        Chromium's members, so the notices name no SVG 1.1 text.
       Exit: the counters for Wikipedia are recorded in
       docs/performance.md; the probe files pass.
+      Done 2026-10-29. The loads of the three JavaScript targets force
+      no style or layout run (docs/performance.md, "The loads of the
+      JavaScript targets": Wikipedia 90 ms, Hacker News 24 ms,
+      Craigslist 19 ms with JavaScript on); the probe files of feature 7
+      pass with `--with-swb` except the listed departures; the
+      `compare --js` scores are unchanged (Wikipedia's script error and
+      Craigslist's `location` reads remain for 8a and later).
    8. Window and document APIs (`implementer`), two sessions.
       - 8a: `location` (reads, `assign`, `replace`, `reload`, the
         `href` and `hash` setters), `history` (`pushState`,
@@ -3612,17 +3650,11 @@ Steps:
   control list is rebuilt after each change, so a loop that alternates
   `appendChild` and `f.elements[name]` is quadratic (also why `form` has
   no `[LegacyOverrideBuiltIns]`); obsolete members (`div.align`,
-  `body.bgColor`), `innerText`, `contentEditable`, `popover`, constraint
+  `body.bgColor`), `contentEditable`, `popover`, constraint
   validation, selection members, `files`, `valueAsNumber`, `labels`,
   `img.complete` and `naturalWidth` from the loaded image,
   `iframe.contentWindow`; color names in a color input are not
   converted; `form.img` is not a named property.
-- `web`, 7b2 (found in feature 6c2): `createSVGRect`, `createSVGPoint`,
-  `createSVGMatrix`, `getBBox`, `getCTM`, `getTotalLength` are missing
-  (they need `DOMRect`, `DOMPoint`, `DOMMatrix`). Target scripts test
-  `'createSVGRect' in svg` and `typeof t.getBBox == "function"` and
-  take their non-SVG path in swb; this can explain part of the
-  Craigslist and Wikipedia differences with JavaScript on.
 - `web` (found in feature 6c2): SVG animated values (`SVGAnimatedLength`
   and the others, with `x`, `width`, `viewBox`, `transform`), the URL
   members of SVG `a`, the filter and animation element interfaces
@@ -3644,8 +3676,8 @@ Steps:
   being rendered (`display: none`) keeps the focus until the engine's
   next fixup; the handler table grows with the document.
 - `web`, 8a (found in the 6d1 review): lazy creation of the interface
-  objects. A runtime now costs about 1.18 MB and 3.6 ms at creation
-  (after 7b1),
+  objects. A runtime now costs about 1.20 MB and 3.4 ms at creation
+  (after 7b2),
   past the limit of about 1 ms or 1 MB in ADR 0028 (section 5, "Feature
   6c notes"). Do it before 8a adds the next interfaces.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
@@ -3655,9 +3687,9 @@ Steps:
   input", swb "Unexpected token ')'").
 - `web` (found in the 6d1 review): writes to `Attr.nodeValue` and
   `Attr.textContent` do not change the attribute (and so not its
-  handler). There is no `innerText` setter and no
-  `document.createRange` (Chromium blurs a focused element that
-  `innerText=` removes, with `blur` and without `focusout`). A
+  handler). There is no `document.createRange`; check that a focused
+  element that `innerText=` removes is blurred as in Chromium (with
+  `blur` and without `focusout`). A
   termination of the script during the click of a checkbox leaves the
   checkbox toggled.
 - Engine (found in feature 6d2): the engine's `Key` has no modifier
@@ -3777,12 +3809,6 @@ Steps:
   `getComputedStyle` reads and 7b1 for the geometry and scroll
   bindings; check the other bindings that flush or walk large
   structures.
-- `web`, 7b2 (found in feature 7b1 and its review): Chromium 148
-  returns a rejected promise from `scroll`, `scrollTo`, `scrollBy` and
-  `scrollIntoView` when an argument does not convert (`scrollTo(5)`, a
-  bad enum, an options getter that throws) and `undefined` otherwise;
-  swb throws, which stops the page's script. Needs the Web IDL rule for
-  operations that return a promise in the generator.
 - Engine (found in the 7b1 review): the scroll of `focus()` waits until
   the next geometry read of the task; if the script removes or hides the
   element before it, the scroll is lost (Chromium: `focus(); remove();
@@ -3811,6 +3837,35 @@ Steps:
   `elementFromPoint` hit-tests the whole display list per call
   (240,000 calls on 20,000 elements reach the 5 s limit); a spatial
   index would help if a page needs it.
+- `web`/`layout` (found in feature 7b2): `getTotalLength` measures
+  curves with 64 chords (a circle with `r=10`: 62.839, Chromium 62.427)
+  and gives 0 for an element that is not drawn (Chromium computes it
+  from the attributes, also for `display: none` and detached elements).
+  `getBBox` gives 0, 0, 0, 0 for an element that swb does not draw: a
+  `rect` in `defs` (Chromium 0, 0, 5, 5 for a 5×5 one) and a nested
+  `<svg>` and its children (Chromium the box of the nested content; swb
+  draws them as part of the outer `<svg>`). SVG `text` has no box. No
+  `getCTM`, `getScreenCTM`, `createSVGPoint`,
+  `createSVGMatrix`, `getPointAtLength`, `DOMPoint` or `DOMMatrix` (no
+  target calls them).
+- `css` (found in feature 7b2): `calc()` in a media query is kept as
+  written and cannot use `em` (Chromium simplifies it to
+  `calc(1em + 100px)` and evaluates it); swb knows `inverted-colors`,
+  Chromium 148 does not. The serialization of a general-enclosed
+  condition is cut short (`matchMedia("(".repeat(10000)).media` has 130
+  characters, Chromium 19,999).
+- `web` (found in feature 7b2): no `MutationObserver` (9a), so the
+  single record of the `innerText` setter is not checked. The
+  `innerText` of an inline element starts a line (Chromium keeps a
+  leading space when its line has text before it). No
+  `content-visibility`; MathML elements are plain. Animation frame
+  times are coarsened to 0.1 ms like `performance.now()` (Chromium
+  gives microseconds); frames are not throttled for hidden documents
+  (8a has `visibilityState`).
+- Engine (found in feature 7b2): only `Page::set_color_scheme` and the
+  probe step `colorScheme` change `prefers-color-scheme`; the GUI does
+  not follow the desktop's color scheme, and the automation protocol
+  has no method for it.
 
 ## Backlog from M6
 

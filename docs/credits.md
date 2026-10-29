@@ -92,9 +92,22 @@ Format: source, license (for code), what it influenced.
   algorithms of `crates/web/src/cssom_view.rs` and
   `crates/engine/src/document/geometry.rs` (the offset parent, the
   client and scroll metrics, scroll into view, the pending scroll event
-  targets).
+  targets); `MediaQueryList` and `MediaQueryListEvent` (IDL added
+  2026-10-29), the algorithms of `crates/web/src/media_queries.rs`
+  (evaluate media queries and report changes) and the serialization of
+  media queries in `swb_css`.
+- W3C Scalable Vector Graphics (SVG) 1.1 (Second Edition) —
+  https://www.w3.org/TR/SVG11/ — the `SVGRect` interface that Chromium
+  still returns from `getBBox` and `createSVGRect`; its IDL in
+  `crates/web/idl/svg.idl` describes Chromium's members (four `float`
+  attributes, measured).
 - WHATWG HTML §2.6.1, reflecting content attributes in IDL attributes —
-  the getters and setters of `[Reflect]` in `swb-web`.
+  the getters and setters of `[Reflect]` in `swb-web`. WHATWG HTML, the
+  rendered text collection steps and the `innerText` and `outerText`
+  setters (`crates/engine/src/document/inner_text.rs`,
+  `crates/web/src/html/inner_text.rs`); animation frames and the order
+  of the rendering update (`crates/web/src/animation_frames.rs`,
+  `crates/engine/src/page/frame.rs`).
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,
   https://fetch.spec.whatwg.org/, https://encoding.spec.whatwg.org/
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html

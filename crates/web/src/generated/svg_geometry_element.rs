@@ -9,9 +9,18 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `SVGGeometryElement`.
 pub trait SVGGeometryElementImpl: b::Host {
+    /// `float getTotalLength()`.
+    fn get_total_length(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<f32>;
+
 }
 
-impl<T: b::Host> SVGGeometryElementImpl for T {}
+fn op_get_total_length<H: SVGGeometryElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("SVGGeometryElement", "getTotalLength"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SVG_GEOMETRY_ELEMENT)?;
+        let result = <H as SVGGeometryElementImpl>::get_total_length(&mut b::Cx::new(rt, call, super::SVG_GEOMETRY_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
 
 /// Creates the interface object and the prototype of `SVGGeometryElement` in `realm`
 /// with their members (the parent's interface must exist).
@@ -19,6 +28,7 @@ pub fn define<H: SVGGeometryElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -
     let interface = rt.begin_interface(realm, super::SVG_GEOMETRY_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_method(realm, target, "getTotalLength", 0, op_get_total_length::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

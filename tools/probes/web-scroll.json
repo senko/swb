@@ -336,6 +336,42 @@
    ]
   },
   {
+   "name": "rejections",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => String(sc.scrollTo({get top() { throw new Error('boom'); }})))"
+    },
+    {
+     "js": "(Z(), sc.scrollTo({get top() { throw new Error('boom'); }}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), target.scrollIntoView({get inline() { throw new Error('boom'); }}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), scrollBy({get behavior() { throw new TypeError('b2'); }}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), scroll({left: 1, behavior: 'fast'}).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), scrollIntoView = Element.prototype.scrollIntoView, Promise.resolve(scrollIntoView.call({})).then(() => 'resolved', e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), Promise.resolve(Element.prototype.scrollTo.call(document, 0, 0)).then(v => 'resolved ' + v, e => 'rejected ' + e))"
+    },
+    {
+     "js": "(Z(), Promise.resolve(scrollTo.call(document.body, 0, 0)).then(v => 'resolved ' + v, e => 'rejected ' + e))"
+    },
+    {
+     "js": "A(() => (scrollTo({behavior: 'fast'}), scrollTo(0, 30), sc.scrollTo(5), sc.scrollTop = 7, P().concat([sc.scrollTop])))"
+    },
+    {
+     "js": "(Z(), new Promise(r => { const l = []; const h = e => { if (/ScrollToOptions/.test(e.reason.message)) l.push(e.reason.constructor.name + ' ' + (e.promise instanceof Promise)); e.preventDefault(); }; addEventListener('unhandledrejection', h); scrollTo(5); setTimeout(() => { removeEventListener('unhandledrejection', h); r(l); }, 50); }))"
+    }
+   ]
+  },
+  {
    "name": "quirks",
    "html": "<html><head><title>t</title><style>body { margin: 0; height: 3000px; width: 2000px; font: 16px/20px sans-serif } .sc { width: 100px; height: 100px; overflow: auto; border: 2px solid; padding: 3px } #in { width: 300px; height: 500px } #target { position: absolute; top: 1500px; left: 1200px; width: 50px; height: 50px } #it { margin-top: 300px; margin-left: 150px; height: 20px; width: 20px } #sc2 { position: absolute; top: 1000px; left: 100px } #in2 { height: 400px; padding-top: 250px } #t2 { height: 10px; width: 10px } #hid { overflow: hidden; width: 50px; height: 50px } #hidin { width: 200px; height: 200px } #big { position: absolute; top: 2000px; left: 0; width: 100px; height: 900px }</style></head><body><div id=sc class=sc><div id=in><div id=it></div></div></div><div id=target></div><div id=sc2 class=sc><div id=in2><div id=t2></div></div></div><div id=hid class=sc><div id=hidin></div></div><div id=big></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction N(e) { return e === null ? 'null' : e === undefined ? 'undefined' : e === window ? 'window' : e === document ? 'document' : e.id ? '#' + e.id : e.nodeName; }\nfunction P() { return [scrollX, scrollY]; }\nfunction Z() { scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nvar log = [];\nfunction W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubbles + ':' + e.cancelable + ':' + scrollX + ',' + scrollY); }\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
    "measure": [

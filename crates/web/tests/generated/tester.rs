@@ -84,6 +84,9 @@ pub trait TesterImpl: b::Host {
     /// `Promise<any> rejects(DOMString kind)`.
     fn rejects(cx: &mut b::Cx<'_>, this: b::Platform, kind: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `long softly(long n)`.
+    fn softly(cx: &mut b::Cx<'_>, this: b::Platform, n: i32) -> b::Result<i32>;
+
     /// `any echoAny(any value)`.
     fn echo_any(cx: &mut b::Cx<'_>, this: b::Platform, value: swb_js::Value) -> b::Result<swb_js::Value>;
 
@@ -495,6 +498,17 @@ fn op_rejects<H: TesterImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
     })
 }
 
+fn op_softly<H: TesterImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run_promise(rt, call, b::Context::Operation("Tester", "softly"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::TESTER)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let result = <H as TesterImpl>::softly(&mut b::Cx::new(rt, call, super::TESTER), this, a0)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
+    })
+}
+
 fn op_echo_any<H: TesterImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Tester", "echoAny"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::TESTER)?;
@@ -801,6 +815,7 @@ pub fn define<H: TesterImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "records", 2, op_records::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "rejects", 1, op_rejects::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "sequences", 2, op_sequences::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "softly", 1, op_softly::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "strings", 4, op_strings::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "throwDom", 2, op_throw_dom::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "throwRange", 0, op_throw_range::<H>, swb_js::Attributes::MEMBER)?;

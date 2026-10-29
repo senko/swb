@@ -62,6 +62,7 @@ use swb_dom::{Document, NodeId, local_name};
 use swb_style::{ComputedStyle, Overflow, StyleMap};
 use swb_text::FontContext;
 
+pub use box_tree::transform_text;
 pub use control::{Control, ControlKind, FormControls, MAX_SELECT_OPTIONS, NoFormControls};
 pub use fragment::{
     BoxContent, BoxFragment, CanvasBackground, Caret, CellPaint, CollapsedEdge, ControlContent,

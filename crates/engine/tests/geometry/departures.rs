@@ -101,12 +101,6 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         r"swb's `Screen` has no `onchange` and `isExtended`, `ScreenOrientation` no `onchange`, `lock` and `unlock`",
     ),
     (
-        r"window-metrics",
-        7,
-        r#"["undefined","undefined","function","function","undefined"]"#,
-        r"`matchMedia` and `requestAnimationFrame` come in 7b2; swb has no `caretPositionFromPoint`",
-    ),
-    (
         r"flex-grid-float",
         0,
         r##"["#fx 8 8 306 46","#f1 11 21 87.65625 20","#f2 107.15625 21 175.328125 20","#f3 291 21 20 20","#gr 8 54 301 20","#g1 8 54 50 20","#g2 63 54 80.328125 20","#g3 148.328125 54 160.65625 20","#fl 8 74 60 30","#fp 8 74 200 80","#cl 8 154 784 0","#ul 8 158 784 40","#li1 38 158 754 20","#li2 38 178 754 20"]"##,
@@ -137,12 +131,6 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         r"swb's matrices are computed in `f32` (Chromium in `f64`): the last digits differ",
     ),
     (
-        r"domrect",
-        15,
-        r#"["scrollTop,scrollLeft,scrollWidth,scrollHeight,clientTop,clientLeft,clientWidth,clientHeight,getBoundingClientRect,getClientRects,scroll,scrollBy,scrollIntoView,scrollTo","offsetParent,offsetTop,offsetLeft,offsetWidth,offsetHeight,onscroll,onscrollend","scrollingElement,onscroll,onscrollend,elementFromPoint,elementsFromPoint"]"#,
-        r"swb has no `scrollIntoViewIfNeeded`, `innerText` (7b2), `onscrollsnapchange`, `onscrollsnapchanging`, `caretPositionFromPoint`, `caretRangeFromPoint`, `exitPointerLock`",
-    ),
-    (
         r"item4-img-size",
         0,
         r#"[33554428,0,"1410065408",0]"#,
@@ -150,51 +138,9 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     ),
     (
         r"window",
-        21,
-        r#""TypeError: Failed to execute 'scrollTo' on 'Window': The provided value is not of type 'ScrollToOptions'.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws the `TypeError` (the specification's IDL)",
-    ),
-    (
-        r"window",
-        27,
-        r#""TypeError: Failed to execute 'scrollTo' on 'Window': Failed to read the 'behavior' property from 'ScrollOptions': The provided value 'fast' is not a valid enum value of type ScrollBehavior.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"window",
-        28,
-        r#""TypeError: Failed to execute 'scrollTo' on 'Window': The provided value is not of type 'ScrollToOptions'.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"window",
         35,
         r"[0,500]",
         r"`behavior: 'smooth'` scrolls at once in swb (Chromium animates)",
-    ),
-    (
-        r"window",
-        38,
-        r#""error: TypeError: Failed to execute 'scrollTo' on 'Window': The provided value is not of type 'ScrollToOptions'.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"window",
-        39,
-        r#""error: TypeError: Failed to execute 'scrollTo' on 'Window': Failed to read the 'behavior' property from 'ScrollOptions': The provided value 'fast' is not a valid enum value of type ScrollBehavior.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"window",
-        40,
-        r#""error: TypeError: Failed to execute 'scrollIntoView' on 'Element': Failed to read the 'block' property from 'ScrollIntoViewOptions': The provided value 'bad' is not a valid enum value of type ScrollLogicalPosition.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"window",
-        41,
-        r#""error: TypeError: Failed to execute 'scrollTo' on 'Element': Failed to read the 'behavior' property from 'ScrollOptions': The provided value 'fast' is not a valid enum value of type ScrollBehavior.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
     ),
     (
         r"element",
@@ -204,21 +150,9 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     ),
     (
         r"into-view",
-        23,
-        r#""TypeError: Failed to execute 'scrollIntoView' on 'Element': Failed to read the 'block' property from 'ScrollIntoViewOptions': The provided value 'bad' is not a valid enum value of type ScrollLogicalPosition.""#,
-        r"Chromium 148 returns a rejected promise when an argument of a scroll method does not convert; swb throws",
-    ),
-    (
-        r"into-view",
         28,
         r"[450,1500]",
         r"`behavior: 'smooth'` scrolls at once in swb (Chromium animates)",
-    ),
-    (
-        r"events",
-        10,
-        r#""error: ReferenceError: requestAnimationFrame is not defined""#,
-        r"`requestAnimationFrame` comes in 7b2",
     ),
     (
         r"huge",
@@ -231,5 +165,17 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         2,
         r"[0,33553832,600,33554432]",
         r"Chromium's largest box is 33554428px; swb's layout limit is 33554432px",
+    ),
+    (
+        r"window-metrics",
+        7,
+        r#"["function","function","function","function","undefined"]"#,
+        r"swb has no `caretPositionFromPoint`",
+    ),
+    (
+        r"domrect",
+        15,
+        r#"["scrollTop,scrollLeft,scrollWidth,scrollHeight,clientTop,clientLeft,clientWidth,clientHeight,getBoundingClientRect,getClientRects,scroll,scrollBy,scrollIntoView,scrollTo","innerText,offsetParent,offsetTop,offsetLeft,offsetWidth,offsetHeight,onscroll,onscrollend","scrollingElement,onscroll,onscrollend,elementFromPoint,elementsFromPoint"]"#,
+        r"swb has no `scrollIntoViewIfNeeded`, `onscrollsnapchange`, `onscrollsnapchanging`, `caretPositionFromPoint`, `caretRangeFromPoint`, `exitPointerLock`; `innerText` comes before the `offset*` members (the order of the IDL files)",
     ),
 ];

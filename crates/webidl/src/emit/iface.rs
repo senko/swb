@@ -314,8 +314,10 @@ impl Gen<'_> {
         let getter = snake(&attr.name);
         let target = if self.model.is_node(&iface.name) {
             "b::HandlerTarget::Node(this)"
-        } else {
+        } else if iface.ext_attrs.has("Global") {
             "b::HandlerTarget::Window"
+        } else {
+            "b::HandlerTarget::Object(this.object)"
         };
         for (set, context, body) in [
             (
@@ -598,11 +600,16 @@ impl Gen<'_> {
                 literal(&group.name)
             )
         };
+        // An operation that returns a promise turns its exceptions into a
+        // rejected promise (Web IDL §3.7.6). `[SwbRejectsOnError]` does the
+        // same for an operation that returns another type (Chromium's
+        // scroll methods: `undefined`, or a rejected promise when an
+        // argument does not convert).
         let promise = !constructor
-            && group
-                .overloads
-                .iter()
-                .any(|op| matches!(self.model.resolve(&op.ret).kind, TypeKind::Promise(_)));
+            && group.overloads.iter().any(|op| {
+                matches!(self.model.resolve(&op.ret).kind, TypeKind::Promise(_))
+                    || op.ext_attrs.has("SwbRejectsOnError")
+            });
         let run = if promise { "run_promise" } else { "run" };
         let vis = if constructor { "pub(super) " } else { "" };
         let _ = writeln!(

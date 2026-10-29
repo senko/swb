@@ -1,0 +1,580 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "parse",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "M(\"\")"
+    },
+    {
+     "js": "M(\" \")"
+    },
+    {
+     "js": "M(\"all\")"
+    },
+    {
+     "js": "M(\"ALL\")"
+    },
+    {
+     "js": "M(\"screen\")"
+    },
+    {
+     "js": "M(\"SCREEN\")"
+    },
+    {
+     "js": "M(\"print\")"
+    },
+    {
+     "js": "M(\"not print\")"
+    },
+    {
+     "js": "M(\"not screen\")"
+    },
+    {
+     "js": "M(\"only screen\")"
+    },
+    {
+     "js": "M(\"only print\")"
+    },
+    {
+     "js": "M(\"screen and (color)\")"
+    },
+    {
+     "js": "M(\"not screen and (color)\")"
+    },
+    {
+     "js": "M(\"only screen and (max-width: 600px)\")"
+    },
+    {
+     "js": "M(\"(color)\")"
+    },
+    {
+     "js": "M(\"(monochrome)\")"
+    },
+    {
+     "js": "M(\"(min-width: 500px)\")"
+    },
+    {
+     "js": "M(\"(MIN-WIDTH:500PX)\")"
+    },
+    {
+     "js": "M(\"(min-width:500px) and (max-width:1000px)\")"
+    },
+    {
+     "js": "M(\"(max-width: 500px)\")"
+    },
+    {
+     "js": "M(\"(width >= 500px)\")"
+    },
+    {
+     "js": "M(\"(400px < width < 1000px)\")"
+    },
+    {
+     "js": "M(\"(width > 799.5px)\")"
+    },
+    {
+     "js": "M(\"(width: 800px)\")"
+    },
+    {
+     "js": "M(\"(height: 600px)\")"
+    },
+    {
+     "js": "M(\"(min-width: 30em)\")"
+    },
+    {
+     "js": "M(\"(min-width: 50.5em)\")"
+    },
+    {
+     "js": "M(\"(min-width: 49.9999em)\")"
+    },
+    {
+     "js": "M(\"(max-width: 0)\")"
+    },
+    {
+     "js": "M(\"(min-width: 0)\")"
+    },
+    {
+     "js": "M(\"(min-width: 100.25px)\")"
+    },
+    {
+     "js": "M(\"(min-width: 1e2px)\")"
+    },
+    {
+     "js": "M(\"(min-width: 10Q)\")"
+    },
+    {
+     "js": "M(\"(min-width: 2in)\")"
+    },
+    {
+     "js": "M(\"(width < 50vw)\")"
+    },
+    {
+     "js": "M(\"(min-width: calc(100px + 1em))\")"
+    },
+    {
+     "js": "M(\"(orientation: landscape)\")"
+    },
+    {
+     "js": "M(\"(orientation: portrait)\")"
+    },
+    {
+     "js": "M(\"(prefers-color-scheme: dark)\")"
+    },
+    {
+     "js": "M(\"(prefers-color-scheme: light)\")"
+    },
+    {
+     "js": "M(\"(prefers-color-scheme)\")"
+    },
+    {
+     "js": "M(\"(prefers-reduced-motion: reduce)\")"
+    },
+    {
+     "js": "M(\"(prefers-reduced-motion: no-preference)\")"
+    },
+    {
+     "js": "M(\"(hover: hover)\")"
+    },
+    {
+     "js": "M(\"(hover)\")"
+    },
+    {
+     "js": "M(\"(any-hover: hover)\")"
+    },
+    {
+     "js": "M(\"(pointer: fine)\")"
+    },
+    {
+     "js": "M(\"(pointer: coarse)\")"
+    },
+    {
+     "js": "M(\"(any-pointer: fine)\")"
+    },
+    {
+     "js": "M(\"(scripting: enabled)\")"
+    },
+    {
+     "js": "M(\"(scripting: none)\")"
+    },
+    {
+     "js": "M(\"(-webkit-min-device-pixel-ratio: 2)\")"
+    },
+    {
+     "js": "M(\"(-webkit-min-device-pixel-ratio: 1)\")"
+    },
+    {
+     "js": "M(\"(-webkit-device-pixel-ratio: 1)\")"
+    },
+    {
+     "js": "M(\"(min-resolution: 2dppx)\")"
+    },
+    {
+     "js": "M(\"(resolution: 1dppx)\")"
+    },
+    {
+     "js": "M(\"(resolution: 1x)\")"
+    },
+    {
+     "js": "M(\"(min-resolution: 96dpi)\")"
+    },
+    {
+     "js": "M(\"(min-resolution: 1.5dppx)\")"
+    },
+    {
+     "js": "M(\"(aspect-ratio: 4/3)\")"
+    },
+    {
+     "js": "M(\"(aspect-ratio: 4 / 3)\")"
+    },
+    {
+     "js": "M(\"(min-aspect-ratio: 16/9)\")"
+    },
+    {
+     "js": "M(\"(max-aspect-ratio: 2)\")"
+    },
+    {
+     "js": "M(\"(device-width: 800px)\")"
+    },
+    {
+     "js": "M(\"(min-device-width: 1px)\")"
+    },
+    {
+     "js": "M(\"(foo)\")"
+    },
+    {
+     "js": "M(\"(foo: bar)\")"
+    },
+    {
+     "js": "M(\"garbage!!\")"
+    },
+    {
+     "js": "M(\"screen, print\")"
+    },
+    {
+     "js": "M(\"screen,print\")"
+    },
+    {
+     "js": "M(\"screen , (min-width: 1px)\")"
+    },
+    {
+     "js": "M(\"(display-mode: browser)\")"
+    },
+    {
+     "js": "M(\"(forced-colors: none)\")"
+    },
+    {
+     "js": "M(\"(prefers-contrast: no-preference)\")"
+    },
+    {
+     "js": "M(\"(color-gamut: srgb)\")"
+    },
+    {
+     "js": "M(\"(dynamic-range: standard)\")"
+    },
+    {
+     "js": "M(\"(update: fast)\")"
+    },
+    {
+     "js": "M(\"(min-color: 8)\")"
+    },
+    {
+     "js": "M(\"(grid)\")"
+    },
+    {
+     "js": "M(\"not (color)\")"
+    },
+    {
+     "js": "M(\"(color) or (monochrome)\")"
+    },
+    {
+     "js": "M(\"((color))\")"
+    },
+    {
+     "js": "M(\"(not (color))\")"
+    },
+    {
+     "js": "M(\"screen and (min-width: 100px) and (max-width: 2000px)\")"
+    },
+    {
+     "js": "M(\"tv\")"
+    },
+    {
+     "js": "M(\"not tv\")"
+    },
+    {
+     "js": "M(\"@media screen\")"
+    },
+    {
+     "js": "M(\"(min-width: 100px\")"
+    },
+    {
+     "js": "M(\"screen and\")"
+    },
+    {
+     "js": "M(\"and\")"
+    },
+    {
+     "js": "M(\"not\")"
+    },
+    {
+     "js": "M(\"only\")"
+    },
+    {
+     "js": "M(\"(min-width: 100)\")"
+    },
+    {
+     "js": "M(\"(width: 800.0px)\")"
+    },
+    {
+     "js": "M(\"(width: +800px)\")"
+    },
+    {
+     "js": "M(\"(min-width: -1px)\")"
+    },
+    {
+     "js": "M(\"speech\")"
+    },
+    {
+     "js": "M(\"handheld\")"
+    },
+    {
+     "js": "M(\"(color: 8)\")"
+    },
+    {
+     "js": "M(\"(color-index)\")"
+    },
+    {
+     "js": "M(\"(overflow-block: scroll)\")"
+    },
+    {
+     "js": "M(\"(inverted-colors: none)\")"
+    },
+    {
+     "js": "M(\"(scan: progressive)\")"
+    },
+    {
+     "js": "M(\"(min-height: 37.5em)\")"
+    },
+    {
+     "js": "M(\"screen and (orientation: landscape), print and (color)\")"
+    },
+    {
+     "js": "M(\"(min-width:500px)and (max-width:900px)\")"
+    },
+    {
+     "js": "M(\"screen and(color)\")"
+    },
+    {
+     "js": "M(\"(MAX-width: 1000PX) AND (Orientation: Landscape)\")"
+    },
+    {
+     "js": "M(\"not all\")"
+    },
+    {
+     "js": "M(\"(height > 500px) and (width > 500px)\")"
+    }
+   ]
+  },
+  {
+   "name": "api",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof matchMedia, matchMedia.length, typeof MediaQueryList, typeof MediaQueryListEvent]"
+    },
+    {
+     "js": "E(() => matchMedia())"
+    },
+    {
+     "js": "M(null)"
+    },
+    {
+     "js": "M(undefined)"
+    },
+    {
+     "js": "M(5)"
+    },
+    {
+     "js": "E(() => String(matchMedia('')))"
+    },
+    {
+     "js": "E(() => matchMedia('(color)') === matchMedia('(color)'))"
+    },
+    {
+     "js": "E(() => Object.getPrototypeOf(MediaQueryList.prototype) === EventTarget.prototype)"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyNames(MediaQueryList.prototype).sort())"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyNames(MediaQueryListEvent.prototype).sort())"
+    },
+    {
+     "js": "E(() => { const e = new MediaQueryListEvent('change', {media: 'x', matches: true}); return [e.type, e.media, e.matches, e.bubbles, e.cancelable, e.isTrusted]; })"
+    },
+    {
+     "js": "E(() => { const e = new MediaQueryListEvent('change'); return [e.media, e.matches]; })"
+    },
+    {
+     "js": "E(() => { const e = new MediaQueryListEvent('x', {media: null}); return [e.media, e.matches]; })"
+    },
+    {
+     "js": "E(() => new MediaQueryListEvent())"
+    },
+    {
+     "js": "E(() => MediaQueryListEvent('change'))"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); return [m.onchange, m.addListener(null), m.removeListener(null), m.addListener.length, m.removeListener.length]; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); return m.addListener(5); })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); return m.addListener(); })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); const f = () => {}; m.onchange = f; return [m.onchange === f, typeof m.onchange]; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); m.onchange = 5; return m.onchange; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); let n = 0; m.addEventListener('change', () => n++); m.dispatchEvent(new Event('change')); m.onchange = () => n += 10; m.dispatchEvent(new Event('change')); return n; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); let n = 0; const f = () => n++; m.addListener(f); m.addListener(f); m.addEventListener('change', f); m.dispatchEvent(new Event('change')); m.removeListener(f); m.dispatchEvent(new Event('change')); return n; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); let n = 0; const f = () => n++; m.addEventListener('change', f, true); m.addListener(f); m.dispatchEvent(new Event('change')); m.removeListener(f); m.dispatchEvent(new Event('change')); return n; })"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(color)'); let t; m.addListener(function (e) { t = [this === m, e.target === m, e.currentTarget === m]; }); m.dispatchEvent(new Event('change')); return t; })"
+    },
+    {
+     "js": "E(() => Object.prototype.toString.call(matchMedia('x')))"
+    },
+    {
+     "js": "E(() => { const m = matchMedia('(min-width: 1px)'); return [m.media, m.matches, Object.keys(m).length]; })"
+    },
+    {
+     "js": "E(() => MediaQueryList.prototype.matches)"
+    },
+    {
+     "js": "E(() => matchMedia.call(null, '(color)').matches)"
+    }
+   ]
+  },
+  {
+   "name": "change-resize",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n\nvar mqs = {};\nfunction watch(q) {\n  const m = matchMedia(q);\n  mqs[q] = m;\n  m.addListener(e => log.push('L ' + e.media + ' ' + e.matches + ' ' + (e instanceof MediaQueryListEvent) + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === m) + ' ' + m.matches));\n  return m;\n}\n\nvar a = watch('(min-width: 600px)');\nvar b = watch('(max-width: 599px)');\nvar c = watch('(orientation: portrait)');\nvar d = watch('(min-width: 2000px)');\nb.onchange = e => log.push('H ' + e.media);\na.addEventListener('change', e => log.push('E ' + e.media));\naddEventListener('resize', e => { log.push('resize ' + innerWidth + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === window) + ' ' + a.matches); requestAnimationFrame(() => log.push('raf-from-resize')); });\ndocument.addEventListener('resize', () => log.push('resize at document'));\nonresize = () => log.push('onresize');\nfunction tick() { requestAnimationFrame(() => { if (log.length && log[log.length - 1] !== 'raf') log.push('raf'); tick(); }); }\ntick();\n</script></body></html>",
+   "measure": [
+    {
+     "js": "log.filter(x => x !== 'raf' || true)"
+    },
+    {
+     "js": "[a.matches, b.matches, c.matches, d.matches, innerWidth, innerHeight]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "eval": "log = []"
+    },
+    {
+     "viewport": [
+      500,
+      600
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ]
+  },
+  {
+   "name": "change-resize-back",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n\nvar mqs = {};\nfunction watch(q) {\n  const m = matchMedia(q);\n  mqs[q] = m;\n  m.addListener(e => log.push('L ' + e.media + ' ' + e.matches + ' ' + (e instanceof MediaQueryListEvent) + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === m) + ' ' + m.matches));\n  return m;\n}\n\nvar a = watch('(min-width: 600px)');\nvar b = watch('(max-width: 599px)');\nvar c = watch('(orientation: portrait)');\nvar d = watch('(min-width: 2000px)');\nb.onchange = e => log.push('H ' + e.media);\na.addEventListener('change', e => log.push('E ' + e.media));\naddEventListener('resize', e => { log.push('resize ' + innerWidth + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === window) + ' ' + a.matches); requestAnimationFrame(() => log.push('raf-from-resize')); });\ndocument.addEventListener('resize', () => log.push('resize at document'));\nonresize = () => log.push('onresize');\nfunction tick() { requestAnimationFrame(() => { if (log.length && log[log.length - 1] !== 'raf') log.push('raf'); tick(); }); }\ntick();\n</script></body></html>",
+   "measure": [
+    {
+     "js": "log"
+    },
+    {
+     "js": "[a.matches, b.matches, innerWidth]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "eval": "log = []"
+    },
+    {
+     "viewport": [
+      500,
+      600
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('--')"
+    },
+    {
+     "viewport": [
+      800,
+      700
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ]
+  },
+  {
+   "name": "change-height",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n\nvar mqs = {};\nfunction watch(q) {\n  const m = matchMedia(q);\n  mqs[q] = m;\n  m.addListener(e => log.push('L ' + e.media + ' ' + e.matches + ' ' + (e instanceof MediaQueryListEvent) + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === m) + ' ' + m.matches));\n  return m;\n}\nvar h = watch('(min-height: 500px)'); var w = watch('(min-width: 600px)'); addEventListener('resize', () => log.push('resize ' + innerHeight));</script></body></html>",
+   "measure": [
+    {
+     "js": "log"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "viewport": [
+      800,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ]
+  },
+  {
+   "name": "change-color",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n\nvar mqs = {};\nfunction watch(q) {\n  const m = matchMedia(q);\n  mqs[q] = m;\n  m.addListener(e => log.push('L ' + e.media + ' ' + e.matches + ' ' + (e instanceof MediaQueryListEvent) + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === m) + ' ' + m.matches));\n  return m;\n}\nvar k = watch('(prefers-color-scheme: dark)'); var l = watch('(prefers-color-scheme: light)'); addEventListener('resize', () => log.push('resize'));</script></body></html>",
+   "measure": [
+    {
+     "js": "log"
+    },
+    {
+     "js": "[k.matches, l.matches, matchMedia('(prefers-color-scheme: dark)').matches]"
+    },
+    {
+     "js": "getComputedStyle(d).color"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "colorScheme": "dark"
+    },
+    {
+     "wait": 200
+    }
+   ]
+  },
+  {
+   "name": "change-order",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; font: 16px/20px sans-serif } </style></head><body><div id=d></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction M(q) { return E(() => { const m = matchMedia(q); return [m.media, m.matches]; }); }\nvar log = [];\nfunction after(ms) { return new Promise(r => setTimeout(r, ms)); }\n\nvar mqs = {};\nfunction watch(q) {\n  const m = matchMedia(q);\n  mqs[q] = m;\n  m.addListener(e => log.push('L ' + e.media + ' ' + e.matches + ' ' + (e instanceof MediaQueryListEvent) + ' ' + e.isTrusted + ' ' + e.bubbles + ' ' + e.cancelable + ' ' + (e.target === m) + ' ' + m.matches));\n  return m;\n}\nvar x = matchMedia('(min-width: 600px)'); var y = matchMedia('(min-width: 700px)'); y.addListener(() => log.push('y')); x.addListener(() => log.push('x')); var z = matchMedia('(min-width: 650px)'); z.addListener(() => { log.push('z'); Promise.resolve().then(() => log.push('z-micro')); }); var unwatched = matchMedia('(min-width: 600px)');</script></body></html>",
+   "measure": [
+    {
+     "js": "log"
+    },
+    {
+     "js": "unwatched.matches"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "viewport": [
+      500,
+      600
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ]
+  }
+ ]
+}

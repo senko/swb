@@ -122,6 +122,7 @@ pub mod svg_animated_string;
 pub mod svg_graphics_element;
 pub mod svg_geometry_element;
 pub mod svgsvg_element;
+pub mod svg_rect;
 pub mod svgg_element;
 pub mod svg_defs_element;
 pub mod svg_desc_element;
@@ -166,6 +167,8 @@ pub mod keyboard_event;
 pub mod composition_event;
 pub mod text_event;
 pub mod dom_exception;
+pub mod media_query_list;
+pub mod media_query_list_event;
 pub mod screen_orientation;
 pub mod mouse_event;
 pub mod wheel_event;
@@ -407,109 +410,115 @@ pub const SVG_GRAPHICS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(11
 pub const SVG_GEOMETRY_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(114);
 /// The class of `SVGSVGElement`.
 pub const SVGSVG_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(115);
+/// The class of `SVGRect`.
+pub const SVG_RECT: swb_js::ClassId = swb_js::ClassId::from_index(116);
 /// The class of `SVGGElement`.
-pub const SVGG_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(116);
+pub const SVGG_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(117);
 /// The class of `SVGDefsElement`.
-pub const SVG_DEFS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(117);
+pub const SVG_DEFS_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(118);
 /// The class of `SVGDescElement`.
-pub const SVG_DESC_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(118);
+pub const SVG_DESC_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(119);
 /// The class of `SVGMetadataElement`.
-pub const SVG_METADATA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(119);
+pub const SVG_METADATA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(120);
 /// The class of `SVGTitleElement`.
-pub const SVG_TITLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(120);
+pub const SVG_TITLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(121);
 /// The class of `SVGSymbolElement`.
-pub const SVG_SYMBOL_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(121);
+pub const SVG_SYMBOL_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(122);
 /// The class of `SVGUseElement`.
-pub const SVG_USE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(122);
+pub const SVG_USE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(123);
 /// The class of `SVGSwitchElement`.
-pub const SVG_SWITCH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(123);
+pub const SVG_SWITCH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(124);
 /// The class of `SVGStyleElement`.
-pub const SVG_STYLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(124);
+pub const SVG_STYLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(125);
 /// The class of `SVGPathElement`.
-pub const SVG_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(125);
+pub const SVG_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(126);
 /// The class of `SVGRectElement`.
-pub const SVG_RECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(126);
+pub const SVG_RECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(127);
 /// The class of `SVGCircleElement`.
-pub const SVG_CIRCLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(127);
+pub const SVG_CIRCLE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(128);
 /// The class of `SVGEllipseElement`.
-pub const SVG_ELLIPSE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(128);
+pub const SVG_ELLIPSE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(129);
 /// The class of `SVGLineElement`.
-pub const SVG_LINE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(129);
+pub const SVG_LINE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(130);
 /// The class of `SVGPolylineElement`.
-pub const SVG_POLYLINE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(130);
+pub const SVG_POLYLINE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(131);
 /// The class of `SVGPolygonElement`.
-pub const SVG_POLYGON_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(131);
+pub const SVG_POLYGON_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(132);
 /// The class of `SVGTextContentElement`.
-pub const SVG_TEXT_CONTENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(132);
+pub const SVG_TEXT_CONTENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(133);
 /// The class of `SVGTextPositioningElement`.
-pub const SVG_TEXT_POSITIONING_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(133);
+pub const SVG_TEXT_POSITIONING_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(134);
 /// The class of `SVGTextElement`.
-pub const SVG_TEXT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(134);
+pub const SVG_TEXT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(135);
 /// The class of `SVGTSpanElement`.
-pub const SVGT_SPAN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(135);
+pub const SVGT_SPAN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(136);
 /// The class of `SVGTextPathElement`.
-pub const SVG_TEXT_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(136);
+pub const SVG_TEXT_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(137);
 /// The class of `SVGImageElement`.
-pub const SVG_IMAGE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(137);
+pub const SVG_IMAGE_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(138);
 /// The class of `SVGForeignObjectElement`.
-pub const SVG_FOREIGN_OBJECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(138);
+pub const SVG_FOREIGN_OBJECT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(139);
 /// The class of `SVGMarkerElement`.
-pub const SVG_MARKER_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(139);
+pub const SVG_MARKER_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(140);
 /// The class of `SVGGradientElement`.
-pub const SVG_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(140);
+pub const SVG_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(141);
 /// The class of `SVGLinearGradientElement`.
-pub const SVG_LINEAR_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(141);
+pub const SVG_LINEAR_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(142);
 /// The class of `SVGRadialGradientElement`.
-pub const SVG_RADIAL_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(142);
+pub const SVG_RADIAL_GRADIENT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(143);
 /// The class of `SVGStopElement`.
-pub const SVG_STOP_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(143);
+pub const SVG_STOP_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(144);
 /// The class of `SVGPatternElement`.
-pub const SVG_PATTERN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(144);
+pub const SVG_PATTERN_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(145);
 /// The class of `SVGClipPathElement`.
-pub const SVG_CLIP_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(145);
+pub const SVG_CLIP_PATH_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(146);
 /// The class of `SVGMaskElement`.
-pub const SVG_MASK_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(146);
+pub const SVG_MASK_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(147);
 /// The class of `SVGScriptElement`.
-pub const SVG_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(147);
+pub const SVG_SCRIPT_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(148);
 /// The class of `SVGAElement`.
-pub const SVGA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(148);
+pub const SVGA_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(149);
 /// The class of `SVGViewElement`.
-pub const SVG_VIEW_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(149);
+pub const SVG_VIEW_ELEMENT: swb_js::ClassId = swb_js::ClassId::from_index(150);
 /// The class of `TransitionEvent`.
-pub const TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(150);
+pub const TRANSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(151);
 /// The class of `DeviceMotionEvent`.
-pub const DEVICE_MOTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(151);
+pub const DEVICE_MOTION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(152);
 /// The class of `DeviceOrientationEvent`.
-pub const DEVICE_ORIENTATION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(152);
+pub const DEVICE_ORIENTATION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(153);
 /// The class of `UIEvent`.
-pub const UI_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(153);
+pub const UI_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(154);
 /// The class of `FocusEvent`.
-pub const FOCUS_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(154);
+pub const FOCUS_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(155);
 /// The class of `InputEvent`.
-pub const INPUT_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(155);
+pub const INPUT_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(156);
 /// The class of `KeyboardEvent`.
-pub const KEYBOARD_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(156);
+pub const KEYBOARD_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(157);
 /// The class of `CompositionEvent`.
-pub const COMPOSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(157);
+pub const COMPOSITION_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(158);
 /// The class of `TextEvent`.
-pub const TEXT_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(158);
+pub const TEXT_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(159);
 /// The class of `DOMException`.
-pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(159);
+pub const DOM_EXCEPTION: swb_js::ClassId = swb_js::ClassId::from_index(160);
+/// The class of `MediaQueryList`.
+pub const MEDIA_QUERY_LIST: swb_js::ClassId = swb_js::ClassId::from_index(161);
+/// The class of `MediaQueryListEvent`.
+pub const MEDIA_QUERY_LIST_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(162);
 /// The class of `ScreenOrientation`.
-pub const SCREEN_ORIENTATION: swb_js::ClassId = swb_js::ClassId::from_index(160);
+pub const SCREEN_ORIENTATION: swb_js::ClassId = swb_js::ClassId::from_index(163);
 /// The class of `MouseEvent`.
-pub const MOUSE_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(161);
+pub const MOUSE_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(164);
 /// The class of `WheelEvent`.
-pub const WHEEL_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(162);
+pub const WHEEL_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(165);
 /// The class of `PointerEvent`.
-pub const POINTER_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(163);
+pub const POINTER_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(166);
 /// The class of `DragEvent`.
-pub const DRAG_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(164);
+pub const DRAG_EVENT: swb_js::ClassId = swb_js::ClassId::from_index(167);
 
 /// The hand-written behaviour of all interfaces of the set.
-pub trait Bindings: b::Host + screen::ScreenImpl + css_style_declaration::CSSStyleDeclarationImpl + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + dom_rect_read_only::DOMRectReadOnlyImpl + dom_rect::DOMRectImpl + dom_rect_list::DOMRectListImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + submit_event::SubmitEventImpl + hash_change_event::HashChangeEventImpl + message_event::MessageEventImpl + storage_event::StorageEventImpl + before_unload_event::BeforeUnloadEventImpl + svg_element::SVGElementImpl + svg_animated_string::SVGAnimatedStringImpl + svg_graphics_element::SVGGraphicsElementImpl + svg_geometry_element::SVGGeometryElementImpl + svgsvg_element::SVGSVGElementImpl + svgg_element::SVGGElementImpl + svg_defs_element::SVGDefsElementImpl + svg_desc_element::SVGDescElementImpl + svg_metadata_element::SVGMetadataElementImpl + svg_title_element::SVGTitleElementImpl + svg_symbol_element::SVGSymbolElementImpl + svg_use_element::SVGUseElementImpl + svg_switch_element::SVGSwitchElementImpl + svg_style_element::SVGStyleElementImpl + svg_path_element::SVGPathElementImpl + svg_rect_element::SVGRectElementImpl + svg_circle_element::SVGCircleElementImpl + svg_ellipse_element::SVGEllipseElementImpl + svg_line_element::SVGLineElementImpl + svg_polyline_element::SVGPolylineElementImpl + svg_polygon_element::SVGPolygonElementImpl + svg_text_content_element::SVGTextContentElementImpl + svg_text_positioning_element::SVGTextPositioningElementImpl + svg_text_element::SVGTextElementImpl + svgt_span_element::SVGTSpanElementImpl + svg_text_path_element::SVGTextPathElementImpl + svg_image_element::SVGImageElementImpl + svg_foreign_object_element::SVGForeignObjectElementImpl + svg_marker_element::SVGMarkerElementImpl + svg_gradient_element::SVGGradientElementImpl + svg_linear_gradient_element::SVGLinearGradientElementImpl + svg_radial_gradient_element::SVGRadialGradientElementImpl + svg_stop_element::SVGStopElementImpl + svg_pattern_element::SVGPatternElementImpl + svg_clip_path_element::SVGClipPathElementImpl + svg_mask_element::SVGMaskElementImpl + svg_script_element::SVGScriptElementImpl + svga_element::SVGAElementImpl + svg_view_element::SVGViewElementImpl + transition_event::TransitionEventImpl + device_motion_event::DeviceMotionEventImpl + device_orientation_event::DeviceOrientationEventImpl + ui_event::UIEventImpl + focus_event::FocusEventImpl + input_event::InputEventImpl + keyboard_event::KeyboardEventImpl + composition_event::CompositionEventImpl + text_event::TextEventImpl + dom_exception::DOMExceptionImpl + screen_orientation::ScreenOrientationImpl + mouse_event::MouseEventImpl + wheel_event::WheelEventImpl + pointer_event::PointerEventImpl + drag_event::DragEventImpl {}
+pub trait Bindings: b::Host + screen::ScreenImpl + css_style_declaration::CSSStyleDeclarationImpl + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + dom_rect_read_only::DOMRectReadOnlyImpl + dom_rect::DOMRectImpl + dom_rect_list::DOMRectListImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + submit_event::SubmitEventImpl + hash_change_event::HashChangeEventImpl + message_event::MessageEventImpl + storage_event::StorageEventImpl + before_unload_event::BeforeUnloadEventImpl + svg_element::SVGElementImpl + svg_animated_string::SVGAnimatedStringImpl + svg_graphics_element::SVGGraphicsElementImpl + svg_geometry_element::SVGGeometryElementImpl + svgsvg_element::SVGSVGElementImpl + svg_rect::SVGRectImpl + svgg_element::SVGGElementImpl + svg_defs_element::SVGDefsElementImpl + svg_desc_element::SVGDescElementImpl + svg_metadata_element::SVGMetadataElementImpl + svg_title_element::SVGTitleElementImpl + svg_symbol_element::SVGSymbolElementImpl + svg_use_element::SVGUseElementImpl + svg_switch_element::SVGSwitchElementImpl + svg_style_element::SVGStyleElementImpl + svg_path_element::SVGPathElementImpl + svg_rect_element::SVGRectElementImpl + svg_circle_element::SVGCircleElementImpl + svg_ellipse_element::SVGEllipseElementImpl + svg_line_element::SVGLineElementImpl + svg_polyline_element::SVGPolylineElementImpl + svg_polygon_element::SVGPolygonElementImpl + svg_text_content_element::SVGTextContentElementImpl + svg_text_positioning_element::SVGTextPositioningElementImpl + svg_text_element::SVGTextElementImpl + svgt_span_element::SVGTSpanElementImpl + svg_text_path_element::SVGTextPathElementImpl + svg_image_element::SVGImageElementImpl + svg_foreign_object_element::SVGForeignObjectElementImpl + svg_marker_element::SVGMarkerElementImpl + svg_gradient_element::SVGGradientElementImpl + svg_linear_gradient_element::SVGLinearGradientElementImpl + svg_radial_gradient_element::SVGRadialGradientElementImpl + svg_stop_element::SVGStopElementImpl + svg_pattern_element::SVGPatternElementImpl + svg_clip_path_element::SVGClipPathElementImpl + svg_mask_element::SVGMaskElementImpl + svg_script_element::SVGScriptElementImpl + svga_element::SVGAElementImpl + svg_view_element::SVGViewElementImpl + transition_event::TransitionEventImpl + device_motion_event::DeviceMotionEventImpl + device_orientation_event::DeviceOrientationEventImpl + ui_event::UIEventImpl + focus_event::FocusEventImpl + input_event::InputEventImpl + keyboard_event::KeyboardEventImpl + composition_event::CompositionEventImpl + text_event::TextEventImpl + dom_exception::DOMExceptionImpl + media_query_list::MediaQueryListImpl + media_query_list_event::MediaQueryListEventImpl + screen_orientation::ScreenOrientationImpl + mouse_event::MouseEventImpl + wheel_event::WheelEventImpl + pointer_event::PointerEventImpl + drag_event::DragEventImpl {}
 
-impl<T: b::Host + screen::ScreenImpl + css_style_declaration::CSSStyleDeclarationImpl + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + dom_rect_read_only::DOMRectReadOnlyImpl + dom_rect::DOMRectImpl + dom_rect_list::DOMRectListImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + submit_event::SubmitEventImpl + hash_change_event::HashChangeEventImpl + message_event::MessageEventImpl + storage_event::StorageEventImpl + before_unload_event::BeforeUnloadEventImpl + svg_element::SVGElementImpl + svg_animated_string::SVGAnimatedStringImpl + svg_graphics_element::SVGGraphicsElementImpl + svg_geometry_element::SVGGeometryElementImpl + svgsvg_element::SVGSVGElementImpl + svgg_element::SVGGElementImpl + svg_defs_element::SVGDefsElementImpl + svg_desc_element::SVGDescElementImpl + svg_metadata_element::SVGMetadataElementImpl + svg_title_element::SVGTitleElementImpl + svg_symbol_element::SVGSymbolElementImpl + svg_use_element::SVGUseElementImpl + svg_switch_element::SVGSwitchElementImpl + svg_style_element::SVGStyleElementImpl + svg_path_element::SVGPathElementImpl + svg_rect_element::SVGRectElementImpl + svg_circle_element::SVGCircleElementImpl + svg_ellipse_element::SVGEllipseElementImpl + svg_line_element::SVGLineElementImpl + svg_polyline_element::SVGPolylineElementImpl + svg_polygon_element::SVGPolygonElementImpl + svg_text_content_element::SVGTextContentElementImpl + svg_text_positioning_element::SVGTextPositioningElementImpl + svg_text_element::SVGTextElementImpl + svgt_span_element::SVGTSpanElementImpl + svg_text_path_element::SVGTextPathElementImpl + svg_image_element::SVGImageElementImpl + svg_foreign_object_element::SVGForeignObjectElementImpl + svg_marker_element::SVGMarkerElementImpl + svg_gradient_element::SVGGradientElementImpl + svg_linear_gradient_element::SVGLinearGradientElementImpl + svg_radial_gradient_element::SVGRadialGradientElementImpl + svg_stop_element::SVGStopElementImpl + svg_pattern_element::SVGPatternElementImpl + svg_clip_path_element::SVGClipPathElementImpl + svg_mask_element::SVGMaskElementImpl + svg_script_element::SVGScriptElementImpl + svga_element::SVGAElementImpl + svg_view_element::SVGViewElementImpl + transition_event::TransitionEventImpl + device_motion_event::DeviceMotionEventImpl + device_orientation_event::DeviceOrientationEventImpl + ui_event::UIEventImpl + focus_event::FocusEventImpl + input_event::InputEventImpl + keyboard_event::KeyboardEventImpl + composition_event::CompositionEventImpl + text_event::TextEventImpl + dom_exception::DOMExceptionImpl + screen_orientation::ScreenOrientationImpl + mouse_event::MouseEventImpl + wheel_event::WheelEventImpl + pointer_event::PointerEventImpl + drag_event::DragEventImpl> Bindings for T {}
+impl<T: b::Host + screen::ScreenImpl + css_style_declaration::CSSStyleDeclarationImpl + dom_parser::DOMParserImpl + event::EventImpl + custom_event::CustomEventImpl + event_target::EventTargetImpl + node::NodeImpl + document::DocumentImpl + dom_implementation::DOMImplementationImpl + document_type::DocumentTypeImpl + document_fragment::DocumentFragmentImpl + node_list::NodeListImpl + html_collection::HTMLCollectionImpl + element::ElementImpl + named_node_map::NamedNodeMapImpl + attr::AttrImpl + dom_token_list::DOMTokenListImpl + character_data::CharacterDataImpl + text::TextImpl + processing_instruction::ProcessingInstructionImpl + comment::CommentImpl + dom_rect_read_only::DOMRectReadOnlyImpl + dom_rect::DOMRectImpl + dom_rect_list::DOMRectListImpl + performance::PerformanceImpl + window::WindowImpl + html_document::HTMLDocumentImpl + html_element::HTMLElementImpl + html_unknown_element::HTMLUnknownElementImpl + dom_string_map::DOMStringMapImpl + html_html_element::HTMLHtmlElementImpl + html_head_element::HTMLHeadElementImpl + html_title_element::HTMLTitleElementImpl + html_base_element::HTMLBaseElementImpl + html_link_element::HTMLLinkElementImpl + html_meta_element::HTMLMetaElementImpl + html_style_element::HTMLStyleElementImpl + html_body_element::HTMLBodyElementImpl + html_heading_element::HTMLHeadingElementImpl + html_paragraph_element::HTMLParagraphElementImpl + htmlhr_element::HTMLHRElementImpl + html_pre_element::HTMLPreElementImpl + html_quote_element::HTMLQuoteElementImpl + htmlo_list_element::HTMLOListElementImpl + htmlu_list_element::HTMLUListElementImpl + html_menu_element::HTMLMenuElementImpl + htmlli_element::HTMLLIElementImpl + htmld_list_element::HTMLDListElementImpl + html_div_element::HTMLDivElementImpl + html_anchor_element::HTMLAnchorElementImpl + html_data_element::HTMLDataElementImpl + html_time_element::HTMLTimeElementImpl + html_span_element::HTMLSpanElementImpl + htmlbr_element::HTMLBRElementImpl + html_mod_element::HTMLModElementImpl + html_picture_element::HTMLPictureElementImpl + html_source_element::HTMLSourceElementImpl + html_image_element::HTMLImageElementImpl + htmli_frame_element::HTMLIFrameElementImpl + html_embed_element::HTMLEmbedElementImpl + html_object_element::HTMLObjectElementImpl + html_media_element::HTMLMediaElementImpl + html_video_element::HTMLVideoElementImpl + html_audio_element::HTMLAudioElementImpl + html_track_element::HTMLTrackElementImpl + html_map_element::HTMLMapElementImpl + html_area_element::HTMLAreaElementImpl + html_table_element::HTMLTableElementImpl + html_table_caption_element::HTMLTableCaptionElementImpl + html_table_col_element::HTMLTableColElementImpl + html_table_section_element::HTMLTableSectionElementImpl + html_table_row_element::HTMLTableRowElementImpl + html_table_cell_element::HTMLTableCellElementImpl + html_form_element::HTMLFormElementImpl + html_label_element::HTMLLabelElementImpl + html_input_element::HTMLInputElementImpl + html_button_element::HTMLButtonElementImpl + html_select_element::HTMLSelectElementImpl + html_data_list_element::HTMLDataListElementImpl + html_opt_group_element::HTMLOptGroupElementImpl + html_option_element::HTMLOptionElementImpl + html_text_area_element::HTMLTextAreaElementImpl + html_output_element::HTMLOutputElementImpl + html_progress_element::HTMLProgressElementImpl + html_meter_element::HTMLMeterElementImpl + html_field_set_element::HTMLFieldSetElementImpl + html_legend_element::HTMLLegendElementImpl + html_selected_content_element::HTMLSelectedContentElementImpl + html_details_element::HTMLDetailsElementImpl + html_dialog_element::HTMLDialogElementImpl + html_form_controls_collection::HTMLFormControlsCollectionImpl + radio_node_list::RadioNodeListImpl + html_options_collection::HTMLOptionsCollectionImpl + html_slot_element::HTMLSlotElementImpl + html_canvas_element::HTMLCanvasElementImpl + html_marquee_element::HTMLMarqueeElementImpl + html_frame_set_element::HTMLFrameSetElementImpl + html_frame_element::HTMLFrameElementImpl + html_directory_element::HTMLDirectoryElementImpl + html_font_element::HTMLFontElementImpl + html_param_element::HTMLParamElementImpl + html_template_element::HTMLTemplateElementImpl + html_script_element::HTMLScriptElementImpl + error_event::ErrorEventImpl + promise_rejection_event::PromiseRejectionEventImpl + page_transition_event::PageTransitionEventImpl + submit_event::SubmitEventImpl + hash_change_event::HashChangeEventImpl + message_event::MessageEventImpl + storage_event::StorageEventImpl + before_unload_event::BeforeUnloadEventImpl + svg_element::SVGElementImpl + svg_animated_string::SVGAnimatedStringImpl + svg_graphics_element::SVGGraphicsElementImpl + svg_geometry_element::SVGGeometryElementImpl + svgsvg_element::SVGSVGElementImpl + svg_rect::SVGRectImpl + svgg_element::SVGGElementImpl + svg_defs_element::SVGDefsElementImpl + svg_desc_element::SVGDescElementImpl + svg_metadata_element::SVGMetadataElementImpl + svg_title_element::SVGTitleElementImpl + svg_symbol_element::SVGSymbolElementImpl + svg_use_element::SVGUseElementImpl + svg_switch_element::SVGSwitchElementImpl + svg_style_element::SVGStyleElementImpl + svg_path_element::SVGPathElementImpl + svg_rect_element::SVGRectElementImpl + svg_circle_element::SVGCircleElementImpl + svg_ellipse_element::SVGEllipseElementImpl + svg_line_element::SVGLineElementImpl + svg_polyline_element::SVGPolylineElementImpl + svg_polygon_element::SVGPolygonElementImpl + svg_text_content_element::SVGTextContentElementImpl + svg_text_positioning_element::SVGTextPositioningElementImpl + svg_text_element::SVGTextElementImpl + svgt_span_element::SVGTSpanElementImpl + svg_text_path_element::SVGTextPathElementImpl + svg_image_element::SVGImageElementImpl + svg_foreign_object_element::SVGForeignObjectElementImpl + svg_marker_element::SVGMarkerElementImpl + svg_gradient_element::SVGGradientElementImpl + svg_linear_gradient_element::SVGLinearGradientElementImpl + svg_radial_gradient_element::SVGRadialGradientElementImpl + svg_stop_element::SVGStopElementImpl + svg_pattern_element::SVGPatternElementImpl + svg_clip_path_element::SVGClipPathElementImpl + svg_mask_element::SVGMaskElementImpl + svg_script_element::SVGScriptElementImpl + svga_element::SVGAElementImpl + svg_view_element::SVGViewElementImpl + transition_event::TransitionEventImpl + device_motion_event::DeviceMotionEventImpl + device_orientation_event::DeviceOrientationEventImpl + ui_event::UIEventImpl + focus_event::FocusEventImpl + input_event::InputEventImpl + keyboard_event::KeyboardEventImpl + composition_event::CompositionEventImpl + text_event::TextEventImpl + dom_exception::DOMExceptionImpl + media_query_list::MediaQueryListImpl + media_query_list_event::MediaQueryListEventImpl + screen_orientation::ScreenOrientationImpl + mouse_event::MouseEventImpl + wheel_event::WheelEventImpl + pointer_event::PointerEventImpl + drag_event::DragEventImpl> Bindings for T {}
 
 /// Registers the classes of the set in a new runtime, before any other
 /// class (the glue names them by number).
@@ -631,6 +640,7 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGGraphicsElement").parent(SVG_ELEMENT), SVG_GRAPHICS_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGGeometryElement").parent(SVG_GRAPHICS_ELEMENT), SVG_GEOMETRY_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGSVGElement").parent(SVG_GRAPHICS_ELEMENT), SVGSVG_ELEMENT)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("SVGRect"), SVG_RECT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGGElement").parent(SVG_GRAPHICS_ELEMENT), SVGG_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGDefsElement").parent(SVG_GRAPHICS_ELEMENT), SVG_DEFS_ELEMENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("SVGDescElement").parent(SVG_ELEMENT), SVG_DESC_ELEMENT)?;
@@ -675,6 +685,8 @@ pub fn define_classes<H: Bindings>(rt: &mut swb_js::Runtime) -> swb_js::VmResult
     b::glue::define_class(rt, swb_js::ClassSpec::new("CompositionEvent").parent(UI_EVENT).constructor(composition_event::construct::<H>, 1), COMPOSITION_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("TextEvent").parent(UI_EVENT), TEXT_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("DOMException").constructor(dom_exception::construct::<H>, 0), DOM_EXCEPTION)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("MediaQueryList").parent(EVENT_TARGET), MEDIA_QUERY_LIST)?;
+    b::glue::define_class(rt, swb_js::ClassSpec::new("MediaQueryListEvent").parent(EVENT).constructor(media_query_list_event::construct::<H>, 1), MEDIA_QUERY_LIST_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("ScreenOrientation").parent(EVENT_TARGET), SCREEN_ORIENTATION)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("MouseEvent").parent(UI_EVENT).constructor(mouse_event::construct::<H>, 1), MOUSE_EVENT)?;
     b::glue::define_class(rt, swb_js::ClassSpec::new("WheelEvent").parent(MOUSE_EVENT).constructor(wheel_event::construct::<H>, 1), WHEEL_EVENT)?;
@@ -919,6 +931,8 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "SVGGeometryElement", interface)?;
     let interface = svgsvg_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "SVGSVGElement", interface)?;
+    let interface = svg_rect::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "SVGRect", interface)?;
     let interface = svgg_element::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "SVGGElement", interface)?;
     let interface = svg_defs_element::define::<H>(rt, realm)?;
@@ -1007,6 +1021,10 @@ pub fn create_interfaces<H: Bindings>(rt: &mut swb_js::Runtime, realm: u32) -> s
     b::glue::expose(rt, realm, "TextEvent", interface)?;
     let interface = dom_exception::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "DOMException", interface)?;
+    let interface = media_query_list::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "MediaQueryList", interface)?;
+    let interface = media_query_list_event::define::<H>(rt, realm)?;
+    b::glue::expose(rt, realm, "MediaQueryListEvent", interface)?;
     let interface = screen_orientation::define::<H>(rt, realm)?;
     b::glue::expose(rt, realm, "ScreenOrientation", interface)?;
     let interface = mouse_event::define::<H>(rt, realm)?;

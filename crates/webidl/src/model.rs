@@ -59,6 +59,7 @@ const OPERATION_ATTRS: &[&str] = &[
     "NewObject",
     "LegacyUnforgeable",
     "SwbCustom",
+    "SwbRejectsOnError",
     "Exposed",
     "SecureContext",
 ];

@@ -11,10 +11,14 @@
 //! - `SVGAnimatedString`: `baseVal` and `animVal` read the attribute; a
 //!   write to `baseVal` sets it;
 //! - `SVGSVGElement.getElementById`, the defaults of `SVGStyleElement.type`
-//!   and `media`, `SVGAElement.relList`.
+//!   and `media`, `SVGAElement.relList`;
+//! - `geometry.rs`: `getBBox`, `getTotalLength`, `createSVGRect` and
+//!   `SVGRect` (feature 7b2).
 //!
 //! `crates/web/idl/svg.idl` says which members of SVG 2 swb leaves out
 //! (animated lengths and the other value types, geometry, layout).
+
+mod geometry;
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -181,6 +185,10 @@ impl g::svg_animated_string::SVGAnimatedStringImpl for WebState {
 }
 
 impl g::svgsvg_element::SVGSVGElementImpl for WebState {
+    fn create_svg_rect(cx: &mut Cx<'_>, _this: NodeId) -> b::Result<Gc<Object>> {
+        geometry::create_svg_rect(cx)
+    }
+
     /// <https://www.w3.org/TR/SVG2/struct.html#__svg__SVGSVGElement__getElementById>:
     /// the first descendant element with the id (an empty id finds none).
     fn get_element_by_id(
