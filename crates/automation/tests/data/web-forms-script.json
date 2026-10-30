@@ -1,0 +1,202 @@
+{
+ "dirty-checked": [
+  "true true false false true false true false false",
+  "true false false true",
+  "false true false",
+  "true true true",
+  "true true false false",
+  "true true true false"
+ ],
+ "dirty-radio-groups": [
+  "\"b\" \"c\" \"c\" \"\"",
+  "true true false true true",
+  "true true false true true false",
+  "true true false true false true",
+  "false true false true",
+  "false true true false",
+  "\"2\" 3 \"1\" true false \"1\" \"on\""
+ ],
+ "dirty-select": [
+  "1 0 2 2 2",
+  "1 0 true 0 true 2 true true",
+  "1 0 1 1",
+  "\"0101\" \"1001\" \"1011\" \"1000\" \"1000\"",
+  "-1 -1 0 0",
+  "\"2\" \"2\" false 2 \"w\" true false",
+  "\"2\" \"1\" 0 \"\" -1 \"x\" 0",
+  "\"3\" 2 1 -1 \"\" 0 \"1\"",
+  "1 2 false 1 0",
+  "2 0 0",
+  "2 3 \"1\""
+ ],
+ "dirty-user": [
+  "\"ab\" \"ab\" \"z\" \"ab\"",
+  "false false false false",
+  "2 0 0 3",
+  "\"xy\" \"xy\" \"q\"",
+  "false true false true",
+  "\"q\" true 3 \"q\" false true",
+  "\"w\" \"v\" false"
+ ],
+ "dirty-value-text": [
+  "\"x\" \"b\" \"c\" \"d\" \"c\" \"e\" \"c\" \"\"",
+  "\"\" \"q\"",
+  "\"x\" \"g\" \"h\" \"k\"",
+  "\"\" \"12\" \"undefined\" \"o\"",
+  "\"\" \"a\" \"b\" \"b\" \"b\" \"b\"",
+  "\"abc\" 3"
+ ],
+ "dirty-value-textarea": [
+  "\"ab\" \"ab\" \"cd\" \"cd\" \"ef\" \"gh\" \"ef\" \"ij\"",
+  "\"ab\" \"ab+\" \"ab+\" \"y\" \"z+\"",
+  "\"ab\" \"ab\" 2 \"\\nx\\ny\" 4",
+  "\"a\" \"b\" \"b\""
+ ],
+ "events-cancel-radio": [
+  "click@r2 r=01 dp=false|in-handler r=falsetrue",
+  "10"
+ ],
+ "events-checkbox-radio": [
+  "click@c c=true r=001|input@c c=true Event truefalsetrue r=001|change@c c=true Event truefalsefalse r=001|click@r1 c=true r=100|input@r1 c=true Event truefalsetrue r=100|change@r1 c=true Event truefalsefalse r=100|click@r1 c=true r=100|click@r2 c=true r=010|input@r2 c=true Event truefalsetrue r=010|change@r2 c=true Event truefalsefalse r=010|click@l c=undefined r=010|click@c c=false r=010|input@c c=false Event truefalsetrue r=010|change@c c=false Event truefalsefalse r=010|click@r3 c=true r=001|input@r3 c=true Event truefalsetrue r=001|change@r3 c=true Event truefalsefalse r=001|click@r2 c=true r=010|input@r2 c=true Event truefalsetrue r=010|change@r2 c=true Event truefalsefalse r=010",
+  false,
+  "010"
+ ],
+ "events-edit-misc": [
+  "beforeinput@t v=abc insertText d|input@t v=abcd insertText d|beforeinput@t v=abcd insertText z|input@t v=z insertText z|change@t v=z|blur@t<n v=z|beforeinput@n v=5 insertText 1|input@n v=51 insertText 1|change@n v=51|blur@n<ro v=51|blur@ro<p v=r|beforeinput@p v=pw insertText s|input@p v=pws insertText s|change@p v=pws|blur@p<t v=pws",
+  "z",
+  "51"
+ ],
+ "events-focus-order": [
+  "focus@a|focusin@a|input@a|change@a|blur@a<b|focusout@a<b|focus@b<a|focusin@b<a|blur@b<c|focusout@b<c|focus@c<b|focusin@c<b|blur@c<d|focusout@c<d|focus@d<c|focusin@d<c|blur@d|focusout@d|wblur|wfocus|focus@d|focusin@d|blur@d|focusout@d",
+  ""
+ ],
+ "events-focus-script": [
+  "focus@a|focusin@a / blur@a<b|focusout@a<b|focus@b<a|focusin@b<a /  / blur@b|focusout@b /  /  / focus@a|focusin@a|blur@a|focusout@a / BODY",
+  "focus@b|focusin@b/b"
+ ],
+ "events-script-click": [
+  "click@c c=true false|input@c c=true true|change@c c=true true|click@r1 c=true false|input@r1 c=true true|change@r1 c=true true|click@r1 c=true false|click@t c=false false|click@s c=undefined false",
+  "click@c c=true false|input@c c=true true|change@c c=true true/true/click@c c=false false/true",
+  "click@c c=false false/false",
+  "input@c c=false false|change@c c=false false/false",
+  ""
+ ],
+ "events-script-edit-then-user": [
+  "input@t v=scriptu|change@t v=abc|input@t v=abcx|change@t v=abcx",
+  "abcx"
+ ],
+ "events-select-keyboard": [
+  "focus@s s=0|focusin@s s=0|keydown@s ArrowDown|input@s s=2|change@s s=2|keydown@s ArrowDown|input@s s=3|change@s s=3|keydown@s ArrowUp|input@s s=2|change@s s=2|keydown@s End|input@s s=3|change@s s=3|keydown@s Home|input@s s=0|change@s s=0|keydown@s Tab|blur@s<m s=0|focusout@s<m s=0|focus@m<s s=0|focusin@m<s s=0|keydown@m ArrowDown|input@m s=0|change@m s=0|keydown@m ArrowDown|input@m s=0|change@m s=0",
+  0,
+  1
+ ],
+ "events-type": [
+  "focus@t |focusin@t |keydown@t a|keypress@t a|beforeinput@t insertText a|input@t v=a insertText InputEvent truefalsetrue|keyup@t a|keydown@t b|keypress@t b|beforeinput@t insertText b|input@t v=ab insertText InputEvent truefalsetrue|keyup@t b|keydown@t Backspace|beforeinput@t deleteContentBackward null|input@t v=a deleteContentBackward InputEvent truefalsetrue|keyup@t Backspace|change@t v=a Event truefalse|blur@t<ta |focusout@t<ta |focus@ta<t |focusin@ta<t |keydown@ta x|keypress@ta x|beforeinput@ta insertText x|input@ta v=x insertText InputEvent truefalsetrue|keyup@ta x|keydown@ta Enter|keypress@ta Enter|beforeinput@ta insertLineBreak null|input@ta v=x\n insertLineBreak InputEvent truefalsetrue|keyup@ta Enter|keydown@ta Tab|change@ta v=x\n Event truefalse|blur@ta |focusout@ta |keyup@BODY Tab|focus@t |focusin@t |keydown@t ArrowLeft|keyup@t ArrowLeft|keydown@t z|keypress@t z|beforeinput@t insertText z|input@t v=za insertText InputEvent truefalsetrue|keyup@t z|change@t v=za Event truefalse|blur@t<o |focusout@t<o |focus@o<t |focusin@o<t ",
+  "za",
+  "x\n"
+ ],
+ "form-methods": [
+  "\"onsubmit submit|submit SubmitEvent null true true\" \"onsubmit submit|submit SubmitEvent b true true\" \"onreset\"",
+  "\"i:TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"j:ok\" \"k:TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"bt:TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"br:TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not a submit button.\" \"ok\" \"ok\" \"TypeError: Failed to execute 'requestSubmit' on 'HTMLFormElement': parameter 1 is not of type 'HTMLElement'.\"",
+  "\"DOMException NotFoundError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not owned by this form element.\"",
+  "DOMException NotFoundError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not owned by this form element.",
+  "\"invalid@i falsetrue\" \"submit\"",
+  "\"reset truetrue b\" \"b\"",
+  "\"\" \"\" \"reset\" \"\"",
+  "\"TypeError: f.submit is not a function\" \"object\" true",
+  "\"object\" \"HTMLInputElement\" [object HTMLInputElement] \"object\" undefined",
+  "\"a\" true \"t\" 1 \"o\" true false",
+  "\"o\" \"o\" \"o\" \"v\" \"o\" \"v\" \"v\" \"dv\"",
+  "\"ok\""
+ ],
+ "form-owner-misc": [
+  "true null null null \"\"",
+  "false true true true true true",
+  "true",
+  "true true"
+ ],
+ "form-submit-method": [
+  ""
+ ],
+ "insert-move-remove": [
+  "\"a,b,c\" \"x,a,b,c\" true 4 \"a,b,c\" null",
+  "\"dirty\" null \"dirty\" true \"a\" \"\" \"dirty\"",
+  "true false true false true false",
+  "null null true \"a\" null",
+  "true \"\" true true",
+  "\"a,s,b,fs,t,o,ob,h\" 8 \"t,o,ob\" \"a,s,b,fs,t,o,ob,h\"",
+  "TypeError: Cannot read properties of undefined (reading 'name')",
+  "true \"a,s\" \"\" true 9 \"q\" \"a,s,a\"",
+  "\"a/false\" \"t/undefined\" \"2/undefined\" \"on/true\" -1 1",
+  "\"b\" true \"u\" 0 \"b\"",
+  "\"a\" \"b\"",
+  "true true true"
+ ],
+ "sel-defaults": [
+  "\"0,0,forward\"",
+  "\"0,0,forward\" \"3,3,forward\" \"1,2,forward\" \"3,3,forward\" \"0,0,forward\"",
+  "\"0,0,forward\" \"0,0,forward\"",
+  "\"0,0,forward\" \"0,0,forward\"",
+  "\"3,3,forward\" \"3,3,forward\"",
+  "\"0,0,forward\" \"3,3,forward\" \"3,3,forward\"",
+  "\"1,2,forward\""
+ ],
+ "sel-events": [
+  "focus@t / selectionchange@t|t-sc true|doc-sc Event truefalse|select@t|t-select truefalse Event /  / selectionchange@t|t-sc true|doc-sc Event truefalse|select@t|t-select truefalse Event /  / selectionchange@t|t-sc true|doc-sc Event truefalse|select@t|t-select truefalse Event / selectionchange@t|t-sc true|doc-sc Event truefalse / selectionchange@t|t-sc true|doc-sc Event truefalse",
+  "focus@ta<t|selectionchange@ta|doc-sc Event truefalse / selectionchange@ta|doc-sc Event truefalse|select@ta / selectionchange@ta|doc-sc Event truefalse|select@ta",
+  "focus@o<ta|selectionchange@o|doc-sc Event truefalse / selectionchange@o|doc-sc Event truefalse|select@o /  / 0,3,forward"
+ ],
+ "sel-range-text": [
+  "undefined \"aXYdef\" \"1,3,forward\" \"ZXYdef\" \"0,3,forward\"",
+  "\"select:aXYZdef:1,4,forward\" \"start:aXYZdef:1,1,forward\" \"end:aXYZdef:4,4,forward\" \"preserve:aXYZdef:1,5,forward\"",
+  "\"select:abXef:2,3,forward\" \"start:abXef:2,2,forward\" \"end:abXef:3,3,forward\" \"preserve:abXef:1,4,forward\"",
+  "\"select:abcXYdef:3,5,forward\" \"start:abcXYdef:3,3,forward\" \"end:abcXYdef:5,5,forward\" \"preserve:abcXYdef:3,3,forward\"",
+  "\"DOMException IndexSizeError: Failed to execute 'setRangeText' on 'HTMLInputElement': The provided start value (4) is larger than the provided end value (2).\" \"undefined\" \"abx\" \"0,0,forward\" \"TypeError: Failed to execute 'setRangeText' on 'HTMLInputElement': The provided value 'bogus' is not a valid enum value of type SelectionMode.\" \"undefined\" \"axx\"",
+  "\"123456cdef\" \"0,0,forward\"",
+  "\"Xzz\" \"yyy\"",
+  "\"linebreakbc\"",
+  "\"a\\nc\" \"2,2,forward\"",
+  "\"aXb\" \"1,2,forward\"",
+  "\"DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.\""
+ ],
+ "sel-set-range": [
+  "undefined \"1,3,forward\" \"2,2,forward\" \"2,6,forward\" \"0,2,backward\" \"0,2,forward\" \"0,2,forward\" \"0,2,forward\" \"0,2,forward\" \"3,3,backward\" \"1,2,forward\"",
+  "\"2,2,forward\" \"2,4,forward\" \"5,5,forward\" \"1,1,forward\" \"1,1,backward\" \"1,1,forward\" \"0,1,forward\" \"0,6,forward\" \"6,6,forward\" \"0,0,forward\"",
+  "\"TypeError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': 2 arguments required, but only 0 present.\" \"TypeError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': 2 arguments required, but only 1 present.\" \"undefined\" \"1,2,forward\" \"undefined\" \"undefined\" \"undefined\" \"1,2,forward\"",
+  "\"0,6,forward\" \"0,6,forward\" \"0,0,forward\"",
+  "4 \"1,3,forward\" \"2,2,forward\" \"0,2,forward\" \"0,4,forward\" \"3,3,forward\"",
+  "\"1,4,forward\" \"3,3,forward\" \"0,3,forward\"",
+  "\"xyz\" \"1,2,forward\""
+ ],
+ "sel-type-text": [
+  "6,6,forward|8,8,forward|7,7,forward|2,2,forward aQdefX|0,0,forward \"\""
+ ],
+ "sel-types": [
+  "\"text:0,0,forward\" \"search:0,0,forward\" \"tel:0,0,forward\" \"url:0,0,forward\" \"password:0,0,forward\" \"email:null,null,null\" \"number:null,null,null\" \"date:null,null,null\" \"color:null,null,null\" \"range:null,null,null\" \"checkbox:null,null,null\" \"radio:null,null,null\" \"hidden:null,null,null\" \"button:null,null,null\" \"file:null,null,null\" \"submit:null,null,null\"",
+  "\"text:ok:ok:ok:ok\" \"search:ok:ok:ok:ok\" \"tel:ok:ok:ok:ok\" \"url:ok:ok:ok:ok\" \"password:ok:ok:ok:ok\" \"email:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('email') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('email') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('email') does not support selection.\" \"number:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('number') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('number') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('number') does not support selection.\" \"date:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('date') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('date') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('date') does not support selection.\" \"color:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('color') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('color') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('color') does not support selection.\" \"range:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('range') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('range') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('range') does not support selection.\" \"checkbox:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('checkbox') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('checkbox') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('checkbox') does not support selection.\" \"radio:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('radio') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('radio') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('radio') does not support selection.\" \"hidden:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('hidden') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('hidden') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('hidden') does not support selection.\" \"button:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('button') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('button') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('button') does not support selection.\" \"file:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('file') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('file') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('file') does not support selection.\" \"submit:DOMException InvalidStateError: Failed to execute 'setSelectionRange' on 'HTMLInputElement': The input element's type ('submit') does not support selection.:ok:DOMException InvalidStateError: Failed to set the 'selectionStart' property on 'HTMLInputElement': The input element's type ('submit') does not support selection.:DOMException InvalidStateError: Failed to execute 'setRangeText' on 'HTMLInputElement': The input element's type ('submit') does not support selection.\"",
+  "\"0,0,forward\" 3"
+ ],
+ "sel-user": [
+  "select@t 10,11,backward|selectionchange@t 10,11,backward|select@t 9,11,backward|selectionchange@t 9,11,backward|sel1 9,11,backward|select@t 0,11,forward|selectionchange@t 0,11,forward|sel2 0,11,forward|selectionchange@t 0,0,forward|sel3 0,0,forward|select@t 6,11,forward|selectionchange@t 6,11,forward|sel4 6,11,forward|selectionchange@ta 11,11,forward|sel5 11,11,forward|sel6 11,11,forward 6,11,forward|selectionchange@o 0,0,forward / 6,11,forward / 11,11,forward"
+ ],
+ "type-change": [
+  "\"x\" \"a\" \"x\" \"x\" \"x\" \"x\"",
+  "\"on\" \"v\" \"v\" \"v\" \"v\" \"w\" \"w\"",
+  "\"\" \"\" \"12\" \"\" \"\"",
+  "\"def\" \"def\" \"def\"",
+  "\"def\" \"def\" \"x\" \"x\"",
+  "\"\" \"abc\" \"DOMException InvalidStateError: Failed to set the 'value' property on 'HTMLInputElement': This input element accepts a filename, which may only be programmatically set to the empty string.\" \"\"",
+  "\"#000000\" \"#abcdef\" \"#abcdef\"",
+  "\"5\" \"10\" \"10\" \"4\"",
+  "\"\" \"2020-02-20\" \"\" \"\"",
+  "\"text\" \"checkbox\" \"text\" \"bogus\" \"text\"",
+  "\"\" \"text\" \"\" \"\" \"\" \"ab\""
+ ],
+ "type-toggle-layout": [
+  "\"pw\" \"typed\" \"typed\" \"pw\"",
+  "true false true true true",
+  "\"\" \"\" \"\" \"\"",
+  "\"abc\" \"xy\" \"xy\" \"xy\" \"text\"",
+  "\"abcdef\" \"search\""
+ ]
+}

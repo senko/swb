@@ -31,7 +31,7 @@ pub(super) fn has_placeholder_label_option(
 
 /// The display size of a select: its `size` attribute, or 4 with
 /// `multiple`, else 1.
-fn display_size(e: &ElementData) -> u32 {
+pub(super) fn display_size(e: &ElementData) -> u32 {
     e.attr("size")
         .and_then(parse_non_negative_u32)
         .filter(|&s| s > 0)
@@ -51,6 +51,7 @@ pub(super) fn select_options(
         .map(|node| OptionState {
             node,
             selected: doc.element(node).is_some_and(|e| e.has_attr("selected")),
+            dirty: false,
         })
         .collect();
     settle(doc, select, &mut options, &|n| disabled.contains(n));
@@ -88,19 +89,27 @@ pub(crate) fn settle(
 
 /// The options of a select for a select that is not in the document: the
 /// default selectedness with the selectedness that scripts wrote
-/// (`seeds`). An option is disabled if it or its `optgroup` parent has a
-/// `disabled` attribute.
+/// (`seed` gives the selectedness and the dirtiness flag). An option is
+/// disabled if it or its `optgroup` parent has a `disabled` attribute.
 pub(crate) fn detached_options(
     doc: &Document,
     select: NodeId,
-    seed: &dyn Fn(NodeId) -> Option<bool>,
+    seed: &dyn Fn(NodeId) -> Option<(bool, bool)>,
 ) -> Vec<OptionState> {
     let mut options: Vec<OptionState> = list_of_options(doc, select)
         .into_iter()
-        .map(|node| OptionState {
-            node,
-            selected: seed(node)
-                .unwrap_or_else(|| doc.element(node).is_some_and(|e| e.has_attr("selected"))),
+        .map(|node| {
+            let (selected, dirty) = seed(node).unwrap_or_else(|| {
+                (
+                    doc.element(node).is_some_and(|e| e.has_attr("selected")),
+                    false,
+                )
+            });
+            OptionState {
+                node,
+                selected,
+                dirty,
+            }
         })
         .collect();
     let disabled = |n: NodeId| {

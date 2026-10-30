@@ -411,6 +411,39 @@ impl swb_web::EngineHost for DocumentState {
         self.script_copy_control_state(from, to)
     }
 
+    fn control_selection(&mut self, node: NodeId) -> Option<swb_web::SelectionRange> {
+        self.script_selection(node)
+    }
+
+    fn set_control_selection(
+        &mut self,
+        node: NodeId,
+        start: u32,
+        end: u32,
+        backward: bool,
+    ) -> bool {
+        self.script_set_selection(node, start, end, backward)
+    }
+
+    fn select_control_text(&mut self, node: NodeId) -> bool {
+        self.script_select_text(node)
+    }
+
+    fn set_control_range_text(
+        &mut self,
+        node: NodeId,
+        replacement: &str,
+        start: u32,
+        end: u32,
+        mode: swb_web::RangeTextMode,
+    ) -> swb_web::ControlWrite {
+        self.script_set_range_text(node, replacement, start, end, mode)
+    }
+
+    fn input_type_changed(&mut self, node: NodeId, old_value: Option<String>) {
+        self.script_input_type_changed(node, old_value);
+    }
+
     fn control_checked(&mut self, node: NodeId) -> Option<bool> {
         self.script_control_checked(node)
     }
@@ -737,7 +770,7 @@ impl DocumentState {
         let dom = &self.dom;
         let seeds = &mut self.seeds;
         self.forms.rebuild(generation, |old| {
-            let mut forms = Forms::rebuild(old, dom);
+            let mut forms = Forms::rebuild(old, dom, seeds);
             forms.merge_seeds(old, dom, seeds);
             forms
         });

@@ -28,13 +28,19 @@
 // 6d; `innerText` and `outerText` since 7b2); it lacks `contentEditable`,
 // `popover`, `attachInternals` and the popover members. No element
 // interface has the obsolete members, `validity` and the other constraint
-// validation members, `labels`, `files`, `valueAsNumber`, `valueAsDate`,
-// the selection members of input and textarea, `form.submit()`,
-// `reset()`, `requestSubmit()`, `iframe.contentWindow` and
+// validation members (`willValidate`, `validationMessage`,
+// `checkValidity()`, `reportValidity()`, `setCustomValidity()`,
+// `ValidityState`), `labels`, `files`, `valueAsNumber`, `valueAsDate`,
+// `stepUp()`, `stepDown()`, `showPicker()`, `iframe.contentWindow` and
 // `contentDocument`, `canvas.getContext`, the media playback members,
 // `dialog.show*`, `meter` and `progress` values, `sheet` and the
-// factory function `Audio`. `HTMLImageElement` and `HTMLOptionElement`
-// have their `LegacyFactoryFunction` (`Image`, `Option`; feature 6c2). The
+// factory function `Audio`. The form methods `submit()`, `reset()` and
+// `requestSubmit()` came with feature 6d; the selection members of
+// `input` and `textarea` (`select()`, `selectionStart`, `selectionEnd`,
+// `selectionDirection`, `setRangeText()`, `setSelectionRange()` and the
+// enumeration SelectionMode) with feature 9b. `HTMLImageElement` and
+// `HTMLOptionElement` have their `LegacyFactoryFunction` (`Image`,
+// `Option`; feature 6c2). The
 // attributes whose prose says "limited to only known values" have swb's
 // `[SwbKeywords]` (see the generator). Four members are the standard's
 // `ReflectSetter` with swb's getter: `tabIndex`, `action`, and `width` and
@@ -625,6 +631,8 @@ interface HTMLLabelElement : HTMLElement {
   readonly attribute HTMLElement? control;
 };
 
+enum SelectionMode { "select", "start", "end", "preserve" };
+
 [Exposed=Window]
 interface HTMLInputElement : HTMLElement {
   [HTMLConstructor] constructor();
@@ -661,6 +669,14 @@ interface HTMLInputElement : HTMLElement {
   [CEReactions, Reflect="value"] attribute DOMString defaultValue;
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString value;
   [CEReactions, ReflectSetter] attribute unsigned long width;
+
+  undefined select();
+  attribute unsigned long? selectionStart;
+  attribute unsigned long? selectionEnd;
+  attribute DOMString? selectionDirection;
+  undefined setRangeText(DOMString replacement);
+  undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+  undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 };
 
 [Exposed=Window]
@@ -749,6 +765,14 @@ interface HTMLTextAreaElement : HTMLElement {
   [CEReactions] attribute DOMString defaultValue;
   attribute [LegacyNullToEmptyString] DOMString value;
   readonly attribute unsigned long textLength;
+
+  undefined select();
+  attribute unsigned long? selectionStart;
+  attribute unsigned long? selectionEnd;
+  attribute DOMString? selectionDirection;
+  undefined setRangeText(DOMString replacement);
+  undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+  undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 };
 
 [Exposed=Window]

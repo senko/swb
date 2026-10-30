@@ -259,6 +259,11 @@ impl ControlType {
 pub(crate) struct OptionState {
     pub(crate) node: NodeId,
     pub(crate) selected: bool,
+    /// The dirtiness flag of the option: a script or the user set its
+    /// selectedness. A change of its `selected` attribute then leaves the
+    /// selectedness alone; a reset clears the flag.
+    /// <https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-dirtiness>
+    pub(crate) dirty: bool,
 }
 
 /// The state of one form control.
@@ -277,6 +282,11 @@ pub(crate) struct ControlState {
     pub(crate) scroll: Point,
     /// For a select: its options in tree order.
     pub(crate) options: Vec<OptionState>,
+    /// For a select: true if it had the `multiple` attribute when the
+    /// state was built.
+    pub(crate) multiple: bool,
+    /// For a select: the display size when the state was built.
+    pub(crate) display_size: u32,
     /// The form owner.
     pub(crate) owner: Option<NodeId>,
     /// True if the control is disabled.
@@ -349,7 +359,7 @@ impl Forms {
                 || (ty.has_readonly() && e.has_attr("readonly"))
                 || in_datalist(doc, node);
             let state = ControlState {
-                owner: form_owner(doc, node, &ids),
+                owner: form_owner(doc, node, |id| ids.get(id).copied()),
                 disabled,
                 barred,
                 ..default_state(doc, node, ty, &disabled_elements)
@@ -373,48 +383,68 @@ impl Forms {
     /// selected options; another one keeps its caret and selection if its
     /// value stays the same. Of the checked radio buttons of a group, the
     /// last one in tree order stays checked.
-    pub(crate) fn rebuild(old: &Forms, doc: &Document) -> Forms {
+    pub(crate) fn rebuild(old: &Forms, doc: &Document, seeds: &Seeds) -> Forms {
         let mut forms = Forms::new_with(doc, old.stamp);
         if old.controls.is_empty() {
             return forms;
         }
         let mut radios_restored = false;
+        let mut restamp = Vec::new();
         for (node, state) in &mut forms.controls {
-            let Some(previous) = old.controls.get(node).filter(|p| p.ty == state.ty) else {
+            let Some(previous) = old.controls.get(node) else {
                 continue;
             };
-            state.scroll = previous.scroll;
-            if !previous.dirty {
-                if state.ty.is_text() && previous.edit.text() == state.edit.text() {
-                    state.edit = previous.edit.clone();
-                }
-                if state.ty == ControlType::Select {
-                    keep_implicit_selection(doc, state, previous);
+            if previous.ty != state.ty {
+                if carry_type_change(doc, *node, state, previous) {
+                    // A button that became a radio button is inserted into
+                    // its group: the newest one.
+                    radios_restored = true;
+                    if state.ty == ControlType::Input(InputType::Radio) && state.checked {
+                        restamp.push(*node);
+                    }
                 }
                 continue;
             }
-            state.dirty = true;
-            if state.ty.is_text() {
-                state.edit = previous.edit.clone();
-            }
-            if state.ty.is_checkable() {
-                radios_restored |= state.ty == ControlType::Input(InputType::Radio)
-                    && previous.checked != state.checked;
-                state.checked = previous.checked;
-                state.checked_at = previous.checked_at;
-            }
+            state.scroll = previous.scroll;
             if state.ty == ControlType::Select {
-                let selected: HashSet<NodeId> = previous
-                    .options
-                    .iter()
-                    .filter(|o| o.selected)
-                    .map(|o| o.node)
-                    .collect();
-                if state.options.iter().any(|o| selected.contains(&o.node)) {
-                    for option in &mut state.options {
-                        option.selected = selected.contains(&option.node);
-                    }
+                merge_options(doc, *node, state, previous, seeds);
+            }
+            if previous.dirty {
+                state.dirty = true;
+                if state.ty.is_text() {
+                    state.edit = previous.edit.clone();
                 }
+                if state.ty.is_checkable() {
+                    radios_restored |= state.ty == ControlType::Input(InputType::Radio)
+                        && previous.checked != state.checked;
+                    state.checked = previous.checked;
+                    state.checked_at = previous.checked_at;
+                }
+            } else if state.ty.is_text() && previous.edit.text() == state.edit.text() {
+                state.edit = previous.edit.clone();
+            } else if state.ty.is_text() {
+                // A new default value (the `value` attribute or the content
+                // of a text area changed): the selection stays, cut to the
+                // new text (measured).
+                let (start, end) = previous.edit.selection_utf16();
+                state
+                    .edit
+                    .select_range_utf16(start, end, previous.edit.is_backward());
+            }
+            // A checked radio button that moved to another form owner is
+            // inserted into its new group: the newest (measured).
+            if state.ty == ControlType::Input(InputType::Radio)
+                && state.checked
+                && previous.owner != state.owner
+            {
+                radios_restored = true;
+                restamp.push(*node);
+            }
+        }
+        for node in restamp {
+            let stamp = forms.next_stamp();
+            if let Some(state) = forms.get_mut(node) {
+                state.checked_at = stamp;
             }
         }
         if radios_restored {
@@ -562,21 +592,24 @@ impl Forms {
         }
         for (i, option) in state.options.iter_mut().enumerate() {
             option.selected = i == index;
+            option.dirty |= i == index;
         }
         state.dirty = true;
         true
     }
 
     /// Resets the controls whose form owner is `form` to their defaults.
+    /// Returns them, so that the caller can forget what scripts wrote to
+    /// them.
     /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset>
-    pub(crate) fn reset(&mut self, doc: &Document, form: NodeId) {
+    pub(crate) fn reset(&mut self, doc: &Document, form: NodeId) -> Vec<NodeId> {
         let nodes: Vec<NodeId> = doc
             .descendants(NodeId::DOCUMENT)
             .filter(|&n| self.owner(n) == Some(form))
             .collect();
         let disabled_elements = DisabledElements::new(doc);
         let mut checked_radios = Vec::new();
-        for node in nodes {
+        for &node in &nodes {
             let Some(old) = self.get(node) else {
                 continue;
             };
@@ -587,9 +620,12 @@ impl Forms {
                 barred: old.barred,
                 ..default_state(doc, node, old.ty, &disabled_elements)
             };
-            // After a reset, Chromium (measured) types at the end of a text
-            // field and at the start of a text area.
-            if state.ty.is_text() && state.ty != ControlType::TextArea {
+            // A reset to the same value keeps the selection (measured).
+            // After a reset to another value, Chromium (measured) types at
+            // the end of a text field and at the start of a text area.
+            if state.ty.is_text() && old.edit.text() == state.edit.text() {
+                state.edit = old.edit.clone();
+            } else if state.ty.is_text() && state.ty != ControlType::TextArea {
                 state.edit.text_end(false);
             }
             if state.ty == ControlType::Input(InputType::Radio) && state.checked {
@@ -598,6 +634,7 @@ impl Forms {
             self.controls.insert(node, state);
         }
         self.keep_last_checked(doc, &checked_radios);
+        nodes
     }
 
     /// The states that style needs: [`swb_style::CONTROL_STATES`] of every
@@ -615,7 +652,10 @@ impl Forms {
                 continue;
             };
             let mut flags = ElementState::empty();
-            if state.checked && state.ty.is_checkable() {
+            // Chromium (measured): an indeterminate checkbox is not `:checked`.
+            let indeterminate_checkbox = state.ty == ControlType::Input(InputType::Checkbox)
+                && indeterminate.contains(&node);
+            if state.checked && state.ty.is_checkable() && !indeterminate_checkbox {
                 flags |= ElementState::CHECKED;
             }
             // `:indeterminate`: a checkbox whose `indeterminate` property
@@ -761,27 +801,112 @@ struct RadioGroups<'a> {
     required: HashSet<(Option<NodeId>, &'a str)>,
 }
 
-/// A select that no `selected` attribute decides keeps the selected option
-/// when its list of options changes: the selectedness of an option stays,
-/// and the selectedness setting algorithm picks the first option only if
-/// none is selected (`previous` is the state before the change). Without
-/// this, adding an option before the selected one moved the selection.
-fn keep_implicit_selection(doc: &Document, state: &mut ControlState, previous: &ControlState) {
-    let by_attribute = state
+/// The state of a select after its DOM changed: an option that was in the
+/// select keeps its selectedness and its dirtiness flag (the attribute
+/// decides again only through a change of the `selected` attribute, which
+/// the script runtime reports, or a reset). An inserted option gets the
+/// selectedness of its attribute; a selected one makes the others
+/// unselected (HTML "selectedness setting algorithm"). A select that
+/// lost `multiple` keeps its first selected option (measured in
+/// Chromium). The setting algorithm then runs if the options or
+/// `multiple` changed, so that a drop-down always has a selected option,
+/// but a selectedness of -1 that a script set stays over unrelated DOM
+/// changes.
+/// <https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm>
+fn merge_options(
+    doc: &Document,
+    select: NodeId,
+    state: &mut ControlState,
+    previous: &ControlState,
+    seeds: &Seeds,
+) {
+    let before: HashMap<NodeId, (bool, bool)> = previous
         .options
         .iter()
-        .any(|o| doc.element(o.node).is_some_and(|e| e.has_attr("selected")));
-    if by_attribute {
-        return;
-    }
-    let Some(kept) = previous.options.iter().find(|o| o.selected) else {
-        return;
-    };
-    if state.options.iter().any(|o| o.node == kept.node) {
-        for option in &mut state.options {
-            option.selected = option.node == kept.node;
+        .map(|o| (o.node, (o.selected, o.dirty)))
+        .collect();
+    let multiple = doc.element(select).is_some_and(|e| e.has_attr("multiple"));
+    let mut inserted_selected = None;
+    for (i, option) in state.options.iter_mut().enumerate() {
+        if let Some(&(selected, dirty)) = before.get(&option.node) {
+            option.selected = selected;
+            option.dirty = dirty;
+        } else {
+            // An inserted option: what a script wrote to it, else its
+            // attribute.
+            (option.selected, option.dirty) = seeds.option(option.node).unwrap_or_else(|| {
+                (
+                    doc.element(option.node)
+                        .is_some_and(|e| e.has_attr("selected")),
+                    false,
+                )
+            });
+            if option.selected {
+                inserted_selected = Some(i);
+            }
         }
     }
+    if !multiple {
+        let keep = inserted_selected.or_else(|| state.options.iter().position(|o| o.selected));
+        if state.options.iter().filter(|o| o.selected).count() > 1 {
+            for (i, option) in state.options.iter_mut().enumerate() {
+                option.selected = Some(i) == keep;
+            }
+        }
+    }
+    let same_list = state.options.len() == previous.options.len()
+        && state
+            .options
+            .iter()
+            .zip(&previous.options)
+            .all(|(a, b)| a.node == b.node);
+    if !same_list || previous.multiple != multiple || previous.display_size != state.display_size {
+        settle(doc, select, &mut state.options, &|n| {
+            option_is_disabled(doc, n)
+        });
+    }
+    state.multiple = multiple;
+    state.dirty |= previous.dirty;
+}
+
+/// The state of a control whose `type` changed since the last build
+/// (HTML "input type change"): between two types with a text field the
+/// value stays and is sanitized for the new type; a value that the
+/// sanitization changed stays changed (Chromium, measured: `abc` in a
+/// field that became `number` is empty, also after it became `text`
+/// again). A checkbox or radio button that a user or script changed keeps
+/// its checkedness for the types that cannot show it
+/// ([`Seeds`] keeps it, see `orphans_to_seeds`). True if a checkedness
+/// stayed.
+fn carry_type_change(
+    doc: &Document,
+    node: NodeId,
+    state: &mut ControlState,
+    previous: &ControlState,
+) -> bool {
+    state.scroll = previous.scroll;
+    if previous.ty.is_checkable() && state.ty.is_checkable() && previous.dirty {
+        state.checked = previous.checked;
+        state.dirty = true;
+        return true;
+    }
+    if !(previous.ty.is_text() && state.ty.is_text()) {
+        return false;
+    }
+    let Some(e) = doc.element(node) else {
+        return false;
+    };
+    let kept = sanitize_value(e, state.ty, previous.edit.text());
+    if previous.dirty || kept != state.edit.text() {
+        let max_len = state.edit.max_len();
+        state.edit = previous.edit.clone();
+        state.edit.set_max_len(max_len);
+        if kept != state.edit.text() {
+            state.edit.replace_text(&kept);
+        }
+        state.dirty = true;
+    }
+    false
 }
 
 /// The value of a control with the state `state` as the `value` IDL
@@ -848,6 +973,12 @@ fn default_state(
         } else {
             Vec::new()
         },
+        multiple: ty == ControlType::Select && e.is_some_and(|e| e.has_attr("multiple")),
+        display_size: if ty == ControlType::Select {
+            e.map_or(1, select::display_size)
+        } else {
+            0
+        },
         owner: None,
         disabled: false,
         barred: false,
@@ -896,18 +1027,28 @@ fn is_listed(e: &ElementData) -> bool {
 /// attribute names (looked up in `ids`), else the form that the parser
 /// associated with it, else its nearest `form` ancestor.
 /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#reset-the-form-owner>
-fn form_owner(doc: &Document, node: NodeId, ids: &HashMap<&str, NodeId>) -> Option<NodeId> {
+fn form_owner(
+    doc: &Document,
+    node: NodeId,
+    by_id: impl Fn(&str) -> Option<NodeId>,
+) -> Option<NodeId> {
     let e = doc.element(node)?;
     let is_form = |n: NodeId| doc.is_html_element(n, &local_name!("form"));
     if is_listed(e)
         && let Some(id) = e.attr("form")
     {
-        return ids.get(id).copied().filter(|&f| is_form(f));
+        return by_id(id).filter(|&f| is_form(f));
     }
     if let Some(form) = e.parser_form.filter(|&f| is_form(f) && in_document(doc, f)) {
         return Some(form);
     }
     doc.ancestors(node).find(|&n| is_form(n))
+}
+
+/// The form owner of `node` now, without the table of ids that a rebuild
+/// computes (one lookup by `id`).
+pub(crate) fn current_owner(doc: &Document, node: NodeId) -> Option<NodeId> {
+    form_owner(doc, node, |id| doc.element_by_id(id))
 }
 
 /// True if `node` has a `datalist` ancestor: such a control is barred
@@ -1102,7 +1243,7 @@ mod tests {
         forms.get_mut(t).expect("t").edit.insert("yz");
         forms.set_checked(&doc, c, false);
         forms.select_option(s, 0);
-        forms.reset(&doc, id(&doc, "f"));
+        let _ = forms.reset(&doc, id(&doc, "f"));
         assert_eq!(forms.value(&doc, t).as_deref(), Some("x"));
         assert_eq!(forms.checked(c), Some(true));
         assert_eq!(forms.value(&doc, s).as_deref(), Some("b"));
@@ -1214,7 +1355,7 @@ mod tests {
         ] {
             doc.set_attr(node, name, value).unwrap();
         }
-        let forms = Forms::rebuild(&forms, &doc);
+        let forms = Forms::rebuild(&forms, &doc, &Seeds::default());
         assert_eq!(forms.value(&doc, typed).as_deref(), Some("a!"));
         assert_eq!(forms.value(&doc, other).as_deref(), Some("new"));
         assert!(forms.is_disabled(other));
@@ -1225,10 +1366,136 @@ mod tests {
         assert_eq!(forms.value(&doc, select).as_deref(), Some("y"));
         // A reset clears the dirty flags.
         let mut forms = forms;
-        forms.reset(&doc, id(&doc, "f"));
+        let _ = forms.reset(&doc, id(&doc, "f"));
         doc.set_attr(typed, "value", "newer").unwrap();
-        let forms = Forms::rebuild(&forms, &doc);
+        let forms = Forms::rebuild(&forms, &doc, &Seeds::default());
         assert_eq!(forms.value(&doc, typed).as_deref(), Some("newer"));
+    }
+
+    /// The rebuild as the document runs it: the new state, then the seeds.
+    fn rebuilt(old: &Forms, doc: &Document, seeds: &mut Seeds) -> Forms {
+        let mut forms = Forms::rebuild(old, doc, seeds);
+        forms.merge_seeds(old, doc, seeds);
+        forms
+    }
+
+    /// The dirtiness flag is per option: a `selected` attribute that
+    /// appears on an option that no script or user touched decides the
+    /// selection of its select, one that appears on a dirty option does not.
+    #[test]
+    fn the_dirtiness_flag_of_an_option_decides_what_the_attribute_does() {
+        let mut doc =
+            parse_html("<select id=s><option id=a>a<option id=b selected>b<option id=c>c</select>");
+        let mut seeds = Seeds::default();
+        let mut forms = Forms::new(&doc);
+        let s = id(&doc, "s");
+        assert!(forms.select_option(s, 0));
+        // Only the option that the user chose is dirty.
+        let dirty: Vec<bool> = forms
+            .get(s)
+            .unwrap()
+            .options
+            .iter()
+            .map(|o| o.dirty)
+            .collect();
+        assert_eq!(dirty, [true, false, false]);
+        // A rebuild keeps the selection, also after `b` lost its attribute.
+        doc.remove_attr(id(&doc, "b"), "selected");
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        assert_eq!(forms.value(&doc, s).as_deref(), Some("a"));
+        // The options keep their flags over the rebuild; a reset clears them.
+        let dirty: Vec<bool> = forms
+            .get(s)
+            .unwrap()
+            .options
+            .iter()
+            .map(|o| o.dirty)
+            .collect();
+        assert_eq!(dirty, [true, false, false]);
+        let _ = forms.reset(&doc, NodeId::DOCUMENT);
+        assert_eq!(forms.value(&doc, s).as_deref(), Some("a"));
+    }
+
+    /// An option that the select gets later is selected by its attribute
+    /// and makes the others unselected; one that the setting algorithm
+    /// needs is picked only when none is selected.
+    #[test]
+    fn an_inserted_selected_option_wins_and_a_select_keeps_no_selection() {
+        let mut doc = parse_html(
+            "<select id=s><option>a<option id=b>b</select><div id=d><option id=x selected>x</option></div>",
+        );
+        let mut seeds = Seeds::default();
+        let mut forms = Forms::new(&doc);
+        let s = id(&doc, "s");
+        forms.select_option(s, 1);
+        doc.append_child(s, id(&doc, "x")).unwrap();
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        let selected: Vec<bool> = forms
+            .get(s)
+            .unwrap()
+            .options
+            .iter()
+            .map(|o| o.selected)
+            .collect();
+        assert_eq!(selected, [false, false, true]);
+        // No option selected (a script set the index to -1): an unrelated
+        // change of the DOM leaves it so.
+        for option in &mut forms.get_mut(s).unwrap().options {
+            option.selected = false;
+        }
+        doc.set_attr(id(&doc, "d"), "title", "unrelated").unwrap();
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        assert!(forms.get(s).unwrap().options.iter().all(|o| !o.selected));
+    }
+
+    /// A change of the `type` keeps the value (sanitized for the new
+    /// type, also when it is sanitized away) and the dirty checkedness of
+    /// a checkbox, for types that cannot show it.
+    #[test]
+    fn a_type_change_carries_the_value_and_the_checkedness() {
+        let mut doc = parse_html(
+            "<input id=t value=abc><input id=c type=checkbox><input id=p type=password>",
+        );
+        let mut seeds = Seeds::default();
+        let mut forms = Forms::new(&doc);
+        let (t, c, p) = (id(&doc, "t"), id(&doc, "c"), id(&doc, "p"));
+        forms.set_checked(&doc, c, true);
+        forms.get_mut(p).unwrap().edit.insert("secret");
+        forms.get_mut(p).unwrap().dirty = true;
+        doc.set_attr(t, "type", "number").unwrap();
+        doc.set_attr(c, "type", "text").unwrap();
+        doc.set_attr(p, "type", "text").unwrap();
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        // `abc` is not a number; it stays empty in `text` again.
+        assert_eq!(forms.value(&doc, t).as_deref(), Some(""));
+        assert_eq!(forms.value(&doc, p).as_deref(), Some("secret"));
+        doc.set_attr(t, "type", "text").unwrap();
+        doc.set_attr(c, "type", "checkbox").unwrap();
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        assert_eq!(forms.value(&doc, t).as_deref(), Some(""));
+        // The checkedness went to the seeds and came back.
+        assert_eq!(forms.checked(c), Some(true));
+    }
+
+    /// A checked radio button that moves to another form is the newest of
+    /// its new group.
+    #[test]
+    fn a_moved_radio_button_wins_its_new_group() {
+        let mut doc = parse_html(
+            "<form id=f><input type=radio name=g id=a></form>\
+             <form id=h><input type=radio name=g id=b></form>",
+        );
+        let mut seeds = Seeds::default();
+        let mut forms = Forms::new(&doc);
+        let (a, b, h) = (id(&doc, "a"), id(&doc, "b"), id(&doc, "h"));
+        forms.set_checked(&doc, a, true);
+        forms.set_checked(&doc, b, true);
+        doc.append_child(h, a).unwrap();
+        forms = rebuilt(&forms, &doc, &mut seeds);
+        assert_eq!(
+            (forms.checked(a), forms.checked(b)),
+            (Some(true), Some(false))
+        );
     }
 
     #[test]

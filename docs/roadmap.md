@@ -3388,7 +3388,58 @@ Steps:
         from typing and clicks; `form.submit()`, `requestSubmit()`,
         `reset()`; `focusin` and `focusout`. Tests: probe cases for
         the IDL attributes and the event order of typing and of
-        radio-button clicks.
+        radio-button clicks. Split into two sessions (2026-10-30):
+        - 9b1: probe cases for the list above and fixes; the selection
+          members of `input` and `textarea`; ADR 0013 for scripts.
+          Done 2026-10-30. Most of the list was done in 6c1, 6d1 and
+          6d2; a new probe file `web-forms-script.json` (21 cases, 110
+          queries: dirty flags, `type` changes, controls that scripts
+          insert, move and remove, radio groups, form owners,
+          `form.elements` order, form methods, the events of typing,
+          clicks and keys) found 27 differences on its first run.
+          Fixed: the dirtiness flag is per option, not per select (a
+          `selected` attribute, `defaultSelected`, reset, `multiple`
+          removal and detached selects follow the standard); a `type`
+          change keeps the value (sanitized: `abc` → `number` → `text`
+          is empty) and the checkedness (every input type has
+          `checked`); a checked radio button moved to another form wins
+          its new group; arrow, Home and End keys on a select fire
+          `input` and `change` with scripts on; `output` follows its
+          value mode flag on reset; an indeterminate checkbox does not
+          match `:checked`. New: `selectionStart`, `selectionEnd`,
+          `selectionDirection`, `select()`, `setSelectionRange()` and
+          `setRangeText()` on `input` (text, search, tel, url,
+          password) and `textarea`, over `TextEdit` with UTF-16
+          offsets; long native selection work calls
+          `Runtime::check_time`. Probes `web-forms-script.json` (0 of
+          111 differ) and `web-forms-selection.json` (33 queries, 5
+          listed departures: 4 `select`/`selectionchange` event
+          queries, an offset inside a surrogate pair), three equal
+          Chromium runs each; automation tests `forms_script.rs`.
+          Measured and left as a departure: `[LegacyOverrideBuiltIns]`
+          on the form (a control named `submit` hides the method in
+          Chromium): with it, every property read of a form builds the
+          list of its controls (5,000 controls: 1,000 DOM changes with
+          a `form.method` read 0.1 → 1.4 s). JS off: snapshot
+          identical; `compare --js` scores and console errors
+          unchanged; runtime heap unchanged; hostile 228 cases, 227 ok
+          + the known failure (3 new). ADR 0013 section "Scripts", ADR
+          0028 "Feature 9b notes". Review fixes: the removal of `type`
+          did not run the type change steps (`number` with `abc`, then
+          no `type`, gave `abc`; Chromium: empty); a `selected`
+          attribute write rebuilt the forms of the document (3,000
+          options in a loop: 122 ms → 1 s; now the write keeps the build
+          valid, 10,000 options in 0.1 s).
+        - 9b2: the constraint validation API (`willValidate`,
+          `validity` and `ValidityState`, `validationMessage` with
+          Chromium's English texts, `checkValidity()`,
+          `reportValidity()`, `setCustomValidity()` on the controls,
+          `form` and `fieldset`; the `invalid` event; `:valid` and
+          `:invalid` with custom validity), `labels`, the `select` and
+          `selectionchange` events of text controls. Tests: probe
+          cases for each validity state and message, the `invalid`
+          event order of `checkValidity()`, `reportValidity()` and
+          `requestSubmit()`.
    10. Network from scripts (`implementer`), two sessions (ADR 0028
       section 12).
       - 10a: credentials modes and the CORS check with preflights in
@@ -3969,15 +4020,27 @@ Steps:
   the next native call or checkpoint, so its order against promise
   jobs inside one script can differ. Missing, found by the probes: the
   `contentEditable`, `popover` and `Element.slot` setters write no
-  attribute; `Range`, `createProcessingInstruction`, `document.write`,
-  `setSelectionRange`. `Page::observers_due` copies the scroll offsets
-  at each turn while observers exist (a generation counter in the
+  attribute; `Range`, `createProcessingInstruction`, `document.write`
+  (`setSelectionRange` came with 9b1). `Page::observers_due` copies the
+  scroll offsets at each turn while observers exist (a generation counter in the
   scrollers would avoid it). Records past 131,072 in one task are
   dropped (Chromium delivers them all): a registry keeps a Rust copy of
   each record next to the JavaScript objects of the delivery; a
   `MutationRecord` made on access would raise the bound. The SVG
   geometry properties `x`, `y`, `cx`, `cy`, `r`, `rx`, `ry` are not CSS
   properties in swb (`style.setProperty('x', '1')` changes nothing).
+- `engine`/`web` (found in feature 9b1 and its review): the up and down
+  arrow keys do not step a `number` input; Chromium fires `beforeinput`
+  for a typed character in a read-only input, swb none; `type=color`
+  takes only `#rrggbb` (Chromium also CSS color names and functions);
+  no `formdata` event (needs `FormData`, 10b); `[LegacyOverrideBuiltIns]`
+  on `HTMLFormElement` needs an incremental index of control names to be
+  cheap; `document.getSelection()` does not exist. Each `type` write on
+  an input in the document rebuilds the forms (O(controls)); a clone of a
+  checkbox whose type is `text` at that moment does not copy a dirty
+  `checked` (`script_copy_control_state` copies it only for checkable
+  types); `WebState::output_defaults` keeps the entries of removed
+  `output` elements (bounded by their number).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

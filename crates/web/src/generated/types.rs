@@ -3156,6 +3156,45 @@ impl DocumentReadyState {
     }
 }
 
+/// The enumeration `SelectionMode`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectionMode {
+    /// `"select"`.
+    Select,
+    /// `"start"`.
+    Start,
+    /// `"end"`.
+    End,
+    /// `"preserve"`.
+    Preserve,
+}
+
+impl SelectionMode {
+    /// The values in order.
+    pub const VALUES: [&'static str; 4] = ["select", "start", "end", "preserve"];
+
+    /// The value as a string.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SelectionMode::Select => "select",
+            SelectionMode::Start => "start",
+            SelectionMode::End => "end",
+            SelectionMode::Preserve => "preserve",
+        }
+    }
+
+    /// Converts a JavaScript value (Web IDL §3.2.18).
+    pub fn from_js(rt: &mut swb_js::Runtime, value: swb_js::Value) -> b::Result<SelectionMode> {
+        let index = b::convert::enumeration(rt, value, &SelectionMode::VALUES, "SelectionMode")?;
+        Ok(match index {
+            0 => SelectionMode::Select,
+            1 => SelectionMode::Start,
+            2 => SelectionMode::End,
+            _ => SelectionMode::Preserve,
+        })
+    }
+}
+
 /// The enumeration `ScrollRestoration`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScrollRestoration {

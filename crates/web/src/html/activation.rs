@@ -482,6 +482,12 @@ fn canceled_activation(rt: &mut Runtime, a: Activation) -> VmResult<()> {
     }
 }
 
+/// `input` and `change` after the user changed the selected option of a
+/// select with the keyboard.
+pub(crate) fn select_changed(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
+    fire_input_and_change(rt, node)
+}
+
 /// `input` (bubbles, composed) and `change` (bubbles) at a connected
 /// control.
 fn fire_input_and_change(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
@@ -713,6 +719,28 @@ pub(crate) fn reset(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
     state_mut(rt)?.busy.reset.remove(&form);
     if result? {
         engine_mut(rt)?.reset_form(form);
+        reset_outputs(rt, form)?;
+    }
+    Ok(())
+}
+
+/// The reset algorithm of `output` elements: the text content becomes the
+/// default value override, and the value mode flag is "default" again.
+fn reset_outputs(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
+    if state_mut(rt)?.output_defaults.is_empty() {
+        return Ok(());
+    }
+    let keys: Vec<NodeId> = state_mut(rt)?.output_defaults.keys().copied().collect();
+    let document = dom(rt)?;
+    let owned: Vec<NodeId> = keys
+        .into_iter()
+        .filter(|&n| form_owner(document, n) == Some(form))
+        .collect();
+    for output in owned {
+        if let Some(default) = state_mut(rt)?.output_defaults.remove(&output) {
+            // Only a failure of the DOM could fail; the output keeps its text.
+            let _ = crate::dom::string_replace_all_in(rt, output, &default);
+        }
     }
     Ok(())
 }

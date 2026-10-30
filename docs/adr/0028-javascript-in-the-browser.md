@@ -1126,7 +1126,7 @@ Chromium runs with equal results; the Rust tests are
   not built yet (the first build sees the attribute; Chromium selected
   the option before), the implicit selection of an option that leaves a
   select whose state no read has built, `setAttribute('selected')` on a
-  select that the user changed (no per-option dirty flag), the two radio
+  select that the user changed (closed by feature 9b: per-option dirtiness), the two radio
   quirks (an ungrouped scripted radio next to an attribute-checked one
   keeps both checked; a renamed checked radio is unchecked in Chromium),
   `img.height = 1e10` (feature 7b).
@@ -3386,6 +3386,99 @@ cases):
   of attribute records: they write no attribute); `document.write` records;
   `Range`.
 
+Feature 9b notes (forms from scripts; measured with
+`tools/probes/web-forms-script.json` (21 cases, 111 queries) and
+`web-forms-selection.json` (7 cases, 33 queries), three equal Chromium runs
+each; the Rust tests are `crates/automation/tests/forms_script.rs` (both
+files, with the input steps, against `tests/data/web-forms-script.json`) and
+the unit tests of `crates/engine/src/forms/mod.rs` and `edit.rs`; this is
+the first half of the feature, 9b1: the constraint validation API, `labels`
+and the `select` and `selectionchange` events are in the backlog, 9b2):
+
+- **The dirty flags (ADR 0013, "Scripts").** The gaps that the probe found
+  and that are closed: (1) the dirtiness flag of a select was one per
+  select; it is now one per option (`OptionState::dirty`; `selectedIndex`,
+  `select.value`, `option.selected` and the user's choice set the flag of
+  the option they select), so that a `selected` attribute that appears on
+  an option nobody touched selects it, and the options keep their
+  selectedness over rebuilds (`merge_options`: an option that was in the
+  select keeps selectedness and flag, an inserted option takes a seed or
+  its attribute, a select that lost `multiple` keeps its first selected
+  option, the setting algorithm runs only if the list of options, `multiple`
+  or the display size changed, so `selectedIndex = -1` stays over
+  unrelated changes); the `clean_applied` marks of 6c are gone. (2) A
+  change of `type` lost the state: now the value is sanitized for the new
+  type and kept (Chromium: `abc` in a field that became `number` is empty,
+  and stays empty as `text`), the dirty checkedness stays for any `input`
+  type (`checked` is readable and writable on a text field; seeds hold it
+  until the type is a checkbox or radio button again), a script's value in
+  a seed is sanitized or dropped (`EngineHost::input_type_changed`), and
+  the state of a control of another type than the DOM says is rebuilt on
+  the next read or write (`sync_type`: O(1) when the types agree). The
+  removal of `type` is a change to `text` and runs the same steps
+  (measured: `number` with `abc`, then no `type`, is empty). A `selected`
+  attribute that is the only change since the last build updates the state
+  of its select in place and keeps the build valid, so a loop over the
+  options does not rebuild the forms for each write. (3) A
+  radio button that moves to another form owner (or becomes a radio button)
+  is the newest of its new group (`Forms::rebuild`, and the owner at the
+  time of a seed's write). (4) A reset to the same value keeps the
+  selection of a text field; a new default (`value` attribute) keeps the
+  previous selection cut to the new text. (5) An indeterminate checkbox is
+  not `:checked` (Chromium). (6) `select.selectedIndex` etc. on a select
+  outside the document go through seeds with the flag per option. (7)
+  `output`: `defaultValue` and `reset()` follow the standard's value mode
+  flag (`WebState::output_defaults`).
+- **Keyboard on a select.** With scripts on, an arrow, Home or End key that
+  changes the selected option of a focused drop-down fires `input` and
+  `change` at once (`ScriptRuntime::select_changed`).
+- **Selection API.** `selectionStart`, `selectionEnd`, `selectionDirection`,
+  `select()`, `setSelectionRange()` and `setRangeText()` (both forms) on
+  `input` (types `text`, `search`, `tel`, `url`, `password`) and `textarea`
+  (`html/selection.rs`, over `TextEdit`: `select_range_utf16`,
+  `selection_utf16`, `replace_range_utf16`, `is_backward`). Measured in
+  Chromium: other types give `null` and throw `InvalidStateError` (`The
+  input element's type ('email') does not support selection.`) from the
+  setters and `setRangeText`, `select()` does not throw; the direction is
+  `forward` or `backward` (`none` and invalid values give `forward`, a
+  collapsed selection keeps `backward`); `start` above `end` collapses to
+  `end`; offsets are clamped; the `selectionStart` setter moves the end up,
+  the `selectionEnd` setter moves the start down; `setSelectionRange()`
+  needs two arguments; `setRangeText(x)` selects the new text; with four
+  arguments `start` above `end` throws `IndexSizeError`, the mode
+  `preserve` follows the standard's formula and the direction becomes
+  `forward`; `maxlength` does not limit it; a value set when it differs moves
+  the caret to the end, the same value keeps the selection; `select()` also
+  focuses the element. A control without a state (outside the document, or
+  inserted since the last build) keeps its selection in a seed. Departure:
+  an offset inside a surrogate pair moves back to its start (the selection
+  is at character boundaries). Chromium quirk not copied: `setRangeText`
+  with a range on an input that has not been laid out replaces the whole
+  value. The calls scan the value, so they call `Runtime::check_time`;
+  hostile cases: `selection-huge-value-js-on`,
+  `set-range-text-growing-value-js-on`, `set-range-text-over-budget-js-on`.
+- **Measured and not done (9b2 and the backlog).** (1) The constraint
+  validation API (`willValidate`, `validity`, `validationMessage`,
+  `checkValidity()`, `reportValidity()`, `setCustomValidity()`) and
+  `labels`. (2) The events `select` (after `select()`, `setSelectionRange()`
+  to a range, the `selectionStart` setter, and the user's selection) and
+  `selectionchange` (at the control, bubbling to the document, one task after
+  any change of the selection, also when `focus()` moves the selection into
+  a control; for a script call `selectionchange` comes first, for the user's
+  selection `select` comes first). (3) `[LegacyOverrideBuiltIns]` on
+  `HTMLFormElement`: a control named `submit`, `action`, `reset`, `elements`
+  or `length` hides the member in Chromium; swb keeps the members. Measured
+  with the attribute on: every property read of the form (also
+  `appendChild`) builds the list of its controls, and 20,000 `appendChild`
+  calls on a growing form hit the time limit of a task; a form with 5,000
+  controls took 1.4 s for 1,000 pairs of DOM change and `form.method` read
+  (0.1 s without). Left as a departure (probe `form-methods` 7 and 8).
+  (4) The `formdata` event of `submit()`. (5) The up and down arrow keys step
+  a `number` input in Chromium. (6) Chromium fires `beforeinput` for a typed
+  character in a read-only input (no `input`). (7) `type=color` accepts CSS
+  color names and functions (`red` is `#ff0000`). (8) Offsets in surrogate
+  pairs (above).
+
 ### 14. Frames and media: out of scope
 
 M8 does not render `iframe`, `frame` or `object` documents and runs no
@@ -3436,7 +3529,7 @@ Per document, all settings with these defaults:
 | Nodes of one `innerHTML` write (feature 6b) | the nodes of its markup (one fragment is reused) | `<p>x` costs 2 immortal nodes, so about 500,000 writes fill the arena; the arena limit ends the task |
 | Steps of one selector query (feature 6b) | 100,000,000 (ancestor steps and selectors tried) | the query stops with a warning |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
-| Values that scripts write to text fields and text areas, in the states and in the seeds (feature 6c) | 32 MiB | the task ends (termination, warning) |
+| Values that scripts write to text fields and text areas (also with `setRangeText`, feature 9b), in the states and in the seeds (feature 6c) | 32 MiB | the task ends (termination, warning) |
 | Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
 | Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |
 | String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |

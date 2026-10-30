@@ -3601,3 +3601,51 @@ def intersection_observer_100000_targets_js_on() -> Page:
         "setTimeout(() => console.log('hits ' + hits), 2500);</script>"
     )
     return Page(doc(script, css="div{height:2px}"))
+
+
+@case(
+    "A text area with a value of 20 MiB, and a script that sets its selection and reads it "
+    "back 100,000 times with offsets of 4e9, with JavaScript on: each call scans the value "
+    "once and the task ends at its time limit (feature 9b)",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def selection_huge_value_js_on() -> Page:
+    script = (
+        "<script>const t = document.getElementById('t'); t.value = 'x'.repeat(20 * 1024 * 1024); "
+        "let n = 0; for (let i = 0; i < 100000; i++) { t.setSelectionRange(i, 4e9, 'backward'); "
+        "n += t.selectionEnd - t.selectionStart; } console.log('done ' + n);</script>"
+    )
+    return Page(doc('<textarea id=t style="display:none"></textarea>' + script))
+
+
+@case(
+    "A script that appends one character to the value of an input 300,000 times with "
+    "setRangeText, with JavaScript on: each call copies the value, and the task ends at its "
+    "time limit (feature 9b)",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def set_range_text_growing_value_js_on() -> Page:
+    script = (
+        "<script>const t = document.getElementById('t'); for (let i = 0; i < 300000; i++) { "
+        "t.setRangeText('y', t.value.length, t.value.length, 'end'); } "
+        "console.log('done ' + t.value.length);</script>"
+    )
+    return Page(doc('<input id=t style="display:none">' + script))
+
+
+@case(
+    "A script that writes 4 times 16 MiB into a text area with setRangeText, with JavaScript "
+    "on: the budget of control values (32 MiB, ADR 0028 section 16) ends the task",
+    expect_log="the values of form controls reached the limit",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def set_range_text_over_budget_js_on() -> Page:
+    script = (
+        "<script>const t = document.getElementById('t'); const s = 'z'.repeat(16 * 1024 * 1024); "
+        "for (let i = 0; i < 4; i++) { t.setRangeText(s, t.value.length, t.value.length, 'end'); } "
+        "console.log('not reached');</script>"
+    )
+    return Page(doc('<textarea id=t style="display:none"></textarea>' + script))

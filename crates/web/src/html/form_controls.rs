@@ -61,7 +61,7 @@ pub(crate) fn before_type_change(
     rt: &mut swb_js::Runtime,
     element: NodeId,
     name: &swb_dom::QualName,
-) -> b::Result<Option<TypeChange>> {
+) -> swb_js::VmResult<Option<TypeChange>> {
     if !name.ns.is_empty() || &*name.local != "type" {
         return Ok(None);
     }
@@ -100,6 +100,8 @@ pub(crate) fn after_type_change(
         let name = swb_dom::QualName::new(None, swb_dom::ns!(), swb_dom::LocalName::from("value"));
         crate::dom::set_attribute(rt, element, &name, &change.value)?;
     }
+    let old_value = (change.mode == ValueMode::Value).then_some(change.value);
+    engine_mut(rt)?.input_type_changed(element, old_value);
     Ok(())
 }
 
@@ -119,6 +121,63 @@ fn image_size(cx: &mut Cx<'_>, this: NodeId, name: &str) -> b::Result<u32> {
 }
 
 impl g::html_input_element::HTMLInputElementImpl for WebState {
+    fn selection_start(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
+        super::selection::selection_start(cx, this)
+    }
+
+    fn set_selection_start(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
+        super::selection::set_selection_start(cx, this, value)
+    }
+
+    fn selection_end(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
+        super::selection::selection_end(cx, this)
+    }
+
+    fn set_selection_end(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
+        super::selection::set_selection_end(cx, this, value)
+    }
+
+    fn selection_direction(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<String>> {
+        super::selection::selection_direction(cx, this)
+    }
+
+    fn set_selection_direction(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: Option<String>,
+    ) -> b::Result<()> {
+        super::selection::set_selection_direction(cx, this, value.as_deref())
+    }
+
+    fn select(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::selection::select(cx, this)
+    }
+
+    fn set_range_text_1(cx: &mut Cx<'_>, this: NodeId, replacement: String) -> b::Result<()> {
+        super::selection::set_range_text_selection(cx, this, &replacement)
+    }
+
+    fn set_range_text_2(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        replacement: String,
+        start: u32,
+        end: u32,
+        selection_mode: g::types::SelectionMode,
+    ) -> b::Result<()> {
+        super::selection::set_range_text(cx, this, &replacement, start, end, selection_mode)
+    }
+
+    fn set_selection_range(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        start: u32,
+        end: u32,
+        direction: Option<String>,
+    ) -> b::Result<()> {
+        super::selection::set_selection_range(cx, this, start, end, direction.as_deref())
+    }
+
     fn autocomplete(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         super::element::autocomplete(cx, this)
     }

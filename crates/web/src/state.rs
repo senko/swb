@@ -103,6 +103,10 @@ pub(crate) struct WebState {
     pub(crate) parsed_documents: std::collections::HashSet<NodeId>,
     /// The `input` elements whose `indeterminate` is true.
     pub(crate) indeterminate: std::collections::HashSet<NodeId>,
+    /// The `output` elements whose value mode flag is "value" (a script
+    /// wrote `value`), with their default value override
+    /// (<https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element>).
+    pub(crate) output_defaults: HashMap<NodeId, String>,
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,

@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 9b1, forms from scripts (first half)
+
+- Most of the 9b list was done in 6c1, 6d1 and 6d2. A new probe file
+  (`web-forms-script.json`, 111 queries) found the remaining gaps against
+  Chromium. Fixed: the dirtiness flag is per option, as the standard says
+  (it was per select); a `type` change keeps the value (sanitized) and the
+  checkedness; a checked radio button moved to another form wins its new
+  group; keys on a select fire `input` and `change`; `output` follows its
+  value mode flag on reset; an indeterminate checkbox is not `:checked`.
+- New: the selection members of `input` and `textarea`
+  (`selectionStart`, `selectionEnd`, `selectionDirection`, `select()`,
+  `setSelectionRange()`, `setRangeText()`) over `TextEdit`, with UTF-16
+  offsets for scripts (`web-forms-selection.json`, 33 queries).
+- Learned: native work that a script repeats (100,000
+  `setSelectionRange()` calls on a 20 MiB value) needs
+  `Runtime::check_time`: the interpreter's countdown does not see the time
+  spent in native calls. `[LegacyOverrideBuiltIns]` on the form (a control
+  named `submit` hides `form.submit` in Chromium) makes every property read
+  of a form build its control list; measured 14 times slower with 5,000
+  controls, so swb leaves it out.
+- Review fixes: the removal of `type` now runs the type change steps; a
+  `selected` attribute write keeps the form state valid instead of a
+  rebuild of the document's forms (a loop over 3,000 options took 1 s).
+- JS off: snapshot identical; `compare --js` scores and console errors
+  unchanged; runtime heap unchanged. Hostile set 228 cases, 227 ok + the
+  known failure (3 new).
+
+Next: feature 9b2 (constraint validation, `labels`, selection events).
+
 ## 2026-10-30: M8 feature 9a, observers
 
 - `MutationObserver`: a registry of Rust data is the document's mutation

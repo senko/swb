@@ -167,7 +167,10 @@ Rules:
   the request and, for `POST` results, the body.
 - **Form controls** (`engine/src/forms/`, ADR 0013): per-document `Forms`
   keyed by `NodeId` (value as `TextEdit`, checkedness, select options,
-  form owner, a dirty flag for what the user changed). Layout gets them
+  form owner, dirty flags for what the user or a script changed: per
+  control, per option of a select; `forms/script.rs` keeps the *seeds*
+  that scripts wrote to controls without a state, `html/selection.rs` in
+  `web` the selection API over `TextEdit`). Layout gets them
   through `LayoutInput::controls`; style gets `:checked`,
   `:placeholder-shown`, `:valid` and `:invalid` through
   `ElementStates::controls`. The disabled state of all elements comes

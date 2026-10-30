@@ -28,7 +28,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`); Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), and forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -2792,6 +2792,30 @@ IDL.
   (`flood ok`, `parse ok`, `transients ok`), which the case expects, so
   they fail when the scripts of the document were stopped. `lazy_interfaces/globals.txt`
   got seven names.
+
+- Feature 9b (forms from scripts, first half): `crates/automation/tests/
+  forms_script.rs` runs every case of `tools/probes/web-forms-script.json`
+  (the dirty value, checkedness and option flags before and after a script
+  or the user changed a control, `reset()`, type changes, controls that
+  scripts insert, move, remove and re-insert, radio groups, form owners,
+  the order of `form.elements`, `form.submit()`, `requestSubmit()` and
+  `reset()` with submitters, invalid controls, a form outside the
+  document, the events of typing, checkbox and radio clicks, a canceled
+  click, keys on a select, `focus`/`blur`/`focusin`/`focusout`) and
+  `web-forms-selection.json` (the selection members of `input` and
+  `textarea`, `setRangeText` with all modes, offsets in UTF-16 units, the
+  user's selection by keys and double click) with the input steps and
+  Chromium's values (`crates/automation/tests/data/web-forms-script.json`,
+  made from `just probe --json` of both files by comparing three runs;
+  queries that start with `(async` wait for tasks and are not run: they
+  show the `select` and `selectionchange` events, which swb does not fire).
+  A probe query that must not navigate does not call `form.submit()`: the
+  case `form-submit-method` does it as its last query. Unit tests: the
+  rebuild of the form state (`forms/mod.rs`: per-option dirtiness, inserted
+  options, type changes, moved radio buttons) and `TextEdit` selections in
+  UTF-16 units (`edit.rs`). The hostile set has three cases
+  (`selection-huge-value-js-on`, `set-range-text-growing-value-js-on`,
+  `set-range-text-over-budget-js-on`).
 
 ## Python tools: development
 

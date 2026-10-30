@@ -155,6 +155,14 @@ Format: source, license (for code), what it influenced.
   resize observations (`crates/web/src/intersection_observer.rs`,
   `resize_observer.rs`). Chromium's record order, entry values and
   error texts come from black-box measurements (ADR 0021).
+- WHATWG HTML (forms from scripts), M8 feature 9b1 — the IDL of the
+  selection members of `HTMLInputElement` and `HTMLTextAreaElement`
+  (BSD-3-Clause, as above); "set the selection range", "set range text"
+  (the four selection modes), the dirtiness flag of `option` and the
+  selectedness setting algorithm (`crates/web/src/html/selection.rs`,
+  `crates/engine/src/forms/`, `crates/engine/src/edit.rs`). The other
+  rules come from black-box measurements of Chromium (probes
+  `web-forms-script.json`, `web-forms-selection.json`; ADR 0021).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

@@ -22,6 +22,10 @@ pub struct TextEdit {
     anchor: usize,
     multiline: bool,
     max_len: Option<usize>,
+    /// True if a collapsed selection has the direction "backward"
+    /// (`setSelectionRange(3, 3, 'backward')`); the direction of a range
+    /// follows `anchor` and `cursor`.
+    backward_caret: bool,
 }
 
 impl TextEdit {
@@ -44,6 +48,11 @@ impl TextEdit {
         self.max_len = max;
     }
 
+    /// The limit of typed and pasted text in UTF-16 code units.
+    pub fn max_len(&self) -> Option<usize> {
+        self.max_len
+    }
+
     /// The text.
     pub fn text(&self) -> &str {
         &self.text
@@ -61,6 +70,70 @@ impl TextEdit {
         text.clone_into(&mut self.text);
         self.cursor = self.text.len();
         self.anchor = self.cursor;
+        self.backward_caret = false;
+    }
+
+    /// Replaces the range between two UTF-16 offsets (clamped, `start`
+    /// above `end` collapses to `end`) with `text`, which the caller has
+    /// cleaned; the selection is then at `end` of the new text. For
+    /// `setRangeText`, which does not apply the maximum length.
+    pub fn replace_range_utf16(&mut self, start: usize, end: usize, text: &str) {
+        let end = end.min(self.len_utf16());
+        let start = start.min(end);
+        let (start, end) = (self.byte_offset(start), self.byte_offset(end));
+        self.text.replace_range(start..end, text);
+        self.cursor = start + text.len();
+        self.anchor = self.cursor;
+        self.backward_caret = false;
+    }
+
+    /// The length of the text in UTF-16 code units.
+    pub fn len_utf16(&self) -> usize {
+        utf16_len(&self.text)
+    }
+
+    /// The selection as offsets in UTF-16 code units.
+    pub fn selection_utf16(&self) -> (usize, usize) {
+        let range = self.selection();
+        (
+            utf16_len(&self.text[..range.start]),
+            utf16_len(&self.text[..range.end]),
+        )
+    }
+
+    /// True if the selection runs backward: the caret is before the other
+    /// end, or the selection is empty and was set backward.
+    pub fn is_backward(&self) -> bool {
+        self.cursor < self.anchor || (self.cursor == self.anchor && self.backward_caret)
+    }
+
+    /// Selects the range between two offsets in UTF-16 code units, which
+    /// are clamped to the text (an offset inside a surrogate pair moves
+    /// back to its start, a departure from the HTML API); `start` above
+    /// `end` collapses to `end`. With `backward` the caret is at `start`.
+    /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#set-the-selection-range>
+    pub fn select_range_utf16(&mut self, start: usize, end: usize, backward: bool) {
+        let end = end.min(self.len_utf16());
+        let start = start.min(end);
+        let (start, end) = (self.byte_offset(start), self.byte_offset(end));
+        let (anchor, cursor) = if backward { (end, start) } else { (start, end) };
+        self.anchor = anchor;
+        self.cursor = cursor;
+        self.backward_caret = backward && start == end;
+    }
+
+    /// The byte offset of the UTF-16 offset `units` (at most the length):
+    /// the start of the character that contains it.
+    fn byte_offset(&self, units: usize) -> usize {
+        let mut seen = 0;
+        for (i, c) in self.text.char_indices() {
+            let next = seen + c.len_utf16();
+            if next > units {
+                return i;
+            }
+            seen = next;
+        }
+        self.text.len()
     }
 
     /// The caret position.
@@ -113,6 +186,7 @@ impl TextEdit {
         self.text.replace_range(range.clone(), &clean);
         self.cursor = range.start + clean.len();
         self.anchor = self.cursor;
+        self.backward_caret = false;
         true
     }
 
@@ -268,6 +342,7 @@ impl TextEdit {
     pub fn move_to(&mut self, pos: usize, select: bool) {
         let pos = self.boundary(pos);
         self.cursor = pos;
+        self.backward_caret = false;
         if !select {
             self.anchor = pos;
         }
@@ -352,6 +427,33 @@ fn truncate_utf16(s: &mut String, max: usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selections_in_utf16_units() {
+        let mut f = TextEdit::new();
+        f.replace_text("a\u{1F600}b");
+        assert_eq!(f.len_utf16(), 4);
+        f.select_range_utf16(1, 3, false);
+        assert_eq!(f.selected_text(), "\u{1F600}");
+        assert_eq!(f.selection_utf16(), (1, 3));
+        // Start above end collapses to end; offsets are clamped.
+        f.select_range_utf16(3, 1, false);
+        assert_eq!(f.selection_utf16(), (1, 1));
+        f.select_range_utf16(0, 99, true);
+        assert_eq!(f.selection_utf16(), (0, 4));
+        assert!(f.is_backward());
+        // A collapsed backward selection stays backward until the caret moves.
+        f.select_range_utf16(3, 3, true);
+        assert!(f.is_backward());
+        f.right(false);
+        assert!(!f.is_backward());
+        // An offset inside a surrogate pair moves back to its start.
+        f.select_range_utf16(2, 2, false);
+        assert_eq!(f.cursor(), 1);
+        f.replace_range_utf16(1, 3, "xy");
+        assert_eq!(f.text(), "axyb");
+        assert_eq!(f.selection_utf16(), (3, 3));
+    }
 
     #[test]
     fn typing_replaces_selection() {

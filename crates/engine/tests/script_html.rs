@@ -331,6 +331,33 @@ fn many_controls_stay_linear() {
     });
 }
 
+/// A loop of `selected` attribute writes on the options of a select in
+/// the document does not rebuild the form state for each write (review of
+/// feature 9b1: 3,000 options took 1 s).
+#[test]
+fn selected_attribute_writes_stay_linear() {
+    on_page_thread(|| {
+        let site = Site::new("script-html-selected");
+        let mut page = open(&site, &format!("{BODY}<select id=s multiple></select>"));
+        let count = run(
+            &mut page,
+            "const s = document.getElementById('s'); for (let i = 0; i < 10000; i++) s.add(document.createElement('option')); s.length",
+        );
+        assert_eq!(count, "10000");
+        let started = std::time::Instant::now();
+        let answer = run(
+            &mut page,
+            "const os = document.querySelectorAll('option'); for (let i = 0; i < os.length; i++) os[i].setAttribute('selected', ''); let n = 0; for (let i = 0; i < os.length; i++) n += os[i].selected; n",
+        );
+        assert_eq!(answer, "10000");
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "{:?}",
+            started.elapsed()
+        );
+    });
+}
+
 /// The values that scripts write to controls have a budget of 32 MiB: the
 /// task that goes past it ends, the page keeps the values written so far
 /// and later tasks run (ADR 0028 section 16).

@@ -1,0 +1,688 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "dirty-value-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input value=x>').firstChild; const r = [i.value]; i.setAttribute('value', 'b'); r.push(i.value); i.value = 'c'; i.setAttribute('value', 'd'); r.push(i.value, i.defaultValue); i.defaultValue = 'e'; r.push(i.value, i.getAttribute('value')); i.removeAttribute('value'); r.push(i.value, i.defaultValue); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=x>').firstChild; i.value = ''; i.setAttribute('value', 'q'); return [i.value, i.defaultValue]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input value=x></form>').firstChild; const i = f.firstChild; i.value = 'c'; f.reset(); const r = [i.value]; i.setAttribute('value', 'g'); r.push(i.value); i.value = 'h'; i.defaultValue = 'k'; r.push(i.value); f.reset(); r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=x>').firstChild; const r = []; i.value = null; r.push(i.value); i.value = 12; r.push(i.value); i.value = undefined; r.push(i.value); i.value = {toString() { return 'o'; }}; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = document.createElement('input'); const r = [i.value]; i.setAttribute('value', 'a'); r.push(i.value); i.value = 'b'; i.setAttribute('value', 'c'); r.push(i.value); document.body.appendChild(i); r.push(i.value); i.setAttribute('value', 'd'); r.push(i.value); i.remove(); r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; i.value = 'a\\nb\\r\\nc'; return [i.value, i.value.length]; })"
+    }
+   ]
+  },
+  {
+   "name": "dirty-value-textarea",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const t = K('<textarea>ab</textarea>').firstChild; const r = [t.value, t.defaultValue]; t.textContent = 'cd'; r.push(t.value, t.defaultValue); t.value = 'ef'; t.textContent = 'gh'; r.push(t.value, t.defaultValue); t.defaultValue = 'ij'; r.push(t.value, t.textContent); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><textarea>ab</textarea></form>').firstChild; const t = f.firstChild; t.value = 'x'; f.reset(); const r = [t.value]; t.appendChild(document.createTextNode('+')); r.push(t.value, t.defaultValue); t.value = 'y'; t.firstChild.data = 'z'; r.push(t.value, t.defaultValue); return r; })"
+    },
+    {
+     "js": "R(() => { const t = K('<textarea>\\nab</textarea>').firstChild; const r = [t.value, t.defaultValue, t.textLength]; t.value = '\\nx\\r\\ny'; r.push(t.value, t.textLength); return r; })"
+    },
+    {
+     "js": "R(() => { const t = document.createElement('textarea'); t.defaultValue = 'a'; const r = [t.value]; document.body.appendChild(t); t.value = 'b'; t.remove(); r.push(t.value); t.defaultValue = 'c'; r.push(t.value); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "dirty-checked",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input type=checkbox checked>').firstChild; const r = [i.checked, i.defaultChecked]; i.removeAttribute('checked'); r.push(i.checked, i.defaultChecked); i.setAttribute('checked', ''); r.push(i.checked); i.checked = false; i.setAttribute('checked', ''); i.removeAttribute('checked'); i.setAttribute('checked', ''); r.push(i.checked, i.defaultChecked); i.defaultChecked = false; r.push(i.checked, i.hasAttribute('checked')); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input type=checkbox checked></form>').firstChild; const i = f.firstChild; i.checked = false; f.reset(); const r = [i.checked]; i.removeAttribute('checked'); r.push(i.checked); i.checked = true; f.reset(); r.push(i.checked); i.setAttribute('checked', ''); r.push(i.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const i = document.createElement('input'); i.type = 'checkbox'; const r = [i.checked]; i.setAttribute('checked', ''); r.push(i.checked); i.checked = false; i.setAttribute('checked', ''); r.push(i.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox>').firstChild; i.checked = true; i.type = 'text'; const r = [i.checked]; i.type = 'radio'; r.push(i.checked); i.type = 'checkbox'; r.push(i.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=text checked>').firstChild; const r = [i.checked, i.defaultChecked]; i.checked = false; r.push(i.checked); i.type = 'checkbox'; r.push(i.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox>').firstChild; i.indeterminate = true; i.checked = true; return [i.indeterminate, i.checked, i.matches(':indeterminate'), i.matches(':checked')]; })"
+    }
+   ]
+  },
+  {
+   "name": "dirty-radio-groups",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const d = K('<input type=radio name=g id=a checked><input type=radio name=g id=b checked><input type=radio name=g id=c>'); const r = [ids(d.querySelectorAll(':checked'))]; d.children[2].checked = true; r.push(ids(d.querySelectorAll(':checked'))); d.children[0].setAttribute('checked', ''); r.push(ids(d.querySelectorAll(':checked'))); d.children[2].checked = false; r.push(ids(d.querySelectorAll(':checked'))); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f1><input type=radio name=g id=a><input type=radio name=g id=b></form><form id=f2><input type=radio name=g id=c></form>'); const [a, b, c] = d.querySelectorAll('input'); a.checked = true; c.checked = true; const r = [a.checked, c.checked]; b.checked = true; r.push(a.checked, b.checked, c.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=g id=a><input type=radio name=h id=b>'); const [a, b] = d.children; a.checked = true; b.checked = true; const r = [a.checked, b.checked]; b.name = 'g'; r.push(a.checked, b.checked); a.checked = true; r.push(a.checked, b.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f1></form><form id=f2></form><input type=radio name=g id=a form=f1><input type=radio name=g id=b form=f2>'); const [f1, f2, a, b] = d.children; a.checked = true; b.checked = true; const r = [a.checked, b.checked]; b.setAttribute('form', 'f1'); r.push(a.checked, b.checked); b.checked = true; r.push(a.checked, b.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=g id=a checked><input type=text name=g id=b>'); const [a, b] = d.children; b.type = 'radio'; b.checked = true; const r = [a.checked, b.checked]; b.type = 'text'; a.checked = true; b.type = 'radio'; r.push(a.checked, b.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input type=radio name=g id=a checked><input type=radio name=g id=b></form>').firstChild; const [a, b] = f.elements; b.checked = true; const r = [a.checked, b.checked]; f.reset(); r.push(a.checked, b.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input type=radio name=g value=1><input type=radio name=g value=2 checked><input type=radio name=g></form>').firstChild; const l = f.elements.g; const r = [l.value, l.length]; l.value = '1'; r.push(l.value, f.elements[0].checked, f.elements[1].checked); l.value = 'nope'; r.push(l.value); f.elements[2].checked = true; r.push(l.value); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "dirty-select",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const s = K('<select><option id=a>1<option id=b selected>2<option id=c>3</select>').firstChild; const [a, b, c] = s.options; const r = [s.selectedIndex]; s.selectedIndex = 0; r.push(s.selectedIndex); c.setAttribute('selected', ''); r.push(s.selectedIndex); b.removeAttribute('selected'); r.push(s.selectedIndex); a.setAttribute('selected', ''); r.push(s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select><option id=a>1<option id=b>2<option id=c>3</select>').firstChild; const [a, b, c] = s.options; b.selected = true; const r = [s.selectedIndex]; a.setAttribute('selected', ''); r.push(s.selectedIndex, a.selected); a.removeAttribute('selected'); r.push(s.selectedIndex, a.selected); c.defaultSelected = true; r.push(s.selectedIndex, c.selected, c.defaultSelected); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><select><option>1<option selected>2<option>3</select></form>').firstChild; const s = f.firstChild; s.selectedIndex = 2; f.reset(); const r = [s.selectedIndex]; s.options[0].defaultSelected = true; r.push(s.selectedIndex); f.reset(); r.push(s.selectedIndex); s.options[1].selected = false; f.reset(); r.push(s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select multiple><option>1<option selected>2<option>3<option selected>4</select>').firstChild; const r = [Array.from(s.options).map((o) => +o.selected).join('')]; s.options[0].selected = true; s.options[1].selected = false; r.push(Array.from(s.options).map((o) => +o.selected).join('')); s.options[2].setAttribute('selected', ''); r.push(Array.from(s.options).map((o) => +o.selected).join('')); s.removeAttribute('multiple'); r.push(Array.from(s.options).map((o) => +o.selected).join('')); s.setAttribute('multiple', ''); r.push(Array.from(s.options).map((o) => +o.selected).join('')); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select size=3><option>1<option>2</select>').firstChild; const r = [s.selectedIndex]; s.selectedIndex = -1; r.push(s.selectedIndex); s.size = 0; r.push(s.selectedIndex); s.options[1].selected = false; r.push(s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select><option>1<option selected>2</select>').firstChild; const o = new Option('n', 'v', true, false); const r = [s.value]; s.insertBefore(o, s.firstChild); r.push(s.value, o.selected, s.selectedIndex); const p = new Option('p', 'w', false, true); s.appendChild(p); r.push(s.value, p.selected, o.selected); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select><option>1<option>2<option>3</select>').firstChild; s.selectedIndex = 1; const r = [s.value]; s.options[1].remove(); r.push(s.value, s.selectedIndex); s.options[0].remove(); s.options[0].remove(); r.push(s.value, s.selectedIndex); s.appendChild(new Option('x')); r.push(s.value, s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select><option disabled>1<option value=b>2<option disabled selected>3</select>').firstChild; const r = [s.value, s.selectedIndex]; s.value = 'b'; r.push(s.selectedIndex); s.value = 'zz'; r.push(s.selectedIndex, s.value); s.selectedIndex = 0; r.push(s.selectedIndex, s.value); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select><optgroup label=g><option>1<option selected>2</optgroup><option>3</select>').firstChild; const r = [s.selectedIndex]; s.options[2].selected = true; r.push(s.selectedIndex, s.options[1].selected); s.options.length = 1; r.push(s.length, s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<select><option>1<option>2<option>3</select>'); const s = d.firstChild; s.selectedIndex = 2; s.remove(); const r = [s.selectedIndex]; s.options[0].setAttribute('selected', ''); r.push(s.selectedIndex); document.body.appendChild(s); r.push(s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const s = K('<select multiple><option>1<option selected>2<option selected>3</select>').firstChild; const r = [s.selectedOptions.length]; s.options[0].selected = true; r.push(s.selectedOptions.length, s.selectedOptions[0].text); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "type-change",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input value=a>').firstChild; i.value = 'x'; const r = [i.value, i.getAttribute('value')]; i.type = 'checkbox'; r.push(i.value, i.getAttribute('value')); i.type = 'text'; r.push(i.value, i.getAttribute('value')); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox>').firstChild; const r = [i.value]; i.value = 'v'; r.push(i.value, i.getAttribute('value')); i.type = 'text'; r.push(i.value, i.getAttribute('value')); i.value = 'w'; i.type = 'radio'; r.push(i.value, i.getAttribute('value')); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.type = 'number'; const r = [i.value]; i.type = 'text'; r.push(i.value); i.value = '12'; i.type = 'number'; r.push(i.value); i.value = 'zz'; r.push(i.value); i.type = 'text'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.value = 'def'; i.type = 'hidden'; const r = [i.value, i.getAttribute('value')]; i.type = 'text'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.value = 'def'; i.type = 'submit'; const r = [i.value, i.getAttribute('value')]; i.value = 'x'; r.push(i.getAttribute('value')); i.type = 'password'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.type = 'file'; const r = [i.value, i.getAttribute('value')]; r.push(E(() => { i.value = 'x'; return 'ok'; })); r.push(E(() => { i.value = ''; return i.value; })); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=color>').firstChild; const r = [i.value]; i.value = '#ABCDEF'; r.push(i.value); i.type = 'text'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=range min=0 max=10>').firstChild; const r = [i.value]; i.value = '20'; r.push(i.value); i.type = 'text'; r.push(i.value); i.value = '4'; i.type = 'range'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=date>').firstChild; i.value = '2020-02-30'; const r = [i.value]; i.value = '2020-02-20'; r.push(i.value); i.type = 'month'; r.push(i.value); i.type = 'text'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const r = [i.type]; i.setAttribute('type', 'CHECKBOX'); r.push(i.type); i.type = 'bogus'; r.push(i.type, i.getAttribute('type')); i.removeAttribute('type'); r.push(i.type); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=number value=abc>').firstChild; const r = [i.value]; i.removeAttribute('type'); r.push(i.type, i.value); i.value = 'zz'; i.setAttribute('type', 'number'); r.push(i.value); i.attributes.removeNamedItem('type'); r.push(i.value); i.value = 'a\\nb'; i.type = 'tel'; r.push(i.value); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "insert-move-remove",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const d = K('<form id=f><input id=a><input id=b></form><input id=c form=f>'); const f = d.firstChild; const r = [ids(f.elements)]; const x = document.createElement('input'); x.id = 'x'; f.insertBefore(x, f.firstChild); r.push(ids(f.elements), x.form === f, f.length); x.remove(); r.push(ids(f.elements), x.form); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f><input id=a value=1></form><form id=g></form>'); const [f, g] = d.children; const a = f.firstChild; a.value = 'dirty'; a.remove(); const r = [a.value, a.form]; g.appendChild(a); r.push(a.value, a.form === g, ids(g.elements), ids(f.elements)); a.setAttribute('value', '2'); r.push(a.value); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f><input type=radio name=g id=a></form><form id=g><input type=radio name=g id=b></form>'); const [f, g] = d.children; const a = f.firstChild, b = g.firstChild; a.checked = true; b.checked = true; g.appendChild(a); const r = [a.checked, b.checked]; a.checked = true; r.push(a.checked, b.checked); a.remove(); r.push(a.checked, b.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input id=a form=late>'); const a = d.firstChild; const r = [a.form]; const f = document.createElement('form'); f.id = 'late'; r.push(a.form); d.appendChild(f); r.push(a.form === f, ids(f.elements)); f.id = 'other'; r.push(a.form); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f1></form>'); const f1 = d.firstChild; const f2 = document.createElement('form'); f2.id = 'f2'; const i = document.createElement('input'); i.id = 'i'; f2.appendChild(i); f1.appendChild(f2); const r = [i.form === f2, ids(f1.elements)]; f2.remove(); r.push(i.form === f2); f1.appendChild(i); r.push(i.form === f1); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input id=z form=f><form id=f><input id=a><div><select id=s></select><button id=b></button></div><fieldset id=fs><textarea id=t></textarea><output id=o></output><object id=ob></object></fieldset><input type=image id=im><input type=hidden id=h></form><input id=y form=f>'); const f = d.querySelector('form'); const r = [ids(f.elements), f.length, ids(d.querySelector('fieldset').elements)]; f.insertBefore(document.getElementById('y'), f.firstChild); r.push(ids(f.elements)); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form id=f><input name=a id=a1><input name=a id=a2><input id=b name=c><img name=im><input type=image name=ii></form>').firstChild; const r = [f.elements.a.length, f.elements.a[1].id, f.elements.b.name, f.elements.c.id, f.elements.im, f.elements.ii.name, f.a.length, f.b.name, f.c.id]; f.elements.a1.remove(); r.push(f.elements.a.id, f.a.id); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form id=f><input id=a><select id=s><option>1</select></form>').firstChild; const a = f.firstChild; f.remove(); const r = [a.form === f, ids(f.elements), a.value, f.a === a, document.forms.length]; a.value = 'q'; r.push(a.value); f.appendChild(a.cloneNode()); r.push(ids(f.elements)); return r; })"
+    },
+    {
+     "js": "R(() => { const t = document.createElement('template'); t.innerHTML = '<input value=a><textarea>t</textarea><select><option>1<option selected>2</select><input type=checkbox checked>'; const c = t.content.cloneNode(true); const r = Array.from(c.children).map((e) => e.value + '/' + e.checked); document.body.appendChild(c); return r.concat(Array.from(document.body.lastElementChild.parentNode.querySelectorAll('select')).map((s) => s.selectedIndex)); })"
+    },
+    {
+     "js": "R(() => { const d = K('<input value=a><input type=checkbox><textarea>t</textarea><select><option>1<option>2</select>'); d.children[0].value = 'b'; d.children[1].checked = true; d.children[2].value = 'u'; d.children[3].selectedIndex = 1; const c = d.cloneNode(true); const r = [c.children[0].value, c.children[1].checked, c.children[2].value, c.children[3].selectedIndex]; c.children[0].setAttribute('value', 'z'); r.push(c.children[0].value); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input value=a>'); const i = d.firstChild; i.value = 'b'; d.innerHTML = '<input value=a>'; return [d.firstChild.value, i.value]; })"
+    },
+    {
+     "js": "R(() => { const fr = document.createDocumentFragment(); const i = document.createElement('input'); i.type = 'checkbox'; i.checked = true; fr.appendChild(i); const r = [i.checked]; document.body.appendChild(fr); r.push(i.checked, i.matches(':checked')); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "form-owner-misc",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const d = K('<form id=f><div id=x></div></form><input id=a form=f><button id=b form=nonexistent></button>'); const [f, a, b] = [d.children[0], d.children[1], d.children[2]]; const r = [a.form === f, b.form]; a.removeAttribute('form'); r.push(a.form); a.setAttribute('form', ''); r.push(a.form); f.id = ''; r.push(ids(f.elements)); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form><label id=l for=a>x</label><input id=a><fieldset id=fs><legend id=lg></legend></fieldset><object id=o></object><output id=out></output></form>'); const f = d.firstChild; return [f.querySelector('#l').form === f, f.querySelector('#fs').form === f, f.querySelector('#lg').form === f, f.querySelector('#o').form === f, f.querySelector('#out').form === f, f.querySelector('#a').form === f]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form><select><option id=o>1</select></form>'); return [d.querySelector('#o').form === d.firstChild]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f></form><input id=a form=f name=n>'); const f = d.firstChild; const r = [f.n === d.children[1]]; d.children[1].name = 'm'; r.push(f.m === d.children[1]); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "form-methods",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const f = K('<form onsubmit=\"L(\\'onsubmit \\' + event.type)\" onreset=\"L(\\'onreset\\')\"><input id=i value=a><button id=b type=submit name=bb value=1>x</button></form>').firstChild; f.addEventListener('submit', (e) => { L('submit ' + e.constructor.name + ' ' + (e.submitter && e.submitter.id) + ' ' + e.cancelable + ' ' + e.bubbles); e.preventDefault(); }); const r = []; f.requestSubmit(); r.push(flush()); f.requestSubmit(f.querySelector('#b')); r.push(flush()); f.reset(); r.push(flush()); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input id=i><input id=j type=submit><input id=k type=button><button id=bt type=button></button><button id=br type=reset></button><div id=dv></div></form>').firstChild; f.addEventListener('submit', (e) => e.preventDefault()); const r = []; for (const id of ['i', 'j', 'k', 'bt', 'br']) r.push(id + ':' + E(() => { f.requestSubmit(f.querySelector('#' + id)); return 'ok'; })); r.push(E(() => { f.requestSubmit(f.querySelector('#dv')); return 'ok'; })); r.push(E(() => { f.requestSubmit(document.body); return 'ok'; })); r.push(E(() => { f.requestSubmit(null); return 'ok'; })); r.push(E(() => { f.requestSubmit(undefined); return 'ok'; })); r.push(E(() => { f.requestSubmit({}); return 'ok'; })); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f></form><form id=g><button id=b></button></form>'); return [E(() => { d.firstChild.requestSubmit(d.lastChild.firstChild); return 'ok'; })]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=f></form><button id=b form=f></button>'); d.firstChild.addEventListener('submit', (e) => { L('s ' + e.submitter.id); e.preventDefault(); }); d.firstChild.requestSubmit(d.lastChild); return [flush()]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input id=i required></form>').firstChild; f.addEventListener('submit', (e) => { L('submit'); e.preventDefault(); }); f.addEventListener('invalid', (e) => L('invalid@' + e.target.id + ' ' + e.bubbles + e.cancelable), true); const r = []; f.requestSubmit(); r.push(flush()); f.noValidate = true; f.requestSubmit(); r.push(flush()); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input id=i value=a></form>').firstChild; f.addEventListener('reset', (e) => { L('reset ' + e.bubbles + e.cancelable + ' ' + f.firstChild.value); e.preventDefault(); }); f.firstChild.value = 'b'; f.reset(); return [flush(), f.firstChild.value]; })"
+    },
+    {
+     "js": "R(() => { const f = document.createElement('form'); const i = document.createElement('input'); i.value = 'x'; f.appendChild(i); f.addEventListener('submit', (e) => { L('submit'); e.preventDefault(); }); f.addEventListener('reset', () => L('reset')); const r = []; r.push(E(() => { f.requestSubmit(); return flush(); })); r.push(E(() => { f.submit(); return flush(); })); f.reset(); r.push(flush(), i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input name=submit></form>').firstChild; return [E(() => { f.submit(); return 'ok'; }), typeof f.submit, f.submit === f.elements.submit]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input name=reset><input name=elements><input name=length><input name=action id=ac></form>').firstChild; return [typeof f.reset, f.elements.constructor.name, f.length, typeof f.action, f.elements.length]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input value=a><input type=checkbox checked><textarea>t</textarea><select><option>1<option selected>2</select><output>o</output><input type=radio name=r checked><input type=radio name=r></form>').firstChild; const e = f.elements; e[0].value = 'x'; e[1].checked = false; e[2].value = 'y'; e[3].selectedIndex = 0; e[4].value = 'oo'; e[6].checked = true; f.reset(); return [e[0].value, e[1].checked, e[2].value, e[3].selectedIndex, e[4].value, e[5].checked, e[6].checked]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><output id=o for=a>o</output></form>').firstChild; const o = f.firstChild; const r = [o.value, o.defaultValue, o.textContent]; o.value = 'v'; r.push(o.textContent, o.defaultValue); o.defaultValue = 'dv'; r.push(o.value, o.textContent); f.reset(); r.push(o.value); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form action=\"javascript:L(1)\"><input name=a value=b></form>').firstChild; return [E(() => { f.submit(); return 'ok'; })]; })"
+    }
+   ]
+  },
+  {
+   "name": "form-submit-method",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><form id=f action=about:blank onsubmit=\"L('submit event')\" oninvalid=\"L('invalid')\"><input name=a required></form>",
+   "measure": [
+    {
+     "js": "(() => { const f = document.getElementById('f'); f.submit(); return flush(); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-type",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input id=t class=abs style='left:10px;top:10px;width:100px'><input id=o class=abs style='left:200px;top:10px'><textarea id=ta class=abs style='left:10px;top:60px;width:100px;height:40px'></textarea><script>watch([\"keydown\", \"keypress\", \"beforeinput\", \"input\", \"change\", \"keyup\", \"focus\", \"blur\", \"focusin\", \"focusout\"], function (e) { return e.type === 'input' || e.type === 'change' ? 'v=' + (e.target.value !== undefined ? e.target.value : '') + (e.type === 'input' ? ' ' + e.inputType + ' ' + e.constructor.name + ' ' + e.bubbles + e.cancelable + e.composed : ' ' + e.constructor.name + ' ' + e.bubbles + e.cancelable) : (e.type === 'beforeinput' ? e.inputType + ' ' + e.data : (e.key || '')); });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    },
+    {
+     "js": "document.getElementById('ta').value"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#ta"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "click": "#t"
+    },
+    {
+     "key": "ArrowLeft"
+    },
+    {
+     "type": "z"
+    },
+    {
+     "click": "#o"
+    }
+   ]
+  },
+  {
+   "name": "events-checkbox-radio",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input type=checkbox id=c class=abs style='left:10px;top:10px;width:20px;height:20px'><input type=radio name=r id=r1 class=abs style='left:50px;top:10px'><input type=radio name=r id=r2 class=abs style='left:80px;top:10px'><input type=radio name=r id=r3 checked class=abs style='left:110px;top:10px'><label id=l for=c class=abs style='left:150px;top:10px'>lab</label><script>watch(['click','input','change'], function (e) { return 'c=' + e.target.checked + (e.type === 'click' ? '' : ' ' + e.constructor.name + ' ' + e.bubbles + e.cancelable + e.composed) + ' r=' + ['r1','r2','r3'].map(function (i) { return +document.getElementById(i).checked; }).join(''); });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('c').checked"
+    },
+    {
+     "js": "['r1','r2','r3'].map((i) => +document.getElementById(i).checked).join('')"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#c"
+    },
+    {
+     "click": "#r1"
+    },
+    {
+     "click": "#r1"
+    },
+    {
+     "click": "#r2"
+    },
+    {
+     "click": "#l"
+    },
+    {
+     "focus": "#r3"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "key": "ArrowLeft"
+    }
+   ]
+  },
+  {
+   "name": "events-cancel-radio",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input type=radio name=r id=r1 class=abs style='left:50px;top:10px' checked><input type=radio name=r id=r2 class=abs style='left:80px;top:10px'><script>watch(['click','input','change'], function (e) { return 'r=' + ['r1','r2'].map(function (i) { return +document.getElementById(i).checked; }).join('') + ' dp=' + e.defaultPrevented; });document.getElementById('r2').addEventListener('click', function (e) { L('in-handler r=' + document.getElementById('r1').checked + document.getElementById('r2').checked); e.preventDefault(); });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "['r1','r2'].map((i) => +document.getElementById(i).checked).join('')"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#r2"
+    }
+   ]
+  },
+  {
+   "name": "events-script-click",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input type=checkbox id=c><input type=radio name=r id=r1><input type=radio name=r id=r2 checked><input id=t><select id=s><option>1<option>2</select><input type=checkbox id=d disabled><script>watch(['click','input','change'], function (e) { return 'c=' + (e.target.checked) + ' ' + e.isTrusted; });</script>",
+   "measure": [
+    {
+     "js": "(() => { document.getElementById('c').click(); document.getElementById('r1').click(); document.getElementById('r1').click(); document.getElementById('d').click(); document.getElementById('t').click(); document.getElementById('s').click(); return flush(); })()"
+    },
+    {
+     "js": "(() => { const c = document.getElementById('c'); c.checked = false; c.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true})); const r = flush() + '/' + c.checked; c.addEventListener('click', (e) => e.preventDefault(), {once: true}); c.click(); return r + '/' + flush() + '/' + c.checked; })()"
+    },
+    {
+     "js": "(() => { const c = document.getElementById('c'); c.checked = false; c.dispatchEvent(new Event('click', {bubbles: true, cancelable: true})); return flush() + '/' + c.checked; })()"
+    },
+    {
+     "js": "(() => { const c = document.getElementById('c'); c.checked = false; c.dispatchEvent(new Event('input', {bubbles: true})); c.dispatchEvent(new Event('change', {bubbles: true})); return flush() + '/' + c.checked; })()"
+    },
+    {
+     "js": "(() => { const c = document.getElementById('c'); c.checked = !c.checked; c.value = 'k'; document.getElementById('t').value = 'abc'; return flush(); })()"
+    }
+   ]
+  },
+  {
+   "name": "events-select-keyboard",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><select id=s class=abs style='left:10px;top:10px'><option>1<option disabled>2<option>3<option>4</select><select id=m multiple size=3 class=abs style='left:100px;top:10px'><option>a<option>b<option>c</select><script>watch(['keydown','input','change','focus','blur','focusin','focusout'], function (e) { return e.type === 'keydown' ? e.key : 's=' + document.getElementById('s').selectedIndex; });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('s').selectedIndex"
+    },
+    {
+     "js": "document.getElementById('m').selectedIndex"
+    }
+   ],
+   "steps": [
+    {
+     "focus": "#s"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "key": "ArrowUp"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "key": "Home"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "key": "ArrowDown"
+    }
+   ]
+  },
+  {
+   "name": "events-focus-order",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input id=a class=abs style='left:10px;top:10px'><input id=b class=abs style='left:200px;top:10px'><button id=c class=abs style='left:400px;top:10px'>x</button><div id=d tabindex=0 class=abs style='left:500px;top:10px;width:50px;height:20px'></div><script>watch(['focus','blur','focusin','focusout','change','input'], null);window.addEventListener('focus', function (e) { if (e.target === window) L('wfocus'); }, true);window.addEventListener('blur', function (e) { if (e.target === window) L('wblur'); }, true);</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.activeElement.id"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "q"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "click": [
+      700,
+      300
+     ]
+    }
+   ]
+  },
+  {
+   "name": "events-focus-script",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input id=a><input id=b><input id=c disabled><script>watch(['focus','blur','focusin','focusout','change'], null);</script>",
+   "measure": [
+    {
+     "js": "(() => { const a = document.getElementById('a'), b = document.getElementById('b'); a.focus(); const r = [flush()]; a.value = 'x'; b.focus(); r.push(flush()); b.focus(); r.push(flush()); b.blur(); r.push(flush()); b.blur(); r.push(flush()); document.getElementById('c').focus(); r.push(flush()); a.focus({preventScroll: true}); a.remove(); r.push(flush(), String(document.activeElement && document.activeElement.nodeName)); return r.join(' / '); })()"
+    },
+    {
+     "js": "(() => { const a = document.getElementById('b'); a.addEventListener('focus', () => document.getElementById('a').focus(), {once: true}); a.focus(); return flush() + '/' + document.activeElement.id; })()"
+    }
+   ]
+  },
+  {
+   "name": "events-edit-misc",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input id=t class=abs style='left:10px;top:10px;width:100px' value=abc><input id=p type=password class=abs style='left:10px;top:50px' value=pw><input id=n type=number class=abs style='left:10px;top:90px' value=5><input id=ro readonly value=r class=abs style='left:10px;top:130px'><input id=dis disabled value=d class=abs style='left:200px;top:130px'><script>watch(['beforeinput','input','change','blur'], function (e) { return 'v=' + e.target.value + (e.inputType ? ' ' + e.inputType + ' ' + e.data : ''); });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    },
+    {
+     "js": "document.getElementById('n').value"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "type": "d"
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "type": "z"
+    },
+    {
+     "click": "#n"
+    },
+    {
+     "type": "1"
+    },
+    {
+     "click": "#ro"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#p"
+    },
+    {
+     "type": "s"
+    },
+    {
+     "click": "#t"
+    }
+   ]
+  },
+  {
+   "name": "events-script-edit-then-user",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><input id=t class=abs style='left:10px;top:10px;width:100px' value=abc><input id=o class=abs style='left:200px;top:10px'><script>watch(['input','change'], function (e) { return 'v=' + e.target.value; });</script>",
+   "measure": [
+    {
+     "js": "flush()"
+    },
+    {
+     "js": "document.getElementById('t').value"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "eval": "document.getElementById('t').value = 'script'"
+    },
+    {
+     "type": "u"
+    },
+    {
+     "eval": "document.getElementById('t').value = 'abc'"
+    },
+    {
+     "click": "#o"
+    },
+    {
+     "click": "#t"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "eval": "document.getElementById('t').defaultValue = 'zz'"
+    },
+    {
+     "click": "#o"
+    }
+   ]
+  },
+  {
+   "name": "dirty-user",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script><form id=f><input id=t value=a class=abs style='left:10px;top:10px'><input id=c type=checkbox checked class=abs style='left:200px;top:10px'><select id=s class=abs style='left:10px;top:50px'><option id=o1>1<option id=o2 selected>2<option id=o3>3<option id=o4>4</select><textarea id=ta class=abs style='left:10px;top:100px;width:100px;height:40px'>x</textarea><input id=r1 type=radio name=r checked class=abs style='left:300px;top:10px'><input id=r2 type=radio name=r class=abs style='left:330px;top:10px'></form>",
+   "measure": [
+    {
+     "js": "R(() => { const t = document.getElementById('t'); const r = [t.value]; t.setAttribute('value', 'z'); r.push(t.value, t.defaultValue); t.defaultValue = 'q'; r.push(t.value); return r; })"
+    },
+    {
+     "js": "R(() => { const c = document.getElementById('c'); const r = [c.checked]; c.removeAttribute('checked'); r.push(c.checked, c.defaultChecked); c.setAttribute('checked', ''); r.push(c.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const s = document.getElementById('s'); const r = [s.selectedIndex]; document.getElementById('o1').setAttribute('selected', ''); r.push(s.selectedIndex); document.getElementById('o2').removeAttribute('selected'); r.push(s.selectedIndex); document.getElementById('o4').defaultSelected = true; r.push(s.selectedIndex); return r; })"
+    },
+    {
+     "js": "R(() => { const t = document.getElementById('ta'); const r = [t.value]; t.textContent = 'q'; r.push(t.value, t.defaultValue); return r; })"
+    },
+    {
+     "js": "R(() => { const r1 = document.getElementById('r1'), r2 = document.getElementById('r2'); const r = [r1.checked, r2.checked]; r1.setAttribute('checked', ''); r2.setAttribute('checked', ''); r.push(r1.checked, r2.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('f'); f.reset(); const g = (i) => document.getElementById(i); return [g('t').value, g('c').checked, g('s').selectedIndex, g('ta').value, g('r1').checked, g('r2').checked]; })"
+    },
+    {
+     "js": "R(() => { const g = (i) => document.getElementById(i); g('t').setAttribute('value', 'w'); g('ta').textContent = 'v'; g('c').removeAttribute('checked'); return [g('t').value, g('ta').value, g('c').checked]; })"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "type": "b"
+    },
+    {
+     "click": "#c"
+    },
+    {
+     "focus": "#s"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "click": "#ta"
+    },
+    {
+     "type": "y"
+    },
+    {
+     "click": "#r2"
+    }
+   ]
+  },
+  {
+   "name": "type-toggle-layout",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input type=password value=pw>').firstChild; i.getBoundingClientRect(); const r = [i.value]; i.value = 'typed'; i.getBoundingClientRect(); i.type = 'text'; r.push(i.value); i.getBoundingClientRect(); i.type = 'password'; r.push(i.value, i.getAttribute('value')); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox>').firstChild; i.getBoundingClientRect(); i.checked = true; i.getBoundingClientRect(); i.type = 'text'; i.getBoundingClientRect(); const r = [i.checked, i.matches(':checked')]; i.type = 'checkbox'; i.getBoundingClientRect(); r.push(i.checked, i.matches(':checked')); i.type = 'radio'; r.push(i.checked); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.getBoundingClientRect(); i.type = 'number'; i.getBoundingClientRect(); const r = [i.value]; i.type = 'text'; i.getBoundingClientRect(); r.push(i.value); i.value = 'k'; i.type = 'number'; i.getBoundingClientRect(); r.push(i.value); i.type = 'text'; r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.getBoundingClientRect(); i.type = 'search'; const r = [i.value]; i.value = 'x\\ny'; i.type = 'email'; r.push(i.value); i.type = 'tel'; r.push(i.value); i.removeAttribute('type'); r.push(i.value, i.type); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=text value=a maxlength=3>').firstChild; i.value = 'abcdef'; i.type = 'search'; i.getBoundingClientRect(); return [i.value, i.type]; })"
+    }
+   ]
+  }
+ ]
+}

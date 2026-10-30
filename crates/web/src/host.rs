@@ -29,6 +29,30 @@ pub enum ControlWrite {
     OverLimit,
 }
 
+/// The selection of a text field or text area, in UTF-16 code units.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SelectionRange {
+    /// The start of the selection.
+    pub start: u32,
+    /// The end of the selection.
+    pub end: u32,
+    /// True if the selection direction is "backward".
+    pub backward: bool,
+}
+
+/// The `selectionMode` of `setRangeText`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangeTextMode {
+    /// Select the new text.
+    Select,
+    /// Put the caret before the new text.
+    Start,
+    /// Put the caret after the new text.
+    End,
+    /// Keep the selection where it was, adjusted to the change.
+    Preserve,
+}
+
 /// A rectangle in CSS px, as `DOMRect` has it (CSSOM View geometry).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct DomRect {
@@ -331,16 +355,69 @@ pub trait EngineHost: Any {
         ControlWrite::Done
     }
 
-    /// The checkedness of a checkbox or radio button; `None` for the
+    /// The selection of a text field or text area, or `None` if the
+    /// element has no selection (an input of a type that the selection
+    /// API does not apply to, another element).
+    fn control_selection(&mut self, node: NodeId) -> Option<SelectionRange> {
+        let _ = node;
+        None
+    }
+
+    /// Sets the selection of a text field or text area (HTML "set the
+    /// selection range": offsets are clamped, `start` above `end`
+    /// collapses to `end`). False if the element has no selection.
+    fn set_control_selection(
+        &mut self,
+        node: NodeId,
+        start: u32,
+        end: u32,
+        backward: bool,
+    ) -> bool {
+        let _ = (node, start, end, backward);
+        false
+    }
+
+    /// Selects all the text of a text field or text area. False for the
     /// other elements.
+    fn select_control_text(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
+    /// `setRangeText`: replaces the range between two offsets (UTF-16 code
+    /// units, clamped) of a text field or text area, then sets the
+    /// selection as `mode` says. The value counts as changed by a script.
+    fn set_control_range_text(
+        &mut self,
+        node: NodeId,
+        replacement: &str,
+        start: u32,
+        end: u32,
+        mode: RangeTextMode,
+    ) -> ControlWrite {
+        let _ = (node, replacement, start, end, mode);
+        ControlWrite::NotControl
+    }
+
+    /// The `type` attribute of an `input` changed; `old_value` is the
+    /// value before it if the old type had the value mode `value`. The
+    /// engine sanitizes the value for the new type (also for a control that
+    /// has no state yet) and drops a value that a script wrote if the new
+    /// type shows the `value` attribute instead.
+    fn input_type_changed(&mut self, node: NodeId, old_value: Option<String>) {
+        let _ = (node, old_value);
+    }
+
+    /// The checkedness of an `input`; `None` for the other elements.
     fn control_checked(&mut self, node: NodeId) -> Option<bool> {
         let _ = node;
         None
     }
 
-    /// Sets the checkedness of a checkbox or radio button (the dirty
-    /// checkedness flag becomes true; checking a radio button unchecks the
-    /// others of its group). False for the other elements.
+    /// Sets the checkedness of an `input` (the dirty checkedness flag
+    /// becomes true; checking a radio button unchecks the others of its
+    /// group; an input of another type keeps it for later). False for the
+    /// other elements.
     fn set_control_checked(&mut self, node: NodeId, checked: bool) -> bool {
         let _ = (node, checked);
         false
@@ -376,7 +453,8 @@ pub trait EngineHost: Any {
         let _ = (option, selected);
     }
 
-    /// The `selected` attribute of `option` was added or removed.
+    /// The `selected` attribute of `option` was added or removed. Called
+    /// right after the change, before any other change of the DOM.
     fn option_selected_attribute_changed(&mut self, option: NodeId) {
         let _ = option;
     }

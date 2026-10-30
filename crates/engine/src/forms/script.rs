@@ -12,7 +12,7 @@
 //! again keeps what it holds (the dirty value flag and the dirty
 //! checkedness flag of HTML are properties of the element).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use swb_dom::{Document, NodeId};
 
@@ -24,14 +24,31 @@ use super::{ControlState, ControlType, Forms, InputType, in_document};
 struct Seed {
     /// The value of a text field or text area (sanitized).
     value: Option<String>,
-    /// The checkedness of a checkbox or radio button and its stamp.
+    /// The checkedness of an `input` and its stamp. A text field keeps it
+    /// until its `type` becomes a checkbox or radio button.
     checked: Option<(bool, u64)>,
+    /// The form owner of the input when the script checked it: a radio
+    /// button that has another owner when the seed is applied was moved
+    /// after the write, which makes it the newest of its new group.
+    checked_owner: Option<NodeId>,
+    /// The selection of a text field that is not in the document (UTF-16
+    /// offsets, backward).
+    selection: Option<(usize, usize, bool)>,
     /// The selectedness of an option.
     selected: Option<bool>,
-    /// True if `selected` is a selectedness that the option got without
-    /// the dirtiness flag (`new Option()`): a change of the `selected`
-    /// attribute drops it.
-    selected_clean: bool,
+    /// True if the dirtiness flag of the option is set. Without it (a
+    /// `new Option()`, an option that the selectedness setting algorithm
+    /// deselected) a change of the `selected` attribute drops `selected`.
+    selected_dirty: bool,
+}
+
+impl Seed {
+    fn is_empty(&self) -> bool {
+        self.value.is_none()
+            && self.checked.is_none()
+            && self.selected.is_none()
+            && self.selection.is_none()
+    }
 }
 
 /// The values that scripts wrote to controls that have no state yet.
@@ -40,9 +57,6 @@ pub(crate) struct Seeds {
     map: HashMap<NodeId, Seed>,
     /// The bytes of the values in `map`.
     value_bytes: usize,
-    /// The options in a select whose selectedness is clean (see
-    /// [`Seed::selected_clean`]) and was applied to the select.
-    clean_applied: HashSet<NodeId>,
 }
 
 impl Seeds {
@@ -53,12 +67,7 @@ impl Seeds {
 
     /// Forgets what scripts wrote to `node` (the form reset algorithm).
     pub(crate) fn forget(&mut self, node: NodeId) {
-        if let Some(seed) = self.map.remove(&node) {
-            self.value_bytes = self
-                .value_bytes
-                .saturating_sub(seed.value.as_ref().map_or(0, String::len));
-        }
-        self.clean_applied.remove(&node);
+        self.remove(node);
     }
 
     /// The checkedness that a script wrote to `node`.
@@ -71,29 +80,42 @@ impl Seeds {
         self.map.get(&node)?.selected
     }
 
+    /// The selectedness and the dirtiness flag of the option `node`, if it
+    /// has a seed.
+    pub(crate) fn option(&self, node: NodeId) -> Option<(bool, bool)> {
+        let seed = self.map.get(&node)?;
+        Some((seed.selected?, seed.selected_dirty))
+    }
+
     /// The bytes of the values in the seeds (for the budget of control
     /// values).
     pub(crate) fn value_bytes(&self) -> usize {
         self.value_bytes
     }
 
+    /// The selection that a script set on `node`.
+    pub(crate) fn selection(&self, node: NodeId) -> Option<(usize, usize, bool)> {
+        self.map.get(&node)?.selection
+    }
+
+    pub(crate) fn set_selection(&mut self, node: NodeId, selection: (usize, usize, bool)) {
+        self.map.entry(node).or_default().selection = Some(selection);
+    }
+
+    /// Takes the value that a script wrote to `node`.
+    pub(crate) fn take_value(&mut self, node: NodeId) -> Option<String> {
+        let value = self.map.get_mut(&node)?.value.take()?;
+        self.value_bytes = self.value_bytes.saturating_sub(value.len());
+        if self.map.get(&node).is_some_and(Seed::is_empty) {
+            self.map.remove(&node);
+        }
+        Some(value)
+    }
+
     pub(crate) fn set_value(&mut self, node: NodeId, value: String) {
         let added = value.len();
         let old = self.map.entry(node).or_default().value.replace(value);
         self.value_bytes = self.value_bytes.saturating_sub(old.map_or(0, |v| v.len())) + added;
-    }
-
-    /// Drops the seed of `node` after a select or a control applied it;
-    /// a clean selectedness stays marked in `clean_applied`.
-    fn retire(&mut self, node: NodeId) {
-        if self
-            .map
-            .get(&node)
-            .is_some_and(|s| s.selected_clean && s.selected.is_some())
-        {
-            self.clean_applied.insert(node);
-        }
-        self.remove(node);
     }
 
     /// Drops the seed of `node`.
@@ -105,23 +127,55 @@ impl Seeds {
         }
     }
 
-    pub(crate) fn set_checked(&mut self, node: NodeId, checked: bool, stamp: u64) {
-        self.map.entry(node).or_default().checked = Some((checked, stamp));
+    /// Drops the parts of the seed of `node` that a state took: the value
+    /// if `value`, the checkedness if `checked`.
+    fn consume(&mut self, node: NodeId, value: bool, checked: bool) {
+        let Some(seed) = self.map.get_mut(&node) else {
+            return;
+        };
+        if value {
+            seed.selection = None;
+            if let Some(old) = seed.value.take() {
+                self.value_bytes = self.value_bytes.saturating_sub(old.len());
+            }
+        }
+        if checked {
+            seed.checked = None;
+        }
+        if seed.is_empty() {
+            self.map.remove(&node);
+        }
     }
 
-    pub(crate) fn set_selected(&mut self, node: NodeId, selected: bool) {
-        self.clean_applied.remove(&node);
+    pub(crate) fn set_checked(
+        &mut self,
+        node: NodeId,
+        checked: bool,
+        stamp: u64,
+        owner: Option<NodeId>,
+    ) {
+        let seed = self.map.entry(node).or_default();
+        seed.checked = Some((checked, stamp));
+        seed.checked_owner = owner;
+    }
+
+    /// Sets the selectedness of the option `node` and its dirtiness flag.
+    pub(crate) fn set_option(&mut self, node: NodeId, selected: bool, dirty: bool) {
         let seed = self.map.entry(node).or_default();
         seed.selected = Some(selected);
-        seed.selected_clean = false;
+        seed.selected_dirty = dirty;
+    }
+
+    /// Sets the selectedness of the option `node` and sets its dirtiness
+    /// flag (`option.selected = x`).
+    pub(crate) fn set_selected(&mut self, node: NodeId, selected: bool) {
+        self.set_option(node, selected, true);
     }
 
     /// Sets the selectedness of the option `node` without making it
     /// dirty (HTML "selectedness" of `new Option()`).
     pub(crate) fn set_selected_clean(&mut self, node: NodeId, selected: bool) {
-        let seed = self.map.entry(node).or_default();
-        seed.selected = Some(selected);
-        seed.selected_clean = true;
+        self.set_option(node, selected, false);
     }
 
     /// Drops the selectedness of the option `node` if it is not dirty:
@@ -131,31 +185,14 @@ impl Seeds {
         let Some(seed) = self.map.get_mut(&node) else {
             return false;
         };
-        let dropped = seed.selected_clean;
+        let dropped = seed.selected.is_some() && !seed.selected_dirty;
         if dropped {
             seed.selected = None;
-            seed.selected_clean = false;
         }
-        if seed.value.is_none() && seed.checked.is_none() && seed.selected.is_none() {
+        if seed.is_empty() {
             self.map.remove(&node);
         }
         dropped
-    }
-
-    /// True if `node` had a clean selectedness that a select got; the
-    /// mark is dropped. The `selected` attribute decides it again.
-    pub(crate) fn take_clean_applied(&mut self, node: NodeId) -> bool {
-        self.clean_applied.remove(&node)
-    }
-
-    /// Marks the option `node` of a select as clean again.
-    pub(crate) fn mark_clean_applied(&mut self, node: NodeId) {
-        self.clean_applied.insert(node);
-    }
-
-    /// Drops a dirty write of the selectedness of `node` from the marks.
-    pub(crate) fn forget_clean_applied(&mut self, node: NodeId) {
-        self.clean_applied.remove(&node);
     }
 }
 
@@ -170,12 +207,14 @@ impl Forms {
     }
 
     /// Keeps the dirty state of the controls of `old` that `self` does not
-    /// have (they left the document), and the selectedness of the options
-    /// that left a select that stays in the document: an option keeps its
-    /// selectedness when it is not in a select.
+    /// have (they left the document), the dirty checkedness of an input
+    /// whose type cannot show it any more, and the selectedness of the
+    /// options that left a select: an option keeps its selectedness and
+    /// its dirtiness flag when it is not in a select.
     fn orphans_to_seeds(&self, old: &Forms, doc: &Document, seeds: &mut Seeds) {
         for (&node, state) in &old.controls {
-            if state.ty == ControlType::Select && self.controls.contains_key(&node) {
+            let now = self.controls.get(&node);
+            if state.ty == ControlType::Select {
                 for option in &state.options {
                     // Only a selectedness that the attribute does not give
                     // is worth keeping.
@@ -183,23 +222,35 @@ impl Forms {
                         .element(option.node)
                         .is_some_and(|e| e.has_attr("selected"));
                     if !self.option_select.contains_key(&option.node)
-                        && option.selected != by_attribute
+                        && doc.get(option.node).is_some()
+                        && (option.dirty || option.selected != by_attribute)
                     {
-                        seeds.set_selected(option.node, option.selected);
+                        seeds.set_option(option.node, option.selected, option.dirty);
                     }
                 }
             }
-            if !state.dirty || self.controls.contains_key(&node) || doc.get(node).is_none() {
+            if doc.get(node).is_none() {
                 continue;
             }
-            if state.ty.is_text() {
-                seeds.set_value(node, state.edit.text().to_owned());
-            } else if state.ty.is_checkable() {
-                seeds.set_checked(node, state.checked, 0);
-            } else if state.ty == ControlType::Select {
-                for option in &state.options {
-                    seeds.set_selected(option.node, option.selected);
+            match now {
+                // The type changed: a checkbox or radio button keeps its
+                // dirty checkedness for a type that cannot show it; it is
+                // "inserted" into its group when the type comes back.
+                Some(now) if now.ty != state.ty => {
+                    if state.dirty && state.ty.is_checkable() && !now.ty.is_checkable() {
+                        seeds.set_checked(node, state.checked, 0, state.owner);
+                    }
                 }
+                None if state.dirty && state.ty.is_text() => {
+                    seeds.set_value(node, state.edit.text().to_owned());
+                    let (start, end) = state.edit.selection_utf16();
+                    seeds.set_selection(node, (start, end, state.edit.is_backward()));
+                }
+                None if state.dirty && state.ty.is_checkable() => {
+                    seeds.set_checked(node, state.checked, 0, state.owner);
+                }
+                // Still in the document with its type, or nothing to keep.
+                Some(_) | None => {}
             }
         }
     }
@@ -212,6 +263,7 @@ impl Forms {
         }
         let mut radios = Vec::new();
         let mut selects = Vec::new();
+        let mut consumed = Vec::new();
         let mut applied = Vec::new();
         // Walk the controls and options of the new state, not the seeds:
         // the seeds of options that left their select stay for a later
@@ -224,18 +276,26 @@ impl Forms {
             let Some(state) = self.controls.get_mut(&node) else {
                 continue;
             };
+            // A value is for a text field; for another type it is stale.
             if let (Some(value), true) = (&seed.value, state.ty.is_text()) {
                 state.edit.replace_text(value);
                 state.dirty = true;
             }
-            if let (Some((checked, stamp)), true) = (seed.checked, state.ty.is_checkable()) {
+            if let (Some((start, end, backward)), true) = (seed.selection, state.ty.is_text()) {
+                state.edit.select_range_utf16(start, end, backward);
+            }
+            let checkable = state.ty.is_checkable();
+            if let (Some((checked, stamp)), true) = (seed.checked, checkable) {
                 state.checked = checked;
                 state.dirty = true;
                 if state.ty == ControlType::Input(InputType::Radio) {
-                    radios.push((stamp, node));
+                    // Another owner than at the write: the button moved, so
+                    // it is the newest of its group.
+                    let moved = seed.checked_owner != state.owner;
+                    radios.push((if moved { 0 } else { stamp }, node));
                 }
             }
-            applied.push(node);
+            consumed.push((node, true, checkable));
         }
         for (&option, &select) in &self.option_select {
             if seeds.selected(option).is_some() {
@@ -249,7 +309,10 @@ impl Forms {
             self.apply_option_seeds(doc, select, seeds);
         }
         for node in applied {
-            seeds.retire(node);
+            seeds.remove(node);
+        }
+        for (node, value, checked) in consumed {
+            seeds.consume(node, value, checked);
         }
         if !radios.is_empty() {
             self.stamp_seeded_radios(doc, radios);
@@ -299,8 +362,9 @@ impl Forms {
         };
         let mut last_selected = None;
         for (i, option) in state.options.iter_mut().enumerate() {
-            if let Some(selected) = seeds.selected(option.node) {
+            if let Some((selected, dirty)) = seeds.option(option.node) {
                 option.selected = selected;
+                option.dirty = dirty;
                 if selected {
                     last_selected = Some(i);
                 }
@@ -393,5 +457,5 @@ pub(crate) fn options_of_detached(
     select: NodeId,
     seeds: &Seeds,
 ) -> Vec<super::OptionState> {
-    detached_options(doc, select, &|n| seeds.selected(n))
+    detached_options(doc, select, &|n| seeds.option(n))
 }

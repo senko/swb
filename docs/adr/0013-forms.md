@@ -25,8 +25,8 @@ checkboxes, radio buttons and labels, and submission with `GET` and
   text. It is built from the attributes when a document is committed, with
   value sanitization, radio button groups (the last checked button of a
   group stays checked) and the selectedness setting algorithm of selects.
-  swb has no dirty flags: without scripts, nothing changes the defaults
-  after parsing.
+  Without scripts, nothing changes the defaults after parsing, so the
+  state needs no dirty flags; scripts change this (see "Scripts" below).
 - Facts that depend only on the DOM (the form owner, disabled, barred from
   constraint validation) are computed once per document, so that a
   keystroke or a submission costs linear time also with thousands of
@@ -241,6 +241,48 @@ checkbox or radio button also does implicit submission. `novalidate` and
 `formnovalidate` are checked by `Page::submit_form`
 (`crates/engine/src/page/forms.rs`) before `submit.rs` builds the
 request. The decision did not change.
+
+### Scripts (M8 features 6c and 9b)
+
+With JavaScript on, scripts change the attributes after parsing, and the
+state of a control can differ from its defaults. The rules below are those
+of the HTML standard, checked against Chromium; ADR 0028 (section 11,
+feature notes of 6c, 9b) has the details and the measurements.
+
+- Dirty flags, as the standard has them: the dirty value flag of text
+  fields and text areas, the dirty checkedness flag of an `input`, and the
+  dirtiness flag of each `option`. A control or option without its flag
+  follows its attributes (`value`, `checked`, `selected`, the content of a
+  text area); a rebuild of the state (`Forms::rebuild`) takes the
+  defaults again for them. A control with its flag keeps its state over a
+  rebuild. The user's input and a script's write set the flag. `reset()`
+  clears all flags of the form's controls, and so does the reset button.
+  The flag of an option is per option, not per select: the `selected`
+  attribute of an option that is not dirty changes the selection of the
+  select ("ask for a reset"), that of a dirty option does not.
+- A control that a script writes to while it has no state (a new
+  element, a control outside the document, the DOM changed since the last
+  build) gets a *seed* (`forms/script.rs`): the value, the selection, the
+  checkedness with the form owner at the time of the write, or the
+  selectedness and dirtiness flag of an option. The next rebuild applies
+  the seeds to the controls it finds. A control that leaves the document
+  keeps its dirty state as a seed, so that inserting it again restores it.
+- A change of the `type` of an `input` carries the state over: a value is
+  sanitized for the new type and stays so (`abc` in a field that became
+  `number` is empty, also after it is `text` again); the dirty
+  checkedness of a checkbox or radio button stays for the types that
+  cannot show it (every `input` has the `checked` property) and returns
+  when the type does. A checked radio button that moves to another group
+  (another form owner), or becomes a radio button, is the newest of its
+  group and unchecks the others.
+- The standard's "inserted option" rules: a `selected` option that enters a
+  select unselects the others (a select without `multiple`); a select that
+  loses `multiple` keeps its first selected option (Chromium, measured); a
+  drop-down select with no selected option after a change of its options
+  or its size selects its first option that is not disabled.
+- The selection API of `input` and `textarea` reads and writes the `TextEdit`
+  caret and selection in UTF-16 code units (an offset inside a surrogate
+  pair moves back to its start).
 
 ## Consequences
 

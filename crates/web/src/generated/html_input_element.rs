@@ -45,6 +45,36 @@ pub trait HTMLInputElementImpl: b::Host {
     /// `attribute unsigned long width`.
     fn width(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
+    /// `attribute unsigned long? selectionStart`.
+    fn selection_start(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<u32>>;
+
+    /// The setter of `attribute unsigned long? selectionStart`.
+    fn set_selection_start(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<u32>) -> b::Result<()>;
+
+    /// `attribute unsigned long? selectionEnd`.
+    fn selection_end(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<u32>>;
+
+    /// The setter of `attribute unsigned long? selectionEnd`.
+    fn set_selection_end(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<u32>) -> b::Result<()>;
+
+    /// `attribute DOMString? selectionDirection`.
+    fn selection_direction(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<String>>;
+
+    /// The setter of `attribute DOMString? selectionDirection`.
+    fn set_selection_direction(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<String>) -> b::Result<()>;
+
+    /// `undefined select()`.
+    fn select(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `undefined setRangeText(DOMString replacement)`.
+    fn set_range_text_1(cx: &mut b::Cx<'_>, this: b::NodeId, replacement: String) -> b::Result<()>;
+
+    /// `undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode)`.
+    fn set_range_text_2(cx: &mut b::Cx<'_>, this: b::NodeId, replacement: String, start: u32, end: u32, selection_mode: super::types::SelectionMode) -> b::Result<()>;
+
+    /// `undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction)`.
+    fn set_selection_range(cx: &mut b::Cx<'_>, this: b::NodeId, start: u32, end: u32, direction: Option<String>) -> b::Result<()>;
+
 }
 
 fn get_accept<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -621,8 +651,125 @@ fn set_width<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn get_selection_start<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLInputElement", "selectionStart"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let result = <H as HTMLInputElementImpl>::selection_start(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::number(f64::from(x0))), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_selection_start<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLInputElement", "selectionStart"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map(Some) }).map_err(b::Exception::nested)?;
+        <H as HTMLInputElementImpl>::set_selection_start(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_selection_end<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLInputElement", "selectionEnd"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let result = <H as HTMLInputElementImpl>::selection_end(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::number(f64::from(x0))), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_selection_end<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLInputElement", "selectionEnd"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map(Some) }).map_err(b::Exception::nested)?;
+        <H as HTMLInputElementImpl>::set_selection_end(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_selection_direction<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLInputElement", "selectionDirection"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let result = <H as HTMLInputElementImpl>::selection_direction(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this)?;
+        Ok((match result { Some(x0) => b::to_js::string(rt, &x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn set_selection_direction<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLInputElement", "selectionDirection"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(b::Exception::nested)?;
+        <H as HTMLInputElementImpl>::set_selection_direction(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 pub(super) fn construct<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLInputElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+}
+
+fn op_select<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLInputElement", "select"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        <H as HTMLInputElementImpl>::select(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_set_range_text<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLInputElement", "setRangeText"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        match call.argc().min(4) {
+            1 => {
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as HTMLInputElementImpl>::set_range_text_1(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+            }
+            2 => Err(b::Exception::type_error("Overload resolution failed.")),
+            3 => {
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(2))?;
+        let v = rt.arg(call, 3);
+        let a3 = if v.is_undefined() { super::types::SelectionMode::Preserve } else { super::types::SelectionMode::from_js(rt, v).map_err(|e| e.argument(3))? };
+        <H as HTMLInputElementImpl>::set_range_text_2(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, a0, a1, a2, a3)?;
+        Ok(swb_js::Value::Undefined)
+            }
+            _ => {
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(2))?;
+        let v = rt.arg(call, 3);
+        let a3 = if v.is_undefined() { super::types::SelectionMode::Preserve } else { super::types::SelectionMode::from_js(rt, v).map_err(|e| e.argument(3))? };
+        <H as HTMLInputElementImpl>::set_range_text_2(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, a0, a1, a2, a3)?;
+        Ok(swb_js::Value::Undefined)
+            }
+        }
+    })
+}
+
+fn op_set_selection_range<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLInputElement", "setSelectionRange"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_INPUT_ELEMENT)?;
+        b::glue::require_arguments(call, 2)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(2))?) };
+        <H as HTMLInputElementImpl>::set_selection_range(&mut b::Cx::new(rt, call, super::HTML_INPUT_ELEMENT), this, a0, a1, a2)?;
+        Ok(swb_js::Value::Undefined)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLInputElement` in `realm`
@@ -664,6 +811,12 @@ pub fn define<H: HTMLInputElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     rt.define_accessor(realm, target, "defaultValue", (Some(get_default_value::<H> as swb_js::NativeFn), Some(set_default_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "value", (Some(get_value::<H> as swb_js::NativeFn), Some(set_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "width", (Some(get_width::<H> as swb_js::NativeFn), Some(set_width::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "selectionStart", (Some(get_selection_start::<H> as swb_js::NativeFn), Some(set_selection_start::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "selectionEnd", (Some(get_selection_end::<H> as swb_js::NativeFn), Some(set_selection_end::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "selectionDirection", (Some(get_selection_direction::<H> as swb_js::NativeFn), Some(set_selection_direction::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "select", 0, op_select::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setRangeText", 1, op_set_range_text::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setSelectionRange", 2, op_set_selection_range::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

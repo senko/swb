@@ -368,6 +368,14 @@ impl ScriptRuntime {
         })
     }
 
+    /// Fires `input` and `change` at the select `node` whose selected
+    /// option the user changed with a key. A task.
+    pub fn select_changed(&mut self, node: NodeId) -> Result<(), ScriptError> {
+        self.task("a change event", |rt| {
+            crate::html::activation::select_changed(rt, node).map_err(task_error)
+        })
+    }
+
     /// The synthetic `click` of a key at `node` (trusted, as Chromium
     /// makes it): Enter on a button or link, Space on release, Enter in a
     /// text field for the default button. The activation behavior follows

@@ -258,9 +258,17 @@ pub(crate) fn remove_attribute(
     element: NodeId,
     name: &QualName,
 ) -> VmResult<Option<String>> {
+    let type_change = crate::html::before_type_change(rt, element, name)?;
     let old = dom_mut(rt)?.remove_attribute(element, name);
     if old.is_some() {
         selected_attribute_changed(rt, element, name)?;
+        // An input without `type` is a text field: the removal changes the
+        // type too. The new type sets no `value` attribute, so only an
+        // abrupt completion can fail.
+        if let Err(Exception::Js(error)) = crate::html::after_type_change(rt, element, type_change)
+        {
+            return Err(error);
+        }
         crate::events::handler_attribute_changed(rt, element, name, None)?;
     }
     if let Some(old) = &old {

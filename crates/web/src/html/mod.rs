@@ -36,6 +36,7 @@ mod forms;
 mod hyperlink;
 mod inner_text;
 mod owner;
+mod selection;
 mod tables;
 mod token_lists;
 
@@ -63,9 +64,13 @@ pub(crate) fn attribute(cx: &Cx<'_>, element: NodeId, name: &str) -> b::Result<O
 /// task ends if the values that scripts wrote reached the budget of the
 /// document (ADR 0028 section 16).
 pub(crate) fn write_control_value(cx: &mut Cx<'_>, node: NodeId, value: &str) -> b::Result<()> {
-    if crate::state::engine_mut(cx.rt)?.set_control_value(node, value)
-        == crate::ControlWrite::OverLimit
-    {
+    let result = crate::state::engine_mut(cx.rt)?.set_control_value(node, value);
+    over_limit(cx, result)
+}
+
+/// Ends the task if a write to a control reached the budget of the values.
+pub(crate) fn over_limit(cx: &mut Cx<'_>, result: crate::ControlWrite) -> b::Result<()> {
+    if result == crate::ControlWrite::OverLimit {
         return Err(cx.rt.terminate("the budget of form control values").into());
     }
     Ok(())

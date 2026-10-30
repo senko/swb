@@ -1,0 +1,253 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "sel-types",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const r = []; for (const t of ['text', 'search', 'tel', 'url', 'password', 'email', 'number', 'date', 'color', 'range', 'checkbox', 'radio', 'hidden', 'button', 'file', 'submit']) { const i = K('<input type=' + t + ' value=\"abc\">').firstChild; r.push(t + ':' + sel(i)); } return r; })"
+    },
+    {
+     "js": "R(() => { const r = []; for (const t of ['text', 'search', 'tel', 'url', 'password', 'email', 'number', 'date', 'color', 'range', 'checkbox', 'radio', 'hidden', 'button', 'file', 'submit']) { const i = K('<input type=' + t + '>').firstChild; r.push(t + ':' + E(() => { i.setSelectionRange(0, 1); return 'ok'; }) + ':' + E(() => { i.select(); return 'ok'; }) + ':' + E(() => { i.selectionStart = 0; return 'ok'; }) + ':' + E(() => { i.setRangeText('x'); return 'ok'; })); } return r; })"
+    },
+    {
+     "js": "R(() => { const t = K('<textarea>abc</textarea>').firstChild; return [sel(t), t.textLength]; })"
+    }
+   ]
+  },
+  {
+   "name": "sel-defaults",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; return [sel(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const r = [sel(i)]; i.value = 'abc'; r.push(sel(i)); i.value = 'abc'; i.setSelectionRange(1, 2); i.value = 'abc'; r.push(sel(i)); i.value = 'abd'; r.push(sel(i)); i.value = ''; r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.focus(); const r = [sel(i)]; i.blur(); r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.setAttribute('value', 'abcdef'); const r = [sel(i)]; i.defaultValue = 'xy'; r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = document.createElement('input'); i.value = 'abc'; const r = [sel(i)]; document.body.appendChild(i); r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const t = K('<textarea>abc\\ndef</textarea>').firstChild; const r = [sel(t)]; t.value = 'xyz'; r.push(sel(t)); t.defaultValue = 'q'; r.push(sel(t)); return r; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input value=abc></form>').firstChild; const i = f.firstChild; i.setSelectionRange(1, 2); f.reset(); return [sel(i)]; })"
+    }
+   ]
+  },
+  {
+   "name": "sel-set-range",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; const r = []; r.push(i.setSelectionRange(1, 3)); r.push(sel(i)); i.setSelectionRange(4, 2); r.push(sel(i)); i.setSelectionRange(2, 100); r.push(sel(i)); i.setSelectionRange(0, 2, 'backward'); r.push(sel(i)); i.setSelectionRange(0, 2, 'forward'); r.push(sel(i)); i.setSelectionRange(0, 2, 'none'); r.push(sel(i)); i.setSelectionRange(0, 2, 'bogus'); r.push(sel(i)); i.setSelectionRange(0, 2, 'BACKWARD'); r.push(sel(i)); i.setSelectionRange(3, 3, 'backward'); r.push(sel(i)); i.setSelectionRange(1, 2); r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; const r = []; i.selectionStart = 2; r.push(sel(i)); i.selectionEnd = 4; r.push(sel(i)); i.selectionStart = 5; r.push(sel(i)); i.selectionEnd = 1; r.push(sel(i)); i.selectionDirection = 'backward'; r.push(sel(i)); i.selectionDirection = 'x'; r.push(sel(i)); i.selectionStart = null; r.push(sel(i)); i.selectionEnd = 1e10; r.push(sel(i)); i.selectionStart = -1; r.push(sel(i)); i.selectionEnd = NaN; r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; const r = []; r.push(E(() => i.setSelectionRange())); r.push(E(() => i.setSelectionRange(1))); r.push(E(() => i.setSelectionRange('1', '2'))); r.push(sel(i)); r.push(E(() => i.setSelectionRange(-1, 2))); r.push(E(() => i.setSelectionRange(1, 2, undefined))); r.push(E(() => i.setSelectionRange(1, 2, null))); r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; i.setSelectionRange(1, 3); i.select(); const r = [sel(i)]; i.setSelectionRange(1, 3, 'backward'); i.select(); r.push(sel(i)); i.value = ''; i.select(); r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=\"a😀b\">').firstChild; const r = [i.value.length]; i.setSelectionRange(1, 3); r.push(sel(i)); i.setSelectionRange(2, 2); r.push(sel(i)); i.setSelectionRange(0, 2); r.push(sel(i)); i.setSelectionRange(0, 99); r.push(sel(i)); i.value = 'é😀'; r.push(sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const t = K('<textarea>ab\\ncd</textarea>').firstChild; const r = []; t.setSelectionRange(1, 4); r.push(sel(t)); t.value = 'a\\r\\nb'; r.push(sel(t)); t.setSelectionRange(0, 3); r.push(sel(t)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.setSelectionRange(1, 2); i.setAttribute('value', 'xyz'); return [i.value, sel(i)]; })"
+    }
+   ]
+  },
+  {
+   "name": "sel-range-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; const r = []; i.setSelectionRange(1, 3); r.push(i.setRangeText('XY')); r.push(i.value, sel(i)); i.setRangeText('Z', 0, 1); r.push(i.value, sel(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const r = []; for (const mode of ['select', 'start', 'end', 'preserve']) { const i = K('<input value=abcdef>').firstChild; i.setSelectionRange(2, 4, 'backward'); i.setRangeText('XYZ', 1, 3, mode); r.push(mode + ':' + i.value + ':' + sel(i)); } return r; })"
+    },
+    {
+     "js": "R(() => { const r = []; for (const mode of ['select', 'start', 'end', 'preserve']) { const i = K('<input value=abcdef>').firstChild; i.setSelectionRange(1, 5); i.setRangeText('X', 2, 4, mode); r.push(mode + ':' + i.value + ':' + sel(i)); } return r; })"
+    },
+    {
+     "js": "R(() => { const r = []; for (const mode of ['select', 'start', 'end', 'preserve']) { const i = K('<input value=abcdef>').firstChild; i.setSelectionRange(3, 3); i.setRangeText('XY', 3, 3, mode); r.push(mode + ':' + i.value + ':' + sel(i)); } return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abcdef>').firstChild; const r = []; r.push(E(() => i.setRangeText('x', 4, 2))); r.push(E(() => i.setRangeText('x', 2, 100))); r.push(i.value, sel(i)); r.push(E(() => i.setRangeText('x', 1, 2, 'bogus'))); r.push(E(() => i.setRangeText('x', 1, 2, undefined))); r.push(i.value); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abcdef maxlength=3>').firstChild; i.setRangeText('123456', 0, 2); return [i.value, sel(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.setAttribute('value', 'zzz'); i.setRangeText('X', 0, 1); i.setAttribute('value', 'yyy'); return [i.value, i.defaultValue]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=abc>').firstChild; i.setRangeText('line\\nbreak', 0, 1); return [i.value]; })"
+    },
+    {
+     "js": "R(() => { const t = K('<textarea>abc</textarea>').firstChild; t.setRangeText('\\n', 1, 2, 'end'); return [t.value, sel(t)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input value=\"a😀b\">').firstChild; i.setRangeText('X', 1, 3, 'select'); return [i.value, sel(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=number value=5>').firstChild; return [E(() => { i.setRangeText('x'); return 'ok'; })]; })"
+    }
+   ]
+  },
+  {
+   "name": "sel-events",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><input id=t value=abcdef><textarea id=ta>abc</textarea><input id=o><script>watch(['select', 'selectionchange', 'input', 'change', 'focus'], null); document.addEventListener('selectionchange', (e) => L('doc-sc ' + e.constructor.name + ' ' + e.bubbles + e.cancelable), false); document.getElementById('t').addEventListener('select', (e) => L('t-select ' + e.bubbles + e.cancelable + ' ' + e.constructor.name)); document.getElementById('t').addEventListener('selectionchange', (e) => L('t-sc ' + e.bubbles)); </script>",
+   "measure": [
+    {
+     "js": "(async () => { const t = document.getElementById('t'); t.select(); const r = [flush()]; await wait(60); r.push(flush()); t.setSelectionRange(1, 3); r.push(flush()); await wait(60); r.push(flush()); t.setSelectionRange(1, 3); await wait(60); r.push(flush()); t.selectionStart = 2; await wait(60); r.push(flush()); t.setRangeText('Q'); await wait(60); r.push(flush()); t.value = 'new'; await wait(60); r.push(flush()); return r.join(' / '); })()"
+    },
+    {
+     "js": "(async () => { const t = document.getElementById('ta'); t.focus(); await wait(60); const r = [flush()]; t.select(); await wait(60); r.push(flush()); t.setSelectionRange(0, 1); await wait(60); r.push(flush()); return r.join(' / '); })()"
+    },
+    {
+     "js": "(async () => { const t = document.getElementById('o'); t.focus(); await wait(60); const r = [flush()]; t.value = 'abc'; t.select(); await wait(60); r.push(flush()); t.blur(); await wait(60); r.push(flush(), sel(t)); return r.join(' / '); })()"
+    }
+   ]
+  },
+  {
+   "name": "sel-user",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><input id=t value='hello world' class=abs style='left:10px;top:10px;width:200px'><textarea id=ta class=abs style='left:10px;top:60px;width:200px;height:60px'>abc def\nghi</textarea><input id=o class=abs style='left:300px;top:10px'><script>watch(['select', 'selectionchange', 'input'], function (e) { return sel(e.target.selectionStart === undefined ? document.getElementById('t') : e.target); });</script>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(80); const t = document.getElementById('t'); return flush() + ' / ' + sel(t) + ' / ' + sel(document.getElementById('ta')); })()"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "key": "Shift+ArrowLeft"
+    },
+    {
+     "key": "Shift+ArrowLeft"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "L('sel1 ' + sel(document.getElementById('t')))"
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "L('sel2 ' + sel(document.getElementById('t')))"
+    },
+    {
+     "key": "Home"
+    },
+    {
+     "eval": "L('sel3 ' + sel(document.getElementById('t')))"
+    },
+    {
+     "dblclick": "#t"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "L('sel4 ' + sel(document.getElementById('t')))"
+    },
+    {
+     "click": "#ta"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "key": "Shift+End"
+    },
+    {
+     "wait": 60
+    },
+    {
+     "eval": "L('sel5 ' + sel(document.getElementById('ta')))"
+    },
+    {
+     "click": "#o"
+    },
+    {
+     "eval": "L('sel6 ' + sel(document.getElementById('ta')) + ' ' + sel(document.getElementById('t')))"
+    }
+   ]
+  },
+  {
+   "name": "sel-type-text",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><input id=t class=abs style='left:10px;top:10px;width:200px' value=abcdef>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(60); return flush(); })()"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "eval": "L(sel(document.getElementById('t')))"
+    },
+    {
+     "type": "XY"
+    },
+    {
+     "eval": "L(sel(document.getElementById('t')))"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "eval": "L(sel(document.getElementById('t')))"
+    },
+    {
+     "eval": "document.getElementById('t').setSelectionRange(1, 3)"
+    },
+    {
+     "type": "Q"
+    },
+    {
+     "eval": "L(sel(document.getElementById('t')) + ' ' + document.getElementById('t').value)"
+    },
+    {
+     "eval": "document.getElementById('t').select()"
+    },
+    {
+     "key": "Delete"
+    },
+    {
+     "eval": "L(sel(document.getElementById('t')) + ' ' + JSON.stringify(document.getElementById('t').value))"
+    }
+   ]
+  }
+ ]
+}

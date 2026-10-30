@@ -244,11 +244,23 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
         Ok("output".to_owned())
     }
 
+    /// The default value override once `value` was written, else the
+    /// text content.
     fn default_value(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        if let Some(default) = crate::state::state(cx.rt)?.output_defaults.get(&this) {
+            return Ok(default.clone());
+        }
         Ok(dom(cx.rt)?.text_content(this))
     }
 
     fn set_default_value(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        if let Some(default) = crate::state::state_mut(cx.rt)?
+            .output_defaults
+            .get_mut(&this)
+        {
+            *default = value;
+            return Ok(());
+        }
         crate::dom::string_replace_all(cx, this, &value)
     }
 
@@ -256,7 +268,18 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
         Ok(dom(cx.rt)?.text_content(this))
     }
 
+    /// The first write switches the value mode flag to "value": the text
+    /// content so far becomes the default value override.
     fn set_value(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        if !crate::state::state(cx.rt)?
+            .output_defaults
+            .contains_key(&this)
+        {
+            let default = dom(cx.rt)?.text_content(this);
+            crate::state::state_mut(cx.rt)?
+                .output_defaults
+                .insert(this, default);
+        }
         crate::dom::string_replace_all(cx, this, &value)
     }
 }
@@ -276,6 +299,63 @@ impl g::html_map_element::HTMLMapElementImpl for WebState {
 // ----- textarea -----
 
 impl g::html_text_area_element::HTMLTextAreaElementImpl for WebState {
+    fn selection_start(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
+        super::selection::selection_start(cx, this)
+    }
+
+    fn set_selection_start(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
+        super::selection::set_selection_start(cx, this, value)
+    }
+
+    fn selection_end(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
+        super::selection::selection_end(cx, this)
+    }
+
+    fn set_selection_end(cx: &mut Cx<'_>, this: NodeId, value: Option<u32>) -> b::Result<()> {
+        super::selection::set_selection_end(cx, this, value)
+    }
+
+    fn selection_direction(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<String>> {
+        super::selection::selection_direction(cx, this)
+    }
+
+    fn set_selection_direction(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        value: Option<String>,
+    ) -> b::Result<()> {
+        super::selection::set_selection_direction(cx, this, value.as_deref())
+    }
+
+    fn select(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        super::selection::select(cx, this)
+    }
+
+    fn set_range_text_1(cx: &mut Cx<'_>, this: NodeId, replacement: String) -> b::Result<()> {
+        super::selection::set_range_text_selection(cx, this, &replacement)
+    }
+
+    fn set_range_text_2(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        replacement: String,
+        start: u32,
+        end: u32,
+        selection_mode: g::types::SelectionMode,
+    ) -> b::Result<()> {
+        super::selection::set_range_text(cx, this, &replacement, start, end, selection_mode)
+    }
+
+    fn set_selection_range(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        start: u32,
+        end: u32,
+        direction: Option<String>,
+    ) -> b::Result<()> {
+        super::selection::set_selection_range(cx, this, start, end, direction.as_deref())
+    }
+
     fn autocomplete(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         super::element::autocomplete(cx, this)
     }

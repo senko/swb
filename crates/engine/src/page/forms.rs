@@ -487,7 +487,7 @@ impl Page {
                 let (Some(form), Some((doc, forms))) = (owner, self.dom_and_forms()) else {
                     return false;
                 };
-                forms.reset(doc, form);
+                let _ = forms.reset(doc, form);
                 self.control_changed();
                 true
             }
@@ -651,6 +651,10 @@ impl Page {
                 .is_some_and(|f| f.select_option(node, index))
         {
             self.control_changed();
+            if self.script_input() {
+                // `input` and `change` follow at once (measured).
+                self.run_task(|s| s.select_changed(node));
+            }
         }
         Some(true)
     }

@@ -229,7 +229,9 @@ impl DocumentState {
             self.seeds.forget(node);
         }
         self.ensure_forms();
-        self.forms.value_mut().reset(&self.dom, form);
+        for node in self.forms.value_mut().reset(&self.dom, form) {
+            self.seeds.forget(node);
+        }
         self.controls_stale = true;
         self.invalidate_layout();
     }

@@ -112,6 +112,15 @@ fn tag_name(data: &NodeData) -> String {
 /// `script` parent follow (HTML "children changed").
 /// <https://dom.spec.whatwg.org/#string-replace-all>
 pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -> b::Result<()> {
+    string_replace_all_in(cx.rt, parent, value)
+}
+
+/// [`string_replace_all`] for code that has the runtime only.
+pub(crate) fn string_replace_all_in(
+    rt: &mut Runtime,
+    parent: NodeId,
+    value: &str,
+) -> b::Result<()> {
     // Chromium keeps the node (and makes no change) when the only child is
     // a Text node that already has this data (measured in
     // `tools/probes/web-dom-mutation.json`; every other case makes a new
@@ -119,9 +128,9 @@ pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -
     // With a mutation observer installed it replaces the node like the
     // standard says (measured, feature 9a: the record names the old and the
     // new node).
-    let observed = dom_mut(cx.rt)?.mutation_sink_mut().is_some();
+    let observed = dom_mut(rt)?.mutation_sink_mut().is_some();
     let same = !observed && {
-        let dom = dom(cx.rt)?;
+        let dom = dom(rt)?;
         let mut children = dom.children(parent);
         match (children.next(), children.next()) {
             (Some(only), None) => matches!(&dom.node(only).data, NodeData::Text(t) if t == value),
@@ -129,20 +138,20 @@ pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -
         }
     };
     if same && !value.is_empty() {
-        return Ok(crate::scripts::after_insertion(cx.rt, parent, &[])?);
+        return Ok(crate::scripts::after_insertion(rt, parent, &[])?);
     }
     let node = if value.is_empty() {
         None
     } else {
-        let document = dom(cx.rt)?.node_document(parent);
-        let result = dom_mut(cx.rt)?.create_node_in(document, NodeData::Text(value.to_owned()));
-        Some(dom_result(cx.rt, result)?)
+        let document = dom(rt)?.node_document(parent);
+        let result = dom_mut(rt)?.create_node_in(document, NodeData::Text(value.to_owned()));
+        Some(dom_result(rt, result)?)
     };
-    crate::html::focus::before_removal(cx.rt, parent, false)?;
-    let result = dom_mut(cx.rt)?.replace_all(parent, node);
-    dom_result(cx.rt, result)?;
+    crate::html::focus::before_removal(rt, parent, false)?;
+    let result = dom_mut(rt)?.replace_all(parent, node);
+    dom_result(rt, result)?;
     let added: Vec<NodeId> = node.into_iter().collect();
-    Ok(crate::scripts::after_insertion(cx.rt, parent, &added)?)
+    Ok(crate::scripts::after_insertion(rt, parent, &added)?)
 }
 
 impl g::node::NodeImpl for WebState {
