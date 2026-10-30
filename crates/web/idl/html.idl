@@ -27,18 +27,22 @@
 // members of HTMLOrSVGElement without `focus` and `blur` (feature
 // 6d; `innerText` and `outerText` since 7b2); it lacks `contentEditable`,
 // `popover`, `attachInternals` and the popover members. No element
-// interface has the obsolete members, `validity` and the other constraint
-// validation members (`willValidate`, `validationMessage`,
-// `checkValidity()`, `reportValidity()`, `setCustomValidity()`,
-// `ValidityState`), `labels`, `files`, `valueAsNumber`, `valueAsDate`,
-// `stepUp()`, `stepDown()`, `showPicker()`, `iframe.contentWindow` and
+// interface has the obsolete members, `files`, `valueAsNumber`,
+// `valueAsDate`, `stepUp()`, `stepDown()`, `showPicker()`,
+// `iframe.contentWindow` and
 // `contentDocument`, `canvas.getContext`, the media playback members,
 // `dialog.show*`, `meter` and `progress` values, `sheet` and the
 // factory function `Audio`. The form methods `submit()`, `reset()` and
 // `requestSubmit()` came with feature 6d; the selection members of
 // `input` and `textarea` (`select()`, `selectionStart`, `selectionEnd`,
 // `selectionDirection`, `setRangeText()`, `setSelectionRange()` and the
-// enumeration SelectionMode) with feature 9b. `HTMLImageElement` and
+// enumeration SelectionMode) with feature 9b1; the constraint validation
+// members (`willValidate`, `validity` and `ValidityState`,
+// `validationMessage`, `checkValidity()`, `reportValidity()`,
+// `setCustomValidity()` on `input`, `select`, `textarea`, `button`,
+// `fieldset`, `output` and `object`; the two methods on `form`) and `labels` (on
+// `input`, `select`, `textarea`, `button`, `output`, `meter`, `progress`)
+// with feature 9b2. `HTMLImageElement` and
 // `HTMLOptionElement` have their `LegacyFactoryFunction` (`Image`,
 // `Option`; feature 6c2). The
 // attributes whose prose says "limited to only known values" have swb's
@@ -476,6 +480,13 @@ interface HTMLObjectElement : HTMLElement {
   readonly attribute HTMLFormElement? form;
   [CEReactions, Reflect] attribute DOMString width;
   [CEReactions, Reflect] attribute DOMString height;
+
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
 };
 
 [Exposed=Window]
@@ -621,6 +632,9 @@ interface HTMLFormElement : HTMLElement {
   undefined submit();
   undefined requestSubmit(optional HTMLElement? submitter = null);
   [CEReactions] undefined reset();
+
+  boolean checkValidity();
+  boolean reportValidity();
 };
 
 [Exposed=Window]
@@ -670,6 +684,15 @@ interface HTMLInputElement : HTMLElement {
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString value;
   [CEReactions, ReflectSetter] attribute unsigned long width;
 
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+
+  readonly attribute NodeList? labels;
+
   undefined select();
   attribute unsigned long? selectionStart;
   attribute unsigned long? selectionEnd;
@@ -692,6 +715,15 @@ interface HTMLButtonElement : HTMLElement {
   [CEReactions, Reflect] attribute DOMString name;
   [CEReactions, Reflect, SwbKeywords="submit reset button", SwbMissing="submit", SwbInvalid="submit"] attribute DOMString type;
   [CEReactions, Reflect] attribute DOMString value;
+
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+
+  readonly attribute NodeList labels;
 };
 
 [Exposed=Window]
@@ -716,6 +748,15 @@ interface HTMLSelectElement : HTMLElement {
   [SameObject] readonly attribute HTMLCollection selectedOptions;
   [CEReactions] attribute long selectedIndex;
   [CEReactions] attribute DOMString value;
+
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+
+  readonly attribute NodeList labels;
 };
 
 [Exposed=Window]
@@ -766,6 +807,15 @@ interface HTMLTextAreaElement : HTMLElement {
   attribute [LegacyNullToEmptyString] DOMString value;
   readonly attribute unsigned long textLength;
 
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+
+  readonly attribute NodeList labels;
+
   undefined select();
   attribute unsigned long? selectionStart;
   attribute unsigned long? selectionEnd;
@@ -784,16 +834,27 @@ interface HTMLOutputElement : HTMLElement {
   readonly attribute DOMString type;
   [CEReactions] attribute DOMString defaultValue;
   [CEReactions] attribute DOMString value;
+
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+
+  readonly attribute NodeList labels;
 };
 
 [Exposed=Window]
 interface HTMLProgressElement : HTMLElement {
   [HTMLConstructor] constructor();
+  readonly attribute NodeList labels;
 };
 
 [Exposed=Window]
 interface HTMLMeterElement : HTMLElement {
   [HTMLConstructor] constructor();
+  readonly attribute NodeList labels;
 };
 
 [Exposed=Window]
@@ -804,6 +865,28 @@ interface HTMLFieldSetElement : HTMLElement {
   [CEReactions, Reflect] attribute DOMString name;
   readonly attribute DOMString type;
   [SameObject] readonly attribute HTMLCollection elements;
+
+  readonly attribute boolean willValidate;
+  [SameObject] readonly attribute ValidityState validity;
+  readonly attribute DOMString validationMessage;
+  boolean checkValidity();
+  boolean reportValidity();
+  undefined setCustomValidity(DOMString error);
+};
+
+[Exposed=Window]
+interface ValidityState {
+  readonly attribute boolean valueMissing;
+  readonly attribute boolean typeMismatch;
+  readonly attribute boolean patternMismatch;
+  readonly attribute boolean tooLong;
+  readonly attribute boolean tooShort;
+  readonly attribute boolean rangeUnderflow;
+  readonly attribute boolean rangeOverflow;
+  readonly attribute boolean stepMismatch;
+  readonly attribute boolean badInput;
+  readonly attribute boolean customError;
+  readonly attribute boolean valid;
 };
 
 [Exposed=Window]

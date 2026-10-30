@@ -2806,9 +2806,25 @@ IDL.
   `textarea`, `setRangeText` with all modes, offsets in UTF-16 units, the
   user's selection by keys and double click) with the input steps and
   Chromium's values (`crates/automation/tests/data/web-forms-script.json`,
-  made from `just probe --json` of both files by comparing three runs;
-  queries that start with `(async` wait for tasks and are not run: they
-  show the `select` and `selectionchange` events, which swb does not fire).
+  made from `just probe --json` of the files by comparing three runs;
+  queries that start with `(async` wait for tasks and run too since
+  feature 9b2: they show the `select` and `selectionchange` events).
+  Feature 9b2 adds `tools/probes/web-forms-validation.json` (30 cases, 121
+  queries: the validity states and the English `validationMessage` of each
+  constraint and control type, `setCustomValidity()`, bad input typed with
+  steps, the `invalid` events and the focus of `checkValidity()`,
+  `reportValidity()` and `requestSubmit()`, `:valid`, `:invalid` and
+  `:user-valid` of controls, forms and fieldsets, `labels`) and 15 cases
+  of `web-forms-selection.json` (the events of the selection by script and
+  by the user); the `type` step of `--steps` types one character at a time
+  with the due tasks between, as Playwright does. A step list for
+  `selectionchange` must wait between input steps (Chromium merges the
+  events of fast steps). Unit tests: `forms/validity.rs` (states, texts,
+  numbers in messages, patterns, bounds), `forms/values.rs` (dates as
+  numbers and texts). Hostile cases: `set-custom-validity-over-budget-js-on`,
+  `pattern-catastrophic-many-inputs`, `pattern-catastrophic-check-validity-js-on`,
+  `check-validity-loop-js-on`, `validity-rebuild-loop-js-on`,
+  `pattern-cache-loop-js-on`, `pattern-compile-many-inputs`.
   A probe query that must not navigate does not call `form.submit()`: the
   case `form-submit-method` does it as its last query. Unit tests: the
   rebuild of the form state (`forms/mod.rs`: per-option dirtiness, inserted

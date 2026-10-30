@@ -651,7 +651,9 @@ fn submit_steps(
     click: ClickInfo,
 ) -> VmResult<()> {
     if !from_method {
-        if !skips_validation(dom(rt)?, form, submitter) && !validate(rt, form)? {
+        if !skips_validation(dom(rt)?, form, submitter)
+            && !super::validation::report_form(rt, form)?
+        {
             return Ok(());
         }
         let mut event = TrustedEvent::new("submit");
@@ -680,29 +682,6 @@ fn submit_steps(
 /// field): HTML "submit" with the `submit` event.
 pub(crate) fn implicit_submit(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
     submit(rt, form, None, false, ClickInfo::default())
-}
-
-/// HTML "interactively validate the constraints": an `invalid` event at
-/// each invalid control; the first one gets the focus unless a listener
-/// canceled its event. False if the form is invalid.
-fn validate(rt: &mut Runtime, form: NodeId) -> VmResult<bool> {
-    let invalid = engine_mut(rt)?.invalid_controls(form);
-    if invalid.is_empty() {
-        return Ok(true);
-    }
-    let mut first_canceled = false;
-    for (index, &node) in invalid.iter().enumerate() {
-        let mut event = TrustedEvent::new("invalid");
-        event.cancelable = true;
-        let canceled = !fire_trusted(rt, DispatchTarget::Node(node), &event)?;
-        if index == 0 {
-            first_canceled = canceled;
-        }
-    }
-    if !first_canceled && let Some(&first) = invalid.first() {
-        super::focus::focus_node(rt, first, true)?;
-    }
-    Ok(false)
 }
 
 /// HTML "reset": `reset` at the form (bubbles, can be canceled), then the

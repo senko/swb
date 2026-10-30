@@ -310,6 +310,7 @@ HTMLOutputElement:dwc
 HTMLProgressElement:dwc
 HTMLMeterElement:dwc
 HTMLFieldSetElement:dwc
+ValidityState:dwc
 HTMLLegendElement:dwc
 HTMLSelectedContentElement:dwc
 HTMLDetailsElement:dwc

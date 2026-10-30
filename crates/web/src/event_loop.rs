@@ -51,6 +51,9 @@ pub(crate) enum Task {
     FinalizationCleanup,
     /// Let the parser go on after a wait (`document_load.rs`).
     ParserResume,
+    /// Fire the waiting `select` and `selectionchange` events of text
+    /// controls.
+    SelectionEvents,
     /// Fire `error` at a script element whose `src` is empty or not a URL
     /// (HTML "queue an element task").
     ScriptErrorEvent(swb_dom::NodeId),

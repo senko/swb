@@ -9,9 +9,18 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLProgressElement`.
 pub trait HTMLProgressElementImpl: b::Host {
+    /// `readonly attribute NodeList labels`.
+    fn labels(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
 }
 
-impl<T: b::Host> HTMLProgressElementImpl for T {}
+fn get_labels<H: HTMLProgressElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLProgressElement", "labels"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_PROGRESS_ELEMENT)?;
+        let result = <H as HTMLProgressElementImpl>::labels(&mut b::Cx::new(rt, call, super::HTML_PROGRESS_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
 
 pub(super) fn construct<H: HTMLProgressElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLProgressElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
@@ -23,6 +32,7 @@ pub fn define<H: HTMLProgressElementImpl>(rt: &mut swb_js::Runtime, realm: u32) 
     let interface = rt.begin_interface(realm, super::HTML_PROGRESS_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "labels", (Some(get_labels::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

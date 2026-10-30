@@ -54,6 +54,8 @@ pub(crate) enum Slot {
     Style,
     /// `document.forms` and the other collections of a document.
     Collection(crate::dom::DocCollection),
+    /// `validity` of a form control (`ValidityState`).
+    Validity,
 }
 
 /// The parsed tokens of token lists by element and attribute name.
@@ -107,6 +109,9 @@ pub(crate) struct WebState {
     /// wrote `value`), with their default value override
     /// (<https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element>).
     pub(crate) output_defaults: HashMap<NodeId, String>,
+    /// The `select` and `selectionchange` events that wait for their task,
+    /// and the owner of the document's selection (feature 9b2).
+    pub(crate) selection_events: crate::html::selection_events::SelectionEvents,
     /// The event listener lists of nodes (a node with listeners has a
     /// wrapper; both live as long as the document).
     pub(crate) listeners: HashMap<NodeId, Listeners>,

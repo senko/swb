@@ -93,9 +93,9 @@ mod window;
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo, NavigationKind, ObservedBox,
-    ObservedPosition, OffsetMetrics, RangeTextMode, ScrollAlign, ScrollMetrics, ScrollRequest,
-    SelectionRange, Viewport,
+    ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo,
+    NavigationKind, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode, ScrollAlign,
+    ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{

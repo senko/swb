@@ -3439,7 +3439,56 @@ Steps:
           `selectionchange` events of text controls. Tests: probe
           cases for each validity state and message, the `invalid`
           event order of `checkValidity()`, `reportValidity()` and
-          `requestSubmit()`.
+          `requestSubmit()`. Done 2026-10-30. `forms/validity.rs`
+          computes the ten validity states of a control on demand:
+          required (an unnamed radio button is never missing,
+          measured), `email` (also `multiple`) and `url`, `pattern`
+          (compiled as `^(?:p)$` with the `v` flag, cached by its
+          text), length after a user edit, `min`/`max`/`step` of
+          `number`, `range` and the five date and time types, bad
+          input, custom messages; `validationMessage` gives Chromium's
+          English texts (measured). The API is on `input`, `select`,
+          `textarea`, `button`, `fieldset`, `output` and `object`, and
+          `checkValidity()`/`reportValidity()` on `form`;
+          `ValidityState` is lazy. `invalid` events follow Chromium:
+          every failing control gets one, a control that an earlier
+          listener fixed gets none, and focus and scroll go to the
+          first control whose event nobody canceled; `requestSubmit()`,
+          submit buttons and Enter use the same path, and the JS-off
+          path uses the same validity. `:valid`/`:invalid` cover all
+          constraints and also `form` and `fieldset`; `:user-valid`
+          and `:user-invalid` are new. `labels` is a live `NodeList`
+          (`null` for `input type=hidden`). The `select` and
+          `selectionchange` events of text controls (script calls,
+          focus, the user's selection; `select` bubbles). Bounds: the
+          `pattern` matches of one pass share 2M regex steps, and a
+          match that runs out of steps counts as valid (Chromium gives
+          `patternMismatch` for `(a+)+$` on 40 letters); custom
+          messages have a budget of 8 MiB. Found on the way: the
+          `setRangeText` preserve mode put the selection end at the
+          wrong place; a read-only checkbox and `type=image` are barred
+          from validation; a typed `1.` in a number field has the
+          value `1`. Probes `web-forms-validation.json` (30 cases, 121
+          queries, all equal) and 15 new cases in
+          `web-forms-selection.json` (the four event queries of 9b1
+          now pass), three equal Chromium runs each. JS off: snapshot
+          identical; `compare --js` scores and console errors
+          unchanged; runtime heap 451,464 → 451,541 bytes; hostile 235
+          cases, 234 ok + the known failure (7 new). ADR 0028 "Feature
+          9b2 notes". Review fixes: the cache of compiled patterns had
+          no bound (a script that wrote a new 10 KB pattern and read
+          `validity` in a loop grew to 1.6 GB; now 256 patterns and 8
+          MiB, 71 MiB in the new hostile case); when other matches had
+          used up the steps of a pass, the result "valid" was
+          remembered for an unrelated control and kept in every later
+          pass (one match now has at most 200,000 steps, only results
+          that do not depend on the pass are remembered, and style
+          visits the controls in a fixed order). Delta review: the pass
+          was charged 20,000 steps per match, also for a cheap one, so
+          a style update decided only 100 patterns (300 simple inputs:
+          100 `:invalid`, Chromium 300); compiles had no bound (300
+          different 44 KB patterns: 28 s in one style update, now 0.3 s
+          with 128 KiB of pattern text per pass).
    10. Network from scripts (`implementer`), two sessions (ADR 0028
       section 12).
       - 10a: credentials modes and the CORS check with preflights in
@@ -4041,6 +4090,27 @@ Steps:
   `checked` (`script_copy_control_state` copies it only for checkable
   types); `WebState::output_defaults` keeps the entries of removed
   `output` elements (bounded by their number).
+- `engine`/`web` (found in feature 9b2): `valueAsNumber`, `valueAsDate`,
+  `stepUp()` and `stepDown()`; `:in-range` and `:out-of-range`; no
+  validation bubble for `reportValidity()` and blocked submissions;
+  whether a checkbox or select change counts as interaction for
+  `:user-valid` (not measured). Departures: a URL host with a space or
+  `%20` is valid in Chromium and invalid in swb (the `url` crate); a
+  date typed as digits (`12312020`) is valid in Chromium and bad input
+  in swb, which shows the date types as text fields; the order of
+  `select` and `selectionchange` after `select()` on an unfocused
+  control varies between Chromium runs (swb: `selectionchange` first);
+  a `type` change to `number` fires `selectionchange` in Chromium, none
+  in swb. Found in the review: the validity of one radio button
+  (`validity`, `checkValidity()`, the check before each `invalid` event)
+  scans all controls for its group, so a loop over n radio buttons, or
+  `form.checkValidity()` over n invalid ones, is O(n²) (bounded by the
+  task time limit; cache the groups per generation); if a listener
+  empties the form during the only `invalid` event,
+  `form.checkValidity()` returns false (the standard) and Chromium true;
+  on a page with more than ten catastrophic patterns, a control after
+  them can show `:valid` until the control states are rebuilt (ADR 0028
+  "Feature 9b2 notes", bounds).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

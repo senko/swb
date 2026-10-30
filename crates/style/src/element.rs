@@ -16,13 +16,16 @@ use swb_dom::{Document, ElementData, NodeData, NodeId, local_name};
 
 /// The form-control states that depend on the current state of a control
 /// (its checkedness, its value) and not only on its attributes: `:checked`,
-/// `:placeholder-shown`, `:valid`, `:invalid` and `:indeterminate` (which
-/// only the `indeterminate` property of a checkbox sets).
+/// `:placeholder-shown`, `:valid`, `:invalid`, `:user-valid`,
+/// `:user-invalid` and `:indeterminate` (which only the `indeterminate`
+/// property of a checkbox sets).
 pub const CONTROL_STATES: ElementState = ElementState::CHECKED
     .union(ElementState::INDETERMINATE)
     .union(ElementState::PLACEHOLDER_SHOWN)
     .union(ElementState::VALID)
-    .union(ElementState::INVALID);
+    .union(ElementState::INVALID)
+    .union(ElementState::USER_VALID)
+    .union(ElementState::USER_INVALID);
 
 /// The state of a document that styles depend on and that is not in its
 /// DOM: which elements are hovered, active, focused, or the target of the

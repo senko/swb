@@ -1,14 +1,16 @@
 //! Forms from scripts (M8 feature 9b): the cases of the Chromium probes
 //! `tools/probes/web-forms-script.json` (the dirty flags, controls that
 //! scripts insert, move and remove, the events of typing and clicks, the
-//! form methods) and `web-forms-selection.json` (the selection members of
-//! `input` and `textarea`) run here with the same input steps
+//! form methods), `web-forms-selection.json` (the selection members of
+//! `input` and `textarea` and their `select` and `selectionchange`
+//! events) and `web-forms-validation.json` (constraint validation: the
+//! validity states, the English messages, the `invalid` events, `:valid`
+//! and `:invalid`, `labels`) run here with the same input steps
 //! (`swb_automation::run_steps`), and the values of their queries are the
 //! ones that Chromium 148 gave (`tests/data/web-forms-script.json`: `just
-//! probe --json` of both files, three equal runs each). Queries that wait
-//! for tasks (`(async () => ...)`) are not run here: the `select` and
-//! `selectionchange` events are not implemented (ADR 0028, feature 9b
-//! notes).
+//! probe --json` of the files, three equal runs each). Queries that wait
+//! for tasks (`(async () => ...)`) run too: the event loop runs until the
+//! promise settles.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -125,7 +127,11 @@ fn probe_cases() {
         .unwrap();
         let mut failures = Vec::new();
         let mut seen = 0;
-        for file in ["web-forms-script", "web-forms-selection"] {
+        for file in [
+            "web-forms-script",
+            "web-forms-selection",
+            "web-forms-validation",
+        ] {
             let probe: Value = serde_json::from_str(
                 &std::fs::read_to_string(repo_root().join(format!("tools/probes/{file}.json")))
                     .unwrap(),
@@ -144,9 +150,6 @@ fn probe_cases() {
                 }
                 for (index, query) in case["measure"].as_array().unwrap().iter().enumerate() {
                     let source = query["js"].as_str().unwrap();
-                    if source.starts_with("(async") {
-                        continue;
-                    }
                     let want: Value = SWB_VALUES
                         .iter()
                         .find(|v| v.0 == name && v.1 == index)

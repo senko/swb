@@ -282,7 +282,38 @@ feature notes of 6c, 9b) has the details and the measurements.
   or its size selects its first option that is not disabled.
 - The selection API of `input` and `textarea` reads and writes the `TextEdit`
   caret and selection in UTF-16 code units (an offset inside a surrogate
-  pair moves back to its start).
+  pair moves back to its start). It fires `select` and `selectionchange`
+  (`html/selection_events.rs`, ADR 0028 "Feature 9b2 notes").
+- Constraint validation (feature 9b2, `forms/validity.rs`) is one
+  computation for style, for the script API and for submissions: the
+  validity states of a control (`Validity`: the ten states of
+  `ValidityState`) come from its state and attributes on demand, and the
+  controls that fail it are the `:invalid` ones, the ones that
+  `checkValidity()` reports, and the ones that block a submission (the
+  Enter key, a submit button, `requestSubmit()`, with or without scripts).
+  The constraints are `required` (text fields mutable only, checkboxes,
+  radio groups with a name, selects with the placeholder label option,
+  files), `type=email` (also `multiple`) and `type=url`, `pattern` (the
+  standard's `^(?:pattern)$` with the `v` flag, compiled by `js-regexp` and
+  cached by text; a pattern that does not compile is ignored; a match that
+  runs out of the steps of a pass counts as a match), `minlength` and
+  `maxlength` (only after the user's edit, as the standard says: a
+  script's write clears the mark), `min`, `max` and `step` of `number` and
+  the date and time types, bad input (a `number` text that is none; a date
+  or time text that is none, since swb shows these types as text fields),
+  and the custom message of `setCustomValidity()`. A control that is
+  barred (disabled, read-only, `hidden`, `image`, a button that does not
+  submit, in a `datalist`) is no candidate: no `:valid`, `:invalid`,
+  event, message or submission check, but its states are readable.
+  `:valid` and `:invalid` of a `form` and a `fieldset` follow their
+  controls; `:user-valid` and `:user-invalid` follow a user's edit that
+  lost the focus, or a failed submission of the form. Cost: the states of
+  all controls are computed again at a rebuild of the form state
+  (linear; the radio groups once per pass), a `checkValidity()` of one
+  control costs one control (O(controls) for a radio button), and the
+  matches of patterns share a budget of 2,000,000 steps per pass.
+  `labels` of a labelable element is a live `NodeList` of the labels
+  whose labeled control it is.
 
 ## Consequences
 

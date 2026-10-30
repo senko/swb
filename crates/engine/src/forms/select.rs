@@ -29,6 +29,14 @@ pub(super) fn has_placeholder_label_option(
         && option_value(doc, first.node).is_empty()
 }
 
+/// True if a `required` select has no value: no option is selected, or
+/// the placeholder label option is.
+/// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing>
+pub(super) fn select_is_missing(doc: &Document, select: NodeId, state: &ControlState) -> bool {
+    let selected = state.options.iter().position(|o| o.selected);
+    selected.is_none() || (selected == Some(0) && has_placeholder_label_option(doc, select, state))
+}
+
 /// The display size of a select: its `size` attribute, or 4 with
 /// `multiple`, else 1.
 pub(super) fn display_size(e: &ElementData) -> u32 {

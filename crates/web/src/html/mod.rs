@@ -20,7 +20,13 @@
 //! - `forms.rs`: `form`, `label`, `select`, `option`, `fieldset`,
 //!   `output`, `textarea` and the collections of a form and a select;
 //! - `tables.rs`: `table`, `tbody`, `tr` and `td`;
-//! - `inner_text.rs`: `innerText` and `outerText` (feature 7b2).
+//! - `inner_text.rs`: `innerText` and `outerText` (feature 7b2);
+//! - `validation.rs`: constraint validation (`validity`,
+//!   `checkValidity()`, `invalid` events, ...) and `labels` (feature 9b2);
+//! - `selection.rs`: the selection members of `input` and `textarea`
+//!   (feature 9b1);
+//! - `selection_events.rs`: their `select` and `selectionchange` events
+//!   (feature 9b2).
 //!
 //! Reflected attributes (`[Reflect]` and its variants) are generated from
 //! the IDL (`crates/web/idl/html.idl`); this module has what the standard
@@ -37,8 +43,10 @@ mod hyperlink;
 mod inner_text;
 mod owner;
 mod selection;
+pub(crate) mod selection_events;
 mod tables;
 mod token_lists;
+pub(crate) mod validation;
 
 pub(crate) use classes::class_of_html;
 pub(crate) use form_controls::{after_type_change, before_type_change};
@@ -64,8 +72,13 @@ pub(crate) fn attribute(cx: &Cx<'_>, element: NodeId, name: &str) -> b::Result<O
 /// task ends if the values that scripts wrote reached the budget of the
 /// document (ADR 0028 section 16).
 pub(crate) fn write_control_value(cx: &mut Cx<'_>, node: NodeId, value: &str) -> b::Result<()> {
+    let before = selection_events::key(cx.rt, node, false)?;
     let result = crate::state::engine_mut(cx.rt)?.set_control_value(node, value);
-    over_limit(cx, result)
+    over_limit(cx, result)?;
+    // A value that moved the caret queues `selectionchange`.
+    Ok(selection_events::script_changed(
+        cx.rt, node, before, false, false,
+    )?)
 }
 
 /// Ends the task if a write to a control reached the budget of the values.

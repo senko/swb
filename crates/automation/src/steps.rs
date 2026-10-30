@@ -95,7 +95,13 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         }
         "type" => {
             let text = argument.as_str().ok_or("type needs text")?;
-            call(page, "input.type", json!({ "text": text }))?;
+            // One character at a time, with the due tasks between: Playwright
+            // awaits each key, so a task queued by one character (a
+            // `selectionchange`) runs before the next.
+            for ch in text.chars() {
+                call(page, "input.type", json!({ "text": ch.to_string() }))?;
+                page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
+            }
         }
         "key" => {
             let spec = argument.as_str().ok_or("key needs a key name")?;

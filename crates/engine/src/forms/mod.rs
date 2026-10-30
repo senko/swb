@@ -22,6 +22,7 @@ mod encode;
 mod script;
 mod select;
 mod submit;
+mod validity;
 mod values;
 mod view;
 
@@ -41,9 +42,10 @@ pub(crate) use select::{option_label, option_value, settle};
 pub(crate) use submit::{
     FormContext, FormRequest, Submitter, blocking_fields, default_button, form_submission,
 };
+pub(crate) use validity::{MAX_CUSTOM_BYTES, Subject, Validity, ValidityCx, message, validity};
 pub(crate) use view::{LayoutControls, display_offset, value_offset};
 
-use select::{has_placeholder_label_option, select_options};
+use select::select_options;
 use values::sanitize;
 
 /// The `type` of an `input` element.
@@ -295,6 +297,16 @@ pub(crate) struct ControlState {
     /// (disabled, read-only, hidden, in a `datalist`, or a button that
     /// does not submit).
     barred: bool,
+    /// True if the user changed the value last (not a script, not a
+    /// reset): `tooLong` and `tooShort` exist only then.
+    /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fe-maxlength>
+    pub(crate) user_edited: bool,
+    /// The user interacted with the control, for `:user-valid` and
+    /// `:user-invalid`: it lost the focus after a user edit, or a
+    /// submission of its form failed validation (measured in Chromium).
+    /// A reset clears it.
+    /// <https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-valid>
+    pub(crate) interacted: bool,
     /// True after the user changed the control: the dirty value flag of
     /// text fields and text areas, the dirty checkedness flag of
     /// checkboxes and radio buttons, and for a select, that the user
@@ -317,6 +329,9 @@ impl ControlState {
 #[derive(Debug, Default)]
 pub(crate) struct Forms {
     controls: HashMap<NodeId, ControlState>,
+    /// The `form` and `fieldset` elements, which match `:valid` and
+    /// `:invalid` as their controls do.
+    containers: Vec<NodeId>,
     /// The select of each option.
     option_select: HashMap<NodeId, NodeId>,
     /// The last stamp of [`Forms::next_stamp`].
@@ -350,14 +365,13 @@ impl Forms {
                 continue;
             };
             let Some(ty) = ControlType::of(e) else {
+                if e.is_html() && matches!(&**e.local_name(), "form" | "fieldset") {
+                    forms.containers.push(node);
+                }
                 continue;
             };
             let disabled = disabled_elements.contains(node);
-            let barred = disabled
-                || (ty.is_button() && !ty.is_submit_button())
-                || ty == ControlType::Input(InputType::Hidden)
-                || (ty.has_readonly() && e.has_attr("readonly"))
-                || in_datalist(doc, node);
+            let barred = is_barred(doc, node, e, ty, disabled);
             let state = ControlState {
                 owner: form_owner(doc, node, |id| ids.get(id).copied()),
                 disabled,
@@ -406,6 +420,7 @@ impl Forms {
                 continue;
             }
             state.scroll = previous.scroll;
+            state.interacted = previous.interacted;
             if state.ty == ControlType::Select {
                 merge_options(doc, *node, state, previous, seeds);
             }
@@ -413,6 +428,7 @@ impl Forms {
                 state.dirty = true;
                 if state.ty.is_text() {
                     state.edit = previous.edit.clone();
+                    state.user_edited = previous.user_edited;
                 }
                 if state.ty.is_checkable() {
                     radios_restored |= state.ty == ControlType::Input(InputType::Radio)
@@ -489,6 +505,14 @@ impl Forms {
                 state.checked = false;
             }
         }
+    }
+
+    /// A set of states with one control, for a control that is not in the
+    /// document.
+    pub(crate) fn single(node: NodeId, state: ControlState) -> Forms {
+        let mut forms = Forms::default();
+        forms.controls.insert(node, state);
+        forms
     }
 
     /// The state of control `node`.
@@ -637,17 +661,57 @@ impl Forms {
         nodes
     }
 
+    /// The user left control `node`: if the user had edited it, it counts as
+    /// interacted with (`:user-valid`, `:user-invalid`). True if that
+    /// changed the state.
+    pub(crate) fn note_blur(&mut self, node: NodeId) -> bool {
+        match self.get_mut(node) {
+            Some(state) if state.user_edited && !state.interacted => {
+                state.interacted = true;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// A submission of `form` failed validation: its controls count as
+    /// interacted with. True if that changed a state.
+    pub(crate) fn note_failed_submission(&mut self, form: NodeId) -> bool {
+        let mut changed = false;
+        for state in self.controls.values_mut() {
+            if state.owner == Some(form) && !state.interacted {
+                state.interacted = true;
+                changed = true;
+            }
+        }
+        changed
+    }
+
     /// The states that style needs: [`swb_style::CONTROL_STATES`] of every
     /// control and option. Controls that are barred from constraint
-    /// validation match neither `:valid` nor `:invalid`.
+    /// validation match neither `:valid` nor `:invalid`; a `form` or
+    /// `fieldset` matches `:invalid` if a control of it does, else
+    /// `:valid`. The pass is linear in the size of the document, plus a
+    /// sort of the controls.
     pub(crate) fn element_states(
         &self,
         doc: &Document,
         indeterminate: &HashSet<NodeId>,
+        cx: &ValidityCx,
     ) -> HashMap<NodeId, ElementState> {
-        let mut out = HashMap::with_capacity(self.controls.len());
+        let mut out = HashMap::with_capacity(self.controls.len() + self.containers.len());
         let groups = self.radio_groups(doc);
-        for (&node, state) in &self.controls {
+        let mut invalid = Vec::new();
+        cx.begin_pass();
+        // In the order of the node ids, not of the map: when the `pattern`
+        // matches use up the steps of the pass, the same controls get them
+        // in every run.
+        let mut nodes: Vec<NodeId> = self.controls.keys().copied().collect();
+        nodes.sort_unstable();
+        for node in nodes {
+            let Some(state) = self.controls.get(&node) else {
+                continue;
+            };
             let Some(e) = doc.element(node) else {
                 continue;
             };
@@ -688,30 +752,152 @@ impl Forms {
                 flags |= ElementState::PLACEHOLDER_SHOWN;
             }
             if !state.barred {
-                flags |= if self.is_missing(doc, node, &groups) {
-                    ElementState::INVALID
+                if self.is_invalid(doc, node, state, cx, Some(&groups)) {
+                    flags |= ElementState::INVALID;
+                    if state.interacted {
+                        flags |= ElementState::USER_INVALID;
+                    }
+                    invalid.push(node);
                 } else {
-                    ElementState::VALID
-                };
+                    flags |= ElementState::VALID;
+                    if state.interacted {
+                        flags |= ElementState::USER_VALID;
+                    }
+                }
             }
             out.insert(node, flags);
         }
+        self.container_states(doc, &invalid, &mut out);
         out
     }
 
+    /// The states `:valid` and `:invalid` of the `form` and `fieldset`
+    /// elements, given the candidate controls that are invalid.
+    fn container_states(
+        &self,
+        doc: &Document,
+        invalid: &[NodeId],
+        out: &mut HashMap<NodeId, ElementState>,
+    ) {
+        let mut marked: HashSet<NodeId> = HashSet::new();
+        // The ancestors that an earlier control walked: everything above
+        // them is marked, so each node is visited once.
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        for &node in invalid {
+            if let Some(form) = self.owner(node) {
+                marked.insert(form);
+            }
+            for ancestor in doc.ancestors(node) {
+                if !visited.insert(ancestor) {
+                    break;
+                }
+                if doc.is_html_element(ancestor, &local_name!("fieldset")) {
+                    marked.insert(ancestor);
+                }
+            }
+        }
+        for &container in &self.containers {
+            let flag = if marked.contains(&container) {
+                ElementState::INVALID
+            } else {
+                ElementState::VALID
+            };
+            out.insert(container, flag);
+        }
+    }
+
+    /// True if the candidate control `node` fails constraint validation.
+    fn is_invalid(
+        &self,
+        doc: &Document,
+        node: NodeId,
+        state: &ControlState,
+        cx: &ValidityCx,
+        groups: Option<&RadioGroups<'_>>,
+    ) -> bool {
+        let Some(element) = doc.element(node) else {
+            return false;
+        };
+        let radio_missing = self.radio_missing(doc, node, state, groups);
+        let subject = Subject {
+            doc,
+            element,
+            node,
+            state,
+            radio_missing,
+        };
+        !validity(&subject, cx).is_valid()
+    }
+
+    /// The validity states and the candidate flag of control `node`, if it
+    /// has a state; the radio button groups are looked up for this control
+    /// alone.
+    pub(crate) fn validity_of(
+        &self,
+        doc: &Document,
+        node: NodeId,
+        cx: &ValidityCx,
+    ) -> Option<(Validity, bool)> {
+        let state = self.get(node)?;
+        let element = doc.element(node)?;
+        let radio_missing = self.radio_missing(doc, node, state, None);
+        let subject = Subject {
+            doc,
+            element,
+            node,
+            state,
+            radio_missing,
+        };
+        Some((validity(&subject, cx), !state.barred))
+    }
+
+    /// The `validationMessage` of control `node`.
+    pub(crate) fn validation_message(
+        &self,
+        doc: &Document,
+        node: NodeId,
+        cx: &ValidityCx,
+    ) -> Option<String> {
+        let state = self.get(node)?;
+        let element = doc.element(node)?;
+        let radio_missing = self.radio_missing(doc, node, state, None);
+        let subject = Subject {
+            doc,
+            element,
+            node,
+            state,
+            radio_missing,
+        };
+        Some(message(&subject, cx))
+    }
+
     /// The controls whose form owner is `form` and that fail constraint
-    /// validation, in tree order. swb checks only the `required`
-    /// constraint.
+    /// validation, in tree order.
     /// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#statically-validate-the-constraints>
-    pub(crate) fn invalid_controls(&self, doc: &Document, form: NodeId) -> Vec<NodeId> {
+    pub(crate) fn invalid_controls(
+        &self,
+        doc: &Document,
+        form: NodeId,
+        cx: &ValidityCx,
+    ) -> Vec<NodeId> {
         let groups = self.radio_groups(doc);
+        cx.begin_pass();
         doc.descendants(NodeId::DOCUMENT)
             .filter(|&n| {
                 self.owner(n) == Some(form)
-                    && self.get(n).is_some_and(|s| !s.barred)
-                    && self.is_missing(doc, n, &groups)
+                    && self
+                        .get(n)
+                        .is_some_and(|s| !s.barred && self.is_invalid(doc, n, s, cx, Some(&groups)))
             })
             .collect()
+    }
+
+    /// True if control `node` is a candidate for constraint validation
+    /// that fails it.
+    pub(crate) fn is_node_invalid(&self, doc: &Document, node: NodeId, cx: &ValidityCx) -> bool {
+        cx.begin_pass();
+        self.get(node)
+            .is_some_and(|s| !s.barred && self.is_invalid(doc, node, s, cx, None))
     }
 
     /// The radio button groups that have a checked radio button, and the
@@ -735,34 +921,39 @@ impl Forms {
         groups
     }
 
-    /// True if a `required` control has no value
+    /// True if `node`, a radio button, is missing a value: a button of its
+    /// group is `required` and none is checked
     /// (<https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing>).
-    /// A radio button is missing if a button of its group is `required`
-    /// and none is checked. `required` applies to the types that the
-    /// specification lists.
-    fn is_missing(&self, doc: &Document, node: NodeId, groups: &RadioGroups<'_>) -> bool {
-        let (Some(state), Some(e)) = (self.get(node), doc.element(node)) else {
+    /// A button without a name is in no group and is never missing
+    /// (measured in Chromium). With `groups` the answer comes from the
+    /// precomputed groups, else from a scan of the controls. False for
+    /// other controls.
+    fn radio_missing(
+        &self,
+        doc: &Document,
+        node: NodeId,
+        state: &ControlState,
+        groups: Option<&RadioGroups<'_>>,
+    ) -> bool {
+        if state.ty != ControlType::Input(InputType::Radio) {
+            return false;
+        }
+        let Some(key) = self.radio_key(doc, node) else {
             return false;
         };
-        if state.ty == ControlType::Input(InputType::Radio) {
-            return match self.radio_key(doc, node) {
-                Some(key) => groups.required.contains(&key) && !groups.checked.contains(&key),
-                None => e.has_attr("required") && !state.checked,
-            };
+        if let Some(groups) = groups {
+            return groups.required.contains(&key) && !groups.checked.contains(&key);
         }
-        if !e.has_attr("required") || !state.ty.has_required() {
-            return false;
-        }
-        match state.ty {
-            ControlType::Input(InputType::Checkbox) => !state.checked,
-            ty if ty.is_text() => state.edit.text().is_empty(),
-            ControlType::Select => {
-                let selected = state.options.iter().position(|o| o.selected);
-                selected.is_none()
-                    || (selected == Some(0) && has_placeholder_label_option(doc, node, state))
+        let (mut required, mut checked) = (false, false);
+        for (&other, s) in &self.controls {
+            if s.ty == ControlType::Input(InputType::Radio)
+                && self.radio_key(doc, other) == Some(key)
+            {
+                checked |= s.checked;
+                required |= doc.element(other).is_some_and(|e| e.has_attr("required"));
             }
-            _ => false,
         }
+        required && !checked
     }
 
     /// The key of the radio button group of radio button `node`: its form
@@ -900,6 +1091,7 @@ fn carry_type_change(
     if previous.dirty || kept != state.edit.text() {
         let max_len = state.edit.max_len();
         state.edit = previous.edit.clone();
+        state.user_edited = previous.user_edited;
         state.edit.set_max_len(max_len);
         if kept != state.edit.text() {
             state.edit.replace_text(&kept);
@@ -914,9 +1106,20 @@ fn carry_type_change(
 /// (<https://html.spec.whatwg.org/multipage/input.html#dom-input-value>).
 pub(crate) fn state_value(e: &ElementData, doc: &Document, state: &ControlState) -> String {
     match state.ty {
-        ControlType::Input(
-            t @ (InputType::Number | InputType::Range | InputType::Color | InputType::Date(_)),
-        ) => sanitize(e, t, state.edit.text()),
+        // Chromium (measured): a number typed as `1.` has the value `1`.
+        ControlType::Input(InputType::Number) => {
+            let text = state.edit.text();
+            let value = sanitize(e, InputType::Number, text);
+            match text.strip_suffix('.') {
+                Some(whole) if value.is_empty() && !whole.is_empty() => {
+                    sanitize(e, InputType::Number, whole)
+                }
+                _ => value,
+            }
+        }
+        ControlType::Input(t @ (InputType::Range | InputType::Color | InputType::Date(_))) => {
+            sanitize(e, t, state.edit.text())
+        }
         ControlType::Input(InputType::Checkbox | InputType::Radio) => {
             e.attr("value").unwrap_or("on").to_owned()
         }
@@ -982,6 +1185,8 @@ fn default_state(
         owner: None,
         disabled: false,
         barred: false,
+        user_edited: false,
+        interacted: false,
         dirty: false,
     }
 }
@@ -1049,6 +1254,57 @@ fn form_owner(
 /// computes (one lookup by `id`).
 pub(crate) fn current_owner(doc: &Document, node: NodeId) -> Option<NodeId> {
     form_owner(doc, node, |id| doc.element_by_id(id))
+}
+
+/// True if the control `node` is barred from constraint validation (not a
+/// candidate, `willValidate` is false): disabled, a button that does not
+/// submit, `hidden` and `image` inputs, an input or text area with a
+/// `readonly` attribute (Chromium, measured: also a checkbox), or a
+/// descendant of a `datalist`.
+/// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#barred-from-constraint-validation>
+fn is_barred(
+    doc: &Document,
+    node: NodeId,
+    e: &ElementData,
+    ty: ControlType,
+    disabled: bool,
+) -> bool {
+    disabled
+        || (ty.is_button() && !ty.is_submit_button())
+        || matches!(ty, ControlType::Input(InputType::Hidden | InputType::Image))
+        || (matches!(ty, ControlType::Input(_) | ControlType::TextArea) && e.has_attr("readonly"))
+        || in_datalist(doc, node)
+}
+
+/// A control that is not in the document, with the state that the DOM and
+/// the writes of scripts (`seeds`) give it: for the constraint validation
+/// API. It has no form owner.
+pub(crate) fn detached_state(
+    doc: &Document,
+    node: NodeId,
+    ty: ControlType,
+    seeds: &Seeds,
+) -> ControlState {
+    let disabled = swb_style::is_actually_disabled(doc, node);
+    let mut state = ControlState {
+        disabled,
+        ..default_state(doc, node, ty, &DisabledElements::default())
+    };
+    if let Some(e) = doc.element(node) {
+        state.barred = is_barred(doc, node, e, ty, disabled);
+        if ty.is_text()
+            && let Some(value) = seeds.value(node)
+        {
+            state.edit.replace_text(&sanitize_value(e, ty, value));
+        }
+        if ty.is_checkable() {
+            state.checked = seeds.checked(node).unwrap_or(state.checked);
+        }
+    }
+    if ty == ControlType::Select {
+        state.options = options_of_detached(doc, node, seeds);
+    }
+    state
 }
 
 /// True if `node` has a `datalist` ancestor: such a control is barred
@@ -1257,7 +1513,8 @@ mod tests {
              <input id=ro readonly required><input id=sb type=submit><input id=b type=button>",
         );
         let mut forms = Forms::new(&doc);
-        let states = forms.element_states(&doc, &HashSet::new());
+        let cx = ValidityCx::default();
+        let states = forms.element_states(&doc, &HashSet::new(), &cx);
         let (p, r, c) = (id(&doc, "p"), id(&doc, "r"), id(&doc, "c"));
         assert!(states[&p].contains(ElementState::PLACEHOLDER_SHOWN));
         assert!(states[&r].contains(ElementState::VALID));
@@ -1271,7 +1528,7 @@ mod tests {
         forms.get_mut(r).expect("r").edit.select_all();
         forms.get_mut(r).expect("r").edit.delete_selection();
         forms.set_checked(&doc, c, true);
-        let states = forms.element_states(&doc, &HashSet::new());
+        let states = forms.element_states(&doc, &HashSet::new(), &cx);
         assert!(!states[&p].contains(ElementState::PLACEHOLDER_SHOWN));
         assert!(states[&r].contains(ElementState::INVALID));
         assert!(states[&c].contains(ElementState::CHECKED));
@@ -1286,12 +1543,13 @@ mod tests {
         );
         let mut forms = Forms::new(&doc);
         let f = id(&doc, "f");
-        assert_eq!(forms.invalid_controls(&doc, f), [id(&doc, "a")]);
+        let cx = ValidityCx::default();
+        assert_eq!(forms.invalid_controls(&doc, f, &cx), [id(&doc, "a")]);
         forms.select_option(id(&doc, "b"), 1);
         // An empty value that is not the placeholder label option is fine.
-        assert_eq!(forms.invalid_controls(&doc, f), [id(&doc, "a")]);
+        assert_eq!(forms.invalid_controls(&doc, f, &cx), [id(&doc, "a")]);
         forms.select_option(id(&doc, "a"), 1);
-        assert_eq!(forms.invalid_controls(&doc, f), Vec::<NodeId>::new());
+        assert_eq!(forms.invalid_controls(&doc, f, &cx), Vec::<NodeId>::new());
     }
 
     #[test]
@@ -1304,13 +1562,14 @@ mod tests {
         let mut forms = Forms::new(&doc);
         let f = id(&doc, "f");
         let ids = |ids: &[&str]| ids.iter().map(|i| id(&doc, i)).collect::<Vec<_>>();
+        let cx = ValidityCx::default();
         // `required` on one button makes the whole group required.
         assert_eq!(
-            forms.invalid_controls(&doc, f),
+            forms.invalid_controls(&doc, f, &cx),
             ids(&["t", "d", "r1", "r2"])
         );
         forms.set_checked(&doc, id(&doc, "r1"), true);
-        assert_eq!(forms.invalid_controls(&doc, f), ids(&["t", "d"]));
+        assert_eq!(forms.invalid_controls(&doc, f, &cx), ids(&["t", "d"]));
     }
 
     #[test]

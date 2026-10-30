@@ -1,6 +1,8 @@
 //! Values of `input` elements: value sanitization and the HTML
 //! microsyntaxes of numbers, dates and times.
 
+use std::fmt::Write;
+
 use swb_dom::{ElementData, is_html_whitespace, is_valid_float};
 
 use super::{DateType, InputType};
@@ -232,9 +234,230 @@ fn shortest_time(time: &str) -> String {
     }
 }
 
+// ----- Numbers of dates and times (constraint validation) -----
+
+/// Days since 1970-01-01 of a date of the proleptic Gregorian calendar.
+/// This and [`civil_from_days`] are Howard Hinnant's algorithms
+/// (<https://howardhinnant.github.io/date_algorithms.html>, docs/credits.md).
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (i64::from(month) + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + i64::from(day) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// The date `days` after 1970-01-01.
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    (year, month, day)
+}
+
+/// The Monday of week 1 of a week-year (the week with January 4th), in
+/// days since 1970-01-01.
+fn first_monday(year: u32) -> i64 {
+    let jan4 = days_from_civil(i64::from(year), 1, 4);
+    // `weekday` counts from Sunday: Monday is 1.
+    jan4 - ((weekday(year, 1, 4) as i64) + 6) % 7
+}
+
+/// The seconds of a valid time string (`HH:MM`, `HH:MM:SS`, `HH:MM:SS.s`).
+fn time_seconds(s: &str) -> Option<f64> {
+    if !is_valid_time(s) {
+        return None;
+    }
+    let mut parts = s.splitn(3, ':');
+    let hours: f64 = parts.next()?.parse().ok()?;
+    let minutes: f64 = parts.next()?.parse().ok()?;
+    let seconds: f64 = match parts.next() {
+        Some(rest) => rest.parse().ok()?,
+        None => 0.0,
+    };
+    Some(hours * 3600.0 + minutes * 60.0 + seconds)
+}
+
+/// The value of a date or time string of type `kind` as a number in the
+/// unit that the `step` attribute counts: days (`date`), months since
+/// 1970-01 (`month`), weeks since the week of 1970-01-01 (`week`), seconds
+/// (`time`: since midnight; `datetime-local`: since 1970-01-01T00:00).
+/// `None` if the string is not valid for the type.
+/// <https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number>
+pub(super) fn native_value(kind: DateType, s: &str) -> Option<f64> {
+    match kind {
+        DateType::Date => {
+            let (y, m, d) = parse_date(s)?;
+            Some(days_from_civil(i64::from(y), m, d) as f64)
+        }
+        DateType::Month => {
+            let (y, m) = parse_month(s)?;
+            Some((i64::from(y) - 1970) as f64 * 12.0 + f64::from(m) - 1.0)
+        }
+        DateType::Week => {
+            if !is_valid_week(s) {
+                return None;
+            }
+            let (y, w) = s.split_once("-W")?;
+            let (y, w): (u32, i64) = (y.parse().ok()?, w.parse().ok()?);
+            let monday = first_monday(y) + (w - 1) * 7;
+            Some(((monday + 3) / 7) as f64)
+        }
+        DateType::Time => time_seconds(s),
+        DateType::DateTimeLocal => {
+            let (date, time) = s.split_once(['T', ' '])?;
+            let (y, m, d) = parse_date(date)?;
+            let seconds = time_seconds(time)?;
+            Some(days_from_civil(i64::from(y), m, d) as f64 * 86_400.0 + seconds)
+        }
+    }
+}
+
+const MONTH_NAMES: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+/// A time of day as Chromium shows it in English (`9:00 AM`, `9:00:30 AM`,
+/// `9:00:30.500 AM`, with U+202F before the marker). Seconds show when
+/// they are not zero or `seconds` is true; milliseconds show when they are
+/// not zero.
+fn format_time(seconds_of_day: f64, seconds: bool) -> String {
+    let total_ms = (seconds_of_day * 1000.0).round() as i64;
+    let total_ms = total_ms.rem_euclid(86_400_000);
+    let (hours, minutes) = (total_ms / 3_600_000, total_ms / 60_000 % 60);
+    let (secs, ms) = (total_ms / 1000 % 60, total_ms % 1000);
+    let hour12 = match hours % 12 {
+        0 => 12,
+        h => h,
+    };
+    let mut out = format!("{hour12}:{minutes:02}");
+    if seconds || secs != 0 || ms != 0 {
+        let _ = write!(out, ":{secs:02}");
+    }
+    if ms != 0 {
+        let _ = write!(out, ".{ms:03}");
+    }
+    // ICU's English pattern has a narrow no-break space before the marker.
+    out.push_str(if hours < 12 {
+        "\u{202f}AM"
+    } else {
+        "\u{202f}PM"
+    });
+    out
+}
+
+/// A date as Chromium shows it in English (`01/31/2021`).
+fn format_date(days: i64) -> String {
+    let (y, m, d) = civil_from_days(days);
+    format!("{m:02}/{d:02}/{y:04}")
+}
+
+/// The value `x` (as [`native_value`] gives it) of a date or time type as
+/// Chromium shows it in messages, in English: `01/31/2021`, `January 2021`,
+/// `Week 05, 2021`, `9:00 AM`, `01/31/2021, 9:00 AM`. `seconds` forces the
+/// seconds of times.
+pub(super) fn format_native(kind: DateType, x: f64, seconds: bool) -> String {
+    match kind {
+        DateType::Date => format_date(x.round() as i64),
+        DateType::Month => {
+            let months = x.round() as i64;
+            let (year, month) = (1970 + months.div_euclid(12), months.rem_euclid(12));
+            let name = MONTH_NAMES.get(month as usize).copied().unwrap_or("");
+            format!("{name} {year}")
+        }
+        DateType::Week => {
+            // The Thursday of the week decides its week-year.
+            let thursday = x.round() as i64 * 7;
+            let (year, _, _) = civil_from_days(thursday);
+            let week = (thursday - days_from_civil(year, 1, 1)) / 7 + 1;
+            format!("Week {week:02}, {year}")
+        }
+        DateType::Time => format_time(x, seconds),
+        DateType::DateTimeLocal => {
+            let days = (x / 86_400.0).floor();
+            let rest = x - days * 86_400.0;
+            format!(
+                "{}, {}",
+                format_date(days as i64),
+                format_time(rest, seconds)
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_values_and_names() {
+        let n = |kind, s| native_value(kind, s);
+        assert_eq!(n(DateType::Date, "1970-01-02"), Some(1.0));
+        assert_eq!(n(DateType::Date, "2020-01-02"), Some(18_263.0));
+        assert_eq!(n(DateType::Month, "1970-03"), Some(2.0));
+        assert_eq!(n(DateType::Week, "1970-W01"), Some(0.0));
+        assert_eq!(n(DateType::Week, "1970-W03"), Some(2.0));
+        assert_eq!(n(DateType::Time, "10:30:15.5"), Some(37_815.5));
+        assert_eq!(
+            n(DateType::DateTimeLocal, "1970-01-02T00:01"),
+            Some(86_460.0)
+        );
+        assert_eq!(n(DateType::Date, "2023-02-29"), None);
+        assert_eq!(format_native(DateType::Date, 18_263.0, false), "01/02/2020");
+        assert_eq!(format_native(DateType::Month, 603.0, false), "April 2020");
+        assert_eq!(
+            format_native(
+                DateType::Week,
+                n(DateType::Week, "2021-W01").unwrap(),
+                false
+            ),
+            "Week 01, 2021"
+        );
+        assert_eq!(
+            format_native(
+                DateType::Week,
+                n(DateType::Week, "2020-W53").unwrap(),
+                false
+            ),
+            "Week 53, 2020"
+        );
+        assert_eq!(format_native(DateType::Time, 0.0, false), "12:00\u{202f}AM");
+        assert_eq!(
+            format_native(DateType::Time, 46_800.0, false),
+            "1:00\u{202f}PM"
+        );
+        assert_eq!(
+            format_native(DateType::Time, 32_430.5, false),
+            "9:00:30.500\u{202f}AM"
+        );
+        assert_eq!(
+            format_native(DateType::Time, 32_400.0, true),
+            "9:00:00\u{202f}AM"
+        );
+        assert_eq!(
+            format_native(DateType::DateTimeLocal, 86_460.0, false),
+            "01/02/1970, 12:01\u{202f}AM"
+        );
+    }
 
     #[test]
     fn dates_and_times() {

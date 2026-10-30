@@ -71,6 +71,7 @@ impl Page {
         };
         if state.edit.insert(&text) {
             state.dirty = true;
+            state.user_edited = true;
             self.control_changed();
             if scripted {
                 self.fire_input(false, node, input_type, Some(&text));
@@ -106,6 +107,7 @@ impl Page {
                 && state.edit.delete_selection()
             {
                 state.dirty = true;
+                state.user_edited = true;
                 self.control_changed();
                 if scripted {
                     self.fire_input(false, node, "deleteByCut", None);
@@ -178,6 +180,12 @@ impl Page {
         };
         let new = doc.states.focus;
         let forms = doc.forms.value_mut();
+        if let Some(old) = old.filter(|&o| Some(o) != new)
+            && forms.note_blur(old)
+        {
+            doc.controls_stale = true;
+        }
+        let forms = doc.forms.value_mut();
         if let Some(state) = new.and_then(|n| forms.get_mut(n))
             && state.ty != ControlType::TextArea
         {
@@ -247,6 +255,7 @@ impl Page {
         shift: bool,
         clicks: u32,
     ) {
+        let before = self.selection_key(node);
         let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
             return;
         };
@@ -257,11 +266,13 @@ impl Page {
             _ => state.edit.move_to(offset, shift),
         }
         self.invalidate_layout();
+        self.selection_changed(node, before, false, false);
     }
 
     /// A drag in text control `node`: extends its selection to the point.
     pub(super) fn drag_in_control(&mut self, node: NodeId, point: Point) -> bool {
         let offset = self.control_offset_at(node, point);
+        let before = self.selection_key(node);
         let Some(state) = self.forms_mut().and_then(|f| f.get_mut(node)) else {
             return false;
         };
@@ -270,6 +281,7 @@ impl Page {
         }
         state.edit.move_to(offset, true);
         self.invalidate_layout();
+        self.selection_changed(node, before, false, false);
         true
     }
 
@@ -588,10 +600,12 @@ impl Page {
                 doc.note_user_edit(node);
             }
         }
+        let before = self.selection_key(node);
         let state = self.forms_mut()?.get_mut(node)?;
         let changed = edit_key(&mut state.edit, field, key, modifiers)?;
         if changed {
             state.dirty = true;
+            state.user_edited = true;
             self.control_changed();
             if let Some((input_type, data)) = &plan {
                 self.fire_input(false, node, input_type, data.as_deref());
@@ -599,7 +613,41 @@ impl Page {
         } else {
             self.invalidate_layout();
         }
+        // Ctrl+A fires `select` again although the selection stays.
+        let select_all = (modifiers.ctrl || modifiers.meta) && key.is_char('a');
+        self.selection_changed(node, before, select_all, changed);
         Some(true)
+    }
+
+    /// The selection of text control `node` as a key (byte offsets and the
+    /// direction), for the selection events.
+    fn selection_key(&self, node: NodeId) -> Option<(usize, usize, bool)> {
+        let state = self.forms()?.get(node)?;
+        let selection = state.edit.selection();
+        Some((selection.start, selection.end, state.edit.is_backward()))
+    }
+
+    /// The user changed the selection of text control `node` (it was
+    /// `before`): with scripts, `select` fires when the new selection is
+    /// not empty and the text did not change, and `selectionchange` is
+    /// queued. `force` counts an action that selects although the
+    /// selection stays (Ctrl+A).
+    fn selection_changed(
+        &mut self,
+        node: NodeId,
+        before: Option<(usize, usize, bool)>,
+        force: bool,
+        text_changed: bool,
+    ) {
+        if !self.script_input() {
+            return;
+        }
+        let after = self.selection_key(node);
+        if after.is_none() || (before == after && !force && !text_changed) {
+            return;
+        }
+        let select = !text_changed && after.is_some_and(|(start, end, _)| start != end);
+        self.run_task(|s| s.user_selection(node, select));
     }
 
     /// A key in a focused drop-down select: the arrows, Home and End
@@ -737,8 +785,15 @@ impl Page {
                 .node()
                 .and_then(|n| doc.element(n))
                 .is_some_and(|e| e.has_attr("formnovalidate"));
-        if !novalidate && let Some(&first) = forms.invalid_controls(doc, form).first() {
-            log::info!("form not submitted: a required field has no value");
+        if !novalidate
+            && let Some(&first) = forms.invalid_controls(doc, form, &state.validity).first()
+        {
+            log::info!("form not submitted: a control fails constraint validation");
+            if let Some(doc) = self.doc.as_deref_mut()
+                && doc.forms.value_mut().note_failed_submission(form)
+            {
+                doc.controls_stale = true;
+            }
             self.focus(Some(first), true);
             return false;
         }
@@ -777,11 +832,11 @@ impl Page {
     /// checkedness or selected option changed.
     fn control_changed(&mut self) {
         if let Some(doc) = self.doc.as_deref() {
-            let states = Arc::new(
-                doc.forms
-                    .value()
-                    .element_states(doc.dom(), &doc.indeterminate),
-            );
+            let states = Arc::new(doc.forms.value().element_states(
+                doc.dom(),
+                &doc.indeterminate,
+                &doc.validity,
+            ));
             self.update_states(|s| s.controls = states);
         }
         self.invalidate_layout();

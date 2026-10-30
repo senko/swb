@@ -42,6 +42,18 @@ pub trait HTMLSelectElementImpl: b::Host {
     /// The setter of `attribute DOMString value`.
     fn set_value(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
 
+    /// `readonly attribute boolean willValidate`.
+    fn will_validate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute ValidityState validity`.
+    fn validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute DOMString validationMessage`.
+    fn validation_message(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// `readonly attribute NodeList labels`.
+    fn labels(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `HTMLOptionElement? item(unsigned long index)`.
     fn item(cx: &mut b::Cx<'_>, this: b::NodeId, index: u32) -> b::Result<Option<b::NodeId>>;
 
@@ -56,6 +68,15 @@ pub trait HTMLSelectElementImpl: b::Host {
 
     /// `undefined remove(long index)`.
     fn remove_2(cx: &mut b::Cx<'_>, this: b::NodeId, index: i32) -> b::Result<()>;
+
+    /// `boolean checkValidity()`.
+    fn check_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `boolean reportValidity()`.
+    fn report_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `undefined setCustomValidity(DOMString error)`.
+    fn set_custom_validity(cx: &mut b::Cx<'_>, this: b::NodeId, error: String) -> b::Result<()>;
 
     /// The supported property indices of `HTMLSelectElement` are `0..n` (Web IDL §3.9); returns `n`.
     fn index_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
@@ -266,6 +287,38 @@ fn set_value<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_will_validate<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLSelectElement", "willValidate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::will_validate(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_validity<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLSelectElement", "validity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::validity(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_validation_message<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLSelectElement", "validationMessage"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::validation_message(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_labels<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLSelectElement", "labels"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::labels(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 pub(super) fn construct<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLSelectElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
 }
@@ -320,6 +373,33 @@ fn op_remove<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         Ok(swb_js::Value::Undefined)
             }
         }
+    })
+}
+
+fn op_check_validity<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSelectElement", "checkValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::check_validity(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_report_validity<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSelectElement", "reportValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        let result = <H as HTMLSelectElementImpl>::report_validity(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_set_custom_validity<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLSelectElement", "setCustomValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_SELECT_ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as HTMLSelectElementImpl>::set_custom_validity(&mut b::Cx::new(rt, call, super::HTML_SELECT_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
     })
 }
 
@@ -417,10 +497,17 @@ pub fn define<H: HTMLSelectElementImpl>(rt: &mut swb_js::Runtime, realm: u32) ->
     rt.define_accessor(realm, target, "selectedOptions", (Some(get_selected_options::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "selectedIndex", (Some(get_selected_index::<H> as swb_js::NativeFn), Some(set_selected_index::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "value", (Some(get_value::<H> as swb_js::NativeFn), Some(set_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "willValidate", (Some(get_will_validate::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validity", (Some(get_validity::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validationMessage", (Some(get_validation_message::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "labels", (Some(get_labels::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "add", 1, op_add::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "checkValidity", 0, op_check_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "item", 1, op_item::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "namedItem", 1, op_named_item::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "remove", 0, op_remove::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "reportValidity", 0, op_report_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setCustomValidity", 1, op_set_custom_validity::<H>, swb_js::Attributes::MEMBER)?;
     b::iterable::define_indexed_iterator::<H>(rt, realm, interface.prototype)?;
     rt.end_interface(interface)?;
     Ok(interface)

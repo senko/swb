@@ -37,6 +37,7 @@ mod queries;
 mod resolved;
 mod script_actions;
 mod script_forms;
+mod script_validity;
 mod scripts;
 #[cfg(test)]
 mod tests;
@@ -146,6 +147,9 @@ pub struct DocumentState {
     pub(crate) forms: Derived<Forms>,
     /// What scripts wrote to controls that have no state in `forms`.
     pub(crate) seeds: crate::forms::Seeds,
+    /// The custom validity messages of the controls and the cache of
+    /// `pattern` matches (constraint validation).
+    pub(crate) validity: crate::forms::ValidityCx,
     /// True if a script changed the state of a control: the element
     /// states of the controls (`:checked`, `:valid`, ...) are outdated.
     pub(crate) controls_stale: bool,
@@ -264,6 +268,7 @@ impl DocumentState {
             title: Derived::new(String::new()),
             forms: Derived::new(Forms::default()),
             seeds: crate::forms::Seeds::default(),
+            validity: crate::forms::ValidityCx::default(),
             controls_stale: false,
             control_bytes: 0,
             indeterminate: std::collections::HashSet::new(),
@@ -399,6 +404,28 @@ impl swb_web::EngineHost for DocumentState {
         self.script_control_value(node)
     }
 
+    fn control_validity(&mut self, node: NodeId) -> swb_web::ControlValidity {
+        self.script_validity(node)
+    }
+
+    fn control_validation_message(&mut self, node: NodeId) -> String {
+        self.script_validation_message(node)
+    }
+
+    fn set_custom_validity(&mut self, node: NodeId, message: &str) -> swb_web::ControlWrite {
+        self.script_set_custom_validity(node, message)
+    }
+
+    fn control_is_invalid(&mut self, node: NodeId) -> bool {
+        self.script_is_invalid(node)
+    }
+
+    fn form_validation_reported(&mut self, form: NodeId) {
+        if self.forms.value_mut().note_failed_submission(form) {
+            self.controls_stale = true;
+        }
+    }
+
     fn set_control_value(&mut self, node: NodeId, value: &str) -> swb_web::ControlWrite {
         self.script_set_control_value(node, value)
     }
@@ -413,6 +440,10 @@ impl swb_web::EngineHost for DocumentState {
 
     fn control_selection(&mut self, node: NodeId) -> Option<swb_web::SelectionRange> {
         self.script_selection(node)
+    }
+
+    fn control_selection_key(&mut self, node: NodeId, sync: bool) -> Option<swb_web::SelectionKey> {
+        self.script_selection_key(node, sync)
     }
 
     fn set_control_selection(
@@ -748,11 +779,11 @@ impl DocumentState {
         if !self.ensure_forms() && self.controls_stale {
             // A script changed a control without a change of the DOM.
             self.controls_stale = false;
-            let states = Arc::new(
-                self.forms
-                    .value()
-                    .element_states(&self.dom, &self.indeterminate),
-            );
+            let states = Arc::new(self.forms.value().element_states(
+                &self.dom,
+                &self.indeterminate,
+                &self.validity,
+            ));
             self.update_states(|s| s.controls = states);
             self.invalidate_layout();
         }
@@ -776,8 +807,11 @@ impl DocumentState {
         });
         self.controls_stale = false;
         self.control_bytes = self.forms.value().dirty_value_bytes() + self.seeds.value_bytes();
-        self.states.controls =
-            Arc::new(self.forms.value().element_states(dom, &self.indeterminate));
+        self.states.controls = Arc::new(self.forms.value().element_states(
+            dom,
+            &self.indeterminate,
+            &self.validity,
+        ));
         true
     }
 

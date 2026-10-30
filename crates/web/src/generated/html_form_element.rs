@@ -30,6 +30,12 @@ pub trait HTMLFormElementImpl: b::Host {
     /// `undefined reset()`.
     fn reset(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
 
+    /// `boolean checkValidity()`.
+    fn check_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `boolean reportValidity()`.
+    fn report_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
     /// The supported property indices of `HTMLFormElement` are `0..n` (Web IDL §3.9); returns `n`.
     fn index_count(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<u32>;
 
@@ -300,6 +306,22 @@ fn op_reset<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nat
     })
 }
 
+fn op_check_validity<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLFormElement", "checkValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
+        let result = <H as HTMLFormElementImpl>::check_validity(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_report_validity<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLFormElement", "reportValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
+        let result = <H as HTMLFormElementImpl>::report_validity(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
 fn legacy_count<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform) -> b::Result<u32> {
     let this = b::legacy::node(this)?;
     <H as HTMLFormElementImpl>::index_count(&mut b::Cx::without_call(rt, realm, super::HTML_FORM_ELEMENT), this)
@@ -404,6 +426,8 @@ pub fn define<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> s
     rt.define_accessor(realm, target, "relList", (Some(get_rel_list::<H> as swb_js::NativeFn), Some(set_rel_list::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "elements", (Some(get_elements::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "checkValidity", 0, op_check_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "reportValidity", 0, op_report_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "requestSubmit", 0, op_request_submit::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "reset", 0, op_reset::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "submit", 0, op_submit::<H>, swb_js::Attributes::MEMBER)?;

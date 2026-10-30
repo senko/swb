@@ -39,6 +39,9 @@ pub(crate) enum ElementList {
     FieldsetElements,
     /// `map.areas`: the `area` descendants.
     Areas,
+    /// `labels` of a labelable element: the `label` elements of its tree
+    /// that it is the labeled control of (a `NodeList`).
+    Labels,
 }
 
 impl ElementList {
@@ -46,7 +49,10 @@ impl ElementList {
     pub(super) fn is_eager(self) -> bool {
         matches!(
             self,
-            ElementList::TableRows | ElementList::SelectedOptions | ElementList::FormControls
+            ElementList::TableRows
+                | ElementList::SelectedOptions
+                | ElementList::FormControls
+                | ElementList::Labels
         )
     }
 
@@ -102,7 +108,10 @@ pub(super) fn matches(dom: &Document, root: NodeId, n: NodeId, list: ElementList
         ElementList::DatalistOptions => is_named(e, "option"),
         ElementList::FieldsetElements => is_listed(e),
         ElementList::Areas => is_named(e, "area"),
-        ElementList::TableRows | ElementList::SelectedOptions | ElementList::FormControls => false,
+        ElementList::TableRows
+        | ElementList::SelectedOptions
+        | ElementList::FormControls
+        | ElementList::Labels => false,
     }
 }
 
@@ -116,6 +125,7 @@ pub(super) fn collect(
     match kind {
         ListKind::Element(ElementList::TableRows) => Ok(table_rows(dom(cx.rt)?, root)),
         ListKind::Element(ElementList::FormControls) => Ok(form_controls(dom(cx.rt)?, root)),
+        ListKind::Element(ElementList::Labels) => Ok(labels(dom(cx.rt)?, root)),
         ListKind::Element(ElementList::SelectedOptions) => selected_options(cx, root),
         ListKind::ControlsNamed(name) => {
             let controls = form_controls(dom(cx.rt)?, root);
@@ -189,6 +199,18 @@ fn form_controls(dom: &Document, form: NodeId) -> Vec<NodeId> {
         }
     }
     out
+}
+
+/// The labels of the labelable element `control`, in tree order: the
+/// `label` elements of its tree whose labeled control it is.
+/// <https://html.spec.whatwg.org/multipage/forms.html#dom-lfe-labels>
+fn labels(dom: &Document, control: NodeId) -> Vec<NodeId> {
+    dom.descendants(dom.root(control))
+        .filter(|&n| {
+            dom.element(n).is_some_and(|e| is_named(e, "label"))
+                && html::labeled_control(dom, n) == Some(control)
+        })
+        .collect()
 }
 
 /// The selected options of a select, in order.

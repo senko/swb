@@ -17,6 +17,8 @@ use crate::generated::types::SelectionMode;
 use crate::host::{RangeTextMode, SelectionRange};
 use crate::state::{dom, engine_mut};
 
+use super::selection_events as events;
+
 /// The selection of the control, or `None` if the API does not apply.
 fn range(cx: &mut Cx<'_>, node: NodeId) -> b::Result<Option<SelectionRange>> {
     let range = engine_mut(cx.rt)?.control_selection(node);
@@ -66,7 +68,9 @@ pub(crate) fn selection_direction(cx: &mut Cx<'_>, node: NodeId) -> b::Result<Op
 /// Sets the selection (HTML "set the selection range") and stops the
 /// task if the control is gone.
 fn set(cx: &mut Cx<'_>, node: NodeId, start: u32, end: u32, backward: bool) -> b::Result<()> {
+    let before = events::key(cx.rt, node, true)?;
     engine_mut(cx.rt)?.set_control_selection(node, start, end, backward);
+    events::script_changed(cx.rt, node, before, true, false)?;
     Ok(cx.rt.check_time()?)
 }
 
@@ -79,7 +83,10 @@ pub(crate) fn set_selection_start(
 ) -> b::Result<()> {
     let current = required(cx, node)?;
     let start = value.unwrap_or(0);
-    set(cx, node, start, current.end.max(start), current.backward)
+    let end = current.end.max(start);
+    // A selection that this setter collapses is forward (measured; the
+    // standard keeps the direction).
+    set(cx, node, start, end, current.backward && end > start)
 }
 
 /// The setter of `selectionEnd`.
@@ -89,12 +96,13 @@ pub(crate) fn set_selection_end(
     value: Option<u32>,
 ) -> b::Result<()> {
     let current = required(cx, node)?;
+    let end = value.unwrap_or(0);
     set(
         cx,
         node,
         current.start,
-        value.unwrap_or(0),
-        current.backward,
+        end,
+        current.backward && end > current.start,
     )
 }
 
@@ -125,9 +133,12 @@ pub(crate) fn set_selection_range(
 /// `select()`: focuses the control (Chromium, measured) and selects all of
 /// its text.
 pub(crate) fn select(cx: &mut Cx<'_>, node: NodeId) -> b::Result<()> {
+    let before = events::key(cx.rt, node, true)?;
     if engine_mut(cx.rt)?.select_control_text(node) {
         cx.rt.check_time()?;
-        Ok(super::focus::focus_node(cx.rt, node, false)?)
+        super::focus::focus_node(cx.rt, node, false)?;
+        // After the focus: its `selectionchange` comes first.
+        Ok(events::script_changed(cx.rt, node, before, true, false)?)
     } else {
         Ok(())
     }
@@ -188,7 +199,9 @@ fn write_range(
     end: u32,
     mode: RangeTextMode,
 ) -> b::Result<()> {
+    let before = events::key(cx.rt, node, true)?;
     let result = engine_mut(cx.rt)?.set_control_range_text(node, replacement, start, end, mode);
     super::over_limit(cx, result)?;
+    events::script_changed(cx.rt, node, before, true, true)?;
     Ok(cx.rt.check_time()?)
 }

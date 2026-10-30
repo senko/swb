@@ -170,9 +170,15 @@ Rules:
   form owner, dirty flags for what the user or a script changed: per
   control, per option of a select; `forms/script.rs` keeps the *seeds*
   that scripts wrote to controls without a state, `html/selection.rs` in
-  `web` the selection API over `TextEdit`). Layout gets them
-  through `LayoutInput::controls`; style gets `:checked`,
-  `:placeholder-shown`, `:valid` and `:invalid` through
+  `web` the selection API over `TextEdit`, `html/selection_events.rs` its
+  `select` and `selectionchange` events). `forms/validity.rs` computes the
+  constraint validation states and the English messages on demand (for
+  style, for `html/validation.rs` in `web`, which fires the `invalid`
+  events, and for submissions); `ValidityCx` keeps the custom messages and
+  the compiled `pattern` regexes (`js-regexp`, so `engine` depends on it).
+  Layout gets them through `LayoutInput::controls`; style gets `:checked`,
+  `:placeholder-shown`, `:valid`, `:invalid`, `:user-valid` and
+  `:user-invalid` (also of `form` and `fieldset`) through
   `ElementStates::controls`. The disabled state of all elements comes
   from one tree walk (`DisabledElements`, linear time). After a DOM change
   the document state rebuilds `Forms` for the new generation

@@ -3649,3 +3649,122 @@ def set_range_text_over_budget_js_on() -> Page:
         "console.log('not reached');</script>"
     )
     return Page(doc('<textarea id=t style="display:none"></textarea>' + script))
+
+
+@case(
+    "A script that sets a custom validity message of 1 MiB on 10 inputs, with JavaScript on: "
+    "the budget of the messages (8 MiB, ADR 0028 section 16) ends the task (feature 9b2)",
+    expect_log="the custom validity messages reached the limit",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def set_custom_validity_over_budget_js_on() -> Page:
+    script = (
+        "<script>const s = 'm'.repeat(1 << 20); for (let i = 0; i < 10; i++) { "
+        "const e = document.createElement('input'); document.body.appendChild(e); "
+        "e.setCustomValidity(s); } console.log('not reached');</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "3,000 inputs with the pattern (a+)+$ and a value of 3,000 letters a and a !, a rule for "
+    ":invalid, with JavaScript off: every style update matches the patterns with the step "
+    "limit of the pass (feature 9b2)",
+    time_limit_s=20,
+)
+def pattern_catastrophic_many_inputs() -> Page:
+    value = "a" * 3000 + "!"
+    inputs = "".join(f"<input pattern='(a+)+$' value='{value}{i}'>" for i in range(3000))
+    return Page(doc(inputs, css="input:invalid{outline:2px solid red}"))
+
+
+@case(
+    "3,000 inputs with the pattern (a+)+$ and values of 3,000 letters a, a rule for :invalid, "
+    "and a script that calls checkValidity() on a form of them and reads :invalid 20 times, "
+    "with JavaScript on: the step limit of each pass keeps it short (feature 9b2)",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def pattern_catastrophic_check_validity_js_on() -> Page:
+    value = "a" * 3000 + "!"
+    inputs = "".join(f"<input pattern='(a+)+$' value='{value}{i}'>" for i in range(3000))
+    script = (
+        "<script>const f = document.forms[0]; let n = 0; for (let i = 0; i < 20; i++) { "
+        "f.elements[i].value += 'x'; n += f.checkValidity() ? 0 : 1; "
+        "n += document.querySelectorAll('input:invalid').length; } "
+        "console.log('done ' + n);</script>"
+    )
+    css = "input:invalid{outline:2px solid red}"
+    return Page(doc(f"<form>{inputs}</form>" + script, css=css))
+
+
+@case(
+    "A form with 5,000 required radio buttons of one group and 5,000 text inputs, and a script "
+    "that calls checkValidity() on single controls 200,000 times and on the form 200 times, "
+    "with JavaScript on: every call is bounded and the task ends at its time limit "
+    "(feature 9b2)",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def check_validity_loop_js_on() -> Page:
+    controls = "<input type=radio name=g required>" * 5000 + "<input required>" * 5000
+    script = (
+        "<script>const f = document.forms[0]; const e = f.elements; let n = 0; "
+        "f.addEventListener('invalid', () => { n++; }, true); "
+        "for (let i = 0; i < 200000; i++) { n += e[i % 10000].checkValidity() ? 0 : 1; } "
+        "for (let i = 0; i < 200; i++) { n += f.checkValidity() ? 0 : 1; } "
+        "console.log('done ' + n);</script>"
+    )
+    return Page(doc(f"<form>{controls}</form>" + script))
+
+
+@case(
+    "A form of 20,000 inputs with a pattern, minlength, min, max and step, with JavaScript on, "
+    "and a script that appends and removes an input and reads :invalid 200 times: each rebuild "
+    "of the control states is linear (feature 9b2)",
+    time_limit_s=30,
+    swb_args=("--js",),
+)
+def validity_rebuild_loop_js_on() -> Page:
+    inputs = "".join(
+        f"<input type=number min=1 max=100 step=3 value={i % 150}>"
+        f"<input pattern='[a-z]+' minlength=2 value=ab{i}>"
+        for i in range(10000)
+    )
+    script = (
+        "<script>const f = document.forms[0]; let n = 0; for (let i = 0; i < 200; i++) { "
+        "const e = document.createElement('input'); e.required = true; f.appendChild(e); "
+        "n += document.querySelectorAll('input:invalid').length; e.remove(); } "
+        "console.log('done ' + n);</script>"
+    )
+    return Page(doc(f"<form>{inputs}</form>" + script, css="input:invalid{outline:1px solid red}"))
+
+
+@case(
+    "A script that sets a new pattern of 10 KB on an input and reads its validity, in a loop "
+    "until the time limit, with JavaScript on: the cache of compiled patterns is bounded "
+    "(feature 9b2 review; it grew to 1.6 GB before)",
+    time_limit_s=20,
+    swb_args=("--js",),
+)
+def pattern_cache_loop_js_on() -> Page:
+    script = (
+        "<script>const i = document.getElementById('i'); const pad = '[a-c]'.repeat(2000); "
+        "let n = 0; for (; n < 2000000; n++) { i.setAttribute('pattern', pad + '|x' + n); "
+        "i.validity.patternMismatch; } console.log('not reached');</script>"
+    )
+    return Page(doc("<input id=i value=abc>" + script))
+
+
+@case(
+    "300 inputs, each with a different pattern of 44 KB that is slow to compile "
+    "([\\p{RGI_Emoji}--\\q{a}] 2,000 times), and a rule for :invalid, with JavaScript off: a "
+    "style update compiles a bounded amount of pattern text (feature 9b2 review; one style "
+    "update took 28 s before)",
+    time_limit_s=20,
+)
+def pattern_compile_many_inputs() -> Page:
+    pad = "[\\p{RGI_Emoji}--\\q{a}]" * 2000
+    inputs = "".join(f'<input pattern="{pad}|x{i}" value=a>' for i in range(300))
+    return Page(doc(inputs, css="input:invalid{outline:1px solid red}"))

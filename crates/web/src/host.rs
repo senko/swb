@@ -29,6 +29,56 @@ pub enum ControlWrite {
     OverLimit,
 }
 
+/// The selection of a text control as a key: byte offsets of the start and
+/// the end, and whether it is backward ([`EngineHost::control_selection_key`]).
+pub type SelectionKey = (usize, usize, bool);
+
+/// The validity states of a form control (`ValidityState`) and whether it
+/// is a candidate for constraint validation (`willValidate`).
+/// <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#validity-states>
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[allow(clippy::struct_field_names)]
+pub struct ControlValidity {
+    /// `willValidate`.
+    pub will_validate: bool,
+    /// `valueMissing`.
+    pub value_missing: bool,
+    /// `typeMismatch`.
+    pub type_mismatch: bool,
+    /// `patternMismatch`.
+    pub pattern_mismatch: bool,
+    /// `tooLong`.
+    pub too_long: bool,
+    /// `tooShort`.
+    pub too_short: bool,
+    /// `rangeUnderflow`.
+    pub range_underflow: bool,
+    /// `rangeOverflow`.
+    pub range_overflow: bool,
+    /// `stepMismatch`.
+    pub step_mismatch: bool,
+    /// `badInput`.
+    pub bad_input: bool,
+    /// `customError`.
+    pub custom_error: bool,
+}
+
+impl ControlValidity {
+    /// `valid`: no state is set.
+    pub fn is_valid(&self) -> bool {
+        !(self.value_missing
+            || self.type_mismatch
+            || self.pattern_mismatch
+            || self.too_long
+            || self.too_short
+            || self.range_underflow
+            || self.range_overflow
+            || self.step_mismatch
+            || self.bad_input
+            || self.custom_error)
+    }
+}
+
 /// The selection of a text field or text area, in UTF-16 code units.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SelectionRange {
@@ -341,6 +391,44 @@ pub trait EngineHost: Any {
         ControlWrite::NotControl
     }
 
+    /// The validity states of an element (`validity`, `willValidate`):
+    /// those of a form control, or only `customError` for the other
+    /// elements that have the constraint validation API (`fieldset`,
+    /// `output`), which are never candidates.
+    fn control_validity(&mut self, node: NodeId) -> ControlValidity {
+        let _ = node;
+        ControlValidity::default()
+    }
+
+    /// `validationMessage`: Chromium's English text of the first state
+    /// that is set; empty for an element that is not a candidate.
+    fn control_validation_message(&mut self, node: NodeId) -> String {
+        let _ = node;
+        String::new()
+    }
+
+    /// `setCustomValidity(message)`; an empty message clears the error.
+    /// [`ControlWrite::OverLimit`] if the messages reached the budget of
+    /// the document (ADR 0028 section 16), and then nothing is stored.
+    fn set_custom_validity(&mut self, node: NodeId, message: &str) -> ControlWrite {
+        let _ = (node, message);
+        ControlWrite::Done
+    }
+
+    /// A validation of `form` found an invalid control and reported it
+    /// (`reportValidity()`, a submission): its controls count as interacted
+    /// with, for `:user-valid` and `:user-invalid`.
+    fn form_validation_reported(&mut self, form: NodeId) {
+        let _ = form;
+    }
+
+    /// True if `node` is a candidate for constraint validation and fails
+    /// it (an `invalid` event is due).
+    fn control_is_invalid(&mut self, node: NodeId) -> bool {
+        let _ = node;
+        false
+    }
+
     /// The `indeterminate` property of a checkbox changed (the
     /// `:indeterminate` pseudo-class follows it).
     fn set_control_indeterminate(&mut self, node: NodeId, value: bool) {
@@ -360,6 +448,19 @@ pub trait EngineHost: Any {
     /// API does not apply to, another element).
     fn control_selection(&mut self, node: NodeId) -> Option<SelectionRange> {
         let _ = node;
+        None
+    }
+
+    /// The selection of a text field or text area as a cheap key (byte
+    /// offsets of the start and the end in the value, and the direction):
+    /// two keys are equal if the selection is. `None` if the element has no
+    /// selection or no state. The selection events compare keys, so a write
+    /// of a large value does not scan it. With `sync` the state of a
+    /// control in the document is made current first (a rebuild if the
+    /// DOM changed); without it a control that has no current state gives
+    /// `None`, so that a loop of value writes does not rebuild the states.
+    fn control_selection_key(&mut self, node: NodeId, sync: bool) -> Option<SelectionKey> {
+        let _ = (node, sync);
         None
     }
 

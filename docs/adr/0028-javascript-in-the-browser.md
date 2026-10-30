@@ -3392,8 +3392,9 @@ Feature 9b notes (forms from scripts; measured with
 each; the Rust tests are `crates/automation/tests/forms_script.rs` (both
 files, with the input steps, against `tests/data/web-forms-script.json`) and
 the unit tests of `crates/engine/src/forms/mod.rs` and `edit.rs`; this is
-the first half of the feature, 9b1: the constraint validation API, `labels`
-and the `select` and `selectionchange` events are in the backlog, 9b2):
+the first half of the feature, 9b1; the constraint validation API, `labels`
+and the `select` and `selectionchange` events are 9b2, with their own notes
+below):
 
 - **The dirty flags (ADR 0013, "Scripts").** The gaps that the probe found
   and that are closed: (1) the dirtiness flag of a select was one per
@@ -3460,12 +3461,13 @@ and the `select` and `selectionchange` events are in the backlog, 9b2):
 - **Measured and not done (9b2 and the backlog).** (1) The constraint
   validation API (`willValidate`, `validity`, `validationMessage`,
   `checkValidity()`, `reportValidity()`, `setCustomValidity()`) and
-  `labels`. (2) The events `select` (after `select()`, `setSelectionRange()`
+  `labels` (done in 9b2). (2) The events `select` (after `select()`, `setSelectionRange()`
   to a range, the `selectionStart` setter, and the user's selection) and
   `selectionchange` (at the control, bubbling to the document, one task after
   any change of the selection, also when `focus()` moves the selection into
   a control; for a script call `selectionchange` comes first, for the user's
-  selection `select` comes first). (3) `[LegacyOverrideBuiltIns]` on
+  selection `select` comes first; done in 9b2, with a correction: `select`
+  bubbles). (3) `[LegacyOverrideBuiltIns]` on
   `HTMLFormElement`: a control named `submit`, `action`, `reset`, `elements`
   or `length` hides the member in Chromium; swb keeps the members. Measured
   with the attribute on: every property read of the form (also
@@ -3478,6 +3480,181 @@ and the `select` and `selectionchange` events are in the backlog, 9b2):
   character in a read-only input (no `input`). (7) `type=color` accepts CSS
   color names and functions (`red` is `#ff0000`). (8) Offsets in surrogate
   pairs (above).
+
+Feature 9b2 notes (constraint validation, `labels`, the events of the
+selection; measured with `tools/probes/web-forms-validation.json` (30
+cases, 121 queries) and the added cases of `web-forms-selection.json` (22
+cases, 51 queries), three equal Chromium runs each; the Rust tests are
+`crates/automation/tests/forms_script.rs` (now with the validation file and
+the queries that wait) and the unit tests of `forms/validity.rs`,
+`forms/values.rs` and `forms/mod.rs`):
+
+- **The computation (`forms/validity.rs`).** One function gives the ten
+  states of a control from its state and attributes; style (`:valid`,
+  `:invalid`, `:user-valid`, `:user-invalid`), the script API
+  (`ValidityState`, `checkValidity()`, `reportValidity()`) and the
+  blocking of a submission (with scripts off too) call it. A control
+  that is barred from validation (disabled, also through a fieldset;
+  read-only, any `input` or `textarea` (measured: also a checkbox);
+  `hidden`; `image`; a button that does not submit; in a `datalist`) has
+  `willValidate` false, no event and `validationMessage` empty, but its
+  states are computed and readable (a read-only checkbox has
+  `valueMissing`). `required`: a text field or text area needs a mutable
+  control (a read-only or disabled one is not missing), a checkbox and a
+  select do not; a radio button without a name is in no group and is
+  never missing (measured; the old code said it was); a `select` with
+  `multiple` or a display size above 1 has no placeholder label option.
+  `minlength`/`maxlength` give `tooShort`/`tooLong` only if the user
+  edited the value last (`ControlState::user_edited`; a script's `value`,
+  `setRangeText()` and a reset clear it; counted in UTF-16 units).
+  `typeMismatch`: `email` (with `multiple` each comma-separated address)
+  and `url` (the `url` crate; departure: Chromium accepts a space and a
+  `%20` in the host, swb refuses). `pattern`: applies to the types that
+  have `maxlength` (not a text area, not `number`); with `multiple` on an
+  e-mail field, to each address (measured). `min`/`max`/`step`: `number`
+  and the five date and time types, in the unit of `step` (days, months,
+  weeks, seconds); the step base is `min`, else the `value` attribute,
+  else 0; a whole number of steps is tested with a tolerance (Chromium
+  computes in decimals); `range` and `color` are always valid. A `time`
+  with `min` above `max` wraps around midnight (the value outside both
+  limits has both states). `badInput`: the text of a `number` field that
+  is no number (`1e`, `-`), measured: letters cannot be typed, and `1.`
+  has the value `1`; the date and time types are text fields in swb, so a
+  text that does not parse is bad input (Chromium: an incomplete field;
+  departure: a date typed as `12312020` is valid there).
+- **The texts.** Chromium's English texts, measured for each state and
+  type: the missing-value texts by control type; the e-mail texts
+  (`Please include an '@' in the email address. 'abc' is missing an
+  '@'.`, the part before and after the `@`, the symbol that is wrong,
+  `'.' is used at a wrong position in 'x'`, the non-empty address of
+  `multiple`); `Please enter a URL.`; `Please match the requested format.`
+  (the `title` is not part of `validationMessage`); the length texts with
+  the singular for the current count only (`using 1 character`; the limit
+  is always `characters`); `Value must be greater than or equal to
+  5.` for numbers and `Value must be 01/01/2021 or later.` for dates, the
+  forms for equal limits (`Value must be 5.`) and reversed limits
+  (`Minimum value (5) must be less than the maximum value (1).`); the
+  step text with the one or two nearest valid values inside the range;
+  the dates as `MM/DD/YYYY`, `January 2021`, `Week 05, 2021`, times as
+  `9:00 AM` with U+202F before the marker (seconds when they or the step
+  need them), the number of an attribute as Chromium's decimal prints it
+  (`1e3` is `1e+3`, `1.50` is `1.5`, 15 significant digits for a
+  fraction). The order of the states in the message: custom, bad input,
+  missing, type, pattern, length, range, step. A custom message wins, also
+  over a missing value. One Chromium quirk is kept: a `time` with a
+  reversed range whose value is valid still has the message of the limit
+  that it is past. `setCustomValidity()` normalizes line breaks to LF
+  (measured).
+- **`ValidityState`** is a lazy interface (`[SameObject]`, host data the
+  node index): the states are read from the engine at each access. The
+  constraint members are on `input`, `select`, `textarea`, `button`,
+  `fieldset`, `output` and `object` (the last two are never candidates;
+  they keep a custom message), `checkValidity()` and `reportValidity()`
+  on `form`; `meter` and `progress` have `labels` only. A control that is
+  not in the document validates from its attributes and the seeds
+  (`forms/mod.rs`, `detached_state`); a detached radio button is its own
+  group.
+- **The events.** `invalid` is a `Event` at the control that does not
+  bubble and can be canceled. `checkValidity()` fires it for a control
+  that fails; `form.checkValidity()` for each control that fails when its
+  turn comes (a listener that fixes a later control spares it; measured),
+  and returns false if any failed at the start; `fieldset.checkValidity()`
+  is true (it is barred). `reportValidity()` of a control, `form.
+  reportValidity()`, `requestSubmit()`, a click on a submit button and
+  the Enter key fire the events at all failing controls first, then focus
+  (with focus-visible and a scroll into view) the first control whose event
+  nobody canceled; with all canceled nothing gets the focus (the 6d1
+  code focused the first control unless the first was canceled).
+  `novalidate` and `formnovalidate` do not affect the methods. swb shows
+  no bubble with the message (departure: Chromium's native bubble). The
+  controls of a form count as interacted with for `:user-valid` and
+  `:user-invalid` after a failed submission or `reportValidity()`, and
+  a control after the focus left it after a user's edit (measured for
+  text fields; not measured: whether a checkbox or select change counts at
+  once).
+- **Style.** `:valid` and `:invalid` of a `form` and a `fieldset` follow
+  the candidate controls inside (a fieldset), or owned by the form; a
+  disabled fieldset, an empty form are `:valid`. `div` and `output` have
+  neither. `CONTROL_STATES` includes `:user-valid` and `:user-invalid`.
+  The pass over the controls is linear: the radio groups are computed
+  once, the fieldsets above an invalid control are walked once (each node
+  is visited once); `begin_pass` gives the `pattern` matches 2,000,000
+  steps.
+- **Bounds (section 16).** The `pattern` matches of one pass (a style
+  update, a script call) share 2,000,000 steps of `js-regexp`'s `Matcher`
+  (each match is charged the steps it used); one match has at most
+  200,000 steps and 1 MiB of backtracking memory. A pass compiles at most
+  128 KiB of pattern text (64 bytes more per compile); a pattern that the
+  pass may not compile any more counts as matching for that pass and is
+  not remembered (a compile can take about 3 µs per byte: 300 different
+  patterns of 44 KB took 28 s in one style update before this bound;
+  delta review of 9b2). A match that runs out counts as matching
+  (valid), as an invalid pattern does (Chromium has no limit: `(a+)+$` on
+  40 letters gives `patternMismatch` there; departure, not in the probe).
+  Results are remembered by pattern and value (4,096 entries, values up
+  to 1,024 bytes, 4 MiB of pattern and value text counted per result),
+  so a repeated style update costs nothing; a match that ran out of its
+  own 200,000 steps is remembered as
+  valid. When the pass has no steps left, the later matches of the pass
+  count as valid and are not remembered: a later pass (the next script
+  call, the next rebuild of the control states) tries them again. Style
+  visits the controls in the order of their node ids, so the same
+  controls get the steps in every run (on a page with more than ten
+  catastrophic patterns, a later control can show `:valid` while its
+  `validity` says otherwise, until the states are rebuilt). The compiled
+  patterns are kept by text: 256 of them and 8 MiB (text and program),
+  then the cache starts again (a script that writes a new 10 KB pattern
+  and reads `validity` in a loop grew to 1.6 GB before this bound; review
+  of 9b2). The custom messages of a document count against
+  8 MiB; past it the task ends (termination, warning). Every script call
+  calls `Runtime::check_time`. Hostile cases:
+  `set-custom-validity-over-budget-js-on`,
+  `pattern-catastrophic-many-inputs`,
+  `pattern-catastrophic-check-validity-js-on`,
+  `check-validity-loop-js-on`, `validity-rebuild-loop-js-on`,
+  `pattern-cache-loop-js-on`, `pattern-compile-many-inputs`.
+- **`labels`** is the live `NodeList` (`[SameObject]`) of the `label`
+  elements of the tree whose labeled control the element is, in tree
+  order (`ElementList::Labels`, built in one pass per DOM generation);
+  `null` for `input type=hidden`. A `label` with `for` finds its control by
+  `id` in its own tree; a control and a `label` with `for` in a tree
+  without a document (a `div` that was never inserted) have none, as in
+  Chromium (probe row).
+- **`select` and `selectionchange` (`html/selection_events.rs`).** Both
+  are plain `Event`s at the control that bubble (measured: `select` bubbles
+  too). A script's change of the selection (`select()`,
+  `setSelectionRange()`, the setters) queues `selectionchange`, then
+  `select`, if the selection (start, end, direction) changed; the same call
+  again queues nothing. Two calls in a task give one `selectionchange` and
+  two `select`. `setRangeText()` always queues `selectionchange`, and
+  `select` if the selection moved (and its `preserve` mode puts the end of
+  a selection inside the replaced range at the end of the new text,
+  measured; 9b1 had the start); a write of `value` queues
+  `selectionchange` if the caret moved, `select` never. The selection
+  setters collapse the direction to forward when they collapse the
+  selection (measured). A control that is not in the document gets none;
+  one that leaves it before the task gets none. A text control that gets the
+  focus while another one (or none) owns the document's selection gets a
+  `selectionchange`; `blur()` keeps the owner, so a refocus right after
+  queues nothing. The user's selection fires `select` at once, if the new
+  selection is not empty (Shift and arrow keys, Ctrl+A also when nothing
+  changes, a double or triple click, a drag), and queues
+  `selectionchange`; typing, deleting and moving the caret queue
+  `selectionchange` only. The queue holds 4,096 events. Departures: for
+  `select()` on an unfocused control, Chromium's order of the two events
+  varied (with another control focused it was `select`, `selectionchange`
+  once; and for `focus()` then `setSelectionRange()` in one task, and for a
+  control that was set before it was rendered); swb always puts
+  `selectionchange` first for a script. Chromium merges the
+  `selectionchange` events of user steps that come faster than its task;
+  the probe steps wait 100 ms. The `type` step of the probe tools now types
+  one character at a time with the due tasks between, as Playwright does.
+  A change of `type` to `number` fires `selectionchange` with null
+  selection in Chromium; swb fires none.
+- **Not done (backlog).** `valueAsNumber`, `valueAsDate`, `stepUp()`,
+  `stepDown()`; `:in-range` and `:out-of-range`; the ArrowUp/ArrowDown
+  steps of a number field; whether a checkbox or select change counts as an
+  interaction for `:user-valid`; the bubble of `reportValidity()`.
 
 ### 14. Frames and media: out of scope
 
@@ -3530,6 +3707,9 @@ Per document, all settings with these defaults:
 | Steps of one selector query (feature 6b) | 100,000,000 (ancestor steps and selectors tried) | the query stops with a warning |
 | DOM bytes: text, names and attributes | 256 MiB | the task ends |
 | Values that scripts write to text fields and text areas (also with `setRangeText`, feature 9b), in the states and in the seeds (feature 6c) | 32 MiB | the task ends (termination, warning) |
+| Custom validity messages (`setCustomValidity()`) of a document (feature 9b2) | 8 MiB | the task ends (termination, warning) |
+| Steps of the `pattern` matches in one pass (a style update, a script call) and of one match, memory of one match, pattern text compiled in one pass, results remembered, compiled patterns kept (feature 9b2) | 2,000,000 and 200,000 steps; 1 MiB; 128 KiB; 4,096 results and 4 MiB of pattern and value text; 256 patterns and 8 MiB | a match that runs out, or a pattern not compiled in this pass, counts as matching (valid); a full cache starts again |
+| `select` and `selectionchange` events that wait for their task (feature 9b2) | 4,096 | further events are dropped |
 | Event listeners on the nodes and the window of a document (feature 5a) | 262,144 | the task ends (termination) |
 | Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |
 | String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |

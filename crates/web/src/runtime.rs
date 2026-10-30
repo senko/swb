@@ -360,6 +360,15 @@ impl ScriptRuntime {
         })
     }
 
+    /// The user's selection in the focused text control `node` changed (a
+    /// key, a click, a drag): `select` now if `select` (the new selection
+    /// is not empty), `selectionchange` in a task (feature 9b2). A task.
+    pub fn user_selection(&mut self, node: NodeId, select: bool) -> Result<(), ScriptError> {
+        self.task("a selection event", |rt| {
+            crate::html::selection_events::user_changed(rt, node, select).map_err(task_error)
+        })
+    }
+
     /// Fires `change` at the text control `node` if its user's edit is not
     /// committed (Enter in a field, before the implicit submission). A task.
     pub fn commit_change(&mut self, node: NodeId) -> Result<(), ScriptError> {
@@ -635,6 +644,12 @@ impl ScriptRuntime {
                 self.resume_parser();
                 Ok(())
             }
+            Task::SelectionEvents => self.task("selection events", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::html::selection_events::deliver(rt);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
             Task::ScriptErrorEvent(node) => self.task("a script element", |rt| {
                 crate::scripts::fire_at_element(rt, node, "error").map_err(task_error)
             }),

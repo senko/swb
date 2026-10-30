@@ -118,6 +118,11 @@ impl DocumentState {
     /// Moves the focus. The styles that depend on `:focus` are outdated
     /// until the next flush.
     pub(crate) fn script_set_focus(&mut self, node: Option<NodeId>, visible: bool) {
+        if let Some(old) = self.states.focus.filter(|&old| Some(old) != node)
+            && self.forms.value_mut().note_blur(old)
+        {
+            self.controls_stale = true;
+        }
         let mut states = self.states.clone();
         states.focus = node;
         states.focus_visible = visible && node.is_some();
@@ -184,7 +189,9 @@ impl DocumentState {
     /// The invalid controls of `form`.
     pub(crate) fn script_invalid_controls(&mut self, form: NodeId) -> Vec<NodeId> {
         self.ensure_forms();
-        self.forms.value().invalid_controls(&self.dom, form)
+        self.forms
+            .value()
+            .invalid_controls(&self.dom, form, &self.validity)
     }
 
     /// Stores the request to submit `form`. False if the submission does

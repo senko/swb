@@ -114,6 +114,7 @@ impl ListKind {
                 | ListKind::Name(_)
                 | ListKind::Static
                 | ListKind::ControlsNamed(_)
+                | ListKind::Element(ElementList::Labels)
         )
     }
 

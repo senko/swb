@@ -18,6 +18,24 @@ pub trait HTMLFieldSetElementImpl: b::Host {
     /// `readonly attribute HTMLCollection elements`.
     fn elements(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `readonly attribute boolean willValidate`.
+    fn will_validate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute ValidityState validity`.
+    fn validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute DOMString validationMessage`.
+    fn validation_message(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// `boolean checkValidity()`.
+    fn check_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `boolean reportValidity()`.
+    fn report_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `undefined setCustomValidity(DOMString error)`.
+    fn set_custom_validity(cx: &mut b::Cx<'_>, this: b::NodeId, error: String) -> b::Result<()>;
+
 }
 
 fn get_disabled<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -80,8 +98,59 @@ fn get_elements<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb
     })
 }
 
+fn get_will_validate<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLFieldSetElement", "willValidate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        let result = <H as HTMLFieldSetElementImpl>::will_validate(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_validity<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLFieldSetElement", "validity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        let result = <H as HTMLFieldSetElementImpl>::validity(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_validation_message<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLFieldSetElement", "validationMessage"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        let result = <H as HTMLFieldSetElementImpl>::validation_message(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
 pub(super) fn construct<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLFieldSetElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+}
+
+fn op_check_validity<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLFieldSetElement", "checkValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        let result = <H as HTMLFieldSetElementImpl>::check_validity(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_report_validity<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLFieldSetElement", "reportValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        let result = <H as HTMLFieldSetElementImpl>::report_validity(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_set_custom_validity<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLFieldSetElement", "setCustomValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_FIELD_SET_ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as HTMLFieldSetElementImpl>::set_custom_validity(&mut b::Cx::new(rt, call, super::HTML_FIELD_SET_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLFieldSetElement` in `realm`
@@ -95,6 +164,12 @@ pub fn define<H: HTMLFieldSetElementImpl>(rt: &mut swb_js::Runtime, realm: u32) 
     rt.define_accessor(realm, target, "name", (Some(get_name::<H> as swb_js::NativeFn), Some(set_name::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "type", (Some(get_type::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "elements", (Some(get_elements::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "willValidate", (Some(get_will_validate::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validity", (Some(get_validity::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validationMessage", (Some(get_validation_message::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "checkValidity", 0, op_check_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "reportValidity", 0, op_report_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setCustomValidity", 1, op_set_custom_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -121,6 +121,12 @@ fn image_size(cx: &mut Cx<'_>, this: NodeId, name: &str) -> b::Result<u32> {
 }
 
 impl g::html_input_element::HTMLInputElementImpl for WebState {
+    super::validation::constraint_validation_members!();
+
+    fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        super::validation::labels(cx, this)
+    }
+
     fn selection_start(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
         super::selection::selection_start(cx, this)
     }

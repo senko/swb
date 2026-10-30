@@ -102,6 +102,9 @@ impl DocumentState {
         if let Some(state) = self.forms.value_mut().typed_state_mut(node, ty) {
             state.edit = edit;
             state.dirty |= value_changed;
+            if value_changed {
+                state.user_edited = false;
+            }
         } else {
             if value_changed {
                 self.seeds.set_value(node, edit.text().to_owned());
@@ -152,6 +155,25 @@ impl DocumentState {
             return Some(range(&state.edit));
         }
         Some(range(&self.script_edit(node)?))
+    }
+
+    /// The selection of a text control as a key (byte offsets and the
+    /// direction), for the selection events. `None` without a state or
+    /// where the selection API does not apply.
+    pub(crate) fn script_selection_key(
+        &mut self,
+        node: NodeId,
+        sync: bool,
+    ) -> Option<(usize, usize, bool)> {
+        let ty = self
+            .script_type(node)
+            .filter(|t| Self::has_selection_api(*t))?;
+        if sync {
+            self.script_sync_text(node, ty);
+        }
+        let state = self.forms.value().typed_state(node, ty)?;
+        let selection = state.edit.selection();
+        Some((selection.start, selection.end, state.edit.is_backward()))
     }
 
     /// HTML "set the selection range".
@@ -233,11 +255,15 @@ impl DocumentState {
         }
         let new_length = replacement.encode_utf16().count();
         let delta = new_length as i64 - (end - start) as i64;
-        let adjust = |offset: usize| -> usize {
+        // An offset inside the replaced range moves to its start; the end
+        // of the selection moves to the end of the new text (measured in
+        // Chromium: the caret at 1 of `q`, `setRangeText('zz', 0, 1)`
+        // selects 0 to 2).
+        let adjust = |offset: usize, inside: usize| -> usize {
             if offset > end {
                 (offset as i64 + delta).max(0) as usize
             } else if offset > start {
-                start
+                inside
             } else {
                 offset
             }
@@ -246,7 +272,10 @@ impl DocumentState {
             RangeTextMode::Select => (start, start + new_length),
             RangeTextMode::Start => (start, start),
             RangeTextMode::End => (start + new_length, start + new_length),
-            RangeTextMode::Preserve => (adjust(old_start), adjust(old_end)),
+            RangeTextMode::Preserve => (
+                adjust(old_start, start),
+                adjust(old_end, start + new_length),
+            ),
         };
         edit.select_range_utf16(new_start, new_end, false);
         self.script_put_edit(node, edit, true);
@@ -258,7 +287,7 @@ impl DocumentState {
     /// type than the one the DOM says (its `type` attribute changed since
     /// the last build): the rebuild carries the value and the checkedness
     /// over. O(1) when the types agree.
-    fn sync_type(&mut self, node: NodeId, ty: ControlType) {
+    pub(super) fn sync_type(&mut self, node: NodeId, ty: ControlType) {
         if self
             .forms
             .value()
@@ -270,7 +299,7 @@ impl DocumentState {
     }
 
     /// A script changed the state of a control.
-    fn controls_changed(&mut self) {
+    pub(super) fn controls_changed(&mut self) {
         self.controls_stale = true;
         self.invalidate_layout();
     }
@@ -323,6 +352,9 @@ impl DocumentState {
                 state.edit.replace_text(&value);
             }
             state.dirty = true;
+            // The value was not last changed by a user edit: no `tooLong`
+            // or `tooShort` (HTML, the `maxlength` attribute).
+            state.user_edited = false;
         } else {
             self.seeds.set_value(node, value);
         }

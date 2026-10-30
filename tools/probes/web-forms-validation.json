@@ -1,0 +1,837 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "val-required",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input required>\", \"<input required value=x>\", \"<input type=checkbox required>\", \"<input type=radio required name=a>\", \"<select required><option value=''>p<option>x</select>\", \"<select required><option>x</select>\", \"<select required multiple><option>x</select>\", \"<textarea required></textarea>\", \"<input type=file required>\", \"<input type=number required>\", \"<input type=email required>\", \"<input type=url required>\", \"<input type=range required>\", \"<input type=color required>\", \"<input type=date required>\", \"<input type=hidden required>\", \"<input type=password required>\", \"<input type=search required>\", \"<input type=tel required>\", \"<input type=month required>\", \"<input type=week required>\", \"<input type=time required>\", \"<input type=datetime-local required>\", \"<select required size=3><option value=''>p<option>x</select>\", \"<select required><optgroup label=g><option value=''>p</optgroup><option>x</select>\", \"<input type=submit required>\", \"<button required>x</button>\", \"<input type=image required>\", \"<input required readonly>\", \"<input required disabled>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-type",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=email value=abc>\", \"<input type=email value=a@>\", \"<input type=email value=@b>\", \"<input type=email value='a@b'>\", \"<input type=email value='a@b.c'>\", \"<input type=email value='a b@c.d'>\", \"<input type=email value='a@b@c'>\", \"<input type=email value='a@.b'>\", \"<input type=email value='a@b.'>\", \"<input type=email value='a@-b'>\", \"<input type=email value='a@b..c'>\", \"<input type=email value='.a@b'>\", \"<input type=email value='a.@b'>\", \"<input type=email value='a..b@c'>\", \"<input type=email value='a@b c'>\", \"<input type=email value='\\u00e4@b'>\", \"<input type=email value='a@\\u00fc.de'>\", \"<input type=email value='a@b,c@d'>\", \"<input type=email multiple value='a@b,c@d'>\", \"<input type=email multiple value='a@b, c@d'>\", \"<input type=email multiple value='a@b,c'>\", \"<input type=email multiple value='a@b,,c@d'>\", \"<input type=email multiple value='a@b,'>\", \"<input type=email multiple value=''>\", \"<input type=email multiple value='abc'>\", \"<input type=email value='a@b' required>\", \"<input type=email value=' a@b '>\", \"<input type=email value='a@[1.2.3.4]'>\", \"<input type=email value='\\\"a\\\"@b'>\", \"<input type=email value='a+b@c'>\", \"<input type=url value=abc>\", \"<input type=url value='http://a'>\", \"<input type=url value='a:b'>\", \"<input type=url value='http:'>\", \"<input type=url value='http://'>\", \"<input type=url value='mailto:x'>\", \"<input type=url value='/rel'>\", \"<input type=url value='http://[::1]'>\", \"<input type=url value='1:2'>\", \"<input type=url value='javascript:1'>\", \"<input type=url value='http://a.b/c d'>\", \"<input type=url value='ftp://x'>\", \"<input type=url value='  http://x  '>\", \"<input type=email value='a@b-'>\", \"<input type=email value='a@b.c d.'>\", \"<input type=email value='a@b.-c'>\", \"<input type=email value='a(b@c'>\", \"<input type=email value='a@'>\", \"<input type=email value='@'>\", \"<input type=email value='a@@b'>\", \"<input type=email value='a@b!'>\", \"<input type=email value='a b'>\", \"<input type=email value='a@b.c.'>\", \"<input type=email value='..@b'>\", \"<input type=email value='a@b_c'>\", \"<input type=email value='a@bcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz'>\", \"<input type=email value='a@b-.c'>\", \"<input type=email value='a@.'>\", \"<input type=email value='a@b,c'>\", \"<input type=email value='a,b@c'>\", \"<input type=email multiple value=',a@b'>\", \"<input type=email multiple value=' , '>\", \"<input type=email multiple value='a@b , c@d'>\", \"<input type=email multiple value='a@b;c@d'>\", \"<input type=email multiple value='a@b,@c'>\", \"<input type=email multiple value='a@b,c@'>\", \"<input type=email value='a\\tb@c'>\", \"<input type=email value='\\ud83d\\ude00@b'>\", \"<input type=email value='a@\\ud83d\\ude00'>\", \"<input type=email value='a@xn--bcher-kva.de'>\", \"<input type=url value='http://'>\", \"<input type=url value='http:/x'>\", \"<input type=url value='HTTP://X'>\", \"<input type=url value='a+b:c'>\", \"<input type=url value='a_b:c'>\", \"<input type=url value=':a'>\", \"<input type=url value='a b:c'>\", \"<input type=url value='http://%'>\", \"<input type=url value='http://a:99999'>\", \"<input type=url value='data:,x'>\", \"<input type=url value='//x'>\", \"<input type=url value='http://a/%zz'>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-pattern",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input pattern='[a-z]+' value=abc>\", \"<input pattern='[a-z]+' value=abC>\", \"<input pattern='[a-z]+' value=''>\", \"<input pattern='[a-z]+' value=abc title='Letters only'>\", \"<input pattern='[a-z]+' value=ABC title='Letters only'>\", \"<input pattern='[a-z]+' value=ABC title=''>\", \"<input pattern='[' value=abc>\", \"<input pattern='a|b' value=ab>\", \"<input pattern='a|b' value=a>\", \"<input pattern='(?:a|b)' value=a>\", \"<input pattern='\\\\d+' value=12>\", \"<input pattern='[\\\\w-]+' value=a-b>\", \"<input pattern='[a-z&&[^b]]' value=a>\", \"<input pattern='[\\\\p{L}]+' value=ab>\", \"<input pattern='\\\\-' value='-'>\", \"<input pattern='a{2}' value=aa>\", \"<input pattern='a' value=A>\", \"<input pattern='(?i)a' value=A>\", \"<input pattern='' value=abc>\", \"<input pattern='.' value=''>\", \"<textarea pattern=a>b</textarea>\", \"<input type=email pattern='.+@x' value=a@b>\", \"<input type=number pattern='x' value=5>\", \"<input type=checkbox pattern=x>\", \"<input type=password pattern=a value=b>\", \"<input type=url pattern='a.*' value='http://x'>\", \"<input pattern='^$' value=''>\", \"<input pattern='\\\\.' value='.'>\", \"<input pattern='[\\\\-]' value='-'>\", \"<input pattern='[a-z]' value='a-'>\", \"<input pattern='a/b' value='a/b'>\", \"<input pattern='a b' value='a b'>\", \"<input pattern='\\\\u{61}' value='a'>\", \"<input pattern='[^]' value='a'>\", \"<input pattern='\\\\k<x>' value='a'>\", \"<input pattern='(?<x>a)\\\\k<x>' value='aa'>\", \"<input pattern='\\\\_' value='_'>\", \"<input pattern='\\\\a' value='a'>\", \"<input pattern='(' value=''>\", \"<input pattern='{' value='{'>\", \"<input pattern='a{' value='a{'>\", \"<input pattern='(?=a)a' value='a'>\", \"<input pattern='(?<=a)b' value='b'>\", \"<input pattern='[a-z]+' value='abc' required>\", \"<input pattern='x' value='' required>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-range",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=number min=5 value=3>\", \"<input type=number min=5 value=5>\", \"<input type=number max=5 value=7>\", \"<input type=number min=1 max=3 value=7>\", \"<input type=number min=-1.5 value=-2>\", \"<input type=number min=1e3 value=5>\", \"<input type=number max=0.5 value=0.7>\", \"<input type=number min=5 max=1 value=3>\", \"<input type=number min=abc value=3>\", \"<input type=number min=''>\", \"<input type=number step=2 value=3>\", \"<input type=number step=2 value=4>\", \"<input type=number step=2 min=1 value=4>\", \"<input type=number step=2 min=1 value=3>\", \"<input type=number step=0.1 value=0.3>\", \"<input type=number step=0.1 value=0.35>\", \"<input type=number step=any value=0.35>\", \"<input type=number step=ANY value=0.35>\", \"<input type=number step=0 value=0.35>\", \"<input type=number step=-1 value=0.35>\", \"<input type=number step=abc value=0.35>\", \"<input type=number value=1.5>\", \"<input type=number value=1.0>\", \"<input type=number value=1e2>\", \"<input type=number step=1e-7 value=1.00000001>\", \"<input type=number min=1 step=5 value=7>\", \"<input type=number min=1 step=5 value=3>\", \"<input type=number min=0 max=10 step=3 value=10>\", \"<input type=number min=0 max=10 step=3 value=9>\", \"<input type=number min=0 max=10 step=3 value=5>\", \"<input type=number min=0 max=10 step=3 value=11>\", \"<input type=number min=0 max=10 step=3 value=-1>\", \"<input type=number step=1000000 value=3>\", \"<input type=number step=0.5 min=0.25 value=0.5>\", \"<input type=number step=0.5 min=0.25 value=2>\", \"<input type=number value=99999999999999999999>\", \"<input type=number step=3 value=7>\", \"<input type=number step=3 value=5>\", \"<input type=number step=3 value=1>\", \"<input type=range min=0 max=10 value=5>\", \"<input type=range min=0 max=10 value=5 step=3>\", \"<input type=range min=0 max=10 step=3>\", \"<input type=range>\", \"<input type=range step=any>\", \"<input type=range min=5 max=1>\", \"<input min=5 value=3>\", \"<input max=5 value=7>\", \"<input type=email min=5>\", \"<input type=text step=2 value=3>\", \"<textarea min=1>a</textarea>\", \"<input type=checkbox min=1>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-date",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=date value=2020-05-05 min=2021-01-01>\", \"<input type=date value=2020-05-05 max=2019-01-01>\", \"<input type=date value=2020-05-05 min=2020-05-05>\", \"<input type=date value=2020-05-05 step=2>\", \"<input type=date value=2020-05-05 step=7 min=2020-05-01>\", \"<input type=date value=2020-05-05 step=7 min=2020-05-02>\", \"<input type=date value=2020-05-05 step=1 min=2020-05-02>\", \"<input type=date value=2020-05-05 step=any min=2020-05-02>\", \"<input type=date min=abc value=2020-01-01>\", \"<input type=date value=2020-05-05 min=2021-01-01 max=2019-01-01>\", \"<input type=month value=2020-05 min=2021-01>\", \"<input type=month value=2020-05 max=2019-01>\", \"<input type=month value=2020-05 step=2>\", \"<input type=month value=2020-05 step=2 min=2020-04>\", \"<input type=month value=2020-05 step=2 min=2020-03>\", \"<input type=week value=2020-W05 min=2021-W01>\", \"<input type=week value=2020-W05 max=2019-W01>\", \"<input type=week value=2020-W05 step=2>\", \"<input type=week value=2020-W05 step=2 min=2020-W01>\", \"<input type=week value=2020-W05 step=2 min=2020-W02>\", \"<input type=time value=10:30 min=11:00>\", \"<input type=time value=10:30 max=10:00>\", \"<input type=time value=10:30 step=3600>\", \"<input type=time value=10:30 step=600>\", \"<input type=time value=10:30:15>\", \"<input type=time value=10:30:15 step=1>\", \"<input type=time value=10:30:15.5 step=0.1>\", \"<input type=time value=10:30 min=11:00 max=09:00>\", \"<input type=time value=23:00 min=22:00 max=02:00>\", \"<input type=time value=12:00 min=22:00 max=02:00>\", \"<input type=time value=10:30 min=11:00 max=09:00 required>\", \"<input type=time value=01:00 min=22:00 max=02:00>\", \"<input type=time value=10:30 step=0.5>\", \"<input type=time value=10:30:30 step=60>\", \"<input type=time value=10:30:00.500>\", \"<input type=datetime-local value=2020-05-05T10:30 min=2021-01-01T00:00>\", \"<input type=datetime-local value=2020-05-05T10:30 max=2019-01-01T00:00>\", \"<input type=datetime-local value=2020-05-05T10:30 step=3600>\", \"<input type=datetime-local value=2020-05-05T10:30 step=60>\", \"<input type=datetime-local value=2020-05-05T10:30:15 step=60>\", \"<input type=datetime-local value=2020-05-05T10:30 step=86400>\", \"<input type=datetime-local value=2020-05-05T10:30 step=86400 min=2020-05-05T10:00>\", \"<input type=datetime-local value=2020-05-05T10:30 step=any>\", \"<input type=datetime-local value=2020-05-05T10:30 step=0>\", \"<input type=datetime-local value=2020-05-05T10:30 min=2020-05-05T10:30>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-length-script",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input maxlength=2 value=abcde>\", \"<input minlength=9 value=abc>\", \"<input minlength=3 value=abc>\", \"<textarea maxlength=2>abcde</textarea>\", \"<textarea minlength=9>abc</textarea>\", \"<input minlength=9 value=''>\", \"<input minlength=9 required value=''>\", \"<input maxlength=2 value=abc>\", \"<input type=email minlength=9 value=abc>\", \"<input type=number maxlength=1 value=55>\", \"<input minlength=0 value=a>\", \"<input minlength=-1 value=a>\", \"<input minlength=x value=a>\", \"<input minlength=9 maxlength=3 value=abcd>\", \"<input minlength=9 value=abc readonly>\", \"<input type=password minlength=9 value=abc>\", \"<input type=url minlength=9 value=abc>\", \"<input type=tel minlength=9 value=abc>\", \"<input type=search minlength=9 value=abc>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-length-set",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input maxlength=2>').firstChild; i.value = 'abcde'; return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input minlength=9>').firstChild; i.value = 'abc'; return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<textarea maxlength=2></textarea>').firstChild; i.value = 'abcde'; return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input maxlength=2 value=abc>').firstChild; i.setRangeText('xyz'); return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input maxlength=2 value=abc>').firstChild; i.setAttribute('maxlength', 5); const r = [F(i)]; i.setAttribute('maxlength', 1); r.push(F(i)); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "val-length-user",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script><input id=a maxlength=3 class=abs style='left:10px;top:10px'><input id=b minlength=4 class=abs style='left:10px;top:50px'><textarea id=c minlength=4 class=abs style='left:10px;top:90px'></textarea><input id=d maxlength=2 value=abcd class=abs style='left:10px;top:150px'><input id=e type=email minlength=10 class=abs style='left:10px;top:190px'>",
+   "measure": [
+    {
+     "js": "R(() => ['a','b','c','d','e'].map((id) => id + ' ' + F(document.getElementById(id))))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "abcdef"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "click": "#c"
+    },
+    {
+     "type": "a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "type": "b"
+    },
+    {
+     "click": "#d"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#e"
+    },
+    {
+     "type": "a@b"
+    }
+   ]
+  },
+  {
+   "name": "val-length-user2",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script><input id=a minlength=3 class=abs style='left:10px;top:10px'><input id=b maxlength=3 value=abcdef class=abs style='left:10px;top:50px'>",
+   "measure": [
+    {
+     "js": "R(() => ['a','b'].map((id) => id + ' ' + F(document.getElementById(id))))"
+    },
+    {
+     "js": "R(() => { const a = document.getElementById('a'); a.value = 'xy'; const r = [F(a)]; a.value = 'xyzw'; r.push(F(a)); a.value = ''; r.push(F(a)); return r; })"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "abcd"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "type": "g"
+    },
+    {
+     "key": "Backspace"
+    }
+   ]
+  },
+  {
+   "name": "val-custom",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const r = [F(i)]; i.setCustomValidity('bad'); r.push(F(i)); i.setCustomValidity(''); r.push(F(i)); i.setCustomValidity(5); r.push(F(i)); i.setCustomValidity(null); r.push(F(i)); i.setCustomValidity(undefined); r.push(F(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input required>').firstChild; i.setCustomValidity('bad'); return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input required disabled>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=hidden>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input readonly>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<button>x</button>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<button type=button>x</button>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<button type=reset>x</button>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=submit>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=button>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=image>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=reset>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<select><option>a</select>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<textarea></textarea>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<fieldset></fieldset>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity(), i.type, i.willValidate]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<output></output>').firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity(), i.willValidate]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<object></object>').firstChild; return [typeof i.setCustomValidity, i.willValidate]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<datalist><input></datalist>').firstChild.firstChild; i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = document.createElement('input'); i.setCustomValidity('bad'); return [F(i), i.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; i.setCustomValidity('a\\nb\\r\\nc'); return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const r = []; i.setCustomValidity('x'); i.type = 'hidden'; r.push(F(i)); i.type = 'text'; r.push(F(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; i.setCustomValidity('x'); i.value = 'abc'; i.disabled = true; i.disabled = false; return [F(i)]; })"
+    },
+    {
+     "js": "R(() => { const f = K('<form><input></form>').firstChild; const i = f.firstChild; i.setCustomValidity('x'); f.reset(); return [F(i)]; })"
+    }
+   ]
+  },
+  {
+   "name": "val-select-misc",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<select><option>a</select>\", \"<select required><option selected value=''>a</select>\", \"<select required><option selected value='' disabled>a</select>\", \"<select required><option disabled selected>a<option>b</select>\", \"<select required><option value=''></select>\", \"<select required><option value='' label=x></select>\", \"<select required multiple><option value=''></select>\", \"<select required multiple><option value='' selected></select>\", \"<select required size=2><option value=''>a</select>\", \"<select required size=1><option value=''>a</select>\", \"<select required><option value=''>a<option value='' selected>b</select>\", \"<select required><option>a<option value='' selected>b</select>\", \"<select required></select>\", \"<select><option selected>a</select>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-radio-checkbox-old",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const d = K('<input type=radio name=a required><input type=radio name=a>'); const a = d.children; const r = [F(a[0]), F(a[1])]; a[1].checked = true; r.push(F(a[0]), F(a[1])); return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form><input type=radio name=a required></form><input type=radio name=a checked>'); const a = d.querySelectorAll('input'); return [F(a[0]), F(a[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio required><input type=radio required>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=a><input type=radio name=a required>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox required>').firstChild; const r = [F(i)]; i.checked = true; r.push(F(i)); i.indeterminate = true; r.push(F(i)); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input type=checkbox required checked>').firstChild; return [F(i)]; })"
+    }
+   ]
+  },
+  {
+   "name": "val-radio",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=radio required>\", \"<input type=radio required checked>\", \"<input type=radio>\", \"<input type=radio required name=''>\", \"<input type=radio required name=zz>\"]).join('\\n'))"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio required><input type=radio required>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=q1 required><input type=radio name=q1>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=q2><input type=radio name=q2 required>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<input type=radio name=q3><input type=radio name=q3 required checked>'); return [F(d.children[0]), F(d.children[1])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form><input type=radio name=q4 required></form><form><input type=radio name=q4 required checked></form>'); const a = d.querySelectorAll('input'); return [F(a[0]), F(a[1])]; })"
+    }
+   ]
+  },
+  {
+   "name": "val-other",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=file>\", \"<input type=file multiple required>\", \"<input type=color>\", \"<input type=hidden>\", \"<input type=image>\", \"<input type=reset>\", \"<input type=button>\", \"<input type=submit>\", \"<button type=submit>x</button>\", \"<button type=button>x</button>\", \"<button type=reset>x</button>\", \"<button disabled>x</button>\", \"<fieldset></fieldset>\", \"<output></output>\", \"<meter></meter>\", \"<progress></progress>\", \"<object></object>\", \"<fieldset disabled></fieldset>\", \"<textarea readonly required></textarea>\", \"<input type=checkbox readonly required>\", \"<select disabled required><option value=''>a</select>\", \"<label></label>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-step-set",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => Q2([[\"<input type=number step=2>\", \"3\"], [\"<input type=number step=2>\", \"4\"], [\"<input type=number step=0.1>\", \"0.35\"], [\"<input type=number step=0.1>\", \"0.3\"], [\"<input type=number>\", \"1.5\"], [\"<input type=number step=0.1 min=0>\", \"0.25\"], [\"<input type=number step=0.1 min=0>\", \"0.7\"], [\"<input type=number step=any>\", \"0.35\"], [\"<input type=number min=1 step=3 max=8>\", \"8\"], [\"<input type=number min=1 step=3 max=8>\", \"6\"], [\"<input type=number min=1 step=3 max=8>\", \"0\"], [\"<input type=number step=0.01>\", \"1.005\"], [\"<input type=number step=1e-9>\", \"0.3\"], [\"<input type=number step=3>\", \"1e100\"], [\"<input type=number step=1>\", \"1e21\"], [\"<input type=number step=0.1>\", \"0.30000000000000004\"], [\"<input type=number min=0.1 step=0.2>\", \"0.35\"], [\"<input type=number step=0.3>\", \"0.1\"], [\"<input type=number step=100 min=0>\", \"150\"], [\"<input type=number step=1.5 min=0>\", \"1\"], [\"<input type=number min=5>\", \"3\"], [\"<input type=number min=1e3>\", \"5\"], [\"<input type=number min=1000>\", \"5\"], [\"<input type=number min=0.1>\", \"0\"], [\"<input type=number min=1e-7>\", \"0\"], [\"<input type=number min=1e21>\", \"0\"], [\"<input type=number min=123456789012345678>\", \"0\"], [\"<input type=number min=-0>\", \"-1\"], [\"<input type=number min=1.50>\", \"0\"], [\"<input type=number min=+5>\", \"0\"], [\"<input type=number min=.5>\", \"0\"], [\"<input type=number min=5.>\", \"0\"], [\"<input type=number min=0.30000000000000004>\", \"0\"], [\"<input type=number min=1.23456789>\", \"0\"], [\"<input type=number min=100000000000000000000000>\", \"0\"], [\"<input type=number min=5 max=1>\", \"3\"], [\"<input type=number min=5 max=1>\", \"10\"], [\"<input type=number min=5 max=1>\", \"0\"], [\"<input type=number min=5 max=1>\", \"5\"], [\"<input type=number min=5 max=1>\", \"1\"], [\"<input type=date min=2021-01-01 max=2019-01-01>\", \"2018-01-01\"], [\"<input type=date min=2021-01-01 max=2019-01-01>\", \"2020-01-01\"], [\"<input type=date min=2021-01-01 max=2019-01-01>\", \"2022-01-01\"], [\"<input type=time min=22:00 max=02:00>\", \"23:00\"], [\"<input type=time min=22:00 max=02:00>\", \"12:00\"], [\"<input type=time min=22:00 max=02:00>\", \"01:00\"], [\"<input type=time min=22:00 max=02:00>\", \"22:00\"], [\"<input type=time min=22:00 max=02:00>\", \"02:00\"], [\"<input type=time min=22:00 max=02:00>\", \"02:01\"], [\"<input type=time min=22:00 max=02:00>\", \"21:59\"], [\"<input type=time min=09:00 max=17:00>\", \"08:00\"], [\"<input type=time min=09:00 max=17:00>\", \"18:00\"], [\"<input type=time min=09:00:30 max=17:00>\", \"08:00\"], [\"<input type=time min=09:00:30.5 max=17:00>\", \"08:00\"], [\"<input type=time max=00:00>\", \"08:00\"], [\"<input type=time max=12:30>\", \"13:00\"], [\"<input type=time max=12:30:15>\", \"13:00\"], [\"<input type=time max=00:30>\", \"13:00\"], [\"<input type=time max=12:00>\", \"13:00\"], [\"<input type=time max=23:59>\", \"13:00\"], [\"<input type=time step=60>\", \"10:30:15\"], [\"<input type=time step=900 min=10:00>\", \"10:20\"], [\"<input type=time step=900 min=10:00>\", \"10:15\"], [\"<input type=time step=1800 min=10:00>\", \"10:20\"], [\"<input type=time step=1 min=10:00>\", \"10:20:00.5\"], [\"<input type=time step=0.5 min=10:00>\", \"10:20:00.2\"], [\"<input type=time step=3600 min=00:00>\", \"23:30\"], [\"<input type=time step=3600 min=00:00>\", \"00:30\"], [\"<input type=time step=7200 min=01:00>\", \"02:00\"], [\"<input type=date step=2 min=2020-01-01>\", \"2020-01-02\"], [\"<input type=date step=2 min=2020-01-01>\", \"2020-01-04\"], [\"<input type=date step=2 min=2020-01-01>\", \"2020-01-03\"], [\"<input type=date step=2>\", \"2020-01-02\"], [\"<input type=date step=2>\", \"1970-01-02\"], [\"<input type=date step=2>\", \"1970-01-03\"], [\"<input type=date step=7 max=2020-01-10>\", \"2020-01-10\"], [\"<input type=date step=7 min=2020-01-01 max=2020-01-10>\", \"2020-01-10\"], [\"<input type=date step=7 min=2020-01-01 max=2020-01-10>\", \"2020-01-09\"], [\"<input type=month step=2 min=2020-01>\", \"2020-02\"], [\"<input type=month step=2 min=2020-01>\", \"2020-03\"], [\"<input type=month step=2>\", \"1970-02\"], [\"<input type=month step=2>\", \"1970-01\"], [\"<input type=month step=3 min=2020-01 max=2020-02>\", \"2020-02\"], [\"<input type=week step=2 min=2020-W01>\", \"2020-W02\"], [\"<input type=week step=2 min=2020-W01>\", \"2020-W03\"], [\"<input type=week step=2>\", \"1970-W02\"], [\"<input type=week step=2>\", \"1970-W03\"], [\"<input type=week step=2>\", \"1970-W04\"], [\"<input type=datetime-local step=3600 min=2020-01-01T00:00>\", \"2020-01-01T00:30\"], [\"<input type=datetime-local step=3600 min=2020-01-01T00:00>\", \"2020-01-01T01:00\"], [\"<input type=datetime-local step=60>\", \"2020-01-01T00:00:30\"], [\"<input type=datetime-local step=1>\", \"2020-01-01T00:00:30.5\"], [\"<input type=datetime-local>\", \"2020-01-01T00:00:30\"], [\"<input type=datetime-local>\", \"2020-01-01T00:30\"], [\"<input type=datetime-local min=2020-01-01T10:30:15>\", \"2019-01-01T00:00\"], [\"<input type=datetime-local max=2020-01-01T10:30:15.5>\", \"2021-01-01T00:00\"], [\"<input type=datetime-local max=2020-01-01T00:00>\", \"2021-01-01T13:45\"], [\"<input type=datetime-local max=2020-01-01T23:59>\", \"2021-01-01T13:45\"], [\"<input type=week max=2020-W53>\", \"2021-W01\"], [\"<input type=month max=2020-12>\", \"2021-02\"], [\"<input type=month min=2020-12 max=2020-01>\", \"2020-06\"], [\"<input type=week min=2020-W10 max=2020-W01>\", \"2020-W05\"], [\"<input type=time min=09:00 max=17:00 step=1>\", \"08:00:30\"], [\"<input type=range min=0 max=10 step=3>\", \"7\"], [\"<input type=range min=0 max=10 step=3>\", \"9\"], [\"<input type=range min=0 max=10>\", \"5.5\"], [\"<input type=range min=0 max=10>\", \"50\"], [\"<input type=range>\", \"abc\"], [\"<input type=range step=any min=0 max=10>\", \"5.5\"]]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-bad-input",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><input id=n type=number class=abs style='left:10px;top:10px'><input id=n2 type=number class=abs style='left:10px;top:50px'><input id=n3 type=number class=abs style='left:10px;top:90px'><input id=n4 type=number class=abs style='left:10px;top:130px'><input id=n5 type=number required class=abs style='left:10px;top:170px'><input id=d type=date class=abs style='left:10px;top:210px'><input id=d2 type=date class=abs style='left:10px;top:250px'><input id=t type=time class=abs style='left:10px;top:290px'>",
+   "measure": [
+    {
+     "js": "R(() => ['n','n2','n3','n4','n5','d','d2','t'].map((id) => id + ' ' + JSON.stringify(document.getElementById(id).value) + ' ' + F(document.getElementById(id))))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#n"
+    },
+    {
+     "type": "1e"
+    },
+    {
+     "click": "#n2"
+    },
+    {
+     "type": "-"
+    },
+    {
+     "click": "#n3"
+    },
+    {
+     "type": "abc"
+    },
+    {
+     "click": "#n4"
+    },
+    {
+     "type": "1.5"
+    },
+    {
+     "click": "#n5"
+    },
+    {
+     "type": "e"
+    },
+    {
+     "click": "#d"
+    },
+    {
+     "type": "12"
+    },
+    {
+     "click": "#d2"
+    },
+    {
+     "type": "12312020"
+    },
+    {
+     "click": "#t"
+    },
+    {
+     "type": "10"
+    }
+   ]
+  },
+  {
+   "name": "val-bad-input2",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><input id=n type=number class=abs style='left:10px;top:10px'><input id=n2 type=number class=abs style='left:10px;top:50px'><input id=n3 type=number class=abs style='left:10px;top:90px'>",
+   "measure": [
+    {
+     "js": "R(() => ['n','n2','n3'].map((id) => id + ' ' + JSON.stringify(document.getElementById(id).value) + ' ' + F(document.getElementById(id))))"
+    },
+    {
+     "js": "R(() => { const n = document.getElementById('n'); n.value = '5'; const r = [F(n), n.value]; n.value = 'abc'; r.push(F(n), n.value); return r; })"
+    },
+    {
+     "js": "R(() => { const n = document.getElementById('n2'); n.value = '5'; const r = [F(n), n.value]; return r; })"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#n"
+    },
+    {
+     "type": "1e"
+    },
+    {
+     "click": "#n2"
+    },
+    {
+     "type": "1e"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#n3"
+    },
+    {
+     "type": "+-.e5"
+    }
+   ]
+  },
+  {
+   "name": "val-valid-api",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const v = i.validity; return [v === i.validity, String(v), v.constructor.name, Object.prototype.toString.call(v), Object.keys(v).join(), Object.getOwnPropertyNames(Object.getPrototypeOf(v)).join(), typeof ValidityState, Object.isFrozen(v), Object.isExtensible(v)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input required>').firstChild; const v = i.validity; const r = [v.valueMissing, v.valid]; i.value = 'x'; r.push(v.valueMissing, v.valid); return r; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; const v = i.validity; return [E(() => { v.valid = false; return v.valid; }), E(() => new ValidityState()), E(() => ValidityState.prototype.valid)]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; return [i.willValidate, i.validationMessage, i.checkValidity(), i.reportValidity(), Object.getOwnPropertyNames(Object.getPrototypeOf(i)).filter((n) => /alid|labels/.test(n)).join()]; })"
+    },
+    {
+     "js": "R(() => ['input','select','textarea','button','fieldset','output','object','form','meter','progress','label','datalist','option','a'].map((t) => { const e = document.createElement(t); return t + ':' + ['willValidate','validity','validationMessage','checkValidity','reportValidity','setCustomValidity','labels'].map((m) => (m in e) ? 1 : 0).join(''); }))"
+    },
+    {
+     "js": "R(() => { const f = K('<form></form>').firstChild; return [f.checkValidity(), f.reportValidity(), f.willValidate, 'validity' in f]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input>').firstChild; return [Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'validity').get.name, Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'willValidate').set, HTMLInputElement.prototype.checkValidity.length, HTMLInputElement.prototype.setCustomValidity.length, E(() => i.setCustomValidity()), E(() => HTMLInputElement.prototype.checkValidity.call({}))]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<fieldset disabled><input required><fieldset><input required></fieldset></fieldset><fieldset disabled><legend><input required id=lg></legend><input required id=in></fieldset>'); const a = d.querySelectorAll('input'); return [F(a[0]), F(a[1]), F(a[2]), F(a[3])]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<fieldset><input required></fieldset>'); const f = d.firstChild; const r = [f.checkValidity(), F(f)]; return r; })"
+    },
+    {
+     "js": "R(() => { const d = K('<select><option>a</select><input list=dl><datalist id=dl><input required></datalist>'); return [F(d.querySelector('datalist input'))]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form id=ff></form><input required form=ff><textarea required form=ff></textarea>'); const f = document.getElementById('ff'); return [f.checkValidity(), f.elements.length]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form><input required><input type=image required><object></object></form>'); const f = d.firstChild; return [f.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<form novalidate><input required></form>'); const f = d.firstChild; return [f.checkValidity(), f.reportValidity(), f.firstChild.checkValidity()]; })"
+    },
+    {
+     "js": "R(() => { const d = K('<label>x<input required></label>'); return [F(d.querySelector('input')), 'validity' in d.firstChild]; })"
+    },
+    {
+     "js": "R(() => { const i = K('<input required>').firstChild; i.remove(); const r = [F(i)]; document.body.appendChild(i); r.push(F(i)); const j = document.createElement('input'); j.required = true; r.push(F(j)); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "val-events",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><form id=f><input id=a required><input id=b type=number min=5 value=3><input id=c value=ok><textarea id=d required></textarea><fieldset id=fs><input id=e required></fieldset><input id=g type=hidden required><input id=h disabled required><button id=bt>x</button></form><script>['a','b','d','e','f','fs','bt'].forEach((id) => { document.getElementById(id).addEventListener('invalid', (e) => L('inv@' + id + ' ' + e.bubbles + e.cancelable + e.constructor.name + ' ' + e.target.id + ' ' + (document.activeElement && document.activeElement.id))); }); document.addEventListener('invalid', (e) => L('doc-inv@' + e.target.id), false); document.addEventListener('invalid', (e) => L('doc-cap-inv@' + e.target.id), true); window.addEventListener('invalid', (e) => L('win-inv@' + e.target.id), true); document.getElementById('f').addEventListener('submit', (e) => { L('submit'); e.preventDefault(); });</script>",
+   "measure": [
+    {
+     "js": "R(() => { const f = document.getElementById('f'); const r = [f.checkValidity()]; r.push(flush()); return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('f'); const r = [document.getElementById('a').checkValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { const r = [document.getElementById('c').checkValidity()]; r.push(flush()); return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('fs'); const r = [f.checkValidity()]; r.push(flush()); return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('f'); document.activeElement.blur(); const r = [f.reportValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); const r = [document.getElementById('d').reportValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); const r = [document.getElementById('c').reportValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); document.getElementById('a').addEventListener('invalid', (e) => e.preventDefault()); const r = [document.getElementById('f').reportValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); const r = [document.getElementById('a').reportValidity()]; r.push(flush(), document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); const f = document.getElementById('f'); f.requestSubmit(); const r = [flush(), document.activeElement.id]; return r; })"
+    },
+    {
+     "js": "R(() => { document.activeElement.blur(); const f = document.getElementById('f'); document.getElementById('bt').click(); const r = [flush(), document.activeElement.id]; return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('f'); f.noValidate = true; f.requestSubmit(); const r = [flush()]; f.noValidate = false; return r; })"
+    }
+   ]
+  },
+  {
+   "name": "val-events2",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><form id=f><input id=a required><input id=b required></form><script>['a','b'].forEach((id) => { document.getElementById(id).addEventListener('invalid', (e) => { L('inv@' + id); if (id == 'a' && window.cancelA) e.preventDefault(); if (id == 'a' && window.mutate) { document.getElementById('b').value = 'x'; } }); });</script>",
+   "measure": [
+    {
+     "js": "R(() => { window.cancelA = true; const f = document.getElementById('f'); document.activeElement.blur(); const r = [f.reportValidity()]; r.push(flush(), document.activeElement.id); window.cancelA = false; return r; })"
+    },
+    {
+     "js": "R(() => { window.cancelA = true; window.mutate = true; const f = document.getElementById('f'); const r = [f.checkValidity()]; r.push(flush()); window.cancelA = false; window.mutate = false; return r; })"
+    },
+    {
+     "js": "R(() => { const f = document.getElementById('f'); document.getElementById('b').value = ''; const x = document.getElementById('a'); x.setCustomValidity('c'); const r = [f.checkValidity(), flush(), F(x)]; return r; })"
+    },
+    {
+     "js": "R(() => { window.cancelA = true; const f = document.getElementById('f'); document.activeElement.blur(); f.requestSubmit(); const r = [flush(), document.activeElement.id]; window.cancelA = false; return r; })"
+    },
+    {
+     "js": "R(() => { document.getElementById('a').oninvalid = () => L('onivalid-a'); document.getElementById('a').checkValidity(); return [flush()]; })"
+    }
+   ]
+  },
+  {
+   "name": "val-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><div style='height:2000px'></div><form id=f><input id=a required></form><div style='height:2000px'></div><input id=z required>",
+   "measure": [
+    {
+     "js": "R(() => { window.scrollTo(0, 0); const r = [scrollY]; document.getElementById('a').reportValidity(); r.push(scrollY > 0, document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { window.scrollTo(0, 0); document.activeElement.blur(); const r = [scrollY]; document.getElementById('f').requestSubmit(); r.push(scrollY > 0, document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { window.scrollTo(0, 0); document.activeElement.blur(); const r = [scrollY]; document.getElementById('z').checkValidity(); r.push(scrollY > 0, document.activeElement.id); return r; })"
+    },
+    {
+     "js": "R(() => { window.scrollTo(0, 0); document.activeElement.blur(); const r = [scrollY]; document.getElementById('z').reportValidity(); r.push(scrollY > 3000, document.activeElement.id); return r; })"
+    }
+   ]
+  },
+  {
+   "name": "val-selectors",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><style>#st1:valid{color:red}</style><form id=f><fieldset id=fs><input id=a required><input id=b></fieldset></form><form id=g><input id=c></form><fieldset id=fs2></fieldset><fieldset id=fs3 disabled><input required></fieldset><div id=d><input required></div><form id=h></form><form id=j><input id=k required disabled></form><form id=l><input id=m type=hidden required></form>",
+   "measure": [
+    {
+     "js": "R(() => ['f','fs','g','fs2','fs3','h','j','l','a','b','c'].map((id) => id + ':' + document.getElementById(id).matches(':valid') + document.getElementById(id).matches(':invalid')))"
+    },
+    {
+     "js": "R(() => { document.getElementById('a').value = 'x'; return ['f','fs'].map((id) => id + ':' + document.getElementById(id).matches(':valid') + document.getElementById(id).matches(':invalid')); })"
+    },
+    {
+     "js": "R(() => { const b = document.getElementById('b'); b.setCustomValidity('x'); return ['f','fs','b'].map((id) => id + ':' + document.getElementById(id).matches(':valid') + document.getElementById(id).matches(':invalid')); })"
+    },
+    {
+     "js": "R(() => { const b = document.getElementById('b'); b.setCustomValidity(''); b.disabled = true; return ['f','fs','b'].map((id) => id + ':' + document.getElementById(id).matches(':valid') + document.getElementById(id).matches(':invalid')); })"
+    },
+    {
+     "js": "R(() => { const d = K('<div><input id=o1 required><form><input id=o2 required></form></div>'); return [document.getElementById('o1').matches(':invalid'), d.querySelector('form').matches(':invalid'), d.matches(':invalid'), document.body.matches(':invalid'), document.documentElement.matches(':invalid')]; })"
+    },
+    {
+     "js": "R(() => ['output','select','textarea','button','meter','progress','object','datalist','label'].map((t) => { const d = K('<' + t + '></' + t + '>'); return t + ':' + d.firstChild.matches(':valid') + d.firstChild.matches(':invalid'); }))"
+    },
+    {
+     "js": "R(() => ['f','a','b','c'].map((id) => id + ':' + document.getElementById(id).matches(':user-valid') + document.getElementById(id).matches(':user-invalid')))"
+    }
+   ]
+  },
+  {
+   "name": "val-user-valid",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><form id=f><input id=a required class=abs style='left:10px;top:10px'><input id=b class=abs style='left:10px;top:50px'></form><button id=bt class=abs style='left:10px;top:100px'>x</button>",
+   "measure": [
+    {
+     "js": "R(() => ['f','a','b'].map((id) => id + ':' + document.getElementById(id).matches(':user-valid') + document.getElementById(id).matches(':user-invalid')))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "eval": "L('x')"
+    }
+   ]
+  },
+  {
+   "name": "val-user-valid2",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><form id=f onsubmit='return false'><input id=a required class=abs style='left:10px;top:10px'><input id=b class=abs style='left:10px;top:50px'><button id=bt class=abs style='left:10px;top:100px'>x</button></form>",
+   "measure": [
+    {
+     "js": "R(() => ['f','a','b'].map((id) => id + ':' + document.getElementById(id).matches(':user-valid') + document.getElementById(id).matches(':user-invalid')))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#bt"
+    }
+   ]
+  },
+  {
+   "name": "val-user-valid3",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><form id=f onsubmit='return false'><input id=a required class=abs style='left:10px;top:10px'><input id=b class=abs style='left:10px;top:50px'><button id=bt class=abs style='left:10px;top:100px'>x</button></form>",
+   "measure": [
+    {
+     "js": "R(() => ['f','a','b'].map((id) => id + ':' + document.getElementById(id).matches(':user-valid') + document.getElementById(id).matches(':user-invalid')))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Backspace"
+    }
+   ]
+  },
+  {
+   "name": "val-labels",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "R(() => ['input','select','textarea','button','output','meter','progress','fieldset','object','label','img','a','div'].map((t) => { const e = document.createElement(t); return t + ':' + ('labels' in e) + ':' + String(e.labels) + ':' + (e.labels && e.labels.length); }))"
+    },
+    {
+     "js": "R(() => ['text','hidden','checkbox','radio','file','submit','image','range','color','date'].map((t) => { const d = B('<label for=x>l</label><input id=x type=' + t + '>'); const i = d.querySelector('input'); const r = t + ':' + String(i.labels) + ':' + (i.labels && i.labels.length); return r; }))"
+    },
+    {
+     "js": "R(() => { const d = B('<label id=l1 for=x>a</label><label id=l2>b<input id=x></label><label id=l3 for=x>c</label>'); const x = document.getElementById('x'); return [ids(x.labels), x.labels === x.labels, x.labels.constructor.name, Object.prototype.toString.call(x.labels), x.labels instanceof NodeList]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<input id=x>'); const x = document.getElementById('x'); const L0 = x.labels; const r = [L0.length]; const l = document.createElement('label'); l.htmlFor = 'x'; document.body.appendChild(l); r.push(L0.length, L0[0] === l, ids(x.labels)); l.htmlFor = 'y'; r.push(L0.length); l.htmlFor = 'x'; r.push(L0.length); l.remove(); r.push(L0.length); return r; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label>a<input id=x></label><label for=y>b</label><input id=y>'); return [ids(document.getElementById('x').labels), ids(document.getElementById('y').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x>a<input id=y></label><input id=x>'); return [ids(document.getElementById('x').labels), ids(document.getElementById('y').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label>a<span><input id=x></span><input id=y></label>'); return [ids(document.getElementById('x').labels), ids(document.getElementById('y').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x><label for=x>in</label>a</label><input id=x>'); return [ids(document.getElementById('x').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label>a<input type=hidden id=h><input id=y></label>'); return [String(document.getElementById('h').labels), ids(document.getElementById('y').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label>a<fieldset id=fs></fieldset><input id=y></label>'); return [ids(document.getElementById('y').labels)]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x>a</label><select id=x></select><label>b<button id=bb></button></label><label>c<output id=oo></output></label><label>d<meter id=mm></meter></label><label>e<progress id=pp></progress></label><label>f<textarea id=tt></textarea></label>'); return ['x','bb','oo','mm','pp','tt'].map((i) => ids(document.getElementById(i).labels)); })"
+    },
+    {
+     "js": "R(() => { const x = document.createElement('input'); x.id = 'dx'; const l = document.createElement('label'); l.htmlFor = 'dx'; const div = document.createElement('div'); div.append(l, x); return [ids(x.labels), x.labels.length]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x>a</label><input id=x><input id=x>'); const xs = document.querySelectorAll('#x'); return [xs[0].labels.length, xs[1].labels.length]; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x>a</label><input id=x>'); const x = document.getElementById('x'); const l = x.labels; x.id = 'zz'; const r = [l.length]; x.id = 'x'; r.push(l.length); x.type = 'hidden'; r.push(l.length, String(x.labels)); x.type = 'text'; r.push(l.length, x.labels === l); return r; })"
+    },
+    {
+     "js": "R(() => { const d = B('<label for=x>a</label><input id=x>'); const x = document.getElementById('x'); const l = x.labels; const r = [l.item(0).tagName, l.item(1), l[1], Array.from(l).length, l.entries().next().value[0]]; return r; })"
+    }
+   ]
+  },
+  {
+   "name": "val-eq",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => Q2([[\"<input type=number min=5 max=5>\", \"3\"], [\"<input type=number min=5 max=5>\", \"7\"], [\"<input type=date min=2020-01-01 max=2020-01-01>\", \"2021-01-01\"], [\"<input type=date min=2020-01-01 max=2020-01-01>\", \"2019-01-01\"], [\"<input type=time min=10:00 max=10:00>\", \"11:00\"], [\"<input type=time min=10:00 max=10:00>\", \"09:00\"], [\"<input type=time max=00:00>\", \"08:00\"], [\"<input type=time min=00:00 max=00:00>\", \"08:00\"], [\"<input type=time min=00:00>\", \"08:00\"], [\"<input type=month min=2020-01 max=2020-01>\", \"2021-01\"], [\"<input type=week min=2020-W01 max=2020-W01>\", \"2021-W01\"], [\"<input type=datetime-local min=2020-01-01T10:00 max=2020-01-01T10:00>\", \"2021-01-01T10:00\"], [\"<input type=number min=1.5e3>\", \"0\"], [\"<input type=number min=15e2>\", \"0\"], [\"<input type=number min=1.50e3>\", \"0\"], [\"<input type=number min=0.0000001>\", \"-1\"], [\"<input type=number min=0.00001>\", \"-1\"], [\"<input type=number min=1e5>\", \"0\"], [\"<input type=number min=123e-2>\", \"0\"], [\"<input type=number min=1e0>\", \"-1\"], [\"<input type=number min=2.5e-3>\", \"0\"], [\"<input type=number min=1E3>\", \"0\"], [\"<input type=number min=1e+3>\", \"0\"], [\"<input type=number min=10e-1>\", \"0\"], [\"<input type=number min=-1e3>\", \"-5000\"], [\"<input type=number min=0.1e1>\", \"0\"], [\"<input type=number min=1000000>\", \"0\"], [\"<input type=number min=10000000000>\", \"0\"], [\"<input type=number min=1e18>\", \"0\"], [\"<input type=number min=1234567890123456789012>\", \"0\"], [\"<input type=number min=0.123456789012345678901>\", \"0\"], [\"<input type=number max=00012>\", \"100\"], [\"<input type=number max=-.5>\", \"100\"], [\"<input type=number max=1e400>\", \"1e500\"], [\"<input type=number max=3>\", \"1e400\"], [\"<input type=number step=1e-7>\", \"0.00000015\"], [\"<input type=number step=0.0000001>\", \"0.00000015\"], [\"<input type=number step=10>\", \"1234567890123456789\"], [\"<input type=number step=1>\", \"123456789012345678.5\"], [\"<input type=email multiple pattern='[a-z]@[a-z]'>\", \"a@b,c@d\"], [\"<input type=email multiple pattern='[a-z]@[a-z]'>\", \"a@b\"], [\"<input type=email pattern='[a-z]@[a-z]'>\", \"a@b\"], [\"<input maxlength=2>\", \"\\ud83d\\ude00\"], [\"<input maxlength=2>\", \"\\ud83d\\ude00\\ud83d\\ude00\"], [\"<textarea maxlength=3></textarea>\", \"a\\nb\"], [\"<textarea maxlength=2></textarea>\", \"a\\nb\"]]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-typing",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script><input id=a maxlength=2 class=abs style='left:10px;top:10px'><textarea id=b maxlength=3 class=abs style='left:10px;top:50px'></textarea><input id=n type=number class=abs style='left:10px;top:130px'><input id=n2 type=number class=abs style='left:10px;top:170px'><input id=n3 type=number class=abs style='left:10px;top:210px'><input id=n4 type=number class=abs style='left:10px;top:250px'><input id=n5 type=number class=abs style='left:10px;top:290px'><input id=n6 type=number class=abs style='left:10px;top:330px'>",
+   "measure": [
+    {
+     "js": "R(() => ['a','b','n','n2','n3','n4','n5','n6'].map((id) => id + ' ' + JSON.stringify(document.getElementById(id).value) + ' ' + F(document.getElementById(id))))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "😀a"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "type": "😀😀"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "type": "a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "type": "b"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "click": "#n"
+    },
+    {
+     "type": "1."
+    },
+    {
+     "click": "#n2"
+    },
+    {
+     "type": "."
+    },
+    {
+     "click": "#n3"
+    },
+    {
+     "type": ".5"
+    },
+    {
+     "click": "#n4"
+    },
+    {
+     "type": "5e3"
+    },
+    {
+     "click": "#n5"
+    },
+    {
+     "type": "1e+"
+    },
+    {
+     "click": "#n6"
+    },
+    {
+     "type": "-0"
+    }
+   ]
+  },
+  {
+   "name": "val-url",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; if (!v) return 'novalidity'; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\nfunction M(list) { return list.map((h) => { const i = K(h).firstChild; return h + ' => ' + F(i); }); }\nfunction B(h) { document.body.innerHTML = h; return document.body; }\nfunction Q2(spec) { return spec.map((s) => { const i = K(s[0]).firstChild; i.value = s[1]; return s[0] + ' value=' + JSON.stringify(s[1]) + ' => ' + F(i); }); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => M([\"<input type=url value='http://a<b'>\", \"<input type=url value='http://a..b'>\", \"<input type=url value='http://-a'>\", \"<input type=url value='http://1.2.3'>\", \"<input type=url value='http://1.2.3.4.5'>\", \"<input type=url value='http://999.1.1.1'>\", \"<input type=url value='http://a:b'>\", \"<input type=url value='http://a:80'>\", \"<input type=url value='http://@a'>\", \"<input type=url value='http://u:p@a'>\", \"<input type=url value='file:///x'>\", \"<input type=url value='file:x'>\", \"<input type=url value='http:x'>\", \"<input type=url value='http:/x'>\", \"<input type=url value='https:'>\", \"<input type=url value='about:blank'>\", \"<input type=url value='blob:x'>\", \"<input type=url value='x-y:z'>\", \"<input type=url value='a.b:c'>\", \"<input type=url value='1a:b'>\", \"<input type=url value='a:'>\", \"<input type=url value='a:b c'>\", \"<input type=url value='http://\\u00e9.com'>\", \"<input type=url value='http://a/b?c d#e f'>\", \"<input type=url value='http://[1::2]'>\", \"<input type=url value='http://[1::'>\", \"<input type=url value='ws://a'>\", \"<input type=url value='ws://'>\", \"<input type=url value='mailto:'>\", \"<input type=url value='HTTP://A'>\", \"<input type=url value='h t t p://a'>\", \"<input type=url value='http://a/%'>\", \"<input type=url value='http://a:0'>\", \"<input type=url value='http://a:65536'>\"]).join('\\n'))"
+    }
+   ]
+  },
+  {
+   "name": "val-singular",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px Arial}.abs{position:absolute}</style><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : (v === undefined ? 'undefined' : (typeof v === 'number' && v !== v ? 'NaN' : (Object.is(v, -0) ? '-0' : String(v)))); }\nfunction R(f) { return E(() => f().map(S).join(' ')); }\nfunction K(h) { const d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d); document.body.offsetHeight; return d; }\nfunction ids(l) { return Array.prototype.map.call(l, (n) => n.id || n.nodeName).join(); }\nvar log = [];\nfunction L(s) { log.push(s); }\nfunction nm(t) { return t === window ? 'window' : t === document ? 'document' : (t.id || t.nodeName); }\nfunction d(e) { let s = e.type + '@' + nm(e.target); if (e.relatedTarget) s += '<' + nm(e.relatedTarget); return s; }\nfunction watch(types, extra) {\n  types.forEach(function (t) {\n    document.addEventListener(t, function (e) { L(extra ? d(e) + ' ' + extra(e) : d(e)); }, true);\n  });\n}\nfunction flush() { const r = log.join('|'); log = []; return r; }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction sel(i) { return i.selectionStart + ',' + i.selectionEnd + ',' + i.selectionDirection; }\n</script><script>\nfunction F(i) { const v = i.validity; const n = []; for (const k of ['valueMissing','typeMismatch','patternMismatch','tooLong','tooShort','rangeUnderflow','rangeOverflow','stepMismatch','badInput','customError','valid']) if (v[k]) n.push(k); return (i.willValidate ? 'W ' : 'w ') + n.join(',') + ' | ' + JSON.stringify(i.validationMessage); }\n</script><input id=a minlength=2 class=abs style='left:10px;top:10px'><input id=b maxlength=1 value=abc class=abs style='left:10px;top:50px'><input id=c minlength=1 maxlength=1 value=ab class=abs style='left:10px;top:90px'><textarea id=d minlength=5 class=abs style='left:10px;top:130px'></textarea>",
+   "measure": [
+    {
+     "js": "R(() => ['a','b','c','d'].map((id) => id + ' ' + F(document.getElementById(id))))"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#c"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "key": "Backspace"
+    },
+    {
+     "click": "#d"
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "type": "c"
+    }
+   ]
+  }
+ ]
+}

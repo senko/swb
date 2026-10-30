@@ -163,6 +163,18 @@ Format: source, license (for code), what it influenced.
   `crates/engine/src/forms/`, `crates/engine/src/edit.rs`). The other
   rules come from black-box measurements of Chromium (probes
   `web-forms-script.json`, `web-forms-selection.json`; ADR 0021).
+- WHATWG HTML (constraint validation), M8 feature 9b2 — the IDL of
+  `ValidityState` and of the constraint validation members
+  (BSD-3-Clause, as above); the validity states, "statically validate
+  the constraints", "interactively validate the constraints", the date
+  and time string parsers and `labels`
+  (`crates/engine/src/forms/validity.rs`, `values.rs`,
+  `crates/web/src/html/validation.rs`). The `validationMessage` texts,
+  the order of `invalid` events and focus, and the `select` and
+  `selectionchange` event rules come from black-box measurements of
+  Chromium (probes `web-forms-validation.json`,
+  `web-forms-selection.json`; ADR 0021). The date conversion is in the
+  Hinnant entry below.
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)
@@ -446,7 +458,10 @@ Format: source, license (for code), what it influenced.
   https://howardhinnant.github.io/date_algorithms.html — `days_from_civil`
   (`net/src/cookies/date.rs`) and `days_from_civil` and `civil_from_days`
   (M7 feature 12a, `js/src/date/time_value.rs`: the days of the 400-year
-  eras, extended to the whole time range of ECMA-262 §21.4.1).
+  eras, extended to the whole time range of ECMA-262 §21.4.1), and
+  `days_from_civil` and `civil_from_days` (M8 feature 9b2,
+  `engine/src/forms/values.rs`: the values of the date and time controls
+  as numbers).
 - `Date` (M7 feature 12a, `js/src/date/`, `js/src/builtins/date*.rs`),
   written from ECMA-262 §21.4 and Annex B.2.3, and the `jiff` library
   (Unlicense OR MIT; the offsets of a zone, the system zone, the

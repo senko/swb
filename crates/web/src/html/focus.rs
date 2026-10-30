@@ -102,6 +102,7 @@ fn move_focus(rt: &mut Runtime, new: Option<NodeId>, visible: bool) -> VmResult<
     }
     if let Some(new) = new {
         engine_mut(rt)?.set_focus(Some(new), visible);
+        super::selection_events::focused(rt, new)?;
         fire(rt, "focus", new, old, false)?;
         if focused(rt)? != Some(new) {
             return Ok(());

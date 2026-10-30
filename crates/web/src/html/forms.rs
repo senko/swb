@@ -44,6 +44,14 @@ impl g::html_form_element::HTMLFormElementImpl for WebState {
         super::activation::reset_method(cx, this)
     }
 
+    fn check_validity(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        super::validation::check_form(cx, this)
+    }
+
+    fn report_validity(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        super::validation::report_form_method(cx, this)
+    }
+
     fn action(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         action_url(cx, this, "action")
     }
@@ -203,12 +211,20 @@ impl g::html_button_element::HTMLButtonElementImpl for WebState {
     fn form_action(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         action_url(cx, this, "formaction")
     }
+
+    super::validation::constraint_validation_members!();
+
+    fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        lists::element_list(cx, this, ElementList::Labels)
+    }
 }
 
 impl g::html_object_element::HTMLObjectElementImpl for WebState {
     fn form(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<NodeId>> {
         owner(cx, this)
     }
+
+    super::validation::constraint_validation_members!();
 }
 
 impl g::html_legend_element::HTMLLegendElementImpl for WebState {
@@ -229,6 +245,8 @@ impl g::html_field_set_element::HTMLFieldSetElementImpl for WebState {
     fn elements(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
         lists::element_list(cx, this, ElementList::FieldsetElements)
     }
+
+    super::validation::constraint_validation_members!();
 }
 
 impl g::html_output_element::HTMLOutputElementImpl for WebState {
@@ -242,6 +260,12 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
 
     fn type_(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<String> {
         Ok("output".to_owned())
+    }
+
+    super::validation::constraint_validation_members!();
+
+    fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        lists::element_list(cx, this, ElementList::Labels)
     }
 
     /// The default value override once `value` was written, else the
@@ -299,6 +323,12 @@ impl g::html_map_element::HTMLMapElementImpl for WebState {
 // ----- textarea -----
 
 impl g::html_text_area_element::HTMLTextAreaElementImpl for WebState {
+    super::validation::constraint_validation_members!();
+
+    fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        lists::element_list(cx, this, ElementList::Labels)
+    }
+
     fn selection_start(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<u32>> {
         super::selection::selection_start(cx, this)
     }
@@ -559,6 +589,12 @@ fn set_indexed(
 }
 
 impl g::html_select_element::HTMLSelectElementImpl for WebState {
+    super::validation::constraint_validation_members!();
+
+    fn labels(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
+        lists::element_list(cx, this, ElementList::Labels)
+    }
+
     fn autocomplete(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         super::element::autocomplete(cx, this)
     }

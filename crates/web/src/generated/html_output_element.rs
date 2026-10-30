@@ -30,6 +30,27 @@ pub trait HTMLOutputElementImpl: b::Host {
     /// The setter of `attribute DOMString value`.
     fn set_value(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
 
+    /// `readonly attribute boolean willValidate`.
+    fn will_validate(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `readonly attribute ValidityState validity`.
+    fn validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute DOMString validationMessage`.
+    fn validation_message(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// `readonly attribute NodeList labels`.
+    fn labels(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `boolean checkValidity()`.
+    fn check_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `boolean reportValidity()`.
+    fn report_validity(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// `undefined setCustomValidity(DOMString error)`.
+    fn set_custom_validity(cx: &mut b::Cx<'_>, this: b::NodeId, error: String) -> b::Result<()>;
+
 }
 
 fn get_html_for<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -119,8 +140,67 @@ fn set_value<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     })
 }
 
+fn get_will_validate<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLOutputElement", "willValidate"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::will_validate(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_validity<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLOutputElement", "validity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::validity(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_validation_message<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLOutputElement", "validationMessage"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::validation_message(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn get_labels<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLOutputElement", "labels"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::labels(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 pub(super) fn construct<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLOutputElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
+}
+
+fn op_check_validity<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLOutputElement", "checkValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::check_validity(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_report_validity<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLOutputElement", "reportValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        let result = <H as HTMLOutputElementImpl>::report_validity(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn op_set_custom_validity<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("HTMLOutputElement", "setCustomValidity"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_OUTPUT_ELEMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
+        <H as HTMLOutputElementImpl>::set_custom_validity(&mut b::Cx::new(rt, call, super::HTML_OUTPUT_ELEMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
 }
 
 /// Creates the interface object and the prototype of `HTMLOutputElement` in `realm`
@@ -135,6 +215,13 @@ pub fn define<H: HTMLOutputElementImpl>(rt: &mut swb_js::Runtime, realm: u32) ->
     rt.define_accessor(realm, target, "type", (Some(get_type::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "defaultValue", (Some(get_default_value::<H> as swb_js::NativeFn), Some(set_default_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "value", (Some(get_value::<H> as swb_js::NativeFn), Some(set_value::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "willValidate", (Some(get_will_validate::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validity", (Some(get_validity::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "validationMessage", (Some(get_validation_message::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "labels", (Some(get_labels::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "checkValidity", 0, op_check_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "reportValidity", 0, op_report_validity::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "setCustomValidity", 1, op_set_custom_validity::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

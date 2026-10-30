@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 9b2, constraint validation; end of feature 9
+
+- `forms/validity.rs` computes the ten validity states of a control on
+  demand: required, `email` and `url` types, `pattern` with the `v`
+  flag, length after a user edit, `min`/`max`/`step` of numbers and of
+  the date and time types, bad input, custom messages. One computation
+  serves style (`:valid`, `:invalid`, also of `form` and `fieldset`;
+  new `:user-valid` and `:user-invalid`), the script API
+  (`ValidityState`, `validationMessage`, `checkValidity()`,
+  `reportValidity()`, `setCustomValidity()`) and the blocked
+  submissions, with scripts on and off.
+- `validationMessage` gives Chromium's English texts, measured for each
+  state and type. `invalid` events and focus follow Chromium: every
+  failing control gets an event, and focus goes to the first control
+  whose event nobody canceled.
+- New: `labels` (a live `NodeList`); the `select` and `selectionchange`
+  events of text controls.
+- Learned: an unnamed radio button is never missing; a read-only
+  checkbox is barred from validation. A `pattern` match runs in Rust
+  during style, outside the interpreter's time checks, so the matches
+  of one pass share a step budget; a match that runs out of steps
+  counts as valid.
+- Review fixes: the cache of compiled patterns is bounded (a loop of new
+  patterns grew to 1.6 GB); one match has its own step limit, and a
+  result that depends on the steps the other matches of the pass used
+  is not remembered (an unrelated control stayed valid for good). The
+  delta review found two more: a cheap match was charged 20,000 steps,
+  so a style update decided only 100 patterns; compiles had no bound
+  (300 slow patterns took 28 s in one style update; a pass now compiles
+  at most 128 KiB of pattern text).
+- JS off: snapshot identical; `compare --js` scores and console errors
+  unchanged; runtime heap +77 bytes. Hostile set 235 cases, 234 ok +
+  the known failure (7 new).
+
+Feature 9 is complete. Next: feature 10 (network from scripts).
+
 ## 2026-10-30: M8 feature 9b1, forms from scripts (first half)
 
 - Most of the 9b list was done in 6c1, 6d1 and 6d2. A new probe file

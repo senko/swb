@@ -2719,6 +2719,8 @@ dependencies = [
  "similar",
  "swb-css",
  "swb-dom",
+ "swb-js-regexp",
+ "swb-js-text",
  "swb-layout",
  "swb-net",
  "swb-paint",
