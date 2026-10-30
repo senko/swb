@@ -3708,10 +3708,35 @@ Steps:
         properties that the page and Leaflet test or write (for example
         `transition`, `willChange`, `touchAction`, `perspective`),
         parsed and stored but without effect on rendering.
+        Done 2026-10-30: `DOMMatrixReadOnly`, `DOMMatrix`
+        (`WebKitCSSMatrix === DOMMatrix`), `DOMPointReadOnly` and
+        `DOMPoint` with all members; the string form has its own parser
+        (`swb_style::parse_transform_list`: 3D functions, `f64` values,
+        absolute lengths only, at most 1 MiB). The properties
+        `transition` (five longhands), `will-change`, `touch-action`,
+        `perspective` and `perspective-origin` with Chromium's
+        `-webkit-` aliases are parsed, cascaded, computed and serialized,
+        without effect on layout and paint (one optional record in
+        `ComputedStyle`; style stage +1.3 %, within noise). The generator
+        got `[LegacyWindowAlias]` and `[SwbLateMembers]`. Probe files
+        `web-style-inert.json` (48 queries) and `web-geometry-matrix.json`
+        (53 queries) equal Chromium. On the page, the map pane
+        transforms, `leaflet-fade-anim`, the slide styles after a
+        thumbnail click and the tile counts of zoom in and out equal
+        Chromium. `compare --js craigslist-posting` (legacy reference):
+        geometry 0.9412 → 0.9804, size 0.9542 → 0.9804, relative 0.9150 →
+        0.9739, pixels 0.9976. Review fixes: the numbers of `matrix()`,
+        the axes and the angles keep `f64` precision (the CSS number
+        token got a `value_f64`, and the serializer writes it), huge
+        angles are reduced to one turn as in Chromium, and a
+        `[SwbLateMembers]` name that is not an operation is an error.
+        ADR 0028 "Feature 11c1 notes".
       - 11c2: window APIs (`implementer`): `alert`/`confirm`/`prompt`
         (as Chromium's automation without a dialog handler: dismissed),
-        `navigator.clipboard`, the fullscreen members if the page needs
-        them.
+        `print()` (the toolbar's print button), `navigator.clipboard`.
+        The fullscreen members are not needed: the map's fullscreen
+        control only sets a class and the size, and no script of the
+        page reads the Fullscreen API.
       - 11d: the integration test and the exit check, docs.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
@@ -4371,6 +4396,25 @@ Steps:
   `JEMALLOC_SYS_WITH_MALLOC_CONF`. The `jsbench` rows `typed: toBase64
   of 16 MiB` and `string: split into 1M one-unit pieces` are 1.4x slower
   with jemalloc (growth of large vectors; not looked at).
+- `web`/`style` (found in feature 11c1): `DOMQuad` and Chromium's
+  `SVGMatrix`, `SVGPoint`, `SVGTransform` interfaces are missing.
+  `transform-style` and `backface-visibility` (with `-webkit-`) could be
+  inert properties in the same record. Times do not accept `calc()`
+  (Chromium: `calc(1s + 2s)` is `calc(3s)`), timing functions do not
+  accept `linear()`, and matrix strings do not accept `calc()`; names in
+  `transition-property` are lower-cased only for the properties that swb
+  knows (Chromium knows more). An explicit `undefined` between
+  arguments of `scale()` and `rotate()` is a missing argument in swb
+  and `NaN` in Chromium. Chromium hangs on `new
+  DOMMatrix('perspective(none)')`; swb gives the identity (the
+  specification's value). The `-0` results of 3D inverses are not
+  checked (the probe tool prints `-0` as `0`). The matrix string parser
+  (`transform_list.rs`) repeats the function-name table of
+  `properties/transform.rs`; one table could serve both.
+- `web` (found in feature 11c1): the Fullscreen API
+  (`document.fullscreenElement`, `fullscreenEnabled`,
+  `requestFullscreen`, `exitFullscreen`) is missing; Chromium has
+  `fullscreenElement` `null`. No target page uses it.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

@@ -46,6 +46,8 @@ const BUFFER_TYPES: &[&str] = &[
     "BufferSource",
     "AllowSharedBufferSource",
     "Uint8Array",
+    "Float32Array",
+    "Float64Array",
 ];
 
 impl Parser<'_> {

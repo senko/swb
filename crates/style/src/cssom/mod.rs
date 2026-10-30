@@ -39,6 +39,8 @@ use crate::parse::{ParserContext, is_custom_property_name};
 use crate::properties::{CssWideKeyword, has_references, is_supported, parse_declaration};
 use props::{Property, TABLE};
 
+pub(crate) use value::format_number;
+
 pub use props::{attribute_names, property_of_attribute};
 
 /// The value of a longhand in a block.

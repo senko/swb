@@ -261,7 +261,8 @@ pub fn object(value: Value) -> Result<Gc<Object>> {
 
 /// A buffer source type (Web IDL §3.2.25 to §3.2.27): an `ArrayBuffer`
 /// and/or a view, by `name` (`ArrayBuffer`, `ArrayBufferView`,
-/// `BufferSource`, `AllowSharedBufferSource` or `Uint8Array`). swb has no
+/// `BufferSource`, `AllowSharedBufferSource`, `Uint8Array`, `Float32Array`
+/// or `Float64Array`). swb has no
 /// shared memory, so the shared types are the plain ones.
 pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<Object>> {
     if let Value::Object(object) = value {
@@ -275,6 +276,8 @@ pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<O
             swb_js::Slots::View { element, .. } => match name {
                 "ArrayBufferView" | "BufferSource" | "AllowSharedBufferSource" => true,
                 "Uint8Array" => element == Some("Uint8"),
+                "Float32Array" => element == Some("Float32"),
+                "Float64Array" => element == Some("Float64"),
                 _ => false,
             },
             _ => false,

@@ -2674,6 +2674,33 @@ code for them (a unit test of the generator checks the glue).
   the backlog). Also: the flush counters of a style value and of a value
   that layout resolves, and the font context that a task lends. The rules
   that need no document are tested in `swb_style::cssom::resolved`.
+- `crates/engine/tests/style_inert.rs`: the properties without effect on
+  layout and paint (feature 11c1, ADR 0028 section 10): every case of
+  `tools/probes/web-style-inert.json` (6 cases, 48 queries: `transition`
+  with its longhands and the `-webkit-` aliases, `will-change`,
+  `touch-action`, `perspective`, `perspective-origin`; the values that
+  `element.style` writes, the shorthand and its longhands in a block,
+  `cssText`, feature tests, `CSS.supports`, the computed values) with
+  Chromium's values (`style_inert/cases.rs`, generated from the probe's
+  `--json` output; three equal Chromium runs), no departure; and the
+  cascade of a sheet into the computed style. The probe tools disable
+  transitions with `transition: none !important` in the page, so the
+  computed cases write with `!important` in the style attribute. The
+  grammar and the rules are tested in `swb_style` (`properties/inert.rs`).
+- `crates/web/tests/geometry_matrix.rs`: `DOMMatrix`, `DOMMatrixReadOnly`,
+  `WebKitCSSMatrix`, `DOMPoint` and `DOMPointReadOnly` (feature 11c1,
+  ADR 0028 section 13): every case of
+  `tools/probes/web-geometry-matrix.json` (14 cases, 53 queries: the
+  interface objects, property order and descriptors, about 80 matrix strings,
+  sequences, dictionaries and typed arrays, attributes and the 2D flag,
+  every operation and its `...Self` form, inversion, stringification,
+  `toJSON`, points) with Chromium's values
+  (`geometry_matrix/cases.rs`, generated from the probe's `--json` output;
+  three equal Chromium runs), each with and without the GC stress mode, no
+  departure; and the limits of a matrix string. A query that prints a
+  matrix writes `-0` as `0` (`F` in the probe), except where a case checks
+  the sign of zero (`scale(-1)`, `flipX()`). The math is tested in
+  `web/src/matrix.rs` and the string parser in `style/src/transform_list.rs`.
 - `crates/engine/tests/geometry.rs`: geometry and scrolling from scripts
   (feature 7b): every case of `tools/probes/web-geometry.json` (25 cases,
   162 queries: `getBoundingClientRect`, `getClientRects`, `offset*`,

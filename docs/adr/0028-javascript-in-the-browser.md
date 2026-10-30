@@ -370,7 +370,13 @@ written by hand.
 - **Extended attributes in scope:** `[Global]`, `[Exposed=Window]` (no
   workers), `[LegacyUnforgeable]`, `[Replaceable]`, `[PutForwards]`,
   `[SameObject]`, `[NewObject]`, `[LegacyNullToEmptyString]`,
-  `[LegacyFactoryFunction]` (`Image`, `Option`), the named-property
+  `[LegacyFactoryFunction]` (`Image`, `Option`),
+  `[LegacyWindowAlias]` (`WebKitCSSMatrix`; feature 11c1: the alias is
+  another property of the global object that follows the interface
+  object), `[SwbLateMembers=(a, b)]` (swb's own: the named operations,
+  and `toString` of a stringifier, are defined after `constructor`, as
+  Chromium installs the members that have their own `[Exposed]`), the
+  named-property
   attributes of the legacy platform objects, and `[Reflect]` of the
   HTML IDL (generated getters and setters that reflect content
   attributes, with the keyword tables of enumerated attributes).
@@ -2764,6 +2770,94 @@ each; the Rust test is `crates/engine/tests/rendering.rs` with the cases in
   in `defs`, and the elements of a nested `<svg>`, which swb draws as
   part of the outer one); text has no box. The `SVGRect` IDL describes
   Chromium's measured members.
+
+Feature 11c1 notes (CSS from scripts for the Craigslist posting page;
+measured with `tools/probes/web-style-inert.json` (6 cases, 48 queries
+with about 600 values) and `tools/probes/web-geometry-matrix.json` (14
+cases, 53 queries), three equal Chromium runs each; the Rust tests are
+`crates/engine/tests/style_inert.rs` and
+`crates/web/tests/geometry_matrix.rs`):
+
+- **Inert properties.** Leaflet and the page's slider test and write
+  `transition`, `transitionDuration`, `webkitTransition`, `willChange`,
+  `touchAction` and `perspective` (`'transition' in el.style`,
+  `el.style.transitionDuration = '0ms'`). swb supports these as
+  properties that have no effect on layout and paint:
+  `transition` with `transition-property`, `-duration`,
+  `-timing-function`, `-delay` and `-behavior`, `will-change`,
+  `touch-action`, `perspective` and `perspective-origin`, with the
+  `-webkit-` aliases that Chromium has (`-webkit-transition` and its
+  longhands except `-behavior`, `-webkit-perspective`,
+  `-webkit-perspective-origin`; `MozTransition`, `OTransition` and
+  `msTransition` do not exist in Chromium either). Each is parsed with
+  its grammar, cascaded (the shorthand sets five longhands; `inherit`,
+  `initial` and `var()` work as for any property), computed, serialized in
+  `element.style` and `getComputedStyle`, and found by `CSS.supports` and
+  `@supports`; swb runs no transition and draws no perspective. Code:
+  `style/src/properties/inert.rs`. The computed values live in one
+  optional shared record, `ComputedStyle::inert` (8 bytes, `None` while
+  all are initial), as the text of the computed value; so the style of
+  an element that uses none of them costs one pointer, and the cascade,
+  `inherit` and `initial` need no code per property. Measured rules:
+  times are written in the unit given (`300ms`) and computed in seconds
+  (`0.3s`); a timing function is `steps(4)` for `steps(4, end)` and, in
+  the computed value, `steps(1, start)` for `step-start`; known property
+  names in `transition-property` are lower-cased; `will-change` keeps the
+  case of its names; `touch-action` has its keywords in the order
+  horizontal pan, vertical pan, `pinch-zoom`; the shorthand leaves out
+  what is initial, writes `0.3s` for `all 0.3s`, `opacity 2s` for
+  `opacity 0s 2s` (a delay reads as a duration), and `all` for nothing;
+  its longhands in a block come in the order behavior, duration, timing
+  function, delay, property, and a shorthand with fewer than five longhands
+  in the block reads as `""`; lists of unequal length are padded with the
+  initial value per layer. The probe page of the tools disables
+  transitions with `transition: none !important`, so the computed cases
+  write with `!important` in the style attribute, which wins. Departures:
+  `calc()` in times, `linear()` as a timing function, and Chromium's
+  knowledge of more property names than swb parses (a name in
+  `transition-property` that is a property for Chromium and not for swb is
+  not lower-cased); `transform-style` and `backface-visibility` are not
+  supported (backlog).
+- **Geometry interfaces.** `DOMMatrixReadOnly`, `DOMMatrix` (with
+  `WebKitCSSMatrix` as its window alias, the same object, as in
+  Chromium), `DOMPointReadOnly`, `DOMPoint` with all members of the
+  specification: constructors from a string, a sequence of 6 or 16
+  numbers or nothing; `fromMatrix`, `fromFloat32Array`,
+  `fromFloat64Array`, `fromPoint`; `a` to `f`, `m11` to `m44`, `is2D`,
+  `isIdentity`; the transform methods and their `...Self` forms;
+  `inverse`, `transformPoint`, `matrixTransform`, `setMatrixValue`,
+  `toFloat32Array`, `toFloat64Array`, `toJSON`, the stringifier. Code:
+  `web/src/matrix.rs` (the math), `web/src/dom_matrix.rs` (the glue).
+  The string form uses `swb_style::parse_transform_list`
+  (`style/src/transform_list.rs`: all 2D and 3D functions; as in
+  Chromium, the numbers of `matrix()` and `matrix3d()`, the axes and the
+  angles in `f64` (the CSS number token's `value_f64`), lengths in px and
+  scale factors in `f32`; a relative length or a percentage is a
+  `SyntaxError` "Values must be resolvable at parse time"; any other
+  failure is "Failed to parse '...'."). Measured: the operations are
+  post-multiplications written as Chromium's results show (a translation
+  adds to the fourth column, a scale multiplies columns, so `NaN`
+  propagates and `scale(-1)` makes `-0`); an angle is reduced to less
+  than one turn before its sine and cosine (`rotate(1e17)` is
+  `rotate(280)`), and those of the multiples of 90 degrees are exact;
+  `perspective(0)` is `perspective(1px)`;
+  a 2D matrix transforms a point without mixing in `z` and `w`;
+  the stringifier writes numbers as `Number::toString` and throws
+  `InvalidStateError` for non-finite values; `m13`, `m14`, `m23`, `m24`,
+  `m31`, `m32`, `m34`, `m43` set to a value other than 0 and `m33` and `m44`
+  set to a value other than 1 make the matrix 3D for good; `is2D` and
+  `isIdentity` are not settable; `new DOMMatrix(object)` converts the object
+  to a string. The generator got `[LegacyWindowAlias]` (the alias is
+  another property of the global object, right after the interface) and
+  `[SwbLateMembers=(a, b)]` (the operations that Chromium installs after
+  `constructor`: `setMatrixValue`, the stringifier), and the types
+  `Float32Array` and `Float64Array`. Limits: a matrix string over 1 MiB is
+  a `SyntaxError` (Chromium has no limit), so the tokens of a hostile string
+  cost at most their text; hostile case `dom-matrix-strings-js-on`.
+  Departures: an explicit `undefined` in the middle of the arguments of
+  `scale()` and `rotate()` is a missing argument (Chromium converts it to
+  `NaN`); `calc()` in a matrix string; `DOMQuad`, `SVGMatrix` and
+  `SVGPoint` are not in swb (backlog).
 
 ### 11. Events from the engine to scripts
 

@@ -4,6 +4,33 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 11c1, CSS from scripts for the Craigslist page
+
+- Leaflet uses `translate3d` and the class `leaflet-fade-anim` only if
+  `WebKitCSSMatrix` exists, and the thumbnail slider sets `left`,
+  `transition-duration` and `transform` only if `'transition' in
+  style`. swb now has `DOMMatrixReadOnly`, `DOMMatrix` (`WebKitCSSMatrix`
+  is the same object), `DOMPointReadOnly` and `DOMPoint`, and the
+  properties `transition` (five longhands), `will-change`,
+  `touch-action`, `perspective` and `perspective-origin` with the
+  `-webkit-` aliases. The properties are parsed, cascaded, computed and
+  serialized, but have no effect on layout and paint.
+- An element that sets none of these properties pays one pointer in
+  `ComputedStyle`; the style stage changed by +1.3 % (noise about 1 %).
+- Learned: Chromium keeps `f64` for the numbers of `matrix()` and for
+  angles, but `f32` for lengths and scale factors; it reduces huge angles
+  to one turn before the sine; it hangs on `new
+  DOMMatrix('perspective(none)')`. The probe tool's Chromium injects
+  `transition: none !important`, so the probe cases do not read initial
+  transition values.
+- `compare --js craigslist-posting` (legacy reference): geometry 0.9412
+  → 0.9804, size 0.9542 → 0.9804, relative 0.9150 → 0.9739, pixels
+  0.9976. The map pane, slide and tile states after a thumbnail click
+  and zoom in and out equal Chromium. JS-off output unchanged.
+
+Next: 11c2, `alert`, `confirm`, `prompt`, `print` and
+`navigator.clipboard`.
+
 ## 2026-10-30: M8 feature 11b, layout gaps of the Craigslist page
 
 - Auto margins in the cross axis of a flex container now take the free

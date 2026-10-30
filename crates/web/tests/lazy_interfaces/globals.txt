@@ -95,6 +95,11 @@ FileReader:dwc
 DOMRectReadOnly:dwc
 DOMRect:dwc
 DOMRectList:dwc
+DOMPointReadOnly:dwc
+DOMPoint:dwc
+DOMMatrixReadOnly:dwc
+DOMMatrix:dwc
+WebKitCSSMatrix:dwc
 Performance:dwc
 window:ae
 self:aec

@@ -3,7 +3,7 @@
 
 //! The binding glue of the dictionaries, enumerations, unions and callbacks.
 
-#![allow(clippy::large_enum_variant, clippy::match_single_binding, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms, clippy::needless_pass_by_value, unused_parens, unused_variables)]
+#![allow(clippy::many_single_char_names, clippy::large_enum_variant, clippy::match_single_binding, clippy::too_many_arguments, clippy::collapsible_if, clippy::explicit_auto_deref, clippy::match_same_arms, clippy::needless_pass_by_value, unused_parens, unused_variables)]
 
 use crate::bindings as b;
 
@@ -796,6 +796,347 @@ impl DOMRectInit {
         b::to_js::dictionary_member(rt, object, "x", value)?;
         let value = swb_js::VmResult::Ok(swb_js::Value::number(self.y))?;
         b::to_js::dictionary_member(rt, object, "y", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `DOMPointInit`.
+#[derive(Clone, Debug)]
+pub struct DOMPointInit {
+    /// `w`.
+    pub w: f64,
+    /// `x`.
+    pub x: f64,
+    /// `y`.
+    pub y: f64,
+    /// `z`.
+    pub z: f64,
+}
+
+impl DOMPointInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<DOMPointInit> {
+        let object = b::convert::dictionary_object(value, "DOMPointInit")?;
+        let v = b::convert::member(rt, object, "w")?;
+        let w = if v.is_undefined() { 1.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("w", "DOMPointInit"))? };
+        let v = b::convert::member(rt, object, "x")?;
+        let x = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("x", "DOMPointInit"))? };
+        let v = b::convert::member(rt, object, "y")?;
+        let y = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("y", "DOMPointInit"))? };
+        let v = b::convert::member(rt, object, "z")?;
+        let z = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("z", "DOMPointInit"))? };
+        Ok(DOMPointInit { w, x, y, z })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.w))?;
+        b::to_js::dictionary_member(rt, object, "w", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.x))?;
+        b::to_js::dictionary_member(rt, object, "x", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.y))?;
+        b::to_js::dictionary_member(rt, object, "y", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.z))?;
+        b::to_js::dictionary_member(rt, object, "z", value)?;
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `DOMMatrix2DInit`.
+#[derive(Clone, Debug)]
+pub struct DOMMatrix2DInit {
+    /// `a`.
+    pub a: Option<f64>,
+    /// `b`.
+    pub b: Option<f64>,
+    /// `c`.
+    pub c: Option<f64>,
+    /// `d`.
+    pub d: Option<f64>,
+    /// `e`.
+    pub e: Option<f64>,
+    /// `f`.
+    pub f: Option<f64>,
+    /// `m11`.
+    pub m11: Option<f64>,
+    /// `m12`.
+    pub m12: Option<f64>,
+    /// `m21`.
+    pub m21: Option<f64>,
+    /// `m22`.
+    pub m22: Option<f64>,
+    /// `m41`.
+    pub m41: Option<f64>,
+    /// `m42`.
+    pub m42: Option<f64>,
+}
+
+impl DOMMatrix2DInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<DOMMatrix2DInit> {
+        let object = b::convert::dictionary_object(value, "DOMMatrix2DInit")?;
+        let v = b::convert::member(rt, object, "a")?;
+        let a = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("a", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "b")?;
+        let b = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("b", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "c")?;
+        let c = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("c", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "d")?;
+        let d = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("d", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "e")?;
+        let e = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("e", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "f")?;
+        let f = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("f", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m11")?;
+        let m11 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m11", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m12")?;
+        let m12 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m12", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m21")?;
+        let m21 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m21", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m22")?;
+        let m22 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m22", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m41")?;
+        let m41 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m41", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m42")?;
+        let m42 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m42", "DOMMatrix2DInit"))?) };
+        Ok(DOMMatrix2DInit { a, b, c, d, e, f, m11, m12, m21, m22, m41, m42 })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.a {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "a", value)?;
+        }
+        if let Some(x) = &self.b {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "b", value)?;
+        }
+        if let Some(x) = &self.c {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "c", value)?;
+        }
+        if let Some(x) = &self.d {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "d", value)?;
+        }
+        if let Some(x) = &self.e {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "e", value)?;
+        }
+        if let Some(x) = &self.f {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "f", value)?;
+        }
+        if let Some(x) = &self.m11 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m11", value)?;
+        }
+        if let Some(x) = &self.m12 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m12", value)?;
+        }
+        if let Some(x) = &self.m21 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m21", value)?;
+        }
+        if let Some(x) = &self.m22 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m22", value)?;
+        }
+        if let Some(x) = &self.m41 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m41", value)?;
+        }
+        if let Some(x) = &self.m42 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m42", value)?;
+        }
+        Ok(object.into())
+    }
+}
+
+/// The dictionary `DOMMatrixInit`.
+#[derive(Clone, Debug)]
+pub struct DOMMatrixInit {
+    /// `a`.
+    pub a: Option<f64>,
+    /// `b`.
+    pub b: Option<f64>,
+    /// `c`.
+    pub c: Option<f64>,
+    /// `d`.
+    pub d: Option<f64>,
+    /// `e`.
+    pub e: Option<f64>,
+    /// `f`.
+    pub f: Option<f64>,
+    /// `m11`.
+    pub m11: Option<f64>,
+    /// `m12`.
+    pub m12: Option<f64>,
+    /// `m21`.
+    pub m21: Option<f64>,
+    /// `m22`.
+    pub m22: Option<f64>,
+    /// `m41`.
+    pub m41: Option<f64>,
+    /// `m42`.
+    pub m42: Option<f64>,
+    /// `is2D`.
+    pub is2_d: Option<bool>,
+    /// `m13`.
+    pub m13: f64,
+    /// `m14`.
+    pub m14: f64,
+    /// `m23`.
+    pub m23: f64,
+    /// `m24`.
+    pub m24: f64,
+    /// `m31`.
+    pub m31: f64,
+    /// `m32`.
+    pub m32: f64,
+    /// `m33`.
+    pub m33: f64,
+    /// `m34`.
+    pub m34: f64,
+    /// `m43`.
+    pub m43: f64,
+    /// `m44`.
+    pub m44: f64,
+}
+
+impl DOMMatrixInit {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<DOMMatrixInit> {
+        let object = b::convert::dictionary_object(value, "DOMMatrixInit")?;
+        let v = b::convert::member(rt, object, "a")?;
+        let a = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("a", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "b")?;
+        let b = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("b", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "c")?;
+        let c = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("c", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "d")?;
+        let d = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("d", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "e")?;
+        let e = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("e", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "f")?;
+        let f = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("f", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m11")?;
+        let m11 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m11", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m12")?;
+        let m12 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m12", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m21")?;
+        let m21 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m21", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m22")?;
+        let m22 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m22", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m41")?;
+        let m41 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m41", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "m42")?;
+        let m42 = if v.is_undefined() { None } else { Some(b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m42", "DOMMatrix2DInit"))?) };
+        let v = b::convert::member(rt, object, "is2D")?;
+        let is2_d = if v.is_undefined() { None } else { Some(b::convert::boolean(rt, v).map_err(|e| e.member("is2D", "DOMMatrixInit"))?) };
+        let v = b::convert::member(rt, object, "m13")?;
+        let m13 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m13", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m14")?;
+        let m14 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m14", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m23")?;
+        let m23 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m23", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m24")?;
+        let m24 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m24", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m31")?;
+        let m31 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m31", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m32")?;
+        let m32 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m32", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m33")?;
+        let m33 = if v.is_undefined() { 1.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m33", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m34")?;
+        let m34 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m34", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m43")?;
+        let m43 = if v.is_undefined() { 0.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m43", "DOMMatrixInit"))? };
+        let v = b::convert::member(rt, object, "m44")?;
+        let m44 = if v.is_undefined() { 1.0_f64 } else { b::convert::unrestricted_double(rt, v).map_err(|e| e.member("m44", "DOMMatrixInit"))? };
+        Ok(DOMMatrixInit { a, b, c, d, e, f, m11, m12, m21, m22, m41, m42, is2_d, m13, m14, m23, m24, m31, m32, m33, m34, m43, m44 })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        if let Some(x) = &self.a {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "a", value)?;
+        }
+        if let Some(x) = &self.b {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "b", value)?;
+        }
+        if let Some(x) = &self.c {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "c", value)?;
+        }
+        if let Some(x) = &self.d {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "d", value)?;
+        }
+        if let Some(x) = &self.e {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "e", value)?;
+        }
+        if let Some(x) = &self.f {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "f", value)?;
+        }
+        if let Some(x) = &self.m11 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m11", value)?;
+        }
+        if let Some(x) = &self.m12 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m12", value)?;
+        }
+        if let Some(x) = &self.m21 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m21", value)?;
+        }
+        if let Some(x) = &self.m22 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m22", value)?;
+        }
+        if let Some(x) = &self.m41 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m41", value)?;
+        }
+        if let Some(x) = &self.m42 {
+            let value = swb_js::VmResult::Ok(swb_js::Value::number(*x))?;
+            b::to_js::dictionary_member(rt, object, "m42", value)?;
+        }
+        if let Some(x) = &self.is2_d {
+            let value = swb_js::VmResult::Ok(swb_js::Value::Bool(*x))?;
+            b::to_js::dictionary_member(rt, object, "is2D", value)?;
+        }
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m13))?;
+        b::to_js::dictionary_member(rt, object, "m13", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m14))?;
+        b::to_js::dictionary_member(rt, object, "m14", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m23))?;
+        b::to_js::dictionary_member(rt, object, "m23", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m24))?;
+        b::to_js::dictionary_member(rt, object, "m24", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m31))?;
+        b::to_js::dictionary_member(rt, object, "m31", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m32))?;
+        b::to_js::dictionary_member(rt, object, "m32", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m33))?;
+        b::to_js::dictionary_member(rt, object, "m33", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m34))?;
+        b::to_js::dictionary_member(rt, object, "m34", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m43))?;
+        b::to_js::dictionary_member(rt, object, "m43", value)?;
+        let value = swb_js::VmResult::Ok(swb_js::Value::number(self.m44))?;
+        b::to_js::dictionary_member(rt, object, "m44", value)?;
         Ok(object.into())
     }
 }
@@ -4718,6 +5059,35 @@ impl DomStringOrPerformanceMeasureOptions {
         match self {
             DomStringOrPerformanceMeasureOptions::DomString(x) => b::to_js::string(rt, &x.clone()),
             DomStringOrPerformanceMeasureOptions::PerformanceMeasureOptions(x) => (x.clone()).to_js::<H>(rt, realm),
+        }
+    }
+}
+
+/// The union type `(DOMString or sequence<unrestricted double>)`.
+#[derive(Clone, Debug)]
+pub enum DomStringOrUnrestrictedDoubleSequence {
+    /// `DOMString`.
+    DomString(String),
+    /// `sequence<unrestricted double>`.
+    UnrestrictedDoubleSequence(Vec<f64>),
+}
+
+impl DomStringOrUnrestrictedDoubleSequence {
+    /// Converts a JavaScript value (Web IDL §3.2.25).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<DomStringOrUnrestrictedDoubleSequence> {
+        if let swb_js::Value::Object(_) = value {
+            if let Some(method) = b::convert::iterator_method(rt, value)? {
+                return Ok(DomStringOrUnrestrictedDoubleSequence::UnrestrictedDoubleSequence(b::convert::sequence_from_method(rt, value, method, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::unrestricted_double(rt, item0))?));
+            }
+        }
+        Ok(DomStringOrUnrestrictedDoubleSequence::DomString(b::convert::dom_string(rt, value)?))
+    }
+
+    /// Converts to a JavaScript value.
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        match self {
+            DomStringOrUnrestrictedDoubleSequence::DomString(x) => b::to_js::string(rt, &x.clone()),
+            DomStringOrUnrestrictedDoubleSequence::UnrestrictedDoubleSequence(x) => b::to_js::sequence(rt, realm, &x.clone(), |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::number(*item0))),
         }
     }
 }

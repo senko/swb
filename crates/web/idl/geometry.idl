@@ -1,6 +1,7 @@
 // Source: Geometry Interfaces Module Level 1, W3C Editor's Draft,
-// https://drafts.fxtf.org/geometry/ (§3 "The DOMRect interfaces" and §4
-// "The DOMRectList interface"), copied on 2026-10-28.
+// https://drafts.fxtf.org/geometry/ (§3 "The DOMRect interfaces", §4
+// "The DOMRectList interface", §5 "The DOMPoint interfaces" and §6 "The
+// DOMMatrix interfaces"), copied on 2026-10-28 and 2026-10-30.
 //
 // This file includes material copied from Geometry Interfaces Module
 // Level 1, https://drafts.fxtf.org/geometry/. Copyright © 2026 World Wide
@@ -9,14 +10,27 @@
 // THIRD_PARTY_NOTICES.md).
 //
 // swb cut this file to `DOMRectReadOnly`, `DOMRect`, `DOMRectInit` and
-// `DOMRectList` (feature 7b of M8). Changes:
+// `DOMRectList` (feature 7b of M8), and added `DOMPointReadOnly`,
+// `DOMPoint`, `DOMPointInit`, `DOMMatrixReadOnly`, `DOMMatrix`,
+// `DOMMatrix2DInit` and `DOMMatrixInit` (feature 11c1). Not included:
+// `DOMQuad`. Changes:
 //
 // - `[Exposed=(Window,Worker)]` and `[Serializable]` are `[Exposed=Window]`
 //   (no workers, no `structuredClone` yet).
 // - `[Default] object toJSON()` is `object toJSON()`: the generator has no
-//   default toJSON; the binding builds the object with the eight members.
+//   default toJSON; the binding builds the object with its members.
 // - `DOMRect` has no `[LegacyWindowAlias=SVGRect]` (Chromium 148 has no
-//   `SVGRect` alias on `window`).
+//   `SVGRect` alias on `window`); `DOMPoint` has no
+//   `[LegacyWindowAlias=SVGPoint]` (the SVG point interfaces are not in
+//   swb).
+// - `DOMMatrix` has `[LegacyWindowAlias=WebKitCSSMatrix]`, as in Chromium.
+// - The operations are in the order of Chromium's prototypes (by name);
+//   `inherit attribute` of `DOMMatrix` and `DOMPoint` is written as
+//   `attribute` (the interface has its own accessors with setters).
+// - `[SwbLateMembers=toString]` and `[SwbLateMembers=setMatrixValue]`
+//   define these members after `constructor`, as Chromium does (its
+//   members with their own `[Exposed]`); the generator documents the
+//   attribute.
 
 [Exposed=Window]
 interface DOMRectReadOnly {
@@ -61,4 +75,186 @@ dictionary DOMRectInit {
 interface DOMRectList {
   readonly attribute unsigned long length;
   getter DOMRect? item(unsigned long index);
+};
+
+[Exposed=Window]
+interface DOMPointReadOnly {
+  constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double z = 0, optional unrestricted double w = 1);
+
+  [NewObject] static DOMPointReadOnly fromPoint(optional DOMPointInit other = {});
+
+  readonly attribute unrestricted double x;
+  readonly attribute unrestricted double y;
+  readonly attribute unrestricted double z;
+  readonly attribute unrestricted double w;
+
+  [NewObject] DOMPoint matrixTransform(optional DOMMatrixInit matrix = {});
+
+  object toJSON();
+};
+
+[Exposed=Window]
+interface DOMPoint : DOMPointReadOnly {
+  constructor(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double z = 0, optional unrestricted double w = 1);
+
+  [NewObject] static DOMPoint fromPoint(optional DOMPointInit other = {});
+
+  attribute unrestricted double x;
+  attribute unrestricted double y;
+  attribute unrestricted double z;
+  attribute unrestricted double w;
+};
+
+dictionary DOMPointInit {
+  unrestricted double x = 0;
+  unrestricted double y = 0;
+  unrestricted double z = 0;
+  unrestricted double w = 1;
+};
+
+[Exposed=Window, SwbLateMembers=toString]
+interface DOMMatrixReadOnly {
+  constructor(optional (DOMString or sequence<unrestricted double>) init);
+
+  [NewObject] static DOMMatrixReadOnly fromMatrix(optional DOMMatrixInit other = {});
+  [NewObject] static DOMMatrixReadOnly fromFloat32Array(Float32Array array32);
+  [NewObject] static DOMMatrixReadOnly fromFloat64Array(Float64Array array64);
+
+  readonly attribute unrestricted double a;
+  readonly attribute unrestricted double b;
+  readonly attribute unrestricted double c;
+  readonly attribute unrestricted double d;
+  readonly attribute unrestricted double e;
+  readonly attribute unrestricted double f;
+
+  readonly attribute unrestricted double m11;
+  readonly attribute unrestricted double m12;
+  readonly attribute unrestricted double m13;
+  readonly attribute unrestricted double m14;
+  readonly attribute unrestricted double m21;
+  readonly attribute unrestricted double m22;
+  readonly attribute unrestricted double m23;
+  readonly attribute unrestricted double m24;
+  readonly attribute unrestricted double m31;
+  readonly attribute unrestricted double m32;
+  readonly attribute unrestricted double m33;
+  readonly attribute unrestricted double m34;
+  readonly attribute unrestricted double m41;
+  readonly attribute unrestricted double m42;
+  readonly attribute unrestricted double m43;
+  readonly attribute unrestricted double m44;
+
+  readonly attribute boolean is2D;
+  readonly attribute boolean isIdentity;
+
+  [NewObject] DOMMatrix flipX();
+  [NewObject] DOMMatrix flipY();
+  [NewObject] DOMMatrix inverse();
+  [NewObject] DOMMatrix multiply(optional DOMMatrixInit other = {});
+  [NewObject] DOMMatrix rotate(optional unrestricted double rotX = 0, optional unrestricted double rotY,
+    optional unrestricted double rotZ);
+  [NewObject] DOMMatrix rotateAxisAngle(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double z = 0, optional unrestricted double angle = 0);
+  [NewObject] DOMMatrix rotateFromVector(optional unrestricted double x = 0, optional unrestricted double y = 0);
+  [NewObject] DOMMatrix scale(optional unrestricted double scaleX = 1, optional unrestricted double scaleY,
+    optional unrestricted double scaleZ = 1, optional unrestricted double originX = 0,
+    optional unrestricted double originY = 0, optional unrestricted double originZ = 0);
+  [NewObject] DOMMatrix scale3d(optional unrestricted double scale = 1, optional unrestricted double originX = 0,
+    optional unrestricted double originY = 0, optional unrestricted double originZ = 0);
+  [NewObject] DOMMatrix scaleNonUniform(optional unrestricted double scaleX = 1,
+    optional unrestricted double scaleY = 1);
+  [NewObject] DOMMatrix skewX(optional unrestricted double sx = 0);
+  [NewObject] DOMMatrix skewY(optional unrestricted double sy = 0);
+  [NewObject] Float32Array toFloat32Array();
+  [NewObject] Float64Array toFloat64Array();
+  object toJSON();
+  [NewObject] DOMPoint transformPoint(optional DOMPointInit point = {});
+  [NewObject] DOMMatrix translate(optional unrestricted double tx = 0, optional unrestricted double ty = 0,
+    optional unrestricted double tz = 0);
+
+  stringifier;
+};
+
+[Exposed=Window, LegacyWindowAlias=WebKitCSSMatrix, SwbLateMembers=setMatrixValue]
+interface DOMMatrix : DOMMatrixReadOnly {
+  constructor(optional (DOMString or sequence<unrestricted double>) init);
+
+  [NewObject] static DOMMatrix fromMatrix(optional DOMMatrixInit other = {});
+  [NewObject] static DOMMatrix fromFloat32Array(Float32Array array32);
+  [NewObject] static DOMMatrix fromFloat64Array(Float64Array array64);
+
+  attribute unrestricted double a;
+  attribute unrestricted double b;
+  attribute unrestricted double c;
+  attribute unrestricted double d;
+  attribute unrestricted double e;
+  attribute unrestricted double f;
+
+  attribute unrestricted double m11;
+  attribute unrestricted double m12;
+  attribute unrestricted double m13;
+  attribute unrestricted double m14;
+  attribute unrestricted double m21;
+  attribute unrestricted double m22;
+  attribute unrestricted double m23;
+  attribute unrestricted double m24;
+  attribute unrestricted double m31;
+  attribute unrestricted double m32;
+  attribute unrestricted double m33;
+  attribute unrestricted double m34;
+  attribute unrestricted double m41;
+  attribute unrestricted double m42;
+  attribute unrestricted double m43;
+  attribute unrestricted double m44;
+
+  DOMMatrix invertSelf();
+  DOMMatrix multiplySelf(optional DOMMatrixInit other = {});
+  DOMMatrix preMultiplySelf(optional DOMMatrixInit other = {});
+  DOMMatrix rotateAxisAngleSelf(optional unrestricted double x = 0, optional unrestricted double y = 0,
+    optional unrestricted double z = 0, optional unrestricted double angle = 0);
+  DOMMatrix rotateFromVectorSelf(optional unrestricted double x = 0, optional unrestricted double y = 0);
+  DOMMatrix rotateSelf(optional unrestricted double rotX = 0, optional unrestricted double rotY,
+    optional unrestricted double rotZ);
+  DOMMatrix scale3dSelf(optional unrestricted double scale = 1, optional unrestricted double originX = 0,
+    optional unrestricted double originY = 0, optional unrestricted double originZ = 0);
+  DOMMatrix scaleSelf(optional unrestricted double scaleX = 1, optional unrestricted double scaleY,
+    optional unrestricted double scaleZ = 1, optional unrestricted double originX = 0,
+    optional unrestricted double originY = 0, optional unrestricted double originZ = 0);
+  DOMMatrix skewXSelf(optional unrestricted double sx = 0);
+  DOMMatrix skewYSelf(optional unrestricted double sy = 0);
+  DOMMatrix translateSelf(optional unrestricted double tx = 0, optional unrestricted double ty = 0,
+    optional unrestricted double tz = 0);
+
+  DOMMatrix setMatrixValue(DOMString transformList);
+};
+
+dictionary DOMMatrix2DInit {
+  unrestricted double a;
+  unrestricted double b;
+  unrestricted double c;
+  unrestricted double d;
+  unrestricted double e;
+  unrestricted double f;
+  unrestricted double m11;
+  unrestricted double m12;
+  unrestricted double m21;
+  unrestricted double m22;
+  unrestricted double m41;
+  unrestricted double m42;
+};
+
+dictionary DOMMatrixInit : DOMMatrix2DInit {
+  unrestricted double m13 = 0;
+  unrestricted double m14 = 0;
+  unrestricted double m23 = 0;
+  unrestricted double m24 = 0;
+  unrestricted double m31 = 0;
+  unrestricted double m32 = 0;
+  unrestricted double m33 = 1;
+  unrestricted double m34 = 0;
+  unrestricted double m43 = 0;
+  unrestricted double m44 = 1;
+  boolean is2D;
 };

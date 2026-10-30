@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 use std::sync::Arc;
 
 use super::{BoxKind, Resolver, UsedBox, layout_px, number, px, rgba, snap};
+use crate::properties::LonghandId;
 use crate::values::{
     Alignment, BackgroundBox, BackgroundRepeatKeyword, BackgroundSize, BoxSizing, ClipPath, Color,
     CompositeOperator, ComputedCalc, Content, ContentItem, CounterList, Direction, FlexBasis,
@@ -14,7 +15,7 @@ use crate::values::{
     Position, PositionComponent, Size, SvgPaint, TextAlign, TrackBreadth, TrackList,
     TrackListValue, TrackSize, TransformFunction, VerticalAlign, ZIndex,
 };
-use crate::{ComputedStyle, PseudoKind};
+use crate::{ComputedStyle, InertStyle, PseudoKind};
 
 /// The value of the longhand `name` (canonical, lower case).
 pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
@@ -39,6 +40,7 @@ pub(super) fn needs_layout(name: &str) -> bool {
             | "min-height"
             | "transform"
             | "transform-origin"
+            | "perspective-origin"
             | "top"
             | "right"
             | "bottom"
@@ -174,6 +176,19 @@ fn used_value(name: &str, style: &ComputedStyle, used: &UsedBox) -> Option<Strin
                 px(origin.x.resolve(w)),
                 px(origin.y.resolve(h))
             ))
+        }
+        "perspective-origin" => {
+            let (w, h) = reference_box(used);
+            let [x, y] = style
+                .inert
+                .as_deref()
+                .and_then(|i| i.perspective_origin.clone())
+                .unwrap_or([PositionComponent::CENTER; 2]);
+            let at = |c: &PositionComponent, size: f32| {
+                let offset = c.offset.resolve(size);
+                if c.from_end { size - offset } else { offset }
+            };
+            Some(format!("{} {}", px(at(&x, w)), px(at(&y, h))))
         }
         "top" | "right" | "bottom" | "left" => inset(name, style, used),
         _ => {
@@ -782,6 +797,29 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         | "text-underline-position"
         | "text-decoration-skip-ink" => "auto".to_owned(),
         "mask-type" => "luminance".to_owned(),
+        "transition-property"
+        | "transition-duration"
+        | "transition-delay"
+        | "transition-timing-function"
+        | "transition-behavior"
+        | "will-change"
+        | "touch-action" => LonghandId::from_name(name)
+            .and_then(|id| InertStyle::text(s, id))
+            .unwrap_or_default()
+            .to_owned(),
+        "perspective" => s
+            .inert
+            .as_deref()
+            .and_then(|i| i.perspective)
+            .map_or_else(|| "none".to_owned(), px),
+        "perspective-origin" => {
+            let [x, y] = s
+                .inert
+                .as_deref()
+                .and_then(|i| i.perspective_origin.clone())
+                .unwrap_or([PositionComponent::CENTER; 2]);
+            format!("{} {}", position(&x), position(&y))
+        }
         "border-image-slice" => "100%".to_owned(),
         "border-image-width" => "1".to_owned(),
         "border-image-outset" => "0".to_owned(),

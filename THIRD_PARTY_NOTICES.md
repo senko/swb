@@ -181,9 +181,12 @@ dictionary)
 and Screen Orientation (W3C Working Draft,
 https://www.w3.org/TR/screen-orientation/: `ScreenOrientation`, the
 partial `Screen`). `crates/web/idl/geometry.idl` contains IDL blocks,
-copied on 2026-10-28, from Geometry Interfaces Module Level 1 (W3C
-Editor's Draft, https://drafts.fxtf.org/geometry/: `DOMRectReadOnly`,
-`DOMRect`, `DOMRectInit`, `DOMRectList`). swb cut and changed members
+copied on 2026-10-28 and 2026-10-30, from Geometry Interfaces Module
+Level 1 (W3C Editor's Draft, https://drafts.fxtf.org/geometry/:
+`DOMRectReadOnly`, `DOMRect`, `DOMRectInit`, `DOMRectList`, and on
+2026-10-30 `DOMPointReadOnly`, `DOMPoint`, `DOMPointInit`,
+`DOMMatrixReadOnly`, `DOMMatrix`, `DOMMatrix2DInit`, `DOMMatrixInit`).
+swb cut and changed members
 (the headers of the files list the changes). The license text is in the
 section of W3C High Resolution Time below.
 

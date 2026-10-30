@@ -12,6 +12,7 @@
 
 pub(crate) mod compute;
 pub(crate) mod ids;
+pub(crate) mod inert;
 pub(crate) mod longhand;
 pub(crate) mod mask;
 pub(crate) mod shorthand;
@@ -272,6 +273,12 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "overflow-block" => L::OverflowY,
         "-webkit-transform" => L::Transform,
         "-webkit-transform-origin" => L::TransformOrigin,
+        "-webkit-transition-property" => L::TransitionProperty,
+        "-webkit-transition-duration" => L::TransitionDuration,
+        "-webkit-transition-delay" => L::TransitionDelay,
+        "-webkit-transition-timing-function" => L::TransitionTimingFunction,
+        "-webkit-perspective" => L::Perspective,
+        "-webkit-perspective-origin" => L::PerspectiveOrigin,
         _ => return None,
     })
 }

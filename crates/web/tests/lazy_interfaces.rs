@@ -194,7 +194,7 @@ fn every_name_reads_as_an_interface_object() {
     // the name, through the identifier, `window.X` and `globalThis[X]`, in
     // a loop that the caches serve after the first round.
     let failures = failures(&[(
-        "var names = Object.getOwnPropertyNames(window).filter(n => /^[A-Z]/.test(n) && typeof window[n] === 'function' && window[n].prototype && n !== 'Image' && n !== 'Option'); var bad = []; for (var round = 0; round < 3; round++) for (var n of names) { var v = new Function('return ' + n)(); if (v !== window[n] || v !== globalThis[n] || v.name !== n) bad.push(n); } [names.length > 150, bad.join()].join()",
+        "var names = Object.getOwnPropertyNames(window).filter(n => /^[A-Z]/.test(n) && typeof window[n] === 'function' && window[n].prototype && n !== 'Image' && n !== 'Option' && n !== 'WebKitCSSMatrix'); var bad = []; for (var round = 0; round < 3; round++) for (var n of names) { var v = new Function('return ' + n)(); if (v !== window[n] || v !== globalThis[n] || v.name !== n) bad.push(n); } [names.length > 150, bad.join()].join()",
         "\"true,\"",
     )]);
     assert!(failures.is_empty(), "{}", failures.join("\n"));

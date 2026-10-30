@@ -2862,6 +2862,7 @@ dependencies = [
  "swb-css",
  "swb-dom",
  "swb-js",
+ "swb-js-text",
  "swb-net",
  "swb-style",
  "url",

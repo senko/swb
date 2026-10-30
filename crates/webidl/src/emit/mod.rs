@@ -201,7 +201,15 @@ impl Gen<'_> {
                     "    b::glue::expose(rt, realm, {}, interface)?;",
                     literal(&iface.name)
                 );
-                id += factories.len() + 1;
+                let aliases = iface::window_aliases(iface);
+                for alias in &aliases {
+                    let _ = writeln!(
+                        out,
+                        "    b::glue::expose(rt, realm, {}, interface)?;",
+                        literal(alias)
+                    );
+                }
+                id += factories.len() + 1 + aliases.len();
                 continue;
             }
             for (name, _) in &factories {
@@ -217,6 +225,13 @@ impl Gen<'_> {
                 iface.name
             );
             id += 1;
+            for alias in iface::window_aliases(iface) {
+                let _ = writeln!(
+                    out,
+                    "    b::glue::expose_lazy(rt, realm, GLOBALS, {id})?; // {alias}"
+                );
+                id += 1;
+            }
         }
         if let Some(global) = global {
             let chain: Vec<String> = self
@@ -267,6 +282,13 @@ impl Gen<'_> {
                 "    b::glue::GlobalName {{ name: {}, class: {class}, factory: false }},",
                 literal(&iface.name)
             );
+            for alias in iface::window_aliases(iface) {
+                let _ = writeln!(
+                    out,
+                    "    b::glue::GlobalName {{ name: {}, class: {class}, factory: false }},",
+                    literal(&alias)
+                );
+            }
         }
         out.push_str("];\n\n");
     }

@@ -255,6 +255,15 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::ObjectPosition([x, y]) => s.object_position = [x.compute(cx), y.compute(cx)],
         V::UserSelect(v) => s.user_select = *v,
         V::UnicodeBidi(v) => s.unicode_bidi = *v,
+        V::TransitionProperty(_)
+        | V::TransitionDuration(_)
+        | V::TransitionDelay(_)
+        | V::TransitionTimingFunction(_)
+        | V::TransitionBehavior(_)
+        | V::WillChange(_)
+        | V::TouchAction(_)
+        | V::Perspective(_)
+        | V::PerspectiveOrigin(_) => super::inert::apply(value, cx, s),
     }
 }
 

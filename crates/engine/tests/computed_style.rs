@@ -282,7 +282,7 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "pseudo",
         12,
-        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 207","::before  =>   0"," ::before => rgb(0, 128, 0) normal 207",":after => rgb(0, 0, 255) none 207","::-webkit-scrollbar => rgb(0, 128, 0) normal 207",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 207",":first-line => rgb(0, 128, 0) normal 207","::backdrop => rgb(0, 128, 0) normal 207","::part(x) => rgb(0, 128, 0) normal 207","::slotted(p) => rgb(0, 128, 0) normal 207","::details-content => rgb(0, 128, 0) normal 207"]"#,
+        r#"["::foo =>   0","before => rgb(255, 0, 0) \"ab\" 216","::before  =>   0"," ::before => rgb(0, 128, 0) normal 216",":after => rgb(0, 0, 255) none 216","::-webkit-scrollbar => rgb(0, 128, 0) normal 216",":hover =>   0","::before::after =>   0","::first-letter => rgb(0, 128, 0) normal 216",":first-line => rgb(0, 128, 0) normal 216","::backdrop => rgb(0, 128, 0) normal 216","::part(x) => rgb(0, 128, 0) normal 216","::slotted(p) => rgb(0, 128, 0) normal 216","::details-content => rgb(0, 128, 0) normal 216"]"#,
         "a declaration lists swb's 207 properties (Chromium 456); `::first-line` is not styled",
     ),
     (
@@ -293,14 +293,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     ),
     (
         "extra",
-        2,
-        r#"["min-width: 0px","transform: none","transform-origin: 50% 50%","width: 40px","perspective-origin: "]"#,
-        "swb has no `perspective-origin`",
-    ),
-    (
-        "extra",
         13,
-        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,205,-1]"#,
+        r#"["align-content,align-items,align-self",true,"-webkit-border-horizontal-spacing,-webkit-border-vertical-spacing,-webkit-mask-position-x",true,true,true,214,-1]"#,
         "a declaration lists swb's properties (Chromium also `accent-color`, `-webkit-border-image`, `mask-position`, ...)",
     ),
     (

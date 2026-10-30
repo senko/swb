@@ -30,6 +30,8 @@ const INTERFACE_ATTRS: &[&str] = &[
     "Serializable",
     "Transferable",
     "SecureContext",
+    "LegacyWindowAlias",
+    "SwbLateMembers",
 ];
 const ATTRIBUTE_ATTRS: &[&str] = &[
     "CEReactions",

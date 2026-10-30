@@ -31,16 +31,20 @@ use crate::values::{
 };
 
 macro_rules! longhands {
-    ($($id:ident $name:literal $kind:ident $field:ident: $spec:ty;)+) => {
+    ($($id:ident $name:literal $kind:ident $field:ident: $spec:ty;)+
+     ;
+     $($iid:ident $iname:literal: $ispec:ty;)+) => {
         /// A longhand property.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         pub(crate) enum LonghandId {
-            $($id),+
+            $($id,)+
+            $($iid),+
         }
 
         impl LonghandId {
             /// All longhands, in declaration order.
-            pub(crate) const ALL: &'static [LonghandId] = &[$(LonghandId::$id),+];
+            pub(crate) const ALL: &'static [LonghandId] =
+                &[$(LonghandId::$id,)+ $(LonghandId::$iid),+];
 
             /// The number of longhands.
             pub(crate) const COUNT: usize = Self::ALL.len();
@@ -49,6 +53,7 @@ macro_rules! longhands {
             pub(crate) fn from_name(name: &str) -> Option<Self> {
                 match name {
                     $($name => Some(LonghandId::$id),)+
+                    $($iname => Some(LonghandId::$iid),)+
                     _ => None,
                 }
             }
@@ -56,21 +61,24 @@ macro_rules! longhands {
             /// The CSS name.
             pub(crate) fn name(self) -> &'static str {
                 match self {
-                    $(LonghandId::$id => $name),+
+                    $(LonghandId::$id => $name,)+
+                    $(LonghandId::$iid => $iname),+
                 }
             }
 
             /// True if the property is inherited by default.
             pub(crate) fn is_inherited(self) -> bool {
                 match self {
-                    $(LonghandId::$id => longhands!(@inherited $kind)),+
+                    $(LonghandId::$id => longhands!(@inherited $kind),)+
+                    $(LonghandId::$iid => false),+
                 }
             }
 
             /// Copies this property's computed value from `from` to `to`.
             pub(crate) fn copy_value(self, from: &ComputedStyle, to: &mut ComputedStyle) {
                 match self {
-                    $(LonghandId::$id => to.$field.clone_from(&from.$field)),+
+                    $(LonghandId::$id => to.$field.clone_from(&from.$field),)+
+                    $(LonghandId::$iid)|+ => super::inert::copy_value(self, from, to),
                 }
                 if self == LonghandId::FontSize {
                     to.font_size_origin = from.font_size_origin;
@@ -81,14 +89,16 @@ macro_rules! longhands {
         /// The specified value of a longhand declaration.
         #[derive(Clone, Debug, PartialEq)]
         pub(crate) enum LonghandValue {
-            $($id($spec)),+
+            $($id($spec),)+
+            $($iid($ispec)),+
         }
 
         impl LonghandValue {
             /// The property this value belongs to.
             pub(crate) fn id(&self) -> LonghandId {
                 match self {
-                    $(LonghandValue::$id(_) => LonghandId::$id),+
+                    $(LonghandValue::$id(_) => LonghandId::$id,)+
+                    $(LonghandValue::$iid(_) => LonghandId::$iid),+
                 }
             }
         }
@@ -260,6 +270,19 @@ longhands! {
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
+
+    // Not inherited, without effect on layout or paint: the computed
+    // values are in `ComputedStyle::inert` (see `inert.rs`).
+    ;
+    TransitionProperty "transition-property": Arc<str>;
+    TransitionDuration "transition-duration": Arc<str>;
+    TransitionDelay "transition-delay": Arc<str>;
+    TransitionTimingFunction "transition-timing-function": Arc<str>;
+    TransitionBehavior "transition-behavior": Arc<str>;
+    WillChange "will-change": Arc<str>;
+    TouchAction "touch-action": Arc<str>;
+    Perspective "perspective": Option<Lp>;
+    PerspectiveOrigin "perspective-origin": [SpecifiedPosition; 2];
 }
 
 #[cfg(test)]

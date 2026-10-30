@@ -8,6 +8,7 @@ use swb_css::ComponentValue;
 
 use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 
+use crate::properties::inert::InertStyle;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
@@ -241,6 +242,11 @@ pub struct ComputedStyle {
     pub object_position: [PositionComponent; 2],
     pub user_select: UserSelect,
     pub unicode_bidi: UnicodeBidi,
+    /// The properties that have no effect on layout or paint (`transition`
+    /// and its longhands, `will-change`, `touch-action`, `perspective`,
+    /// `perspective-origin`; `properties/inert.rs`). `None` while all are
+    /// initial, so an element that sets none pays one pointer.
+    pub inert: Option<Arc<InertStyle>>,
     /// True for the `::details-content` box of a closed `details`. Not a
     /// CSS property: it stands for Chromium's `content-visibility: hidden`
     /// on that box. The box has size, layout, paint and style
@@ -432,6 +438,7 @@ impl ComputedStyle {
             object_position: [PositionComponent::CENTER, PositionComponent::CENTER],
             user_select: UserSelect::Auto,
             unicode_bidi: UnicodeBidi::Normal,
+            inert: None,
             contents_hidden: false,
         }
     }

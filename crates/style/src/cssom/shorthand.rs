@@ -20,6 +20,7 @@ use super::longhand::serialize_longhand;
 use super::props::{Kind, Ser, Shorthand, TABLE};
 use super::value::{Style, serialize, trimmed};
 use crate::parse::ParserContext;
+use crate::properties::inert::{expand_transition, transition_value};
 use crate::properties::parse_declaration;
 
 /// The values that the shorthand `def` (index `index`) with the value
@@ -46,6 +47,9 @@ pub(crate) fn expand(
         Kind::Position => Parts::position(tokens),
         Kind::GridLines => cx.grid_lines(tokens),
         Kind::Single => Some(vec![cx.text(0, tokens)]),
+        Kind::Transition => {
+            expand_transition(tokens).map(|texts| texts.into_iter().map(Value::Text).collect())
+        }
         Kind::BorderImage | Kind::Opaque => None,
     };
     values
@@ -670,6 +674,7 @@ pub(crate) fn value_of(index: usize, def: &Shorthand, values: &[&Value]) -> Stri
         }
         Kind::GridLines => grid_lines(&t),
         Kind::Single => get(0).to_owned(),
+        Kind::Transition => transition_value(&t),
         Kind::BorderImage => {
             if t.iter().all(|s| *s == "initial") {
                 "initial".to_owned()

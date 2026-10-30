@@ -63,6 +63,14 @@ pub(crate) enum Ser {
     GridAutoFlow,
     /// `content`: strings, `attr()` and counters.
     Content,
+    /// `transition-property`: known property names in lower case.
+    TransitionProperty,
+    /// `transition-timing-function`: `steps(4, end)` is `steps(4)`.
+    Easing,
+    /// `will-change`.
+    WillChange,
+    /// `touch-action`: the keywords in a fixed order.
+    TouchAction,
 }
 
 /// A longhand of a declaration block.
@@ -114,6 +122,9 @@ pub(crate) enum Kind {
     /// Kept as written: the longhands read as empty strings, as for a
     /// value with `var()` (`grid`, `grid-template`, `mask`).
     Opaque,
+    /// `transition`: comma-separated layers; each longhand is the list
+    /// of its values per layer.
+    Transition,
 }
 
 /// A shorthand.
@@ -245,6 +256,16 @@ const ALIASES: &[(&str, &str)] = &[
     ("-webkit-mask-origin", "mask-origin"),
     ("-webkit-mask-clip", "mask-clip"),
     ("-webkit-mask-composite", "mask-composite"),
+    ("-webkit-transition", "transition"),
+    ("-webkit-transition-property", "transition-property"),
+    ("-webkit-transition-duration", "transition-duration"),
+    ("-webkit-transition-delay", "transition-delay"),
+    (
+        "-webkit-transition-timing-function",
+        "transition-timing-function",
+    ),
+    ("-webkit-perspective", "perspective"),
+    ("-webkit-perspective-origin", "perspective-origin"),
 ];
 
 const BORDER_IMAGE: &[&str] = &[
@@ -582,6 +603,17 @@ const SHORTHANDS: &[Shorthand] = &[
         &["flex-direction", "flex-wrap"],
         Kind::AnyOrder,
     ),
+    sh(
+        "transition",
+        &[
+            "transition-behavior",
+            "transition-duration",
+            "transition-timing-function",
+            "transition-delay",
+            "transition-property",
+        ],
+        Kind::Transition,
+    ),
     sh("gap", &["row-gap", "column-gap"], Kind::Pair),
     sh("columns", &["column-width", "column-count"], Kind::AnyOrder),
     sh("overflow", &["overflow-x", "overflow-y"], Kind::Pair),
@@ -660,7 +692,11 @@ fn ser_of(name: &str) -> Ser {
         | "border-bottom-color"
         | "border-left-color" => Ser::Color,
         "font-family" => Ser::FontFamily,
-        "transform-origin" | "object-position" => Ser::Position,
+        "transform-origin" | "object-position" | "perspective-origin" => Ser::Position,
+        "transition-property" => Ser::TransitionProperty,
+        "transition-timing-function" => Ser::Easing,
+        "will-change" => Ser::WillChange,
+        "touch-action" => Ser::TouchAction,
         "background-repeat" | "mask-repeat" => Ser::Repeat,
         "background-size" | "mask-size" => Ser::BackgroundSize,
         "aspect-ratio" => Ser::AspectRatio,
@@ -727,7 +763,8 @@ fn ser_of(name: &str) -> Ser {
         | "grid-auto-columns"
         | "grid-auto-rows"
         | "contain-intrinsic-width"
-        | "contain-intrinsic-height" => Ser::Length,
+        | "contain-intrinsic-height"
+        | "perspective" => Ser::Length,
         _ => Ser::Plain,
     }
 }
@@ -928,7 +965,22 @@ mod tests {
             ("float", Some("float")),
             ("cssFloat", None),
             ("MozTransform", None),
-            ("transition", None),
+            ("transition", Some("transition")),
+            ("transitionBehavior", Some("transition-behavior")),
+            ("webkitTransition", Some("-webkit-transition")),
+            (
+                "WebkitTransitionDuration",
+                Some("-webkit-transition-duration"),
+            ),
+            ("webkitTransitionBehavior", None),
+            ("OTransition", None),
+            ("msTransition", None),
+            ("willChange", Some("will-change")),
+            ("touchAction", Some("touch-action")),
+            (
+                "webkitPerspectiveOrigin",
+                Some("-webkit-perspective-origin"),
+            ),
             ("borderTopLeftRadius", Some("border-top-left-radius")),
             ("marginInlineStart", Some("margin-inline-start")),
             ("gridGap", Some("grid-gap")),

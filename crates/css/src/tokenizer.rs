@@ -20,6 +20,10 @@ pub struct Number {
     /// The numeric value. Values outside the `f32` range are clamped to the
     /// largest finite value.
     pub value: f32,
+    /// The numeric value in `f64`, for the few users that need more
+    /// precision than `value` (the matrix strings of `DOMMatrix`). Values
+    /// outside the `f64` range are clamped to the largest finite value.
+    pub value_f64: f64,
     /// The value as an integer when the token has the "integer" type flag
     /// (the source has no fraction and no exponent). `None` for the "number"
     /// type flag. Values outside the `i32` range are clamped.
@@ -593,20 +597,19 @@ impl<'a> Tokenizer<'a> {
             }
         }
         let repr = &self.input[start..self.pos];
-        let value = repr.parse::<f32>().unwrap_or(0.0);
-        let value = if value.is_finite() {
-            value
-        } else if value > 0.0 {
-            f32::MAX
-        } else {
-            f32::MIN
-        };
+        let value_f64 = repr.parse::<f64>().unwrap_or(0.0).clamp(f64::MIN, f64::MAX);
+        // The `f32` is the `f64` rounded again (one parse instead of two).
+        // That differs from rounding the text only for a text within half
+        // an `f64` step of the middle between two `f32` values, which needs
+        // more than 9 significant digits.
+        let value = (value_f64 as f32).clamp(f32::MIN, f32::MAX);
         let int_value = is_integer.then(|| {
             let negative = self.byte_at(start) == Some(b'-');
             parse_clamped_int(&self.bytes[int_start..int_end], negative)
         });
         Number {
             value,
+            value_f64,
             int_value,
             has_sign,
         }
@@ -656,9 +659,11 @@ mod tests {
         Token::Ident(s.into())
     }
 
-    fn num(value: f32, int_value: Option<i32>, has_sign: bool) -> Number {
+    /// A number token with the value `value` in `f64` and in `f32`.
+    fn num(value: f64, int_value: Option<i32>, has_sign: bool) -> Number {
         Number {
-            value,
+            value: (value as f32).clamp(f32::MIN, f32::MAX),
+            value_f64: value,
             int_value,
             has_sign,
         }
@@ -713,7 +718,7 @@ mod tests {
             ("1e+2", num(100.0, None, false)),
             ("99999999999", num(99_999_999_999.0, Some(i32::MAX), false)),
             ("-99999999999", num(-99_999_999_999.0, Some(i32::MIN), true)),
-            ("1e999", num(f32::MAX, None, false)),
+            ("1e999", num(f64::MAX, None, false)),
         ];
         for (src, expected) in cases {
             assert_eq!(tokenize(src), vec![Token::Number(*expected)], "{src}");
@@ -723,6 +728,12 @@ mod tests {
             panic!("expected a number");
         };
         assert!(n.value.is_sign_negative());
+        // The `f64` value keeps the precision of the text.
+        let [Token::Number(n)] = tokenize("0.1")[..] else {
+            panic!("expected a number");
+        };
+        assert_eq!(n.value_f64, 0.1);
+        assert_eq!(n.value, 0.1_f32);
     }
 
     #[test]

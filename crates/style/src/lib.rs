@@ -53,6 +53,7 @@ mod query;
 mod style_map;
 mod stylist;
 mod svg_attributes;
+mod transform_list;
 mod values;
 
 pub use cascade::{compute_element_styles, compute_pseudo_element_style, compute_styles};
@@ -64,7 +65,9 @@ pub use element::{
 pub use element_kinds::is_replaced_element;
 pub use font_face::{FontDisplay, FontFace, FontFaceSource, FontFaceStyle};
 pub use font_settings::{FontFeatureSettings, FontTag, FontVariationSettings, MAX_SETTINGS};
+pub use properties::inert::InertStyle;
 pub use query::{Matcher, parse_selectors};
 pub use style_map::{InstanceId, PseudoKind, StyleMap};
 pub use stylist::Stylist;
+pub use transform_list::{TransformListError, TransformOp, parse_transform_list};
 pub use values::*;

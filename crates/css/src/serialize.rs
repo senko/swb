@@ -244,17 +244,17 @@ fn write_value(value: &ComponentValue, out: &mut String) {
     }
 }
 
-/// Writes a number so that it tokenizes back with the same value, type flag
-/// and sign flag.
+/// Writes a number so that it tokenizes back with the same value (in `f64`
+/// and so in `f32`), type flag and sign flag.
 fn write_number(n: &Number, out: &mut String) {
-    if n.value.is_sign_negative() {
+    if n.value_f64.is_sign_negative() {
         out.push('-');
     } else if n.has_sign {
         out.push('+');
     }
-    let magnitude = n.value.abs();
+    let magnitude = n.value_f64.abs();
     match n.int_value {
-        Some(i) if i as f32 == n.value => {
+        Some(i) if f64::from(i) == n.value_f64 => {
             let _ = write!(out, "{}", i.unsigned_abs());
         }
         // Integers outside the `i32` range: Rust prints integral floats

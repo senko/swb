@@ -331,6 +331,32 @@ mod tests {
     }
 
     #[test]
+    fn a_legacy_window_alias_is_another_global_property_of_the_interface() {
+        let idl = "[Exposed=Window] interface Plain {};\n[Exposed=Window, LegacyWindowAlias=(OldA, OldB)] interface Matrix { undefined set(); };\n[Exposed=Window] interface After {};";
+        let module = file(idl, "mod.rs");
+        // The aliases follow the interface object in the list of globals,
+        // with the class of the interface and no factory.
+        assert!(module.contains("    b::glue::GlobalName { name: \"Matrix\", class: MATRIX, factory: false },\n    b::glue::GlobalName { name: \"OldA\", class: MATRIX, factory: false },\n    b::glue::GlobalName { name: \"OldB\", class: MATRIX, factory: false },\n    b::glue::GlobalName { name: \"After\", class: AFTER, factory: false },"));
+        // The lazy properties are numbered in the same order.
+        assert!(module.contains("    b::glue::expose_lazy(rt, realm, GLOBALS, 2)?; // Matrix\n    b::glue::expose_lazy(rt, realm, GLOBALS, 3)?; // OldA\n    b::glue::expose_lazy(rt, realm, GLOBALS, 4)?; // OldB\n    b::glue::expose_lazy(rt, realm, GLOBALS, 5)?; // After\n"));
+    }
+
+    #[test]
+    fn late_members_follow_the_constructor() {
+        let idl = "[Exposed=Window, SwbLateMembers=(zed, toString)] interface Late { constructor(); undefined alpha(); undefined zed(); undefined beta(); stringifier; };";
+        let late = file(idl, "late.rs");
+        let order = |needle: &str| late.find(needle).unwrap_or(usize::MAX);
+        assert!(order("\"alpha\"") < order("\"beta\""));
+        assert!(order("\"beta\"") < order("rt.end_interface(interface)?;"));
+        assert!(order("rt.end_interface(interface)?;") < order("target, \"toString\""));
+        assert!(order("rt.end_interface(interface)?;") < order("target, \"zed\""));
+        // A name that is not an operation is an error, not ignored.
+        let typo =
+            error("[Exposed=Window, SwbLateMembers=zad] interface Late { undefined zed(); };");
+        assert!(typo.contains("`zad`, which is not an operation"), "{typo}");
+    }
+
+    #[test]
     fn event_handler_attributes_call_the_host() {
         let idl = "[Exposed=Window] interface Node {};\n[Exposed=Window] interface Element : Node {};\ncallback EventHandlerNonNull = any (any event);\ntypedef EventHandlerNonNull? EventHandler;\ninterface mixin GlobalEventHandlers { attribute EventHandler onclick; };\n[Exposed=Window] interface HTMLElement : Element {};\nHTMLElement includes GlobalEventHandlers;\n[Global=Window, Exposed=Window] interface Window {};\nWindow includes GlobalEventHandlers;";
         let element = file(idl, "html_element.rs");

@@ -923,9 +923,11 @@ impl Gen<'_> {
         out.push_str(&first);
         define_attributes(iface, global, out);
         define_constants(iface, out)?;
-        define_operations(iface, groups, global, out);
+        let mut late = String::new();
+        define_operations(iface, groups, global, out, &mut late)?;
         out.push_str(&last);
         out.push_str("    rt.end_interface(interface)?;\n");
+        out.push_str(&late);
         if exposed_in_window(&iface.ext_attrs) {
             define_factories(factories, out);
         }
@@ -1044,7 +1046,13 @@ fn define_constants(iface: &Iface, out: &mut String) -> Result<(), Error> {
 /// The method definitions, sorted by name (Chromium's order), then the
 /// `toString` of a stringifier (Chromium puts it after the sorted
 /// operations: `DOMTokenList` has `toggle` before `toString`).
-fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &mut String) {
+fn define_operations(
+    iface: &Iface,
+    groups: &[OpGroup<'_>],
+    global: bool,
+    out: &mut String,
+    late_out: &mut String,
+) -> Result<(), Error> {
     let mut definitions: Vec<(String, String)> = Vec::new();
     for group in groups.iter().filter(|g| !g.name.is_empty()) {
         let custom = group
@@ -1105,8 +1113,50 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
             ),
         ));
     }
-    for (_, line) in definitions {
-        let _ = writeln!(out, "{line}");
+    // `[SwbLateMembers=(a, b)]`: operations (and `toString` of a
+    // stringifier) that are defined after `constructor`. Chromium installs
+    // the members that have their own `[Exposed]` (`setMatrixValue` and the
+    // stringifier of `DOMMatrixReadOnly`) after the constructor property.
+    let late = ident_list(iface, "SwbLateMembers");
+    if let Some(unknown) = late
+        .iter()
+        .find(|name| !definitions.iter().any(|(defined, _)| defined == *name))
+    {
+        return Err(err(
+            &iface.place,
+            format!("[SwbLateMembers] names `{unknown}`, which is not an operation"),
+        ));
+    }
+    for (name, line) in definitions {
+        if late.contains(&name) {
+            let _ = writeln!(late_out, "{line}");
+        } else {
+            let _ = writeln!(out, "{line}");
+        }
+    }
+    Ok(())
+}
+
+/// The names of `[LegacyWindowAlias=Name]` or `[LegacyWindowAlias=(A, B)]`:
+/// other properties of the global object with the interface object as their
+/// value (Web IDL §3.3.4, §3.7.1).
+pub(super) fn window_aliases(iface: &Iface) -> Vec<String> {
+    ident_list(iface, "LegacyWindowAlias")
+}
+
+/// The identifiers of the extended attribute `name` of the interface
+/// (`[Name=A]` or `[Name=(A, B)]`).
+fn ident_list(iface: &Iface, name: &str) -> Vec<String> {
+    match iface.ext_attrs.get(name).map(|a| &a.value) {
+        Some(ExtValue::Ident(name)) => vec![name.clone()],
+        Some(ExtValue::List(items)) => items
+            .iter()
+            .filter_map(|i| match i {
+                ExtValue::Ident(name) => Some(name.clone()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 

@@ -138,6 +138,10 @@ shorthands! {
     GridRow "grid-row" [GridRowStart, GridRowEnd];
     GridColumn "grid-column" [GridColumnStart, GridColumnEnd];
     GridArea "grid-area" [GridRowStart, GridColumnStart, GridRowEnd, GridColumnEnd];
+    Transition "transition" [
+        TransitionProperty, TransitionDuration, TransitionTimingFunction, TransitionDelay,
+        TransitionBehavior
+    ];
     GridTemplate "grid-template" [GridTemplateRows, GridTemplateColumns, GridTemplateAreas];
     Grid "grid" [
         GridTemplateRows, GridTemplateColumns, GridTemplateAreas, GridAutoRows, GridAutoColumns,
@@ -157,6 +161,7 @@ impl ShorthandId {
             "border-inline-end" => ShorthandId::BorderRight,
             "-webkit-flex" => ShorthandId::Flex,
             "-webkit-flex-flow" => ShorthandId::FlexFlow,
+            "-webkit-transition" => ShorthandId::Transition,
             "-webkit-border-radius" | "-moz-border-radius" => ShorthandId::BorderRadius,
             _ => return None,
         })
@@ -226,6 +231,7 @@ impl ShorthandId {
                 | S::FontVariant
                 | S::ListStyle
                 | S::TextDecoration => parse_paint_shorthand(self, p, cx, out),
+                S::Transition => super::inert::parse_transition(p, out),
             }
         })
     }

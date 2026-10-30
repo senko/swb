@@ -269,6 +269,15 @@ pub(crate) fn parse_longhand(
             }
             L::UserSelect => V::UserSelect(parse_user_select(p)?),
             L::UnicodeBidi => V::UnicodeBidi(parse_unicode_bidi(p)?),
+            L::TransitionProperty
+            | L::TransitionDuration
+            | L::TransitionDelay
+            | L::TransitionTimingFunction
+            | L::TransitionBehavior
+            | L::WillChange
+            | L::TouchAction
+            | L::Perspective
+            | L::PerspectiveOrigin => super::inert::parse_longhand(id, p)?,
         })
     })
 }

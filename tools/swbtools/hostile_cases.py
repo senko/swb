@@ -4262,3 +4262,29 @@ def image_watches_of_a_long_page_js_on() -> Page:
         f"l.src = '{svg}#last'; }} }}; batch();</script>"
     )
     return Page(doc("<p>images</p>" + script))
+
+
+@case(
+    "DOMMatrix from strings of 18 MiB (5 times) and of 0.9 MiB (30 times), 200,000 matrices "
+    "kept by the page, and 20,000 writes of long transition and will-change values to one "
+    "element, with JavaScript on (feature 11c1): a matrix string over 1 MiB is a syntax error "
+    "without being tokenized, a string inside the limit is parsed in time, and a matrix or a "
+    "style value costs no more than its data (ADR 0028 sections 10, 13 and 16)",
+    expect_log="matrices 5 200000",
+    swb_args=("--js",),
+    time_limit_s=30,
+)
+def dom_matrix_strings_js_on() -> Page:
+    script = (
+        "<script>const big = 'scale(1) '.repeat(1 << 21); let errors = 0; "
+        "for (let i = 0; i < 5; i++) { try { new DOMMatrix(big); } catch (e) { errors++; } } "
+        "const ok = 'translate(1px) '.repeat(60000); "
+        "for (let i = 0; i < 30; i++) new DOMMatrix(ok); "
+        "const keep = []; for (let i = 0; i < 200000; i++) "
+        "keep.push(new DOMMatrix([1, 0, 0, 1, i, 0]).translate(1, 2)); "
+        "const s = document.body.style; for (let i = 0; i < 20000; i++) { "
+        "s.transition = 'opacity 1s ease ' + i + 'ms, width 2s steps(4, end), color 3s'; "
+        "s.willChange = 'transform, opacity, ' + i; } "
+        "console.warn('matrices ' + errors + ' ' + keep.length);</script>"
+    )
+    return Page(doc("<p>matrices</p>" + script))

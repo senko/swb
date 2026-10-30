@@ -70,7 +70,10 @@ fn decoder_data(rt: &mut Runtime, this: Platform) -> b::Result<&mut DecoderData>
 }
 
 /// The bytes of an `ArrayBuffer` or a view: `(buffer, offset, length)`.
-fn byte_range(rt: &mut Runtime, object: Gc<Object>) -> b::Result<(Gc<Object>, usize, usize)> {
+pub(crate) fn byte_range(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+) -> b::Result<(Gc<Object>, usize, usize)> {
     Ok(match rt.slots_of(object)? {
         Slots::ArrayBuffer { byte_length, .. } => (object, 0, byte_length),
         Slots::View {

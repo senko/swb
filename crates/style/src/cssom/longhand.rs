@@ -10,6 +10,7 @@ use swb_css::{ComponentValue, Parser};
 use super::props::Ser;
 use super::value::{Style, serialize, split_commas, trimmed};
 use crate::parse::color::parse_color;
+use crate::properties::inert::declared_text as declared;
 
 /// The generic font families (lower case; a quoted one stays quoted).
 const GENERIC_FAMILIES: &[&str] = &[
@@ -31,6 +32,7 @@ const GENERIC_FAMILIES: &[&str] = &[
 
 /// Serializes the value `tokens` (accepted by the property's parser,
 /// without `!important`, CSS-wide keywords and `var()`) of a longhand.
+#[allow(clippy::too_many_lines)] // One arm per serialization class.
 pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String {
     let tokens = trimmed(tokens);
     match ser {
@@ -109,6 +111,16 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
             } else {
                 w.join(" ")
             }
+        }
+        Ser::TransitionProperty => declared("transition-property", tokens)
+            .unwrap_or_else(|| serialize(tokens, Style::NAMES)),
+        Ser::Easing => declared("transition-timing-function", tokens)
+            .unwrap_or_else(|| serialize(tokens, Style::PLAIN)),
+        Ser::WillChange => {
+            declared("will-change", tokens).unwrap_or_else(|| serialize(tokens, Style::NAMES))
+        }
+        Ser::TouchAction => {
+            declared("touch-action", tokens).unwrap_or_else(|| serialize(tokens, Style::PLAIN))
         }
         Ser::GridLine => grid_line(tokens),
         Ser::GridAutoFlow => {
