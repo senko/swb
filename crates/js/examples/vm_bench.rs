@@ -19,6 +19,11 @@ use swb_js::{
     RuntimeConfig, Value, VmResult,
 };
 
+/// The allocator of the shipped binaries (ADR 0029), so that the times are those of the browser.
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 /// The benchmark programs: (name, source). Each source defines `run()`;
 /// locals keep the loops out of the global object.
 const PROGRAMS: &[(&str, &str)] = &[

@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 11a2, global memory allocator
+
+- Measured glibc, mimalloc 2 and 3, and jemalloc (`tikv-jemallocator`)
+  as the global allocator. All three candidates load the Craigslist page
+  in 3.34 to 3.47 s (glibc 4.09 to 4.28 s; budget 3.65 s), shorten the
+  JS-off pipeline by 8 to 12 % and lower the `jsbench` geomean to 0.92
+  to 0.94. All three raise the peak RSS (Craigslist 221 MiB with glibc;
+  272 with jemalloc, 285 and 346 with mimalloc 2 and 3).
+- Both mimalloc versions push two hostile XHR cases past their memory
+  limit (up to 2,043 MiB against 1,100; glibc 511, jemalloc 600 to
+  707). The cause is not known. Decision: jemalloc, in `swb`, `swb-js`
+  and the `vm_bench` example, on every target except Windows with MSVC,
+  where the crate does not build (the system allocator stays). ADR 0029.
+- Learned: after a large heap is freed, jemalloc returns the memory to
+  the system (277 → 122 MiB); glibc and mimalloc keep it. The cost is
+  about 35 MiB more RSS on small pages.
+- The page loads in 3.41 s. test262, the JS-off snapshot, `compare
+  --js` and the hostile set are unchanged.
+
+Next: 11b, layout (auto margins in the cross axis of a flex column, the
+1 px of the reply row).
+
 ## 2026-10-30: M8 feature 11a, engine speed for the Craigslist page
 
 - Feature 11 started with a diagnosis session. The page's boot script

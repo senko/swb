@@ -32,3 +32,7 @@ serde_json.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true
+
+# ADR 0029: jemalloc does not build for MSVC; Windows keeps the system allocator.
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true

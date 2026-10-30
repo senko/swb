@@ -3676,6 +3676,17 @@ Steps:
         jemalloc preloaded the load takes 3.32 s). Measure mimalloc and
         jemalloc (load time, peak RSS, JS-off pipeline, platforms), pick
         one, ADR 0029. Exit: the load within 3.65 s.
+        Done 2026-10-30: jemalloc (`tikv-jemallocator`) is the global
+        allocator of `swb` and `swb-js` on every target except Windows
+        with MSVC (the crate does not build there; the system allocator
+        stays). The Craigslist load 4.1 to 4.3 → 3.41 s (budget met), the
+        JS-off pipeline 8 to 12 % shorter, `jsbench` geomean 0.94. Peak
+        RSS grows: Craigslist 221 → 272 MiB, small pages about 35 MiB.
+        After a large heap is freed, jemalloc returns memory to the
+        system (277 → 122 MiB); glibc and mimalloc keep it. mimalloc 2
+        and 3 load the page as fast but push two hostile XHR cases past
+        their 1,100 MiB limit. test262, the JS-off snapshot, `compare
+        --js` and the hostile set unchanged. ADR 0029.
       - 11b: layout (`implementer`): auto margins in the cross axis of
         a flex column; the 1 px of the reply row.
       - 11c: web APIs (`implementer`): `WebKitCSSMatrix`/`DOMMatrix` as
@@ -4332,6 +4343,16 @@ Steps:
   arrays in the object record would halve the allocations of `split`
   results; lazy compilation (M7 13f) would save at most 1.6 G of the
   page's 47.8 G instructions.
+- Allocator (found in feature 11a2, ADR 0029): find why mimalloc (2 and
+  3) peaks at up to 2 GB in the hostile cases
+  `xhr-retained-responses-js-on` and
+  `xhr-handlers-of-unreferenced-requests-js-on` (60 MiB responses read
+  on network threads, freed on the page thread); a fix could allow one
+  allocator on all platforms, Windows with MSVC too. jemalloc adds about
+  35 MiB of RSS to small pages: try fewer arenas (`narenas`) through
+  `JEMALLOC_SYS_WITH_MALLOC_CONF`. The `jsbench` rows `typed: toBase64
+  of 16 MiB` and `string: split into 1M one-unit pieces` are 1.4x slower
+  with jemalloc (growth of large vectors; not looked at).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

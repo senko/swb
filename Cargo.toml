@@ -111,6 +111,8 @@ usvg = { version = "=0.48.1", default-features = false }
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"] }
 clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
+# The global allocator of the binaries, except on Windows with MSVC (ADR 0029).
+tikv-jemallocator = "0.6"
 softbuffer = "0.4"
 winit = "0.30"
 

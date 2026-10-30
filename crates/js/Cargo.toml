@@ -19,3 +19,9 @@ jiff.workspace = true
 log.workspace = true
 thiserror.workspace = true
 serde_json.workspace = true
+
+# ADR 0029: jemalloc does not build for MSVC; Windows keeps the system allocator.
+# Only the `swb-js` binary and the `vm_bench` example use it; Cargo has no
+# dependencies for one target, so it also compiles for users of the library.
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true

@@ -20,6 +20,11 @@ use swb_js_text::{RecursionBudget, String16};
 
 use shell::{Options, STACK_SIZE};
 
+/// The global allocator (ADR 0029). Windows with MSVC keeps the system allocator.
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 const HELP: &str = "\
 swb-js: the shell of swb's JavaScript engine
 

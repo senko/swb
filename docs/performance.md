@@ -1207,6 +1207,24 @@ the shell show no slowdown (the read-modify-write of 1,000 elements
 1,000 times 42 → 31 ms, case conversions 412 → 300 ms, the mapped
 arguments and the array pattern rows equal).
 
+### Global allocator (M8 11a2)
+
+jemalloc is the global allocator of `swb` and `swb-js` (ADR 0029; the
+system allocator on Windows with MSVC). The `vm_bench` example sets it
+too. Numbers, same machine and settings as above, medians of 5 to 7
+interleaved runs; the table of the other candidates is in the ADR.
+
+| Measure | glibc | jemalloc |
+|---|---|---|
+| Craigslist load (`--js ... --replay`) | 4.09 to 4.28 s | 3.34 to 3.47 s |
+| Craigslist peak RSS | 221 MiB | 272 MiB |
+| JS-off pipeline total: ars-technica / bbc / wikipedia / hacker-news | 42.2 / 27.5 / 39.0 / 5.7 ms | 39.2 / 25.0 / 34.5 / 5.1 ms |
+| JS-off peak RSS: ars-technica / bbc / wikipedia / hacker-news / senko-net | 163 / 164 / 51 / 29 / 26 MiB | 221 / 216 / 87 / 63 / 61 MiB |
+| `vm_bench` geomean (110 rows) | 1 | 0.937 |
+
+`peak RSS` is `ru_maxrss` of the child after `wait4`. The hostile set
+passes (the peaks of small pages are 50 to 100 MiB higher).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

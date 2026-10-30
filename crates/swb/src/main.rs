@@ -23,6 +23,11 @@ use swb_engine::{ClockMode, Size, check_scale, check_viewport_size};
 use swb_net::{ExtendingFetcher, Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
 use swb_text::FontContext;
 
+/// The global allocator (ADR 0029). Windows with MSVC keeps the system allocator.
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 /// A web browser written from scratch.
 #[derive(Parser, Debug)]
 #[command(version, about)]

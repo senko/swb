@@ -32,6 +32,8 @@ Requirements (Debian/Ubuntu package names):
 - Rust toolchain via [rustup](https://rustup.rs/). The version is pinned in
   `rust-toolchain.toml` and installed automatically.
 - `libfontconfig-dev`, `libxkbcommon-dev`, `libwayland-dev`, `pkg-config`.
+- A C compiler, `make` and `sh` (`build-essential`): the build compiles
+  jemalloc, the memory allocator of the binaries, from source (ADR 0029).
 - [`just`](https://github.com/casey/just) (optional, for the commands below).
 
 ```sh
