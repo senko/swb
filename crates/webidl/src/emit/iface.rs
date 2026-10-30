@@ -493,6 +493,8 @@ impl Gen<'_> {
             format!("legacy_factory_{}", snake(factory))
         } else if constructor {
             "constructor".to_owned()
+        } else if static_clashes(iface, group) {
+            format!("static_{}", ident(&group.name))
         } else {
             ident(&group.name)
         };
@@ -618,7 +620,7 @@ impl Gen<'_> {
         } else if constructor {
             "construct".to_owned()
         } else {
-            format!("op_{}", snake(&group.name))
+            op_fn(iface, group)
         };
         let context = if let Some(factory) = &group.factory {
             format!("b::Context::Constructor({})", literal(factory))
@@ -1052,7 +1054,7 @@ fn define_operations(iface: &Iface, groups: &[OpGroup<'_>], global: bool, out: &
         let func = if custom {
             format!("<H as {}Impl>::{}", iface.name, ident(&group.name))
         } else {
-            format!("op_{}::<H>", snake(&group.name))
+            format!("{}::<H>", op_fn(iface, group))
         };
         let length = group
             .overloads
@@ -1192,6 +1194,27 @@ fn op_groups(iface: &Iface) -> Vec<OpGroup<'_>> {
         }
     }
     groups
+}
+
+/// True for a static operation that has the name of an instance operation
+/// of the interface (`Response.json()` and `Body.json()`): its Rust names
+/// get the prefix `static_`.
+fn static_clashes(iface: &Iface, group: &OpGroup<'_>) -> bool {
+    group.is_static
+        && !group.name.is_empty()
+        && iface.members.iter().any(|m| {
+            matches!(m, Member::Operation(op)
+                if !op.is_static && op.name.as_deref() == Some(group.name.as_str()))
+        })
+}
+
+/// The name of the glue function of an operation.
+fn op_fn(iface: &Iface, group: &OpGroup<'_>) -> String {
+    if static_clashes(iface, group) {
+        format!("op_static_{}", snake(&group.name))
+    } else {
+        format!("op_{}", snake(&group.name))
+    }
 }
 
 /// Whether a member is exposed in `Window` (its own `[Exposed]`).

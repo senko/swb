@@ -4,7 +4,6 @@
 
 use std::sync::Arc;
 
-use log::debug;
 use url::Url;
 
 use crate::cookies::CookieJar;
@@ -82,30 +81,20 @@ impl<F: Fetcher + ?Sized> Fetcher for Box<F> {
 /// <https://fetch.spec.whatwg.org/#http-redirect-fetch>
 pub fn fetch_following_redirects(
     fetcher: &dyn Fetcher,
-    mut request: Request,
+    request: Request,
 ) -> Result<Response, NetError> {
-    let start_url = request.url.clone();
-    let mut redirect_count = 0;
-    loop {
-        let mut response = fetcher.fetch(&request)?;
-        let Some(location) = location_url(&request.url, &response)? else {
-            response.redirected = redirect_count > 0;
-            return Ok(response);
-        };
-        if redirect_count == MAX_REDIRECTS {
-            return Err(NetError::TooManyRedirects(start_url));
-        }
-        redirect_count += 1;
-        debug!("redirect {} {} -> {location}", response.status, request.url);
-        redirect_request(&mut request, response.status, location);
-    }
+    crate::cors_fetch::fetch_request(fetcher, request, &crate::cors::PreflightCache::new())
+        .map(|fetched| fetched.response)
 }
 
 /// Returns the redirect target of `response`, or `None` if it is not a
 /// redirect.
 ///
 /// <https://fetch.spec.whatwg.org/#concept-response-location-url>
-fn location_url(current_url: &Url, response: &Response) -> Result<Option<Url>, NetError> {
+pub(crate) fn location_url(
+    current_url: &Url,
+    response: &Response,
+) -> Result<Option<Url>, NetError> {
     if !response.is_redirect() {
         return Ok(None);
     }
@@ -125,17 +114,38 @@ fn location_url(current_url: &Url, response: &Response) -> Result<Option<Url>, N
     if url.fragment().is_none() {
         url.set_fragment(current_url.fragment());
     }
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err(invalid());
-    }
     Ok(Some(url))
+}
+
+/// The scheme check of "HTTP-redirect fetch": a redirect is followed only
+/// to an `http:` or `https:` URL. A request with the redirect mode
+/// `manual` does not follow, so it does not check (the response is an
+/// opaque-redirect response whatever the scheme of `Location`).
+///
+/// <https://fetch.spec.whatwg.org/#http-redirect-fetch>
+pub(crate) fn check_redirect_scheme(
+    current_url: &Url,
+    response: &Response,
+    location: &Url,
+) -> Result<(), NetError> {
+    if matches!(location.scheme(), "http" | "https") {
+        return Ok(());
+    }
+    Err(NetError::InvalidRedirect {
+        url: current_url.clone(),
+        location: response
+            .headers
+            .get("location")
+            .unwrap_or_default()
+            .to_string(),
+    })
 }
 
 /// Changes `request` so that it fetches `location` after a redirect with
 /// `status`.
-fn redirect_request(request: &mut Request, status: u16, location: Url) {
+pub(crate) fn redirect_request(request: &mut Request, status: u16, location: Url) {
     let to_get = (matches!(status, 301 | 302) && request.method == Method::Post)
-        || (status == 303 && request.method != Method::Get);
+        || (status == 303 && !matches!(request.method, Method::Get | Method::Head));
     if to_get {
         request.method = Method::Get;
         request.body = None;

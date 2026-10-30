@@ -39,7 +39,7 @@ impl Fetcher for CannedFetcher {
         if let Some(result) = crate::builtin::fetch(request) {
             return result;
         }
-        let key = (entry_url(&request.url), request.method);
+        let key = (entry_url(&request.url), request.method.clone());
         let (status, headers, body) = self
             .responses
             .get(&key)
@@ -523,4 +523,173 @@ fn write_atomic_replaces_file() {
     assert_eq!(fs::read(&path).unwrap(), b"two");
     // No temporary files stay.
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+// ----- CORS in the replay (ADR 0028 section 12) -----
+
+/// A fixture directory with two files and a `fixture.json`.
+fn cors_fixture(meta: Option<&str>) -> (TempDir, ReplayFetcher) {
+    let dir = TempDir::new();
+    fs::create_dir_all(dir.path().join(FILES_DIR)).unwrap();
+    fs::write(dir.path().join("files/a.txt"), b"hello").unwrap();
+    let entry = |url: &str| {
+        format!(
+            r#"{{"method": "GET", "url": "{url}", "status": 200,
+                "headers": [["content-type", "text/plain"], ["access-control-allow-origin", "https://stored.test"]],
+                "body": "files/a.txt"}}"#
+        )
+    };
+    let entries = [
+        entry("https://api.test/data"),
+        entry("https://api.test/static/9/app.js"),
+        entry("https://api.test/static/12/app.js"),
+        entry("https://api.test/static/100/other.js"),
+    ]
+    .join(",");
+    fs::write(
+        dir.path().join("manifest.json"),
+        format!(r#"{{"version": 1, "entries": [{entries}]}}"#),
+    )
+    .unwrap();
+    if let Some(meta) = meta {
+        fs::write(dir.path().join("fixture.json"), meta).unwrap();
+    }
+    let replay = ReplayFetcher::load(dir.path()).unwrap();
+    (dir, replay)
+}
+
+fn cors_get(target: &str) -> Request {
+    let mut request = get(target);
+    request.initiator = Some(url("https://app.test/").origin());
+    request.mode = crate::request::RequestMode::Cors;
+    request.tainting = crate::request::Tainting::Cors;
+    request
+}
+
+#[test]
+fn replay_reflects_the_origin_of_cors_requests() {
+    let (_dir, replay) = cors_fixture(None);
+    let response = replay.fetch(&cors_get("https://api.test/data")).unwrap();
+    let get = |name: &str| response.headers.get(name);
+    assert_eq!(get("access-control-allow-origin"), Some("https://app.test"));
+    assert_eq!(get("access-control-allow-credentials"), Some("true"));
+    assert_eq!(get("vary"), Some("Origin"));
+    // The names of the stored headers (not the stored CORS header).
+    assert_eq!(
+        get("access-control-expose-headers"),
+        Some("content-type, access-control-allow-origin")
+    );
+    assert_eq!(
+        response
+            .headers
+            .get_all("access-control-allow-origin")
+            .count(),
+        1
+    );
+    // A redirect-tainted request: `null`.
+    let mut tainted = cors_get("https://api.test/data");
+    tainted.tainted_origin = true;
+    let response = replay.fetch(&tainted).unwrap();
+    assert_eq!(
+        response.headers.get("access-control-allow-origin"),
+        Some("null")
+    );
+    // Without an Origin header the response has no CORS header of ours.
+    let plain = replay.fetch(&get_plain("https://api.test/data")).unwrap();
+    assert!(!plain.headers.contains("access-control-allow-credentials"));
+}
+
+fn get_plain(target: &str) -> Request {
+    get(target)
+}
+
+#[test]
+fn replay_answers_preflights_permissively() {
+    let (_dir, replay) = cors_fixture(None);
+    let mut preflight = cors_get("https://api.test/not-recorded");
+    preflight.method = Method::Options;
+    preflight.credentials = crate::request::CredentialsMode::Omit;
+    preflight
+        .headers
+        .append("access-control-request-method", "PUT");
+    preflight
+        .headers
+        .append("access-control-request-headers", "content-type,x-token");
+    let response = replay.fetch(&preflight).unwrap();
+    assert_eq!(response.status, 204);
+    let get = |name: &str| response.headers.get(name);
+    assert_eq!(get("access-control-allow-origin"), Some("https://app.test"));
+    assert_eq!(get("access-control-allow-credentials"), Some("true"));
+    assert_eq!(get("access-control-allow-methods"), Some("PUT"));
+    assert_eq!(
+        get("access-control-allow-headers"),
+        Some("content-type,x-token")
+    );
+    // The check of net accepts it for a credentialed PUT.
+    let mut put = cors_get("https://api.test/not-recorded");
+    put.method = Method::Put;
+    put.credentials = crate::request::CredentialsMode::Include;
+    put.headers.append("x-token", "1");
+    put.headers.append("content-type", "application/json");
+    assert!(crate::cors::check_preflight(&put, &response).is_ok());
+}
+
+#[test]
+fn replay_patterns_serve_the_greatest_recorded_url() {
+    let meta = r#"{"replay_patterns": ["https://api.test/static/*/app.js"]}"#;
+    let (_dir, replay) = cors_fixture(Some(meta));
+    let served = |u: &str| replay.fetch(&get(u));
+    // Exact entries win.
+    assert!(served("https://api.test/static/9/app.js").is_ok());
+    // A missing number gets the greatest recorded (12, not 9).
+    assert!(served("https://api.test/static/5000/app.js").is_ok());
+    // Another file name, another segment count, or another host: no match.
+    assert!(served("https://api.test/static/5000/nope.js").is_err());
+    assert!(served("https://api.test/static/a/b/app.js").is_err());
+    assert!(served("https://other.test/static/5/app.js").is_err());
+    // Without the pattern the request fails.
+    let (_dir2, plain) = cors_fixture(None);
+    assert!(
+        plain
+            .fetch(&get("https://api.test/static/5000/app.js"))
+            .is_err()
+    );
+}
+
+#[test]
+fn pattern_and_natural_order() {
+    use std::cmp::Ordering;
+    assert!(pattern_matches("https://a.test/*/x", "https://a.test/12/x"));
+    assert!(!pattern_matches("https://a.test/*/x", "https://a.test//x"));
+    assert!(!pattern_matches(
+        "https://a.test/*/x",
+        "https://a.test/1/2/x"
+    ));
+    assert!(!pattern_matches(
+        "https://a.test/*/x",
+        "https://a.test/1/x?q"
+    ));
+    assert!(pattern_matches("a*b*c", "aXbYc"));
+    assert!(pattern_matches("https://a.test/x", "https://a.test/x"));
+    assert!(!pattern_matches("https://a.test/x", "https://a.test/xy"));
+    assert_eq!(natural_cmp("/d/9/", "/d/12/"), Ordering::Less);
+    assert_eq!(natural_cmp("/d/012/", "/d/12/"), Ordering::Equal);
+    assert_eq!(natural_cmp("/d/b", "/d/a"), Ordering::Greater);
+}
+
+#[test]
+fn bad_replay_patterns_are_an_error() {
+    let dir = TempDir::new();
+    fs::create_dir_all(dir.path().join(FILES_DIR)).unwrap();
+    fs::write(
+        dir.path().join("manifest.json"),
+        r#"{"version": 1, "entries": []}"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("fixture.json"),
+        r#"{"replay_patterns": [1]}"#,
+    )
+    .unwrap();
+    assert!(ReplayFetcher::load(dir.path()).is_err());
 }

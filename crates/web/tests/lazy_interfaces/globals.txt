@@ -65,6 +65,8 @@ DOMParser:dwc
 Event:dwc
 CustomEvent:dwc
 EventTarget:dwc
+AbortController:dwc
+AbortSignal:dwc
 Node:dwc
 Document:dwc
 DOMImplementation:dwc
@@ -84,6 +86,9 @@ MutationObserver:dwc
 MutationRecord:dwc
 TextDecoder:dwc
 TextEncoder:dwc
+Headers:dwc
+Request:dwc
+Response:dwc
 DOMRectReadOnly:dwc
 DOMRect:dwc
 DOMRectList:dwc
@@ -235,6 +240,7 @@ cancelAnimationFrame:dwec
 cancelIdleCallback:dwec
 clearInterval:dwec
 clearTimeout:dwec
+fetch:dwec
 getComputedStyle:dwec
 matchMedia:dwec
 queueMicrotask:dwec

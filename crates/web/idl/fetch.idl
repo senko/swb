@@ -1,0 +1,131 @@
+// Source: Fetch Living Standard, https://fetch.spec.whatwg.org/ (Last
+// Updated 19 October 2026), the Headers, Body, Request, Response and
+// fetch() IDL blocks, copied on 2026-10-30.
+//
+// Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
+// licensed under the Creative Commons Attribution 4.0 International
+// License; "to the extent portions of it are incorporated into source
+// code, such portions in the source code are licensed under the BSD
+// 3-Clause License instead" (WHATWG IPR Policy 7.1.1). See
+// THIRD_PARTY_NOTICES.md for the license text.
+//
+// swb cut this file to the members that it implements (feature 10a of M8):
+// - `Exposed=(Window,Worker)` is `Exposed=Window` (swb has no workers).
+// - `HeadersInit`, `BodyInit`, `RequestInfo` and the dictionary members of
+//   these types are `any`: the code converts them as the standard says
+//   (a union of sequences, records, strings, buffers and objects that the
+//   generator cannot tell apart), and Blob and FormData come with feature
+//   10b. `Body.body` is `object?` and always `null` (swb has no streams,
+//   ADR 0028 section 12); `blob()` and `formData()` reject until 10b.
+// - Request lacks `priority` and `window` of RequestInit and
+//   `isReloadNavigation` (Chromium lacks it too); `isHistoryNavigation` is
+//   always false. `ResponseInit.status` has no [EnforceRange] in Chromium
+//   (measured: a status of `'a'` gives the RangeError of status 0).
+// - The partial interface mixin WindowOrWorkerGlobalScope of `fetch()` is a
+//   partial interface Window (the mixin is in html.idl).
+
+[Exposed=Window]
+interface Headers {
+  constructor(optional any init);
+
+  undefined append(ByteString name, ByteString value);
+  undefined delete(ByteString name);
+  ByteString? get(ByteString name);
+  sequence<ByteString> getSetCookie();
+  boolean has(ByteString name);
+  undefined set(ByteString name, ByteString value);
+  iterable<ByteString, ByteString>;
+};
+
+interface mixin Body {
+  readonly attribute object? body;
+  readonly attribute boolean bodyUsed;
+  [NewObject] Promise<ArrayBuffer> arrayBuffer();
+  [NewObject] Promise<any> blob();
+  [NewObject] Promise<Uint8Array> bytes();
+  [NewObject] Promise<any> formData();
+  [NewObject] Promise<any> json();
+  [NewObject] Promise<USVString> text();
+};
+
+[Exposed=Window]
+interface Request {
+  constructor(any input, optional RequestInit init = {});
+
+  readonly attribute ByteString method;
+  readonly attribute USVString url;
+  [SameObject] readonly attribute Headers headers;
+
+  readonly attribute RequestDestination destination;
+  readonly attribute USVString referrer;
+  readonly attribute ReferrerPolicy referrerPolicy;
+  readonly attribute RequestMode mode;
+  readonly attribute RequestCredentials credentials;
+  readonly attribute RequestCache cache;
+  readonly attribute RequestRedirect redirect;
+  readonly attribute DOMString integrity;
+  readonly attribute boolean keepalive;
+  [SameObject] readonly attribute AbortSignal signal;
+  readonly attribute RequestDuplex duplex;
+  readonly attribute boolean isHistoryNavigation;
+
+  [NewObject] Request clone();
+};
+Request includes Body;
+
+dictionary RequestInit {
+  ByteString method;
+  any headers;
+  any body;
+  USVString referrer;
+  ReferrerPolicy referrerPolicy;
+  RequestMode mode;
+  RequestCredentials credentials;
+  RequestCache cache;
+  RequestRedirect redirect;
+  DOMString integrity;
+  boolean keepalive;
+  AbortSignal? signal;
+  RequestDuplex duplex;
+};
+
+enum RequestDestination { "", "audio", "audioworklet", "document", "embed", "font", "frame", "iframe", "image", "json", "manifest", "object", "paintworklet", "report", "script", "sharedworker", "style", "text", "track", "video", "worker", "xslt" };
+enum RequestMode { "navigate", "same-origin", "no-cors", "cors" };
+enum RequestCredentials { "omit", "same-origin", "include" };
+enum RequestCache { "default", "no-store", "reload", "no-cache", "force-cache", "only-if-cached" };
+enum RequestRedirect { "follow", "error", "manual" };
+enum RequestDuplex { "half" };
+enum ReferrerPolicy { "", "no-referrer", "no-referrer-when-downgrade", "same-origin", "origin", "strict-origin", "origin-when-cross-origin", "strict-origin-when-cross-origin", "unsafe-url" };
+
+[Exposed=Window]
+interface Response {
+  constructor(optional any body = null, optional ResponseInit init = {});
+
+  [NewObject] static Response error();
+  [NewObject] static Response redirect(USVString url, optional unsigned short status = 302);
+  [NewObject] static Response json(any data, optional ResponseInit init = {});
+
+  readonly attribute ResponseType type;
+
+  readonly attribute USVString url;
+  readonly attribute boolean redirected;
+  readonly attribute unsigned short status;
+  readonly attribute boolean ok;
+  readonly attribute ByteString statusText;
+  [SameObject] readonly attribute Headers headers;
+
+  [NewObject] Response clone();
+};
+Response includes Body;
+
+dictionary ResponseInit {
+  unsigned short status = 200;
+  ByteString statusText = "";
+  any headers;
+};
+
+enum ResponseType { "basic", "cors", "default", "error", "opaque", "opaqueredirect" };
+
+partial interface Window {
+  [NewObject] Promise<Response> fetch(any input, optional RequestInit init = {});
+};

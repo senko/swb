@@ -179,6 +179,12 @@ pub(crate) struct WebState {
     pub(crate) io: crate::intersection_observer::IoState,
     /// The resize observers (`resize_observer.rs`).
     pub(crate) ro: crate::resize_observer::RoState,
+    /// The `AbortSignal.timeout()` signals that wait for their timer task,
+    /// by id (`abort.rs`), and the last id given.
+    pub(crate) signal_timeouts: HashMap<u64, Gc<Object>>,
+    pub(crate) next_timeout_signal: u64,
+    /// The `fetch()` calls in flight (`fetch/`).
+    pub(crate) fetches: crate::fetch::Fetches,
 }
 
 impl HostState for WebState {
@@ -237,6 +243,10 @@ impl HostState for WebState {
         for list in self.media_queries.values() {
             tracer.generic(*list);
         }
+        for signal in self.signal_timeouts.values() {
+            tracer.object(*signal);
+        }
+        self.fetches.trace(tracer);
     }
 }
 

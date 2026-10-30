@@ -424,6 +424,114 @@ def test_parse_resources():
             parse_cases(case_json(resources=bad))
 
 
+def test_parse_resource_status_headers_and_options():
+    (case,) = parse_cases(
+        case_json(
+            resources={
+                "a.txt": {
+                    "text": "x",
+                    "status": 302,
+                    "headers": {"Location": "b", "Set-Cookie": ["a=1", "b=2"]},
+                    "options": {"status": 204, "headers": {"X-A": "1"}, "max_age": 600},
+                },
+                "b.txt": {"text": "y", "options": "permissive"},
+            }
+        )
+    )
+    first, second = case.resources
+    assert first.status == 302
+    assert first.headers == (("Location", "b"), ("Set-Cookie", "a=1"), ("Set-Cookie", "b=2"))
+    assert first.options == {"status": 204, "headers": (("X-A", "1"),), "max_age": 600}
+    assert (second.status, second.headers, second.options) == (200, (), "permissive")
+    for bad in (
+        {"a.txt": {"text": "", "status": 99}},
+        {"a.txt": {"text": "", "headers": []}},
+        {"a.txt": {"text": "", "headers": {"X": 1}}},
+        {"a.txt": {"text": "", "options": "maybe"}},
+        {"a.txt": {"text": "", "options": {"max_age": -1}}},
+        {"a.txt": {"text": "", "options": {"nope": 1}}},
+    ):
+        with pytest.raises(ProbeError):
+            parse_cases(case_json(resources=bad))
+
+
+def test_case_server_answers_every_method_and_logs_the_requests(tmp_path):
+    import http.client
+    import json
+    from urllib.parse import urlsplit
+
+    from swbtools.probe import CaseServer, _serve_case
+
+    resources = (
+        Resource(
+            "r.txt",
+            "text $OTHER",
+            0,
+            None,
+            201,
+            (("X-A", "1"), ("Access-Control-Allow-Origin", "$ORIGIN")),
+            "permissive",
+        ),
+        Resource("d.txt", "", 0, None, 200, (), "deny"),
+    )
+    case = Case("c", "<p>$ORIGIN $FOLDER", (400, 300), (), resources=resources)
+    server = CaseServer(tmp_path)
+    try:
+        _page, url = _serve_case(case, 7, tmp_path, server)
+        parts = urlsplit(url)
+        assert server.other_origin != server.origin
+        assert (tmp_path / "case-7" / "case-7.html").read_text() == f"<p>{server.origin} case-7"
+
+        def call(method, path, headers=None, body=None, origin=server.origin):
+            host, port = urlsplit(origin).hostname, urlsplit(origin).port
+            connection = http.client.HTTPConnection(host, port)
+            connection.request(method, f"/case-7/{path}", body, headers or {})
+            response = connection.getresponse()
+            data = response.read()
+            result = (response.status, dict(response.getheaders()), data)
+            connection.close()
+            return result
+
+        call("GET", "case-7.html")
+        status, headers, data = call("PUT", "r.txt", {"X-B": "2", "Cookie": "k=v"}, b"body")
+        assert (status, headers["X-A"], data.decode()) == (201, "1", f"text {server.other_origin}")
+        assert headers["Access-Control-Allow-Origin"] == server.origin
+        assert headers["Content-Type"] == "text/plain"
+        status, headers, _ = call(
+            "OPTIONS",
+            "r.txt",
+            {
+                "Origin": "http://page.test",
+                "Access-Control-Request-Method": "PUT",
+                "Access-Control-Request-Headers": "x-b",
+            },
+            origin=server.other_origin,
+        )
+        assert status == 204
+        assert headers["Access-Control-Allow-Origin"] == "http://page.test"
+        assert headers["Access-Control-Allow-Methods"] == "PUT"
+        assert headers["Access-Control-Allow-Headers"] == "x-b"
+        assert headers["Access-Control-Allow-Credentials"] == "true"
+        assert call("OPTIONS", "d.txt")[:1] == (200,)
+        assert call("OPTIONS", "missing.txt")[0] == 404
+        _status, _headers, data = call("GET", "__log")
+        log = json.loads(data)
+        assert [(e["method"], e["path"], e["server"]) for e in log] == [
+            ("PUT", "r.txt", "main"),
+            ("OPTIONS", "r.txt", "other"),
+            ("OPTIONS", "d.txt", "main"),
+            ("OPTIONS", "missing.txt", "main"),
+        ]
+        assert log[0]["cookie"] == "k=v" and log[0]["body"] == "body"
+        assert log[0]["headers"] == {"x-b": "2"}
+        # Loading the page again starts a new log.
+        call("GET", "case-7.html")
+        assert json.loads(call("GET", "__log")[2]) == []
+        assert parts.path == "/case-7/case-7.html"
+    finally:
+        server.close()
+
+
 @pytest.mark.usefixtures("chromium")
 def test_probe_serves_resources_after_their_delay():
     # The parser waits for the delayed script; a timer runs meanwhile.

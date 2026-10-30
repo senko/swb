@@ -53,6 +53,10 @@ class Case:
     url: str | None = None
     """The URL to open instead of `index.html` (with `--replay {dir}`: a page
     of an `http:` origin, which cookies need)."""
+    server: str | None = None
+    """`never` or `slow`: the runner starts a local server that holds each
+    request without an answer, or answers it after 2 s; the page reaches it
+    at `http://127.0.0.1:__PORT__/` (feature 10a)."""
 
 
 CASES: list[Case] = []
@@ -67,6 +71,7 @@ def case(
     expect_log: str | None = None,
     swb_args: tuple[str, ...] = (),
     url: str | None = None,
+    server: str | None = None,
 ) -> Callable[[Callable[[], Page]], Callable[[], Page]]:
     """Registers the decorated generator as a case."""
 
@@ -83,6 +88,7 @@ def case(
                 expect_log,
                 swb_args,
                 url,
+                server,
             )
         )
         return build
@@ -3768,3 +3774,180 @@ def pattern_compile_many_inputs() -> Page:
     pad = "[\\p{RGI_Emoji}--\\q{a}]" * 2000
     inputs = "".join(f'<input pattern="{pad}|x{i}" value=a>' for i in range(300))
     return Page(doc(inputs, css="input:invalid{outline:1px solid red}"))
+
+
+# --- fetch and AbortSignal (feature 10a) -------------------------------------
+
+_NO_CORS = "{mode: 'no-cors'}"
+
+
+@case(
+    "5,000 fetch() calls to a server that reads each request and never answers, with "
+    "JavaScript on: 6 run at once (one host), the rest wait in the queue (ADR 0028 section "
+    "16); the page loads and stays responsive, and the process ends at the time limit",
+    server="never",
+    swb_args=("--js",),
+)
+def fetch_pending_never_js_on() -> Page:
+    script = (
+        "<script>let p = 0; for (let i = 0; i < 5000; i++) "
+        f"fetch('http://127.0.0.1:__PORT__/n' + i, {_NO_CORS}).then(() => p++, () => p++); "
+        "console.log('started 5000');</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "20,000 fetch() calls to a server that never answers, past the queue of 16,384 requests "
+    "(ADR 0028 section 16): the calls past the queue and the 6 that run fail at once with "
+    "TypeError, the others wait",
+    server="never",
+    expect_log="too many fetch() requests wait",
+    swb_args=("--js",),
+)
+def fetch_queue_overflow_js_on() -> Page:
+    script = (
+        "<script>let failed = 0; for (let i = 0; i < 20000; i++) "
+        f"fetch('http://127.0.0.1:__PORT__/q' + i, {_NO_CORS}).catch(() => failed++); "
+        "Promise.resolve().then(() => console.log('failed at once ' + failed));</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "3,000 fetch() calls to a server that answers after 2 s, with JavaScript on: the answers "
+    "come in batches of 6 (one host) and the page does not wait for them",
+    server="slow",
+    swb_args=("--js",),
+)
+def fetch_slow_server_js_on() -> Page:
+    script = (
+        "<script>let ok = 0; for (let i = 0; i < 3000; i++) "
+        "fetch('http://127.0.0.1:__PORT__/s' + i).then(() => ok++, () => {}); "
+        "setTimeout(() => console.log('ok after 1 s: ' + ok), 1000);</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "A loop of 100,000 fetch() calls to a server that never answers, each aborted at once, "
+    "with JavaScript on: the aborted requests leave the queue, and the ones that run give "
+    "up their place when the loader puts a new thread in the place of the blocked one (at "
+    "most 16 such threads; then they keep it until they end); the loop runs in bounded time "
+    "and memory",
+    server="never",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def fetch_abort_loop_js_on() -> Page:
+    script = (
+        "<script>let aborted = 0; for (let i = 0; i < 100000; i++) { "
+        "const c = new AbortController(); "
+        "fetch('http://127.0.0.1:__PORT__/a' + i, {mode: 'no-cors', signal: c.signal})"
+        ".catch(() => aborted++); c.abort(); } "
+        "setTimeout(() => console.log('aborted ' + aborted), 100);</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "64 fetch() calls whose responses have 60 MiB each, with JavaScript on, and a busy loop "
+    "of 3 s so that the completions pile up in the loader (review of 10a: 3.9 GB before): "
+    "the document's budget of 256 MiB for the requests and the responses not yet in the "
+    "script heap (ADR 0028 section 16) fails the calls that do not fit",
+    server="big",
+    expect_log="memory budget",
+    swb_args=("--js",),
+    time_limit_s=10,
+    rss_limit_mib=1100,
+)
+def fetch_big_responses_busy_js_on() -> Page:
+    script = (
+        "<script>let ok = 0, failed = 0; const all = []; for (let i = 0; i < 64; i++) "
+        "all.push(fetch('http://127.0.0.1:__PORT__/b' + i).then(r => r.arrayBuffer())"
+        ".then(() => ok++, () => failed++)); "
+        "const end = Date.now() + 3000; while (Date.now() < end) {} "
+        "Promise.all(all).then(() => console.log('ok ' + ok + ' failed ' + failed));</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "64 fetch() calls with a 64 MiB ArrayBuffer as the body (no-cors POST) to a server that "
+    "never answers, with JavaScript on (review of 10a: 4.4 GB before): the request bodies "
+    "count against the document's budget of 256 MiB, and the calls that do not fit fail at "
+    "once with TypeError",
+    server="never",
+    expect_log="does not fit",
+    swb_args=("--js",),
+    time_limit_s=15,
+    rss_limit_mib=1100,
+)
+def fetch_big_request_bodies_js_on() -> Page:
+    script = (
+        "<script>const body = new ArrayBuffer(64 << 20); let failed = 0; "
+        "for (let i = 0; i < 64; i++) "
+        "fetch('http://127.0.0.1:__PORT__/p' + i, "
+        "{method: 'POST', mode: 'no-cors', body}).catch(() => failed++); "
+        "Promise.resolve().then(() => console.log('failed at once ' + failed));</script>"
+    )
+    return Page(doc("<p>fetch</p>" + script))
+
+
+@case(
+    "AbortSignal.any() over 100,000 signals, and 100,000 any() signals of one source: a "
+    "source keeps at most 65,536 dependents and the rest do not follow it (ADR 0028 section "
+    "16); one abort reaches the tracked ones",
+    expect_log="signals of AbortSignal.any()",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def abort_signal_any_js_on() -> Page:
+    script = (
+        "<script>const many = []; for (let i = 0; i < 100000; i++) many.push(new "
+        "AbortController().signal); const big = AbortSignal.any(many); "
+        "const c = new AbortController(); const dependents = []; "
+        "for (let i = 0; i < 100000; i++) dependents.push(AbortSignal.any([c.signal])); "
+        "c.abort('x'); console.log('aborted ' + dependents.filter((s) => s.aborted).length "
+        "+ ' ' + big.aborted);</script>"
+    )
+    return Page(doc("<p>signals</p>" + script))
+
+
+@case(
+    "A listener added 100,000 times with the signal option of one signal, then 100,000 "
+    "AbortSignal.timeout() signals: a signal tracks at most 65,536 listeners and the timeout "
+    "signals wait for their timers (ADR 0028 section 16)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def abort_signal_listeners_js_on() -> Page:
+    script = (
+        "<script>const c = new AbortController(); const t = new EventTarget(); "
+        "for (let i = 0; i < 100000; i++) t.addEventListener('x', () => {}, {signal: c.signal}); "
+        "c.abort(); const keep = []; "
+        "for (let i = 0; i < 100000; i++) keep.push(AbortSignal.timeout(100000)); "
+        "console.log('done ' + keep.length);</script>"
+    )
+    return Page(doc("<p>signals</p>" + script))
+
+
+@case(
+    "A loop that makes 100 Response objects of 2 MiB each, keeps them and reads 2 of them "
+    "with text(), then reads a 6 MiB data: URL 20 times with fetch(), with JavaScript on: "
+    "the bodies count in the heap of the document (ADR 0028 section 16; the heap limit ends "
+    "a runaway loop)",
+    swb_args=("--js",),
+    time_limit_s=20,
+    rss_limit_mib=1200,
+)
+def response_bodies_js_on() -> Page:
+    script = (
+        "<script>const keep = []; try { for (let i = 0; i < 100; i++) "
+        "keep.push(new Response(new Uint8Array(2 << 20))); } catch (e) {} "
+        "const url = 'data:text/plain;base64,' + btoa('x'.repeat(6 << 20)); "
+        "(async () => { let total = 0; for (let i = 0; i < 20; i++) { "
+        "const r = await fetch(url); total += (await r.text()).length; } "
+        "console.log('read ' + total + ' held ' + keep.length); })();</script>"
+    )
+    return Page(doc("<p>bodies</p>" + script))

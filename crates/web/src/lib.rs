@@ -52,6 +52,7 @@
 //!   `sessionStorage` over a [`StorageStore`] that the page owns and lends
 //!   through [`EngineHost::storage`]).
 
+mod abort;
 mod animation_frames;
 mod base64;
 pub mod bindings;
@@ -65,6 +66,7 @@ mod dom;
 mod errors;
 mod event_loop;
 mod events;
+mod fetch;
 #[rustfmt::skip]
 pub mod generated;
 mod host;

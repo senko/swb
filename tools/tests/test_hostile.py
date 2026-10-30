@@ -77,6 +77,60 @@ def test_write_case_writes_the_page_and_its_files(tmp_path):
     assert (tmp_path / "fake" / "b.bin").read_bytes() == b"\x00\x01"
 
 
+def test_write_case_replaces_the_port_of_the_stall_server(tmp_path):
+    files = {"a.js": "x(__PORT__)", "b.bin": b"__PORT__"}
+    case = fake_case(build=lambda: Page("<p>__PORT__", files))
+    index = hostile.write_case(case, tmp_path / "fake", 4321)
+    assert index.read_text() == "<p>4321"
+    assert (tmp_path / "fake" / "a.js").read_text() == "x(4321)"
+    assert (tmp_path / "fake" / "b.bin").read_bytes() == b"__PORT__"
+
+
+def test_stall_server_never_answers_or_answers_slowly(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(hostile.StallServer, "SLOW_S", 0.2)
+    request = b"GET /x HTTP/1.1\r\nHost: x\r\n\r\n"
+    never = hostile.StallServer("never")
+    slow = hostile.StallServer("slow")
+    try:
+        with socket.create_connection(("127.0.0.1", never.port)) as connection:
+            connection.sendall(request)
+            connection.settimeout(0.5)
+            with pytest.raises(TimeoutError):
+                connection.recv(100)
+        with socket.create_connection(("127.0.0.1", slow.port)) as connection:
+            connection.sendall(request)
+            connection.settimeout(5)
+            answer = b""
+            while not answer.endswith(b"ok"):
+                answer += connection.recv(1000)
+            assert answer.startswith(b"HTTP/1.1 200 OK")
+            assert b"Access-Control-Allow-Origin: *" in answer
+    finally:
+        never.close()
+        slow.close()
+
+
+def test_stall_server_big_mode_sends_the_whole_body(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(hostile.StallServer, "BIG_MIB", 2)
+    big = hostile.StallServer("big")
+    try:
+        with socket.create_connection(("127.0.0.1", big.port)) as connection:
+            connection.sendall(b"GET /x HTTP/1.1\r\nHost: x\r\n\r\n")
+            connection.settimeout(5)
+            data = b""
+            while chunk := connection.recv(1 << 20):
+                data += chunk
+        head, _, body = data.partition(b"\r\n\r\n")
+        assert b"Content-Length: 2097152" in head
+        assert len(body) == 2 << 20
+    finally:
+        big.close()
+
+
 # --- Classification --------------------------------------------------------
 
 

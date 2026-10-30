@@ -40,7 +40,8 @@
 //!
 //! Each entry has these fields. All are required.
 //!
-//! - `method` (string): the request method in uppercase: `GET` or `POST`.
+//! - `method` (string): the request method in uppercase (`GET`, `POST`,
+//!   `PUT`, ...).
 //! - `url` (string): the request URL, serialized by the WHATWG URL
 //!   serializer, without the fragment (no `#` part).
 //! - `status` (integer): the HTTP status code.
@@ -61,6 +62,33 @@
 //! method is equal to `method`. The request body is not compared. Replayed
 //! responses keep the fragment of the request URL in
 //! [`Response::url`](crate::Response::url).
+//!
+//! # Replay patterns
+//!
+//! A page fixture can have a `fixture.json` next to `manifest.json` with
+//! `replay_patterns`, a list of URLs in which `*` matches one path segment
+//! (one or more characters other than `/`, `?` and `#`; the rest is literal
+//! and the whole URL must match). A request that has no entry and matches a
+//! pattern gets the entry with the greatest URL (numbers compared as
+//! numbers) among the entries of the same method that match the same
+//! pattern. It is for a URL with a segment that changes with time. The
+//! Python replay (`Fixture.lookup`) follows the same rule.
+//!
+//! # CORS in the replay
+//!
+//! The fixtures store no CORS headers or preflights, so [`ReplayFetcher`]
+//! plays a permissive server (ADR 0028 section 12; the Chromium routing of
+//! the test tools does the same, `tools/swbtools/routing.py`):
+//!
+//! - A preflight (`OPTIONS` with `Access-Control-Request-Method`) gets 204
+//!   with the request's origin as `Access-Control-Allow-Origin`,
+//!   `Access-Control-Allow-Credentials: true`, the requested method and
+//!   headers as allowed, and `Vary: Origin`.
+//! - A response to a request that carries an `Origin` header
+//!   ([`Request::origin_header`](crate::Request::origin_header)) has no
+//!   stored `Access-Control-*` header; it gets that origin as allowed origin,
+//!   credentials allowed, `Vary: Origin` and the names of the stored headers
+//!   as `Access-Control-Expose-Headers`.
 //!
 //! # Body files
 //!
@@ -206,6 +234,99 @@ pub(crate) fn read_manifest(dir: &Path) -> Result<Vec<Entry>, NetError> {
     let manifest: ManifestIn =
         serde_json::from_str(&text).map_err(|error| fixture_error(&path, &error))?;
     Ok(manifest.entries)
+}
+
+/// The name of the optional metadata file of a page fixture.
+pub(crate) const META_FILE: &str = "fixture.json";
+
+/// Reads the `replay_patterns` of `fixture.json` in `dir`: empty if the
+/// file or the key is missing. A file that is not JSON, or a key that is
+/// not a list of strings, is an error.
+pub(crate) fn read_replay_patterns(dir: &Path) -> Result<Vec<String>, NetError> {
+    let path = dir.join(META_FILE);
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(fixture_error(&path, &error)),
+    };
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|error| fixture_error(&path, &error))?;
+    let Some(patterns) = value.get("replay_patterns") else {
+        return Ok(Vec::new());
+    };
+    let invalid = || fixture_error(&path, &"replay_patterns must be a list of strings");
+    patterns
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .map(|p| p.as_str().map(str::to_owned).ok_or_else(invalid))
+        .collect()
+}
+
+/// True if `url` matches `pattern`: `*` matches one path segment (one or
+/// more characters other than `/`, `?` and `#`), the rest is literal, and
+/// the whole URL must match.
+pub(crate) fn pattern_matches(pattern: &str, url: &str) -> bool {
+    fn matches(parts: &[&str], url: &str) -> bool {
+        let Some((first, rest)) = parts.split_first() else {
+            return url.is_empty();
+        };
+        let Some(after) = url.strip_prefix(first) else {
+            return false;
+        };
+        if rest.is_empty() {
+            return after.is_empty();
+        }
+        // A `*` follows: take 1.. characters that are not `/`, `?`, `#`.
+        let segment = after.find(['/', '?', '#']).unwrap_or(after.len());
+        (1..=segment)
+            .filter(|&n| after.is_char_boundary(n))
+            .any(|n| matches(rest, &after[n..]))
+    }
+    let parts: Vec<&str> = pattern.split('*').collect();
+    matches(&parts, url)
+}
+
+/// Compares two URLs with the numbers in them compared as numbers
+/// (`/d/9/` before `/d/12/`), as the Python replay does (`natural_key`).
+pub(crate) fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    fn runs(s: &str) -> Vec<(bool, &str)> {
+        let mut parts = Vec::new();
+        let mut start = 0;
+        let mut digits = None;
+        for (index, c) in s.char_indices() {
+            let is_digit = c.is_ascii_digit();
+            if digits != Some(is_digit) {
+                if index > start {
+                    parts.push((digits == Some(true), &s[start..index]));
+                }
+                start = index;
+                digits = Some(is_digit);
+            }
+        }
+        if start < s.len() {
+            parts.push((digits == Some(true), &s[start..]));
+        }
+        parts
+    }
+    let (left, right) = (runs(a), runs(b));
+    for (x, y) in left.iter().zip(&right) {
+        let ordering = match (x.0, y.0) {
+            (true, true) => {
+                // Numbers by value: compare without leading zeros by length,
+                // then digit by digit.
+                let (nx, ny) = (x.1.trim_start_matches('0'), y.1.trim_start_matches('0'));
+                nx.len().cmp(&ny.len()).then_with(|| nx.cmp(ny))
+            }
+            (false, false) => x.1.cmp(y.1),
+            (false, true) => std::cmp::Ordering::Less,
+            (true, false) => std::cmp::Ordering::Greater,
+        };
+        if ordering != std::cmp::Ordering::Equal {
+            return ordering;
+        }
+    }
+    left.len().cmp(&right.len())
 }
 
 /// Writes `manifest.json` in `dir` atomically, with entries sorted by

@@ -77,14 +77,18 @@ https://creativecommons.org/licenses/by/4.0/. The changes are swb's.
 ## WHATWG DOM, HTML and Web IDL Standards: IDL (BSD-3-Clause)
 
 `crates/web/idl/dom.idl`, `crates/web/idl/html.idl`,
-`crates/web/idl/url.idl`, `crates/web/idl/encoding.idl` and
+`crates/web/idl/url.idl`, `crates/web/idl/encoding.idl`,
+`crates/web/idl/fetch.idl` and
 `crates/web/idl/webidl.idl` contain IDL blocks copied from the DOM Living
-Standard (https://dom.spec.whatwg.org/) and the Web IDL Living Standard
+Standard (https://dom.spec.whatwg.org/; `AbortController` and
+`AbortSignal` copied on 30 October 2026) and the Web IDL Living Standard
 (https://webidl.spec.whatwg.org/), both last updated 19 October 2026, the
 URL Living Standard (https://url.spec.whatwg.org/, the `URL` and
 `URLSearchParams` interfaces, copied on 29 October 2026), the Encoding
 Standard (https://encoding.spec.whatwg.org/, `TextDecoder` and
-`TextEncoder`, copied on 29 October 2026) and
+`TextEncoder`, copied on 29 October 2026), the Fetch Living Standard
+(https://fetch.spec.whatwg.org/, `Headers`, `Request`, `Response` and
+`fetch()`, copied on 30 October 2026) and
 the HTML Living Standard (https://html.spec.whatwg.org/), copied on 23
 and 24 October 2026 (`Location`, `History`, `PopStateEvent` and
 `structuredClone`, and `Navigator` with its mixins, `atob` and `btoa`, on 29

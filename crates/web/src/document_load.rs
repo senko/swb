@@ -103,6 +103,21 @@ impl ScriptRuntime {
         self.advance_document();
     }
 
+    /// Hands the result of a `fetch()` call (feature 10a, the id of
+    /// [`crate::EngineHost::start_api_fetch`]) to the runtime: the promise
+    /// of the call settles in this task. `kind` is the type of the
+    /// response. A call that was aborted is ignored.
+    pub fn api_fetch_completed(
+        &mut self,
+        id: u64,
+        result: Result<swb_net::Response, swb_net::NetError>,
+        kind: swb_net::ResponseKind,
+    ) {
+        let _ = self.task("a fetch", |rt| {
+            crate::fetch::complete(rt, id, result, kind).map_err(task_error)
+        });
+    }
+
     /// The engine says that a style sheet arrived or failed: a script that
     /// waits for the style sheets that block scripts may run now.
     pub fn style_sheets_changed(&mut self) {

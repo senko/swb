@@ -1,0 +1,165 @@
+{"viewport": [400, 300], "javascript": true,
+ "cases": [
+  {"name": "cors-simple",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X'); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const R = p => p.then(r => [r.type, r.status, r.ok, n(r.url), r.redirected, r.statusText, [...r.headers].filter(h => h[0] !== 'date' && h[0] !== 'server' && h[0] !== 'connection').map(h => h.join('=')).join('&')], E); const T = p => p.then(r => r.text().then(t => [r.type, r.status, t]), E); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.server, n(e.origin), e.cookie, Object.entries(e.headers).map(h => h.join(':')).join(','), e.body].join(' ')).sort();</script>",
+   "resources": {
+    "ok.txt": {"text": "ok", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Content-Type": "text/plain", "X-Hidden": "h", "Cache-Control": "no-cache"}},
+    "star.txt": {"text": "star", "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "text/plain"}},
+    "none.txt": {"text": "none", "headers": {"Content-Type": "text/plain"}},
+    "wrong.txt": {"text": "wrong", "headers": {"Access-Control-Allow-Origin": "http://elsewhere.test", "Content-Type": "text/plain"}},
+    "two.txt": {"text": "two", "headers": {"Access-Control-Allow-Origin": ["$ORIGIN", "*"], "Content-Type": "text/plain"}},
+    "null.txt": {"text": "null", "headers": {"Access-Control-Allow-Origin": "null"}},
+    "slash.txt": {"text": "slash", "headers": {"Access-Control-Allow-Origin": "$ORIGIN/"}},
+    "err.txt": {"text": "err", "status": 404, "headers": {"Access-Control-Allow-Origin": "*"}},
+    "err-none.txt": {"text": "err", "status": 500}, "same.txt": {"text": "same", "status": 404}
+   },
+   "measure": [
+    {"js": "Promise.all(['ok', 'star', 'none', 'wrong', 'two', 'null', 'slash', 'err', 'err-none'].map(f => R(fetch(X(f + '.txt'))))).then(r => r.map(x => typeof x === 'string' ? x : x.join('|')))"},
+    {"js": "Promise.all(['ok', 'star', 'none', 'err'].map(f => T(fetch(X(f + '.txt'))))).then(r => r.map(x => typeof x === 'string' ? x : x.join('|')))"},
+    {"js": "L()"},
+    {"js": "Promise.all(['ok', 'none'].map(f => T(fetch(X(f + '.txt'), {mode: 'no-cors'})))).then(r => r.map(x => typeof x === 'string' ? x : x.join('|')))"},
+    {"js": "(async () => { const r = await fetch(X('none.txt'), {mode: 'no-cors'}); return [r.type, r.status, r.ok, r.statusText, r.url, [...r.headers], r.body, await r.text(), r.bodyUsed]; })()"},
+    {"js": "Promise.all(['ok', 'same.txt'].map(f => R(fetch(f === 'ok' ? X('ok.txt') : f, {mode: 'same-origin'})))).then(r => r.map(x => typeof x === 'string' ? x : x.join('|')))"},
+    {"js": "L().then(l => l.slice(-3))"}
+   ]},
+  {"name": "cors-expose",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const H = p => p.then(r => [r.type, [...r.headers].filter(h => h[0] !== 'date' && h[0] !== 'server' && h[0] !== 'connection').map(h => h.join('=')).join('&'), r.headers.get('x-secret'), r.headers.get('set-cookie'), r.headers.getSetCookie()], E);</script>",
+   "resources": {
+    "plain.txt": {"text": "p", "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Content-Language": "en", "Cache-Control": "no-cache", "Expires": "0", "Last-Modified": "Sat, 01 Jan 2000 00:00:00 GMT", "Pragma": "no-cache", "X-Secret": "s", "ETag": "e", "Set-Cookie": "ex1=1"}},
+    "expose.txt": {"text": "e", "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "X-Secret, x-other", "X-Secret": "s", "X-Other": "o", "X-Third": "t", "Set-Cookie": "ex2=1"}},
+    "star.txt": {"text": "s", "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "*", "X-Secret": "s", "Content-Type": "text/plain", "Set-Cookie": "ex3=1"}},
+    "star-cred.txt": {"text": "s", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "*", "X-Secret": "s", "Content-Type": "text/plain"}}
+   },
+   "measure": [
+    {"js": "Promise.all(['plain', 'expose', 'star'].map(f => H(fetch(X(f + '.txt'))))).then(r => r.map(x => typeof x === 'string' ? x : JSON.stringify(x)))"},
+    {"js": "H(fetch(X('star-cred.txt'), {credentials: 'include'})).then(x => JSON.stringify(x))"},
+    {"js": "H(fetch('plain.txt').catch(e => fetch(X('plain.txt')))).then(x => JSON.stringify(x))"},
+    {"js": "document.cookie"}
+   ]},
+  {"name": "cors-credentials",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X'); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const T = p => p.then(r => r.text().then(t => [r.type, r.status, t]), E); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.server, n(e.origin), e.cookie, Object.entries(e.headers).map(h => h.join(':')).join(','), e.body].join(' ')).sort(); const J = r => r.map(x => typeof x === 'string' ? x : x.join('|')); document.cookie = 'mine=1; path=' + D;</script>",
+   "resources": {
+    "set.txt": {"text": "set", "headers": {"Set-Cookie": "fromserver=1; Path=/$FOLDER/"}},
+    "cred.txt": {"text": "c", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "true", "Set-Cookie": "setcred=1; Path=/$FOLDER/"}},
+    "star.txt": {"text": "s", "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Credentials": "true"}},
+    "nocred.txt": {"text": "n", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}},
+    "badcred.txt": {"text": "b", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "yes"}},
+    "same.txt": {"text": "same", "headers": {"Set-Cookie": "samecookie=1; Path=/$FOLDER/"}}
+   },
+   "measure": [
+    {"js": "Promise.all([fetch(X('cred.txt')), fetch(X('cred.txt'), {credentials: 'omit'}), fetch(X('cred.txt'), {credentials: 'include'}), fetch(X('star.txt'), {credentials: 'include'}), fetch(X('nocred.txt'), {credentials: 'include'}), fetch(X('badcred.txt'), {credentials: 'include'}), fetch(X('star.txt'), {credentials: 'omit'})].map(p => T(p))).then(J)"},
+    {"js": "L().then(l => l.filter(e => e.indexOf('cred.txt') >= 0 || e.indexOf('star') >= 0 || e.indexOf('nocred') >= 0))"},
+    {"js": "(async () => { const out = []; for (const c of ['omit', 'same-origin', 'include']) { await fetch('same.txt?' + c, {credentials: c}); out.push(c + ':' + (await (await fetch('__log')).json()).filter(e => e.path === 'same.txt?' + c).map(e => e.cookie).join()); } return out; })()"},
+    {"js": "document.cookie.split('; ').filter(c => c.indexOf('mine') === 0 || c.indexOf('fromserver') === 0 || c.indexOf('setcred') === 0 || c.indexOf('samecookie') === 0).sort()"}
+   ]},
+  {"name": "cors-preflight",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X'); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const T = p => p.then(r => r.text().then(t => [r.type, r.status, t]), E); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.server, n(e.origin), e.cookie, Object.entries(e.headers).map(h => h.join(':')).join(','), e.body].join(' ')).sort(); const J = r => r.map(x => typeof x === 'string' ? x : x.join('|'));</script>",
+   "resources": {
+    "open.txt": {"text": "open", "options": "permissive", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "true"}},
+    "cached.txt": {"text": "cached", "options": {"max_age": 600}, "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}},
+    "denied.txt": {"text": "denied", "options": "deny", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}},
+    "absent.txt": {"text": "absent", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}},
+    "methods.txt": {"text": "m", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}, "options": {"status": 204, "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Methods": "GET, PUT"}}},
+    "wild.txt": {"text": "w", "headers": {"Access-Control-Allow-Origin": "*"}, "options": {"status": 204, "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "*", "Access-Control-Allow-Headers": "*"}}},
+    "wild-cred.txt": {"text": "w", "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "true"}, "options": {"status": 204, "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "*", "Access-Control-Allow-Headers": "*"}}},
+    "status.txt": {"text": "s", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}, "options": {"status": 404, "headers": {"Access-Control-Allow-Origin": "$ORIGIN", "Access-Control-Allow-Methods": "PUT"}}},
+    "redirect-opt.txt": {"text": "r", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}, "options": {"status": 302, "headers": {"Location": "open.txt", "Access-Control-Allow-Origin": "$ORIGIN"}}},
+    "auth.txt": {"text": "a", "headers": {"Access-Control-Allow-Origin": "*"}, "options": {"status": 204, "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*"}}},
+    "auth-ok.txt": {"text": "a", "headers": {"Access-Control-Allow-Origin": "*"}, "options": {"status": 204, "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization"}}}
+   },
+   "measure": [
+    {"js": "Promise.all([fetch(X('open.txt'), {method: 'PUT', body: 'b'}), fetch(X('open.txt'), {method: 'DELETE'}), fetch(X('open.txt'), {headers: {'X-Custom': '1'}}), fetch(X('open.txt'), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'}), fetch(X('open.txt'), {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: 'plain'}), fetch(X('open.txt'), {method: 'PATCH', body: 'p'}), fetch(X('open.txt'), {method: 'patch', body: 'lower'})].map(p => T(p))).then(J)"},
+    {"js": "L().then(l => l.filter(e => e.indexOf('open.txt') >= 0))"},
+    {"js": "Promise.all(['denied', 'absent', 'methods', 'status', 'redirect-opt'].map(f => T(fetch(X(f + '.txt'), {method: 'PUT'})))).then(J)"},
+    {"js": "L().then(l => l.filter(e => e.indexOf('open.txt') < 0 && e.indexOf('cached') < 0 && e.indexOf('wild') < 0 && e.indexOf('auth') < 0 && e.indexOf('__log') < 0))"},
+    {"js": "(async () => { const out = []; for (let i = 0; i < 3; i++) out.push(await T(fetch(X('cached.txt'), {method: 'PUT'}))); return [J(out), (await L()).filter(e => e.indexOf('cached.txt') >= 0).map(e => e.split(' ').slice(0, 2).join(' '))]; })()"},
+    {"js": "Promise.all([T(fetch(X('wild.txt'), {method: 'PUT', headers: {'X-A': '1'}})), T(fetch(X('wild-cred.txt'), {method: 'PUT', credentials: 'include'})), T(fetch(X('wild-cred.txt'), {headers: {'X-A': '1'}, credentials: 'include'})), T(fetch(X('auth.txt'), {headers: {'Authorization': 'x'}})), T(fetch(X('auth-ok.txt'), {headers: {'Authorization': 'x'}}))]).then(J)"},
+    {"js": "L().then(l => l.filter(e => e.indexOf('wild') >= 0 || e.indexOf('auth') >= 0))"}
+   ]},
+  {"name": "cors-redirect",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X'); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const R = p => p.then(r => r.text().then(t => [r.type, r.status, n(r.url), r.redirected, t]), E); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.server, n(e.origin)].join(' ')); const J = r => r.map(x => typeof x === 'string' ? x : x.join('|'));</script>",
+   "resources": {
+    "final.txt": {"text": "final", "headers": {"Access-Control-Allow-Origin": "$ORIGIN"}},
+    "final-null.txt": {"text": "null", "headers": {"Access-Control-Allow-Origin": "null"}},
+    "final-star.txt": {"text": "star", "headers": {"Access-Control-Allow-Origin": "*"}},
+    "plain.txt": {"text": "plain"},
+    "same-redirect.txt": {"text": "", "status": 302, "headers": {"Location": "plain.txt"}},
+    "to-other.txt": {"text": "", "status": 302, "headers": {"Location": "$OTHER/$FOLDER/final.txt"}},
+    "cors-redirect.txt": {"text": "", "status": 302, "headers": {"Location": "final.txt", "Access-Control-Allow-Origin": "$ORIGIN"}},
+    "bad-redirect.txt": {"text": "", "status": 302, "headers": {"Location": "final.txt"}},
+    "chain-a.txt": {"text": "", "status": 302, "headers": {"Location": "$OTHER/$FOLDER/chain-b.txt", "Access-Control-Allow-Origin": "$ORIGIN"}},
+    "chain-b.txt": {"text": "", "status": 302, "headers": {"Location": "$ORIGIN/$FOLDER/final-null.txt", "Access-Control-Allow-Origin": "$ORIGIN"}},
+    "chain-c.txt": {"text": "", "status": 302, "headers": {"Location": "final-star.txt", "Access-Control-Allow-Origin": "*"}},
+    "creds-redirect.txt": {"text": "", "status": 302, "headers": {"Location": "http://u:p@127.0.0.1/x", "Access-Control-Allow-Origin": "*"}},
+    "post-303.txt": {"text": "", "status": 303, "headers": {"Location": "plain.txt"}},
+    "post-307.txt": {"text": "", "status": 307, "headers": {"Location": "plain.txt"}}
+   },
+   "measure": [
+    {"js": "(async () => { const f = (u, o) => R(fetch(u, o)); return J([await f('same-redirect.txt'), await f('same-redirect.txt', {redirect: 'error'}), await f('same-redirect.txt', {redirect: 'follow'})]); })()"},
+    {"js": "(async () => { const r = await fetch('same-redirect.txt', {redirect: 'manual'}); return [r.type, r.status, r.ok, n(r.url), r.redirected, [...r.headers].length, r.statusText, await r.text()]; })()"},
+    {"js": "(async () => { const f = (u, o) => R(fetch(u, o)); return J([await f(X('cors-redirect.txt')), await f(X('bad-redirect.txt')), await f(X('chain-a.txt')), await f(X('chain-c.txt')), await f(X('creds-redirect.txt')), await f(X('cors-redirect.txt'), {redirect: 'manual'}), await f(X('cors-redirect.txt'), {redirect: 'error'}), await f(X('cors-redirect.txt'), {mode: 'no-cors'}), await f('to-other.txt'), await f('to-other.txt', {mode: 'no-cors'}), await f('to-other.txt', {mode: 'same-origin'})]); })()"},
+    {"js": "(async () => { const f = (u, o) => R(fetch(u, o)); return J([await f('post-303.txt', {method: 'POST', body: 'b'}), await f('post-307.txt', {method: 'POST', body: 'b'}), await f('same-redirect.txt', {method: 'PUT', body: 'p'})]); })()"},
+    {"js": "L().then(l => l.filter(e => e.indexOf('__log') < 0))"}
+   ]},
+  {"name": "fetch-basic",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O'); const E = e => e.name + ': ' + e.message; const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.origin ? 'origin' : '-', e.cookie, Object.entries(e.headers).map(h => h.join(':')).join(','), e.body].join(' ')).sort();</script>",
+   "resources": {
+    "text.txt": {"text": "helloé", "headers": {"Content-Type": "text/plain; charset=utf-8", "X-Multi": ["a", "b"], "X-Case": "Value"}},
+    "data.json": {"text": "{\"a\": [1, 2], \"b\": null}", "headers": {"Content-Type": "application/json"}},
+    "gone.txt": {"text": "missing", "status": 404},
+    "empty.txt": {"text": "", "status": 204},
+    "teapot.txt": {"text": "t", "status": 503},
+    "bad.json": {"text": "{oops", "headers": {"Content-Type": "application/json"}},
+    "echo.txt": {"text": "echoed", "status": 201}
+   },
+   "measure": [
+    {"js": "(async () => { const r = await fetch('text.txt'); return [r.type, r.status, r.ok, r.statusText, n(r.url), r.redirected, [...r.headers].filter(h => h[0] !== 'date' && h[0] !== 'server' && h[0] !== 'connection').map(h => h.join('=')).filter(h => h.indexOf('date') < 0 && h.indexOf('server') < 0).join('&'), r.headers.get('x-multi'), r.body === null, r.bodyUsed, await r.text(), r.bodyUsed]; })()"},
+    {"js": "(async () => { const r = await fetch('data.json'); const c = r.clone(); const j = await r.json(); let again; try { await r.json(); } catch (e) { again = E(e); } return [j, again, await c.text(), (await (await fetch('data.json')).arrayBuffer()).byteLength, (await (await fetch('data.json')).bytes()).length]; })()"},
+    {"js": "(async () => { const out = []; for (const u of ['gone.txt', 'empty.txt', 'teapot.txt']) { const r = await fetch(u); out.push([r.status, r.ok, r.statusText, await r.text()]); } let bad; try { await (await fetch('bad.json')).json(); } catch (e) { bad = e.name; } return [out, bad]; })()"},
+    {"js": "(async () => { const out = []; for (const [m, b] of [['POST', 'a=1'], ['PUT', new Uint8Array([1, 2, 3])], ['DELETE'], ['HEAD'], ['OPTIONS'], ['PATCH', 'x']]) { const r = await fetch('echo.txt', {method: m, body: b, headers: {'X-Test': m}}); out.push([r.status, (await r.text()).length]); } return [out, (await L()).filter(e => e.indexOf('echo.txt') >= 0)]; })()"},
+    {"js": "(async () => { const out = []; for (const f of [() => fetch(), () => fetch('http://[bad'), () => fetch('/x', {method: 'TRACE'}), () => fetch('/x', {method: 'GET', body: 'b'}), () => fetch(5), () => fetch('text.txt', {headers: 5}), () => fetch('data:text/plain,hi', {mode: 'navigate'})]) { try { await f(); out.push('ok'); } catch (e) { out.push(E(e)); } } return out; })()"},
+    {"js": "(async () => { const req = new Request('echo.txt', {method: 'POST', body: 'req', headers: {'X-From': 'request'}}); const r = await fetch(req); const used = req.bodyUsed; let again; try { await fetch(req); } catch (e) { again = E(e); } return [r.status, used, again, (await L()).filter(e => e.indexOf('echo.txt') >= 0).slice(-1)]; })()"},
+    {"js": "(async () => { const r = await fetch('text.txt'); const u = n(r.url); const p = fetch('text.txt'); return [Object.prototype.toString.call(p), p instanceof Promise, typeof window.fetch, fetch.length, fetch.name, u]; })()"}
+   ]},
+  {"name": "fetch-schemes",
+   "html": "<!DOCTYPE html><p>x</p><script>const E = e => e.name + ': ' + e.message; const F = async u => { try { const r = await fetch(u); return [r.type, r.status, r.url.slice(0, 40), await r.text()].join('|'); } catch (e) { return E(e); } };</script>",
+   "resources": {"x.txt": {"text": "x"}},
+   "measure": [
+    {"js": "Promise.all(['data:text/plain,hello', 'data:text/plain;base64,aGk=', 'data:,%E2%82%AC', 'data:application/json,{\"a\":1}', 'data:text/plain,a#frag', 'data:bad', 'about:blank', 'file:///etc/hostname', 'ftp://example.test/', 'javascript:1', 'blob:http://x/y', 'ws://x.test/'].map(F))"},
+    {"js": "(async () => { const r = await fetch('data:text/plain;charset=utf-8,x'); return [r.headers.get('content-type'), r.status, r.statusText, r.ok, r.redirected, [...r.headers].length]; })()"},
+    {"js": "(async () => { const r = await fetch('data:text/html,<b>x</b>', {mode: 'same-origin', credentials: 'omit'}); const n = await fetch('data:,x', {method: 'POST', body: 'b'}); return [r.type, await r.text(), n.status]; })().catch(String)"}
+   ]},
+  {"name": "fetch-abort",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const E = e => e && e.name ? e.name + ': ' + e.message : String(e); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path].join(' '));</script>",
+   "resources": {
+    "slow.txt": {"text": "slow", "delay_ms": 400},
+    "fast.txt": {"text": "fast"}
+   },
+   "measure": [
+    {"js": "(async () => { const c = new AbortController(); c.abort(); try { await fetch('slow.txt', {signal: c.signal}); return 'resolved'; } catch (e) { return [E(e), e === c.signal.reason, e.code]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const p = fetch('slow.txt', {signal: c.signal}); setTimeout(() => c.abort(), 50); try { await p; return 'resolved'; } catch (e) { return [E(e), e.code, e === c.signal.reason]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const r = await fetch('fast.txt', {signal: c.signal}); const t = await r.text(); c.abort(); return [r.status, t, c.signal.aborted, r.bodyUsed]; })()"},
+    {"js": "(async () => { const c = new AbortController(); const r = await fetch('fast.txt', {signal: c.signal}); c.abort(); try { return [r.status, await r.text()]; } catch (e) { return ['text rejected', E(e), e.code]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const r = await fetch('fast.txt', {signal: c.signal}); c.abort('custom reason'); try { return [r.status, await r.json()]; } catch (e) { return ['rejected', E(e), typeof e]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const r = await fetch('fast.txt', {signal: c.signal}); const k = r.clone(); c.abort(); const out = []; for (const x of [r, k]) { try { out.push(await x.text()); } catch (e) { out.push(e.name); } } return out; })()"},
+    {"js": "(async () => { const c = new AbortController(); const r = await fetch('fast.txt', {signal: c.signal}); c.abort(); try { await r.text(); } catch (e) {} return [r.bodyUsed, r.status, r.headers.get('content-type')]; })()"},
+    {"js": "(async () => { const c = new AbortController(); const p = fetch('slow.txt', {signal: c.signal}); c.abort('custom'); try { await p; } catch (e) { return [e, typeof e]; } })()"},
+    {"js": "(async () => { try { await fetch('slow.txt', {signal: AbortSignal.timeout(80)}); return 'resolved'; } catch (e) { return [E(e), e.code]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const d = new AbortController(); const any = AbortSignal.any([c.signal, d.signal]); const p = fetch('slow.txt', {signal: any}); d.abort('D'); try { await p; } catch (e) { return [e, c.signal.aborted, any.aborted]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const req = new Request('slow.txt', {signal: c.signal}); const p = fetch(req); c.abort(); try { await p; } catch (e) { return [E(e), req.signal.aborted]; } })()"},
+    {"js": "(async () => { const c = new AbortController(); const ps = []; for (let i = 0; i < 5; i++) ps.push(fetch('slow.txt?' + i, {signal: c.signal}).then(() => 'ok', e => e.name)); c.abort(); return await Promise.all(ps); })()"},
+    {"js": "(async () => { await new Promise(r => setTimeout(r, 600)); const l = await L(); return l.filter(e => e.indexOf('slow') >= 0).length >= 0; })()"}
+   ]},
+  {"name": "fetch-edge",
+   "html": "<!DOCTYPE html><p>x</p><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X'); const X = f => '$OTHER' + D + f; const E = e => e.name + ': ' + e.message; const R = p => p.then(r => [r.type, r.status, r.ok, n(r.url), r.redirected, [...r.headers].filter(h => h[0] !== 'date' && h[0] !== 'server' && h[0] !== 'connection').map(h => h.join('=')).join('&')].join('|'), E); const L = async () => (await (await fetch('__log')).json()).map(e => [e.method, e.path, e.server, n(e.origin), e.cookie, Object.entries(e.headers).map(h => h.join(':')).join(','), e.body].join(' ')).sort();</script>",
+   "resources": {
+    "ftp.txt": {"status": 302, "text": "", "headers": {"Location": "ftp://example.test/x", "Access-Control-Allow-Origin": "*"}},
+    "file.txt": {"status": 302, "text": "", "headers": {"Location": "file:///etc/hostname", "Access-Control-Allow-Origin": "*"}},
+    "noloc.txt": {"status": 302, "text": "b", "headers": {"Access-Control-Allow-Origin": "*"}},
+    "badloc.txt": {"status": 302, "text": "b", "headers": {"Location": "http://[bad", "Access-Control-Allow-Origin": "*"}}
+   },
+   "measure": [
+    {"js": "Promise.all([R(fetch(X('ftp.txt'), {redirect: 'manual'})), R(fetch(X('ftp.txt'))), R(fetch(X('file.txt'))), R(fetch(X('file.txt'), {redirect: 'manual'})), R(fetch(X('noloc.txt'))), R(fetch(X('badloc.txt'))), R(fetch(X('badloc.txt'), {redirect: 'manual'}))])"},
+    {"js": "Promise.all([R(fetch('ftp.txt', {redirect: 'manual'})), R(fetch('file.txt', {redirect: 'manual'})), R(fetch('ftp.txt'))])"}
+   ]}
+ ]}

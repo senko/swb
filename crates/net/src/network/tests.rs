@@ -795,3 +795,210 @@ fn each_redirect_hop_has_its_own_same_site_context() {
         .collect();
     assert_eq!(on_localhost, ["none2"]);
 }
+
+#[test]
+fn all_methods_go_on_the_wire() {
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    for (name, body) in [
+        ("PUT", Some(&b"x"[..])),
+        ("DELETE", None),
+        ("PATCH", Some(&b"y"[..])),
+        ("HEAD", None),
+        ("OPTIONS", None),
+    ] {
+        let mut request = Request::get(server.url("/form"), Destination::Other);
+        request.method = Method::parse(name).unwrap();
+        request.body = body.map(<[u8]>::to_vec);
+        fetcher.fetch(&request).unwrap();
+        let received = server.next_request();
+        assert_eq!(received.request_line, format!("{name} /form HTTP/1.1"));
+        assert_eq!(Some(received.body.as_slice()), body.or(Some(b"")));
+    }
+    // The HTTP library knows the standard methods only. A `patch` in
+    // lowercase (Chromium sends it as it is; servers answer 400 or 405) and
+    // other tokens are network errors in swb.
+    for name in ["patch", "PROPFIND"] {
+        let mut request = Request::get(server.url("/form"), Destination::Other);
+        request.method = Method::parse(name).unwrap();
+        assert!(fetcher.fetch(&request).is_err(), "{name}");
+    }
+}
+
+/// The credentials mode decides whether cookies go and come back.
+#[test]
+fn credentials_modes_decide_about_cookies() {
+    use crate::request::{CredentialsMode, RequestMode, Tainting};
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let origin = Some(server.url("/").origin());
+    let get = |path: &str, credentials, tainting| {
+        let mut request =
+            Request::get(server.url(path), Destination::Other).with_initiator(origin.clone());
+        request.mode = RequestMode::Cors;
+        request.credentials = credentials;
+        request.tainting = tainting;
+        request
+    };
+    // `omit`: no cookie is stored from the response.
+    let omit = get("/set-cookies", CredentialsMode::Omit, Tainting::Basic);
+    cookie_sent(&server, &fetcher, &omit);
+    assert_eq!(cookie_names(&fetcher).len(), 0);
+    // `same-origin` with CORS tainting: not stored either.
+    let cross = get("/set-cookies", CredentialsMode::SameOrigin, Tainting::Cors);
+    cookie_sent(&server, &fetcher, &cross);
+    assert_eq!(cookie_names(&fetcher).len(), 0);
+    // `same-origin` with basic tainting stores.
+    let same = get("/set-cookies", CredentialsMode::SameOrigin, Tainting::Basic);
+    cookie_sent(&server, &fetcher, &same);
+    assert_ne!(cookie_names(&fetcher).len(), 0);
+    // Now the cookies exist: only `include` and same-origin basic send them.
+    let sent = |credentials, tainting| {
+        cookie_sent(&server, &fetcher, &get("/plain", credentials, tainting))
+    };
+    assert_eq!(sent(CredentialsMode::Omit, Tainting::Basic), None);
+    assert_eq!(sent(CredentialsMode::SameOrigin, Tainting::Cors), None);
+    assert!(sent(CredentialsMode::SameOrigin, Tainting::Basic).is_some());
+    assert!(sent(CredentialsMode::Include, Tainting::Cors).is_some());
+}
+
+#[test]
+fn cors_requests_send_origin_even_for_get() {
+    use crate::request::{RequestMode, Tainting};
+    let server = server();
+    let fetcher = NetworkFetcher::without_proxy();
+    let mut request = Request::get(server.url("/plain"), Destination::Other)
+        .with_initiator(Some(Url::parse("http://app.test:8080/").unwrap().origin()));
+    request.mode = RequestMode::Cors;
+    request.tainting = Tainting::Cors;
+    fetcher.fetch(&request).unwrap();
+    assert_eq!(
+        server.next_request().headers["origin"],
+        "http://app.test:8080"
+    );
+    request.tainted_origin = true;
+    fetcher.fetch(&request).unwrap();
+    assert_eq!(server.next_request().headers["origin"], "null");
+}
+
+/// A server that counts the connections and the requests. With
+/// `keep_alive` it answers each request; otherwise it closes the
+/// connection after it read the request, without an answer.
+/// `close_after_answer`: close after the answer, without telling the client
+/// (a stale connection in the client's pool).
+struct CountingServer {
+    base: Url,
+    connections: mpsc::Receiver<()>,
+    requests: mpsc::Receiver<String>,
+}
+
+impl CountingServer {
+    fn start(keep_alive: bool, close_after_answer: bool) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = Url::parse(&format!("http://{}/", listener.local_addr().unwrap())).unwrap();
+        let (connection_sender, connections) = mpsc::channel();
+        let (request_sender, requests) = mpsc::channel();
+        thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(stream) = stream else { continue };
+                let _ = connection_sender.send(());
+                let request_sender = request_sender.clone();
+                thread::spawn(move || {
+                    while let Some(request) = read_request(&stream) {
+                        let _ = request_sender.send(request.request_line);
+                        if !keep_alive {
+                            return;
+                        }
+                        let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+                        let _ = (&stream).write_all(response.as_bytes());
+                        if close_after_answer {
+                            return;
+                        }
+                    }
+                });
+            }
+        });
+        CountingServer {
+            base,
+            connections,
+            requests,
+        }
+    }
+
+    /// Counts what arrives within a short time.
+    fn count<T>(receiver: &mpsc::Receiver<T>) -> usize {
+        std::iter::from_fn(|| receiver.recv_timeout(Duration::from_millis(300)).ok()).count()
+    }
+}
+
+#[test]
+fn post_is_sent_once_when_the_server_reads_it_and_closes() {
+    // Review fix 2: the second attempt sent the POST again.
+    let server = CountingServer::start(false, false);
+    let fetcher = NetworkFetcher::without_proxy();
+    let mut request = Request::get(server.base.join("/drop").unwrap(), Destination::Other);
+    request.method = Method::Post;
+    request.body = Some(b"x".to_vec());
+    assert!(fetcher.fetch(&request).is_err());
+    assert_eq!(CountingServer::count(&server.requests), 1);
+    // A form POST of a navigation, and PATCH, take the same path.
+    let mut form = Request::get(server.base.join("/drop").unwrap(), Destination::Document);
+    form.method = Method::Post;
+    form.body = Some(b"a=1".to_vec());
+    assert!(fetcher.fetch(&form).is_err());
+    request.method = Method::Patch;
+    assert!(fetcher.fetch(&request).is_err());
+    assert_eq!(CountingServer::count(&server.requests), 2);
+}
+
+#[test]
+fn post_never_reuses_a_connection_and_get_does() {
+    let server = CountingServer::start(true, false);
+    let fetcher = NetworkFetcher::without_proxy();
+    let get = Request::get(server.base.join("/a").unwrap(), Destination::Other);
+    fetcher.fetch(&get).unwrap();
+    fetcher.fetch(&get).unwrap();
+    assert_eq!(CountingServer::count(&server.connections), 1);
+    let mut post = get.clone();
+    post.method = Method::Post;
+    post.body = Some(b"x".to_vec());
+    fetcher.fetch(&post).unwrap();
+    fetcher.fetch(&post).unwrap();
+    assert_eq!(CountingServer::count(&server.connections), 2);
+}
+
+#[test]
+fn get_is_repeated_when_a_pooled_connection_was_closed() {
+    // The server answers and closes without `Connection: close`: the
+    // connection in the pool is dead at the next request.
+    let server = CountingServer::start(true, true);
+    let fetcher = NetworkFetcher::without_proxy();
+    let get = Request::get(server.base.join("/a").unwrap(), Destination::Other);
+    for _ in 0..5 {
+        assert_eq!(fetcher.fetch(&get).unwrap().body, b"ok");
+    }
+}
+
+#[test]
+fn a_reservation_stops_a_response_that_does_not_fit() {
+    use crate::budget::{ByteBudget, Reservation};
+    let body = vec![b'a'; 200_000];
+    let server = TestServer::start(vec![("/big", raw_response("200 OK", &[], &body))]);
+    let fetcher = NetworkFetcher::without_proxy();
+    let budget = ByteBudget::new(100_000);
+    let mut request = Request::get(server.url("/big"), Destination::Other);
+    request.reservation = Reservation::new(&budget, 10);
+    let error = fetcher.fetch(&request).unwrap_err();
+    assert!(matches!(error, NetError::OverBudget { limit: 100_000 }));
+    // The bytes read so far were not more than the limit allows.
+    assert!(budget.used() <= 100_000);
+    drop(request);
+    assert_eq!(budget.used(), 0);
+    // A budget that fits.
+    let budget = ByteBudget::new(300_000);
+    request = Request::get(server.url("/big"), Destination::Other);
+    request.reservation = Reservation::new(&budget, 10);
+    let response = fetcher.fetch(&request).unwrap();
+    assert_eq!(response.body.len(), 200_000);
+    assert_eq!(budget.used(), 200_010);
+}

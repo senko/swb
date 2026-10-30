@@ -175,6 +175,19 @@ Format: source, license (for code), what it influenced.
   Chromium (probes `web-forms-validation.json`,
   `web-forms-selection.json`; ADR 0021). The date conversion is in the
   Hinnant entry below.
+- WHATWG Fetch and DOM (network from scripts), M8 feature 10a —
+  https://fetch.spec.whatwg.org/ and https://dom.spec.whatwg.org/ — the
+  IDL in `crates/web/idl/fetch.idl` and of `AbortController` and
+  `AbortSignal` in `dom.idl` (BSD-3-Clause, as above); the CORS check,
+  the CORS-preflight fetch and its cache, the request, credentials and
+  redirect modes, tainting and the filtered responses
+  (`crates/net/src/cors.rs`, `cors_fetch.rs`), the `fetch` method,
+  `Headers`, `Request`, `Response` and body extraction
+  (`crates/web/src/fetch/`), aborting and `AbortSignal.any()`
+  (`crates/web/src/abort.rs`). The console texts of CORS failures, the
+  error messages and the cases where Chromium departs from the standard
+  come from black-box measurements of Chromium (probes `web-fetch.json`,
+  `web-fetch-cors.json`; ADR 0021).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

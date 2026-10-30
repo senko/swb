@@ -261,6 +261,23 @@ everything. Each redirect hop computes its own context.
   method and the body. The body headers (`Content-Type` and others) are
   removed when the method changes.
 
+### Credentials mode (feature 10a of M8)
+
+Requests from scripts have a credentials mode (Fetch): `omit`,
+`same-origin` or `include`. `HttpClient::fetch` sends the `Cookie` header
+and stores the `Set-Cookie` headers of the response only if
+`Request::sends_credentials` is true: `include` always; `same-origin` while
+the response tainting of the current hop is basic (the request URL has the
+initiator's origin); `omit` never. The `SameSite` rules above apply on top
+(a cross-site `include` request sends only `SameSite=None` cookies). Each
+redirect hop decides again. The constructors of `Request` set `include`,
+so the loads of the page (documents, images, style sheets, scripts, fonts)
+behave as before. A preflight never carries credentials. `Origin` follows
+Fetch's "append a request `Origin` header", including the redirect-tainted
+`null`. Measured in `tools/probes/web-fetch-cors.json` (a cross-origin
+`fetch` with the default mode sends and stores nothing; with `include` it
+sends the cookies and stores the response's).
+
 ## Consequences
 
 - Hacker News login can work in live mode. Replays of fixtures never have
@@ -275,4 +292,4 @@ everything. Each redirect hop computes its own context.
   registrable domain.
 - Later work: the initiator for reload and history traversal,
   persistence, frames (a "site for cookies" field on `Request`), the
-  redirect-tainted `Origin`, `Sec-Fetch-*` and `Referer` headers.
+  `Sec-Fetch-*` and `Referer` headers.

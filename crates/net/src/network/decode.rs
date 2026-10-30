@@ -10,6 +10,22 @@ use log::warn;
 use crate::error::NetError;
 use crate::headers::Headers;
 
+/// Called with the bytes that a response holds while it is read; an error
+/// (the memory budget is over) stops the read.
+pub(crate) type Account<'a> = &'a dyn Fn(usize) -> Result<(), NetError>;
+
+/// The size of the chunks in which a body is read.
+pub(super) const CHUNK_SIZE: usize = 64 * 1024;
+
+/// What [`read_all`] needs to know about one coding.
+struct Output<'a> {
+    coding: &'a str,
+    limit: u64,
+    /// The bytes of the coded input, held while the output grows.
+    held: usize,
+    account: Account<'a>,
+}
+
 /// The buffer size of the brotli decoder.
 const BROTLI_BUFFER_SIZE: usize = 4096;
 
@@ -20,10 +36,13 @@ const MAX_CODINGS: usize = 4;
 /// Undoes the content codings in the `Content-Encoding` headers, last coding
 /// first. An unknown coding stops decoding and leaves the body as it is at
 /// that point. The decoded body must not be larger than `limit` bytes.
+/// `account` is called with the bytes held (input and output of the
+/// coding) while the output grows; an error stops the decoding.
 pub(crate) fn decode_body(
     body: Vec<u8>,
     headers: &Headers,
     limit: u64,
+    account: Account<'_>,
 ) -> Result<Vec<u8>, NetError> {
     let codings: Vec<String> = headers
         .get_all("content-encoding")
@@ -44,17 +63,23 @@ pub(crate) fn decode_body(
         if body.is_empty() {
             break;
         }
+        let held = body.len();
+        let out = Output {
+            coding,
+            limit,
+            held,
+            account,
+        };
         body = match coding.as_str() {
-            "gzip" | "x-gzip" => read_all(MultiGzDecoder::new(body.as_slice()), coding, limit)?,
+            "gzip" | "x-gzip" => read_all(MultiGzDecoder::new(body.as_slice()), &out)?,
             "deflate" if has_zlib_header(&body) => {
-                read_all(ZlibDecoder::new(body.as_slice()), coding, limit)?
+                read_all(ZlibDecoder::new(body.as_slice()), &out)?
             }
             // Some servers send raw deflate data without the zlib wrapper.
-            "deflate" => read_all(DeflateDecoder::new(body.as_slice()), coding, limit)?,
+            "deflate" => read_all(DeflateDecoder::new(body.as_slice()), &out)?,
             "br" => read_all(
                 brotli_decompressor::Decompressor::new(body.as_slice(), BROTLI_BUFFER_SIZE),
-                coding,
-                limit,
+                &out,
             )?,
             _ => {
                 warn!("unsupported content coding {coding:?}, body is not decoded");
@@ -77,16 +102,32 @@ fn has_zlib_header(data: &[u8]) -> bool {
 /// Reads the decoder to the end. If the data is damaged after some decoded
 /// bytes, returns the decoded part and logs a warning: a truncated page is
 /// more useful than no page.
-fn read_all(decoder: impl Read, coding: &str, limit: u64) -> Result<Vec<u8>, NetError> {
+fn read_all(decoder: impl Read, out: &Output<'_>) -> Result<Vec<u8>, NetError> {
+    let Output {
+        coding,
+        limit,
+        held,
+        account,
+    } = *out;
     let mut output = Vec::new();
-    let result = decoder
-        .take(limit.saturating_add(1))
-        .read_to_end(&mut output);
-    if output.len() as u64 > limit {
-        return Err(NetError::BodyTooLarge { limit });
-    }
+    let mut decoder = decoder.take(limit.saturating_add(1));
+    let mut chunk = vec![0; CHUNK_SIZE];
+    let result = loop {
+        match decoder.read(&mut chunk) {
+            Ok(0) => break Ok(()),
+            Ok(n) => {
+                output.extend_from_slice(chunk.get(..n).unwrap_or_default());
+                if output.len() as u64 > limit {
+                    return Err(NetError::BodyTooLarge { limit });
+                }
+                account(held + output.len())?;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => break Err(error),
+        }
+    };
     match result {
-        Ok(_) => Ok(output),
+        Ok(()) => Ok(output),
         Err(source) if output.is_empty() => Err(NetError::ContentDecoding {
             coding: coding.to_string(),
             source,
@@ -135,7 +176,26 @@ mod tests {
 
     fn decode(body: Vec<u8>, encodings: &[&str]) -> Result<Vec<u8>, NetError> {
         let headers: Headers = encodings.iter().map(|e| ("Content-Encoding", *e)).collect();
-        decode_body(body, &headers, 1000)
+        decode_body(body, &headers, 1000, &|_| Ok(()))
+    }
+
+    #[test]
+    fn the_budget_stops_the_output() {
+        let headers: Headers = [("Content-Encoding", "gzip")].into_iter().collect();
+        let big = vec![b'a'; 500];
+        let body = gzip(&big);
+        let held = body.len();
+        let over = |bytes: usize| {
+            if bytes > held + 100 {
+                Err(NetError::OverBudget { limit: 7 })
+            } else {
+                Ok(())
+            }
+        };
+        assert!(matches!(
+            decode_body(body, &headers, 1000, &over),
+            Err(NetError::OverBudget { limit: 7 })
+        ));
     }
 
     #[test]

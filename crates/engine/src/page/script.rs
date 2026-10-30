@@ -146,6 +146,33 @@ impl Page {
         self.check_load_event();
     }
 
+    /// Hands the results of the `fetch()` calls that arrived to the
+    /// runtime, in order of arrival: each settles its promise in a task.
+    pub(super) fn deliver_api_fetches(&mut self) {
+        let arrived = match self.doc.as_deref_mut() {
+            Some(doc) => doc.take_arrived_api_fetches(),
+            None => return,
+        };
+        if self.script.is_none() {
+            return;
+        }
+        for (id, result, kind, reservation) in arrived {
+            self.run_task(|runtime| runtime.api_fetch_completed(id, result, kind));
+            // The body is in the script heap now (or was dropped): its bytes
+            // leave the document's budget.
+            drop(reservation);
+        }
+    }
+
+    /// True if a `fetch()` call of a script waits for its response. The
+    /// loops that wait for the page's activity wait for it too; the
+    /// `load` event does not.
+    pub(super) fn has_pending_api_fetches(&self) -> bool {
+        self.doc
+            .as_deref()
+            .is_some_and(DocumentState::has_pending_api_fetches)
+    }
+
     /// Fires the `load` event of the document when the runtime is ready
     /// for it ("the end" waits for nothing that delays the load event) and
     /// nothing delays it: no request runs, also after a layout, which can
@@ -446,7 +473,7 @@ impl Page {
                 continue;
             }
             let next = self.next_task_time();
-            let loading = self.is_loading();
+            let loading = self.is_loading() || self.has_pending_api_fetches();
             if self.clock.is_virtual() && !loading {
                 // Nothing runs and nothing is pending: time jumps.
                 let Some(target) = next.into_iter().chain(end).reduce(f64::min) else {

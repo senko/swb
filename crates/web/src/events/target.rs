@@ -35,6 +35,8 @@ pub(super) const MAX_DOCUMENT_LISTENERS: usize = 1 << 18;
 pub(crate) struct TargetData {
     listeners: Listeners,
     pub(crate) media: Option<Box<crate::media_queries::MediaQueryState>>,
+    /// The state of an `AbortSignal` (`abort.rs`).
+    pub(crate) signal: Option<Box<crate::abort::SignalState>>,
 }
 
 impl GenericData for TargetData {
@@ -43,11 +45,34 @@ impl GenericData for TargetData {
         if let Some(media) = &self.media {
             media.trace(tracer);
         }
+        if let Some(signal) = &self.signal {
+            signal.trace(tracer);
+        }
     }
 
     fn heap_size(&self) -> usize {
-        self.listeners.heap_size() + self.media.as_ref().map_or(0, |m| m.heap_size())
+        self.listeners.heap_size()
+            + self.media.as_ref().map_or(0, |m| m.heap_size())
+            + self.signal.as_ref().map_or(0, |s| s.heap_size())
     }
+}
+
+/// Removes the listener `callback` of `kind` and `capture` from the event
+/// target `target` (an `AbortSignal` that aborts does it for the listeners
+/// that were added with it). A target that is gone or not an event target
+/// is ignored.
+pub(crate) fn remove_listener(
+    rt: &mut Runtime,
+    target: Gc<Object>,
+    kind: &str,
+    callback: Gc<Object>,
+    capture: bool,
+) -> VmResult<()> {
+    let Ok(target) = kind_of(rt, target) else {
+        return Ok(());
+    };
+    remove(rt, target, |list| list.remove(kind, callback, capture))?;
+    Ok(())
 }
 
 /// The kind of an event target, which says where its listeners are.
@@ -166,12 +191,19 @@ impl g::event_target::EventTargetImpl for WebState {
             return Ok(());
         };
         super::handlers::sync(cx.rt, target)?;
-        let (capture, passive, once) = match options {
-            AddEventListenerOptionsOrBoolean::Boolean(capture) => (capture, None, false),
+        let (capture, passive, once, signal) = match options {
+            AddEventListenerOptionsOrBoolean::Boolean(capture) => (capture, None, false, None),
             AddEventListenerOptionsOrBoolean::AddEventListenerOptions(o) => {
-                (o.capture, o.passive, o.once)
+                (o.capture, o.passive, o.once, o.signal)
             }
         };
+        // DOM "add an event listener": a signal that is aborted adds
+        // nothing.
+        if let Some(signal) = signal
+            && crate::abort::is_aborted(cx.rt, signal.object)?
+        {
+            return Ok(());
+        }
         let passive = match passive {
             Some(passive) => passive,
             None => default_passive(cx.rt, target, &kind)?,
@@ -198,6 +230,18 @@ impl g::event_target::EventTargetImpl for WebState {
         }
         if let TargetKind::Constructed(_) = target {
             crate::media_queries::register(cx.rt, this.object)?;
+        }
+        // The listener goes away when the signal aborts. A listener that
+        // was a duplicate (`added` false) has no new algorithm.
+        if added && let Some(signal) = signal {
+            crate::abort::remove_on_abort(
+                cx.rt,
+                signal.object,
+                this.object,
+                &kind,
+                callback,
+                capture,
+            )?;
         }
         Ok(())
     }

@@ -49,6 +49,8 @@ pub(crate) enum Task {
     IdleTimeout(u32),
     /// Run the cleanup of a finalization registry.
     FinalizationCleanup,
+    /// The time of an `AbortSignal.timeout()` signal is over (`abort.rs`).
+    AbortTimeout(u64),
     /// Let the parser go on after a wait (`document_load.rs`).
     ParserResume,
     /// Fire the waiting `select` and `selectionchange` events of text

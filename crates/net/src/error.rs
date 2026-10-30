@@ -7,6 +7,21 @@ use url::Url;
 
 use crate::fetch::MAX_REDIRECTS;
 
+/// The details of a failed CORS check ([`NetError::Cors`]).
+#[derive(Debug)]
+pub struct CorsError {
+    /// The URL of the request that failed.
+    pub url: Url,
+    /// The first URL of the redirect chain, if the request was redirected.
+    pub redirected_from: Option<Url>,
+    /// The serialized origin of the request.
+    pub origin: String,
+    /// True if the preflight response failed the check.
+    pub preflight: bool,
+    /// What failed.
+    pub failure: crate::cors::CorsFailure,
+}
+
 /// A fetch failed, so there is no response.
 ///
 /// HTTP error statuses (4xx, 5xx) are not errors: they are returned as a
@@ -108,7 +123,52 @@ pub enum NetError {
         message: String,
     },
 
+    /// The CORS check or the preflight failed (`fetch()` shows a network
+    /// error and logs [`NetError::console_message`]).
+    #[error("blocked by CORS policy: {}", .0.failure.reason())]
+    Cors(Box<CorsError>),
+
+    /// Fetch refused the request before sending it, or refused a redirect
+    /// (mode `same-origin`, redirect mode `error`). The text is Chromium's
+    /// console message.
+    #[error("{0}")]
+    Blocked(String),
+
+    /// The memory budget of the document's API requests ran out
+    /// ([`ByteBudget`](crate::ByteBudget)): the request or the response
+    /// body does not fit.
+    #[error("over the memory budget of {limit} bytes for API requests")]
+    OverBudget {
+        /// The budget in bytes.
+        limit: usize,
+    },
+
+    /// The caller cancelled the request ([`Loader::cancel`](crate::Loader::cancel)).
+    #[error("the request was aborted")]
+    Aborted,
+
     /// A bug in swb, for example a fetcher that panicked.
     #[error("internal error: {0}")]
     Internal(String),
+}
+
+impl NetError {
+    /// The message that Chromium's console shows for this error when
+    /// `api` (`fetch` or `XMLHttpRequest`) failed, or `None` if the browser
+    /// shows none (Chromium logs a failed resource load as
+    /// `net::ERR_...`, which swb does not copy).
+    pub fn console_message(&self, api: &str) -> Option<String> {
+        match self {
+            NetError::Cors(error) => Some(crate::cors::console_message(
+                api,
+                &error.url,
+                error.redirected_from.as_ref(),
+                &error.origin,
+                error.preflight,
+                &error.failure,
+            )),
+            NetError::Blocked(message) => Some(message.clone()),
+            _ => None,
+        }
+    }
 }

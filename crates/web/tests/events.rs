@@ -17,20 +17,12 @@ use swb_dom::NodeId;
 use swb_web::{ConsoleLevel, DispatchTarget, EventInterface, ScriptRuntime, TrustedEvent};
 
 /// The values where swb departs from Chromium on purpose.
-const SWB_VALUES: &[Departure] = &[
-    (
-        "once-passive",
-        7,
-        r#""capture,once,passive | capture""#,
-        "no `signal` option (no AbortSignal yet)",
-    ),
-    (
-        "event-attributes",
-        3,
-        r#"[true, "r", null, "TypeError: Failed to construct 'PromiseRejectionEvent': 2 arguments required, but only 1 present.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Required member is undefined.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Failed to convert value to 'object'.", 2, "[\"promise\",\"reason\",\"constructor\"]"]"#,
-        "`promise` is an `object` in HTML (Chromium: `Promise<any>`, which takes any value)",
-    ),
-];
+const SWB_VALUES: &[Departure] = &[(
+    "event-attributes",
+    3,
+    r#"[true, "r", null, "TypeError: Failed to construct 'PromiseRejectionEvent': 2 arguments required, but only 1 present.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Required member is undefined.", "TypeError: Failed to construct 'PromiseRejectionEvent': Failed to read the 'promise' property from 'PromiseRejectionEventInit': Failed to convert value to 'object'.", 2, "[\"promise\",\"reason\",\"constructor\"]"]"#,
+    "`promise` is an `object` in HTML (Chromium: `Promise<any>`, which takes any value)",
+)];
 
 #[test]
 fn probe_cases() {

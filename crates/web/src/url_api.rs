@@ -537,6 +537,16 @@ fn parse_query(query: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+/// The serialization of the list of the `URLSearchParams` object `object`,
+/// or `None` if it is another object (the body of a `fetch()`).
+pub(crate) fn query_of(rt: &Runtime, object: Gc<Object>) -> Option<String> {
+    let (_, HostData::Generic(handle)) = rt.host_object(object.into())? else {
+        return None;
+    };
+    let data = rt.heap().generic::<ParamsData>(handle).ok()?;
+    Some(serialize_list(&data.list))
+}
+
 /// The `application/x-www-form-urlencoded` serializer (URL Standard §5.1).
 fn serialize_list(list: &[(String, String)]) -> String {
     let mut serializer = url::form_urlencoded::Serializer::new(String::new());

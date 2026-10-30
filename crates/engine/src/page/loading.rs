@@ -142,6 +142,16 @@ impl Page {
         let Some((doc, fonts)) = self.parts() else {
             return false;
         };
+        if doc.is_api_fetch(completion.id) {
+            doc.api_fetch_completed(
+                completion.id,
+                completion.result,
+                completion.kind,
+                completion.reservation,
+            );
+            self.deliver_api_fetches();
+            return true;
+        }
         let Some(pending) = doc.requests.pending.remove(&completion.id) else {
             return false;
         };
@@ -266,6 +276,11 @@ impl Page {
         let scroll_target = self.commit_navigation(&url);
         // The old document sees `pagehide` and `unload` first.
         self.unload_document();
+        // Its `fetch()` calls end with it: a request that still runs gives
+        // its place to the requests of the new document.
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.abandon_api_fetches();
+        }
         // Requests that are still pending belong to the previous document
         // (for example images that a restyle of it started).
         self.loader.cancel_all();

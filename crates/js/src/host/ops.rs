@@ -194,6 +194,43 @@ impl Runtime {
         self.in_scope(|rt| rt.promise_resolve(constructor, value, realm))
     }
 
+    /// A new pending promise of `realm`. The host keeps it in traced state
+    /// and settles it with [`Runtime::resolve_pending_promise`] or
+    /// [`Runtime::reject_pending_promise`] from a later task (`fetch()`).
+    pub fn new_pending_promise(&mut self, realm: u32) -> VmResult<Gc<Object>> {
+        self.in_scope(|rt| rt.new_promise(realm))
+    }
+
+    /// Resolves a pending promise of [`Runtime::new_pending_promise`] with
+    /// `value` (the promise resolve function: a thenable is followed).
+    /// A promise that is not pending is left as it is.
+    pub fn resolve_pending_promise(&mut self, promise: Gc<Object>, value: Value) -> VmResult<()> {
+        self.in_scope(|rt| {
+            if !rt.promise_is_pending(promise) {
+                return Ok(());
+            }
+            rt.heap.record(value);
+            rt.resolve_promise(promise, value)
+        })
+    }
+
+    /// Rejects a pending promise of [`Runtime::new_pending_promise`] with
+    /// `reason`. A promise that is not pending is left as it is.
+    pub fn reject_pending_promise(&mut self, promise: Gc<Object>, reason: Value) -> VmResult<()> {
+        self.in_scope(|rt| {
+            if !rt.promise_is_pending(promise) {
+                return Ok(());
+            }
+            rt.heap.record(reason);
+            rt.reject_promise(promise, reason)
+        })
+    }
+
+    fn promise_is_pending(&self, promise: Gc<Object>) -> bool {
+        self.promise_state(promise)
+            .is_ok_and(|state| state.status == crate::vm::PromiseStatus::Pending)
+    }
+
     /// A new promise of `realm` rejected with `reason` (Web IDL "a promise
     /// rejected with").
     pub fn rejected_promise(&mut self, realm: u32, reason: Value) -> VmResult<Value> {

@@ -91,6 +91,35 @@ impl Headers {
     }
 }
 
+/// Returns true if `value` is a token (RFC 9110 §5.6.2): one or more ASCII
+/// letters, digits, grave accents or characters of `!#$%&'*+-.^_|~`. Header
+/// names and methods are tokens.
+///
+/// <https://fetch.spec.whatwg.org/#header-name>
+pub fn is_token(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().all(|b| {
+            b.is_ascii_alphanumeric()
+                || matches!(
+                    b,
+                    b'!' | b'#'
+                        | b'$'
+                        | b'%'
+                        | b'&'
+                        | b'\''
+                        | b'*'
+                        | b'+'
+                        | b'-'
+                        | b'.'
+                        | b'^'
+                        | b'_'
+                        | b'`'
+                        | b'|'
+                        | b'~'
+                )
+        })
+}
+
 impl<N: AsRef<str>, V: Into<String>> FromIterator<(N, V)> for Headers {
     fn from_iter<I: IntoIterator<Item = (N, V)>>(iter: I) -> Self {
         let mut headers = Headers::new();

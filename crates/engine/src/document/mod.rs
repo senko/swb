@@ -26,6 +26,7 @@
 //! `resolved.rs` (`getComputedStyle` and the layout flush of a script
 //! task).
 
+mod api_fetches;
 mod changes;
 mod derived;
 mod geometry;
@@ -52,6 +53,8 @@ use swb_layout::{FragmentTree, Point, Size};
 use swb_net::{Loader, Origin, Url};
 use swb_paint::DisplayList;
 use swb_style::{ElementStates, StyleMap, Stylist};
+
+use api_fetches::ApiFetches;
 
 use crate::forms::Forms;
 use crate::page::{FlushCounters, StageTimings};
@@ -129,6 +132,8 @@ pub struct DocumentState {
     /// The fetches of the scripts of script elements: the queue beyond the
     /// limit and the arrived scripts that wait for the runtime.
     pub(crate) script_fetches: ScriptFetches,
+    /// The `fetch()` calls of scripts (they do not delay the load event).
+    pub(crate) api_fetches: ApiFetches,
     /// True while the journal drain processes a step of the parser: the
     /// style sheets that it finds block scripts.
     parser_drain: bool,
@@ -260,6 +265,7 @@ impl DocumentState {
             storage: init.storage,
             requests: Requests::default(),
             script_fetches: ScriptFetches::default(),
+            api_fetches: ApiFetches::default(),
             parser_drain: false,
             base_url: Derived::new(url.clone()),
             url,
@@ -390,6 +396,14 @@ impl swb_web::EngineHost for DocumentState {
 
     fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
         self.fetch_script(node, url)
+    }
+
+    fn start_api_fetch(&mut self, request: swb_net::Request) -> Option<u64> {
+        self.start_api_fetch(request)
+    }
+
+    fn cancel_api_fetch(&mut self, id: u64) {
+        self.cancel_api_fetch(id);
     }
 
     fn element_states(&mut self, controls: bool) -> ElementStates {

@@ -783,7 +783,10 @@ fn a_reload_during_a_post_reloads_the_current_page() {
     let posts = requests.iter().filter(|r| r.method == Method::Post).count();
     assert!(posts <= 1, "{requests:?}");
     let last = requests.last().unwrap();
-    assert_eq!((last.method, last.url.as_str()), (Method::Get, ORIGIN));
+    assert_eq!(
+        (last.method.clone(), last.url.as_str()),
+        (Method::Get, ORIGIN)
+    );
     assert_eq!(page.url().unwrap().as_str(), ORIGIN);
     assert!(!page.can_go_back());
 }
@@ -801,8 +804,9 @@ fn a_post_that_redirects_to_its_own_url_is_not_sent_again() {
     let (mut page, site) = open_site(site, &[("", &html)]);
     click(&mut page, "s");
     wait(&mut page);
-    let methods =
-        |site: &TestSite| -> Vec<Method> { site.requests().iter().map(|r| r.method).collect() };
+    let methods = |site: &TestSite| -> Vec<Method> {
+        site.requests().iter().map(|r| r.method.clone()).collect()
+    };
     assert_eq!(methods(&site), [Method::Get, Method::Post, Method::Get]);
     assert!(site.last_request().body.is_none());
     page.reload();
@@ -815,7 +819,7 @@ fn a_post_that_redirects_to_its_own_url_is_not_sent_again() {
     assert!(page.go_forward());
     wait(&mut page);
     assert_eq!(page.load_state(), LoadState::Complete);
-    let posts = methods(&site).into_iter().filter(|&m| m == Method::Post);
+    let posts = methods(&site).into_iter().filter(|m| *m == Method::Post);
     assert_eq!(posts.count(), 1);
 }
 

@@ -177,9 +177,11 @@ this against the expected file of the Rust test `manifest_format_is_exact`.
   ["https://www.craigslist.org/static/d/*/www/manifest.js"]`. The rule
   applies to `reference --js`, `js-survey` and the other Chromium replays
   (`Fixture.lookup`), not to `capture` (which needs exact matches to record).
-  **swb's Rust replay does not read `replay_patterns` yet**; until it does,
-  swb needs one manifest entry per URL (the fixture has 460 alias entries
-  for `manifest.js`; do not delete them).
+  swb's Rust replay reads the key too (`ReplayFetcher`, feature 10a of M8;
+  the same rule, `fixture::pattern_matches` and `natural_cmp`), so a fixture
+  needs no alias entries for such a URL. Both replays also add CORS headers
+  to the responses of requests with an `Origin` header and answer
+  preflights (ADR 0028 section 12; see "Request interception").
 
 ### Box dump
 
@@ -916,6 +918,31 @@ temporary directory, loaded by navigation.
   images) behind others, and its preload scanner fetches later scripts
   early; space the delays (100 ms or more) and do not compare the order of
   async scripts that a waiting parser could see early.
+  A resource can also give (feature 10a of M8, for `fetch()` and CORS;
+  `tools/probes/web-fetch-cors.json`): `status` (default 200); `headers`
+  (an object of name to a string or a list of strings: the CORS headers,
+  `Set-Cookie`, `Location`; a list repeats the header); `options`, the
+  answer to `OPTIONS`: `"none"` (default: 404 without headers), `"deny"`
+  (200 without CORS headers), `"permissive"` (204 that allows the request's
+  origin with credentials, and its method and headers) or an object
+  `{"status": 204, "headers": {...}, "max_age": 600}` (`max_age` adds
+  `Access-Control-Max-Age`; without `status` and `headers` the object is a
+  permissive answer with that max age). The server answers every method
+  with the resource and listens on two ports, so a case has two origins:
+  `$ORIGIN` (the page's) and `$OTHER` (`http://127.0.0.1:PORT2`) are
+  replaced in the page, the resource texts and the header values, and
+  `$FOLDER` by `case-N` (for an absolute `Location`). `__log` (relative to
+  the page) answers a JSON array of the requests since the page was loaded
+  (the page and `__log` are not listed): `method`, `path` (without the
+  query), `server` (`main` or `other`), `origin`, `cookie`, `headers` (the
+  `accept`, `authorization`, `content-type`, `range`,
+  `access-control-request-*` and `x-*` request headers, sorted) and `body`
+  (the first 200 bytes). A case can then tell whether a preflight ran
+  and whether cookies went; sort the list when the requests run in
+  parallel. Cookies of the resources should have `Path=/$FOLDER/`: the
+  Chromium context shares the jar of `127.0.0.1` between the cases. The log
+  and `Set-Cookie` give the two browsers the same server; they do not run at
+  the same time.
 - `steps` (case, optional; needs `"javascript": true`): input to send
   before the queries, in order, for the events of the user's input (M8
   feature 6d2). Chromium gets it through Playwright's mouse and keyboard

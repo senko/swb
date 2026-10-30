@@ -3503,6 +3503,46 @@ Steps:
         use) with CORS cases (simple, preflighted, credentialed,
         denied) whose outcomes match Chromium against the same server;
         hostile: thousands of pending fetches.
+        Done 2026-10-30, in one session. `net` has all methods, the
+        request, credentials and redirect modes, the CORS check, the
+        preflight with a bounded cache and the filtered responses;
+        `net::fetch_request` applies them in the loader's workers, so
+        the page's own loads keep their behaviour. The replay answers
+        preflights, reflects the origin and reads `replay_patterns`:
+        the local Craigslist fixture needs 22 entries instead of 481.
+        `fetch`, `Headers`, `Request`, `Response` (the body is read
+        whole; `body` is `null`; `blob()` and `formData()` reject until
+        10b), `AbortController`, `AbortSignal` (`abort`, `timeout`,
+        `any`, the `signal` option of `addEventListener`). At most 64
+        requests per document run and 16,384 wait; they do not delay
+        `load`. The probe's case server has two origins, status,
+        headers and `OPTIONS` answers per resource and a request log;
+        probes `web-fetch.json` (23 queries) and `web-fetch-cors.json`
+        (50), three equal Chromium runs each; 4 differences, all
+        departures (`body` is `null`, the prototype order). With
+        `fetch` present, MediaWiki no longer loads `web2017-polyfills`:
+        Wikipedia `compare --js` geometry .425 → .999, pixels .974 →
+        .997; Hacker News and Craigslist unchanged. JS off: snapshot
+        identical; runtime heap 451,541 → 452,186 bytes; hostile 244
+        cases, 243 ok + the known failure (9 new). ADR 0028 "Feature
+        10a notes". Review fixes: the memory of `fetch()` outside the
+        script heap had no bound but 64 × 64 MiB (64 large responses
+        with a busy page reached 3.9 GB, 64 large request bodies 4.4
+        GB); now a budget of 256 MiB per document covers the request
+        bodies and the responses not yet in the heap, checked while a
+        body is read (286 and 407 MiB). Six fetches to a server that
+        never answered took all loader workers, so the page's images
+        and navigations waited up to 60 s; `fetch()` requests now run
+        on 8 workers of their own, at most 6 per host. The retry of a
+        stale pooled connection sent a POST twice; non-idempotent
+        methods now use a new connection and are never retried.
+        `redirect: 'manual'` to another scheme gives the opaque-redirect
+        response (Chromium); the loader's cancel table had a slow leak;
+        credentials in a redirect `Location` fail only across origins.
+        Delta review: a committed navigation kept the old document's
+        hung calls in their places, so the new document's calls waited
+        for them (now dropped as on a stop); a pool where no thread
+        could start kept its requests for ever (now they fail).
       - 10b: asynchronous `XMLHttpRequest`; `navigator.sendBeacon`;
         `FormData`, `Blob`, `FileReader` (data URL and text);
         `Image()`, `load` and `error` at images and stylesheets
@@ -3757,9 +3797,6 @@ Steps:
   cache are not counted in `heap_size`, so the heap limit does not see
   them (the DOM node limit bounds them; the hostile wrapper case reaches
   366 MiB RSS).
-- `web` (found in feature 5a): the `signal` option of
-  `addEventListener`, with `AbortController` and `AbortSignal` (Chromium
-  reads `signal` after `passive`).
 - `web`: the legacy `webkit` renames of animation events.
 - `web`: nested `dispatchEvent` ends with a RangeError at about 408
   levels (release build); Chromium allows more. No page needs it.
@@ -4049,13 +4086,7 @@ Steps:
   a legacy platform object omits names that the prototype hides
   (Chromium lists them); the text of the opaque-origin storage
   `SecurityError` is not measured; the `localStorage` areas must move
-  out of `Page` when swb has tabs or several pages. Wikipedia with
-  JavaScript: MediaWiki loads `web2017-polyfills` unless
-  `IntersectionObserver` and `fetch` exist (features 9a and 10a); until
-  then its `load.php` batch is not in the fixture, and 10 collapsible
-  tables stay hidden (`compare --js` size .465, relative .461); check
-  after 10a that the URL matches the fixture (after 9a it still loads
-  them: `fetch` is missing).
+  out of `Page` when swb has tabs or several pages.
 - `web`/`dom` (found in feature 9a): `IntersectionObserver` options
   `scrollMargin`, `delay` and `trackVisibility` have no effect and
   `isVisible` is false; `clip-path` and masks do not clip a target;
@@ -4111,6 +4142,39 @@ Steps:
   on a page with more than ten catastrophic patterns, a control after
   them can show `:valid` until the control states are rebuilt (ADR 0028
   "Feature 9b2 notes", bounds).
+- `net`/`web`/`engine` (found in feature 10a): `Response.body` as a
+  `ReadableStream` (needs the Streams standard); `statusText` from the
+  server (swb gives the canonical phrase of the code); `Referer` and
+  `Sec-Fetch-*` request headers, and the semantics of
+  `Request.destination`, `referrer`, `cache` and `keepalive`; the HTTP
+  library refuses methods outside the nine standard ones and lowercase
+  `patch` (network errors; Chromium sends them); Chromium's console line
+  "Failed to load resource: net::ERR_FAILED" after a CORS error; virtual
+  time does not advance while a `fetch()` is pending, so a timer cannot
+  fire while a server hangs; the property order of `Request.prototype`
+  and `Response.prototype`; the preflight cache key has no network
+  partition key; the dependents of `AbortSignal.any()` are strong
+  references (at most 65,536); dropping a document does not stop the
+  requests that already run (their workers finish the read). Found in
+  the review: POST and PATCH use a new connection each time (to reuse
+  one, swb must know that a connection came from the pool, so that a
+  request that failed on it before any response byte can be sent
+  again); the byte budget is per document, so the threads of an
+  abandoned document (at most 16) count only against that document; the
+  `ReplayFetcher` bodies are checked against the budget after the fetch;
+  the per-host queue scan looks at 256 entries, so more than 256 queued
+  requests to a hung host delay a request to a healthy host. Found in the
+  delta review: parallel GETs to Python's `http.server` (HTTP/1.0) still
+  fail now and then with "Peer disconnected" (3 of 200, 1 of 40 in one of
+  six runs; Chromium none); the cause is not known (a closed pooled
+  connection at each retry did not reproduce it in a test; the server's
+  listen backlog of 5 against up to 12 connections per host in swb is
+  another candidate). A response past the budget fails where Chromium
+  would stream it; the budget counts the length of the buffers, not
+  their capacity (real memory up to about twice); a cancel starts a
+  replacement thread also when the request is about to end; the
+  same-origin credentials redirect (A → B → A with credentials in the
+  URL) has a unit test but no Chromium probe.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

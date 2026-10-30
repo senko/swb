@@ -20,7 +20,7 @@ use super::{MAX_BODY_SIZE, USER_AGENT, decode};
 use crate::cookies::CookieJar;
 use crate::error::NetError;
 use crate::headers::Headers;
-use crate::request::{Destination, Method, Request};
+use crate::request::{Destination, Request};
 use crate::response::Response;
 use crate::site;
 
@@ -57,6 +57,10 @@ pub(crate) struct HttpClient {
     agent: ureq::Agent,
     /// Connects directly, for loopback hosts.
     direct: ureq::Agent,
+    /// Like `agent` and `direct`, but never reuses a connection: for the
+    /// methods that must not be sent twice (see [`HttpClient::fetch`]).
+    fresh: ureq::Agent,
+    fresh_direct: ureq::Agent,
     cookies: CookieJar,
 }
 
@@ -76,8 +80,10 @@ impl HttpClient {
     /// requests to loopback hosts ([`site::is_loopback`]).
     pub(super) fn with_proxy(proxy: Option<ureq::Proxy>) -> Self {
         HttpClient {
-            agent: build_agent(proxy),
-            direct: build_agent(None),
+            agent: build_agent(proxy.clone(), true),
+            direct: build_agent(None, true),
+            fresh: build_agent(proxy, false),
+            fresh_direct: build_agent(None, false),
             cookies: CookieJar::new(),
         }
     }
@@ -88,24 +94,55 @@ impl HttpClient {
     }
 
     /// Performs one HTTP request. Does not follow redirects.
+    ///
+    /// A request is never sent twice when the server may have received it.
+    /// `ureq` does not tell whether a connection came from its pool, so:
+    /// the idempotent methods ([`Method::is_idempotent`]) use the pool, and
+    /// a failure that looks like a closed pooled connection (an HTTP/1.0
+    /// server, a keep-alive timeout) is retried on a new connection, as
+    /// browsers do; every other method (`POST`, `PATCH`, ...) always
+    /// opens a new connection and is never retried.
     pub(crate) fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        let cookie = self.cookies.cookie_header(request);
-        let http_request = build_request(request, cookie)?;
-        let agent = if site::is_loopback(&request.url) {
-            &self.direct
+        let credentials = request.sends_credentials();
+        let cookie = if credentials {
+            self.cookies.cookie_header(request)
         } else {
-            &self.agent
+            None
         };
-        let result = match &request.body {
-            Some(body) => agent.run(http_request.map(|()| body.as_slice())),
-            None => agent.run(http_request),
+        let retries = if request.method.is_idempotent() {
+            RETRIES
+        } else {
+            0
+        };
+        let agent = self.agent_for(request, retries > 0);
+        let mut attempt = 0;
+        let result = loop {
+            let http_request = build_request(request, cookie.clone())?;
+            let result = match &request.body {
+                Some(body) => agent.run(http_request.map(|()| body.as_slice())),
+                None => agent.run(http_request),
+            };
+            attempt += 1;
+            match result {
+                Err(ureq::Error::Io(error))
+                    if attempt <= retries && is_stale_connection(&error) =>
+                {
+                    // A pooled connection that the server closed: the next
+                    // attempt opens a new one.
+                    debug!("{}: stale connection ({error}), retrying", request.url);
+                }
+                other => break other,
+            }
         };
         let response = result.map_err(|error| map_error(error, &request.url))?;
         let (parts, mut body) = response.into_parts();
         let headers = convert_headers(&parts.headers);
-        self.cookies.store_response_cookies(request, &headers);
-        let raw = read_body(&request.url, &mut body)?;
-        let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE)?;
+        if credentials {
+            self.cookies.store_response_cookies(request, &headers);
+        }
+        let account = |bytes: usize| account(request, bytes);
+        let raw = read_body(&request.url, &mut body, &account)?;
+        let body = decode::decode_body(raw, &headers, MAX_BODY_SIZE, &account)?;
         Ok(Response {
             url: request.url.clone(),
             status: parts.status.as_u16(),
@@ -116,8 +153,58 @@ impl HttpClient {
     }
 }
 
+/// How many times an idempotent request is repeated after a pooled
+/// connection turned out to be closed. Up to three connections of one host
+/// wait in the pool, so a burst of requests can meet more than one closed
+/// connection.
+const RETRIES: usize = 2;
+
+impl HttpClient {
+    /// The agent for `request`: the proxy or the direct one (loopback), the
+    /// pooled one if `pooled`.
+    fn agent_for(&self, request: &Request, pooled: bool) -> &ureq::Agent {
+        match (site::is_loopback(&request.url), pooled) {
+            (true, true) => &self.direct,
+            (false, true) => &self.agent,
+            (true, false) => &self.fresh_direct,
+            (false, false) => &self.fresh,
+        }
+    }
+}
+
+/// Counts the bytes that a response of `request` holds against the budget
+/// of the request, if it has one.
+fn account(request: &Request, bytes: usize) -> Result<(), NetError> {
+    match &request.reservation {
+        Some(reservation) if !reservation.set_response(bytes) => {
+            warn!(
+                "{}: the response does not fit in the memory budget of {} bytes for API requests",
+                request.url,
+                reservation.limit()
+            );
+            Err(NetError::OverBudget {
+                limit: reservation.limit(),
+            })
+        }
+        _ => Ok(()),
+    }
+}
+
+/// True if `error` says that the server closed the connection before the
+/// response (a request on a pooled connection that the server had closed).
+fn is_stale_connection(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::UnexpectedEof
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::BrokenPipe
+    )
+}
+
 /// Creates a `ureq` agent with the browser's settings.
-fn build_agent(proxy: Option<ureq::Proxy>) -> ureq::Agent {
+/// With `pooled` false, no connection is kept for a later request.
+fn build_agent(proxy: Option<ureq::Proxy>, pooled: bool) -> ureq::Agent {
     let tls = TlsConfig::builder()
         .provider(TlsProvider::Rustls)
         .root_certs(native_root_certs())
@@ -125,6 +212,7 @@ fn build_agent(proxy: Option<ureq::Proxy>) -> ureq::Agent {
         .build();
     ureq::Agent::config_builder()
         .proxy(proxy)
+        .max_idle_connections(if pooled { 10 } else { 0 })
         // fetch_following_redirects handles redirects.
         .max_redirects(0)
         // 4xx and 5xx are responses, not errors.
@@ -171,10 +259,11 @@ fn build_request(request: &Request, cookie: Option<String>) -> Result<http::Requ
         reason: error.to_string(),
     })?;
     let mut http_request = http::Request::new(());
-    *http_request.method_mut() = match request.method {
-        Method::Get => http::Method::GET,
-        Method::Post => http::Method::POST,
-    };
+    *http_request.method_mut() = http::Method::from_bytes(request.method.as_str().as_bytes())
+        .map_err(|error| NetError::InvalidUrl {
+            url: request.url.clone(),
+            reason: format!("invalid method {}: {error}", request.method),
+        })?;
     *http_request.uri_mut() = uri;
     let headers = http_request.headers_mut();
     for (name, value) in request_headers(request, cookie).iter() {
@@ -211,7 +300,7 @@ fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
         ("accept", Some(accept(request.destination).to_owned())),
         ("accept-encoding", Some(ACCEPT_ENCODING.to_owned())),
         ("accept-language", Some(ACCEPT_LANGUAGE.to_owned())),
-        ("origin", origin_header(request)),
+        ("origin", request.origin_header()),
         ("cookie", cookie),
     ];
     let is_computed = |name: &str| COMPUTED_HEADERS.contains(&name);
@@ -230,31 +319,6 @@ fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
     headers
 }
 
-/// Returns the value of the `Origin` header: the initiator's origin for a
-/// request whose method is not `GET`, as Fetch sends it with the default
-/// referrer policy (`strict-origin-when-cross-origin`). It is `null` for an
-/// opaque origin and for a request from an `https:` origin to a URL that
-/// is not `https:`. A request without an initiator has no `Origin` header.
-///
-/// Not implemented: the "redirect-tainted origin" (`null` after a redirect
-/// chain that went from the initiator's origin to another origin and then
-/// to a third one).
-///
-/// <https://fetch.spec.whatwg.org/#append-a-request-origin-header>
-fn origin_header(request: &Request) -> Option<String> {
-    if request.method.is_safe() {
-        return None;
-    }
-    let origin = request.initiator.as_ref()?;
-    let downgrade = matches!(origin, url::Origin::Tuple(scheme, _, _) if scheme == "https")
-        && request.url.scheme() != "https";
-    Some(if downgrade {
-        "null".to_owned()
-    } else {
-        origin.ascii_serialization()
-    })
-}
-
 fn accept(destination: Destination) -> &'static str {
     match destination {
         Destination::Document => ACCEPT_DOCUMENT,
@@ -267,11 +331,28 @@ fn accept(destination: Destination) -> &'static str {
 /// Reads a response body. A body that ends early (connection closed before
 /// `Content-Length` bytes) is returned as far as it was received, as
 /// browsers display partial pages and images.
-fn read_body(url: &Url, body: &mut ureq::Body) -> Result<Vec<u8>, NetError> {
+/// `account` is called with the size of the body while it grows.
+fn read_body(
+    url: &Url,
+    body: &mut ureq::Body,
+    account: decode::Account<'_>,
+) -> Result<Vec<u8>, NetError> {
     let mut raw = Vec::new();
     let mut reader = body.with_config().limit(MAX_BODY_SIZE).reader();
-    match reader.read_to_end(&mut raw) {
-        Ok(_) => Ok(raw),
+    let mut chunk = vec![0; decode::CHUNK_SIZE];
+    let result = loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break Ok(()),
+            Ok(n) => {
+                raw.extend_from_slice(chunk.get(..n).unwrap_or_default());
+                account(raw.len())?;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => break Err(error),
+        }
+    };
+    match result {
+        Ok(()) => Ok(raw),
         Err(error) => {
             let error = match error.downcast::<ureq::Error>() {
                 Ok(ureq_error) => map_error(ureq_error, url),

@@ -17,7 +17,9 @@ import math
 import os
 import shutil
 import signal
+import socketserver
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -182,25 +184,99 @@ def _read_log(log_file: Path) -> str:
         return handle.read(LOG_READ_LIMIT).decode("utf-8", errors="replace")
 
 
-def write_case(case: Case, directory: Path) -> Path:
+class StallServer:
+    """A local HTTP server for the cases that need a peer that does not
+    answer (feature 10a, `Case.server`): in mode `never` it reads the
+    request and then holds the connection open; in mode `slow` it answers
+    `ok` (with `Access-Control-Allow-Origin: *`) after `SLOW_S` seconds. It
+    runs on daemon threads until `close`. In mode `big` it answers every
+    request with a body of `BIG_MIB` MiB. The page finds its port in the
+    text `__PORT__`."""
+
+    SLOW_S = 2.0
+    BIG_MIB = 60
+
+    def __init__(self, mode: str) -> None:
+        server = self
+
+        class Handler(socketserver.StreamRequestHandler):
+            def handle(self) -> None:
+                try:
+                    while self.rfile.readline().strip():
+                        pass
+                    if mode == "big":
+                        size = server.BIG_MIB << 20
+                        head = (
+                            "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n"
+                            "Content-Type: application/octet-stream\r\n"
+                            f"Content-Length: {size}\r\nConnection: close\r\n\r\n"
+                        )
+                        self.wfile.write(head.encode())
+                        chunk = bytes(1 << 20)
+                        for _ in range(server.BIG_MIB):
+                            self.wfile.write(chunk)
+                    elif mode == "slow":
+                        time.sleep(server.SLOW_S)
+                        body = b"ok"
+                        head = (
+                            "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n"
+                            f"Content-Length: {len(body)}\r\nConnection: close\r\n\r\n"
+                        )
+                        self.wfile.write(head.encode() + body)
+                    else:
+                        time.sleep(3600)
+                except OSError:
+                    pass
+
+        class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+            daemon_threads = True
+            allow_reuse_address = True
+            request_queue_size = 128
+
+        self._tcp = Server(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self._tcp.serve_forever, daemon=True).start()
+
+    @property
+    def port(self) -> int:
+        """The port that the server listens on."""
+        return int(self._tcp.server_address[1])
+
+    def close(self) -> None:
+        self._tcp.shutdown()
+        self._tcp.server_close()
+
+
+def write_case(case: Case, directory: Path, port: int = 0) -> Path:
     """Writes the page of `case` and its extra files into `directory` and
-    returns the path of the HTML file."""
+    returns the path of the HTML file. `__PORT__` in the texts is replaced
+    by `port` (the port of the case's `StallServer`)."""
     shutil.rmtree(directory, ignore_errors=True)
     directory.mkdir(parents=True)
     page = case.build()
     for name, content in page.files.items():
+        if isinstance(content, str):
+            content = content.replace("__PORT__", str(port))
         data = content.encode() if isinstance(content, str) else content
         (directory / name).parent.mkdir(parents=True, exist_ok=True)
         (directory / name).write_bytes(data)
     index = directory / "index.html"
-    index.write_text(page.html, encoding="utf-8")
+    index.write_text(page.html.replace("__PORT__", str(port)), encoding="utf-8")
     return index
 
 
 def run_case(case: Case, binary: Path, root: Path) -> RunResult:
     """Writes and runs one case in `root/NAME/`."""
+    stall = StallServer(case.server) if case.server else None
+    try:
+        return _run_case(case, binary, root, stall.port if stall else 0)
+    finally:
+        if stall is not None:
+            stall.close()
+
+
+def _run_case(case: Case, binary: Path, root: Path, port: int) -> RunResult:
     directory = root / case.name
-    index = write_case(case, directory)
+    index = write_case(case, directory, port)
     # `{dir}` in an option is the directory of the case (a fixture to
     # replay); a case with a `url` opens that URL, not `index.html`.
     extra = [arg.replace("{dir}", str(directory.resolve())) for arg in case.swb_args]

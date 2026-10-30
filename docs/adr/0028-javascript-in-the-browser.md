@@ -2841,8 +2841,138 @@ the worker threads, the cookie jar and the replay of fixtures.
   (measured in Chromium, feature 8b); a write past it throws `QuotaExceededError`; the
   `storage` event goes to other documents of the origin (in M8 there
   are none).
-- Each document has at most 64 requests from scripts in flight; others
-  wait in a queue.
+- Each document has at most 8 requests from scripts running, at most 6
+  per host, on workers of their own; others wait in a queue. The
+  requests and the responses not yet in the heap share a byte budget
+  (section 16, feature 10a notes).
+
+Feature 10a notes (`fetch`, `Headers`, `Request`, `Response`,
+`AbortController`, `AbortSignal`, CORS; measured in
+`tools/probes/web-fetch.json` and `web-fetch-cors.json`, three equal
+Chromium runs each; swb's differences from Chromium are listed in the Rust
+tests that run the cases, `crates/web/tests/fetch.rs`):
+
+- **`net`.** `Method` holds all methods (`parse` normalizes the case of the
+  six that Fetch names; `patch` stays `patch`; `CONNECT`, `TRACE` and
+  `TRACK` are refused by the script API). A `Request` has a mode
+  (`navigate`, `same-origin`, `no-cors`, `cors`), a credentials mode, a
+  redirect mode, the response tainting of the current hop and the
+  tainted-origin flag. `net::fetch_request` is Fetch's main fetch and
+  HTTP fetch over a `Fetcher`: it sets the tainting per hop, sends the
+  preflight (`cors.rs`: `needs_preflight`, `preflight_request`,
+  `check_preflight`, a bounded `PreflightCache`), runs the CORS check on
+  every response of a `cors` request (also on a redirect response), follows
+  the redirect modes, and filters the response for a script (basic,
+  `cors` with the exposed headers, opaque, opaque-redirect). The loader runs
+  it on its workers, keeps one preflight cache for the document and
+  returns the response kind with the completion. `Loader::cancel` marks a
+  request: one that no worker started completes with `NetError::Aborted`
+  without a fetch. Cookies go (and `Set-Cookie` is stored) as the
+  credentials mode says: `include` always, `same-origin` while the tainting
+  is basic, `omit` never; the jar's `SameSite` rules apply on top (ADR
+  0012). `Origin` is sent as Fetch's "append a request `Origin` header"
+  says (`Request::origin_header`): always for a `cors` tainting, else for
+  methods other than `GET` and `HEAD`; `null` after a redirect from a
+  cross-origin URL to a third origin.
+- **Replay.** `ReplayFetcher` answers preflights permissively and adds the
+  CORS headers described above; it reads `replay_patterns` (the Python
+  replay's rule), so the 460 alias entries of the local Craigslist fixture
+  are not needed (the cleaned manifest: 22 entries, same scores).
+- **Chromium behaviour found.** The CORS check wording of the console (the
+  texts are in `cors.rs`, `CorsFailure::reason`; Chromium 148 has no
+  "If an opaque response serves your needs..." sentence); the console also
+  prints `Failed to load resource: net::ERR_FAILED` after each, which swb
+  does not copy. A `Access-Control-Allow-Headers: *` also covers
+  `Authorization` (the standard excludes it). A preflight status outside
+  200 to 299 and a redirect of the preflight fail it. `fetch()` of
+  `blob:`, `file:`, `about:`, `ftp:` and `javascript:` URLs rejects with
+  `TypeError: Failed to fetch` (console: `Fetch API cannot load X. URL
+  scheme "s" is not supported.`); `data:` works (type `basic`, status 200,
+  `content-type` the only header). Mode `no-cors` with a redirect mode other
+  than `follow` fails. Mode `same-origin` to another origin fails without a
+  request. An abort after the response makes the unread body reject with
+  `AbortError` "The user aborted a request." (whatever the reason; the
+  body stays unread); swb copies this for the bodies it holds. `Response`
+  statuses outside 200 to 599 are a `RangeError`; a `status` of `'a'`
+  converts to 0 (no `[EnforceRange]`). `new Headers([['a']])` is
+  `Invalid value`. A `Request` has its own `signal` that follows the
+  given one.
+- **Bodies and streams.** Bodies are bytes in memory: a string,
+  `URLSearchParams`, `ArrayBuffer` and views (`body::extract` is where
+  `Blob` and `FormData` attach in 10b). `body` is `null` (one warning per
+  document), `blob()` and `formData()` reject with `NotSupportedError`
+  until 10b. The bytes of a `Request` or `Response` count in the heap (the
+  object's `heap_size`). The response is complete when the promise
+  resolves.
+- **Engine.** The page lends the document state; `fetch()` calls
+  `EngineHost::start_api_fetch` (the document adds its origin as the
+  initiator, refuses URLs it may not load) and the loader runs the request.
+  They run on a pool of 8 workers of their own (`Loader::start_api`), so
+  a server that never answers cannot hold the workers of the page's
+  images, scripts, style sheets and navigations (review of 10a: six
+  `no-cors` calls to such a server took all six workers for up to 60 s).
+  At most 8 run at once and at most 6 to one host (Chromium: six
+  connections per host); the next ones wait in a FIFO queue of at most
+  16,384 requests, and the first 256 of the queue are looked at for a
+  request to a host with a free place, so a healthy host passes the queue
+  of a hung one. A healthy fetch waits only when 8 requests hang (or 6 hang
+  at its own host); it then waits for a place until one of them ends (at
+  the latest the 60 s request timeout). Chromium would not wait for hung
+  requests of other hosts at all (256 connections in all); the difference
+  shows only past 8 hung requests. When a navigation commits, the old
+  document's calls are dropped as on a stop, so its hung requests give
+  their places to the new document (delta review of 10a: the new
+  document's calls waited for them). A call past the queue, or one that does
+  not fit in the byte budget, fails at once with `TypeError` and a warning.
+  They are not in the document's request table, so they do not delay
+  `load`; the waiting loops of the page (`evaluate` of a promise, the
+  virtual clock) count them as activity: in virtual time, timers do not
+  fire while a `fetch()` is pending (time moves only when nothing is in
+  flight). A completion comes back as a task
+  (`ScriptRuntime::api_fetch_completed`).
+  An abort drops a queued request. A running one cannot be interrupted in
+  its blocking read: the loader puts a new thread in the place of the
+  blocked worker (`Loader::cancel`; at most 16 such threads, each ends
+  with its request), and the call gives up its place for the next request;
+  past 16 such threads the call keeps its place until its completion
+  arrives. The bytes that the blocked thread still reads count against the
+  budget until it lets go. A navigation or `Page::stop` drops the calls:
+  their promises stay pending. A pooled connection that the server closed
+  is retried only for the idempotent methods (`GET`, `HEAD`, `OPTIONS`,
+  `PUT`, `DELETE`; twice); `POST`, `PATCH` and other methods always use a
+  new connection and are never sent again, as the server may have read
+  them (review of 10a: a `POST` was sent twice; `ureq` does not tell
+  whether a connection came from its pool). Form submissions take the same
+  path. A `redirect: 'manual'` request whose `Location` has another scheme
+  (`ftp:`, `file:`) gives the opaque-redirect response, as Chromium does
+  (probe case `fetch-edge`); the scheme check belongs to following.
+  A redirect with credentials in its `Location` fails only if the
+  request's origin differs from the `Location`'s origin (Fetch), also
+  after a chain A -> B -> A. A response that does not fit in the heap
+  rejects the promise with `TypeError`.
+- **Virtual time while a fetch is pending** (measured in review: one
+  `no-cors` `fetch()` to a server that never answers and a
+  `setTimeout(..., 1000)`; `--virtual-time --timeout 20 --settle-ms 3000`):
+  the run took 25 s and the timer never fired; Chromium fires it. The
+  wait is bounded by the caller's real-time timeout and by the 60 s request
+  timeout of the network layer, as for any pending load. This stays a
+  departure.
+- **Signals.** `AbortSignal` is an event target (generic data with a
+  `SignalState`); `AbortSignal.any()` flattens the sources, and a source
+  keeps its dependents strongly (at most 65,536; the standard keeps them
+  weakly); a signal tracks at most 65,536 listeners added with the
+  `signal` option; at most 262,144 `AbortSignal.timeout()` signals wait for
+  their timer task (the task ends past it). `timeout()` fires from the event
+  loop in page time.
+- **Departures** (rows in `crates/web/tests/fetch.rs`): `body` is `null`;
+  the property order of `Request.prototype` and `Response.prototype` (the
+  generator sorts operations, Chromium puts `bytes` last and has
+  `targetAddressSpace`); `statusText` is the canonical phrase of the code,
+  not the server's; `json()` uses the page's `JSON.parse`; swb sends no
+  `Referer` and no `Sec-Fetch-*` headers; methods other than the nine
+  standard ones (and `patch` in lowercase) are network errors (the HTTP
+  library refuses them); header values are strings, not byte strings;
+  `Request.destination` is always `""` and `referrer` is not sent.
 
 Feature 8b notes (`document.cookie`, `localStorage`, `sessionStorage`;
 measured in `tools/probes/web-cookies.json` and `web-storage.json`, three
@@ -3717,6 +3847,15 @@ Per document, all settings with these defaults:
 | Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
 | Script fetches in flight (feature 5c) | 64 | queued |
 | Fetched script text that has not run, per document (feature 5c) | 256 MiB | the script fails as a network error (`error` event, warning) |
+| `fetch()` requests that run per document, and per host (feature 10a, review fix) | 8 (their own pool of workers) and 6 | queued; the page's loads do not wait for them |
+| `fetch()` requests that wait per document (feature 10a) | 16,384 | the call fails at once (`TypeError: Failed to fetch`, warning) |
+| Memory outside the heap of the API path per document, `ByteBudget` (feature 10a, review fix): the requests (URLs, headers, bodies) that wait, run or are in a worker that was cancelled, and the response bodies that are read but not yet in the heap (also while the completion waits in the loader's channel or for the page, and while a coded body is decoded) | 256 MiB (own row from the heap; the worker checks it as the body grows) | a request that does not fit fails at once, a response that grows past it fails while it is read: `TypeError: Failed to fetch` and a warning. The bytes return when the body is in the heap or dropped (abort, navigation, stop); a cancelled request that still runs in a thread holds its bytes until the thread ends. The budget is per document: the thread of an abandoned document counts against the budget of that document, and at most 16 such threads exist (`Loader::cancel`), each at most 64 MiB |
+| Response bodies that `Response` objects hold, request bodies, header lists in the heap (feature 10a) | the heap (256 MiB), by `heap_size` of the objects | termination, as for any heap growth. A body is in the heap and counted in the budget at the same time only while `Response` is made from the completion |
+| Headers in one `Headers` list (feature 10a) | 65,536 | `TypeError` |
+| Preflight cache entries, per loader (feature 10a) | 256; `Access-Control-Max-Age` cut to 7,200 s | the soonest to expire goes |
+| Dependent signals of one source (`AbortSignal.any()`) and listener registrations of one signal (`signal` option) (feature 10a) | 65,536 each | further ones are not tracked, with a warning |
+| `AbortSignal.timeout()` signals that wait for their timer (feature 10a) | 262,144 | the task ends (termination, warning) |
+| Redirects of one request (feature 10a, as for any load) | 20 | network error |
 | `localStorage` and `sessionStorage`, each per origin (feature 8b): UTF-16 code units of all keys and values | 5,242,880 (Chromium's quota, measured) | `QuotaExceededError`; the area stays as it was |
 | Keys in one storage area (feature 8b) | 100,000 | `QuotaExceededError` (Chromium has none: its quota in code units allows millions of one-unit keys, which would cost about 100 bytes of memory each) |
 | All storage areas of both kinds and all origins together, in bytes: UTF-8 bytes of keys and values, 64 per key, the origin and 64 per area (feature 8b) | 64 MiB | `QuotaExceededError` (a session that visits many origins holds at most 64 MiB of storage: twelve full areas of ASCII text, four of CJK text) |

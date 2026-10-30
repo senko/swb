@@ -278,6 +278,7 @@ impl DocumentState {
         // fetches of scripts.
         self.parser = None;
         self.script_fetches = crate::resources::ScriptFetches::default();
+        self.abandon_api_fetches();
         // The images of the cancelled requests are requested again by the
         // next selection or style computation.
         self.images.forget_cancelled(&HashSet::new());

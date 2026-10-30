@@ -667,6 +667,9 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, false);
                 result
             }),
+            Task::AbortTimeout(id) => self.task("AbortSignal.timeout()", |rt| {
+                crate::abort::timeout_fired(rt, id).map_err(task_error)
+            }),
             Task::FinalizationCleanup => self.task("a finalization registry", |rt| {
                 if let Ok(state) = state_mut(rt) {
                     state.event_loop.cleanup_queued = false;

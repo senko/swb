@@ -54,6 +54,15 @@ impl g::window::WindowImpl for WebState {
         crate::location::history_object(cx)
     }
 
+    fn fetch(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        input: Value,
+        init: crate::generated::types::RequestInit,
+    ) -> b::Result<Gc<Object>> {
+        crate::fetch::window_fetch(cx, input, init)
+    }
+
     fn structured_clone(
         cx: &mut Cx<'_>,
         _this: Platform,

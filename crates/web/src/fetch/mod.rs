@@ -1,0 +1,263 @@
+//! `fetch()`, `Headers`, `Request` and `Response` (M8 feature 10a, ADR 0028
+//! section 12; Fetch Standard, <https://fetch.spec.whatwg.org/>).
+//!
+//! - `headers`: the header list with its guards, sorted iteration.
+//! - `body`: the bytes of a body, `extract` and the Body mixin methods.
+//! - `request`, `response`: the two classes and their constructors.
+//! - this module: `fetch()` ([`fetch_impl`]), the table of calls in
+//!   flight, the completion that the engine hands back
+//!   ([`complete`], [`abort_fetch`]).
+//!
+//! # Data flow
+//!
+//! `fetch(input, init)` builds the request ([`request::build`]), checks the
+//! scheme, hands a `swb_net::Request` to the engine
+//! ([`crate::EngineHost::start_api_fetch`]) and returns a pending promise
+//! that the table of calls keeps. The engine's loader fetches it (CORS,
+//! credentials and redirects are in `net`, `swb_net::fetch_request`) and the
+//! page's loop hands the result back as a task
+//! ([`crate::ScriptRuntime::api_fetch_completed`]), which resolves the
+//! promise with a `Response` or rejects it with `TypeError: Failed to fetch`
+//! and logs Chromium's console message for a CORS failure. An abort of the
+//! request's signal rejects the promise with the signal's reason and tells
+//! the engine to drop the request ([`crate::EngineHost::cancel_api_fetch`]).
+//!
+//! # Deviations
+//!
+//! - `Response.body` and `Request.body` are `null` (no streams) with one
+//!   warning per document.
+//! - `blob()` and `formData()` reject with `NotSupportedError` until
+//!   feature 10b.
+//! - The response is complete when the promise resolves (the engine reads
+//!   whole bodies), so an abort after the response does not interrupt the
+//!   body read.
+//! - Only `http:`, `https:` and `data:` URLs are fetched; `blob:` comes with
+//!   feature 10b.
+
+mod body;
+mod headers;
+mod request;
+mod response;
+
+use std::collections::HashMap;
+
+use swb_js::{Gc, HostData, Object, Runtime, ThrowKind, Tracer, Value, VmResult};
+
+use crate::bindings::{self as b, Cx, Exception, Platform};
+use crate::generated::types::RequestInit;
+use crate::state::{engine_mut, state_mut};
+
+/// A call of `fetch()` in flight.
+#[derive(Debug)]
+struct Pending {
+    promise: Gc<Object>,
+    /// The signal that aborts the call (the caller's, or a signal that
+    /// never aborts).
+    signal: Gc<Object>,
+    /// The request URL, for an opaque-redirect response.
+    url: String,
+    /// True for a `HEAD` request (its response has no body).
+    head: bool,
+}
+
+/// The `fetch()` calls in flight, by the id that the engine knows.
+#[derive(Debug, Default)]
+pub(crate) struct Fetches {
+    pending: HashMap<u64, Pending>,
+    /// True after the warning about `body` (no streams).
+    stream_warned: bool,
+}
+
+impl Fetches {
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        for pending in self.pending.values() {
+            tracer.object(pending.promise);
+            tracer.object(pending.signal);
+        }
+    }
+}
+
+/// The data of a platform object `this` as a `T`.
+pub(super) fn generic<T: swb_js::GenericData>(rt: &Runtime, this: Platform) -> b::Result<&T> {
+    match this.data {
+        HostData::Generic(handle) => rt
+            .heap()
+            .generic::<T>(handle)
+            .map_err(|_| Exception::type_error("Illegal invocation")),
+        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
+    }
+}
+
+/// [`generic`] for changes.
+pub(super) fn generic_mut<T: swb_js::GenericData>(
+    rt: &mut Runtime,
+    this: Platform,
+) -> b::Result<&mut T> {
+    match this.data {
+        HostData::Generic(handle) => rt
+            .heap_mut()
+            .generic_mut::<T>(handle)
+            .map_err(|_| Exception::type_error("Illegal invocation")),
+        HostData::Word(_) => Err(Exception::type_error("Illegal invocation")),
+    }
+}
+
+/// `value` parsed against the document's base URL and serialized, or
+/// `None` if it does not parse.
+fn engine_parse_url(rt: &mut Runtime, value: &str) -> b::Result<Option<String>> {
+    Ok(engine_mut(rt)?.parse_url(value))
+}
+
+/// Logs the warning for `Response.body` and `Request.body` once.
+fn stream_body(rt: &mut Runtime, has_body: bool) {
+    if !has_body {
+        return;
+    }
+    if let Ok(state) = state_mut(rt)
+        && !state.fetches.stream_warned
+    {
+        state.fetches.stream_warned = true;
+        log::warn!("Request.body and Response.body are null: swb has no streams");
+    }
+}
+
+/// A `TypeError: Failed to fetch` for a rejection.
+fn network_error(rt: &mut Runtime) -> VmResult<Value> {
+    Ok(rt
+        .new_error(ThrowKind::TypeError, "Failed to fetch")?
+        .into())
+}
+
+/// Rejects a new promise with `reason`.
+fn rejected(rt: &mut Runtime, realm: u32, reason: Value) -> b::Result<Gc<Object>> {
+    match rt.rejected_promise(realm, reason)? {
+        Value::Object(promise) => Ok(promise),
+        _ => Err(Exception::type_error("a rejected promise is not an object")),
+    }
+}
+
+/// `fetch(input, init)` (Fetch "fetch method").
+///
+/// <https://fetch.spec.whatwg.org/#fetch-method>
+fn fetch_impl(cx: &mut Cx<'_>, input: Value, init: RequestInit) -> b::Result<Gc<Object>> {
+    let realm = cx.realm();
+    let request = request::build(cx.rt, realm, input, init, false)?;
+    if crate::abort::is_aborted(cx.rt, request.signal)? {
+        let reason = crate::abort::reason_of(cx.rt, request.signal)?;
+        return rejected(cx.rt, realm, reason);
+    }
+    let Some(net_request) = request::to_net_request(cx.rt, &request)? else {
+        let error = network_error(cx.rt)?;
+        return rejected(cx.rt, realm, error);
+    };
+    let scheme = net_request.url.scheme().to_owned();
+    if !matches!(scheme.as_str(), "http" | "https" | "data") {
+        crate::runtime::report_line(
+            cx.rt,
+            "fetch",
+            &format!(
+                "Fetch API cannot load {}. URL scheme \"{scheme}\" is not supported.",
+                request.url
+            ),
+        );
+        let error = network_error(cx.rt)?;
+        return rejected(cx.rt, realm, error);
+    }
+    let head = net_request.method == swb_net::Method::Head;
+    let promise = cx.rt.new_pending_promise(realm)?;
+    let Some(id) = engine_mut(cx.rt)?.start_api_fetch(net_request) else {
+        log::warn!("fetch({}) was refused: too many requests", request.url);
+        let error = network_error(cx.rt)?;
+        cx.rt.reject_pending_promise(promise, error)?;
+        return Ok(promise);
+    };
+    crate::abort::register_fetch(cx.rt, request.signal, id)?;
+    state_mut(cx.rt)?.fetches.pending.insert(
+        id,
+        Pending {
+            promise,
+            signal: request.signal,
+            url: request.url,
+            head,
+        },
+    );
+    Ok(promise)
+}
+
+/// The result of a fetch of the engine: the final response with its kind,
+/// or the error.
+pub(crate) fn complete(
+    rt: &mut Runtime,
+    id: u64,
+    result: Result<swb_net::Response, swb_net::NetError>,
+    kind: swb_net::ResponseKind,
+) -> VmResult<()> {
+    let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
+        // Aborted before.
+        return Ok(());
+    };
+    crate::abort::unregister_fetch(rt, pending.signal, id);
+    match result {
+        Ok(response) => {
+            let object = response::from_net(
+                rt,
+                0,
+                response,
+                kind,
+                &pending.url,
+                pending.head,
+                pending.signal,
+            );
+            match object {
+                Ok(object) => rt.resolve_pending_promise(pending.promise, object.into()),
+                Err(error) => {
+                    // The response does not fit in the heap: the promise
+                    // rejects (a pending promise would never settle).
+                    log::warn!("fetch({}): {:?}", pending.url, exception_error(error));
+                    let reason = network_error(rt)?;
+                    rt.reject_pending_promise(pending.promise, reason)
+                }
+            }
+        }
+        Err(error) => {
+            match error.console_message("fetch") {
+                Some(message) => crate::runtime::report_line(rt, "fetch", &message),
+                None if matches!(error, swb_net::NetError::OverBudget { .. }) => {
+                    log::warn!("fetch({}) failed: {error}", pending.url);
+                }
+                None => log::debug!("fetch({}) failed: {error}", pending.url),
+            }
+            let reason = network_error(rt)?;
+            rt.reject_pending_promise(pending.promise, reason)
+        }
+    }
+}
+
+/// The signal of the call `id` aborted: rejects its promise with `reason`
+/// and tells the engine to drop the request.
+pub(crate) fn abort_fetch(rt: &mut Runtime, _realm: u32, id: u64, reason: Value) -> VmResult<()> {
+    let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
+        return Ok(());
+    };
+    if let Ok(host) = engine_mut(rt) {
+        host.cancel_api_fetch(id);
+    }
+    rt.reject_pending_promise(pending.promise, reason)
+}
+
+/// The error of a binding in a place that returns a `VmResult`.
+fn exception_error(exception: Exception) -> swb_js::VmError {
+    match exception {
+        Exception::Js(error) => error,
+        other => swb_js::VmError::type_error(format!("{other:?}")),
+    }
+}
+
+/// The `fetch` member of `Window` (`window.rs` calls it).
+pub(crate) fn window_fetch(
+    cx: &mut Cx<'_>,
+    input: Value,
+    init: RequestInit,
+) -> b::Result<Gc<Object>> {
+    fetch_impl(cx, input, init)
+}

@@ -32,6 +32,17 @@ fn url() -> Url {
 /// The state of a document: `dom` parsed to the end, or parsed in steps
 /// by `parser`.
 fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState {
+    let loader = Rc::new(Loader::new(Arc::new(NoNetwork), 1, Arc::new(|| {})));
+    state_with(dom, parser, url, loader)
+}
+
+/// Like [`state`], with a loader of the test's own.
+fn state_with(
+    dom: Document,
+    parser: Option<HtmlParser>,
+    url: &Url,
+    loader: Rc<Loader>,
+) -> DocumentState {
     let mut doc = DocumentState::new(DocumentInit {
         content_type: "text/html".to_owned(),
         dom,
@@ -39,7 +50,7 @@ fn state(dom: Document, parser: Option<HtmlParser>, url: &Url) -> DocumentState 
         url: url.clone(),
         encoding: encoding_rs::UTF_8,
         images: Images::default(),
-        loader: Rc::new(Loader::new(Arc::new(NoNetwork), 1, Arc::new(|| {}))),
+        loader,
         storage: swb_web::StorageStore::shared(),
         view: View {
             viewport: Size::new(1280.0, 800.0),
@@ -540,4 +551,208 @@ fn layout_queries_count_as_forced() {
     assert_eq!((f.style_runs, f.layout_runs), (2, 2));
     assert_eq!((f.forced_style_runs, f.forced_layout_runs), (1, 1));
     assert!(f.forced_layout_time <= f.layout_time);
+}
+
+// ----- The fetch() calls of scripts (feature 10a) -----
+
+/// A request to `https://{host}.test/{path}`.
+fn api_request_to(host: &str, path: &str) -> Request {
+    let url = Url::parse(&format!("https://{host}.test/{path}")).unwrap();
+    Request::get(url, swb_net::Destination::Other)
+}
+
+/// A fetcher that does not answer until it is released (a server that
+/// never answers); it counts the requests that reached it.
+#[derive(Default)]
+struct Hang {
+    released: std::sync::atomic::AtomicBool,
+    seen: std::sync::atomic::AtomicUsize,
+}
+
+impl Hang {
+    fn seen(&self) -> usize {
+        self.seen.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn release(&self) {
+        self.released
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Waits until `count` requests are in the fetcher.
+    fn wait_for_seen(&self, count: usize) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while self.seen() < count {
+            assert!(std::time::Instant::now() < deadline, "seen {}", self.seen());
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+}
+
+impl Fetcher for Hang {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.seen.fetch_add(1, SeqCst);
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        while !self.released.load(SeqCst) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        Ok(Response {
+            url: request.url.clone(),
+            status: 200,
+            headers: swb_net::Headers::new(),
+            body: vec![b'x'; 10],
+            redirected: false,
+        })
+    }
+}
+
+/// A document whose loader has the fetcher `hang`.
+fn hanging_doc(hang: &Arc<Hang>) -> DocumentState {
+    let loader = Rc::new(Loader::new(hang.clone(), 1, Arc::new(|| {})));
+    state_with(swb_dom::parse_html("<p>x"), None, &url(), loader)
+}
+
+#[test]
+fn api_fetches_run_up_to_the_limit_and_the_rest_wait() {
+    use super::api_fetches::{MAX_API_FETCHES, MAX_QUEUED_API_FETCHES};
+    let hang = Arc::new(Hang::default());
+    let mut doc = hanging_doc(&hang);
+    let total = MAX_API_FETCHES + 6;
+    let ids: Vec<u64> = (0..total)
+        .map(|i| {
+            doc.start_api_fetch(api_request_to(&format!("h{i}"), "r"))
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(ids, (1..=total as u64).collect::<Vec<_>>());
+    assert_eq!(doc.api_fetches.places(), MAX_API_FETCHES);
+    assert_eq!(doc.api_fetches.queued(), 6);
+    assert!(doc.has_pending_api_fetches());
+    // A queued call that is cancelled leaves the queue.
+    doc.cancel_api_fetch(ids[MAX_API_FETCHES + 1]);
+    assert_eq!(doc.api_fetches.queued(), 5);
+    // A running one that no worker can leave gives up its place when the
+    // loader puts another thread in its place: the next request starts and
+    // reaches the fetcher while the first eight still hang.
+    hang.wait_for_seen(MAX_API_FETCHES);
+    doc.cancel_api_fetch(ids[0]);
+    assert_eq!(doc.api_fetches.places(), MAX_API_FETCHES);
+    assert_eq!(doc.api_fetches.queued(), 4);
+    hang.wait_for_seen(MAX_API_FETCHES + 1);
+    // The queue is bounded: past its limit a call fails at once.
+    let mut doc2 = hanging_doc(&hang);
+    for i in 0..MAX_API_FETCHES + MAX_QUEUED_API_FETCHES {
+        assert!(
+            doc2.start_api_fetch(api_request_to(&format!("q{i}"), "r"))
+                .is_some()
+        );
+    }
+    assert!(doc2.start_api_fetch(api_request_to("more", "r")).is_none());
+    // Stopping drops all of them.
+    doc2.abandon_api_fetches();
+    assert!(!doc2.has_pending_api_fetches());
+    assert_eq!(doc2.api_fetches.queued(), 0);
+    hang.release();
+}
+
+#[test]
+fn api_fetches_to_one_host_leave_places_for_the_others() {
+    use super::api_fetches::MAX_API_PER_HOST;
+    let hang = Arc::new(Hang::default());
+    let mut doc = hanging_doc(&hang);
+    for i in 0..MAX_API_PER_HOST + 4 {
+        doc.start_api_fetch(api_request_to("slow", &format!("{i}")))
+            .unwrap();
+    }
+    assert_eq!(doc.api_fetches.places(), MAX_API_PER_HOST);
+    assert_eq!(doc.api_fetches.queued(), 4);
+    // A request to another host passes the queue of the slow host.
+    doc.start_api_fetch(api_request_to("fast", "x")).unwrap();
+    assert_eq!(doc.api_fetches.places(), MAX_API_PER_HOST + 1);
+    assert_eq!(doc.api_fetches.queued(), 4);
+    hang.wait_for_seen(MAX_API_PER_HOST + 1);
+    hang.release();
+}
+
+#[test]
+fn api_fetches_are_limited_by_a_byte_budget() {
+    use super::api_fetches::{API_BUDGET, MAX_API_FETCHES};
+    let hang = Arc::new(Hang::default());
+    let mut doc = hanging_doc(&hang);
+    // Fill the places so that the next requests queue.
+    for i in 0..MAX_API_FETCHES {
+        doc.start_api_fetch(api_request_to(&format!("h{i}"), "r"))
+            .unwrap();
+    }
+    let big = |host: &str| {
+        let mut request = api_request_to(host, "post");
+        request.method = swb_net::Method::Post;
+        request.body = Some(vec![0; 64 << 20]);
+        request
+    };
+    let fits = API_BUDGET / (64 << 20) - 1;
+    let ids: Vec<u64> = (0..fits)
+        .map(|i| doc.start_api_fetch(big(&format!("b{i}"))).unwrap())
+        .collect();
+    // The next one does not fit: it fails at once, the queue is unchanged.
+    assert!(doc.start_api_fetch(big("late")).is_none());
+    assert_eq!(doc.api_fetches.queued(), fits);
+    // A cancelled queued request returns its bytes.
+    let used = doc.api_fetches.used_bytes();
+    doc.cancel_api_fetch(ids[0]);
+    assert!(doc.api_fetches.used_bytes() + (64 << 20) <= used + 1024);
+    assert!(doc.start_api_fetch(big("again")).is_some());
+    // Stopping returns the bytes of the queue.
+    hang.wait_for_seen(MAX_API_FETCHES);
+    doc.abandon_api_fetches();
+    assert!(doc.api_fetches.used_bytes() < 1 << 20);
+    hang.release();
+}
+
+#[test]
+fn a_response_holds_its_bytes_until_the_page_has_it() {
+    let hang = Arc::new(Hang::default());
+    let mut doc = hanging_doc(&hang);
+    doc.start_api_fetch(api_request_to("h", "r")).unwrap();
+    hang.release();
+    let completion = doc
+        .loader
+        .recv_timeout(Duration::from_secs(10))
+        .expect("the completion");
+    assert!(doc.is_api_fetch(completion.id));
+    // The request's bytes went back, the response's 10 bytes stay while
+    // the completion waits (in the loader's channel or in `arrived`).
+    assert_eq!(doc.api_fetches.used_bytes(), 10);
+    doc.api_fetch_completed(
+        completion.id,
+        completion.result,
+        completion.kind,
+        completion.reservation,
+    );
+    assert_eq!(doc.api_fetches.used_bytes(), 10);
+    let arrived = doc.take_arrived_api_fetches();
+    assert_eq!(arrived.len(), 1);
+    drop(arrived);
+    assert_eq!(doc.api_fetches.used_bytes(), 0);
+    // A completion that is dropped (navigation, abort) returns its bytes.
+    doc.start_api_fetch(api_request_to("h", "again")).unwrap();
+    let completion = doc
+        .loader
+        .recv_timeout(Duration::from_secs(10))
+        .expect("the completion");
+    assert_eq!(doc.api_fetches.used_bytes(), 10);
+    drop(completion);
+    assert_eq!(doc.api_fetches.used_bytes(), 0);
+}
+
+#[test]
+fn api_fetches_refuse_urls_the_document_may_not_load() {
+    let mut doc = walked("<p>x</p>", &url());
+    let file = Url::parse("file:///etc/hostname").unwrap();
+    assert!(
+        doc.start_api_fetch(Request::get(file, swb_net::Destination::Other))
+            .is_none()
+    );
+    assert!(!doc.has_pending_api_fetches());
 }

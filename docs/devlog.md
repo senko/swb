@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 10a, fetch and CORS
+
+- `net` knows all methods, the request, credentials and redirect
+  modes, the CORS check, the preflight with a cache and the filtered
+  responses. `net::fetch_request` applies them in the loader's workers,
+  in one place. Cookies go as the credentials mode says.
+- The replay answers preflights, reflects the origin and reads
+  `replay_patterns` from `fixture.json`, as the Chromium routing does.
+  The local Craigslist fixture needs 22 entries instead of 481.
+- New: `fetch`, `Headers`, `Request`, `Response` (the body is read
+  whole; `body` is `null`; `blob()` and `formData()` wait for 10b),
+  `AbortController`, `AbortSignal` (`abort`, `timeout`, `any`, the
+  `signal` option of `addEventListener`). At most 64 requests per
+  document run and 16,384 wait.
+- Tools: the probe's case server has two origins, status, headers and
+  `OPTIONS` answers per resource and a request log, so a probe can show
+  whether a preflight ran and whether cookies went. The hostile runner
+  can start a server that never answers.
+- Learned: Chromium's `*` in `Access-Control-Allow-Headers` also covers
+  `Authorization`; an unread body rejects after an abort. ureq reused a
+  pooled connection that an HTTP/1.0 server had closed, and 15 of 40
+  parallel requests failed until a retry was added. With `fetch`
+  present, MediaWiki no longer loads `web2017-polyfills`: Wikipedia
+  `compare --js` geometry .425 → .999.
+- Review fixes: the memory of `fetch()` outside the script heap is
+  bounded by a budget of 256 MiB per document (64 large responses with
+  a busy page went from 3.9 GB to 0.29 GB, 64 large request bodies from
+  4.4 GB to 0.41 GB); `fetch()` requests have 8 workers of their own,
+  at most 6 per host, so a hung server cannot block the page's loads; a
+  POST is never sent twice (ureq does not tell whether a connection
+  came from the pool, so non-idempotent methods use a new connection);
+  `redirect: 'manual'` to `ftp:` or `file:` is an opaque redirect, as
+  in Chromium. The delta review found that a navigation kept the old
+  document's hung calls in their places; they are now dropped as on a
+  stop.
+- JS off: snapshot identical; runtime heap +645 bytes. Hostile set 244
+  cases, 243 ok + the known failure (9 new).
+
+Next: 10b (`XMLHttpRequest`, `sendBeacon`, `FormData`, `Blob`,
+`FileReader`, `load` and `error` of inserted images and style sheets).
+
 ## 2026-10-30: M8 feature 9b2, constraint validation; end of feature 9
 
 - `forms/validity.rs` computes the ten validity states of a control on

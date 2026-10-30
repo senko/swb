@@ -355,6 +355,25 @@ pub trait EngineHost: Any {
         false
     }
 
+    /// Starts the fetch of a script's `fetch()` call (feature 10a): the
+    /// engine gives the request its initiator (the document's origin), runs
+    /// it through its loader and queue (at most 64 at once per document)
+    /// and later hands the result to
+    /// [`crate::ScriptRuntime::api_fetch_completed`]. Returns the id of the
+    /// call, or `None` if the document may not load the URL or its queue is
+    /// full (the call fails at once).
+    fn start_api_fetch(&mut self, request: swb_net::Request) -> Option<u64> {
+        let _ = request;
+        None
+    }
+
+    /// Drops the call `id` of [`EngineHost::start_api_fetch`] (its signal
+    /// aborted): a queued request is not sent, and the result of one in
+    /// flight is ignored.
+    fn cancel_api_fetch(&mut self, id: u64) {
+        let _ = id;
+    }
+
     /// The states that selectors see (`:hover`, `:focus`, ...), for
     /// `matches`, `closest` and `querySelector*`. With `controls`, the
     /// states of the form controls (`:checked`, `:valid`, ...) are
