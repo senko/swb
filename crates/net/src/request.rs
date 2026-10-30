@@ -314,6 +314,12 @@ pub struct Request {
     /// ([`Reservation`]); the fetcher grows it with the response body it
     /// reads. `None` for the page's own loads.
     pub reservation: Option<Arc<Reservation>>,
+    /// The "use-CORS-preflight flag": the request needs a preflight even if
+    /// it is CORS-safelisted (an `XMLHttpRequest` whose `upload` has
+    /// listeners). The constructors set false.
+    ///
+    /// <https://fetch.spec.whatwg.org/#request-use-cors-preflight-flag>
+    pub use_cors_preflight: bool,
 }
 
 fn default_mode(destination: Destination) -> RequestMode {
@@ -342,6 +348,7 @@ impl Request {
             tainted_origin: false,
             exposed_to_script: false,
             reservation: None,
+            use_cors_preflight: false,
         }
     }
 

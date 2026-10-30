@@ -362,6 +362,9 @@ pub(crate) fn timeout_fired(rt: &mut Runtime, id: u64) -> VmResult<()> {
     let Some(signal) = state_mut(rt)?.signal_timeouts.remove(&id) else {
         return Ok(());
     };
+    // Out of the table, the signal lives as long as the task's scope (the
+    // page may hold it only through its listeners).
+    rt.heap_mut().record(signal);
     let error =
         b::dom_exception::create(rt, 0, g::DOM_EXCEPTION, "TimeoutError", "signal timed out")?;
     signal_abort(rt, 0, signal, error.into())

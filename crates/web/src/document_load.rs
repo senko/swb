@@ -222,6 +222,9 @@ impl ScriptRuntime {
     /// counts as loaded. Departure: HTML "abort a parser" fires the
     /// readiness changes; swb fires no events.
     pub fn abort_document(&mut self) {
+        // The engine drops the requests of the page; the `XMLHttpRequest`
+        // objects that wait for them get no event (they stay as they are).
+        crate::xhr::drop_requests(&mut self.rt);
         let Ok(scripts) = scripts_mut(&mut self.rt) else {
             return;
         };

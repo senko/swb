@@ -304,10 +304,11 @@ pub fn unsafe_request_header_names(headers: &Headers) -> Vec<String> {
     unsafe_names
 }
 
-/// True if the request needs a preflight: a method that is not
+/// True if the request needs a preflight: the use-CORS-preflight flag, a method that is not
 /// CORS-safelisted, or a CORS-unsafe request header.
 pub fn needs_preflight(request: &Request) -> bool {
-    !request.method.is_cors_safelisted()
+    request.use_cors_preflight
+        || !request.method.is_cors_safelisted()
         || !unsafe_request_header_names(&request.headers).is_empty()
 }
 
@@ -337,6 +338,7 @@ pub fn preflight_request(request: &Request) -> Request {
         tainted_origin: request.tainted_origin,
         exposed_to_script: false,
         reservation: request.reservation.clone(),
+        use_cors_preflight: false,
     }
 }
 

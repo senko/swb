@@ -674,7 +674,14 @@ fn submit_steps(
         }
         return Ok(());
     }
-    engine_mut(rt)?.request_form_submission(form, submitter, click.coordinate);
+    // HTML "submit" constructs the entry list, which fires `formdata`; a
+    // listener may have changed the list (feature 10b).
+    let entries = match crate::file_api::submission_entries(rt, form, submitter, click.coordinate) {
+        Ok(entries) => entries,
+        Err(b::Exception::Js(error)) => return Err(error),
+        Err(_) => None,
+    };
+    engine_mut(rt)?.request_form_submission(form, submitter, click.coordinate, entries);
     Ok(())
 }
 
@@ -731,6 +738,17 @@ pub(crate) fn request_submit(
     form: NodeId,
     submitter: Option<NodeId>,
 ) -> b::Result<()> {
+    check_submitter(cx, form, submitter)?;
+    Ok(submit(cx.rt, form, submitter, false, ClickInfo::default())?)
+}
+
+/// The checks of `requestSubmit` and `new FormData(form, submitter)`: the
+/// submitter is a submit button owned by the form.
+pub(crate) fn check_submitter(
+    cx: &mut Cx<'_>,
+    form: NodeId,
+    submitter: Option<NodeId>,
+) -> b::Result<()> {
     if let Some(node) = submitter {
         let document = dom(cx.rt)?;
         if kind_of(document, node) != Some(Kind::Submit) {
@@ -745,7 +763,7 @@ pub(crate) fn request_submit(
             ));
         }
     }
-    Ok(submit(cx.rt, form, submitter, false, ClickInfo::default())?)
+    Ok(())
 }
 
 /// `form.submit()`: no validation and no `submit` event.

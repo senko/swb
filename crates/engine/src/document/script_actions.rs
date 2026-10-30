@@ -19,8 +19,10 @@ use swb_style::{Display, Visibility};
 
 use super::DocumentState;
 use crate::focus;
-use crate::forms::{FormContext, FormRequest, Submitter, form_submission};
+use crate::forms::encode::{Entry, EntryValue};
+use crate::forms::{FormContext, FormRequest, Submitter, form_entries, form_submission_with};
 use crate::hit_test::link_target;
+use swb_web::{FormDataEntry, FormDataValue};
 
 /// A navigation that a script asked for.
 #[derive(Clone, Debug)]
@@ -201,6 +203,7 @@ impl DocumentState {
         form: NodeId,
         submitter: Option<NodeId>,
         coordinate: (i32, i32),
+        entries: Option<Vec<FormDataEntry>>,
     ) -> bool {
         self.process_changes();
         self.ensure_forms();
@@ -218,7 +221,8 @@ impl DocumentState {
             },
             None => Submitter::Form,
         };
-        let Some(request) = form_submission(&cx, form, submitter) else {
+        let entries = entries.map(|list| list.into_iter().map(entry_of).collect());
+        let Some(request) = form_submission_with(&cx, form, submitter, entries) else {
             return false;
         };
         if !self.may_load(&request.url) {
@@ -227,6 +231,49 @@ impl DocumentState {
         }
         self.script_requests.navigation = Some(ScriptNavigation::Form(request));
         true
+    }
+
+    /// The entry list of `form` as a submission by `submitter` builds it.
+    pub(crate) fn script_form_entries(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+        coordinate: (i32, i32),
+    ) -> Vec<FormDataEntry> {
+        self.process_changes();
+        self.ensure_forms();
+        let cx = FormContext {
+            doc: &self.dom,
+            forms: self.forms.value(),
+            base_url: self.base_url.value(),
+            document_url: &self.url,
+            encoding: self.encoding,
+        };
+        let submitter = match submitter {
+            Some(node) => Submitter::Button {
+                node,
+                coordinate: Some(coordinate),
+            },
+            None => Submitter::Form,
+        };
+        form_entries(&cx, form, submitter)
+            .into_iter()
+            .map(|entry| FormDataEntry {
+                name: entry.name,
+                value: match entry.value {
+                    EntryValue::Text(text) => FormDataValue::Text(text),
+                    EntryValue::File {
+                        filename,
+                        content_type,
+                        data,
+                    } => FormDataValue::File {
+                        filename,
+                        content_type,
+                        data,
+                    },
+                },
+            })
+            .collect()
     }
 
     /// The reset algorithm of `form`. The values that scripts wrote to
@@ -251,5 +298,24 @@ impl DocumentState {
             .radio_group(&self.dom, radio)
             .into_iter()
             .find(|&n| forms.checked(n).unwrap_or(false))
+    }
+}
+
+/// An engine entry from the entry of a script.
+fn entry_of(entry: FormDataEntry) -> Entry {
+    Entry {
+        name: entry.name,
+        value: match entry.value {
+            FormDataValue::Text(text) => EntryValue::Text(text),
+            FormDataValue::File {
+                filename,
+                content_type,
+                data,
+            } => EntryValue::File {
+                filename,
+                content_type,
+                data,
+            },
+        },
     }
 }

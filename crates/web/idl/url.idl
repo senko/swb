@@ -11,7 +11,7 @@
 // swb cut this file to the two interfaces of the standard's API section
 // (feature 8a1 of M8); the standard has no other interface. Both are
 // complete. Chromium's `URL` also has the static `createObjectURL` and
-// `revokeObjectURL` of the File API, which swb does not have (no `Blob`).
+// `revokeObjectURL` of the File API; they are in file-api.idl (feature 10b).
 // `Exposed=*` is `Exposed=Window` here (swb has no workers).
 
 [Exposed=Window]

@@ -311,23 +311,31 @@ impl g::html_image_element::HTMLImageElementImpl for WebState {
         image_size(cx, this, "height", false)
     }
 
-    fn natural_width(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<u32> {
-        Ok(0)
+    fn natural_width(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
+        Ok(engine_mut(cx.rt)?.image_info(this).natural_width)
     }
 
-    fn natural_height(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<u32> {
-        Ok(0)
+    fn natural_height(cx: &mut Cx<'_>, this: NodeId) -> b::Result<u32> {
+        Ok(engine_mut(cx.rt)?.image_info(this).natural_height)
     }
 
-    /// `complete`: true without a `src` and a `srcset`; false otherwise
-    /// (swb does not report image loads to scripts yet).
+    /// `complete` (HTML "img.complete"): true without a `src` and a
+    /// `srcset`, and when the request of the image has ended; the engine
+    /// tracks the request (feature 10b).
     fn complete(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
-        let has = |name: &str| attribute(cx, this, name).map(|v| v.is_some_and(|v| !v.is_empty()));
-        Ok(!has("src")? && !has("srcset")?)
+        Ok(engine_mut(cx.rt)?.image_info(this).complete)
     }
 
-    fn current_src(_cx: &mut Cx<'_>, _this: NodeId) -> b::Result<String> {
-        Ok(String::new())
+    fn current_src(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        Ok(engine_mut(cx.rt)?.image_info(this).current_src)
+    }
+
+    /// `decode()` (HTML "dom-img-decode"): a promise that resolves when the
+    /// image has loaded and rejects with `EncodingError` if it cannot be
+    /// decoded. Departure: the promise settles when the element's `load` or
+    /// `error` event is delivered, or at once for an image that is complete.
+    fn decode(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::image_events::decode_image(cx, this)
     }
 
     /// `new Image(width, height)`.

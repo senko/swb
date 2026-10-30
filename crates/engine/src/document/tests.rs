@@ -756,3 +756,54 @@ fn api_fetches_refuse_urls_the_document_may_not_load() {
     );
     assert!(!doc.has_pending_api_fetches());
 }
+
+#[test]
+fn finished_image_watches_of_detached_images_make_room() {
+    // Review fix of 10b: after the table of watches was full, no image got
+    // `load` or `error` any more, although the finished ones belonged to
+    // images that the page had dropped.
+    let html = "<!DOCTYPE html><body><img id=a src='a.png'><img id=b src='a.png'>\
+                <img id=c src='a.png'>";
+    let dom = swb_dom::parse_html_with(html, true);
+    let find = |dom: &Document, id: &str| {
+        dom.find_element(NodeId::DOCUMENT, |e| e.attr("id") == Some(id))
+            .unwrap()
+    };
+    let (a, b, c) = (find(&dom, "a"), find(&dom, "b"), find(&dom, "c"));
+    let mut doc = state(dom, None, &url());
+    doc.set_watch_limit(3);
+    assert!(doc.image_is_watched(a) && doc.image_is_watched(b) && doc.image_is_watched(c));
+    let new_image = |doc: &mut DocumentState| {
+        doc.change_dom(|dom| {
+            let body = dom.body().unwrap();
+            let img = dom.create_element(html_name(local_name!("img")), Vec::new())?;
+            dom.set_attr(img, "src", "a.png")?;
+            dom.append_child(body, img)?;
+            Ok::<_, swb_dom::DomError>(img)
+        })
+        .unwrap()
+    };
+    // They finish. The table is full of finished watches of images in the
+    // document: nothing can go, the next image gets no watch.
+    let image = Url::parse("https://a.test/dir/a.png").unwrap();
+    doc.image_done(&image, true);
+    let first = new_image(&mut doc);
+    assert!(!doc.image_is_watched(first));
+    // Two images leave the document: their finished watches go, and a new
+    // image is watched (after the cooldown of the failed search).
+    doc.change_dom(|dom| {
+        dom.remove(a);
+        dom.remove(b);
+    });
+    let mut watched = false;
+    for _ in 0..1000 {
+        let img = new_image(&mut doc);
+        if doc.image_is_watched(img) {
+            watched = true;
+            break;
+        }
+    }
+    assert!(watched, "no image was watched after two left");
+    assert!(!doc.image_is_watched(a) && !doc.image_is_watched(b));
+    assert!(doc.image_is_watched(c));
+}

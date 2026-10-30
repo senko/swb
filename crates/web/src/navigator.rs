@@ -55,7 +55,76 @@ fn user_agent(cx: &Cx<'_>) -> b::Result<String> {
     Ok(engine(cx.rt)?.user_agent().to_owned())
 }
 
+/// The most bytes of beacons that are queued at once (Chromium: 64 KiB,
+/// measured; the quota returns when a beacon is sent).
+const BEACON_QUOTA: usize = 65_536;
+
+/// `navigator.sendBeacon(url, data)` (Beacon "sendBeacon",
+/// <https://w3c.github.io/beacon/#sendbeacon-method>): a `POST` with the
+/// credentials of the page and no handler for the result. Chromium's rules,
+/// measured: a body of a CORS-safelisted type goes in `no-cors` mode, any
+/// other type in `cors` mode (with a preflight); the queued bytes may not
+/// pass 64 KiB (the answer is `false`).
+fn send_beacon(cx: &mut Cx<'_>, url: &str, data: swb_js::Value) -> b::Result<bool> {
+    let bad_url = || b::Exception::type_error("The URL argument is ill-formed or unsupported.");
+    let parsed = crate::fetch::engine_parse_url(cx.rt, url)?.ok_or_else(bad_url)?;
+    let parsed = swb_net::Url::parse(&parsed).map_err(|_| bad_url())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(b::Exception::type_error(
+            "Beacons are only supported over HTTP(S).",
+        ));
+    }
+    let extracted = if data.is_nullish() {
+        None
+    } else {
+        Some(crate::fetch::body::extract(cx.rt, data)?)
+    };
+    let size = extracted.as_ref().map_or(0, |e| e.bytes.len());
+    if state_mut(cx.rt)?.beacon_bytes + size > BEACON_QUOTA {
+        return Ok(false);
+    }
+    let mut request = swb_net::Request::get(parsed, swb_net::Destination::Other);
+    request.method = swb_net::Method::Post;
+    request.credentials = swb_net::CredentialsMode::Include;
+    request.mode = swb_net::RequestMode::NoCors;
+    if let Some(extracted) = extracted {
+        if let Some(content_type) = extracted.content_type {
+            let essence = content_type
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
+            let safelisted = matches!(
+                essence.as_str(),
+                "text/plain" | "application/x-www-form-urlencoded" | "multipart/form-data"
+            );
+            if !safelisted {
+                request.mode = swb_net::RequestMode::Cors;
+            }
+            request.headers.append("content-type", content_type);
+        }
+        request.body = Some(extracted.bytes);
+    }
+    let Some(id) = crate::fetch::start_request(cx.rt, request)? else {
+        return Ok(false);
+    };
+    let state = state_mut(cx.rt)?;
+    state.beacon_bytes += size;
+    state.fetches.beacons.insert(id, size);
+    Ok(true)
+}
+
 impl g::navigator::NavigatorImpl for WebState {
+    fn send_beacon(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        url: String,
+        data: swb_js::Value,
+    ) -> b::Result<bool> {
+        send_beacon(cx, &url, data)
+    }
+
     fn max_touch_points(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
         Ok(0)
     }

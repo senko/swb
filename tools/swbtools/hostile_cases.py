@@ -53,6 +53,9 @@ class Case:
     url: str | None = None
     """The URL to open instead of `index.html` (with `--replay {dir}`: a page
     of an `http:` origin, which cookies need)."""
+    forbid_log: str | None = None
+    """A part of a warning that swb must not log: the case shows that a limit
+    does not act too early (`error` if the log has it)."""
     server: str | None = None
     """`never` or `slow`: the runner starts a local server that holds each
     request without an answer, or answers it after 2 s; the page reaches it
@@ -72,6 +75,7 @@ def case(
     swb_args: tuple[str, ...] = (),
     url: str | None = None,
     server: str | None = None,
+    forbid_log: str | None = None,
 ) -> Callable[[Callable[[], Page]], Callable[[], Page]]:
     """Registers the decorated generator as a case."""
 
@@ -88,6 +92,7 @@ def case(
                 expect_log,
                 swb_args,
                 url,
+                forbid_log,
                 server,
             )
         )
@@ -3951,3 +3956,309 @@ def response_bodies_js_on() -> Page:
         "console.log('read ' + total + ' held ' + keep.length); })();</script>"
     )
     return Page(doc("<p>bodies</p>" + script))
+
+
+@case(
+    "5,000 XMLHttpRequest calls to a server that never answers, with JavaScript on (feature "
+    "10b): at most 64 run, the others wait in the queue of the document (ADR 0028 section 16), "
+    "and the page does not wait for them",
+    server="never",
+    swb_args=("--js",),
+)
+def xhr_hung_loop_js_on() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 5000; i++) { const x = new XMLHttpRequest(); "
+        "x.open('GET', 'http://127.0.0.1:__PORT__/x' + i); x.send(); } "
+        "console.log('started 5000');</script>"
+    )
+    return Page(doc("<p>xhr</p>" + script))
+
+
+@case(
+    "A loop of 100,000 XMLHttpRequest calls to a server that never answers, each aborted at "
+    "once, with JavaScript on (feature 10b): the aborted requests leave the queue, and each "
+    "abort fires its events; the loop runs in bounded time and memory",
+    server="never",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def xhr_abort_loop_js_on() -> Page:
+    script = (
+        "<script>let aborted = 0; for (let i = 0; i < 100000; i++) { "
+        "const x = new XMLHttpRequest(); x.onabort = () => aborted++; "
+        "x.open('GET', 'http://127.0.0.1:__PORT__/a' + i); x.send(); x.abort(); } "
+        "setTimeout(() => console.log('aborted ' + aborted), 100);</script>"
+    )
+    return Page(doc("<p>xhr</p>" + script))
+
+
+@case(
+    "Blobs that are concatenated and sliced in a loop, with JavaScript on (feature 10b): "
+    "40 doublings of one blob and 100,000 slices of slices; a blob shares its bytes, flattens "
+    "its list of pieces past 1,024 and is at most 64 MiB (ADR 0028 section 16); the longer "
+    "ones throw a RangeError",
+    swb_args=("--js",),
+    time_limit_s=15,
+    rss_limit_mib=1200,
+)
+def blob_concat_slice_js_on() -> Page:
+    script = (
+        "<script>let b = new Blob(['x'.repeat(1000)]); let n = 0; try { "
+        "for (let i = 0; i < 40; i++) { b = new Blob([b, b]); n++; } } catch (e) { "
+        "console.log(e.name); } let s = b; for (let i = 0; i < 100000; i++) "
+        "s = s.slice(1, s.size - 1); console.log('doublings ' + n + ' size ' + b.size);</script>"
+    )
+    return Page(doc("<p>blob</p>" + script))
+
+
+@case(
+    "URL.createObjectURL on 100,000 small blobs without revokeObjectURL, with JavaScript on "
+    "(feature 10b): a document keeps at most 16,384 Blob URLs and 256 MiB of logical bytes "
+    "(ADR 0028 section 16); the calls past the limit throw QuotaExceededError",
+    expect_log="too many Blob URLs",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def blob_urls_no_revoke_js_on() -> Page:
+    script = (
+        "<script>let ok = 0, failed = 0; for (let i = 0; i < 100000; i++) { try { "
+        "URL.createObjectURL(new Blob(['x'])); ok++; } catch (e) { failed++; } } "
+        "console.log('ok ' + ok + ' failed ' + failed);</script>"
+    )
+    return Page(doc("<p>blob urls</p>" + script))
+
+
+@case(
+    "A FormData with 300,000 entries sent with XMLHttpRequest to a server that never answers, "
+    "20 times, with JavaScript on (feature 10b): the multipart body counts against the "
+    "document's request budget of 256 MiB (ADR 0028 section 16); the sends that do not fit "
+    "fail",
+    server="never",
+    swb_args=("--js",),
+    time_limit_s=20,
+    rss_limit_mib=1200,
+)
+def formdata_many_entries_xhr_js_on() -> Page:
+    script = (
+        "<script>const fd = new FormData(); for (let i = 0; i < 300000; i++) "
+        "fd.append('name' + i, 'value' + i); let failed = 0; for (let i = 0; i < 20; i++) { "
+        "const x = new XMLHttpRequest(); x.onerror = () => failed++; "
+        "x.open('POST', 'http://127.0.0.1:__PORT__/f' + i); x.send(fd); } "
+        "setTimeout(() => console.log('failed ' + failed), 300);</script>"
+    )
+    return Page(doc("<p>formdata</p>" + script))
+
+
+@case(
+    "FileReader.readAsDataURL on a blob of 48 MiB, 20 times in a row, with JavaScript on "
+    "(feature 10b): each read makes a string of 64 MiB in the heap of the document (ADR 0028 "
+    "section 16: the heap limit of 256 MiB ends a runaway page); the page stays alive",
+    swb_args=("--js",),
+    time_limit_s=30,
+    rss_limit_mib=1400,
+)
+def filereader_data_url_large_js_on() -> Page:
+    script = (
+        "<script>const b = new Blob([new Uint8Array(48 << 20)]); let n = 0; const next = () => { "
+        "if (n++ >= 20) return; const r = new FileReader(); r.onload = next; r.onerror = next; "
+        "r.readAsDataURL(b); }; try { next(); } catch (e) { console.log(e.name); } "
+        "setTimeout(() => console.log('reads ' + n), 2000);</script>"
+    )
+    return Page(doc("<p>reader</p>" + script))
+
+
+@case(
+    "A loop of 100,000 navigator.sendBeacon calls with 1 KiB each to a server that never "
+    "answers, with JavaScript on (feature 10b): at most 64 KiB of beacon data is queued "
+    "(Chromium's quota), the other calls return false",
+    server="never",
+    swb_args=("--js",),
+)
+def send_beacon_loop_js_on() -> Page:
+    script = (
+        "<script>let ok = 0; const data = new Uint8Array(1024); for (let i = 0; i < 100000; i++) "
+        "if (navigator.sendBeacon('http://127.0.0.1:__PORT__/b' + i, data)) ok++; "
+        "console.log('queued ' + ok);</script>"
+    )
+    return Page(doc("<p>beacon</p>" + script))
+
+
+@case(
+    "Images whose load handlers insert more images: a chain of 100,000 data: URL images, each "
+    "created in the load handler of the one before, with JavaScript on (feature 10b): the "
+    "events are delivered in slices of 4,096, the loop gives the page time between them, and "
+    "the finished watches of images outside the document leave the table of 65,536 (ADR 0028 "
+    "section 16; the review fix of 10b: the limit used to act here)",
+    forbid_log="images are watched for load events",
+    swb_args=("--js",),
+    time_limit_s=30,
+)
+def image_load_chain_js_on() -> Page:
+    svg = (
+        "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 "
+        "width=%271%27 height=%271%27/%3E"
+    )
+    script = (
+        "<script>let n = 0; const make = () => { const i = new Image(); "
+        f"i.onload = i.onerror = () => {{ if (++n < 100000) make(); }}; i.src = '{svg}#' + n; }}; "
+        "make(); setTimeout(() => console.log('loads ' + n), 3000);</script>"
+    )
+    return Page(doc("<p>images</p>" + script))
+
+
+@case(
+    "100 XMLHttpRequest calls to a server that answers with 60 MiB, each response kept in an "
+    "array as an ArrayBuffer-typed request, with JavaScript on and 4 s of settling (review of "
+    "10b: 3 GB before): the bytes of a response count against the heap of 256 MiB when they "
+    "arrive (ADR 0028 section 16), so the heap limit stops the page after a few responses",
+    server="big",
+    expect_log="reached a limit",
+    swb_args=("--js", "--settle-ms", "4000"),
+    time_limit_s=20,
+    rss_limit_mib=1100,
+)
+def xhr_retained_responses_js_on() -> Page:
+    script = (
+        "<script>let done = 0; const keep = []; for (let i = 0; i < 100; i++) { "
+        "const x = new XMLHttpRequest(); x.open('GET', 'http://127.0.0.1:__PORT__/b' + i); "
+        "x.responseType = 'arraybuffer'; x.onloadend = () => { done++; }; keep.push(x); "
+        "x.send(); }</script>"
+    )
+    return Page(doc("<p>xhr</p>" + script))
+
+
+@case(
+    "400 blobs of 32 MiB, each reduced to a slice of 1 byte that the page keeps, and the same "
+    "slices passed to URL.createObjectURL, with JavaScript on (review of 10b: abort at 8 GB "
+    "before): a small slice of a large blob is a copy, and a blob charges the vectors it "
+    "keeps alive, not its length (ADR 0028 section 16)",
+    swb_args=("--js",),
+    time_limit_s=30,
+    rss_limit_mib=1100,
+)
+def blob_slices_of_large_parents_js_on() -> Page:
+    script = (
+        "<script>const keep = [], urls = []; let n = 0; for (let i = 0; i < 400; i++) { "
+        "const b = new Blob([new Uint8Array(32 << 20)]); keep.push(b.slice(0, 1)); "
+        "urls.push(URL.createObjectURL(b.slice(1, 3))); n++; } "
+        "console.log('slices ' + n);</script>"
+    )
+    return Page(doc("<p>blob</p>" + script))
+
+
+@case(
+    "300 XMLHttpRequest calls and 300 fetch() calls to a Blob URL of a 32 MiB blob in one "
+    "task, with JavaScript on and 4 s of settling (review of 10b: abort at 60 MiB x 300 "
+    "before): a request of a Blob URL keeps the blob's handle until its task runs and copies "
+    "the bytes then; at most 256 wait, the others fail (ADR 0028 section 16)",
+    expect_log="requests of Blob URLs wait",
+    swb_args=("--js", "--settle-ms", "4000"),
+    time_limit_s=30,
+    rss_limit_mib=1100,
+)
+def blob_url_request_loop_js_on() -> Page:
+    script = (
+        "<script>const b = new Blob([new Uint8Array(32 << 20)]); const u = URL.createObjectURL(b); "
+        "let ok = 0, failed = 0; for (let i = 0; i < 300; i++) { const x = new XMLHttpRequest(); "
+        "x.open('GET', u); x.onload = () => ok++; x.onerror = () => failed++; x.send(); } "
+        "for (let i = 0; i < 300; i++) fetch(u).then(() => ok++, () => failed++); "
+        "setTimeout(() => console.log('ok ' + ok + ' failed ' + failed), 8000);</script>"
+    )
+    return Page(doc("<p>blob url</p>" + script))
+
+
+@case(
+    "200 blobs of 32 MiB, each dropped right after an XMLHttpRequest and a fetch() of its Blob "
+    "URL (revoked at once), then 200 more, each dropped right after a FileReader read, with "
+    "JavaScript on and 4 s of settling (delta review of 10b: abort at 3.6 GB before): the "
+    "requests and reads that wait for their task keep at most 256 MiB of blobs alive, the "
+    "others fail (ADR 0028 section 16)",
+    expect_log="FileReader reads wait with more than",
+    swb_args=("--js", "--settle-ms", "4000"),
+    time_limit_s=40,
+    rss_limit_mib=1100,
+)
+def blobs_dropped_while_requests_wait_js_on() -> Page:
+    script = (
+        "<script>let ok = 0, failed = 0; for (let i = 0; i < 200; i++) { "
+        "let b = new Blob([new Uint8Array(32 << 20)]); const u = URL.createObjectURL(b); "
+        "const x = new XMLHttpRequest(); x.open('GET', u); x.onload = () => ok++; "
+        "x.onerror = () => failed++; x.send(); fetch(u).then(() => ok++, () => failed++); "
+        "URL.revokeObjectURL(u); b = null; } "
+        "for (let i = 0; i < 200; i++) { let b = new Blob([new Uint8Array(32 << 20)]); "
+        "const r = new FileReader(); r.onload = () => ok++; r.onerror = () => failed++; "
+        "r.readAsArrayBuffer(b); b = null; } "
+        "setTimeout(() => console.log('ok ' + ok + ' failed ' + failed), 8000);</script>"
+    )
+    return Page(doc("<p>dropped blobs</p>" + script))
+
+
+@case(
+    "30 XMLHttpRequest calls to a server that answers with 60 MiB, none kept by the page, "
+    "each with an onload handler that reads its request (as jQuery's handlers do), with "
+    "JavaScript on and 6 s of settling (delta review of 10b: the handler map of the document "
+    "kept every request and its response alive, so the heap limit stopped the scripts after "
+    "four responses): the handlers live in the request's own data and die with it",
+    server="big",
+    forbid_log="reached a limit",
+    swb_args=("--js", "--settle-ms", "6000"),
+    time_limit_s=40,
+    rss_limit_mib=1100,
+)
+def xhr_handlers_of_unreferenced_requests_js_on() -> Page:
+    script = (
+        "<script>let done = 0; for (let i = 0; i < 30; i++) { "
+        "const x = new XMLHttpRequest(); x.open('GET', 'http://127.0.0.1:__PORT__/b' + i); "
+        "x.responseType = 'arraybuffer'; x.onload = () => { done += x.response.byteLength > 0; }; "
+        "x.send(); }</script>"
+    )
+    return Page(doc("<p>xhr handlers</p>" + script))
+
+
+@case(
+    "setRequestHeader with a value of 1 MiB 2,000 times on one header, and 300,000 headers "
+    "with different names on one more request, with JavaScript on (review of 10b: abort at "
+    "8 GB before): a request keeps at most 256 headers and 64 KiB of them, the rest is "
+    "dropped with a warning (ADR 0028 section 16)",
+    expect_log="a request holds at most",
+    swb_args=("--js",),
+    time_limit_s=30,
+    rss_limit_mib=1100,
+)
+def xhr_request_headers_js_on() -> Page:
+    script = (
+        "<script>const s = 'a'.repeat(1 << 20); const x = new XMLHttpRequest(); "
+        "x.open('GET', 'http://127.0.0.1:1/'); for (let i = 0; i < 2000; i++) "
+        "x.setRequestHeader('x-a', s); const y = new XMLHttpRequest(); "
+        "y.open('GET', 'http://127.0.0.1:1/'); for (let i = 0; i < 300000; i++) "
+        "y.setRequestHeader('x-' + i, 'v'); console.log('headers set');</script>"
+    )
+    return Page(doc("<p>headers</p>" + script))
+
+
+@case(
+    "80 batches of 1,000 new Image() objects with a load handler, all loaded and garbage "
+    "(review of 10b: no load event after 65,536 images before), then one more image, with "
+    "JavaScript on: the table that watches the images drops the finished watches of images "
+    "outside the document, so the last image still gets its load event (ADR 0028 section 16)",
+    forbid_log="images are watched for load events",
+    swb_args=("--js",),
+    time_limit_s=30,
+)
+def image_watches_of_a_long_page_js_on() -> Page:
+    svg = (
+        "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 "
+        "width=%271%27 height=%271%27/%3E"
+    )
+    # Each batch starts in the load handler of the last image of the one
+    # before (images that script created delay the window's load event, so
+    # swb stays); without events after 65,536 images the chain stops.
+    script = (
+        "<script>let fired = 0, round = 0; const batch = () => { round++; "
+        "for (let i = 0; i < 1000; i++) { const im = new Image(); "
+        "im.onload = () => { fired++; if (i === 999) next(); }; "
+        f"im.src = '{svg}#' + round; }} }}; const next = () => {{ if (round < 80) batch(); else {{ "
+        f"const l = new Image(); l.onload = () => console.log('lastload true fired ' + fired); "
+        f"l.src = '{svg}#last'; }} }}; batch();</script>"
+    )
+    return Page(doc("<p>images</p>" + script))

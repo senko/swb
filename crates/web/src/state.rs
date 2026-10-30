@@ -185,6 +185,23 @@ pub(crate) struct WebState {
     pub(crate) next_timeout_signal: u64,
     /// The `fetch()` calls in flight (`fetch/`).
     pub(crate) fetches: crate::fetch::Fetches,
+    /// The Blob URLs of the document (`file_api/mod.rs`).
+    pub(crate) blob_urls: crate::file_api::BlobUrls,
+    /// The blob vectors that Blob URL requests and `FileReader` reads hold
+    /// until their task runs (`file_api/mod.rs`).
+    pub(crate) held_blobs: crate::file_api::HeldBlobs,
+    /// True after the warning about a failed `FileReader` read.
+    pub(crate) reader_warned: bool,
+    /// The forms whose entry list is being constructed (`file_api/form_data.rs`).
+    pub(crate) constructing_forms: std::collections::HashSet<NodeId>,
+    /// The `FileReader` objects that read, by id (`file_api/reader.rs`).
+    pub(crate) readers: HashMap<u64, Gc<Object>>,
+    pub(crate) next_reader: u64,
+    /// The bytes of the beacons that have not been sent (`navigator.rs`).
+    pub(crate) beacon_bytes: usize,
+    /// The `img.decode()` promises that wait for their image
+    /// (`image_events.rs`).
+    pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
 }
 
 impl HostState for WebState {
@@ -247,6 +264,12 @@ impl HostState for WebState {
             tracer.object(*signal);
         }
         self.fetches.trace(tracer);
+        for reader in self.readers.values() {
+            tracer.object(*reader);
+        }
+        for promise in self.decodes.values().flatten() {
+            tracer.object(*promise);
+        }
     }
 }
 

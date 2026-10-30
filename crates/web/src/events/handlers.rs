@@ -42,7 +42,9 @@ use swb_js::{
 
 use super::handler_names::NAMES;
 use super::listeners::Listener;
-use super::target::{MAX_DOCUMENT_LISTENERS, TargetKind, default_passive, remove, with_listeners};
+use super::target::{
+    MAX_DOCUMENT_LISTENERS, TargetData, TargetKind, default_passive, remove, with_listeners,
+};
 use super::{Extra, data_mut};
 use crate::bindings::{self as b, HandlerTarget, Host};
 use crate::state::{WebState, dom, engine, state, state_mut};
@@ -89,8 +91,10 @@ impl Name {
     }
 }
 
-/// The object that holds a handler map: a node, the window, or another
-/// event target by the handle of its listener data (`MediaQueryList`).
+/// The object that holds a handler map: a node or the window (the map of
+/// the document, [`Handlers`]), or another event target by the handle of
+/// its [`TargetData`] (its own map, [`OwnHandlers`]: `XMLHttpRequest`,
+/// `FileReader`, `AbortSignal`, `MediaQueryList`, `ScreenOrientation`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Key {
     Node(NodeId),
@@ -133,7 +137,8 @@ struct Entry {
     registered: bool,
 }
 
-/// The handler maps of the document's targets.
+/// The handler maps of the document's nodes and of the window. The other
+/// targets keep theirs in their own data ([`OwnHandlers`]).
 #[derive(Debug, Default)]
 pub(crate) struct Handlers {
     entries: HashMap<(Key, &'static str), Entry>,
@@ -150,18 +155,79 @@ pub(crate) struct Handlers {
 impl Handlers {
     /// Reports the functions and the marker to the collector.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        for ((key, _), entry) in &self.entries {
+        for entry in self.entries.values() {
             if let Value_::Function(function) = entry.value {
                 tracer.object(function);
-            }
-            if let Key::Constructed(handle) = key {
-                tracer.generic(*handle);
             }
         }
         if let Some(marker) = self.marker {
             tracer.object(marker);
         }
     }
+}
+
+/// The handler map of an event target that is not a node or the window
+/// (`XMLHttpRequest`, `FileReader`, `AbortSignal`, `MediaQueryList`), in
+/// its [`TargetData`]: the handlers live as long as the target. In the
+/// document's map they were roots, and a handler that refers to its target
+/// (`xhr.onload = () => use(xhr)`) kept the target and its response alive
+/// until the document ended (review of feature 10b).
+#[derive(Debug, Default)]
+pub(crate) struct OwnHandlers(HashMap<&'static str, Entry>);
+
+impl OwnHandlers {
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        for entry in self.0.values() {
+            if let Value_::Function(function) = entry.value {
+                tracer.object(function);
+            }
+        }
+    }
+
+    /// An estimate: a slot holds the name and an entry (these targets have
+    /// no content attributes, so no `Raw` text).
+    pub(crate) fn heap_size(&self) -> usize {
+        self.0.capacity() * (size_of::<&str>() + size_of::<Entry>() + 8)
+    }
+}
+
+/// The entry of the handler `attr` of `key`, if it has one.
+fn entry_mut<'a>(
+    rt: &'a mut Runtime,
+    key: Key,
+    attr: &'static str,
+) -> VmResult<Option<&'a mut Entry>> {
+    Ok(match key {
+        Key::Constructed(handle) => rt
+            .heap_mut()
+            .generic_mut::<TargetData>(handle)?
+            .handlers
+            .0
+            .get_mut(attr),
+        _ => state_mut(rt)?.handlers.entries.get_mut(&(key, attr)),
+    })
+}
+
+/// The entry of the handler `attr` of `key`, made `null` if it has none.
+fn entry_or_null<'a>(rt: &'a mut Runtime, key: Key, attr: &'static str) -> VmResult<&'a mut Entry> {
+    let null = || Entry {
+        value: Value_::Null,
+        registered: false,
+    };
+    Ok(match key {
+        Key::Constructed(handle) => rt
+            .heap_mut()
+            .generic_mut::<TargetData>(handle)?
+            .handlers
+            .0
+            .entry(attr)
+            .or_insert_with(null),
+        _ => state_mut(rt)?
+            .handlers
+            .entries
+            .entry((key, attr))
+            .or_insert_with(null),
+    })
 }
 
 /// Runs `f` with `context` as the API call that a compile error names.
@@ -314,11 +380,7 @@ fn marker(rt: &mut Runtime) -> VmResult<Gc<Object>> {
 /// Sets the value of a handler and makes sure that its listener is in the
 /// list (HTML "activate an event handler").
 fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> VmResult<()> {
-    let handlers = &mut state_mut(rt)?.handlers;
-    let entry = handlers.entries.entry((key, name.attr)).or_insert(Entry {
-        value: Value_::Null,
-        registered: false,
-    });
+    let entry = entry_or_null(rt, key, name.attr)?;
     entry.value = value;
     if entry.registered {
         return Ok(());
@@ -345,7 +407,7 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
     if in_document {
         state_mut(rt)?.listener_count += 1;
     }
-    if let Some(entry) = state_mut(rt)?.handlers.entries.get_mut(&(key, name.attr)) {
+    if let Some(entry) = entry_mut(rt, key, name.attr)? {
         entry.registered = true;
     }
     Ok(())
@@ -359,7 +421,7 @@ fn set_raw(rt: &mut Runtime, key: Key, name: &'static Name, text: String) -> VmR
 /// HTML "deactivate an event handler": the value becomes `null` and the
 /// listener leaves the list.
 fn deactivate(rt: &mut Runtime, key: Key, name: &'static Name) -> VmResult<()> {
-    let Some(entry) = state_mut(rt)?.handlers.entries.get_mut(&(key, name.attr)) else {
+    let Some(entry) = entry_mut(rt, key, name.attr)? else {
         return Ok(());
     };
     entry.value = Value_::Null;
@@ -430,7 +492,7 @@ fn key_of(rt: &Runtime, target: HandlerTarget, name: &Name) -> VmResult<Key> {
 /// HTML "getting the current value of the event handler": the function,
 /// compiled now if the value is still the text of a content attribute.
 fn current_value(rt: &mut Runtime, key: Key, name: &'static Name) -> VmResult<Option<Gc<Object>>> {
-    let text = match state(rt)?.handlers.entries.get(&(key, name.attr)) {
+    let text = match entry_mut(rt, key, name.attr)? {
         None => return Ok(None),
         Some(entry) => match &entry.value {
             Value_::Null => return Ok(None),
@@ -516,7 +578,7 @@ fn compile(
     match rt.compile_event_handler(&handler) {
         Ok(function) => {
             // Nothing between the compile and the store collects.
-            if let Some(entry) = state_mut(rt)?.handlers.entries.get_mut(&(key, name.attr))
+            if let Some(entry) = entry_mut(rt, key, name.attr)?
                 && matches!(entry.value, Value_::Raw(_))
             {
                 entry.value = Value_::Function(function);
@@ -526,7 +588,7 @@ fn compile(
         Err(ScriptError::Terminated(termination)) => Err(VmError::Terminated(termination)),
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
         Err(error) => {
-            if let Some(entry) = state_mut(rt)?.handlers.entries.get_mut(&(key, name.attr)) {
+            if let Some(entry) = entry_mut(rt, key, name.attr)? {
                 entry.value = Value_::Null;
             }
             let context = state(rt)?.handlers.context.clone();
@@ -676,8 +738,14 @@ mod tests {
     fn the_table_is_the_idl() {
         let mut idl: Vec<&str> = idl_names(include_str!("../../idl/html.idl"));
         idl.extend(idl_names(include_str!("../../idl/pointer-events.idl")));
+        // The handlers of `XMLHttpRequestEventTarget` and `FileReader`
+        // repeat names of `GlobalEventHandlers` and add `loadend` and
+        // `timeout`.
+        idl.extend(idl_names(include_str!("../../idl/xhr.idl")));
+        idl.extend(idl_names(include_str!("../../idl/file-api.idl")));
         let mut table: Vec<&str> = NAMES.iter().map(|n| n.attr).collect();
         idl.sort_unstable();
+        idl.dedup();
         table.sort_unstable();
         assert_eq!(table, idl);
         let mut unique = table.clone();

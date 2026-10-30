@@ -114,6 +114,10 @@ struct Batch {
     /// True if a change was in the document (not in a detached subtree or
     /// in template contents): only those can change the styles.
     in_document: bool,
+    /// The `img` elements whose `src`, `srcset` or `sizes` changed: they
+    /// make a new request for their `load` and `error` events (an `img`
+    /// that was only inserted does so only if it has none yet).
+    attr_images: HashSet<NodeId>,
 }
 
 impl Batch {
@@ -170,10 +174,12 @@ impl DocumentState {
         self.title.rebuild(generation, |_| document_title(dom));
         let mut owners = Vec::new();
         let mut videos = Vec::new();
+        let mut images = Vec::new();
         for node in dom.descendants(NodeId::DOCUMENT) {
             match dom.element(node).and_then(Kind::of) {
                 Some(Kind::Style | Kind::Link) => owners.push(node),
                 Some(Kind::Video) => videos.push(node),
+                Some(Kind::Img) => images.push(node),
                 _ => {}
             }
         }
@@ -196,6 +202,12 @@ impl DocumentState {
         let dom = &self.dom;
         self.images.by_node.retain(|&n, _| in_document(dom, n));
         self.start_plan(plan, true);
+        // After the plan: the loads it starts keep their order.
+        for node in images {
+            if !self.image_is_watched(node) {
+                self.watch_image(node);
+            }
+        }
         self.clean_up_states();
         self.invalidate_style();
     }
@@ -231,10 +243,13 @@ impl DocumentState {
                     }
                     self.children_changed(parent, &mut batch);
                 }
-                Change::Attribute { element, .. } => {
+                Change::Attribute { element, name, .. } => {
                     if let Some(kind) = self.dom.element(element).and_then(Kind::of) {
                         if kind == Kind::Source {
                             self.picture_images(element, &mut batch);
+                        }
+                        if kind == Kind::Img && matches!(&*name.local, "src" | "srcset" | "sizes") {
+                            batch.attr_images.insert(element);
                         }
                         batch.note(element, kind, false);
                     }
@@ -332,6 +347,13 @@ impl DocumentState {
     /// starts their loads and invalidates.
     fn finish_batch(&mut self, mut batch: Batch) {
         let mut stylist_dirty = self.refresh_base_and_title(&batch);
+        // Images have events also outside the document (`new Image()`).
+        let images: Vec<NodeId> = batch
+            .candidates
+            .iter()
+            .copied()
+            .filter(|&n| matches!(self.dom.element(n).and_then(Kind::of), Some(Kind::Img)))
+            .collect();
         batch.candidates.retain(|&n| in_document(&self.dom, n));
         sort_in_tree_order(&self.dom, &mut batch.candidates);
         let mut plan = LoadPlan::default();
@@ -384,6 +406,12 @@ impl DocumentState {
             stylist_dirty = true;
         }
         self.start_plan(plan, false);
+        // After the plan: the loads it starts keep their order.
+        for node in images {
+            if batch.attr_images.contains(&node) || !self.image_is_watched(node) {
+                self.watch_image(node);
+            }
+        }
         if stylist_dirty {
             self.invalidate_style();
         } else if batch.in_document {

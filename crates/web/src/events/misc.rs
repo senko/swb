@@ -7,14 +7,15 @@
 //! swb fires none of them except `submit`; scripts can construct them and
 //! dispatch them. The state of each is a variant of [`Other`].
 
-use swb_js::{Gc, Object, Tracer, Value, VmError};
+use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 
-use super::{Extra, base, construct, this_data, this_data_mut};
+use super::{EventData, Extra, base, construct, this_data, this_data_mut};
 use crate::bindings::{self as b, Cx, NodeId, Platform};
 use crate::generated as g;
 use crate::generated::types::{
-    DeviceMotionEventInit, DeviceOrientationEventInit, HashChangeEventInit, MessageEventInit,
-    PopStateEventInit, StorageEventInit, SubmitEventInit, TransitionEventInit,
+    DeviceMotionEventInit, DeviceOrientationEventInit, EventInit, FormDataEventInit,
+    HashChangeEventInit, MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit,
+    SubmitEventInit, TransitionEventInit,
 };
 use crate::state::WebState;
 
@@ -63,6 +64,57 @@ pub(crate) enum Other {
         gamma: Option<f64>,
         absolute: bool,
     },
+    /// `ProgressEvent` (`xhr.rs`, `file_api/reader.rs`).
+    Progress {
+        length_computable: bool,
+        loaded: u64,
+        total: u64,
+    },
+    /// `FormDataEvent`.
+    FormData {
+        form_data: Gc<Object>,
+    },
+}
+
+/// The state of a trusted `ProgressEvent`.
+pub(crate) fn progress(length_computable: bool, loaded: u64, total: u64) -> Other {
+    Other::Progress {
+        length_computable,
+        loaded,
+        total,
+    }
+}
+
+/// Fires the trusted `ProgressEvent` `kind` at `target` (File API, XHR).
+pub(crate) fn fire_progress(
+    rt: &mut Runtime,
+    target: Gc<Object>,
+    kind: &str,
+    computable: bool,
+    loaded: u64,
+    total: u64,
+) -> swb_js::VmResult<()> {
+    let init = EventInit {
+        bubbles: false,
+        cancelable: false,
+        composed: false,
+    };
+    let now = super::now(rt);
+    let extra = Extra::Other(Box::new(progress(computable, loaded, total)));
+    let mut data = EventData::new(kind.to_owned(), &init, now, extra);
+    data.is_trusted = true;
+    let scope = rt.heap_mut().open_scope();
+    let result = super::new_event_object(rt, 0, g::PROGRESS_EVENT, data)
+        .and_then(|event| super::dispatch(rt, 0, target, event, None));
+    if let Err(error) = rt.heap_mut().close_scope(scope) {
+        log::warn!("the handle scope of an event was not the last one: {error:?}");
+    }
+    result.map(|_| ())
+}
+
+/// The state of a trusted `FormDataEvent`.
+pub(crate) fn form_data(form_data: Gc<Object>) -> Other {
+    Other::FormData { form_data }
 }
 
 impl Other {
@@ -76,6 +128,7 @@ impl Other {
                 storage_area: Some(object),
                 ..
             } => tracer.object(*object),
+            Other::FormData { form_data } => tracer.object(*form_data),
             Other::PopState { state, .. } => tracer.value(*state),
             Other::Message {
                 data,
@@ -402,6 +455,70 @@ impl g::before_unload_event::BeforeUnloadEventImpl for WebState {
             *return_value = value;
         }
         Ok(())
+    }
+}
+
+impl g::progress_event::ProgressEventImpl for WebState {
+    fn constructor(
+        cx: &mut Cx<'_>,
+        kind: String,
+        init: ProgressEventInit,
+    ) -> b::Result<Gc<Object>> {
+        let flags = (init.bubbles, init.cancelable, init.composed);
+        let other = Other::Progress {
+            length_computable: init.length_computable,
+            loaded: init.loaded,
+            total: init.total,
+        };
+        make(cx, kind, flags, other)
+    }
+
+    fn length_computable(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
+        match other(cx, this)? {
+            Other::Progress {
+                length_computable, ..
+            } => Ok(*length_computable),
+            _ => Ok(false),
+        }
+    }
+
+    fn loaded(cx: &mut Cx<'_>, this: Platform) -> b::Result<u64> {
+        match other(cx, this)? {
+            Other::Progress { loaded, .. } => Ok(*loaded),
+            _ => Ok(0),
+        }
+    }
+
+    fn total(cx: &mut Cx<'_>, this: Platform) -> b::Result<u64> {
+        match other(cx, this)? {
+            Other::Progress { total, .. } => Ok(*total),
+            _ => Ok(0),
+        }
+    }
+}
+
+impl g::form_data_event::FormDataEventImpl for WebState {
+    fn constructor(
+        cx: &mut Cx<'_>,
+        kind: String,
+        init: FormDataEventInit,
+    ) -> b::Result<Gc<Object>> {
+        let flags = (init.bubbles, init.cancelable, init.composed);
+        make(
+            cx,
+            kind,
+            flags,
+            Other::FormData {
+                form_data: init.form_data.object,
+            },
+        )
+    }
+
+    fn form_data(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        match other(cx, this)? {
+            Other::FormData { form_data } => Ok(*form_data),
+            _ => Err(VmError::type_error("Illegal invocation").into()),
+        }
     }
 }
 

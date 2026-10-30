@@ -61,6 +61,10 @@ pub(super) const NAMES: &[Name] = &[
     h!(Global, "loadeddata"),
     h!(Global, "loadedmetadata"),
     h!(Global, "loadstart"),
+    // `loadend` and `timeout` are on `XMLHttpRequestEventTarget` and
+    // `FileReader` only (xhr.idl, file-api.idl).
+    h!(Global, "loadend"),
+    h!(Global, "timeout"),
     h!(Global, "mousedown"),
     h!(Global, "mouseenter"),
     h!(Global, "mouseleave"),

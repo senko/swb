@@ -1,0 +1,96 @@
+// Source: File API, W3C Working Draft, https://www.w3.org/TR/FileAPI/
+// (editor's draft https://w3c.github.io/FileAPI/), the interfaces Blob,
+// File, FileReader and the URL extensions of "Blob URL", copied on
+// 2026-10-30.
+//
+// This file includes material copied from File API,
+// https://w3c.github.io/FileAPI/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb changed this file as follows (feature 10b of M8):
+// - `Exposed=(Window,Worker)` is `Exposed=Window` (swb has no workers).
+// - The constructors take `any` for the parts (`sequence<BlobPart>` with
+//   buffer sources, which the generator cannot tell apart): the code
+//   converts them as the standard says.
+// - `Blob.stream()` is missing (swb has no streams, ADR 0028 section 12);
+//   `FileList`, `FileReaderSync` and `File.lastModifiedDate` (Chromium has
+//   it, deprecated) are missing; `webkitRelativePath` is `""`.
+// - `Blob.bytes()` is in the standard since 2024; Chromium has it.
+// - `URL.createObjectURL` and `revokeObjectURL` are partial interface URL
+//   here; `createObjectURL` takes a `Blob` (Chromium has no `MediaSource`
+//   here).
+
+[Exposed=Window]
+interface Blob {
+  constructor(optional any blobParts, optional BlobPropertyBag options = {});
+
+  readonly attribute unsigned long long size;
+  readonly attribute DOMString type;
+
+  // slice Blob into byte-ranged chunks
+  [NewObject] Blob slice(optional [Clamp] long long start, optional [Clamp] long long end, optional DOMString contentType);
+
+  // read from the Blob.
+  [NewObject] Promise<USVString> text();
+  [NewObject] Promise<ArrayBuffer> arrayBuffer();
+  [NewObject] Promise<Uint8Array> bytes();
+};
+
+enum EndingType { "transparent", "native" };
+
+dictionary BlobPropertyBag {
+  DOMString type = "";
+  EndingType endings = "transparent";
+};
+
+[Exposed=Window]
+interface File : Blob {
+  constructor(any fileBits, USVString fileName, optional FilePropertyBag options = {});
+
+  readonly attribute DOMString name;
+  readonly attribute long long lastModified;
+  readonly attribute DOMString webkitRelativePath;
+};
+
+dictionary FilePropertyBag : BlobPropertyBag {
+  long long lastModified;
+};
+
+[Exposed=Window]
+interface FileReader : EventTarget {
+  constructor();
+  // async read methods
+  undefined readAsArrayBuffer(Blob blob);
+  undefined readAsBinaryString(Blob blob);
+  undefined readAsText(Blob blob, optional DOMString encoding);
+  undefined readAsDataURL(Blob blob);
+
+  undefined abort();
+
+  // states
+  const unsigned short EMPTY = 0;
+  const unsigned short LOADING = 1;
+  const unsigned short DONE = 2;
+
+  readonly attribute unsigned short readyState;
+
+  // File or Blob data
+  readonly attribute (DOMString or ArrayBuffer)? result;
+
+  readonly attribute DOMException? error;
+
+  // event handler content attributes
+  attribute EventHandler onloadstart;
+  attribute EventHandler onprogress;
+  attribute EventHandler onload;
+  attribute EventHandler onabort;
+  attribute EventHandler onerror;
+  attribute EventHandler onloadend;
+};
+
+partial interface URL {
+  static DOMString createObjectURL(Blob obj);
+  static undefined revokeObjectURL(DOMString url);
+};

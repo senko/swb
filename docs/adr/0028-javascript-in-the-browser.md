@@ -2814,6 +2814,7 @@ the worker threads, the cookie jar and the replay of fixtures.
 - **`navigator.sendBeacon`:** a `POST` whose response nobody reads.
 - **Elements inserted by scripts** (`img`, `link`, `script`, `Image()`)
   load as parser-inserted ones do and fire `load` and `error`.
+  (Feature 10b did all three: see the 10b notes below.)
 - **Credentials and CORS.** swb follows the Fetch modes: requests from
   scripts to another origin send cookies only with the `include`
   credentials mode (`fetch` default `same-origin`, XHR
@@ -2973,6 +2974,164 @@ tests that run the cases, `crates/web/tests/fetch.rs`):
   standard ones (and `patch` in lowercase) are network errors (the HTTP
   library refuses them); header values are strings, not byte strings;
   `Request.destination` is always `""` and `referrer` is not sent.
+
+Feature 10b notes (`XMLHttpRequest`, the `load` and `error` events of
+images and style sheets, `FormData`, `Blob`, `File`, `FileReader`, Blob
+URLs, `navigator.sendBeacon`; measured in `tools/probes/web-xhr.json`,
+`web-image-events.json` and `web-blob-formdata.json`, three equal runs of
+Chromium 148 each; the Rust tests run the same cases):
+
+- **Files.** `web/idl/xhr.idl` (XHR, `FormData`, `ProgressEvent`,
+  `FormDataEvent`), `file-api.idl` (`Blob`, `File`, `FileReader`,
+  `createObjectURL`), `Navigator.sendBeacon` in `navigator-extensions.idl`,
+  `HTMLImageElement.decode()` in `html.idl`; `web/src/xhr.rs`,
+  `file_api/{mod,form_data,reader}.rs`, `image_events.rs`,
+  `navigator.rs` (`sendBeacon`), `fetch/mod.rs` (`start_request`, the table
+  of XHR objects, Blob URL and refused requests as local completions);
+  `engine/src/document/element_events.rs` (the watched images and the
+  queue of events); `net` got the `use_cors_preflight` flag of a request.
+- **XHR path.** `send()` builds a `swb_net::Request` (mode `cors`, credentials
+  `same-origin` or `include`) and starts it as `fetch()` does. The result
+  comes back in the task of `api_fetch_completed` and the whole sequence of
+  events runs in that task, in Chromium's order: `readystatechange` 1 and
+  `loadstart` at the request in `send()`; with a body also `loadstart` at
+  `upload`; on the response `progress`, `load`, `loadend` at `upload` (not
+  for a body of 0 bytes), `readystatechange` 2, 3 and one `progress` (not for
+  an empty body), `readystatechange` 4, `load`, `loadend`. A network error
+  gives `readystatechange` 4, `error`, `loadend`; `abort()` and the `timeout`
+  add `readystatechange` 4 first and the events at `upload` (`error` fires
+  at `upload` only with a body). After each event the code checks that the
+  request is still in the state it expects (a listener may abort or reopen);
+  `load` and `loadend` fire without a check. `abort()` in a `load` listener
+  gives `loadend` with `readyState` 0. A timer of 0 ms and the microtasks run
+  before the first event of the response. A listener at `upload` and a body
+  force a preflight (Chromium sends none for a request without a body). A
+  `timeout` is a task at the page time of `send()` plus the timeout.
+- **Departures of XHR** (rows in `crates/engine/tests/probe_net.rs`): a
+  synchronous `open` throws `InvalidAccessError`; one `progress` event (Chromium
+  fires one per chunk and a last one at `readyState` 4); `responseXML` and
+  `responseType` `"document"` are `null` for XML (no XML parser) and the
+  HTML document has the URL of the page; `statusText` is the standard phrase;
+  a `Document` body is sent as its string; the order of the members of the
+  prototype (the generator's); an odd trailing byte of UTF-16 text.
+- **Images and style sheets.** A document parsed with scripting watches its
+  `img` elements (`watch_image`): the journal drain calls it for every `img`
+  that was inserted or whose attributes changed, also outside the
+  document (`new Image()`); it selects the source (`image_source`), starts
+  the load if the URL is new (`start_image`) and queues `(node, ok)` when the
+  load ends, or at once when the URL loaded or failed before. A new `src`
+  with the same URL fires `load` again (Chromium does). `src=""` fires `error`
+  (a task later, `complete` true); removing `src` fires nothing.
+  `complete`, `naturalWidth`, `naturalHeight` and `currentSrc` come from the
+  same table (`EngineHost::image_info`); `currentSrc` is empty until the
+  load ended (Chromium: set a microtask after `src`). A `link` style sheet queues its
+  event when the load ends. The page hands the queue to the runtime in the
+  pump and before the `load` check of a completion, so the events precede
+  window `load`; a load that script created delays window `load` (it is a
+  request of the document). `decode()` resolves with the event and rejects
+  with `EncodingError` (also `complete` images with no size). Departures
+  (rows in `probe_net.rs`): swb watches 65,536 images at most; a style sheet
+  that blocked a script fires `load` before the script runs (Chromium after);
+  `link.sheet` is `null` (backlog); `rel=preload` fires nothing; an `img` with
+  a Blob URL fails (the loader has no `blob:` scheme; backlog); the engine
+  parses without yielding to the network between inline scripts, so a fast
+  image of a parsed document fires after `DOMContentLoaded` (Chromium before,
+  when the parse takes several tasks); a changed viewport that selects another
+  source fires no `load`.
+- **Blob.** A blob is a list of pieces (slices of shared byte vectors), so a
+  slice or a concatenation copies the list, not the bytes; more than 1,024
+  pieces are flattened; a blob is at most 64 MiB (`RangeError`). The data of a
+  blob object charges the sizes of the distinct vectors that it holds (a
+  slice keeps its parent's vector alive, so the logical length would
+  undercount); a slice of less than half of the vectors it uses is copied when
+  they are longer than 64 KiB, so a small slice never holds a large parent.
+  The 256 MiB limit then bounds the memory of the live blobs (blobs that
+  share a vector each charge it). The list is flattened past 1,024 pieces plus
+  one per KiB of the last flat copy, so many small parts cost a copy of
+  about 1 KiB each, not of the whole blob. `type` is
+  lower-cased ASCII or empty. `File` adds `name` and `lastModified`.
+  `text()`, `arrayBuffer()` and `bytes()` copy into the heap. `Response.blob()`
+  has the type of the `Content-Type`; `Response.formData()` parses
+  `multipart/form-data` and `application/x-www-form-urlencoded` and rejects
+  with `TypeError: Failed to fetch` for other types (Chromium).
+- **Blob URLs.** `blob:ORIGIN/UUID` (origin `null` for a `file:` page); the
+  store is per document (16,384 URLs, 256 MiB of bytes that the entries keep
+  alive, counted as for the heap; a `QuotaExceededError` past them).
+  `fetch()` and XHR of a `blob:` URL answer from the store with status 200 and
+  `Content-Type`, `Content-Length`; a revoked URL, another method or an
+  unknown URL is a network error. The request keeps the blob's handle (a
+  cheap clone) until its task runs and copies the bytes then, one request at
+  a time; at most 256 such requests wait, the others fail like a refused
+  request (warning).
+- **Review fixes of 10b.** (1) The bytes outside the script heap that XHR
+  and `FileReader` hold (response bytes, the text cache, the request headers,
+  a read's result) are charged when they change (`Heap::generic_resized`),
+  and a task that ends with a collection due runs a safepoint
+  (`ScriptRuntime::collect_between_tasks`): the tasks of a response run no
+  script, so nothing else would collect; past the limit the document's
+  scripts stop, as for any heap growth. (2) `setRequestHeader` keeps at most
+  256 headers and 64 KiB of names and values per request; a header past either
+  is dropped with one warning per request (a real page sets a dozen, a few
+  hundred bytes; Chromium has no such limit, the server's limits act there).
+  (3) An XHR object that left the table of requests in flight stays alive for
+  the task that delivers its events (a collection in a listener freed it:
+  found by the test of the Blob URL requests). (4) A GET with a body of
+  `null` leaves the upload flag unset at the response, so an `abort()` after
+  the headers fires `abort` and `loadend` at `upload` (Chromium, measured;
+  XHR "send" sets the flag at once for a null body); an `abort()` in the
+  `loadstart` listener fires no `loadstart` at `upload`. (5) The timeout task
+  leaves the queue when the request ends or aborts. (6) `Page::stop` drops the
+  XHR entries of the requests in flight (`xhr::drop_requests`) and their
+  timeouts; the objects keep their `readyState` and fire no `abort`, `error`
+  or `timeout` (a departure from the standard's "terminate"; not measured).
+  (7) A `FileReader` whose result does not fit in the heap ends with
+  `readyState` 2, an `error` event (a `NotReadableError`) and `loadend`, and
+  can read again. (8) The table of image watches drops the finished watches of
+  images outside the document when it is full (a search at most once per 256
+  attempts while it finds nothing), so a long-lived page keeps its `load`
+  events and `complete`. Delta review: (9) a request of a Blob URL and a
+  `FileReader` read keep their snapshot of the blob until their task runs,
+  also when the page drops the blob, and nothing counted these bytes (200
+  reads or requests of 32 MiB blobs held 3.6 GB). The vectors that they hold
+  now count once each against 256 MiB per document (`HeldBlobs`); past it a
+  request is a network error and a read ends with `error`. Warnings of
+  refused requests and failed reads come once per document. (10) The `on*`
+  handlers of event targets that are not nodes (`XMLHttpRequest`,
+  `FileReader`, `AbortSignal`, `MediaQueryList`) were in the document's
+  handler map, which the collector traced as a root, with the target's data:
+  an XHR with an `onload` handler (as jQuery sets one) stayed alive with its
+  response until the document ended (8 unreferenced responses of 30 MiB
+  stopped the scripts at the heap limit). The handlers of these targets are
+  now in the target's own data (`OwnHandlers` in `TargetData`). A
+  `MediaQueryList` with a handler stays registered as before. This showed two
+  places that took an object out of its table before its last events
+  allocate, as the XHR of (3) did: a `FileReader` in its last task and an
+  `AbortSignal.timeout()` signal in its timer task (also a 10a signal with
+  only `addEventListener` listeners); both now live as long as the task's
+  scope. A test in the GC stress mode covers them. The promise and the
+  signal of a `fetch()` in its completion task have the same shape (no
+  loss seen, also in the stress mode) and are recorded in the scope too.
+- **FormData.** The entry list of `new FormData(form, submitter)` and of a
+  form submission comes from the engine's submission code
+  (`EngineHost::form_entries`), then the trusted `formdata` event fires at the
+  form (it bubbles; `FormDataEvent`); a listener may change the list, and a
+  submission uses the changed list (`request_form_submission` takes it). A
+  `FormData` made inside the event throws `InvalidStateError`. A `Blob` value
+  becomes a `File` named `blob`. The multipart body: boundary
+  `----WebKitFormBoundary` and 16 letters or digits; `name` and `filename` escape
+  `"`, CR, LF as `%22`, `%0D`, `%0A`; text with CR LF line breaks; `Content-Type`
+  of a file defaults to `application/octet-stream`; the encoder checks the time
+  every 256 entries and refuses a body of more than 64 MiB.
+- **FileReader.** A read queues two tasks (Chromium's order): `loadstart`; then
+  `progress`, the result, `load`, `loadend`. `abort()` fires `abort` and
+  `loadend` with `readyState` 2 and `error` an `AbortError`. A second read
+  during a read throws `InvalidStateError`. One `progress` event.
+- **sendBeacon.** A `POST` with credentials `include`; mode `no-cors` for a
+  CORS-safelisted type or no body, `cors` (with a preflight) for another type;
+  `false` if the data passes the quota of 65,536 bytes that wait (the quota
+  returns when the request ends: measured, 10 times 10,000 bytes give six
+  `true`); `TypeError` for a bad URL or a scheme other than `http:` and
+  `https:` (Chromium's texts).
 
 Feature 8b notes (`document.cookie`, `localStorage`, `sessionStorage`;
 measured in `tools/probes/web-cookies.json` and `web-storage.json`, three
@@ -3856,6 +4015,17 @@ Per document, all settings with these defaults:
 | Dependent signals of one source (`AbortSignal.any()`) and listener registrations of one signal (`signal` option) (feature 10a) | 65,536 each | further ones are not tracked, with a warning |
 | `AbortSignal.timeout()` signals that wait for their timer (feature 10a) | 262,144 | the task ends (termination, warning) |
 | Redirects of one request (feature 10a, as for any load) | 20 | network error |
+| `XMLHttpRequest` calls (feature 10b) | the places and the queue of `fetch()` (64 run, 16,384 wait) and the budget of 256 MiB for the request and the response; 256 requests of Blob URLs that wait | the call ends with `error` events; a response is charged to the heap when it arrives (`heap_size`, `Heap::generic_resized`) until the object is collected |
+| Request headers of one XHR (feature 10b) | 256 headers and 64 KiB of names and values | the header is dropped, one warning per request |
+| Length of a blob and of a multipart body (feature 10b) | 64 MiB each | `RangeError` |
+| Pieces of a blob before it is flattened (feature 10b) | 1,024 plus one per KiB of the last flat copy | the pieces are copied into one vector (at most 64 MiB) |
+| Bytes of the live blobs (feature 10b) | the heap (256 MiB, by `heap_size`: each blob charges the vectors it holds, a vector shared by several blobs counts in each; small slices of large vectors are copies) | termination, as for any heap growth |
+| Blob URLs of a document (feature 10b) | 16,384 URLs and 256 MiB of bytes that the entries keep alive (the same count) | `QuotaExceededError`, warning |
+| Bytes that waiting requests of Blob URLs and `FileReader` reads keep alive (feature 10b; the page may have dropped the blob) | 256 MiB per document, each vector counted once (`HeldBlobs`) | the request is a network error, the read ends with `error`; one warning per document |
+| `FormData` entries (feature 10b) | 1,048,576 per object; the heap counts the strings | `RangeError` |
+| Queued beacon bytes (feature 10b) | 65,536 (Chromium's quota) | `sendBeacon` returns `false` |
+| Images watched for `load` and `error` per document, and events handed over per delivery (feature 10b) | 65,536 (finished watches of images outside the document make room) and 4,096 | further images get no events, warning; the rest of the queue waits for the next pump |
+| `decode()` promises that wait (feature 10b) | 65,536 images, 1,024 per image | `EncodingError` |
 | `localStorage` and `sessionStorage`, each per origin (feature 8b): UTF-16 code units of all keys and values | 5,242,880 (Chromium's quota, measured) | `QuotaExceededError`; the area stays as it was |
 | Keys in one storage area (feature 8b) | 100,000 | `QuotaExceededError` (Chromium has none: its quota in code units allows millions of one-unit keys, which would cost about 100 bytes of memory each) |
 | All storage areas of both kinds and all origins together, in bytes: UTF-8 bytes of keys and values, 64 per key, the origin and 64 per area (feature 8b) | 64 MiB | `QuotaExceededError` (a session that visits many origins holds at most 64 MiB of storage: twelve full areas of ASCII text, four of CJK text) |

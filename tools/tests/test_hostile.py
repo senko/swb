@@ -164,6 +164,12 @@ def test_classify_reports_a_limit_that_did_not_act():
     assert hostile.classify(case, fake_run(log="")) == "inactive"
 
 
+def test_classify_reports_a_forbidden_warning():
+    case = fake_case(forbid_log="are watched")
+    assert hostile.classify(case, fake_run(log="")) == "ok"
+    assert hostile.classify(case, fake_run(log="images are watched")) == "error"
+
+
 def test_known_failures_must_fail():
     plain = fake_case()
     known = fake_case(known_failure="bug")

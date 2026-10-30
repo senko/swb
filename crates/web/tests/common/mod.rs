@@ -33,6 +33,12 @@ pub(crate) struct TestDocument {
     /// The size of the page in bytes (the navigation entry of the
     /// performance timeline).
     pub(crate) bytes: u64,
+    /// The requests that scripts started with `fetch()` or XHR (see
+    /// [`TestDocument::accepting_fetches`]); the id of a request is its
+    /// number from 1.
+    pub(crate) started: Vec<swb_net::Request>,
+    /// Whether `start_api_fetch` accepts requests (else it refuses them).
+    pub(crate) accept_fetches: bool,
 }
 
 impl TestDocument {
@@ -42,7 +48,17 @@ impl TestDocument {
             dom,
             parser: None,
             bytes: 0,
+            started: Vec::new(),
+            accept_fetches: false,
         }
+    }
+
+    /// A document that accepts the requests of scripts and keeps them in
+    /// `started`; the test hands the results to the runtime.
+    pub(crate) fn accepting_fetches(html: &str) -> TestDocument {
+        let mut doc = TestDocument::parsing(html);
+        doc.accept_fetches = true;
+        doc
     }
 
     /// A document that the runtime parses in steps.
@@ -53,6 +69,8 @@ impl TestDocument {
             dom,
             parser: Some(parser),
             bytes: html.len() as u64,
+            started: Vec::new(),
+            accept_fetches: false,
         }
     }
 }
@@ -116,6 +134,14 @@ impl EngineHost for TestDocument {
         }
     }
 
+    fn start_api_fetch(&mut self, request: swb_net::Request) -> Option<u64> {
+        if !self.accept_fetches {
+            return None;
+        }
+        self.started.push(request);
+        Some(self.started.len() as u64)
+    }
+
     fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
         let parser = self.parser.as_mut()?;
         if let Ok(ParseStep::Script(node)) = parser.resume(&mut self.dom) {
@@ -141,6 +167,11 @@ pub(crate) fn load(html: &str, stress: bool) -> ScriptRuntime {
 /// wait, and the order of tasks does not depend on the speed of the
 /// machine.
 pub(crate) fn load_in(html: &str, stress: bool, mode: ClockMode) -> ScriptRuntime {
+    load_with(TestDocument::parsing(html), stress, mode)
+}
+
+/// [`load_in`] with a document of the caller's.
+pub(crate) fn load_with(doc: TestDocument, stress: bool, mode: ClockMode) -> ScriptRuntime {
     let config = RuntimeConfig {
         heap: HeapConfig {
             stress,
@@ -151,7 +182,7 @@ pub(crate) fn load_in(html: &str, stress: bool, mode: ClockMode) -> ScriptRuntim
     };
     let clock = PageClock::new(mode, None);
     let mut rt = ScriptRuntime::with_config(config, clock).expect("a runtime");
-    rt.lend(Box::new(TestDocument::parsing(html)));
+    rt.lend(Box::new(doc));
     rt.start_document();
     // Nothing delays the load event of the test document.
     rt.fire_load_event();

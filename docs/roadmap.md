@@ -3548,6 +3548,53 @@ Steps:
         `Image()`, `load` and `error` at images and stylesheets
         inserted by scripts. Tests: XHR event order and states against
         Chromium; image `load` and `error` order.
+        Done 2026-10-30, in one session, with no split. Asynchronous
+        `XMLHttpRequest`, `XMLHttpRequestUpload` and `ProgressEvent`
+        on the API path of 10a; the events of a response run in one
+        task in Chromium's order, and an `upload` listener with a body
+        forces a preflight. `load` and `error` of images (also
+        `new Image()` outside the document and the parser's images) and
+        of `link` style sheets; `complete`, `naturalWidth`,
+        `naturalHeight`, `currentSrc`, `img.decode()`. `Blob`, `File`,
+        `FileReader`, Blob URLs for `fetch` and XHR, `FormData` and
+        `FormDataEvent` (the `formdata` event at `new FormData(form)`
+        and at submission), multipart bodies, `Response.blob()` and
+        `formData()`, `navigator.sendBeacon` with the 64 KiB quota.
+        Probes `web-xhr.json`, `web-image-events.json`,
+        `web-blob-formdata.json`, three equal Chromium runs each; the
+        Rust tests run all their cases against a simulation of the
+        probe server; the remaining differences are departures
+        (synchronous XHR, one `progress` event, no XML documents,
+        `link.sheet` is `null`, no `blob:` images, no `rel=preload`
+        events, the prototype order). `compare --js` of the three JS
+        targets unchanged; JS off: snapshot identical; runtime heap
+        452,186 → 452,873 bytes. ADR 0028 "Feature 10b notes". Review
+        fixes: the bytes of XHR responses, request headers and
+        `FileReader` results are charged to the heap when they arrive,
+        and a task ends with a collection when one is due (100 retained
+        30 MB responses: 2.4 GB → 0.5 GB); a Blob charges the vectors it
+        holds, and a small slice of a large vector is a copy (2.2 GB →
+        0.2 GB); requests of Blob URLs copy the Blob when their task
+        runs, at most 256 wait (2.2 GB → 0.3 GB); at most 256 request
+        headers and 64 KiB per XHR (2 GB → 25 MB); the image watch table
+        drops finished watches of detached images, so a page past 65,536
+        images keeps its events; two `abort()` event orders as Chromium
+        (probe case `reentrancy`); the `FileReader` failure steps; the
+        timeout task leaves the queue; `Page::stop` drops the XHR
+        entries; an XHR that the page did not reference lost its events
+        when a collection ran (now rooted while its events run). Delta
+        review: requests of Blob URLs and `FileReader` reads that wait
+        kept their blob alive after the page dropped it (200 of 32 MiB
+        held 3.6 GB); they now count against 256 MiB per document. The
+        `on*` handlers of XHR, `FileReader`, `AbortSignal` and
+        `MediaQueryList` objects were roots in the document's handler
+        map, so an XHR with an `onload` handler stayed alive with its
+        response until the document ended; they now live in the object's
+        own data. A `FileReader` and an `AbortSignal.timeout()` signal
+        that left their tables before their last events now live until
+        their task ends. Hostile 259 cases, 258 ok + the known failure
+        (15 new). Closed backlog: the
+        `formdata` event (9b1).
    11. Craigslist posting (`implementer`).
       Scope: what the fixture with JavaScript on still lacks after
       features 1 to 10. The session lists the gaps first; if they need
@@ -4113,7 +4160,7 @@ Steps:
   arrow keys do not step a `number` input; Chromium fires `beforeinput`
   for a typed character in a read-only input, swb none; `type=color`
   takes only `#rrggbb` (Chromium also CSS color names and functions);
-  no `formdata` event (needs `FormData`, 10b); `[LegacyOverrideBuiltIns]`
+  `[LegacyOverrideBuiltIns]`
   on `HTMLFormElement` needs an incremental index of control names to be
   cheap; `document.getSelection()` does not exist. Each `type` write on
   an input in the document rebuilds the forms (O(controls)); a clone of a
@@ -4175,6 +4222,32 @@ Steps:
   replacement thread also when the request is about to end; the
   same-origin credentials redirect (A → B → A with credentials in the
   URL) has a unit test but no Chromium probe.
+- `web`/`engine` (found in feature 10b): `HTMLLinkElement.sheet` is
+  `null` for loaded style sheets (and `document.styleSheets` lacks
+  external sheets); `blob:` URLs for `img`, `link` and the page's loader
+  (`img.src = URL.createObjectURL(blob)` fires `error`; upload previews
+  use it: feature 11 checks whether the Craigslist page does); the Blob
+  URL store is per runtime, so a same-origin frame cannot read its
+  parent's Blob URLs (not measured);
+  XML documents (`responseXML`, `DOMParser` with `text/xml`); a
+  `Document` as the body of `send()`; synchronous XHR (a departure);
+  more than one `progress` event for large bodies (XHR, `FileReader`)
+  and the XHR `progress` at `readyState` 4; the events of
+  `rel=preload` and `modulepreload`; `sizes=auto` images fire no event,
+  and another source after a viewport change fires no `load`; style
+  sheet events in document order and after the script that waited for
+  the sheet (Chromium); `File` from a file input (no picker),
+  `FileList`, `FileReaderSync`, `Blob.stream()`; `statusText` from the
+  server also for XHR; the parse does not yield to the network between
+  inline scripts, so a fast image fires its event after
+  `DOMContentLoaded`; `currentSrc` of `<picture>` sources only when the
+  engine selects them. Found in the review: `Page::stop` leaves XHR objects
+  (and `fetch()` promises) without `abort` or `error` events (not measured
+  in Chromium); past 65,536 images in a page's life, an evicted finished
+  watch makes `img.complete` false for an image outside the document, and
+  the search for room scans all watches when few are free; the hostile
+  runner does not capture the page's console, so cases cannot check
+  results.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

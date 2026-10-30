@@ -29,6 +29,7 @@
 mod api_fetches;
 mod changes;
 mod derived;
+mod element_events;
 mod geometry;
 mod history_api;
 mod inner_text;
@@ -134,6 +135,9 @@ pub struct DocumentState {
     pub(crate) script_fetches: ScriptFetches,
     /// The `fetch()` calls of scripts (they do not delay the load event).
     pub(crate) api_fetches: ApiFetches,
+    /// The `load` and `error` events of images and style sheets that wait
+    /// for the script runtime (feature 10b).
+    pub(crate) element_events: element_events::ElementEvents,
     /// True while the journal drain processes a step of the parser: the
     /// style sheets that it finds block scripts.
     parser_drain: bool,
@@ -266,6 +270,7 @@ impl DocumentState {
             requests: Requests::default(),
             script_fetches: ScriptFetches::default(),
             api_fetches: ApiFetches::default(),
+            element_events: element_events::ElementEvents::default(),
             parser_drain: false,
             base_url: Derived::new(url.clone()),
             url,
@@ -562,8 +567,22 @@ impl swb_web::EngineHost for DocumentState {
         form: NodeId,
         submitter: Option<NodeId>,
         coordinate: (i32, i32),
+        entries: Option<Vec<swb_web::FormDataEntry>>,
     ) -> bool {
-        self.script_request_form_submission(form, submitter, coordinate)
+        self.script_request_form_submission(form, submitter, coordinate, entries)
+    }
+
+    fn image_info(&mut self, node: NodeId) -> swb_web::ImageInfo {
+        DocumentState::image_info(self, node)
+    }
+
+    fn form_entries(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+        coordinate: (i32, i32),
+    ) -> Vec<swb_web::FormDataEntry> {
+        self.script_form_entries(form, submitter, coordinate)
     }
 
     fn reset_form(&mut self, form: NodeId) {

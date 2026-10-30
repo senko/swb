@@ -4,6 +4,55 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 10b, XMLHttpRequest, image events, Blob and FormData; end of feature 10
+
+- `XMLHttpRequest` (asynchronous; a synchronous `open` throws),
+  `XMLHttpRequestUpload`, `ProgressEvent`. The request takes the API
+  path of 10a; the events of a response run in one task in Chromium's
+  order. An `upload` listener with a body forces a preflight.
+- `load` and `error` of images (also `new Image()` outside the
+  document and the parser's images) and of `link` style sheets;
+  `complete`, `naturalWidth`, `currentSrc`, `img.decode()`. The engine
+  watches the `img` elements and queues the events; the page delivers
+  them before the window `load`.
+- `Blob` (shared vectors, bounded), `File`, `FileReader`, Blob URLs for
+  `fetch` and XHR, `FormData` with the `formdata` event (also at form
+  submission) and the multipart body, `Response.blob()` and
+  `formData()`, `navigator.sendBeacon` with the 64 KiB quota.
+- Tests: probes `web-xhr.json`, `web-image-events.json`,
+  `web-blob-formdata.json`; the Rust tests run all their cases against a
+  simulation of the probe server.
+- Learned: Chromium fires `load` again when a script sets the same
+  `src`; a GET with an `upload` listener sends no preflight; Chromium
+  fires `upload.abort` for a GET aborted after the response headers
+  (the standard does not); the multipart boundary is
+  `----WebKitFormBoundary` and 16 letters and digits; the beacon quota
+  comes back when the request ends.
+- Review fixes: four ways for a page to hold gigabytes outside the
+  script heap (retained XHR responses, small slices of large Blobs,
+  Blob URL requests in a loop, request headers). Bytes held by script
+  objects are now charged to the heap when they arrive, and a task ends
+  with a collection when one is due; the four hostile cases stay under
+  0.5 GB. Also: the image watch table drops finished watches, two
+  `abort()` event orders follow Chromium, and an XHR that the page did
+  not reference lost its events when a collection ran.
+- Delta review and its tests: waiting Blob URL requests and
+  `FileReader` reads kept dropped blobs alive (now 256 MiB per
+  document). The document's handler map traced the `on*` handlers of
+  XHR, `FileReader`, `AbortSignal` and `MediaQueryList` objects as roots,
+  so every XHR with an `onload` handler lived until the document ended;
+  the handlers now live in the object's own data. That change showed two
+  objects that could be collected before their last event (a
+  `FileReader`, an `AbortSignal.timeout()` signal); a test in the GC
+  stress mode covers them.
+- JS off: snapshot identical; runtime heap +687 bytes. Hostile set
+  259 cases (15 new). `compare --js` of the three JS targets unchanged:
+  Craigslist still lacks four polyfill files that its boot script
+  injects.
+
+Next: feature 11 (the Craigslist posting page). Its first step:
+capture the four missing polyfill files into the fixture.
+
 ## 2026-10-30: M8 feature 10a, fetch and CORS
 
 - `net` knows all methods, the request, credentials and redirect

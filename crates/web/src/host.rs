@@ -260,6 +260,45 @@ pub struct NavigationInfo {
     pub body_bytes: u64,
 }
 
+/// An entry of a form's entry list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FormDataEntry {
+    /// The name.
+    pub name: String,
+    /// The value.
+    pub value: FormDataValue,
+}
+
+/// The value of a [`FormDataEntry`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FormDataValue {
+    /// A string.
+    Text(String),
+    /// A file (swb has the empty file of a file input without a file).
+    File {
+        /// The file name.
+        filename: String,
+        /// The MIME type.
+        content_type: String,
+        /// The bytes.
+        data: Vec<u8>,
+    },
+}
+
+/// What an `img` element reports of its image (`complete`, `naturalWidth`,
+/// `naturalHeight`, `currentSrc`; feature 10b).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImageInfo {
+    /// `complete`.
+    pub complete: bool,
+    /// `naturalWidth`.
+    pub natural_width: u32,
+    /// `naturalHeight`.
+    pub natural_height: u32,
+    /// `currentSrc`.
+    pub current_src: String,
+}
+
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
     /// The user agent string (`navigator.userAgent`, ADR 0025): the one
@@ -649,14 +688,47 @@ pub trait EngineHost: Any {
     /// cannot load, a `dialog` form). `coordinate` is the point of the
     /// click relative to the submitter, for an image button (0, 0 for
     /// `click()`).
+    ///
+    /// `entries` replaces the form's entry list when a `formdata` listener
+    /// changed it (feature 10b).
     fn request_form_submission(
         &mut self,
         form: NodeId,
         submitter: Option<NodeId>,
         coordinate: (i32, i32),
+        entries: Option<Vec<FormDataEntry>>,
     ) -> bool {
-        let _ = (form, submitter, coordinate);
+        let _ = (form, submitter, coordinate, entries);
         false
+    }
+
+    /// `complete`, the natural size and `currentSrc` of the `img` element
+    /// `node` (feature 10b). The default knows no loads: an image is
+    /// complete when it has neither `src` nor `srcset`.
+    fn image_info(&mut self, node: NodeId) -> ImageInfo {
+        let has = |name: &str| {
+            self.dom()
+                .element(node)
+                .and_then(|e| e.attr(name))
+                .is_some_and(|v| !v.is_empty())
+        };
+        ImageInfo {
+            complete: !has("src") && !has("srcset"),
+            ..ImageInfo::default()
+        }
+    }
+
+    /// The entry list of `form` as a submission by `submitter` would send
+    /// it (HTML "constructing the entry list" without the `formdata`
+    /// event), for `new FormData(form)` (feature 10b).
+    fn form_entries(
+        &mut self,
+        form: NodeId,
+        submitter: Option<NodeId>,
+        coordinate: (i32, i32),
+    ) -> Vec<FormDataEntry> {
+        let _ = (form, submitter, coordinate);
+        Vec::new()
     }
 
     /// The reset algorithm of `form`: its controls return to their default

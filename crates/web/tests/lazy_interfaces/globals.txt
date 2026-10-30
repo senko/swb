@@ -89,6 +89,9 @@ TextEncoder:dwc
 Headers:dwc
 Request:dwc
 Response:dwc
+Blob:dwc
+File:dwc
+FileReader:dwc
 DOMRectReadOnly:dwc
 DOMRect:dwc
 DOMRectList:dwc
@@ -414,6 +417,12 @@ PerformanceMark:dwc
 PerformanceMeasure:dwc
 Crypto:dwc
 DOMException:dwc
+XMLHttpRequestEventTarget:dwc
+XMLHttpRequestUpload:dwc
+XMLHttpRequest:dwc
+ProgressEvent:dwc
+FormData:dwc
+FormDataEvent:dwc
 MediaQueryList:dwc
 MediaQueryListEvent:dwc
 ScreenOrientation:dwc

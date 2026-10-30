@@ -942,7 +942,18 @@ temporary directory, loaded by navigation.
   parallel. Cookies of the resources should have `Path=/$FOLDER/`: the
   Chromium context shares the jar of `127.0.0.1` between the cases. The log
   and `Set-Cookie` give the two browsers the same server; they do not run at
-  the same time.
+  the same time. The probes of feature 10b (`web-xhr.json`,
+  `web-image-events.json`, `web-blob-formdata.json`) use the same keys. Their
+  cases run in Rust with Chromium's values: `crates/engine/tests/probe_net.rs`
+  runs every case against `Sim`, a simulation of this server in a fake
+  `Fetcher` (the `resources`, `Cache-Control: no-store`, `OPTIONS` answers, the
+  delays, both origins, `__log`), and `crates/web/tests/file_api.rs` runs the
+  queries of the Blob and FormData file that need no network. The departures
+  are rows in the two files. `crates/web/tests/xhr_limits.rs` checks the
+  memory bounds of XHR, `FileReader`, `Blob` and Blob URLs with a test
+  document that accepts the requests of scripts (`TestDocument::
+  accepting_fetches` in `tests/common/mod.rs`) and gets the responses from
+  the test (`ScriptRuntime::api_fetch_completed`).
 - `steps` (case, optional; needs `"javascript": true`): input to send
   before the queries, in order, for the events of the user's input (M8
   feature 6d2). Chromium gets it through Playwright's mouse and keyboard
@@ -1180,7 +1191,14 @@ loops past the quota of both storages (errors caught, the loop goes on; the
 limit of 100,000 keys), and 100,000 distinct cookies through
 `document.cookie` and a read loop with a full jar, and 400 cookies of
 4,000 bytes (these open an `http:` page from a replayed fixture; see `url`
-below). The cases with
+below). Cases for feature 10b (`*-js-on`): 5,000 `XMLHttpRequest` calls to a
+server that never answers, and 100,000 that are aborted at once; 40
+doublings of a `Blob` and 100,000 slices of slices; 100,000
+`URL.createObjectURL` calls without `revokeObjectURL`; a `FormData` of
+300,000 entries sent 20 times; `FileReader.readAsDataURL` of a blob of 48 MiB
+20 times; 100,000 `navigator.sendBeacon` calls (the quota of 64 KiB); and a
+chain of 100,000 images, each made in the `load` handler of the one before.
+The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -1203,7 +1221,7 @@ resident memory, result. The directories of passing cases are deleted unless
 | `slow`          | Over the time limit (default 5 s), or killed at twice the limit. |
 | `memory`        | Over the memory limit (default 1 GiB), or killed at the cap. |
 | `panic`         | Exit status 101 or "panicked" in swb's log (also panics that swb catches). |
-| `error`         | Another failure (a crash by a signal, a non-zero exit status). |
+| `error`         | Another failure (a crash by a signal, a non-zero exit status, or the case sets `forbid_log` and swb logged that warning: a limit acted too early). |
 | `inactive`      | The case sets `expect_log` and swb did not log that warning: the limit did not act (the limit changed, or the case does not reach it). |
 | `known failure` | The case is marked as a known failure and fails. This is a pass. |
 | `unexpected pass` | A known failure that now passes. This is a failure: remove the mark. |
@@ -1230,7 +1248,9 @@ description names the limit and the ADR. Size the page just past the limit
 (at most 20 MB; `tools/tests/test_hostile.py` checks this and that names are
 unique). Options: `time_limit_s` and `rss_limit_mib` where an ADR documents
 a higher cost, `expect_log` (a part of the warning that swb logs when the
-limit acts), `swb_args` (for example `--full-page`, `--scale 8`, `--js`;
+limit acts), `forbid_log` (a part of a warning that swb must not log; the
+page's `console.log` output is not in the log, so a case that must show that
+events keep working uses it), `swb_args` (for example `--full-page`, `--scale 8`, `--js`;
 `{dir}` stands for the directory of the case, so that a case can write a
 fixture and pass `--replay {dir}`), `url` (the URL to open instead of
 `index.html`, for a page that needs an `http:` origin, with a replayed

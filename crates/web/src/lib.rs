@@ -67,11 +67,13 @@ mod errors;
 mod event_loop;
 mod events;
 mod fetch;
+mod file_api;
 #[rustfmt::skip]
 pub mod generated;
 mod host;
 mod html;
 mod idle_callbacks;
+mod image_events;
 mod intersection_observer;
 mod location;
 mod media_queries;
@@ -91,13 +93,15 @@ mod text_codec;
 mod timers;
 mod url_api;
 mod window;
+mod xhr;
 
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo,
-    NavigationKind, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode, ScrollAlign,
-    ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange, Viewport,
+    ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins, FormDataEntry, FormDataValue,
+    ImageInfo, NavigationInfo, NavigationKind, ObservedBox, ObservedPosition, OffsetMetrics,
+    RangeTextMode, ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange,
+    Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{

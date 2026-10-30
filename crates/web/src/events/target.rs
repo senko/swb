@@ -6,8 +6,10 @@
 //! list is in the binding state by `NodeId` (a node with listeners has a
 //! wrapper, and both live as long as the document); the window's list is
 //! in the binding state too; a target made by `new EventTarget()` (or a
-//! subclass) keeps its list in its generic data ([`TargetData`]) and dies
-//! with the object. The kinds are told apart by class, not by host data.
+//! subclass, and the other targets that are not nodes: `XMLHttpRequest`,
+//! `FileReader`, `AbortSignal`, `MediaQueryList`) keeps its list and its
+//! event handlers in its generic data ([`TargetData`]) and dies with the
+//! object. The kinds are told apart by class, not by host data.
 
 use std::cell::Cell;
 
@@ -29,31 +31,47 @@ use crate::state::{WebState, dom, state, state_mut};
 pub(super) const MAX_DOCUMENT_LISTENERS: usize = 1 << 18;
 
 /// The data of an `EventTarget` made by its constructor, or of another
-/// event target that is not a node or the window: its listeners, and the
-/// state of a `MediaQueryList`.
+/// event target that is not a node or the window: its listeners, its event
+/// handlers, and the state of a `MediaQueryList`.
 #[derive(Debug, Default)]
 pub(crate) struct TargetData {
     listeners: Listeners,
+    /// The values of the `on*` handlers (`handlers.rs`).
+    pub(super) handlers: super::handlers::OwnHandlers,
     pub(crate) media: Option<Box<crate::media_queries::MediaQueryState>>,
     /// The state of an `AbortSignal` (`abort.rs`).
     pub(crate) signal: Option<Box<crate::abort::SignalState>>,
+    /// The state of an `XMLHttpRequest` (`xhr.rs`).
+    pub(crate) xhr: Option<Box<crate::xhr::XhrState>>,
+    /// The state of a `FileReader` (`file_api/reader.rs`).
+    pub(crate) reader: Option<Box<crate::file_api::ReaderState>>,
 }
 
 impl GenericData for TargetData {
     fn trace(&self, tracer: &mut Tracer<'_>) {
         self.listeners.trace(tracer);
+        self.handlers.trace(tracer);
         if let Some(media) = &self.media {
             media.trace(tracer);
         }
         if let Some(signal) = &self.signal {
             signal.trace(tracer);
         }
+        if let Some(xhr) = &self.xhr {
+            xhr.trace(tracer);
+        }
+        if let Some(reader) = &self.reader {
+            reader.trace(tracer);
+        }
     }
 
     fn heap_size(&self) -> usize {
         self.listeners.heap_size()
+            + self.handlers.heap_size()
             + self.media.as_ref().map_or(0, |m| m.heap_size())
             + self.signal.as_ref().map_or(0, |s| s.heap_size())
+            + self.xhr.as_ref().map_or(0, |x| x.heap_size())
+            + self.reader.as_ref().map_or(0, |r| r.heap_size())
     }
 }
 
@@ -73,6 +91,21 @@ pub(crate) fn remove_listener(
     };
     remove(rt, target, |list| list.remove(kind, callback, capture))?;
     Ok(())
+}
+
+/// True if the event target `object` has a listener or an event handler
+/// for one of the event types `types` (the "upload listener flag" of
+/// `XMLHttpRequest`).
+pub(crate) fn has_listener_for(rt: &mut Runtime, object: Gc<Object>, types: &[&str]) -> bool {
+    let Ok(target) = kind_of(rt, object) else {
+        return false;
+    };
+    if super::handlers::sync(rt, target).is_err() {
+        return false;
+    }
+    types
+        .iter()
+        .any(|kind| listeners_of(rt, target, kind).is_ok_and(|list| !list.is_empty()))
 }
 
 /// The kind of an event target, which says where its listeners are.

@@ -68,8 +68,9 @@ class RunResult:
 
 def classify(case: Case, run: RunResult) -> str:
     """Returns the outcome of a run, without regard to known failures:
-    `ok`, `slow`, `memory`, `panic`, `error` or `inactive` (swb did not log
-    the warning that shows the limit acted)."""
+    `ok`, `slow`, `memory`, `panic`, `error` (also: swb logged the warning
+    that `forbid_log` names) or `inactive` (swb did not log the warning that
+    shows the limit acted)."""
     if "panicked" in run.log or (run.returncode == 101 and run.killed is None):
         return PANIC
     if run.killed == "memory" or run.peak_mib > case.rss_limit_mib:
@@ -77,6 +78,8 @@ def classify(case: Case, run: RunResult) -> str:
     if run.killed == "time" or run.wall_s > case.time_limit_s:
         return SLOW
     if run.returncode != 0:
+        return ERROR
+    if case.forbid_log is not None and case.forbid_log in run.log:
         return ERROR
     if case.expect_log is not None and case.expect_log not in run.log:
         return INACTIVE

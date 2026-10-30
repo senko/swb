@@ -356,9 +356,9 @@ fn inserted_style_sheets_and_images_apply_and_load() {
 }
 
 /// `new Image()` with a source (feature 6c2): the image loads when the
-/// element goes into the document. A detached image does not load (the
-/// engine selects sources for the elements of the document only; nothing
-/// that a script can read depends on it yet).
+/// source is set, also while the element is outside the document (feature
+/// 10b: its `load` and `error` events, `complete` and `naturalWidth` depend
+/// on it); inserting the element loads nothing more.
 #[test]
 fn an_image_made_by_the_factory_loads_when_inserted() {
     on_page_thread(|| {
@@ -375,7 +375,11 @@ fn an_image_made_by_the_factory_loads_when_inserted() {
             "var i = new Image(); i.id = 'i'; i.src = 'pic.png'; window.i = i;",
         );
         settle(&mut page);
-        assert_eq!(recorder.count("pic.png"), 0);
+        assert_eq!(recorder.count("pic.png"), 1);
+        assert_eq!(
+            run(&mut page, "[i.complete, i.naturalWidth, i.naturalHeight]"),
+            "[true,2,3]"
+        );
         run(&mut page, "document.body.appendChild(i);");
         settle(&mut page);
         assert_eq!(recorder.count("pic.png"), 1);

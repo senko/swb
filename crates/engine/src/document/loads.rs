@@ -49,8 +49,10 @@ impl DocumentState {
             Pending::Script { node } => self.script_arrived(node, result),
             Pending::Image { url } => {
                 let state = ImageState::from_fetch(&url, result, &self.images.counting);
+                let ok = matches!(state, ImageState::Loaded(_));
                 self.images.by_url.insert(url.clone(), state);
                 self.images.load_ended(&url);
+                self.image_done(&url, ok);
                 self.invalidate_layout();
             }
         }
@@ -72,6 +74,7 @@ impl DocumentState {
                 sheet.css = Some(decode_css(&response.body, charset.as_deref()));
                 sheet.parsed = None;
                 sheet.base_url = response.url;
+                self.sheet_event(owner, true);
             }
             Ok(response) => {
                 log::warn!(
@@ -80,10 +83,12 @@ impl DocumentState {
                     response.status
                 );
                 sheet.failed = true;
+                self.sheet_event(owner, false);
             }
             Err(e) => {
                 log::warn!("stylesheet failed: {e}");
                 sheet.failed = true;
+                self.sheet_event(owner, false);
             }
         }
         self.invalidate_style();
@@ -113,6 +118,7 @@ impl DocumentState {
                 if let Some(sheet) = self.sheets.of(owner) {
                     sheet.failed = true;
                 }
+                self.sheet_event(owner, false);
                 continue;
             }
             #[cfg(test)]

@@ -67,6 +67,27 @@ pub(crate) fn form_submission(
     form: NodeId,
     submitter: Submitter,
 ) -> Option<FormRequest> {
+    form_submission_with(cx, form, submitter, None)
+}
+
+/// The entry list of `form` for `submitter`, as the submission builds it
+/// (`new FormData(form)` of scripts).
+pub(crate) fn form_entries(cx: &FormContext<'_>, form: NodeId, submitter: Submitter) -> Vec<Entry> {
+    let Some(form_element) = cx.doc.element(form) else {
+        return Vec::new();
+    };
+    let encoding = pick_encoding(form_element.attr("accept-charset"), cx.encoding);
+    entry_list(cx, form, submitter, encoding)
+}
+
+/// [`form_submission`] with the entries that a `formdata` listener left
+/// (`entries`), instead of the form's own.
+pub(crate) fn form_submission_with(
+    cx: &FormContext<'_>,
+    form: NodeId,
+    submitter: Submitter,
+    entries: Option<Vec<Entry>>,
+) -> Option<FormRequest> {
     let doc = cx.doc;
     let form_element = doc.element(form)?;
     // A submit button's `form*` attribute overrides the form's attribute.
@@ -78,7 +99,7 @@ pub(crate) fn form_submission(
             .or_else(|| form_element.attr(form_name))
     };
     let encoding = pick_encoding(form_element.attr("accept-charset"), cx.encoding);
-    let entries = entry_list(cx, form, submitter, encoding);
+    let entries = entries.unwrap_or_else(|| entry_list(cx, form, submitter, encoding));
     let mut url = action_url(cx, attr("formaction", "action").unwrap_or(""))?;
     // `method` and `enctype` are enumerated attributes: matched ASCII
     // case-insensitively and not trimmed (`" post"` is the default, GET).

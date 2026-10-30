@@ -68,7 +68,7 @@ impl GenericData for HeadersData {
 /// The names that a script may not set on a request.
 ///
 /// <https://fetch.spec.whatwg.org/#forbidden-request-header>
-fn is_forbidden_request_header(name: &str, value: &str) -> bool {
+pub(crate) fn is_forbidden_request_header(name: &str, value: &str) -> bool {
     const NAMES: [&str; 21] = [
         "accept-charset",
         "accept-encoding",
@@ -108,7 +108,7 @@ fn is_forbidden_request_header(name: &str, value: &str) -> bool {
 }
 
 /// <https://fetch.spec.whatwg.org/#forbidden-response-header-name>
-fn is_forbidden_response_header(name: &str) -> bool {
+pub(crate) fn is_forbidden_response_header(name: &str) -> bool {
     matches!(name, "set-cookie" | "set-cookie2")
 }
 

@@ -260,6 +260,15 @@ impl Runtime {
         self.heap.collect(&self.vm)
     }
 
+    /// A safepoint of the heap with the VM's roots: collects if a
+    /// collection is due and fails with the heap-limit termination if the
+    /// heap stays above 90 % of the limit. For a host that charges memory
+    /// outside the scripts' run (the bytes of a response) and has no
+    /// interpreter safepoint to follow.
+    pub fn safepoint(&mut self) -> VmResult<bool> {
+        Ok(self.heap.safepoint(&self.vm)?)
+    }
+
     /// The last result or uncaught exception value of a run.
     pub fn last_value(&self) -> Value {
         self.vm.last_value

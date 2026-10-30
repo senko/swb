@@ -201,6 +201,10 @@ impl HasBody for RequestData {
     fn body_mut(&mut self) -> &mut Option<BodyState> {
         &mut self.body
     }
+
+    fn headers_object(&self) -> Gc<Object> {
+        self.headers
+    }
 }
 
 /// The data of the `Request` object `object`, if it is one.
@@ -257,7 +261,7 @@ fn take_body(
             if let Some(content_type) = extracted.content_type
                 && headers::value_of(rt, headers, "content-type")?.is_none()
             {
-                headers::append_to(rt, headers, "Content-Type", content_type)?;
+                headers::append_to(rt, headers, "Content-Type", &content_type)?;
             }
             Ok(Some(BodyState::new(extracted.bytes)))
         }

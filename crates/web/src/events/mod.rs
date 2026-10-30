@@ -26,7 +26,7 @@ mod dispatch;
 mod handler_names;
 pub(crate) mod handlers;
 mod listeners;
-mod misc;
+pub(crate) mod misc;
 mod mouse;
 mod target;
 mod ui;
@@ -37,7 +37,7 @@ pub(crate) use dispatch::{dispatch, dispatch_trusted, fire_trusted, new_event_ob
 pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_changed};
 pub(crate) use listeners::Listeners;
 pub(crate) use mouse::new_click_event;
-pub(crate) use target::{TargetData, remove_listener};
+pub(crate) use target::{TargetData, has_listener_for, remove_listener};
 pub use user::{UserEvent, UserKind, modifiers};
 
 use swb_js::{

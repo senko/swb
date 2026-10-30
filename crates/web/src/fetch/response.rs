@@ -54,12 +54,16 @@ impl HasBody for ResponseData {
     fn abort_signal(&self) -> Option<Gc<Object>> {
         self.signal
     }
+
+    fn headers_object(&self) -> Gc<Object> {
+        self.headers
+    }
 }
 
 /// The reason phrase that HTTP/1.1 servers send for the common status
 /// codes (Chromium's `statusText` of a response without a phrase of its
 /// own, and of a replayed one).
-fn reason_phrase(status: u16) -> &'static str {
+pub(crate) fn reason_phrase(status: u16) -> &'static str {
     match status {
         100 => "Continue",
         101 => "Switching Protocols",
@@ -215,11 +219,11 @@ fn initialize(
             ));
         }
         let extracted = body::extract(rt, value)?;
-        let content_type = default_type.or(extracted.content_type);
+        let content_type = default_type.map(str::to_owned).or(extracted.content_type);
         if let Some(content_type) = content_type
             && headers::value_of(rt, headers, "content-type")?.is_none()
         {
-            headers::append_to(rt, headers, "Content-Type", content_type)?;
+            headers::append_to(rt, headers, "Content-Type", &content_type)?;
         }
         bytes = Some(extracted.bytes);
     }

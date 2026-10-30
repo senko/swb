@@ -188,6 +188,22 @@ Format: source, license (for code), what it influenced.
   error messages and the cases where Chromium departs from the standard
   come from black-box measurements of Chromium (probes `web-fetch.json`,
   `web-fetch-cors.json`; ADR 0021).
+- WHATWG XMLHttpRequest and HTML, W3C File API and Beacon (network from
+  scripts), M8 feature 10b — https://xhr.spec.whatwg.org/,
+  https://html.spec.whatwg.org/, https://w3c.github.io/FileAPI/ and
+  https://w3c.github.io/beacon/ — the IDL in `crates/web/idl/xhr.idl`
+  (BSD-3-Clause, as above), `file-api.idl` and the `sendBeacon` member of
+  `navigator-extensions.idl` (W3C Software and Document License);
+  `XMLHttpRequest` and its events (`crates/web/src/xhr.rs`), `FormData`,
+  the `multipart/form-data` encoding and the `formdata` event,
+  `Blob`, `File`, `FileReader` and Blob URLs (`crates/web/src/file_api/`),
+  the `load` and `error` events of images and style sheets ("update the
+  image data", `crates/web/src/image_events.rs`,
+  `crates/engine/src/document/element_events.rs`), `sendBeacon`
+  (`crates/web/src/navigator.rs`). The event order of XHR and of images,
+  the multipart boundary format, the beacon quota and the error texts
+  come from black-box measurements of Chromium (probes `web-xhr.json`,
+  `web-image-events.json`, `web-blob-formdata.json`; ADR 0021).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

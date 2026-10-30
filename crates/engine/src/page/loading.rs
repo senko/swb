@@ -160,6 +160,9 @@ impl Page {
         if !doc.is_loading() && self.state == LoadState::Complete {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
+        // The events of images and style sheets fire before the `load`
+        // event that this completion may allow.
+        self.deliver_element_events();
         self.deliver_scripts(sheet);
         true
     }

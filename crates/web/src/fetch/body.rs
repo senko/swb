@@ -8,14 +8,17 @@
 //! used; a second read rejects with a `TypeError`. The bytes count against
 //! the heap of the document (`GenericData::heap_size` of the owner).
 //!
-//! # Attaching `Blob` and `FormData` (feature 10b)
+//! # `Blob` and `FormData` (feature 10b)
 //!
 //! [`extract`] is the only place that tells the kinds of body sources
-//! apart: a `Blob` and a `FormData` get their branch there (bytes, and the
-//! `Content-Type` with the boundary). [`read`] makes `blob()` and
-//! `formData()` of the Body mixin: they reject until 10b has the classes.
+//! apart: a `Blob` (its bytes and its type) and a `FormData` (a
+//! `multipart/form-data` body with a boundary) have their branches there.
+//! [`read`] makes `blob()` (type from the `Content-Type` header) and
+//! `formData()` (parses `multipart/form-data` and
+//! `application/x-www-form-urlencoded`; another type rejects with a
+//! `TypeError`, as Chromium does).
 
-use swb_js::{Gc, GenericData, Object, Runtime, Slots, Value};
+use swb_js::{Gc, GenericData, Object, Runtime, Value};
 
 use super::generic_mut;
 use crate::bindings::{self as b, Cx, Exception, Platform};
@@ -50,13 +53,17 @@ pub(crate) trait HasBody: GenericData {
     fn abort_signal(&self) -> Option<Gc<Object>> {
         None
     }
+
+    /// The `Headers` object of the owner (for the type of `blob()` and
+    /// `formData()`).
+    fn headers_object(&self) -> Gc<Object>;
 }
 
 /// What `BodyInit` extracted: the bytes and the `Content-Type` that the
 /// source implies.
 pub(crate) struct Extracted {
     pub(crate) bytes: Vec<u8>,
-    pub(crate) content_type: Option<&'static str>,
+    pub(crate) content_type: Option<String>,
 }
 
 /// Fetch "extract a body" for a `BodyInit` value that is not `null`.
@@ -69,49 +76,36 @@ pub(crate) fn extract(rt: &mut Runtime, value: Value) -> b::Result<Extracted> {
         {
             return Ok(Extracted {
                 bytes: query.into_bytes(),
-                content_type: Some("application/x-www-form-urlencoded;charset=UTF-8"),
+                content_type: Some("application/x-www-form-urlencoded;charset=UTF-8".to_owned()),
             });
         }
-        if let Some(bytes) = buffer_bytes(rt, object)? {
+        if let Some(blob) = crate::file_api::blob_of(rt, value) {
+            let bytes = blob.bytes.to_vec();
+            let content_type = (!blob.kind.is_empty()).then(|| blob.kind.clone());
+            return Ok(Extracted {
+                bytes,
+                content_type,
+            });
+        }
+        if crate::file_api::is_form_data(rt, value) {
+            let (bytes, content_type) = crate::file_api::multipart_body(rt, object)?;
+            return Ok(Extracted {
+                bytes,
+                content_type: Some(content_type),
+            });
+        }
+        if let Some(bytes) = crate::file_api::buffer_bytes(rt, object)? {
             return Ok(Extracted {
                 bytes,
                 content_type: None,
             });
         }
-        // Feature 10b: `Blob` (its bytes and type) and `FormData`
-        // (multipart/form-data with a boundary) are extracted here.
     }
     let text = b::convert::usv_string(rt, value)?;
     Ok(Extracted {
         bytes: text.into_bytes(),
-        content_type: Some("text/plain;charset=UTF-8"),
+        content_type: Some("text/plain;charset=UTF-8".to_owned()),
     })
-}
-
-/// The bytes of an `ArrayBuffer` or a view, or `None` for another object.
-fn buffer_bytes(rt: &mut Runtime, object: Gc<Object>) -> b::Result<Option<Vec<u8>>> {
-    let (buffer, offset, length) = match rt.slots_of(object)? {
-        Slots::ArrayBuffer { byte_length, .. } => (object, 0, byte_length),
-        Slots::View {
-            buffer,
-            byte_offset,
-            byte_length,
-            ..
-        } => {
-            let length = match byte_length {
-                Some(length) => length,
-                None => match rt.slots_of(buffer)? {
-                    Slots::ArrayBuffer { byte_length, .. } => {
-                        byte_length.saturating_sub(byte_offset)
-                    }
-                    _ => 0,
-                },
-            };
-            (buffer, byte_offset, length)
-        }
-        _ => return Ok(None),
-    };
-    Ok(Some(rt.buffer_range(buffer, offset, length)?))
 }
 
 /// What a read of the body returns.
@@ -139,17 +133,13 @@ pub(crate) fn read<T: HasBody>(
     this: Platform,
     what: Read,
 ) -> b::Result<Gc<Object>> {
-    if matches!(what, Read::Blob | Read::FormData) {
-        // The body is not read: the call fails before.
-        return Err(Exception::dom(
-            "NotSupportedError",
-            "Blob and FormData are not supported yet.",
-        ));
-    }
     // An aborted `fetch()` errors the body stream, whatever its reason
     // (measured: AbortError "The user aborted a request."); the body stays
     // unread.
-    let signal = super::generic::<T>(cx.rt, this)?.abort_signal();
+    let (signal, headers) = {
+        let data = super::generic::<T>(cx.rt, this)?;
+        (data.abort_signal(), data.headers_object())
+    };
     if let Some(signal) = signal
         && generic_mut::<T>(cx.rt, this)?.body_mut().is_some()
         && crate::abort::is_aborted(cx.rt, signal)?
@@ -191,12 +181,36 @@ pub(crate) fn read<T: HasBody>(
                 .create_view(realm, Some("Uint8"), buffer, 0, Some(length))?
                 .into()
         }
-        Read::Blob | Read::FormData => Value::Undefined,
+        Read::Blob => {
+            let kind =
+                super::headers::value_of(cx.rt, headers, "content-type")?.unwrap_or_default();
+            crate::file_api::make_blob(cx.rt, realm, bytes, &kind)?.into()
+        }
+        Read::FormData => {
+            let kind =
+                super::headers::value_of(cx.rt, headers, "content-type")?.unwrap_or_default();
+            let Some(form_data) = parse_form_data(cx.rt, realm, &bytes, &kind)? else {
+                let error = cx
+                    .rt
+                    .new_error(swb_js::ThrowKind::TypeError, "Failed to fetch")?;
+                return match cx.rt.rejected_promise(realm, error.into())? {
+                    Value::Object(promise) => Ok(promise),
+                    _ => Err(Exception::type_error("a rejected promise is not an object")),
+                };
+            };
+            form_data.into()
+        }
     };
     match cx.rt.resolved_promise(realm, value)? {
         Value::Object(promise) => Ok(promise),
         _ => Err(Exception::type_error("PromiseResolve gave a non-object")),
     }
+}
+
+/// `JSON.parse(text)`, or `null` when the text is not JSON (the `json`
+/// response of an `XMLHttpRequest`).
+pub(crate) fn parse_json_or_null(rt: &mut Runtime, text: &str) -> Value {
+    parse_json(rt, text).unwrap_or(Value::Null)
 }
 
 /// `JSON.parse(text)`; a `SyntaxError` is the exception of the read.
@@ -239,4 +253,45 @@ fn json_function(rt: &mut Runtime, name: &str) -> b::Result<(Value, Value)> {
     let key = rt.key_from_str(name)?;
     let function = rt.get_key(json, key)?;
     Ok((json, function))
+}
+
+/// The `FormData` that a body of type `kind` stands for: a
+/// `multipart/form-data` body (HTML "multipart/form-data decoding": the
+/// parts with their `Content-Disposition`) or an
+/// `application/x-www-form-urlencoded` body. `None` for another type or a
+/// malformed multipart body.
+fn parse_form_data(
+    rt: &mut Runtime,
+    realm: u32,
+    bytes: &[u8],
+    kind: &str,
+) -> b::Result<Option<Gc<Object>>> {
+    let lower = kind.to_ascii_lowercase();
+    let entries = if lower.starts_with("application/x-www-form-urlencoded") {
+        crate::file_api::urlencoded_entries(&utf8_text(bytes))
+    } else if lower.starts_with("multipart/form-data") {
+        let Some(boundary) = boundary_of(kind) else {
+            return Ok(None);
+        };
+        match crate::file_api::parse_multipart(rt, realm, bytes, &boundary)? {
+            Some(entries) => entries,
+            None => return Ok(None),
+        }
+    } else {
+        return Ok(None);
+    };
+    Ok(Some(crate::file_api::new_form_data(rt, realm, entries)?))
+}
+
+/// The `boundary` parameter of a `multipart/form-data` type.
+fn boundary_of(kind: &str) -> Option<String> {
+    let lower = kind.to_ascii_lowercase();
+    let at = lower.find("boundary=")?;
+    let rest = kind.get(at + "boundary=".len()..)?;
+    let value = if let Some(quoted) = rest.strip_prefix('"') {
+        quoted.split('"').next()?
+    } else {
+        rest.split(';').next()?.trim()
+    };
+    (!value.is_empty()).then(|| value.to_owned())
 }

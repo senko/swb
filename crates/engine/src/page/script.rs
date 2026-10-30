@@ -164,13 +164,37 @@ impl Page {
         }
     }
 
-    /// True if a `fetch()` call of a script waits for its response. The
-    /// loops that wait for the page's activity wait for it too; the
-    /// `load` event does not.
+    /// True if a `fetch()` call of a script waits for its response, or
+    /// `load` and `error` events of images and style sheets wait for
+    /// delivery. The loops that wait for the page's activity wait for it
+    /// too; the `load` event does not.
     pub(super) fn has_pending_api_fetches(&self) -> bool {
         self.doc
             .as_deref()
-            .is_some_and(DocumentState::has_pending_api_fetches)
+            .is_some_and(|d| d.has_pending_api_fetches() || d.has_element_events())
+    }
+
+    /// Hands the `load` and `error` events of images and style sheets that
+    /// the document queued to the runtime (feature 10b), one slice at a
+    /// time. Returns true if it delivered any.
+    pub(super) fn deliver_element_events(&mut self) -> bool {
+        if self.script.is_none() {
+            // Without a runtime nothing listens; drop the events.
+            if let Some(doc) = self.doc.as_deref_mut() {
+                doc.take_element_events();
+            }
+            return false;
+        }
+        let events = match self.doc.as_deref_mut() {
+            Some(doc) => doc.take_element_events(),
+            None => return false,
+        };
+        if events.is_empty() {
+            return false;
+        }
+        self.run_task(|runtime| runtime.element_events(events));
+        self.check_load_event();
+        true
     }
 
     /// Fires the `load` event of the document when the runtime is ready
@@ -338,6 +362,7 @@ impl Page {
             self.input.idle_streak = 0;
         }
         changed |= tasks > 0;
+        changed |= self.deliver_element_events();
         changed |= self.run_traversal();
         changed |= self.run_frame();
         // Step 4 of the event loop: idle callbacks, if nothing else ran.

@@ -78,6 +78,11 @@ pub enum EventInterface {
         /// `newURL`.
         new_url: String,
     },
+    /// `FormDataEvent` (`formdata`).
+    FormData {
+        /// `formData`.
+        form_data: Gc<Object>,
+    },
 }
 
 /// An event that the engine fires (DOM "fire an event"): `isTrusted` is
@@ -193,6 +198,10 @@ pub(crate) fn dispatch_trusted(
                 old_url: old_url.clone(),
                 new_url: new_url.clone(),
             })),
+        ),
+        EventInterface::FormData { form_data } => (
+            g::FORM_DATA_EVENT,
+            Extra::Other(Box::new(super::misc::form_data(*form_data))),
         ),
         EventInterface::User(user) => {
             // Chromium makes a `wheel` event cancelable only when a

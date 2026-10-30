@@ -34,12 +34,14 @@
 //! - Only `http:`, `https:` and `data:` URLs are fetched; `blob:` comes with
 //!   feature 10b.
 
-mod body;
-mod headers;
-mod request;
-mod response;
+pub(crate) mod body;
+pub(crate) mod headers;
+pub(crate) mod request;
+pub(crate) mod response;
 
 use std::collections::HashMap;
+
+pub(crate) use body::utf8_text;
 
 use swb_js::{Gc, HostData, Object, Runtime, ThrowKind, Tracer, Value, VmResult};
 
@@ -64,15 +66,51 @@ struct Pending {
 #[derive(Debug, Default)]
 pub(crate) struct Fetches {
     pending: HashMap<u64, Pending>,
+    /// The `XMLHttpRequest` objects in flight, by request id (`xhr.rs`).
+    pub(crate) xhrs: HashMap<u64, Gc<Object>>,
+    /// The beacons in flight (`navigator.sendBeacon`): their sizes by id.
+    pub(crate) beacons: HashMap<u64, usize>,
+    /// The requests that did not go to the network (Blob URLs, refused
+    /// requests), by id, until their task runs.
+    local: HashMap<u64, Local>,
+    /// The entries of `local` that hold a Blob (at most [`MAX_LOCAL_BLOBS`]).
+    local_blobs: usize,
+    /// True after the warning about [`MAX_LOCAL_BLOBS`].
+    local_warned: bool,
+    next_local: u64,
     /// True after the warning about `body` (no streams).
     stream_warned: bool,
 }
+
+/// A request that does not go to the network, until its task runs.
+#[derive(Debug)]
+enum Local {
+    /// The result is known.
+    Done(Result<swb_net::Response, swb_net::NetError>),
+    /// A `GET` of a Blob URL: the handle of the Blob (a cheap clone; the
+    /// bytes are copied into the response when the task runs, one request at
+    /// a time) and its type.
+    Blob {
+        url: swb_net::Url,
+        bytes: crate::file_api::BlobBytes,
+        kind: String,
+    },
+}
+
+/// The most requests of Blob URLs that wait for their task. A request past
+/// it fails like one that the engine refuses (a network error). The
+/// requests of the network are bounded by the places and the queue of the
+/// engine (ADR 0028 section 16).
+const MAX_LOCAL_BLOBS: usize = 256;
 
 impl Fetches {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for pending in self.pending.values() {
             tracer.object(pending.promise);
             tracer.object(pending.signal);
+        }
+        for xhr in self.xhrs.values() {
+            tracer.object(*xhr);
         }
     }
 }
@@ -104,7 +142,7 @@ pub(super) fn generic_mut<T: swb_js::GenericData>(
 
 /// `value` parsed against the document's base URL and serialized, or
 /// `None` if it does not parse.
-fn engine_parse_url(rt: &mut Runtime, value: &str) -> b::Result<Option<String>> {
+pub(crate) fn engine_parse_url(rt: &mut Runtime, value: &str) -> b::Result<Option<String>> {
     Ok(engine_mut(rt)?.parse_url(value))
 }
 
@@ -151,7 +189,7 @@ fn fetch_impl(cx: &mut Cx<'_>, input: Value, init: RequestInit) -> b::Result<Gc<
         return rejected(cx.rt, realm, error);
     };
     let scheme = net_request.url.scheme().to_owned();
-    if !matches!(scheme.as_str(), "http" | "https" | "data") {
+    if !matches!(scheme.as_str(), "http" | "https" | "data" | "blob") {
         crate::runtime::report_line(
             cx.rt,
             "fetch",
@@ -165,7 +203,7 @@ fn fetch_impl(cx: &mut Cx<'_>, input: Value, init: RequestInit) -> b::Result<Gc<
     }
     let head = net_request.method == swb_net::Method::Head;
     let promise = cx.rt.new_pending_promise(realm)?;
-    let Some(id) = engine_mut(cx.rt)?.start_api_fetch(net_request) else {
+    let Some(id) = start_request(cx.rt, net_request)? else {
         log::warn!("fetch({}) was refused: too many requests", request.url);
         let error = network_error(cx.rt)?;
         cx.rt.reject_pending_promise(promise, error)?;
@@ -192,11 +230,33 @@ pub(crate) fn complete(
     result: Result<swb_net::Response, swb_net::NetError>,
     kind: swb_net::ResponseKind,
 ) -> VmResult<()> {
+    if let Some(size) = state_mut(rt)?.fetches.beacons.remove(&id) {
+        // A beacon has no handler; the quota returns.
+        let state = state_mut(rt)?;
+        state.beacon_bytes = state.beacon_bytes.saturating_sub(size);
+        return Ok(());
+    }
+    if let Some(xhr) = state_mut(rt)?.fetches.xhrs.remove(&id) {
+        return crate::xhr::completed(rt, xhr, id, result);
+    }
     let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
         // Aborted before.
         return Ok(());
     };
+    // Out of the table, the promise and the signal live as long as the
+    // task's scope (the response is made before the promise settles).
+    rt.heap_mut().record(pending.promise);
+    rt.heap_mut().record(pending.signal);
     crate::abort::unregister_fetch(rt, pending.signal, id);
+    complete_fetch(rt, &pending, result, kind)
+}
+
+fn complete_fetch(
+    rt: &mut Runtime,
+    pending: &Pending,
+    result: Result<swb_net::Response, swb_net::NetError>,
+    kind: swb_net::ResponseKind,
+) -> VmResult<()> {
     match result {
         Ok(response) => {
             let object = response::from_net(
@@ -233,6 +293,107 @@ pub(crate) fn complete(
     }
 }
 
+/// The first id of the requests that do not go to the network.
+const LOCAL_BASE: u64 = 1 << 62;
+
+/// Starts `request`: a `blob:` URL is answered from the Blob URL store in
+/// a task of its own, anything else goes to the engine. `None` if the
+/// engine refused it or too many requests of Blob URLs wait.
+pub(crate) fn start_request(rt: &mut Runtime, request: swb_net::Request) -> VmResult<Option<u64>> {
+    if request.url.scheme() != "blob" {
+        return Ok(engine_mut(rt)?.start_api_fetch(request));
+    }
+    let entry = state_mut(rt)?.blob_urls.get(request.url.as_str());
+    let local = match entry {
+        Some((bytes, kind)) if request.method == swb_net::Method::Get => Local::Blob {
+            url: request.url,
+            bytes,
+            kind,
+        },
+        // A revoked or unknown URL, a method other than `GET`.
+        _ => Local::Done(Err(swb_net::NetError::UnsupportedScheme("blob".to_owned()))),
+    };
+    if let Local::Blob { bytes, .. } = &local {
+        let state = state_mut(rt)?;
+        if state.fetches.local_blobs >= MAX_LOCAL_BLOBS {
+            if !state.fetches.local_warned {
+                state.fetches.local_warned = true;
+                log::warn!("too many requests of Blob URLs wait: {MAX_LOCAL_BLOBS}");
+            }
+            return Ok(None);
+        }
+        // The page may drop the Blob while the request waits.
+        if !state.held_blobs.hold(bytes) {
+            return Ok(None);
+        }
+    }
+    Ok(Some(queue_local(rt, local)?))
+}
+
+/// Queues the completion of a request that did not go to the network.
+pub(crate) fn finish_locally(
+    rt: &mut Runtime,
+    result: Result<swb_net::Response, swb_net::NetError>,
+) -> VmResult<u64> {
+    queue_local(rt, Local::Done(result))
+}
+
+fn queue_local(rt: &mut Runtime, local: Local) -> VmResult<u64> {
+    let state = state_mut(rt)?;
+    state.fetches.next_local += 1;
+    let id = LOCAL_BASE + state.fetches.next_local;
+    if matches!(local, Local::Blob { .. }) {
+        state.fetches.local_blobs += 1;
+    }
+    state.fetches.local.insert(id, local);
+    let due = state.clock.page_now();
+    state
+        .event_loop
+        .tasks
+        .push(due, crate::event_loop::Task::LocalFetch(id));
+    Ok(id)
+}
+
+/// The response for a `blob:` request: the stored bytes with their type.
+fn blob_response(
+    url: swb_net::Url,
+    bytes: &crate::file_api::BlobBytes,
+    kind: String,
+) -> swb_net::Response {
+    let mut headers = swb_net::Headers::default();
+    if !kind.is_empty() {
+        headers.append("content-type", kind);
+    }
+    headers.append("content-length", bytes.len().to_string());
+    swb_net::Response {
+        url,
+        status: 200,
+        headers,
+        body: bytes.to_vec(),
+        redirected: false,
+    }
+}
+
+/// The task of a request that did not go to the network.
+pub(crate) fn local_completed(rt: &mut Runtime, id: u64) -> VmResult<()> {
+    let state = state_mut(rt)?;
+    let Some(local) = state.fetches.local.remove(&id) else {
+        return Ok(());
+    };
+    let result = match local {
+        Local::Done(result) => result,
+        Local::Blob { url, bytes, kind } => {
+            state.fetches.local_blobs = state.fetches.local_blobs.saturating_sub(1);
+            // The copy happens here, one request at a time; its owner (an
+            // XHR or a `Response`) charges it to the heap.
+            let response = blob_response(url, &bytes, kind);
+            state.held_blobs.release(&bytes);
+            Ok(response)
+        }
+    };
+    complete(rt, id, result, swb_net::ResponseKind::Basic)
+}
+
 /// The signal of the call `id` aborted: rejects its promise with `reason`
 /// and tells the engine to drop the request.
 pub(crate) fn abort_fetch(rt: &mut Runtime, _realm: u32, id: u64, reason: Value) -> VmResult<()> {
@@ -245,10 +406,13 @@ pub(crate) fn abort_fetch(rt: &mut Runtime, _realm: u32, id: u64, reason: Value)
     rt.reject_pending_promise(pending.promise, reason)
 }
 
-/// The error of a binding in a place that returns a `VmResult`.
-fn exception_error(exception: Exception) -> swb_js::VmError {
+/// The error of a binding in a place that returns a `VmResult` (a task):
+/// the engine's error passes, anything else becomes a `TypeError` with its
+/// description.
+pub(crate) fn exception_error(exception: Exception) -> swb_js::VmError {
     match exception {
         Exception::Js(error) => error,
+        Exception::Type(message) => swb_js::VmError::type_error(message),
         other => swb_js::VmError::type_error(format!("{other:?}")),
     }
 }

@@ -667,6 +667,29 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, false);
                 result
             }),
+            Task::XhrTimeout(id) => self.task("an XMLHttpRequest timeout", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::xhr::timeout_fired(rt, id).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
+            Task::LocalFetch(id) => self.task("a local fetch", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::fetch::local_completed(rt, id).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
+            Task::FileReader {
+                id,
+                generation,
+                finish,
+            } => self.task("a FileReader", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result =
+                    crate::file_api::reader_task(rt, id, generation, finish).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
             Task::AbortTimeout(id) => self.task("AbortSignal.timeout()", |rt| {
                 crate::abort::timeout_fired(rt, id).map_err(task_error)
             }),
@@ -883,6 +906,7 @@ impl ScriptRuntime {
         if let Err(error) = self.rt.heap_mut().close_scope(scope) {
             log::warn!("the handle scope of a task was not the last one: {error:?}");
         }
+        self.collect_between_tasks();
         if let Ok(state) = state_mut(&mut self.rt) {
             state.event_loop.nesting = 0;
         }
@@ -892,6 +916,24 @@ impl ScriptRuntime {
         self.rt.set_deadline(None);
         self.count_time(started.elapsed());
         result
+    }
+
+    /// The safepoint at the end of a task, when no handle scope is open:
+    /// memory that a task charged without running a script (the bytes of a
+    /// response, `Heap::generic_resized`) would otherwise stay until the
+    /// next script reaches a safepoint, and a page whose requests have no
+    /// listeners would never collect. A heap that stays over the limit
+    /// stops the document's scripts, as a safepoint in a script does.
+    fn collect_between_tasks(&mut self) {
+        let heap = self.rt.heap();
+        if heap.scope_depth() > 0 || !heap.gc_due() {
+            return;
+        }
+        if let Err(error) = self.rt.safepoint() {
+            let error = task_error(error);
+            report_line(&self.rt, "the heap", &error.to_string());
+            self.count_termination(&error);
+        }
     }
 
     /// Adds the time of a long task to the document's total; stops the

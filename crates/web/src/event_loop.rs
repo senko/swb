@@ -51,6 +51,19 @@ pub(crate) enum Task {
     FinalizationCleanup,
     /// The time of an `AbortSignal.timeout()` signal is over (`abort.rs`).
     AbortTimeout(u64),
+    /// The `timeout` of an `XMLHttpRequest` is over (`xhr.rs`): the request
+    /// id.
+    XhrTimeout(u64),
+    /// A request that did not go to the network (a Blob URL, a refused
+    /// request) completes (`fetch/mod.rs`): its id.
+    LocalFetch(u64),
+    /// A step of a `FileReader` read (`file_api/reader.rs`): `finish` false
+    /// fires `loadstart`, true the rest.
+    FileReader {
+        id: u64,
+        generation: u64,
+        finish: bool,
+    },
     /// Let the parser go on after a wait (`document_load.rs`).
     ParserResume,
     /// Fire the waiting `select` and `selectionchange` events of text

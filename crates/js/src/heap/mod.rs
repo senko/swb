@@ -479,6 +479,29 @@ impl Heap {
             .ok_or(Error::invariant("generic data of another type"))
     }
 
+    /// Runs `change` on the generic data of `handle` and charges the
+    /// difference of [`GenericData::heap_size`] before and after it (or
+    /// gives the bytes back), so that a buffer that the data takes or
+    /// grows counts at once, not at the next collection. Never collects:
+    /// a heap that this pushes over the limit ends the script at the next
+    /// safepoint.
+    pub fn generic_resized<T: GenericData, R>(
+        &mut self,
+        handle: Gc<Generic>,
+        change: impl FnOnce(&mut T) -> R,
+    ) -> Result<R> {
+        let data = self.generic_mut::<T>(handle)?;
+        let before = data.heap_size();
+        let result = change(data);
+        let after = data.heap_size();
+        if after >= before {
+            self.charge(after - before);
+        } else {
+            self.release_bytes(before - after);
+        }
+        Ok(result)
+    }
+
     /// Fails with the stale-handle error if `handle` is not live generic
     /// data.
     pub(crate) fn generic_check(&self, handle: Gc<Generic>) -> Result<()> {
@@ -801,6 +824,27 @@ mod tests {
         heap.collect(&NoRoots);
         assert!(heap.generic::<Code>(code).is_err());
         assert!(!heap.is_live_string(s));
+    }
+
+    #[test]
+    fn a_resized_generic_is_charged_at_once() {
+        struct Buffer(Vec<u8>);
+        impl GenericData for Buffer {
+            fn trace(&self, _: &mut Tracer<'_>) {}
+            fn heap_size(&self) -> usize {
+                self.0.capacity()
+            }
+        }
+        let mut heap = Heap::new(HeapConfig::default());
+        let handle = heap.alloc_generic(Buffer(Vec::new())).unwrap();
+        let before = heap.heap_size();
+        heap.generic_resized::<Buffer, _>(handle, |b| b.0 = vec![0; 1 << 20])
+            .unwrap();
+        assert!(heap.heap_size() >= before + (1 << 20));
+        let grown = heap.heap_size();
+        heap.generic_resized::<Buffer, _>(handle, |b| b.0 = Vec::new())
+            .unwrap();
+        assert!(heap.heap_size() <= grown - (1 << 20));
     }
 
     /// The stress mode collects at every safepoint of the first 2^16,

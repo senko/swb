@@ -355,6 +355,14 @@ enum ParseFailure {
 }
 
 impl g::url::URLImpl for WebState {
+    fn create_object_url(cx: &mut Cx<'_>, obj: Platform) -> b::Result<String> {
+        crate::file_api::create_object_url(cx, obj)
+    }
+
+    fn revoke_object_url(cx: &mut Cx<'_>, url: String) -> b::Result<()> {
+        crate::file_api::revoke_object_url(cx, &url)
+    }
+
     fn constructor(cx: &mut Cx<'_>, url: String, base: Option<String>) -> b::Result<Gc<Object>> {
         let parsed = match parse_with_base(&url, base.as_deref()) {
             Ok(parsed) => parsed,

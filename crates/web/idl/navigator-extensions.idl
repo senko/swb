@@ -16,7 +16,13 @@
 // The interface Navigator is in html.idl (feature 8a2 of M8). The mixin
 // NavigatorAutomationInformation of WebDriver is a partial interface here.
 
+// Feature 10b of M8 adds `sendBeacon` from Beacon
+// (https://w3c.github.io/beacon/, copied on 2026-10-30; W3C Software and
+// Document License, Copyright © 2026 World Wide Web Consortium); its `data`
+// is `any` (the union has buffer sources, which the generator cannot tell
+// apart).
 partial interface Navigator {
+  boolean sendBeacon(USVString url, optional any data = null);
   readonly attribute long maxTouchPoints;
   readonly attribute boolean webdriver;
   readonly attribute DOMString? doNotTrack;

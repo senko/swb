@@ -41,12 +41,6 @@ const SWB_VALUES: &[Departure] = &[
     ),
     (
         "navigator-departures",
-        4,
-        r#""undefined""#,
-        "`sendBeacon` comes with the network from scripts (feature 10b)",
-    ),
-    (
-        "navigator-departures",
         5,
         r#"["undefined","undefined","undefined","undefined","undefined"]"#,
         "members that pages use only for feature detection stay absent (ADR 0028 section 13); `plugins` and `mimeTypes` are on the backlog",

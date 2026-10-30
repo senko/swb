@@ -18,7 +18,7 @@
 //! or `size` > 1) look like drop-downs; image buttons show their `alt`
 //! text instead of the image.
 
-mod encode;
+pub(crate) mod encode;
 mod script;
 mod select;
 mod submit;
@@ -40,7 +40,8 @@ pub(crate) use script::{
 };
 pub(crate) use select::{option_label, option_value, settle};
 pub(crate) use submit::{
-    FormContext, FormRequest, Submitter, blocking_fields, default_button, form_submission,
+    FormContext, FormRequest, Submitter, blocking_fields, default_button, form_entries,
+    form_submission, form_submission_with,
 };
 pub(crate) use validity::{MAX_CUSTOM_BYTES, Subject, Validity, ValidityCx, message, validity};
 pub(crate) use view::{LayoutControls, display_offset, value_offset};

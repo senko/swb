@@ -445,6 +445,7 @@ interface HTMLImageElement : HTMLElement {
   [CEReactions, Reflect, SwbKeywords="sync async auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString decoding;
   [CEReactions, Reflect, SwbKeywords="lazy eager", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString loading;
   [CEReactions, Reflect, SwbKeywords="high low auto", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString fetchPriority;
+  [NewObject] Promise<undefined> decode();
 };
 
 [Exposed=Window]

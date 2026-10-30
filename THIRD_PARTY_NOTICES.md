@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and fourteen W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -78,7 +78,7 @@ https://creativecommons.org/licenses/by/4.0/. The changes are swb's.
 
 `crates/web/idl/dom.idl`, `crates/web/idl/html.idl`,
 `crates/web/idl/url.idl`, `crates/web/idl/encoding.idl`,
-`crates/web/idl/fetch.idl` and
+`crates/web/idl/fetch.idl`, `crates/web/idl/xhr.idl` and
 `crates/web/idl/webidl.idl` contain IDL blocks copied from the DOM Living
 Standard (https://dom.spec.whatwg.org/; `AbortController` and
 `AbortSignal` copied on 30 October 2026) and the Web IDL Living Standard
@@ -88,10 +88,14 @@ URL Living Standard (https://url.spec.whatwg.org/, the `URL` and
 Standard (https://encoding.spec.whatwg.org/, `TextDecoder` and
 `TextEncoder`, copied on 29 October 2026), the Fetch Living Standard
 (https://fetch.spec.whatwg.org/, `Headers`, `Request`, `Response` and
-`fetch()`, copied on 30 October 2026) and
+`fetch()`, copied on 30 October 2026), the XMLHttpRequest Living
+Standard (https://xhr.spec.whatwg.org/, `XMLHttpRequest`,
+`XMLHttpRequestUpload`, `FormData` and `ProgressEvent`, copied on 30
+October 2026) and
 the HTML Living Standard (https://html.spec.whatwg.org/), copied on 23
 and 24 October 2026 (`Location`, `History`, `PopStateEvent` and
 `structuredClone`, and `Navigator` with its mixins, `atob` and `btoa`, on 29
+October 2026; `FormDataEvent` and `HTMLImageElement.decode()` on 30
 October 2026), cut by swb to the members that it implements (the
 headers of the files say what was cut; `html.idl` adds one typedef of
 swb's own). The standards are licensed under CC BY 4.0, and "to the extent portions of it are
@@ -274,6 +278,23 @@ the section of W3C High Resolution Time below.
 > and Resize Observer Module Level 1,
 > https://drafts.csswg.org/resize-observer/. Copyright © 2026 World Wide
 > Web Consortium. https://www.w3.org/copyright/software-license-2023/
+
+## W3C File API and Beacon: IDL (W3C Software and Document License)
+
+`crates/web/idl/file-api.idl` contains IDL blocks from File API (W3C
+Working Draft, https://www.w3.org/TR/FileAPI/; Editor's Draft,
+https://w3c.github.io/FileAPI/: `Blob`, `File`, `FileReader`,
+`URL.createObjectURL` and `revokeObjectURL`), and
+`crates/web/idl/navigator-extensions.idl` the `sendBeacon` method of Beacon
+(W3C Editor's Draft, https://w3c.github.io/beacon/), both copied on
+2026-10-30 (feature 10b of M8). swb cut and changed them (the headers of
+the files list the changes). The license text is in the section of W3C
+High Resolution Time below.
+
+> This software or document includes material copied from or derived
+> from File API, https://w3c.github.io/FileAPI/, and Beacon,
+> https://w3c.github.io/beacon/. Copyright © 2026 World Wide Web
+> Consortium. https://www.w3.org/copyright/software-license-2023/
 
 ## W3C Performance, Scheduling, Visibility, Crypto, WebDriver and DNT specifications: IDL (W3C Software and Document License)
 
