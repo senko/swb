@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 11c2, window APIs for the Craigslist page
+
+- `alert`, `confirm` and `prompt` are dismissed as in Chromium under
+  automation (`undefined`, `false`, `null`); the log shows at most 100
+  messages per window. `print()` fires `beforeprint` and `afterprint`,
+  or sets the print-when-loaded flag before `load`.
+  `navigator.clipboard` rejects `readText` and `writeText` with
+  `NotAllowedError`.
+- Learned: Chromium's clipboard result depends only on the embedder's
+  permission, not on a click or focus. Chromium ignores most `print()`
+  calls without a user activation, and which ones depends on the order
+  of calls in a browser session; swb has no activation model and always
+  fires the events.
+- On the page: the reply panel is removed after the failed request
+  without a script error, the share menu has 7 choices, "copy URL" and
+  print work as in Chromium. Scores unchanged (geometry 0.9804, pixels
+  0.9976).
+- The map's fullscreen control turned out to be CSS only, so the
+  Fullscreen API stays in the backlog.
+
+Next: 11d, the integration test and the exit check of feature 11.
+
 ## 2026-10-30: M8 feature 11c1, CSS from scripts for the Craigslist page
 
 - Leaflet uses `translate3d` and the class `leaflet-fade-anim` only if

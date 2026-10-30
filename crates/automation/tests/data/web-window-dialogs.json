@@ -1,0 +1,213 @@
+{
+ "dialogs-structure": [
+  [
+   "function",
+   0,
+   "alert",
+   0,
+   "confirm",
+   0,
+   "prompt",
+   0,
+   "print"
+  ],
+  [
+   true,
+   true,
+   true,
+   "function"
+  ],
+  [
+   true,
+   true,
+   true,
+   true,
+   false,
+   true,
+   true,
+   true
+  ],
+  [
+   "undefined",
+   "TypeError: Illegal invocation",
+   false,
+   "TypeError: Illegal invocation",
+   "TypeError: Illegal invocation",
+   false
+  ],
+  "TypeError: alert is not a constructor",
+  "TypeError: print is not a constructor",
+  [
+   5,
+   true,
+   "undefined"
+  ]
+ ],
+ "dialogs-values": [
+  [
+   "undefined",
+   "undefined",
+   false,
+   false,
+   "null",
+   "null",
+   "null"
+  ],
+  [
+   "undefined",
+   "undefined",
+   "undefined",
+   "undefined",
+   "undefined"
+  ],
+  "false,false,false",
+  "null,null,null,null",
+  "undefined,false,null",
+  0
+ ],
+ "dialogs-conversion": [
+  "TypeError: Failed to execute 'alert' on 'Window': Cannot convert a Symbol value to a string",
+  "TypeError: Failed to execute 'confirm' on 'Window': Cannot convert a Symbol value to a string",
+  "TypeError: Failed to execute 'prompt' on 'Window': Cannot convert a Symbol value to a string",
+  "TypeError: Failed to execute 'prompt' on 'Window': Cannot convert a Symbol value to a string",
+  "a,b,c,d",
+  [
+   "a,b,d",
+   "a,b,d"
+  ],
+  "toString a,toString b,toString c"
+ ],
+ "print-when-loaded": [
+  [
+   "script print undefined",
+   "dcl print undefined",
+   "load print undefined",
+   "microtask",
+   "beforeprint rs=complete mqprint=false",
+   "afterprint",
+   "timeout0"
+  ]
+ ],
+ "print-event": [
+  [
+   "beforeprint,true,true,2,false,false,false,true,true,true,false",
+   "onbeforeprint",
+   "afterprint,true,2,false,false,true,false",
+   "onafterprint"
+  ],
+  [
+   "function",
+   "function",
+   true,
+   true,
+   "get onbeforeprint"
+  ],
+  "x"
+ ],
+ "print-throw-nested": [
+  [
+   "load",
+   "click",
+   "bp1",
+   "nested undefined",
+   "bp2",
+   "ap1",
+   "ap2",
+   "click done"
+  ]
+ ],
+ "clipboard-structure": [
+  [
+   "function",
+   "object",
+   true
+  ],
+  [
+   true,
+   true,
+   "[object Clipboard]",
+   true,
+   true,
+   true
+  ],
+  [
+   "function",
+   "undefined",
+   true,
+   true,
+   "get clipboard"
+  ],
+  "readText:0:readText:true:true:true,writeText:1:writeText:true:true:true",
+  [
+   0,
+   "Clipboard",
+   "TypeError: Failed to construct 'Clipboard': Illegal constructor",
+   "TypeError: Illegal constructor"
+  ],
+  0,
+  "rejected TypeError: Failed to execute 'writeText' on 'Clipboard': Illegal invocation",
+  "rejected TypeError: Failed to execute 'readText' on 'Clipboard': Illegal invocation",
+  "rejected TypeError: Failed to execute 'writeText' on 'Clipboard': Illegal invocation",
+  "x",
+  "object",
+  "true,true,true"
+ ],
+ "clipboard-calls": [
+  "rejected DOMException NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+  "rejected DOMException NotAllowedError: Failed to execute 'readText' on 'Clipboard': Read permission denied.",
+  "rejected TypeError: Failed to execute 'writeText' on 'Clipboard': 1 argument required, but only 0 present.",
+  "rejected DOMException NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+  "rejected DOMException NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+  "rejected TypeError: Failed to execute 'writeText' on 'Clipboard': Cannot convert a Symbol value to a string",
+  "rejected RangeError: boom",
+  "toString",
+  "sync,rejected",
+  "resolved [\"NotAllowedError\",\"NotAllowedError\"]",
+  2000
+ ],
+ "print-click": [
+  [
+   "before call",
+   "beforeprint",
+   "afterprint",
+   "returned undefined",
+   "beforeprint",
+   "afterprint",
+   "second call returned",
+   "microtask",
+   "timeout0"
+  ]
+ ],
+ "print-click-timer": [
+  [
+   "click",
+   "timer print",
+   "beforeprint",
+   "afterprint",
+   "timer print done"
+  ]
+ ],
+ "dialogs-click": [
+  [
+   "click",
+   "alert undefined",
+   "confirm false",
+   "prompt null",
+   "focus true"
+  ],
+  [
+   true,
+   "visible"
+  ]
+ ],
+ "clipboard-click": [
+  [
+   "sync true",
+   "after write call",
+   "write rejected NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+   "read rejected NotAllowedError: Failed to execute 'readText' on 'Clipboard': Read permission denied.",
+   "late write: rejected DOMException NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+   "late read: rejected DOMException NotAllowedError: Failed to execute 'readText' on 'Clipboard': Read permission denied."
+  ]
+ ]
+}

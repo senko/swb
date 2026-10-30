@@ -3737,6 +3737,25 @@ Steps:
         The fullscreen members are not needed: the map's fullscreen
         control only sets a class and the size, and no script of the
         page reads the Fullscreen API.
+        Done 2026-10-31: `alert`, `confirm` and `prompt` are dismissed as
+        in Chromium under automation (`undefined`, `false`, `null`; the
+        message goes to the `debug!` log, at most 100 per window);
+        `print()` fires `beforeprint` and `afterprint` before it returns,
+        or once after `load` when called earlier (print-when-loaded);
+        listener errors are not reported, as measured.
+        `navigator.clipboard` (`readText`, `writeText`) rejects with
+        `NotAllowedError`, Chromium's answer without the clipboard
+        permission (the result depends on the permission, not on a click
+        or focus). Probe `web-window-dialogs.json` (12 cases) equal. On
+        the page, the reply panel is removed after the failed request
+        with no `ReferenceError` and no `/jslog` request, the share menu
+        has 7 choices, "copy URL" shows "URL copied", and the print button
+        gives both events, as in Chromium. Scores unchanged (0.9804 /
+        0.9804 / 0.9739 / 0.9976). Departures: no user activation model
+        (Chromium ignores most `print()` calls without one),
+        `[SecureContext]` not applied (Chromium hides the clipboard on
+        non-local `http:` origins). Review fix: `print()` after the
+        unload does nothing. ADR 0028 "Feature 11c2 notes".
       - 11d: the integration test and the exit check, docs.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
@@ -4415,6 +4434,24 @@ Steps:
   (`document.fullscreenElement`, `fullscreenEnabled`,
   `requestFullscreen`, `exitFullscreen`) is missing; Chromium has
   `fullscreenElement` `null`. No target page uses it.
+- `web` (found in feature 11c2): the `Window` members `open`, `close`,
+  `closed`, `stop`, `focus`, `blur`, `name`, `status`, `opener` and
+  `postMessage` are missing (the share menu's other choices call
+  `window.open`). No user activation model (`navigator.userActivation`;
+  Chromium's rules for `print()` and other gated calls) and no
+  `navigator.permissions`; with a clipboard permission, a per-window
+  text store would answer `readText`. `Clipboard.read`/`write`,
+  `ClipboardItem`, `ClipboardEvent`; `window.isSecureContext` and
+  `[SecureContext]` in the generator. TypeErrors that the engine raises
+  during argument conversion lack Chromium's prefix "Failed to execute
+  'X' on 'Y':". The error reporting mode of the printing steps also
+  hides reports from `reportError()` inside a listener (Chromium not
+  measured). No test covers a `beforeprint` listener that the time
+  limit ends. A new IDL file changes the header line of every generated
+  file (the header lists all IDL files).
+- Tools (found in feature 11c2): the click step of `run_steps` does not
+  check what is under the pointer; Playwright waits until an overlay
+  (a toast) is gone, so steps that click through overlays differ.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

@@ -1,0 +1,288 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "dialogs-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof alert, alert.length, alert.name, confirm.length, confirm.name, prompt.length, prompt.name, print.length, print.name]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'alert'); return [d.writable, d.enumerable, d.configurable, typeof d.value]; })()"
+    },
+    {
+     "js": "[window.alert === alert, 'alert' in window, Object.keys(window).includes('alert'), Object.getOwnPropertyNames(window).includes('print'), Window.prototype.hasOwnProperty('alert'), Object.keys(window).includes('prompt'), Object.keys(window).includes('confirm'), Object.keys(window).includes('print')]"
+    },
+    {
+     "js": "[E(() => alert.call(undefined)), E(() => alert.call({})), E(() => confirm.call(null, 'a')), E(() => prompt.call(1)), E(() => print.call({})), E(() => confirm.call(window, 'a'))]"
+    },
+    {
+     "js": "E(() => new alert())"
+    },
+    {
+     "js": "E(() => new print())"
+    },
+    {
+     "js": "(() => { const f = alert; alert = 5; const r = [alert]; window.alert = f; r.push(alert === f); delete window.confirm; r.push(typeof confirm); return r; })()"
+    }
+   ]
+  },
+  {
+   "name": "dialogs-values",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[alert(), alert('a'), confirm(), confirm('a'), prompt(), prompt('a'), prompt('a', 'd')].map(v => v === null ? 'null' : v === undefined ? 'undefined' : v)"
+    },
+    {
+     "js": "[alert(undefined), alert(null), alert(1), alert({}), alert([1, 2])].map(String)"
+    },
+    {
+     "js": "[confirm(undefined), confirm(null), confirm(true)].join()"
+    },
+    {
+     "js": "[prompt(undefined, undefined), prompt(null, null), prompt('x', 'y'), prompt('x', undefined)].map(v => v === null ? 'null' : v).join()"
+    },
+    {
+     "js": "(() => { const long = 'x'.repeat(100000); return [alert(long), confirm(long), prompt(long, long)].map(v => v === null ? 'null' : String(v)).join(); })()"
+    },
+    {
+     "js": "(() => { let n = 0; for (let i = 0; i < 20000; i++) { alert('message ' + i); if (confirm('m')) n++; if (prompt('p', 'd') !== null) n++; } return n; })()"
+    }
+   ]
+  },
+  {
+   "name": "dialogs-conversion",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => alert(Symbol()))"
+    },
+    {
+     "js": "E(() => confirm(Symbol()))"
+    },
+    {
+     "js": "E(() => prompt('a', Symbol()))"
+    },
+    {
+     "js": "E(() => prompt(Symbol(), 'a'))"
+    },
+    {
+     "js": "(() => { const r = []; const o = (n) => ({ toString() { r.push(n); return n; } }); alert(o('a')); confirm(o('b')); prompt(o('c'), o('d')); prompt(undefined, undefined); alert(undefined); alert(null); return r.join(); })()"
+    },
+    {
+     "js": "(() => { const r = []; const o = (n) => ({ toString() { r.push(n); throw new Error(n); } }); const out = []; for (const f of [() => alert(o('a')), () => prompt(o('b'), o('c')), () => confirm(o('d'))]) { try { f(); } catch (e) { out.push(e.message); } } return [r.join(), out.join()]; })()"
+    },
+    {
+     "js": "(() => { const r = []; const o = (n) => ({ valueOf() { r.push('valueOf ' + n); return n; }, toString() { r.push('toString ' + n); return n; } }); alert(o('a')); prompt(o('b'), o('c')); return r.join(); })()"
+    }
+   ]
+  },
+  {
+   "name": "print-when-loaded",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nwindow.addEventListener('beforeprint', (e) => L.push('beforeprint rs=' + document.readyState + ' mqprint=' + matchMedia('print').matches));\nwindow.addEventListener('afterprint', (e) => L.push('afterprint'));\nL.push('script print ' + print());\ndocument.addEventListener('DOMContentLoaded', () => { L.push('dcl print ' + print()); });\nwindow.addEventListener('load', () => { L.push('load print ' + print()); Promise.resolve().then(() => L.push('microtask')); setTimeout(() => L.push('timeout0'), 0); });\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => L)"
+    }
+   ]
+  },
+  {
+   "name": "print-event",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nconst seen = [];\nwindow.addEventListener('beforeprint', (e) => { L.push([e.type, e.target === window, e.currentTarget === window, e.eventPhase, e.composed, e.bubbles, e.cancelable, e.isTrusted, Object.getPrototypeOf(e) === Event.prototype, window.event === e, e.defaultPrevented].join()); e.preventDefault(); });\nwindow.addEventListener('afterprint', (e) => { L.push([e.type, e.target === window, e.eventPhase, e.bubbles, e.cancelable, e.isTrusted, e.defaultPrevented].join()); });\ndocument.addEventListener('beforeprint', () => L.push('document saw it'));\nwindow.onbeforeprint = () => L.push('onbeforeprint');\nwindow.onafterprint = () => L.push('onafterprint');\nb.onclick = () => print();\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "[typeof onbeforeprint, typeof onafterprint, 'onbeforeprint' in window, 'onafterprint' in window, Object.getOwnPropertyDescriptor(window, 'onbeforeprint').get.name]"
+    },
+    {
+     "js": "(() => { const l = []; const f = () => l.push('x'); window.addEventListener('afterprint', f); window.dispatchEvent(new Event('afterprint')); return l.join(); })()"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "print-throw-nested",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nlet n = 0;\nwindow.addEventListener('beforeprint', (e) => { L.push('bp1'); if (n++ < 1) { L.push('nested ' + print()); } throw new Error('x'); });\nwindow.addEventListener('beforeprint', (e) => L.push('bp2'));\nwindow.addEventListener('afterprint', (e) => { L.push('ap1'); throw new Error('y'); });\nwindow.addEventListener('afterprint', (e) => L.push('ap2'));\nwindow.addEventListener('error', (e) => L.push('error ' + e.message));\nwindow.onerror = (m) => { L.push('onerror ' + m); };\nwindow.addEventListener('load', () => { L.push('load'); });\nb.onclick = () => { L.push('click'); print(); L.push('click done'); };\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "clipboard-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof Clipboard, typeof navigator.clipboard, 'clipboard' in navigator]"
+    },
+    {
+     "js": "[navigator.clipboard instanceof Clipboard, navigator.clipboard instanceof EventTarget, Object.prototype.toString.call(navigator.clipboard), navigator.clipboard === navigator.clipboard, navigator.clipboard.constructor === Clipboard, Object.getPrototypeOf(Clipboard.prototype) === EventTarget.prototype]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "(() => { const r = []; for (const n of ['readText', 'writeText']) { const d = Object.getOwnPropertyDescriptor(Clipboard.prototype, n); r.push(n + ':' + d.value.length + ':' + d.value.name + ':' + d.writable + ':' + d.enumerable + ':' + d.configurable); } return r.join(); })()"
+    },
+    {
+     "js": "[Clipboard.length, Clipboard.name, E(() => new Clipboard()), E(() => Clipboard())]"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(navigator.clipboard).length"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText.call({}, 'a'))"
+    },
+    {
+     "js": "P(navigator.clipboard.readText.call({}))"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText.call(navigator, 'a'))"
+    },
+    {
+     "js": "(() => { const l = []; navigator.clipboard.addEventListener('x', () => l.push('x')); navigator.clipboard.dispatchEvent(new Event('x')); return l.join(); })()"
+    },
+    {
+     "js": "E(() => { navigator.clipboard = 1; return typeof navigator.clipboard; })"
+    },
+    {
+     "js": "(() => { const c = navigator.clipboard; return [c.readText() instanceof Promise, c.writeText('a') instanceof Promise, c.readText() !== c.readText()].join(); })()"
+    }
+   ]
+  },
+  {
+   "name": "clipboard-calls",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "P(navigator.clipboard.writeText('hello'))"
+    },
+    {
+     "js": "P(navigator.clipboard.readText())"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText())"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText(undefined))"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText(''))"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText(Symbol()))"
+    },
+    {
+     "js": "P(navigator.clipboard.writeText({ toString() { throw new RangeError('boom'); } }))"
+    },
+    {
+     "js": "(() => { const r = []; return navigator.clipboard.writeText({ toString() { r.push('toString'); return 'x'; } }).catch(() => r.join()); })()"
+    },
+    {
+     "js": "(() => { const r = []; const p = navigator.clipboard.writeText('a'); r.push('sync'); return p.catch(() => r.push('rejected')).then(() => r.join()); })()"
+    },
+    {
+     "js": "P(Promise.all([navigator.clipboard.writeText('a'), navigator.clipboard.readText()].map(p => p.catch(e => e.name))))"
+    },
+    {
+     "js": "(() => { let n = 0; for (let i = 0; i < 2000; i++) { navigator.clipboard.writeText('x' + i).catch(() => { n++; }); } return new Promise(r => setTimeout(() => r(n), 200)); })()"
+    }
+   ]
+  },
+  {
+   "name": "print-click",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nwindow.addEventListener('beforeprint', (e) => L.push('beforeprint'));\nwindow.addEventListener('afterprint', (e) => L.push('afterprint'));\nmatchMedia('print').addEventListener('change', (e) => L.push('mq ' + e.matches));\nb.onclick = () => { L.push('before call'); const r = print(); L.push('returned ' + r); Promise.resolve().then(() => L.push('microtask')); setTimeout(() => L.push('timeout0'), 0); print(); L.push('second call returned'); };\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "print-click-timer",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nwindow.addEventListener('beforeprint', (e) => L.push('beforeprint'));\nwindow.addEventListener('afterprint', (e) => L.push('afterprint'));\nb.onclick = () => { L.push('click'); setTimeout(() => { L.push('timer print'); print(); L.push('timer print done'); }, 20); };\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "dialogs-click",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nb.onclick = () => { L.push('click'); L.push('alert ' + alert('x')); L.push('confirm ' + confirm('x')); L.push('prompt ' + prompt('x', 'dflt')); L.push('focus ' + document.hasFocus()); };\ndocument.addEventListener('visibilitychange', () => L.push('visibilitychange'));\nwindow.addEventListener('blur', () => L.push('blur'));\nwindow.addEventListener('focus', () => L.push('focus'));\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    },
+    {
+     "js": "[document.hasFocus(), document.visibilityState]"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  },
+  {
+   "name": "clipboard-click",
+   "html": "<!DOCTYPE html><html><head></head><body><button id=b>b</button><script>\nwindow.L = [];\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction P(p) { return p.then((v) => 'resolved ' + (v === undefined ? 'undefined' : JSON.stringify(v)), (e) => 'rejected ' + (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message); }\nb.onclick = async () => {\n  const p = navigator.clipboard.writeText('hello');\n  L.push('sync ' + (p instanceof Promise));\n  p.then(() => L.push('write resolved'), (e) => L.push('write rejected ' + e.name + ': ' + e.message));\n  L.push('after write call');\n  navigator.clipboard.readText().then((v) => L.push('read resolved ' + JSON.stringify(v)), (e) => L.push('read rejected ' + e.name + ': ' + e.message));\n  await new Promise((r) => setTimeout(r, 50));\n  L.push('late write: ' + await P(navigator.clipboard.writeText('later')));\n  L.push('late read: ' + await P(navigator.clipboard.readText()));\n};\n\n</script></body></html>",
+   "measure": [
+    {
+     "js": "L"
+    }
+   ],
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "wait": 300
+    }
+   ]
+  }
+ ]
+}

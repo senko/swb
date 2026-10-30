@@ -147,6 +147,15 @@ pub(crate) struct WebState {
     /// access.
     pub(crate) navigator: Option<Gc<Object>>,
     pub(crate) crypto: Option<Gc<Object>>,
+    /// The `navigator.clipboard` object, made at the first access
+    /// (`clipboard.rs`).
+    pub(crate) clipboard: Option<Gc<Object>>,
+    /// The print-when-loaded flag and the flag of the printing steps
+    /// (`dialogs.rs`).
+    pub(crate) print_when_loaded: bool,
+    pub(crate) printing: bool,
+    /// The dialogs counted for the log (`dialogs.rs`).
+    pub(crate) dialogs_logged: u32,
     /// The window's `Location` and `History` objects, made at the first
     /// access, and the deserialized `history.state` (`location.rs`).
     pub(crate) location: Option<Gc<Object>>,
@@ -236,6 +245,7 @@ impl HostState for WebState {
             self.performance,
             self.navigator,
             self.crypto,
+            self.clipboard,
             self.screen,
             self.screen_orientation,
             self.location,

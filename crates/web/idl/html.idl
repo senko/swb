@@ -7,7 +7,8 @@
 // 2026-10-24; Location, History, PopStateEvent, `structuredClone` and the
 // `location` and `history` members of Window and Document on 2026-10-29;
 // Navigator and its mixins, `navigator`, `atob` and `btoa` on 2026-10-29;
-// Storage, its Window mixins and `Document.cookie` on 2026-10-29).
+// Storage, its Window mixins and `Document.cookie` on 2026-10-29; `alert`,
+// `confirm`, `prompt` and `print` on 2026-10-30).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -90,6 +91,18 @@ interface Window : EventTarget {
   [Replaceable] readonly attribute unsigned long length;
   [LegacyUnforgeable] readonly attribute WindowProxy? top;
   [Replaceable] readonly attribute WindowProxy? parent;
+};
+
+// The simple dialogs (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#simple-dialogs)
+// and printing (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-print),
+// copied on 2026-10-30 (feature 11c2 of M8). swb shows no dialog and prints
+// nothing (ADR 0028 section 4).
+partial interface Window {
+  undefined alert();
+  undefined alert(DOMString message);
+  boolean confirm(optional DOMString message = "");
+  DOMString? prompt(optional DOMString message = "", optional DOMString default = "");
+  undefined print();
 };
 
 enum DocumentReadyState { "loading", "interactive", "complete" };

@@ -125,6 +125,10 @@ impl g::navigator::NavigatorImpl for WebState {
         send_beacon(cx, &url, data)
     }
 
+    fn clipboard(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        crate::clipboard::clipboard_object(cx)
+    }
+
     fn max_touch_points(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<i32> {
         Ok(0)
     }

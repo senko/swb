@@ -299,6 +299,13 @@ High Resolution Time below.
 > https://w3c.github.io/beacon/. Copyright © 2026 World Wide Web
 > Consortium. https://www.w3.org/copyright/software-license-2023/
 
+`crates/web/idl/clipboard.idl` contains the `Clipboard` interface and the
+`clipboard` attribute of Navigator from Clipboard API and events
+(https://w3c.github.io/clipboard-apis/), copied on 2026-10-30 (feature 11c2
+of M8) and cut to `readText()` and `writeText()`. Copyright © 2026 World Wide
+Web Consortium. https://www.w3.org/copyright/software-license-2023/ (the
+license text is in the section of W3C High Resolution Time below).
+
 ## W3C Performance, Scheduling, Visibility, Crypto, WebDriver and DNT specifications: IDL (W3C Software and Document License)
 
 Eight files in `crates/web/idl/` (feature 8a2 of M8) contain IDL blocks, copied

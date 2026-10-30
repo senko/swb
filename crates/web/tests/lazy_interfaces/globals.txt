@@ -242,15 +242,19 @@ onunhandledrejection:aec
 onunload:aec
 localStorage:aec
 sessionStorage:aec
+alert:dwec
 atob:dwec
 btoa:dwec
 cancelAnimationFrame:dwec
 cancelIdleCallback:dwec
 clearInterval:dwec
 clearTimeout:dwec
+confirm:dwec
 fetch:dwec
 getComputedStyle:dwec
 matchMedia:dwec
+print:dwec
+prompt:dwec
 queueMicrotask:dwec
 reportError:dwec
 requestAnimationFrame:dwec
@@ -428,6 +432,7 @@ XMLHttpRequest:dwc
 ProgressEvent:dwc
 FormData:dwc
 FormDataEvent:dwc
+Clipboard:dwc
 MediaQueryList:dwc
 MediaQueryListEvent:dwc
 ScreenOrientation:dwc

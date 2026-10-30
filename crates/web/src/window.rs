@@ -54,6 +54,34 @@ impl g::window::WindowImpl for WebState {
         crate::location::history_object(cx)
     }
 
+    /// `alert()` (HTML "simple dialogs"): dismissed at once.
+    fn alert_1(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        crate::dialogs::alert(cx, "");
+        Ok(())
+    }
+
+    fn alert_2(cx: &mut Cx<'_>, _this: Platform, message: String) -> b::Result<()> {
+        crate::dialogs::alert(cx, &message);
+        Ok(())
+    }
+
+    fn confirm(cx: &mut Cx<'_>, _this: Platform, message: String) -> b::Result<bool> {
+        Ok(crate::dialogs::confirm(cx, &message))
+    }
+
+    fn prompt(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        message: String,
+        default: String,
+    ) -> b::Result<Option<String>> {
+        Ok(crate::dialogs::prompt(cx, &message, &default))
+    }
+
+    fn print(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        crate::dialogs::print(cx)
+    }
+
     fn fetch(
         cx: &mut Cx<'_>,
         _this: Platform,

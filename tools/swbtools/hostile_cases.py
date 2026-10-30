@@ -4288,3 +4288,46 @@ def dom_matrix_strings_js_on() -> Page:
         "console.warn('matrices ' + errors + ' ' + keep.length);</script>"
     )
     return Page(doc("<p>matrices</p>" + script))
+
+
+@case(
+    "1,000,000 calls of alert, confirm and prompt with messages of 2.6 KiB, with JavaScript "
+    "on (feature 11c2): a dialog is dismissed at once and costs one string conversion (about "
+    "12 microseconds), so the time limit of 5 s ends the loop; the log (RUST_LOG=debug) shows "
+    "the first 100 dialogs (ADR 0028 section 4)",
+    expect_log="the time limit was exceeded",
+    swb_args=("--js",),
+    time_limit_s=25,
+)
+def dialogs_loop_js_on() -> Page:
+    script = (
+        "<script>const m = 'a long message '.repeat(200); let n = 0; "
+        "for (let i = 0; i < 1000000; i++) { "
+        "if (i % 3 === 0) alert(m + i); else if (i % 3 === 1) { if (confirm(m)) n++; } "
+        "else if (prompt(m, m) !== null) n++; }</script>"
+    )
+    return Page(doc("<p>dialogs</p>" + script))
+
+
+@case(
+    "200,000 print() calls with listeners after the load and 50,000 writes to "
+    "navigator.clipboard, with JavaScript on (feature 11c2): each print() fires two events, "
+    "and a rejected clipboard promise costs no more than its data, with 2 s of settle time "
+    "(ADR 0028 sections 4 and 13)",
+    expect_log="prints 200000 clipboard 50000",
+    swb_args=("--js", "--settle-ms", "2000"),
+    time_limit_s=30,
+)
+def print_clipboard_loop_js_on() -> Page:
+    script = (
+        "<script>let prints = 0, rejected = 0; "
+        "addEventListener('beforeprint', () => { prints++; }); "
+        "addEventListener('load', () => setTimeout(() => { "
+        "for (let i = 0; i < 200000; i++) print(); "
+        "const m = 'a long message '.repeat(200); "
+        "for (let i = 0; i < 50000; i++) "
+        "navigator.clipboard.writeText(m).catch(() => { rejected++; }); "
+        "Promise.resolve().then(() => setTimeout(() => "
+        "console.warn('prints ' + prints + ' clipboard ' + rejected), 100)); }, 0));</script>"
+    )
+    return Page(doc("<p>print</p>" + script))

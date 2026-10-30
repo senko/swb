@@ -4039,6 +4039,93 @@ the queries that wait) and the unit tests of `forms/validity.rs`,
   steps of a number field; whether a checkbox or select change counts as an
   interaction for `:user-valid`; the bubble of `reportValidity()`.
 
+Feature 11c2 notes (window APIs for the Craigslist posting page: the
+simple dialogs, `print()` and `navigator.clipboard`; measured with
+`tools/probes/web-window-dialogs.json` (12 cases, 53 queries), three equal
+Chromium runs; the Rust tests are `crates/automation/tests/
+window_dialogs.rs`, which runs the cases with their steps against
+`tests/data/web-window-dialogs.json`, and the hostile cases
+`dialogs-loop-js-on` and `print-clipboard-loop-js-on`; code:
+`web/src/dialogs.rs`, `web/src/clipboard.rs`):
+
+- **Dialogs.** The probe tool's Playwright page dismisses every dialog (it
+  has no `dialog` handler). `alert()` and `alert(message)` return
+  `undefined`, `confirm()` returns `false` and `prompt()` returns `null`,
+  with and without a click and for any message. swb does the same and shows
+  no dialog. The arguments convert as the IDL says (`alert.length`,
+  `confirm.length` and `prompt.length` are 0; the message first, then the
+  default; a `Symbol` is a `TypeError` with Chromium's prefix; the
+  methods are own enumerable properties of the window; `alert.call({})`
+  is `Illegal invocation`). The message goes to the log at `debug!` level,
+  cut to 200 characters; the first 100 dialogs of a window are logged, then
+  one line says so, so a loop of dialogs writes a bounded log. A dialog is
+  one string conversion (about 12 microseconds for 2.6 KiB), so the time
+  limit ends a loop of a million. On the Craigslist posting page the
+  reply button's failed request calls `alert(e)`; with `alert` swb removes
+  the `.cl-reply-flap` panel, makes no request to `/jslog` and has no
+  unhandled `ReferenceError`, as Chromium does. Departure: an exception
+  from the `toString` of an object in the message, thrown by the engine
+  itself (`alert(Object.create(null))`), has no `Failed to execute 'alert'
+  on 'Window':` prefix in swb (backlog: the prefix for conversion errors
+  of the engine).
+- **`print()`.** No output. `beforeprint` and `afterprint` fire at the
+  window, in this order, before `print()` returns; they are plain trusted
+  `Event`s that do not bubble and cannot be canceled, with
+  `window.event` set; the microtask and `setTimeout(0)` callbacks that
+  the caller queued run after both. A call during the steps does nothing,
+  and two calls in a row fire the events twice. An exception in a
+  listener is not reported (no `error` event; Chromium measured), and the
+  next listener runs; swb puts the window in error reporting mode during
+  the steps. Before the document is completely loaded `print()` sets the
+  print-when-loaded flag and the events fire once after the `load` event
+  (HTML "print()"). The Craigslist print button calls
+  `setTimeout(window.print, 800)`, and the page sets `onbeforeprint`; the
+  click gives `beforeprint` and `afterprint` in swb and in Chromium.
+  Departures: Chromium runs a `print()` that has no transient user
+  activation only in some cases (measured: a call in a click handler or in
+  a timer a few seconds after a click runs; calls from an evaluation, from
+  a timer without a click and from a `load` or `pageshow` listener do not,
+  except the first one of a browser session; a call from a parser-inserted
+  script gives the print-when-loaded behaviour except when an image is
+  still loading); swb has no model of user activation and always runs the
+  steps (a call from a `pageshow` listener sets the print-when-loaded
+  flag, as the document is completely loaded only after the `load`
+  task). After the unload `print()` does nothing (HTML step 1: the
+  document is not fully active).
+- **`navigator.clipboard`.** Chromium's result does not depend on the
+  click or the focus of the document, but on the permission of the
+  embedder, which Playwright does not grant: `writeText()` rejects with a
+  `NotAllowedError` ("Failed to execute 'writeText' on 'Clipboard': Write
+  permission denied."), `readText()` the same with "Read permission
+  denied."; with `clipboard-read` and `clipboard-write` granted (measured
+  outside the probe tool), `writeText()` resolves `undefined` and
+  `readText()` resolves the text of the last write (`""` and `"undefined"`
+  for those arguments). The argument conversions come first (`writeText()`
+  is a rejected `TypeError`). swb has no system clipboard and no
+  permission model, so both methods reject as in the default case; there
+  is no per-window store (it would answer nothing). `Clipboard` is an
+  `EventTarget` with `readText` and `writeText` (the interface lacks
+  `read`, `write`, `ClipboardItem`, `ClipboardEvent` and
+  `onclipboardchange`: backlog). The share menu of the posting page then
+  has 7 choices; the click on "copy URL" shows "URL copied" (the page
+  calls `writeText` without waiting) and gives an unhandled rejection,
+  and the reply panel's "copy" button works the same, in swb and in
+  Chromium.
+- **`[SecureContext]`.** The generator ignores it (it is in the IDL text;
+  `crates/webidl/src/model.rs`), so swb exposes `Clipboard` and
+  `navigator.clipboard` on every origin. Chromium exposes them on secure
+  contexts only (measured: `file:`, `http://127.0.0.1` and `https:` have
+  them; a non-local `http:` origin has `window.isSecureContext === false`
+  and neither `navigator.clipboard`, nor `Clipboard`, nor `ClipboardItem`).
+  swb has no `isSecureContext` (backlog).
+- **Not done (backlog).** The other `Window` members that swb lacks: `open`,
+  `close`, `closed`, `stop`, `focus`, `blur`, `name`, `status`, `opener`,
+  `postMessage` (the share menu's other choices call `window.open`);
+  `navigator.userActivation` and a model of user activation; the
+  Fullscreen API (`document.fullscreenElement` is `undefined` in swb and
+  `null` in Chromium; the posting page's map control is CSS only);
+  `navigator.permissions`.
+
 ### 14. Frames and media: out of scope
 
 M8 does not render `iframe`, `frame` or `object` documents and runs no

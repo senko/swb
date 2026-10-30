@@ -1,0 +1,28 @@
+// Source: Clipboard API and events, W3C Working Draft / Editor's Draft,
+// https://w3c.github.io/clipboard-apis/, copied on 2026-10-30.
+//
+// This file includes material copied from Clipboard API and events,
+// https://w3c.github.io/clipboard-apis/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/ (W3C
+// Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb cut this file to `readText()` and `writeText()` and the `clipboard`
+// attribute of Navigator (feature 11c2 of M8). It lacks `read()`, `write()`,
+// `ClipboardItem`, `ClipboardEvent` and the `onclipboardchange` handler
+// (backlog). `[SecureContext]` stays in the text, but the generator ignores
+// it: swb exposes `navigator.clipboard` and `Clipboard` on every origin,
+// while Chromium hides them on an insecure origin (ADR 0028, feature 11c2
+// notes). swb has no system clipboard and no permission prompt, so both
+// methods reject with `NotAllowedError`, the answer of Chromium without
+// the permission.
+
+[SecureContext, Exposed=Window]
+interface Clipboard : EventTarget {
+  Promise<DOMString> readText();
+  Promise<undefined> writeText(DOMString data);
+};
+
+partial interface Navigator {
+  [SecureContext, SameObject] readonly attribute Clipboard clipboard;
+};
