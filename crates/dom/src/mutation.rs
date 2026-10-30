@@ -350,15 +350,16 @@ impl Document {
         suppress_observers: bool,
     ) {
         if !matches!(self.node(node).data, NodeData::DocumentFragment) {
-            // One node: no list to collect (the parser's case). As in step 6
-            // of "insert", the previous sibling is read before the adopt
-            // step removes `node`: a move within the same parent can name
-            // `node` itself in the record.
+            // One node: no list to collect (the parser's case). Step 6 of
+            // "insert" reads the previous sibling before the adopt step
+            // removes `node`, so a move within the same parent would name
+            // `node` itself in the record; Chromium names the sibling that
+            // is left after the removal (measured, feature 9a), and so do we.
+            self.adopt_into(node, self.node_document(parent));
             let prev_sibling = match before {
                 Some(b) => self.node(b).prev_sibling,
                 None => self.node(parent).last_child,
             };
-            self.adopt_into(node, self.node_document(parent));
             self.link(parent, node, before);
             if !suppress_observers {
                 self.record(&Change::Children {

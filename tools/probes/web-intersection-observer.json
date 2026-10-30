@@ -1,0 +1,408 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "io-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}.b{position:absolute;left:10px;width:100px;height:100px;background:#ccc}</style><div class=b id=t1 style=\"top:0\"></div><div class=b id=t2 style=\"top:150px\"></div><div class=b id=t3 style=\"top:400px\"></div><div class=b id=t4 style=\"top:200px\"></div><div class=b id=t5 style=\"display:none\"></div><div id=spacer style=\"height:2000px\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst rf = (r) => r ? [r.x, r.y, r.width, r.height].map((n) => +n.toFixed(2)).join(',') : 'null';\nconst ent = (e) => [e.target.id || e.target.localName, e.isIntersecting, +e.intersectionRatio.toFixed(3), rf(e.boundingClientRect), rf(e.intersectionRect), rf(e.rootBounds), typeof e.time].join(' ');\n// make(opts): an observer that logs its batches into L.\nconst OBS = [];\nconst ORIG = {};\nconst ELS = {};\nfor (const id of ['t1', 't2', 't3', 't4', 't5']) { ORIG[id] = document.getElementById(id).style.cssText; ELS[id] = document.getElementById(id); }\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  window.scrollTo(0, 0);\n  for (const id in ORIG) { if (!ELS[id].isConnected) document.body.insertBefore(ELS[id], spacer); ELS[id].style.cssText = ORIG[id]; }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new IntersectionObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); }, opts);\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(120);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof IntersectionObserver, IntersectionObserver.length, IntersectionObserver.name, typeof IntersectionObserverEntry, IntersectionObserverEntry.length]"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(IntersectionObserver.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(IntersectionObserverEntry.prototype).sort().join()"
+    },
+    {
+     "js": "['observe', 'unobserve', 'disconnect', 'takeRecords'].map((n) => IntersectionObserver.prototype[n].length).join()"
+    },
+    {
+     "js": "E(() => new IntersectionObserver())"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(1))"
+    },
+    {
+     "js": "E(() => IntersectionObserver(() => {}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserverEntry())"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {root: 1}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {root: document.body}).root === document.body)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {root: document}).root === document)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {root: null}).root)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {root: document.createTextNode('x')}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: 'abc'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '10'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '10px 20px 30px 40px 50px'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '10em'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: ''}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '10px'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '10px 20%'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '1px 2px 3px'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: ' 5px  -6px '}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '0'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '1.5px'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '+5px'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: '5PX'}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {rootMargin: 5}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).rootMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).thresholds)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: 0.5}).thresholds)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: [1, 0.5, 0, 0.5]}).thresholds)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: []}).thresholds)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: -0.1}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: 1.1}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: [0, 2]}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: NaN}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: Infinity}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: 'x'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {threshold: '0.5'}).thresholds)"
+    },
+    {
+     "js": "E(() => { const o = new IntersectionObserver(() => {}); return o.thresholds === o.thresholds; })"
+    },
+    {
+     "js": "E(() => { const o = new IntersectionObserver(() => {}, {threshold: [0.5, 0]}); return Object.isFrozen(o.thresholds); })"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, 5))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, null).thresholds)"
+    },
+    {
+     "js": "E(() => { const o = new IntersectionObserver(() => {}); return [o.delay, o.trackVisibility, 'scrollMargin' in o ? o.scrollMargin : 'none']; })"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {delay: 100, trackVisibility: true}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {delay: 100, trackVisibility: true}).delay)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {trackVisibility: true, delay: 50}).delay)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {scrollMargin: '10px'}).scrollMargin)"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}, {scrollMargin: 'x'}))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).observe())"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).observe(1))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).observe(document))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).observe(document.createTextNode('x')))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).unobserve(t1))"
+    },
+    {
+     "js": "E(() => new IntersectionObserver(() => {}).unobserve())"
+    },
+    {
+     "js": "E(() => { const o = new IntersectionObserver(() => {}); return [o.observe(t1), o.unobserve(t1), o.disconnect(), o.takeRecords()]; })"
+    },
+    {
+     "js": "E(() => IntersectionObserver.prototype.observe.call({}, t1))"
+    },
+    {
+     "js": "E(() => IntersectionObserver.prototype.takeRecords.call({}))"
+    },
+    {
+     "js": "E(() => Object.getOwnPropertyDescriptor(IntersectionObserver.prototype, 'root').get.call({}))"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(IntersectionObserver.prototype).filter((n) => { const d = Object.getOwnPropertyDescriptor(IntersectionObserver.prototype, n); return d.get; }).join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(IntersectionObserverEntry.prototype).filter((n) => Object.getOwnPropertyDescriptor(IntersectionObserverEntry.prototype, n).set).join() + '|' + Object.getOwnPropertyNames(IntersectionObserverEntry.prototype).length"
+    },
+    {
+     "js": "E(() => { const d = Object.getOwnPropertyDescriptor(IntersectionObserverEntry.prototype, 'isIntersecting'); return [typeof d.get, d.set, d.enumerable, d.configurable]; })"
+    },
+    {
+     "js": "E(() => Object.prototype.toString.call(new IntersectionObserver(() => {})))"
+    }
+   ]
+  },
+  {
+   "name": "io-basic",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}.b{position:absolute;left:10px;width:100px;height:100px;background:#ccc}</style><div class=b id=t1 style=\"top:0\"></div><div class=b id=t2 style=\"top:150px\"></div><div class=b id=t3 style=\"top:400px\"></div><div class=b id=t4 style=\"top:200px\"></div><div class=b id=t5 style=\"display:none\"></div><div id=spacer style=\"height:2000px\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst rf = (r) => r ? [r.x, r.y, r.width, r.height].map((n) => +n.toFixed(2)).join(',') : 'null';\nconst ent = (e) => [e.target.id || e.target.localName, e.isIntersecting, +e.intersectionRatio.toFixed(3), rf(e.boundingClientRect), rf(e.intersectionRect), rf(e.rootBounds), typeof e.time].join(' ');\n// make(opts): an observer that logs its batches into L.\nconst OBS = [];\nconst ORIG = {};\nconst ELS = {};\nfor (const id of ['t1', 't2', 't3', 't4', 't5']) { ORIG[id] = document.getElementById(id).style.cssText; ELS[id] = document.getElementById(id); }\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  window.scrollTo(0, 0);\n  for (const id in ORIG) { if (!ELS[id].isConnected) document.body.insertBefore(ELS[id], spacer); ELS[id].style.cssText = ORIG[id]; }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new IntersectionObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); }, opts);\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(120);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); [t1, t2, t3, t4, t5].forEach((t) => o.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({threshold: [0, 0.25, 0.5, 0.75, 1]}); [t1, t2, t3, t4, t5, spacer].forEach((t) => o.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t2); await settle(); L.push('--'); window.scrollTo(0, 100); await settle(); L.push('--'); window.scrollTo(0, 100); await settle(); L.push('--'); window.scrollTo(0, 300); await settle(); L.push('--'); window.scrollTo(0, 0); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({threshold: [0, 0.25, 0.5, 0.75, 1]}); o.observe(t2); await settle(); for (const y of [25, 50, 75, 100, 125, 150]) { L.push('-- scroll ' + y); window.scrollTo(0, y); await settle(); } for (const y of [100, 50, 0]) { L.push('-- scroll ' + y); window.scrollTo(0, y); await settle(); } reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({threshold: [0.5]}); o.observe(t2); await settle(); L.push('-- 60'); window.scrollTo(0, 60); await settle(); L.push('-- 40'); window.scrollTo(0, 40); await settle(); L.push('-- 49'); window.scrollTo(0, 49); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({rootMargin: '50px'}); [t3, t4, t1].forEach((t) => o.observe(t)); await settle(); L.push('-- scroll'); window.scrollTo(0, 200); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({rootMargin: '-20px 10px'}); [t1, t2, t3].forEach((t) => o.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({rootMargin: '10% 20%'}); [t1, t2, t3, t4].forEach((t) => o.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({rootMargin: '100px 0px 0px 0px'}); [t3, t4].forEach((t) => o.observe(t)); await settle(); const p = make({rootMargin: '0px 0px -100px 0px'}, 'p'); [t1, t2].forEach((t) => p.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t4); o.observe(t4); o.observe(t4); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); await settle(); o.unobserve(t1); L.push('-- unobserved'); window.scrollTo(0, 500); await settle(); window.scrollTo(0, 0); await settle(); L.push('-- observe again'); o.observe(t1); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); o.observe(t2); await settle(); o.disconnect(); window.scrollTo(0, 500); await settle(); L.push('taken ' + o.takeRecords().length); o.observe(t3); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); const r = o.takeRecords(); L.push('taken ' + r.length + ' ' + (r[0] ? ent(r[0]) : '')); L.push('again ' + o.takeRecords().length); await settle(); L.push('after'); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); o.unobserve(t1); await settle(); L.push('end'); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); o.observe(t2); o.unobserve(t1); await settle(); L.push('end'); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); const d = document.createElement('div'); d.id = 'detached'; o.observe(d); await settle(); document.body.appendChild(d); await settle(); d.style.cssText = 'height:50px;width:50px'; await settle(); d.remove(); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t5); await settle(); t5.style.display = 'block'; await settle(); t5.style.display = 'none'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); await settle(); t1.style.top = '300px'; await settle(); t1.style.top = '0'; await settle(); t1.style.visibility = 'hidden'; await settle(); t1.style.opacity = '0'; await settle(); t1.style.height = '0'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(t1); await settle(); t1.style.width = '0px'; t1.style.height = '0px'; await settle(); L.push('-- zero at edge'); t1.style.top = '200px'; await settle(); L.push('-- zero outside'); t1.style.top = '250px'; await settle(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "io-clip",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}.b{position:absolute;left:10px;width:100px;height:100px;background:#ccc}</style><div class=b id=t1 style=\"top:0\"></div><div class=b id=t2 style=\"top:150px\"></div><div class=b id=t3 style=\"top:400px\"></div><div class=b id=t4 style=\"top:200px\"></div><div class=b id=t5 style=\"display:none\"></div><div id=spacer style=\"height:2000px\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst rf = (r) => r ? [r.x, r.y, r.width, r.height].map((n) => +n.toFixed(2)).join(',') : 'null';\nconst ent = (e) => [e.target.id || e.target.localName, e.isIntersecting, +e.intersectionRatio.toFixed(3), rf(e.boundingClientRect), rf(e.intersectionRect), rf(e.rootBounds), typeof e.time].join(' ');\n// make(opts): an observer that logs its batches into L.\nconst OBS = [];\nconst ORIG = {};\nconst ELS = {};\nfor (const id of ['t1', 't2', 't3', 't4', 't5']) { ORIG[id] = document.getElementById(id).style.cssText; ELS[id] = document.getElementById(id); }\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  window.scrollTo(0, 0);\n  for (const id in ORIG) { if (!ELS[id].isConnected) document.body.insertBefore(ELS[id], spacer); ELS[id].style.cssText = ORIG[id]; }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new IntersectionObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); }, opts);\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(120);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:300px;width:60px;height:50px;overflow:hidden'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); window.scrollTo(0, 250); const o = make({threshold: [0, 0.1, 0.5, 1]}); o.observe(c); await settle(); L.push('-- scroll inside'); w.scrollTop = 100; await settle(); L.push('-- viewport'); window.scrollTo(0, 100); await settle(); w.remove(); window.scrollTo(0, 0); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:hidden'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:absolute;left:0;top:0;width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:hidden;position:relative'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:absolute;left:0;top:0;width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:hidden'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:fixed;left:0;top:10px;width:30px;height:30px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:clip'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:auto'; w.style.padding = '10px'; w.style.border = '5px solid'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const w = document.createElement('div'); w.id = 'w'; w.style.cssText = 'position:absolute;left:0;top:50px;width:60px;height:50px;overflow:hidden;transform:translate(20px, 10px)'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:200px;height:200px;background:red'; w.appendChild(c); document.body.appendChild(w); const o = make({}); o.observe(c); await settle(); w.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:absolute;left:10px;top:20px;width:100px;height:100px;transform:scale(0.5);transform-origin:0 0'; document.body.appendChild(c); const o = make({}); o.observe(c); await settle(); c.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:absolute;left:10px;top:20px;width:100px;height:100px;clip-path:inset(0 50px 0 0)'; document.body.appendChild(c); const o = make({}); o.observe(c); await settle(); c.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'position:absolute;left:380px;top:20px;width:100px;height:100px;'; document.body.appendChild(c); const o = make({}); o.observe(c); await settle(); c.remove(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "io-root",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}.b{position:absolute;left:10px;width:100px;height:100px;background:#ccc}</style><div class=b id=t1 style=\"top:0\"></div><div class=b id=t2 style=\"top:150px\"></div><div class=b id=t3 style=\"top:400px\"></div><div class=b id=t4 style=\"top:200px\"></div><div class=b id=t5 style=\"display:none\"></div><div id=spacer style=\"height:2000px\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst rf = (r) => r ? [r.x, r.y, r.width, r.height].map((n) => +n.toFixed(2)).join(',') : 'null';\nconst ent = (e) => [e.target.id || e.target.localName, e.isIntersecting, +e.intersectionRatio.toFixed(3), rf(e.boundingClientRect), rf(e.intersectionRect), rf(e.rootBounds), typeof e.time].join(' ');\n// make(opts): an observer that logs its batches into L.\nconst OBS = [];\nconst ORIG = {};\nconst ELS = {};\nfor (const id of ['t1', 't2', 't3', 't4', 't5']) { ORIG[id] = document.getElementById(id).style.cssText; ELS[id] = document.getElementById(id); }\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  window.scrollTo(0, 0);\n  for (const id in ORIG) { if (!ELS[id].isConnected) document.body.insertBefore(ELS[id], spacer); ELS[id].style.cssText = ORIG[id]; }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new IntersectionObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); }, opts);\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(120);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const r = document.createElement('div'); r.id = 'r'; r.style.cssText = 'position:absolute;left:20px;top:300px;width:100px;height:80px;overflow:auto;border:5px solid;padding:7px'; const k = document.createElement('div'); k.id = 'k'; k.style.cssText = 'height:300px;width:50px'; const i = document.createElement('div'); i.id = 'i'; i.style.cssText = 'height:30px;width:40px;margin-top:20px'; k.appendChild(i); const j = document.createElement('div'); j.id = 'j'; j.style.cssText = 'height:30px;width:40px;margin-top:120px'; k.appendChild(j); r.appendChild(k); document.body.appendChild(r); window.scrollTo(0, 250); const o = make({root: r, threshold: [0, 0.5, 1]}); o.observe(i); o.observe(j); await settle(); L.push('-- scroll root'); r.scrollTop = 100; await settle(); L.push('-- scroll root'); r.scrollTop = 150; await settle(); L.push('-- viewport'); window.scrollTo(0, 0); await settle(); L.push('-- root removed'); r.remove(); await settle(); window.scrollTo(0, 0); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const r = document.createElement('div'); r.id = 'r'; r.style.cssText = 'position:absolute;left:20px;top:20px;width:100px;height:80px;overflow:auto'; const k = document.createElement('div'); k.id = 'k'; k.style.cssText = 'height:30px;width:40px'; r.appendChild(k); document.body.appendChild(r); const other = document.createElement('div'); other.id = 'other'; other.style.cssText = 'position:absolute;left:20px;top:150px;width:10px;height:10px'; document.body.appendChild(other); const o = make({root: r}); o.observe(k); o.observe(other); o.observe(t1); await settle(); r.remove(); other.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({root: document.documentElement}); o.observe(t1); o.observe(t2); o.observe(t3); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({root: document.body}); o.observe(t1); o.observe(t2); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({root: document, rootMargin: '10px'}); o.observe(t1); o.observe(t3); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const r = document.createElement('div'); r.id = 'r'; r.style.cssText = 'position:absolute;left:20px;top:20px;width:100px;height:80px;overflow:hidden'; const k = document.createElement('div'); k.id = 'k'; k.style.cssText = 'height:30px;width:40px;margin-left:90px'; r.appendChild(k); document.body.appendChild(r); const o = make({root: r, rootMargin: '10px'}); o.observe(k); await settle(); r.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const r = document.createElement('div'); r.id = 'r'; r.style.cssText = 'position:absolute;left:20px;top:20px;width:100px;height:80px;'; document.body.appendChild(r); const o = make({root: r}); o.observe(t1); await settle(); r.remove(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "io-order",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}.b{position:absolute;left:10px;width:100px;height:100px;background:#ccc}</style><div class=b id=t1 style=\"top:0\"></div><div class=b id=t2 style=\"top:150px\"></div><div class=b id=t3 style=\"top:400px\"></div><div class=b id=t4 style=\"top:200px\"></div><div class=b id=t5 style=\"display:none\"></div><div id=spacer style=\"height:2000px\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst rf = (r) => r ? [r.x, r.y, r.width, r.height].map((n) => +n.toFixed(2)).join(',') : 'null';\nconst ent = (e) => [e.target.id || e.target.localName, e.isIntersecting, +e.intersectionRatio.toFixed(3), rf(e.boundingClientRect), rf(e.intersectionRect), rf(e.rootBounds), typeof e.time].join(' ');\n// make(opts): an observer that logs its batches into L.\nconst OBS = [];\nconst ORIG = {};\nconst ELS = {};\nfor (const id of ['t1', 't2', 't3', 't4', 't5']) { ORIG[id] = document.getElementById(id).style.cssText; ELS[id] = document.getElementById(id); }\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  window.scrollTo(0, 0);\n  for (const id in ORIG) { if (!ELS[id].isConnected) document.body.insertBefore(ELS[id], spacer); ELS[id].style.cssText = ORIG[id]; }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new IntersectionObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); }, opts);\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(120);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; make({}, 'io').observe(t1); requestAnimationFrame(() => L.push('raf1')); setTimeout(() => L.push('timeout0'), 0); Promise.resolve().then(() => L.push('micro')); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; make({}, 'io').observe(t1); await frames(1); L.push('frame1'); await frames(1); L.push('frame2'); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; make({}, 'io').observe(t1); const ro = new ResizeObserver(() => L.push('ro')); OBS.push(ro); ro.observe(t1); (() => { const m = new MutationObserver(() => L.push('mo')); OBS.push(m); m.observe(t1, {attributes: true}); })(); t1.title = 'x'; requestAnimationFrame(() => L.push('raf1')); requestAnimationFrame(() => requestAnimationFrame(() => L.push('raf2'))); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'io'); o.observe(t1); await settle(); L.push('-- change'); t1.style.top = '300px'; setTimeout(() => L.push('timeout0'), 0); requestAnimationFrame(() => L.push('raf')); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'io'); o.observe(t1); await settle(); L.push('-- change'); o.observe(t2); L.push('sync'); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = new IntersectionObserver(() => { L.push('cb1'); throw new Error('boom'); }); OBS.push(o); window.onerror = (m) => { L.push('onerror ' + m); return true; }; o.observe(t1); await settle(); t1.style.top = '300px'; await settle(); window.onerror = null; reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'io'); o.observe(t1); await settle(); L.push('-- removing'); t1.remove(); await settle(); document.body.appendChild(t1); await settle(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "io-extra",
+   "html": "<!DOCTYPE html><html><head><style>html,body{margin:0}</style></head><body></body><script>\nwindow.L=[];\nconst rf=(r)=>r?[r.x,r.y,r.width,r.height].map(n=>+n.toFixed(2)).join(','):'null';\nconst ent=(e)=>[e.target.id,e.isIntersecting,+e.intersectionRatio.toFixed(3),rf(e.boundingClientRect),rf(e.intersectionRect),rf(e.rootBounds)].join(' ');\nfunction wait(ms){return new Promise(r=>setTimeout(r,ms));}\nasync function run(html, setup, opts, targets, after){\n  document.body.innerHTML=html; window.scrollTo(0,0); L.length=0;\n  await wait(50);\n  const o=new IntersectionObserver((es)=>{L.push('cb '+es.length); es.forEach(e=>L.push(ent(e)));}, opts||{});\n  if(setup) setup();\n  targets.forEach(t=>o.observe(document.getElementById(t)));\n  await wait(120);\n  if(after){ await after(o); await wait(120);}\n  o.disconnect(); return L.slice();\n}\n</script></html>",
+   "measure": [
+    {
+     "js": "(async()=>run('<div id=t style=\"position:absolute;left:10px;top:10px;width:100px;height:100px;transform:translate(150px,20px) scale(.5)\"></div>',null,{threshold:[0,.5,1]},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"position:absolute;left:0;top:0;transform:translateX(250px);width:100px;height:100px\"><div id=t style=\"width:80px;height:50px\"></div></div>',null,{},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"height:2000px\"><div id=t style=\"position:sticky;top:10px;height:30px;margin-top:300px\"></div></div>',null,{},['t'],async()=>{scrollTo(0,500);await wait(100);}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=s style=\"width:100px;height:60px;overflow:auto;margin:20px\"><div style=\"height:40px\"></div><div id=t style=\"height:40px\"></div><div style=\"height:300px\"></div></div>',null,{threshold:[0,.5,1]},['t'],async()=>{document.getElementById('s').scrollTop=30;await wait(100);document.getElementById('s').scrollTop=50;}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=r style=\"width:100px;height:80px;overflow:auto;margin:30px;border:5px solid;padding:7px\"><div style=\"height:100px\"></div><div id=t style=\"height:40px;width:200px\"></div><div style=\"height:300px\"></div></div>',null,{root:null},['t']))()"
+    },
+    {
+     "js": "(()=>{document.body.innerHTML='<div id=r style=\"width:100px;height:80px;overflow:auto;margin:30px;border:5px solid;padding:7px\"><div style=\"height:100px\"></div><div id=t style=\"height:40px;width:200px\"></div><div style=\"height:300px\"></div></div>';return wait(50).then(()=>{L.length=0;const o=new IntersectionObserver(es=>{L.push('cb '+es.length);es.forEach(e=>L.push(ent(e)))},{root:document.getElementById('r'),rootMargin:'10px 20% -5px 3px',threshold:[0,.5,1]});o.observe(document.getElementById('t'));return wait(120).then(()=>{document.getElementById('r').scrollTop=60;return wait(120)}).then(()=>{o.disconnect();return L.slice()})})})()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"position:fixed;left:10px;top:150px;width:50px;height:100px\"></div><div style=\"height:3000px\"></div>',null,{threshold:[0,.5,1]},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:0;height:0;margin-top:50px\"></div><div id=u style=\"width:100px;height:0;margin-top:500px\"></div>',null,{},['t','u']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"height:2000px\"></div><div id=t style=\"height:50px;margin-top:300px\"></div>',null,{rootMargin:'50%'},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=s style=\"width:100px;height:50px;margin:10px;overflow:hidden\"><div id=t style=\"width:300px;height:300px;position:relative\"></div></div>',null,{threshold:[0,.1,.5]},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"overflow:hidden;width:50px;height:50px;position:relative\"><div id=t style=\"position:absolute;left:0;top:0;width:100px;height:100px\"></div></div>',null,{},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"overflow:hidden;width:50px;height:50px\"><div id=t style=\"position:absolute;left:0;top:0;width:100px;height:100px\"></div></div>',null,{},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"height:2000px\"></div><div id=t style=\"height:100px;margin-top:0\"></div>',null,{threshold:[0,1/3,.5,2/3,1]},['t'],async()=>{for(const y of [1950,1967,1983,2000,2050]){scrollTo(0,y);await wait(100);}}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:20px;height:20px;visibility:hidden\"></div><div id=u style=\"width:20px;height:20px;opacity:0\"></div>',null,{},['t','u']))()"
+    },
+    {
+     "js": "(async()=>run('<div style=\"width:3000px;height:50px\"><div id=t style=\"margin-left:1000px;width:50px;height:50px\"></div></div>',null,{},['t'],async()=>{scrollTo(900,0);await wait(100);}))()"
+    }
+   ]
+  }
+ ]
+}

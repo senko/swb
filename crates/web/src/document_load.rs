@@ -390,6 +390,11 @@ impl ScriptRuntime {
     /// Executes a script element as a task; its errors are reported.
     fn execute_script(&mut self, node: NodeId) {
         let _ = self.task(&self.script_name(node), |rt| {
+            // HTML, the parser's rule for the end tag of a `script`:
+            // "perform a microtask checkpoint" before the script runs. The
+            // mutation observers see the nodes that the parser inserted
+            // since the last script (measured, feature 9a).
+            crate::event_loop::microtask_checkpoint(rt)?;
             crate::scripts::execute(rt, node)
         });
     }

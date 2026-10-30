@@ -116,7 +116,11 @@ pub(crate) fn string_replace_all(cx: &mut Cx<'_>, parent: NodeId, value: &str) -
     // a Text node that already has this data (measured in
     // `tools/probes/web-dom-mutation.json`; every other case makes a new
     // node). The children changed steps of a `script` parent still run.
-    let same = {
+    // With a mutation observer installed it replaces the node like the
+    // standard says (measured, feature 9a: the record names the old and the
+    // new node).
+    let observed = dom_mut(cx.rt)?.mutation_sink_mut().is_some();
+    let same = !observed && {
         let dom = dom(cx.rt)?;
         let mut children = dom.children(parent);
         match (children.next(), children.next()) {

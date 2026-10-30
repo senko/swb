@@ -41,6 +41,9 @@ pub(crate) enum Task {
     /// Give the entries that were queued to the `PerformanceObserver`
     /// objects (HTML "queue a `PerformanceObserver` task").
     PerformanceObservers,
+    /// Give the queued entries to the `IntersectionObserver` objects (HTML
+    /// "queue an intersection observer task").
+    IntersectionObservers,
     /// The `timeout` of an idle callback is over: run it if it still
     /// waits (`requestIdleCallback`).
     IdleTimeout(u32),
@@ -206,7 +209,18 @@ pub(crate) fn microtask_checkpoint(rt: &mut Runtime) -> Result<(), ScriptError> 
         return Ok(());
     }
     state.event_loop.performing_checkpoint = true;
-    let result = run_jobs(rt);
+    // Records that the engine queued while no script ran (the parser).
+    let result = match crate::mutation_observer::after_call(rt) {
+        Ok(()) => run_jobs(rt),
+        Err(error) => {
+            // As in `run_jobs`: the queued jobs (also the mutation observer
+            // microtask that `after_call` queued before the time check)
+            // would run in the next task without its time.
+            rt.clear_jobs();
+            crate::mutation_observer::jobs_cleared(rt);
+            Err(crate::runtime::task_error(error))
+        }
+    };
     if let Ok(state) = state_mut(rt) {
         state.event_loop.performing_checkpoint = false;
     }
@@ -223,11 +237,13 @@ fn run_jobs(rt: &mut Runtime) -> Result<(), ScriptError> {
                 // The jobs that are left would run in the next task without
                 // its time.
                 rt.clear_jobs();
+                crate::mutation_observer::jobs_cleared(rt);
                 return Err(error);
             }
             Err(error) => {
                 if let Err(error) = crate::errors::report(rt, &crate::errors::Site::JOB, &error) {
                     rt.clear_jobs();
+                    crate::mutation_observer::jobs_cleared(rt);
                     return Err(crate::runtime::task_error(error));
                 }
             }

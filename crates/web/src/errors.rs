@@ -124,6 +124,27 @@ pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> 
     }
 }
 
+/// The resize observer loop error (Resize Observer §3.4 "deliver resize
+/// loop error notification"): an `ErrorEvent` at the window with this
+/// message, no error object, the document's URL as the file and the
+/// position 0:0 (measured in Chromium 148); a console line if no listener
+/// canceled it.
+pub(crate) fn report_resize_loop_error(rt: &mut Runtime) -> VmResult<()> {
+    let message = "ResizeObserver loop completed with undelivered notifications.";
+    let location = SourceLocation {
+        name: crate::scripts::document_url(rt),
+        line: 0,
+        column: 0,
+    };
+    report_exception(
+        rt,
+        "a resize observer",
+        Value::Null,
+        message,
+        Some(location),
+    )
+}
+
 /// Reports a thrown value that did not come from a run (`reportError`, the
 /// lookup of a listener's `handleEvent`).
 pub(crate) fn report_value(rt: &mut Runtime, value: Value) -> VmResult<()> {

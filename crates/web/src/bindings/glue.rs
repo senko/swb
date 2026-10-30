@@ -25,7 +25,13 @@ pub fn run(
     dom_exception: ClassId,
     body: impl FnOnce(&mut Runtime) -> Result<Value>,
 ) -> VmResult<NativeReturn> {
-    match body(rt) {
+    let result = body(rt);
+    // A change that the call made may have queued mutation records: the
+    // mutation observer microtask takes its place in the job queue now.
+    if crate::mutation_observer::needs_attention(rt) {
+        crate::mutation_observer::after_request(rt)?;
+    }
+    match result {
         Ok(value) => Ok(NativeReturn::Value(value)),
         Err(exception) => Err(throw(rt, call.realm(), context, dom_exception, exception)),
     }
@@ -42,7 +48,11 @@ pub fn run_promise(
     dom_exception: ClassId,
     body: impl FnOnce(&mut Runtime) -> Result<Value>,
 ) -> VmResult<NativeReturn> {
-    let error = match body(rt) {
+    let result = body(rt);
+    if crate::mutation_observer::needs_attention(rt) {
+        crate::mutation_observer::after_request(rt)?;
+    }
+    let error = match result {
         Ok(value) => return Ok(NativeReturn::Value(value)),
         // Chromium names the operation in the message of a failed brand
         // check here, unlike in an exception that is thrown (measured with

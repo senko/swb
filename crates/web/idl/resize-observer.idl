@@ -1,0 +1,49 @@
+// Source: Resize Observer Module Level 1, W3C Working Draft,
+// https://www.w3.org/TR/resize-observer-1/ (CSS Working Group Editor's Draft
+// https://drafts.csswg.org/resize-observer/), copied on 2026-10-29.
+//
+// This file includes material copied from Resize Observer Module Level 1,
+// https://drafts.csswg.org/resize-observer/. Copyright © 2026 World Wide Web
+// Consortium. https://www.w3.org/copyright/software-license-2023/
+// (W3C Software and Document License; the full notice is in
+// THIRD_PARTY_NOTICES.md).
+//
+// swb changed this file as follows (feature 9a of M8): the interfaces are
+// `Exposed=Window` (swb has no workers); `contentBoxSize` comes before
+// `borderBoxSize`, the order of Chromium 148 (the accessors of a prototype
+// follow the order of the IDL). The members are the specification's.
+
+enum ResizeObserverBoxOptions {
+  "border-box",
+  "content-box",
+  "device-pixel-content-box"
+};
+
+dictionary ResizeObserverOptions {
+  ResizeObserverBoxOptions box = "content-box";
+};
+
+[Exposed=Window]
+interface ResizeObserver {
+  constructor(ResizeObserverCallback callback);
+  undefined observe(Element target, optional ResizeObserverOptions options = {});
+  undefined unobserve(Element target);
+  undefined disconnect();
+};
+
+callback ResizeObserverCallback = undefined (sequence<ResizeObserverEntry> entries, ResizeObserver observer);
+
+[Exposed=Window]
+interface ResizeObserverEntry {
+  readonly attribute Element target;
+  readonly attribute DOMRectReadOnly contentRect;
+  readonly attribute FrozenArray<ResizeObserverSize> contentBoxSize;
+  readonly attribute FrozenArray<ResizeObserverSize> borderBoxSize;
+  readonly attribute FrozenArray<ResizeObserverSize> devicePixelContentBoxSize;
+};
+
+[Exposed=Window]
+interface ResizeObserverSize {
+  readonly attribute unrestricted double inlineSize;
+  readonly attribute unrestricted double blockSize;
+};

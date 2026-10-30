@@ -80,6 +80,8 @@ CharacterData:dwc
 Text:dwc
 ProcessingInstruction:dwc
 Comment:dwc
+MutationObserver:dwc
+MutationRecord:dwc
 TextDecoder:dwc
 TextEncoder:dwc
 DOMRectReadOnly:dwc
@@ -338,12 +340,17 @@ HashChangeEvent:dwc
 MessageEvent:dwc
 StorageEvent:dwc
 BeforeUnloadEvent:dwc
+IntersectionObserver:dwc
+IntersectionObserverEntry:dwc
 PerformanceTiming:dwc
 PerformanceNavigation:dwc
 PerformanceEntry:dwc
 PerformanceObserver:dwc
 PerformanceObserverEntryList:dwc
 IdleDeadline:dwc
+ResizeObserver:dwc
+ResizeObserverEntry:dwc
+ResizeObserverSize:dwc
 PerformanceResourceTiming:dwc
 SVGElement:dwc
 SVGAnimatedString:dwc

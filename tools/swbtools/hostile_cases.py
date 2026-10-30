@@ -3475,3 +3475,129 @@ def cookies_big_values_js_on() -> Page:
         "console.log('sizes ' + sizes);</script>"
     )
     return replay_page(doc("<p>cookies</p>" + script))
+
+
+# --- Observers (feature 9a) --------------------------------------------------
+
+
+@case(
+    "4 inline scripts that each register a mutation observer whose callback changes an "
+    "attribute again, and change it once: the callbacks run in one microtask checkpoint "
+    "without end, each checkpoint ends at the time limit of 5 s (two terminations are "
+    "logged for each), and after the second such task, 10 s in all, the document runs no "
+    "more scripts (ADR 0028 sections 7 and 13)",
+    time_limit_s=25,
+    expect_log="the scripts of the document stop",
+    swb_args=("--js",),
+)
+def mutation_observer_endless_callback_js_on() -> Page:
+    script = (
+        "<script>var n = 0; new MutationObserver(() => { document.body.setAttribute("
+        "'data-n', ++n); }).observe(document.body, {attributes: true}); "
+        "document.body.setAttribute('data-n', 0);</script>"
+    )
+    return Page(doc("<p>text</p>" + script * 4))
+
+
+@case(
+    "a loop of 3,000,000 attribute changes with a mutation observer that records the old "
+    "values and no yield: at most 131,072 records wait, the rest are dropped with a "
+    "warning, the callback gets the kept ones, and the scripts of the document still run "
+    "afterwards (a timer logs `flood ok`; ADR 0028 section 16)",
+    time_limit_s=20,
+    expect_log="flood ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def mutation_records_flood_js_on() -> Page:
+    script = (
+        "<script>const p = document.querySelector('p'); let seen = 0, chars = 0; "
+        "new MutationObserver((r) => { seen += r.length; "
+        "for (const x of r) chars += x.oldValue === null ? 1 : x.oldValue.length; })"
+        ".observe(p, {attributes: true, "
+        "attributeOldValue: true}); "
+        "for (let i = 0; i < 3000000; i++) p.setAttribute('title', 'v'); "
+        "setTimeout(() => console.warn((seen >= 100000 && seen < 3000000 && chars >= seen "
+        "? 'flood ok ' : 'flood wrong ') + seen), 10);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
+
+
+@case(
+    "a parse of 300,000 elements with a mutation observer on the document (one record "
+    "each): at most 131,072 records wait, the rest are dropped with a warning, the callback "
+    "gets the kept ones, and the scripts of the document still run afterwards (a timer logs "
+    "`parse ok`; ADR 0028 section 16)",
+    time_limit_s=20,
+    expect_log="parse ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def mutation_records_parse_js_on() -> Page:
+    script = (
+        "<script>let seen = 0; new MutationObserver((r) => { seen += r.length; })"
+        ".observe(document, {childList: true, subtree: true}); "
+        "setTimeout(() => console.warn((seen >= 100000 ? 'parse ok ' : 'parse wrong ') + seen),"
+        " 10);</script>"
+    )
+    return Page(doc(script + "<i></i>" * 300000))
+
+
+@case(
+    "200,000 children removed one by one under 1 subtree observer, and 3,000 subtree "
+    "observers on one node with 3,000 children removed one by one: the transient "
+    "registrations are a set and bounded at 500,000, the work of the sink is charged to the "
+    "time limit of the task, and the scripts of the document still run afterwards (a timer "
+    "logs `transients ok`; ADR 0028 section 16)",
+    time_limit_s=25,
+    expect_log="transients ok",
+    swb_args=("--js", "--settle-ms", "500"),
+)
+def mutation_transients_js_on() -> Page:
+    script = (
+        "<script>const a = document.createElement('div'); document.body.appendChild(a); "
+        "for (let i = 0; i < 200000; i++) a.appendChild(document.createElement('i')); "
+        "new MutationObserver(() => {}).observe(a, {childList: true, subtree: true}); "
+        "while (a.firstChild) a.removeChild(a.firstChild);</script>"
+        "<script>const b = document.createElement('div'); document.body.appendChild(b); "
+        "for (let i = 0; i < 3000; i++) b.appendChild(document.createElement('i')); "
+        "for (let i = 0; i < 3000; i++) "
+        "new MutationObserver(() => {}).observe(b, {childList: true, subtree: true}); "
+        "while (b.firstChild) b.removeChild(b.firstChild);</script>"
+        "<script>setTimeout(() => console.warn('transients ok'), 10);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "a resize observer whose callback resizes its target without end: one callback and one "
+    "loop error per frame, the page stays responsive (ADR 0028 sections 7 and 13)",
+    time_limit_s=15,
+    swb_args=("--js", "--settle-ms", "3000"),
+)
+def resize_observer_endless_callback_js_on() -> Page:
+    script = (
+        "<script>const a = document.querySelector('div'); let n = 0; "
+        "window.addEventListener('error', (e) => e.preventDefault()); "
+        "new ResizeObserver(() => { n++; a.style.width = (a.offsetWidth + 1) + 'px'; "
+        "if (n % 50 === 0) console.log('callbacks ' + n); }).observe(a);</script>"
+    )
+    return Page(doc("<div style='width:100px;height:20px'></div>" + script))
+
+
+@case(
+    "100,000 targets of one intersection observer, with a scroll after the first frame: "
+    "the update of a frame computes all targets within the time limit of a task (feature "
+    "9a)",
+    time_limit_s=20,
+    swb_args=("--js", "--settle-ms", "3000"),
+)
+def intersection_observer_100000_targets_js_on() -> Page:
+    script = (
+        "<script>let hits = 0; const o = new IntersectionObserver((es) => { hits += "
+        "es.length; }); const f = document.createDocumentFragment(); "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "f.appendChild(d); } document.body.appendChild(f); "
+        "for (const d of document.body.children) o.observe(d); "
+        "setTimeout(() => window.scrollTo(0, 100000), 500); "
+        "setTimeout(() => console.log('hits ' + hits), 2500);</script>"
+    )
+    return Page(doc(script, css="div{height:2px}"))

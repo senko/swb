@@ -17,7 +17,7 @@ This file lists:
   source code and binaries must include their license texts below) and
   from Servo (MPL-2.0);
 - the WebIDL files of `crates/web/idl/`, copied from WHATWG standards
-  (BSD-3-Clause) and twelve W3C specifications (W3C Software and Document
+  (BSD-3-Clause) and fourteen W3C specifications (W3C Software and Document
   License), from which the binding glue in `crates/web/src/generated/` is
   generated;
 - third-party content in the test fixtures (not in binaries).
@@ -252,6 +252,24 @@ text is in the next section.
 > from DOM Parsing and Serialization, https://w3c.github.io/DOM-Parsing/.
 > Copyright © World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
+
+## W3C Intersection Observer and Resize Observer: IDL (W3C Software and Document License)
+
+`crates/web/idl/intersection-observer.idl` contains IDL blocks from
+Intersection Observer (W3C Editor's Draft,
+https://w3c.github.io/IntersectionObserver/) and
+`crates/web/idl/resize-observer.idl` IDL blocks from Resize Observer Module
+Level 1 (W3C Working Draft, https://www.w3.org/TR/resize-observer-1/;
+CSS Working Group Editor's Draft, https://drafts.csswg.org/resize-observer/),
+both copied on 2026-10-29 (feature 9a of M8). swb cut them to what Chromium
+148 has (the headers of the files list the changes). The license text is in
+the section of W3C High Resolution Time below.
+
+> This software or document includes material copied from or derived
+> from Intersection Observer, https://w3c.github.io/IntersectionObserver/,
+> and Resize Observer Module Level 1,
+> https://drafts.csswg.org/resize-observer/. Copyright © 2026 World Wide
+> Web Consortium. https://www.w3.org/copyright/software-license-2023/
 
 ## W3C Performance, Scheduling, Visibility, Crypto, WebDriver and DNT specifications: IDL (W3C Software and Document License)
 

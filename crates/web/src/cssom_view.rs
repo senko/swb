@@ -313,6 +313,23 @@ pub(crate) fn get_client_rects(cx: &mut Cx<'_>, element: NodeId) -> b::Result<Gc
     Ok(cx.rt.new_host_object(realm, g::DOM_RECT_LIST, data)?)
 }
 
+/// The value of `getBoundingClientRect()` of `element` as a rectangle (for
+/// the observers).
+pub(crate) fn bounding_client_rect(rt: &mut Runtime, element: NodeId) -> b::Result<DomRect> {
+    let rects = client_rects(rt, element)?;
+    Ok(bounding_rect(&rects))
+}
+
+/// A new `DOMRectReadOnly` of `realm` (the rectangles of observer entries).
+pub(crate) fn new_rect_read_only(
+    rt: &mut Runtime,
+    realm: u32,
+    rect: DomRect,
+) -> VmResult<Gc<Object>> {
+    let data = rt.alloc_host_data(RectData(rect))?;
+    rt.new_host_object(realm, g::DOM_RECT_READ_ONLY, data)
+}
+
 /// `getBoundingClientRect()` (CSSOM View §6): the union of the client
 /// rectangles that are not empty (zero width and height count as empty
 /// only if all are), the first one if all are, or zero.

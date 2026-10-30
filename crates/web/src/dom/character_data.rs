@@ -160,14 +160,17 @@ impl g::text::TextImpl for WebState {
         let document = dom(cx.rt)?.node_document(this);
         let result = dom_mut(cx.rt)?.create_node_in(document, NodeData::Text(tail));
         let new_node = dom_result(cx.rt, result)?;
+        // The standard inserts the new node first and truncates this one
+        // after; Chromium truncates first (its "characterData" record comes
+        // before the "childList" one; measured, feature 9a).
+        let length = dom(cx.rt)?.char_data(this).map_or(0, str::len);
+        let result = dom_mut(cx.rt)?.replace_data(this, start, length - start, "");
+        dom_result(cx.rt, result)?;
         if let Some(parent) = dom(cx.rt)?.parent(this) {
             let next = dom(cx.rt)?.node(this).next_sibling();
             let result = dom_mut(cx.rt)?.insert_before(parent, new_node, next);
             dom_result(cx.rt, result)?;
         }
-        let length = dom(cx.rt)?.char_data(this).map_or(0, str::len);
-        let result = dom_mut(cx.rt)?.replace_data(this, start, length - start, "");
-        dom_result(cx.rt, result)?;
         Ok(new_node)
     }
 }

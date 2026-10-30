@@ -2757,6 +2757,42 @@ Chromium departs from Web IDL (the comments of
 `crates/web/tests/legacy/cases.rs` list the cases), the tests follow Web
 IDL.
 
+- Feature 9a (`MutationObserver`, `IntersectionObserver`, `ResizeObserver`):
+  `crates/web/tests/mutation_observer.rs` runs every case of
+  `tools/probes/web-mutation-observer.json` (145 queries: the interface, the
+  options and their errors, the record lists of 40 DOM operations and of
+  form controls, transient registered observers, delivery and its order
+  against promises and timers, records from the parser) and
+  `crates/engine/tests/script_observers.rs` those of
+  `web-intersection-observer.json` (121) and `web-resize-observer.json` (76)
+  with Chromium's values (`tests/mutation_observer/cases.rs`,
+  `tests/observers_io/cases.rs`, `tests/observers_ro/cases.rs`, made from
+  `just probe --json` by comparing three runs), in virtual time and (the web
+  tests) with the GC stress mode; the departures are listed in the test
+  files with their reasons. A probe query that scrolls or waits uses
+  `window.scrollTo` and `setTimeout` in the page (virtual time makes the
+  waits free); no query depends on the order of two observers or on the
+  number of frames in a time (Chromium varies). The engine file also has
+  tests of scrolling the viewport and a scroll container, of a change in a
+  timer reaching observers without animation frames, of a page with
+  observers going idle, of the resize loop bounded to one callback per frame,
+  and of 20,000 targets. The web file has the lifetime of observers (an
+  observed observer survives a collection and fires; a disconnected one is
+  collected), a callback that mutates without end, a termination in the
+  callback of one observer (the later observers keep their records), and
+  100,000 removals under a subtree observer. Unit tests are in
+  `mutation_registry.rs` (options, bounds, transient registrations,
+  restoring the notify set, disconnect) and
+  `intersection_observer.rs` (margins, edges, threshold index). The hostile
+  set has six cases (`mutation-observer-endless-callback-js-on`,
+  `mutation-records-flood-js-on`, `mutation-records-parse-js-on`,
+  `mutation-transients-js-on`, `resize-observer-endless-callback-js-on`,
+  `intersection-observer-100000-targets-js-on`); the flood, parse and
+  transients cases log a marker from a timer after the flood
+  (`flood ok`, `parse ok`, `transients ok`), which the case expects, so
+  they fail when the scripts of the document were stopped. `lazy_interfaces/globals.txt`
+  got seven names.
+
 ## Python tools: development
 
 - Package: `tools/swbtools/`. Tests: `tools/tests/`. Run `just tools-check`

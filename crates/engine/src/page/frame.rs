@@ -37,6 +37,18 @@ pub(super) struct ScrollSeen {
     elements: HashMap<NodeId, Point>,
 }
 
+/// What can change an observation: the DOM, the layouts that ran, the scroll
+/// offsets and the viewport. The observers run in a frame when this differs
+/// from what they saw at the last one (or when an observation was added).
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct ObservedState {
+    generation: u64,
+    layouts: u32,
+    document_scroll: Point,
+    scrollers: HashMap<NodeId, Point>,
+    viewport: swb_layout::Size,
+}
+
 /// The first time of the frame grid at or after `time` (the grid starts at
 /// page time 0; a small tolerance keeps a time on the grid there).
 fn grid_at_or_after(time: f64) -> f64 {
@@ -75,6 +87,47 @@ impl Page {
         self.request_frame();
     }
 
+    /// What the observers would see now; `None` while the document state is
+    /// lent to a task.
+    fn observed_state(&self) -> Option<ObservedState> {
+        let doc = self.doc.as_deref()?;
+        Some(ObservedState {
+            generation: doc.dom.generation(),
+            layouts: doc
+                .flushes
+                .layout_runs
+                .saturating_add(doc.flushes.style_runs),
+            document_scroll: doc.scroll,
+            scrollers: doc.scrollers.offsets().clone(),
+            viewport: self.view.viewport,
+        })
+    }
+
+    /// True if the observers need a frame: an observation was added, or
+    /// something that changes an observation changed since the last frame.
+    fn observers_due(&self) -> bool {
+        let Some(script) = self.script.as_ref() else {
+            return false;
+        };
+        script.has_observations()
+            && (script.observations_requested()
+                || self
+                    .observed_state()
+                    .is_some_and(|now| self.input.observed.as_ref() != Some(&now)))
+    }
+
+    /// The time of the next frame on the grid, at least one frame length
+    /// after the last.
+    fn grid_frame_time(&self) -> f64 {
+        // The grid keeps the time stable between calls; after a pause the
+        // frame is due at once (one frame, not one per grid time missed).
+        let latest_passed = (self.clock.now() / FRAME_MS).floor() * FRAME_MS;
+        match self.input.last_frame {
+            Some(last) => grid_at_or_after(last + FRAME_MS).max(latest_passed),
+            None => latest_passed,
+        }
+    }
+
     /// True if the document has a runtime whose scripts can run (not
     /// stopped by the time limits): only then are frames due.
     pub(super) fn frames_run(&self) -> bool {
@@ -88,20 +141,12 @@ impl Page {
         if !self.frames_run() {
             return None;
         }
-        let callbacks = self
+        let callbacks = (self
             .script
             .as_ref()
             .is_some_and(ScriptRuntime::has_animation_frame_callbacks)
-            .then(|| {
-                // The grid keeps the time stable between calls; after a
-                // pause the frame is due at once (one frame, not one per
-                // grid time missed).
-                let latest_passed = (self.clock.now() / FRAME_MS).floor() * FRAME_MS;
-                match self.input.last_frame {
-                    Some(last) => grid_at_or_after(last + FRAME_MS).max(latest_passed),
-                    None => latest_passed,
-                }
-            });
+            || self.observers_due())
+        .then(|| self.grid_frame_time());
         match (self.input.frame_due, callbacks) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
@@ -112,7 +157,13 @@ impl Page {
     /// callbacks (a page with a `requestAnimationFrame` loop can still be
     /// idle).
     pub(super) fn frame_work_due(&self) -> Option<f64> {
-        self.input.frame_due.filter(|_| self.frames_run())
+        let observers = (self.frames_run() && self.observers_due()).then(|| self.grid_frame_time());
+        self.input
+            .frame_due
+            .filter(|_| self.frames_run())
+            .into_iter()
+            .chain(observers)
+            .reduce(f64::min)
     }
 
     /// The rendering update of a frame that is due: `resize`, `scroll`,
@@ -144,6 +195,21 @@ impl Page {
         {
             self.run_task(|s| s.run_animation_frame_callbacks(due));
             ran = true;
+        }
+        // Style and layout, then the observers (HTML "update the
+        // rendering"): resize observers, then intersection observers.
+        if self
+            .script
+            .as_ref()
+            .is_some_and(ScriptRuntime::has_observations)
+        {
+            ran |= self
+                .run_task(ScriptRuntime::run_resize_observers)
+                .unwrap_or(false);
+            ran |= self
+                .run_task(|s| s.update_intersection_observers(due))
+                .unwrap_or(false);
+            self.input.observed = self.observed_state();
         }
         ran
     }

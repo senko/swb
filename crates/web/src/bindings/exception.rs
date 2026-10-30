@@ -98,7 +98,15 @@ impl Exception {
     /// "Failed to read the 'member' property from 'Dictionary': ...".
     #[must_use]
     pub fn member(self, member: &str, dictionary: &str) -> Exception {
-        match self.nested() {
+        // Chromium words the failure of a union member differently (measured
+        // in feature 9a: `{root: 1}` of `IntersectionObserverInit`).
+        let this = match self {
+            Exception::NotOfType(ty) if ty.starts_with('(') => {
+                Exception::Type(format!("The provided value is not of type '{ty}'.").into())
+            }
+            other => other,
+        };
+        match this.nested() {
             Exception::Type(message) => Exception::Type(
                 format!("Failed to read the '{member}' property from '{dictionary}': {message}")
                     .into(),

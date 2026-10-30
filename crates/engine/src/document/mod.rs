@@ -570,6 +570,10 @@ impl swb_web::EngineHost for DocumentState {
         self.script_content_size(element)
     }
 
+    fn observed_box(&mut self, element: NodeId) -> Option<swb_web::ObservedBox> {
+        self.script_observed_box(element)
+    }
+
     fn event_origins(&mut self, target: NodeId) -> Option<swb_web::EventOrigins> {
         self.script_event_origins(target)
     }

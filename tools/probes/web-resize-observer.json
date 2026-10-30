@@ -1,0 +1,267 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "ro-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}</style><div id=e1 style=\"width:100px;height:50px\"></div><div id=e0 style=\"width:0;height:0\"></div><div id=e2 style=\"display:none;width:30px;height:30px\"></div><div id=e3 style=\"width:100px;height:50px;padding:5px 7px;border:3px solid;margin:4px\"></div><div id=e4 style=\"width:33.333px;height:20.5px\"></div><span id=e5>inline text</span><svg id=sv width=200 height=100><rect id=r1 x=10 y=10 width=50 height=30></rect><g id=g1><rect width=20 height=20></rect></g></svg><div id=e6 style=\"width:100px;height:50px;box-sizing:border-box;padding:10px;border:2px solid\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst sz = (s) => s ? (Array.isArray(s) ? s.map((x) => x.inlineSize + 'x' + x.blockSize).join('|') : 'notarray') : 'null';\nconst cr = (r) => [r.x, r.y, r.width, r.height, r.top, r.right, r.bottom, r.left].map((n) => +n.toFixed(2)).join(',');\nconst ent = (e) => [e.target.id || e.target.localName, 'cr=' + cr(e.contentRect), 'bb=' + sz(e.borderBoxSize), 'cb=' + sz(e.contentBoxSize), 'dp=' + sz(e.devicePixelContentBoxSize)].join(' ');\nconst OBS = [];\nconst SAVED = {};\nfor (const el of document.querySelectorAll('[id]')) SAVED[el.id] = [el, el.style.cssText];\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  for (const id in SAVED) { const [el, css] = SAVED[id]; el.style.cssText = css; if (!el.isConnected) document.body.appendChild(el); }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new ResizeObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); });\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(100);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof ResizeObserver, ResizeObserver.length, ResizeObserver.name, typeof ResizeObserverEntry, typeof ResizeObserverSize]"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(ResizeObserver.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(ResizeObserverEntry.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(ResizeObserverSize.prototype).sort().join()"
+    },
+    {
+     "js": "['observe', 'unobserve', 'disconnect'].map((n) => ResizeObserver.prototype[n].length).join()"
+    },
+    {
+     "js": "E(() => new ResizeObserver())"
+    },
+    {
+     "js": "E(() => new ResizeObserver(1))"
+    },
+    {
+     "js": "E(() => ResizeObserver(() => {}))"
+    },
+    {
+     "js": "E(() => new ResizeObserverEntry())"
+    },
+    {
+     "js": "E(() => new ResizeObserverSize())"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe())"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(1))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(document))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, {box: 'x'}))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, {box: 'padding-box'}))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, {box: 'device-pixel-content-box'}))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, 1))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, null))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).observe(e1, {}))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).unobserve())"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).unobserve(e1))"
+    },
+    {
+     "js": "E(() => new ResizeObserver(() => {}).unobserve(1))"
+    },
+    {
+     "js": "E(() => { const o = new ResizeObserver(() => {}); return [o.observe(e1), o.unobserve(e1), o.disconnect()]; })"
+    },
+    {
+     "js": "E(() => ResizeObserver.prototype.observe.call({}, e1))"
+    },
+    {
+     "js": "E(() => Object.prototype.toString.call(new ResizeObserver(() => {})))"
+    },
+    {
+     "js": "E(() => [Object.prototype.toString.call(ResizeObserverEntry.prototype), Object.prototype.toString.call(ResizeObserverSize.prototype)])"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(ResizeObserverEntry.prototype).filter((n) => Object.getOwnPropertyDescriptor(ResizeObserverEntry.prototype, n).get).join()"
+    }
+   ]
+  },
+  {
+   "name": "ro-basic",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}</style><div id=e1 style=\"width:100px;height:50px\"></div><div id=e0 style=\"width:0;height:0\"></div><div id=e2 style=\"display:none;width:30px;height:30px\"></div><div id=e3 style=\"width:100px;height:50px;padding:5px 7px;border:3px solid;margin:4px\"></div><div id=e4 style=\"width:33.333px;height:20.5px\"></div><span id=e5>inline text</span><svg id=sv width=200 height=100><rect id=r1 x=10 y=10 width=50 height=30></rect><g id=g1><rect width=20 height=20></rect></g></svg><div id=e6 style=\"width:100px;height:50px;box-sizing:border-box;padding:10px;border:2px solid\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst sz = (s) => s ? (Array.isArray(s) ? s.map((x) => x.inlineSize + 'x' + x.blockSize).join('|') : 'notarray') : 'null';\nconst cr = (r) => [r.x, r.y, r.width, r.height, r.top, r.right, r.bottom, r.left].map((n) => +n.toFixed(2)).join(',');\nconst ent = (e) => [e.target.id || e.target.localName, 'cr=' + cr(e.contentRect), 'bb=' + sz(e.borderBoxSize), 'cb=' + sz(e.contentBoxSize), 'dp=' + sz(e.devicePixelContentBoxSize)].join(' ');\nconst OBS = [];\nconst SAVED = {};\nfor (const el of document.querySelectorAll('[id]')) SAVED[el.id] = [el, el.style.cssText];\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  for (const id in SAVED) { const [el, css] = SAVED[id]; el.style.cssText = css; if (!el.isConnected) document.body.appendChild(el); }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new ResizeObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); });\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(100);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); [e1, e0, e2, e3, e4, e5, e6].forEach((t) => o.observe(t)); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); o.observe(e1); o.observe(e1); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e3, {box: 'border-box'}); o.observe(e4, {box: 'border-box'}); o.observe(e6, {box: 'border-box'}); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e3, {box: 'device-pixel-content-box'}); o.observe(e4, {box: 'device-pixel-content-box'}); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(sv); o.observe(r1); o.observe(g1); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e0); o.observe(e2); await settle(); L.push('-- show'); e2.style.display = 'block'; await settle(); L.push('-- hide'); e2.style.display = 'none'; await settle(); L.push('-- grow'); e0.style.width = '10px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; let got = null; const o = new ResizeObserver((es) => { got = es[0]; }); OBS.push(o); o.observe(e3); await settle(); L.push([got.contentBoxSize === got.contentBoxSize, Array.isArray(got.contentBoxSize), Object.isFrozen(got.contentBoxSize), got.contentBoxSize.length, got.contentBoxSize[0] instanceof ResizeObserverSize, Object.isFrozen(got.contentBoxSize[0]), got.contentRect instanceof DOMRectReadOnly, got.contentRect === got.contentRect, typeof got.borderBoxSize[0].inlineSize, got.target === e3].join()); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); L.push('-- width'); e1.style.width = '120px'; await settle(); L.push('-- same'); e1.style.width = '120px'; await settle(); L.push('-- height'); e1.style.height = '60px'; await settle(); L.push('-- both back'); e1.style.cssText = 'width:100px;height:50px'; await settle(); L.push('-- background only'); e1.style.background = 'red'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e3); await settle(); L.push('-- border'); e3.style.borderWidth = '6px'; await settle(); L.push('-- padding'); e3.style.padding = '8px 9px'; await settle(); L.push('-- margin'); e3.style.margin = '20px'; await settle(); L.push('-- transform'); e3.style.transform = 'scale(2)'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e3, {box: 'border-box'}); await settle(); L.push('-- padding'); e3.style.padding = '8px 9px'; await settle(); L.push('-- width'); e3.style.width = '90px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e3, {box: 'content-box'}); await settle(); L.push('-- padding same box'); e3.style.padding = '8px 9px'; await settle(); L.push('-- border-box too'); o.observe(e3, {box: 'border-box'}); await settle(); L.push('-- width'); e3.style.width = '90px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); o.observe(e0); await settle(); L.push('-- unobserve'); o.unobserve(e1); e1.style.width = '10px'; e0.style.width = '10px'; await settle(); L.push('-- disconnect'); o.disconnect(); e0.style.width = '20px'; await settle(); L.push('-- observe'); o.observe(e0); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); o.unobserve(e1); o.observe(e1); await settle(); L.push('-- again'); o.disconnect(); o.observe(e1); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); const d = document.createElement('div'); d.style.cssText = 'width:10px;height:10px'; o.observe(d); await settle(); document.body.appendChild(d); await settle(); d.remove(); await settle(); L.push('-- reinsert'); document.body.appendChild(d); await settle(); d.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e5); await settle(); L.push('-- more text'); e5.textContent = 'a much longer inline text'; await settle(); L.push('-- block'); e5.style.display = 'block'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e4); await settle(); e4.style.width = '33.3334px'; await settle(); L.push('-- tiny'); e4.style.width = '33.33401px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); L.push('-- writing mode'); e1.style.writingMode = 'vertical-rl'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); L.push('-- zoom'); e1.style.zoom = '2'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); L.push('-- viewport'); e1.style.width = '50%'; await settle(); L.push('-- same size'); e1.style.width = '200px'; await settle(); L.push('-- fraction'); e1.style.width = '50.5%'; await settle(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "ro-nest",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}</style><div id=e1 style=\"width:100px;height:50px\"></div><div id=e0 style=\"width:0;height:0\"></div><div id=e2 style=\"display:none;width:30px;height:30px\"></div><div id=e3 style=\"width:100px;height:50px;padding:5px 7px;border:3px solid;margin:4px\"></div><div id=e4 style=\"width:33.333px;height:20.5px\"></div><span id=e5>inline text</span><svg id=sv width=200 height=100><rect id=r1 x=10 y=10 width=50 height=30></rect><g id=g1><rect width=20 height=20></rect></g></svg><div id=e6 style=\"width:100px;height:50px;box-sizing:border-box;padding:10px;border:2px solid\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst sz = (s) => s ? (Array.isArray(s) ? s.map((x) => x.inlineSize + 'x' + x.blockSize).join('|') : 'notarray') : 'null';\nconst cr = (r) => [r.x, r.y, r.width, r.height, r.top, r.right, r.bottom, r.left].map((n) => +n.toFixed(2)).join(',');\nconst ent = (e) => [e.target.id || e.target.localName, 'cr=' + cr(e.contentRect), 'bb=' + sz(e.borderBoxSize), 'cb=' + sz(e.contentBoxSize), 'dp=' + sz(e.devicePixelContentBoxSize)].join(' ');\nconst OBS = [];\nconst SAVED = {};\nfor (const el of document.querySelectorAll('[id]')) SAVED[el.id] = [el, el.style.cssText];\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  for (const id in SAVED) { const [el, css] = SAVED[id]; el.style.cssText = css; if (!el.isConnected) document.body.appendChild(el); }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new ResizeObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); });\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(100);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const p = document.createElement('div'); p.id = 'p'; p.style.cssText = 'width:100px;height:100px'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:100%;height:50%'; p.appendChild(c); document.body.appendChild(p); const o = make({}); o.observe(c); o.observe(p); await settle(); L.push('-- resize parent'); p.style.width = '200px'; await settle(); p.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'a'); const q = make({}, 'b'); o.observe(e1); q.observe(e1); await settle(); L.push('-- resize'); e1.style.width = '70px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = new ResizeObserver(() => { L.push('cb'); e1.style.width = '70px'; e0.style.width = '30px'; }); OBS.push(o); o.observe(e1); o.observe(e0); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; let cbs = 0, errs = 0; const msgs = new Set(); const o = new ResizeObserver(() => { cbs++; e1.style.width = (e1.offsetWidth + 1) + 'px'; }); OBS.push(o); window.addEventListener('error', function h(e) { errs++; msgs.add(['error', e.message, e instanceof ErrorEvent, e.error, e.filename === '' ? 'nofile' : 'file', e.lineno, e.colno, e.bubbles, e.cancelable, e.isTrusted, e.target === window].join()); }); o.observe(e1); await frames(6); await wait(50); L.push('cbs>=4 ' + (cbs >= 4), 'errs>=3 ' + (errs >= 3), 'balanced ' + (Math.abs(cbs - errs) <= 1)); L.push(...msgs); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; let cbs = 0; const msgs = new Set(); window.onerror = (m, f, l, c, err) => { msgs.add('onerror ' + m + ' | ' + typeof err + ' ' + l + ' ' + c); return true; }; const o = new ResizeObserver(() => { cbs++; e1.style.width = (e1.offsetWidth + 1) + 'px'; }); OBS.push(o); o.observe(e1); await frames(5); await wait(50); o.disconnect(); const n = cbs; await frames(3); L.push('cbs>=3 ' + (cbs >= 3), 'stopped ' + (cbs === n)); L.push(...msgs); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; let n = 0; const o = new ResizeObserver(() => { n++; e1.style.width = (e1.offsetWidth + 1) + 'px'; }); OBS.push(o); window.onerror = () => true; o.observe(e1); await frames(5); await wait(50); L.push('n>=3 ' + (n >= 3)); const n1 = n; await frames(4); L.push('goes on ' + (n > n1)); o.disconnect(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const p = document.createElement('div'); p.id = 'p'; p.style.cssText = 'width:100px;height:100px'; const c = document.createElement('div'); c.id = 'c'; c.style.cssText = 'width:50px;height:20px'; p.appendChild(c); document.body.appendChild(p); const o = new ResizeObserver((es) => { L.push('parent ' + es.length); c.style.width = (c.offsetWidth + 1) + 'px'; }); const q = new ResizeObserver((es) => { L.push('child ' + es.length); }); OBS.push(o, q); window.onerror = (m) => { L.push('onerror ' + m); return true; }; q.observe(c); await settle(); L.push('-- observe parent'); o.observe(p); await settle(); L.push('-- resize'); p.style.width = '150px'; await settle(); p.remove(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = new ResizeObserver(() => { L.push('cb'); throw new Error('boom'); }); OBS.push(o); window.onerror = (m) => { L.push('onerror ' + m); return true; }; o.observe(e1); await settle(); e1.style.width = '20px'; await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}); o.observe(e1); await settle(); L.push('-- resize in microtask'); e1.style.width = '20px'; await Promise.resolve(); e1.style.width = '30px'; await settle(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "ro-order",
+   "html": "<!DOCTYPE html><html><head></head><body><style>html,body{margin:0}</style><div id=e1 style=\"width:100px;height:50px\"></div><div id=e0 style=\"width:0;height:0\"></div><div id=e2 style=\"display:none;width:30px;height:30px\"></div><div id=e3 style=\"width:100px;height:50px;padding:5px 7px;border:3px solid;margin:4px\"></div><div id=e4 style=\"width:33.333px;height:20.5px\"></div><span id=e5>inline text</span><svg id=sv width=200 height=100><rect id=r1 x=10 y=10 width=50 height=30></rect><g id=g1><rect width=20 height=20></rect></g></svg><div id=e6 style=\"width:100px;height:50px;box-sizing:border-box;padding:10px;border:2px solid\"></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nconst sz = (s) => s ? (Array.isArray(s) ? s.map((x) => x.inlineSize + 'x' + x.blockSize).join('|') : 'notarray') : 'null';\nconst cr = (r) => [r.x, r.y, r.width, r.height, r.top, r.right, r.bottom, r.left].map((n) => +n.toFixed(2)).join(',');\nconst ent = (e) => [e.target.id || e.target.localName, 'cr=' + cr(e.contentRect), 'bb=' + sz(e.borderBoxSize), 'cb=' + sz(e.contentBoxSize), 'dp=' + sz(e.devicePixelContentBoxSize)].join(' ');\nconst OBS = [];\nconst SAVED = {};\nfor (const el of document.querySelectorAll('[id]')) SAVED[el.id] = [el, el.style.cssText];\nfunction reset() {\n  OBS.splice(0).forEach((o) => o.disconnect());\n  for (const id in SAVED) { const [el, css] = SAVED[id]; el.style.cssText = css; if (!el.isConnected) document.body.appendChild(el); }\n  window.onerror = null;\n}\nfunction make(opts, name) {\n  const o = new ResizeObserver(function (es, ob) { L.push((name || 'cb') + ' ' + es.length + (ob === o ? '' : ' wrong-observer') + (this === o ? '' : ' wrong-this')); es.forEach((e) => L.push(ent(e))); });\n  OBS.push(o);\n  return o;\n}\nfunction frames(n) { return new Promise((res) => { let i = 0; const step = () => { if (++i >= n) res(); else requestAnimationFrame(step); }; requestAnimationFrame(step); }); }\nconst settle = () => wait(100);\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); requestAnimationFrame(() => L.push('raf1')); setTimeout(() => L.push('timeout0'), 0); Promise.resolve().then(() => L.push('micro')); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); await frames(1); L.push('frame1'); await frames(1); L.push('frame2'); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); requestAnimationFrame(() => { L.push('raf1'); e1.style.width = '70px'; }); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); await settle(); L.push('-- change'); e1.style.width = '70px'; setTimeout(() => L.push('timeout0'), 0); requestAnimationFrame(() => L.push('raf')); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); await settle(); L.push('-- change in task'); setTimeout(() => { e1.style.width = '70px'; L.push('changed'); }, 0); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); const i = new IntersectionObserver((es) => L.push('io ' + es.length)); OBS.push(i); i.observe(e1); o.observe(e1); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); await settle(); L.push('-- change'); e1.style.width = '70px'; L.push('sync offsetWidth ' + e1.offsetWidth); await settle(); reset(); return L; })()"
+    },
+    {
+     "js": "(async () => { reset(); await settle(); L.length = 0; const o = make({}, 'ro'); o.observe(e1); await settle(); L.push('-- via getBoundingClientRect'); e1.style.width = '71px'; e1.getBoundingClientRect(); L.push('queried'); await settle(); reset(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "ro-extra",
+   "html": "<!DOCTYPE html><html><head><style>html,body{margin:0}</style></head><body></body><script>\nwindow.L=[];\nconst rf=(r)=>r?[r.x,r.y,r.width,r.height].map(n=>+n.toFixed(3)).join(','):'null';\nconst sz=(a)=>a.map(s=>s.inlineSize+'x'+s.blockSize).join('|');\nconst ent=(e)=>[e.target.id,rf(e.contentRect),'b:'+sz(e.borderBoxSize),'c:'+sz(e.contentBoxSize),'d:'+sz(e.devicePixelContentBoxSize)].join(' ');\nfunction wait(ms){return new Promise(r=>setTimeout(r,ms));}\nasync function run(html, opts, targets, after){\n  document.body.innerHTML=html; L.length=0;\n  await wait(50);\n  const o=new ResizeObserver((es)=>{L.push('cb '+es.length); es.forEach(e=>L.push(ent(e)));});\n  targets.forEach(t=>o.observe(document.getElementById(t),opts));\n  await wait(100);\n  if(after){ await after(o); await wait(100);}\n  o.disconnect(); return L.slice();\n}\nconst $=(i)=>document.getElementById(i);\n</script></html>",
+   "measure": [
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100.4px;height:33.33px;padding:3.3px;border:1.7px solid\"></div>',{box:'border-box'},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100.4px;height:33.33px;padding:3.3px;border:1.7px solid\"></div>',{box:'device-pixel-content-box'},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px;overflow:scroll\"><div style=\"height:500px\"></div></div>',{},['t']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"display:contents\"><span>a</span></div><span id=u>abc</span><div id=v style=\"display:table-cell;width:30px;height:20px\"></div>',{},['t','u','v']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px;transform:scale(2)\"></div>',{},['t'],async()=>{$('t').style.transform='scale(3)';}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px\"></div>',{},['t'],async()=>{$('t').style.height='50.001px';await wait(50);$('t').style.height='50.01px';}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px\"></div>',{box:'border-box'},['t'],async()=>{$('t').style.padding='5px';await wait(50);$('t').style.border='2px solid'; }))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px\"></div>',{},['t'],async(o)=>{o.observe($('t'),{box:'border-box'});await wait(50);$('t').style.width='101px'}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:100px;height:50px\"></div>',{},['t'],async(o)=>{$('t').style.display='none';await wait(50);$('t').style.display='block';}))()"
+    },
+    {
+     "js": "(async()=>run('<input id=t value=abc><textarea id=u></textarea><img id=v width=30 height=20><button id=w>b</button>',{},['t','u','v','w']))()"
+    },
+    {
+     "js": "(async()=>run('<svg id=t width=100 height=50><rect id=u width=30 height=20 /></svg>',{},['t','u']))()"
+    },
+    {
+     "js": "(async()=>run('<div id=a style=\"width:100px\"><div id=b style=\"width:50px\"><div id=c style=\"width:20px\"></div></div></div>',{},['a','b','c'],async()=>{}))()"
+    },
+    {
+     "js": "(async()=>run('<div id=t style=\"width:50%;height:10vh;font-size:20px;line-height:2\"></div>',{},['t'],async()=>{window.resizeBy&&0}))()"
+    }
+   ]
+  }
+ ]
+}

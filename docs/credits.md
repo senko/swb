@@ -141,6 +141,20 @@ Format: source, license (for code), what it influenced.
   of `Storage` and `document.cookie` (BSD-3-Clause, as above); the
   `Storage` methods and the cookie-averse checks
   (`crates/web/src/storage.rs`, `cookie.rs`).
+- WHATWG DOM (mutation observers, §4.3), M8 feature 9a — the IDL of
+  `MutationObserver` and `MutationRecord` in `crates/web/idl/dom.idl`
+  (BSD-3-Clause, as above); "queue a mutation record" and "notify
+  mutation observers" (`crates/web/src/mutation_registry.rs`,
+  `mutation_observer.rs`).
+- W3C Intersection Observer and Resize Observer Module Level 1, M8
+  feature 9a — https://w3c.github.io/IntersectionObserver/ and
+  https://drafts.csswg.org/resize-observer/ — the IDL in
+  `crates/web/idl/intersection-observer.idl` and `resize-observer.idl`
+  (W3C Software and Document License, `THIRD_PARTY_NOTICES.md`); the
+  intersection update steps and the gather and broadcast loop of
+  resize observations (`crates/web/src/intersection_observer.rs`,
+  `resize_observer.rs`). Chromium's record order, entry values and
+  error texts come from black-box measurements (ADR 0021).
 - CSS specifications (W3C CSS WG) — https://www.w3.org/Style/CSS/specs.en.html
   - CSS 2.2 (visual formatting model, box model, tables, floats)
   - CSS Syntax Level 3 (tokenizer and parser)

@@ -10,7 +10,7 @@ use swb_style::{Cursor, ElementStates, UserSelect};
 
 use super::Page;
 use super::events::Down;
-use super::frame::ScrollSeen;
+use super::frame::{ObservedState, ScrollSeen};
 use crate::document::is_rendered_in;
 use crate::focus;
 use crate::hit_test::{self, HitResult};
@@ -88,6 +88,8 @@ pub(super) struct InputState {
     pub(super) resized: bool,
     /// The scroll offsets that `scroll` events were last fired for.
     pub(super) scroll_seen: ScrollSeen,
+    /// What the intersection and resize observers saw at the last frame.
+    pub(super) observed: Option<ObservedState>,
     /// The scroll containers in the order they scrolled since the last
     /// frame: the `scroll` events follow this order (CSSOM View "run the
     /// scroll steps": the order the targets were added; measured).

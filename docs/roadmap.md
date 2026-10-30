@@ -3325,6 +3325,62 @@ Steps:
         its error). Tests: record lists against Chromium; observers in
         virtual time while scrolling; hostile: a mutation observer that
         mutates in its callback without end.
+        Done 2026-10-30. `MutationObserver`: a registry of Rust data
+        (registered and transient registered observers, queued records)
+        is the document's mutation sink from the first `observe()`, so
+        a document without observers pays nothing; `MutationRecord`
+        objects are made at delivery or `takeRecords()`; the delivery
+        microtask is queued after native calls and at checkpoints, so
+        promise jobs keep Chromium's order. The parser's records equal
+        Chromium's; the parser now makes a microtask checkpoint before
+        each parser-inserted script (HTML; the step was missing). `dom`
+        follows Chromium's record order for moves inside a parent,
+        `normalize` and `splitText`. An observer lives from `observe()`
+        to `disconnect()`; at most 131,072 records and 500,000
+        transient registered observers wait, and the work of the
+        mutation sink counts against the task's time limit. `IntersectionObserver` and `ResizeObserver`
+        run in the rendering update after the animation frame
+        callbacks; frames are due while observers exist and the DOM,
+        style, layout, a scroll offset or the viewport changed, so a
+        page that only observes stays idle. Intersection: the implicit
+        or an element root, `rootMargin`, thresholds, clipping by the
+        containing block chain, the first notification, entries in a
+        task. Resize: the depth loop of the standard, Chromium's loop
+        error at the window, the three boxes. Probes
+        `web-mutation-observer.json` (145 queries),
+        `web-intersection-observer.json` (121) and
+        `web-resize-observer.json` (76), three equal Chromium runs
+        each; swb differs in 8 listed departures (`Attr` cannot be
+        observed, the old value of `style` after CSSOM writes,
+        `replaceWith(self)`, `style.setProperty('x', …)` (no `x`
+        property), `clip-path`, `scrollMargin`, `delay` and
+        `trackVisibility` without effect, new arrays at each read of a
+        resize entry, no vertical writing modes). The `innerText`
+        departure of 7b2 is gone. `compare --js` scores and console
+        errors unchanged (Wikipedia still loads `web2017-polyfills`
+        without `fetch`); JS off: snapshot identical; JS-on load time
+        without observers within noise; runtime heap +574 bytes; a
+        native call costs about 2 % more (1,000,000 `getAttribute`
+        calls: 200 → 205 ms); hostile 225 cases, 224 ok + the known
+        failure (6 new). Review fixes: the record bound was 1,000,000,
+        more than the 256 MiB heap can deliver (450,000 records
+        stopped the scripts); the transient registrations were a list
+        (200,000 removals under a subtree observer: 4.6 s, now 0.1 s)
+        and the sink's work did not count against the time limit
+        (3,000 observers × 3,000 removals: 13.3 s in one task, now
+        0.4 s); the interested observers of a change and the target
+        lists of the intersection and resize observers are indexed
+        (100,000 targets: `observe` 1.9 s → 28 ms, the first resize
+        frame 2.4 → 0.4 s); a termination during the delivery kept the
+        later observers from their turn; resize sizes are layout units
+        as in `getBoundingClientRect`, and percent root margins are cut
+        to whole pixels (measured). Delta review: with a full queue,
+        each change still copied its record for every observer before
+        it dropped it (2,000 observers with old values of 100 KB ran to
+        the time limit); the limits are now checked before the copy. A
+        termination at the start of a checkpoint left the queued jobs
+        for the next task; they are dropped, as after a termination in
+        a job.
       - 9b: forms from scripts: `value`, `defaultValue`, `checked`,
         `defaultChecked`, `selected`, `selectedIndex`, `disabled`,
         `form`, `elements`, `type`, with the dirty flags of ADR 0013;
@@ -3898,7 +3954,30 @@ Steps:
   `IntersectionObserver` and `fetch` exist (features 9a and 10a); until
   then its `load.php` batch is not in the fixture, and 10 collapsible
   tables stay hidden (`compare --js` size .465, relative .461); check
-  after 10a that the URL matches the fixture.
+  after 10a that the URL matches the fixture (after 9a it still loads
+  them: `fetch` is missing).
+- `web`/`dom` (found in feature 9a): `IntersectionObserver` options
+  `scrollMargin`, `delay` and `trackVisibility` have no effect and
+  `isVisible` is false; `clip-path` and masks do not clip a target;
+  the clips use the transformed border box minus the border widths
+  (wrong under scale transforms). `ResizeObserverEntry` arrays are not
+  `[SameObject]`; no vertical writing modes; `zoom` is not undone.
+  `MutationObserver`: `replaceWith(self)` makes one record (Chromium
+  two); the old value of `style` after CSSOM writes is the live text
+  (Chromium's is stale); a change through a hook of a legacy platform
+  object (`dataset`, `style` setters) queues the delivery microtask at
+  the next native call or checkpoint, so its order against promise
+  jobs inside one script can differ. Missing, found by the probes: the
+  `contentEditable`, `popover` and `Element.slot` setters write no
+  attribute; `Range`, `createProcessingInstruction`, `document.write`,
+  `setSelectionRange`. `Page::observers_due` copies the scroll offsets
+  at each turn while observers exist (a generation counter in the
+  scrollers would avoid it). Records past 131,072 in one task are
+  dropped (Chromium delivers them all): a registry keeps a Rust copy of
+  each record next to the JavaScript objects of the delivery; a
+  `MutationRecord` made on access would raise the bound. The SVG
+  geometry properties `x`, `y`, `cx`, `cy`, `r`, `rx`, `ry` are not CSS
+  properties in swb (`style.setProperty('x', '1')` changes nothing).
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some
@@ -4073,9 +4152,7 @@ Steps:
   Chromium 148 does not. The serialization of a general-enclosed
   condition is cut short (`matchMedia("(".repeat(10000)).media` has 130
   characters, Chromium 19,999).
-- `web` (found in feature 7b2): no `MutationObserver` (9a), so the
-  single record of the `innerText` setter is not checked. The
-  `innerText` of an inline element starts a line (Chromium keeps a
+- `web` (found in feature 7b2): the `innerText` of an inline element starts a line (Chromium keeps a
   leading space when its line has text before it). No
   `content-visibility`; MathML elements are plain. Animation frame
   times are coarsened to 0.1 ms like `performance.now()` (Chromium

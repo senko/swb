@@ -70,11 +70,15 @@ pub mod generated;
 mod host;
 mod html;
 mod idle_callbacks;
+mod intersection_observer;
 mod location;
 mod media_queries;
+mod mutation_observer;
+mod mutation_registry;
 mod navigator;
 mod performance;
 mod performance_observer;
+mod resize_observer;
 mod runtime;
 mod scripts;
 mod state;
@@ -89,8 +93,8 @@ mod window;
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo, NavigationKind, OffsetMetrics,
-    ScrollAlign, ScrollMetrics, ScrollRequest, Viewport,
+    ControlWrite, DomRect, EngineHost, EventOrigins, NavigationInfo, NavigationKind, ObservedBox,
+    ObservedPosition, OffsetMetrics, ScrollAlign, ScrollMetrics, ScrollRequest, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{

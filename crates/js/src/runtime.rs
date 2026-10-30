@@ -859,6 +859,19 @@ impl Runtime {
         self.enqueue_callback_job(callback);
     }
 
+    /// Creates a native function object in `realm` that the host can pass
+    /// to [`Runtime::queue_microtask`] (the mutation observer microtask of
+    /// DOM §4.3.1). The result is recorded in the current handle scope: the
+    /// host keeps it in its state (traced) to use it again.
+    pub fn new_host_function(
+        &mut self,
+        realm: u32,
+        name: &str,
+        func: NativeFn,
+    ) -> VmResult<Gc<Object>> {
+        self.new_native_function(realm, name, 0, func)
+    }
+
     /// `[[PromiseIsHandled]]` of a promise: whether it has (or had) a
     /// handler; `None` for a value that is not a promise. HTML checks it
     /// before it fires `unhandledrejection`.

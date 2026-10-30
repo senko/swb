@@ -108,6 +108,45 @@ pub struct Viewport {
     pub scale: f64,
 }
 
+/// The `position` of an element, as the observers need it to find the
+/// containing block chain (CSS Positioned Layout).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ObservedPosition {
+    /// `static`.
+    #[default]
+    Static,
+    /// `relative` or `sticky`.
+    Relative,
+    /// `absolute`.
+    Absolute,
+    /// `fixed`.
+    Fixed,
+}
+
+/// The layout box of an element for the intersection and resize observers
+/// (feature 9a): the first box fragment as layout placed it (no transforms),
+/// in CSS px, with the sizes in layout units (multiples of 1/64 px).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ObservedBox {
+    /// The width and height of the border box.
+    pub border_size: (f64, f64),
+    /// The width and height of the content box.
+    pub content_size: (f64, f64),
+    /// The padding on the left and on the top (`contentRect.x` and `.y`).
+    pub padding_origin: (f64, f64),
+    /// The border widths: top, right, bottom, left.
+    pub border_widths: [f64; 4],
+    /// True if the box is a part of an inline box: it has no size.
+    pub inline: bool,
+    /// The `position`.
+    pub position: ObservedPosition,
+    /// True if the element has a transform (it is the containing block of
+    /// absolutely and fixed positioned boxes).
+    pub transformed: bool,
+    /// True if `overflow` clips the content on either axis.
+    pub clips: bool,
+}
+
 /// The points that a dispatched mouse event is relative to (`offsetX` and
 /// `layerX`), in document coordinates.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -545,6 +584,14 @@ pub trait EngineHost: Any {
     /// The size of the content box of the first box of `element` in CSS px
     /// (`img.width` of a rendered image); `None` if it has no box.
     fn content_size(&mut self, element: NodeId) -> Option<(f64, f64)> {
+        let _ = element;
+        None
+    }
+
+    /// The layout box of `element` for the observers; `None` if it has no
+    /// box (not rendered, detached, `display: none`) or there is no layout.
+    /// Flushes style and layout.
+    fn observed_box(&mut self, element: NodeId) -> Option<ObservedBox> {
         let _ = element;
         None
     }

@@ -164,6 +164,12 @@ pub(crate) struct WebState {
     pub(crate) media_queries: std::collections::BTreeMap<u64, Gc<swb_js::Generic>>,
     /// The `MediaQueryList` objects made so far.
     pub(crate) media_query_count: u64,
+    /// The mutation observers (`mutation_observer.rs`).
+    pub(crate) mutation: crate::mutation_observer::MutationState,
+    /// The intersection observers (`intersection_observer.rs`).
+    pub(crate) io: crate::intersection_observer::IoState,
+    /// The resize observers (`resize_observer.rs`).
+    pub(crate) ro: crate::resize_observer::RoState,
 }
 
 impl HostState for WebState {
@@ -216,6 +222,9 @@ impl HostState for WebState {
         }
         self.event_loop.trace(tracer);
         self.animation_frames.trace(tracer);
+        self.mutation.trace(tracer);
+        self.io.trace(tracer);
+        self.ro.trace(tracer);
         for list in self.media_queries.values() {
             tracer.generic(*list);
         }

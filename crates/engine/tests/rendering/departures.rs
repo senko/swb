@@ -17,12 +17,6 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         r"swb renders MathML as inline text; Chromium makes `math` a block and maps the letter of `mi` to a mathematical italic letter",
     ),
     (
-        r"setter",
-        15,
-        r#""ReferenceError: MutationObserver is not defined""#,
-        r"swb has no `MutationObserver` yet",
-    ),
-    (
         r"parse",
         35,
         r#"["(min-width: calc(100px + 1em))", false]"#,

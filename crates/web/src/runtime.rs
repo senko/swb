@@ -448,6 +448,95 @@ impl ScriptRuntime {
         !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.animation_frames.is_empty())
     }
 
+    // ----- Observers (feature 9a) -----
+
+    /// True if an intersection or resize observer has a target: the engine
+    /// then updates them in the frames that follow a change.
+    pub fn has_observations(&self) -> bool {
+        !self.stopped
+            && crate::state::state(&self.rt)
+                .is_ok_and(|s| s.io.is_observing() || s.ro.is_observing())
+    }
+
+    /// True if an observation was added since the last update: the engine
+    /// runs a frame for it.
+    pub fn observations_requested(&self) -> bool {
+        !self.stopped
+            && crate::state::state(&self.rt).is_ok_and(|s| s.io.requested() || s.ro.requested())
+    }
+
+    /// The resize observer steps of the rendering update (Resize Observer
+    /// §3.4): gathers the active observations and delivers them, again
+    /// below the depth of the shallowest delivered target, until none is
+    /// active; skipped ones fire the loop error. Each callback is a task.
+    /// Returns true if a callback ran.
+    pub fn run_resize_observers(&mut self) -> bool {
+        if self.stopped || !crate::resize_observer::is_observing(&self.rt) {
+            return false;
+        }
+        crate::resize_observer::clear_request(&mut self.rt);
+        let mut ran = false;
+        let mut limit = -1;
+        let mut skipped = false;
+        loop {
+            // Errors are reported.
+            let gathered = self.task("resize observations", |rt| {
+                crate::resize_observer::gather(rt, limit).map_err(|e| match e {
+                    crate::bindings::Exception::Js(error) => task_error(error),
+                    other => task_error(VmError::type_error(format!("{other:?}"))),
+                })
+            });
+            let Ok(gathered) = gathered else { break };
+            skipped = gathered.has_skipped();
+            if !gathered.has_active() || self.stopped {
+                break;
+            }
+            let mut shallowest = i32::MAX;
+            for id in gathered.observers() {
+                if self.stopped {
+                    break;
+                }
+                let depth = self.task("a ResizeObserver callback", |rt| {
+                    crate::resize_observer::broadcast(rt, &gathered, id)
+                });
+                ran = true;
+                if let Ok(depth) = depth {
+                    shallowest = shallowest.min(depth);
+                }
+            }
+            if shallowest == i32::MAX {
+                break;
+            }
+            limit = shallowest;
+        }
+        if skipped && !self.stopped {
+            // The skipped observations stay active: the next frame
+            // delivers them.
+            crate::resize_observer::request(&mut self.rt);
+            let _ = self.task("a resize observer", |rt| {
+                crate::errors::report_resize_loop_error(rt).map_err(task_error)
+            });
+            ran = true;
+        }
+        ran
+    }
+
+    /// The intersection observer steps of the rendering update
+    /// (Intersection Observer "run the update intersection observations
+    /// steps"): computes the observations after layout at the page time
+    /// `frame_time`, queues the entries that changed and the task that
+    /// delivers them. Returns true if it ran.
+    pub fn update_intersection_observers(&mut self, frame_time: f64) -> bool {
+        if self.stopped || !crate::state::state(&self.rt).is_ok_and(|s| s.io.is_observing()) {
+            return false;
+        }
+        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.clock.at(frame_time));
+        let _ = self.task("intersection observations", |rt| {
+            crate::intersection_observer::update(rt, now)
+        });
+        true
+    }
+
     // ----- Idle periods (step 4 of the event loop; feature 8a2) -----
 
     /// True if an idle callback waits: the engine starts an idle period
@@ -527,6 +616,9 @@ impl ScriptRuntime {
             }),
             Task::PerformanceObservers => self.task("performance observers", |rt| {
                 crate::performance_observer::deliver(rt)
+            }),
+            Task::IntersectionObservers => self.task("intersection observers", |rt| {
+                crate::intersection_observer::deliver(rt)
             }),
             Task::IdleTimeout(handle) => self.task("an idle callback", |rt| {
                 crate::idle_callbacks::run(rt, handle, None)

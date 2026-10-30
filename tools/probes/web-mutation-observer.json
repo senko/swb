@@ -1,0 +1,510 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "mo-structure",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "[typeof MutationObserver, MutationObserver.length, MutationObserver.name, Object.prototype.toString.call(new MutationObserver(() => {})), typeof MutationRecord, MutationRecord.length, Object.prototype.toString.call(MutationRecord.prototype)]"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(MutationObserver.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(MutationRecord.prototype).sort().join()"
+    },
+    {
+     "js": "['observe','disconnect','takeRecords'].map(n => [MutationObserver.prototype[n].length, MutationObserver.prototype[n].name]).join('|')"
+    },
+    {
+     "js": "E(() => new MutationObserver())"
+    },
+    {
+     "js": "E(() => new MutationObserver(1))"
+    },
+    {
+     "js": "E(() => new MutationObserver({}))"
+    },
+    {
+     "js": "E(() => MutationObserver(() => {}))"
+    },
+    {
+     "js": "E(() => new MutationRecord())"
+    },
+    {
+     "js": "E(() => MutationRecord())"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe())"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(1, {childList: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe({}, {childList: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, 1))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, null))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, undefined))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributes: false}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {childList: false, attributeOldValue: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributes: false, attributeOldValue: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {characterData: false, characterDataOldValue: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {childList: true, characterDataOldValue: true, characterData: false}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributes: false, attributeFilter: ['id']}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributeFilter: ['id']}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributeFilter: 5}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributeFilter: [1, {toString() { return 'x'; }}]}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {childList: true, subtree: 'yes'}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {subtree: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributeOldValue: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {characterDataOldValue: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {attributes: undefined, childList: undefined, characterData: undefined}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(a, {childList: 1}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(document, {childList: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(document.createDocumentFragment(), {childList: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(document.createTextNode('t'), {characterData: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(document.createAttribute('x'), {attributes: true}))"
+    },
+    {
+     "js": "E(() => new MutationObserver(() => {}).observe(window, {childList: true}))"
+    },
+    {
+     "js": "E(() => { const o = new MutationObserver(() => {}); return [o.observe(a, CL), o.disconnect(), o.takeRecords()]; })"
+    },
+    {
+     "js": "(() => { const o = new MutationObserver(() => {}); return [o.constructor === MutationObserver, Object.getPrototypeOf(o) === MutationObserver.prototype, Object.keys(o).length, o.takeRecords().length, Array.isArray(o.takeRecords())]; })()"
+    },
+    {
+     "js": "E(() => MutationObserver.prototype.observe.call({}, a, CL))"
+    },
+    {
+     "js": "E(() => MutationObserver.prototype.takeRecords.call({}))"
+    },
+    {
+     "js": "E(() => MutationObserver.prototype.disconnect.call({}))"
+    },
+    {
+     "js": "(() => { const o = new MutationObserver(() => {}); o.observe(a, CL); a.appendChild(document.createElement('i')); const r = o.takeRecords(); o.disconnect(); a.lastChild.remove(); const x = r[0]; return [x instanceof MutationRecord, Object.prototype.toString.call(x), Object.keys(x).length, x.addedNodes instanceof NodeList, x.addedNodes === x.addedNodes, x.removedNodes.length, Object.isFrozen(r), x.type, x.attributeName, x.attributeNamespace, x.oldValue, x.previousSibling === null]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(MutationRecord.prototype, 'type'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    }
+   ]
+  },
+  {
+   "name": "mo-options",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributeOldValue: true}, () => { P().id = 'q'; P().setAttribute('id', 'r'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributeFilter: ['id']}, () => { P().id = 'q'; P().title = 'x'; P().setAttribute('ID', 'z'); P().className = 'c' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributeFilter: ['id', 'Title'], attributeOldValue: true}, () => { P().title = 'x'; P().setAttribute('title', 'y'); P().setAttribute('Title', 'z'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributeFilter: []}, () => { P().id = 'q'; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributes: true, attributeFilter: ['id']}, () => { P().id = 'q'; P().title = 'x' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {characterDataOldValue: true}, () => { P().firstChild.data = 'n'; P().appendChild(document.createTextNode('t')) })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {characterDataOldValue: true, subtree: true}, () => { P().firstChild.data = 'n'; P().appendChild(document.createTextNode('t')); P().lastChild.data = 'tt'; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {characterData: true}, () => { P().firstChild.data = 'n'; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {characterData: true, subtree: true}, () => { P().firstChild.data = 'n'; P().firstChild.appendData('m'); P().firstChild.insertData(0, '>'); P().firstChild.deleteData(0, 1); P().firstChild.replaceData(0, 1, 'zz'); P().firstChild.nodeValue = 'v'; P().firstChild.textContent = 'w'; P().firstChild.data = 'w' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {childList: true}, () => { P().appendChild(document.createElement('i')); a.appendChild(document.createElement('i')); P().id='q' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {childList: true, subtree: true}, () => { P().appendChild(document.createElement('i')); a.appendChild(document.createElement('i')); P().id='q' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributes: true, subtree: true}, () => { P().appendChild(document.createElement('i')); a.title='q'; P().id='q'; s1.title='t' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', {attributes: true}, () => { P().id='q'; a.title='z'; a.title='z'; a.setAttribute('title', 'z') })"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {childList: true}); o.observe(a, {attributes: true}); P().id = 'q'; a.appendChild(document.createElement('i')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {childList: true}); o.observe(P(), {attributes: true}); P().id = 'q'; a.appendChild(document.createElement('i')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {childList: true, subtree: true}); o.observe(P(), {attributes: true}); P().id = 'q'; P().appendChild(document.createElement('i')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, subtree: true}); o.observe(P(), {attributes: true, attributeOldValue: true}); P().id = 'q'; P().id = 'r'; const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, attributeOldValue: true, subtree: true}); o.observe(P(), {attributes: true}); P().id = 'q'; P().id = 'r'; const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, attributeFilter: ['id'], subtree: true}); o.observe(P(), {attributes: true, attributeFilter: ['title'], attributeOldValue: true}); P().id = 'q'; P().title = 'r'; const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    }
+   ]
+  },
+  {
+   "name": "mo-operations",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().setAttribute('x', '1'); P().setAttribute('x', '2'); P().removeAttribute('x'); P().removeAttribute('x'); P().toggleAttribute('y'); P().toggleAttribute('y'); P().toggleAttribute('y', true); P().toggleAttribute('y', true); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'u'); P().setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'v'); P().removeAttributeNS('http://www.w3.org/1999/xlink', 'href'); P().setAttributeNS('urn:x', 'a:b', '1'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().classList.add('a'); P().classList.add('a'); P().classList.add('b'); P().classList.remove('a'); P().classList.toggle('c'); P().classList.replace('b', 'd'); P().classList.remove('zz'); P().className = 'k'; P().classList.value = 'm'; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().dataset.foo = 'x'; P().dataset.foo = 'y'; delete P().dataset.foo; delete P().dataset.foo; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { const t = document.createAttribute('t'); t.value = 'v'; P().setAttributeNode(t); t.value = 'w'; P().removeAttributeNode(t); P().attributes.setNamedItem(t); P().attributes.removeNamedItem('t'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().id = 'q'; P().id = 'q'; P().hidden = true; P().hidden = true; P().hidden = false; P().title = 't'; P().lang = 'en'; P().tabIndex = 2; P().draggable = true; P().dir = 'rtl'; P().accessKey = 'k'; P().translate = false; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().style.color = 'red'; P().style.color = 'blue'; P().style.color = 'blue'; P().style.setProperty('margin', '1px'); P().style.removeProperty('margin'); P().style.removeProperty('margin'); P().style.cssText = 'top: 1px'; P().style.cssText = 'top: 1px'; P().setAttribute('style', 'left: 2px'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().style.color = 'red'; P().style.color = ''; P().style.cssText = ''; P().style.width = '1px'; P().style.removeProperty('width'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { s1.style.color = 'red'; const x = s1.getAttribute('style'); s1.style.color = 'blue'; s1.style.color = 'green'; s1.removeAttribute('style'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', CL, () => { P().style.color = 'red'; P().setAttribute('style', 'top: 1px') })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { const i = document.createElement('i'); a.appendChild(i); a.appendChild(i); a.insertBefore(i, P()); a.insertBefore(i, i); a.insertBefore(i, null); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.removeChild(P()); a.appendChild(P()); a.replaceChild(document.createElement('u'), s1); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { const f = document.createDocumentFragment(); f.append(document.createElement('i'), 'txt', document.createElement('u')); a.insertBefore(f, s1); a.appendChild(f); a.appendChild(document.createDocumentFragment()); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.append('x', 'y'); a.prepend('p', document.createElement('i')); a.append(); a.prepend(); a.append('');  })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().before('b'); P().after('a'); s1.replaceWith('r', document.createElement('i')); a.firstChild.remove(); a.firstChild.remove(); const m = document.createElement('m'); m.remove(); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { s1.replaceWith(); P().replaceWith(P()); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.replaceChildren(); a.replaceChildren(); a.replaceChildren('x', document.createElement('i')); a.replaceChildren(a.firstChild); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.textContent = 'abc'; a.textContent = ''; a.textContent = ''; a.textContent = 'def'; a.textContent = 'def' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.innerHTML = '<i>1</i><i>2</i>'; a.innerHTML = ''; a.innerHTML = ''; a.innerHTML = 'x'; a.innerHTML = 'x' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().innerHTML = ''; P().innerHTML = '<b>1</b>'; s1.outerHTML = '<u>1</u><u>2</u>'; a.firstChild.outerHTML = 'plain'; })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { P().insertAdjacentHTML('beforebegin', '<i>1</i>'); P().insertAdjacentHTML('afterbegin', '<i>2</i>'); P().insertAdjacentHTML('beforeend', 'txt'); P().insertAdjacentHTML('afterend', '<i>3</i><i>4</i>'); P().insertAdjacentElement('afterend', document.createElement('e')); P().insertAdjacentText('afterbegin', 'tt'); P().insertAdjacentText('beforebegin', '') })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', ALL, () => { a.innerText = 'a\\nb'; a.innerText = ''; a.innerText = 'c'; a.innerText = 'c'; P().innerText = 'q' })"
+    },
+    {
+     "js": "T('<p id=p1>x</p><span id=s1></span>', SUB, () => { a.innerText = 'a\\nb'; a.innerText = ''; a.innerText = 'c'; a.innerText = 'c'; s1.innerText = 'q'; s1.outerText = 'w' })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { P().normalize(); a.normalize(); P().firstChild.after('tt', 'uu'); P().normalize(); P().lastChild.before(document.createTextNode('')); P().normalize(); })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { P().firstChild.splitText(0); P().firstChild.splitText(1); b1.firstChild.splitText(1); P().lastChild.splitText(1); })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { const t = P().firstChild; const u = t.cloneNode(true); P().cloneNode(true); document.importNode(P(), true); a.cloneNode(true); document.createElement('i').appendChild(t.cloneNode());  })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { const t = P().firstChild; document.adoptNode(P()); a.appendChild(P()); document.adoptNode(t); P().appendChild(t); document.adoptNode(document.createElement('z')); })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', SUB, () => { const d2 = document.implementation.createHTMLDocument(''); const n = d2.adoptNode(P()); d2.body.appendChild(n); n.id = 'moved'; const m = d2.importNode(s1, true); m.id = 'imp'; })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { const c = document.createComment('c'); a.appendChild(c); c.data = 'd'; c.appendData('e'); c.textContent = 'f'; c.nodeValue = 'g'; c.remove(); })"
+    },
+    {
+     "js": "T('<p id=p1>x<b id=b1>y</b>z</p><span id=s1>q</span>', ALL, () => { b1.firstChild.data = 'Y'; b1.firstChild.data = 'Y'; b1.firstChild.replaceData(0, 0, ''); b1.firstChild.appendData(''); b1.firstChild.insertData(1, ''); b1.firstChild.deleteData(0, 0); b1.firstChild.substringData(0, 1) })"
+    }
+   ]
+  },
+  {
+   "name": "mo-forms",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T('<input id=i1 value=v><input id=i2 type=checkbox><textarea id=t1>tx</textarea><select id=sel><option id=o1 value=1>one<option id=o2 value=2 selected>two</select>', ALL, () => { i1.value = 'w'; i1.defaultValue = 'dv'; i1.checked = true; i2.checked = true; i2.defaultChecked = true; i2.indeterminate = true; i1.type = 'text'; i1.name = 'n'; i1.disabled = true; i1.readOnly = true; i1.required = true; i1.placeholder = 'p'; i1.maxLength = 3 })"
+    },
+    {
+     "js": "T('<input id=i1 value=v><input id=i2 type=checkbox><textarea id=t1>tx</textarea><select id=sel><option id=o1 value=1>one<option id=o2 value=2 selected>two</select>', ALL, () => { t1.value = 'new'; t1.defaultValue = 'dflt'; t1.rows = 3; })"
+    },
+    {
+     "js": "T('<input id=i1 value=v><input id=i2 type=checkbox><textarea id=t1>tx</textarea><select id=sel><option id=o1 value=1>one<option id=o2 value=2 selected>two</select>', ALL, () => { sel.value = '1'; sel.selectedIndex = 1; o1.selected = true; o2.selected = false; o1.defaultSelected = true; o1.value = 'x'; o1.text = 'uno'; o1.label = 'lab'; o1.disabled = true; })"
+    },
+    {
+     "js": "T('<input id=i1 value=v><input id=i2 type=checkbox><textarea id=t1>tx</textarea><select id=sel><option id=o1 value=1>one<option id=o2 value=2 selected>two</select>', ALL, () => { sel.add(new Option('three', '3')); sel.remove(0); sel.options[0].remove(); sel.options.length = 0; sel.length = 2; sel.options.add(new Option('x')); })"
+    },
+    {
+     "js": "T('<form id=f1><input id=i1 value=v><input id=i2 type=checkbox></form>', ALL, () => { f1.reset(); i1.value = 'z'; f1.reset(); i2.click(); i2.click(); i1.focus(); i1.blur(); f1.action = 'x'; f1.method = 'post' })"
+    },
+    {
+     "js": "T('<table id=tb><tbody><tr><td>c</td></tr></tbody></table>', ALL, () => { tb.insertRow(); tb.rows[0].insertCell(); tb.deleteRow(0); tb.createCaption(); tb.createTHead(); tb.deleteCaption(); tb.tBodies[0].insertRow(0).insertCell(0).colSpan = 2; })"
+    },
+    {
+     "js": "T('<img id=im src=a.png><a id=an href=x>t</a><details id=dt><summary>s</summary>d</details>', ALL, () => { im.src = 'b.png'; im.alt = 'x'; im.width = 5; im.setAttribute('src', 'b.png'); an.href = 'y'; an.text = 'newtext'; an.target = '_blank'; an.rel = 'noopener'; an.relList.add('x'); dt.open = true; dt.open = true; dt.open = false; })"
+    },
+    {
+     "js": "T('<script id=sc></script><div id=d1 tabindex=0></div>', ALL, () => { sc.text = '1'; sc.textContent = '2'; sc.src = 'x.js'; sc.async = true; sc.type = 'text/plain'; d1.focus(); d1.blur(); d1.scrollTop = 5; d1.scrollIntoView(); d1.click(); d1.getBoundingClientRect(); window.getComputedStyle(d1).color; d1.offsetWidth; })"
+    },
+    {
+     "js": "T('<canvas id=cv></canvas><video id=vd></video><dialog id=dg></dialog>', ALL, () => { cv.width = 10; cv.height = 20; vd.controls = true; vd.muted = true; dg.open = true; dg.setAttribute('open', ''); dg.removeAttribute('open') })"
+    },
+    {
+     "js": "T('<p id=p1 contenteditable=true>x</p>', ALL, () => { p1.spellcheck = false; p1.inert = true; p1.autofocus = true; p1.enterKeyHint = 'go'; p1.inputMode = 'numeric'; p1.autocapitalize = 'words' })"
+    }
+   ]
+  },
+  {
+   "name": "mo-transient",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const out = []; const o = new MutationObserver(() => {}); o.observe(a, SUB); const e = document.createElement('i'); a.appendChild(e); a.removeChild(e); e.id = 'after'; e.appendChild(document.createElement('k')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, subtree: true, attributeOldValue: true}); const p = P(); a.removeChild(p); p.id = 'q1'; p.firstChild.data = 'zz'; const r1 = o.takeRecords().map(R); p.id = 'q2'; const r2 = o.takeRecords().map(R); o.disconnect(); return [r1, r2]; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, subtree: true, attributeOldValue: true}); const p = P(); a.removeChild(p); p.id = 'q1'; const r1 = o.takeRecords().map(R); return new Promise(res => queueMicrotask(() => { p.id = 'q2'; res([r1, o.takeRecords().map(R)]); })); })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, subtree: true}); const p = P(); a.removeChild(p); a.appendChild(p); p.id = 'q1'; const r1 = o.takeRecords().map(R); o.disconnect(); return r1; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const log = []; const o = new MutationObserver(r => { log.push('delivered ' + r.length); }); o.observe(a, {attributes: true, subtree: true}); const p = P(); a.removeChild(p); p.id = 'q1'; return new Promise(res => setTimeout(() => { p.id = 'q2'; setTimeout(() => { o.disconnect(); res(log); }, 10); }, 10)); })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const log = []; const o = new MutationObserver(r => { log.push('delivered ' + r.length + R(r[0])); }); o.observe(a, {attributes: true, subtree: true}); const p = P(); const q = document.createElement('q'); p.appendChild(q); a.removeChild(p); q.id = 'deep'; return new Promise(res => setTimeout(() => { o.disconnect(); res(log); }, 10)); })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const log = []; const o = new MutationObserver(r => { log.push('delivered ' + r.length); }); o.observe(P(), {attributes: true}); const p = P(); a.removeChild(p); p.id = 'q1'; return new Promise(res => setTimeout(() => { o.disconnect(); res(log); }, 10)); })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {attributes: true, subtree: true, attributeOldValue: true}); const o2 = new MutationObserver(() => {}); o2.observe(P(), {attributes: true}); const p = P(); a.removeChild(p); p.id = 'q1'; const r = [o.takeRecords().map(R), o2.takeRecords().map(R)]; o.disconnect(); o2.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {childList: true, subtree: true}); const p = P(); const q = document.createElement('q'); a.removeChild(p); p.appendChild(q); a.appendChild(document.createElement('z')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(a, {childList: true, subtree: true}); const p = P(); const s = s1; a.replaceChildren(); p.appendChild(document.createElement('q')); s.appendChild(document.createElement('w')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    },
+    {
+     "js": "(() => { a.innerHTML = '<p id=p1>x</p><span id=s1></span>'; const o = new MutationObserver(() => {}); o.observe(document.body, {childList: true, subtree: true}); const d2 = document.createElement('div'); d2.innerHTML = '<p></p>'; d2.firstChild.appendChild(document.createElement('s')); a.appendChild(d2); d2.firstChild.appendChild(document.createElement('t')); const r = o.takeRecords().map(R); o.disconnect(); return r; })()"
+    }
+   ]
+  },
+  {
+   "name": "mo-delivery",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(function (r, ob) { L.push(['cb', r.length, this === o, ob === o, arguments.length, r instanceof Array, Object.isFrozen(r), r[0] instanceof MutationRecord].join()); }); o.observe(a, CL); a.appendChild(document.createElement('i')); L.push('sync'); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); Promise.resolve().then(() => L.push('p1')); a.appendChild(document.createElement('i')); Promise.resolve().then(() => L.push('p2')); queueMicrotask(() => L.push('q1')); setTimeout(() => L.push('t0'), 0); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); Promise.resolve().then(() => { L.push('p1'); a.appendChild(document.createElement('i')); Promise.resolve().then(() => L.push('p3')); }); Promise.resolve().then(() => L.push('p2')); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o1 = new MutationObserver(r => L.push('o1 ' + r.length)); const o2 = new MutationObserver(r => L.push('o2 ' + r.length)); const o3 = new MutationObserver(r => L.push('o3 ' + r.length)); o3.observe(a, CL); o2.observe(a, CL); o1.observe(a, CL); a.appendChild(document.createElement('i')); await wait(5); o1.disconnect(); o2.disconnect(); o3.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { L.push('mo ' + r.length); if (L.length < 6) a.appendChild(document.createElement('i')); }); o.observe(a, CL); a.appendChild(document.createElement('i')); Promise.resolve().then(() => L.push('p')); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o1 = new MutationObserver(r => { L.push('o1 ' + r.length); if (L.length < 6) a.appendChild(document.createElement('i')); }); const o2 = new MutationObserver(r => L.push('o2 ' + r.length)); o1.observe(a, CL); o2.observe(a, CL); a.appendChild(document.createElement('i')); await wait(5); L.push('end'); o1.disconnect(); o2.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { L.push('mo ' + r.length); throw new Error('boom'); }); window.onerror = (m) => { L.push('onerror ' + m); return true; }; o.observe(a, CL); a.appendChild(document.createElement('i')); await wait(5); a.appendChild(document.createElement('i')); await wait(5); window.onerror = null; o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); a.appendChild(document.createElement('i')); const t = o.takeRecords(); L.push('taken ' + t.length); L.push('again ' + o.takeRecords().length); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); a.appendChild(document.createElement('i')); o.disconnect(); a.appendChild(document.createElement('i')); await wait(5); L.push('end'); o.observe(a, CL); a.appendChild(document.createElement('i')); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); a.appendChild(document.createElement('i')); o.observe(a, {attributes: true}); a.appendChild(document.createElement('i')); a.title = 'zz'; await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { L.push('mo ' + r.length); o.takeRecords(); o.disconnect(); }); o.observe(a, CL); a.appendChild(document.createElement('i')); a.appendChild(document.createElement('i')); await wait(5); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); a.appendChild(document.createElement('i')); await Promise.resolve(); await Promise.resolve(); L.push('after awaits'); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); const b = document.createElement('div'); o.observe(b, CL); b.appendChild(document.createElement('i')); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => L.push('mo ' + r.length)); o.observe(a, CL); const ev = []; a.addEventListener('click', () => { ev.push('l1'); a.appendChild(document.createElement('i')); Promise.resolve().then(() => ev.push('p')); }); a.addEventListener('click', () => ev.push('l2')); a.click(); L.push(...ev); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { L.push('mo ' + r.length); }); o.observe(document, {childList: true, subtree: true, attributes: true, characterData: true}); document.title = 'newtitle'; document.documentElement.lang = 'x'; await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { r.forEach(x => L.push(R(x))); }); o.observe(document, {childList: true, subtree: true, attributes: true, characterData: true}); document.body.className = 'k'; document.title = 'newtitle'; const s = document.createElement('style'); s.textContent = 'p{color:red}'; document.head.appendChild(s); s.remove(); await wait(5); o.disconnect(); return L; })()"
+    },
+    {
+     "js": "(async () => { L.length = 0; const o = new MutationObserver(r => { r.forEach(x => L.push(R(x))); }); o.observe(a, {childList: true}); const c = a.cloneNode(true); c.removeAttribute('id'); a.appendChild(c); const A = a; document.body.appendChild(A); document.body.appendChild(A); await wait(5); o.disconnect(); return L; })()"
+    }
+   ]
+  },
+  {
+   "name": "parser-document",
+   "html": "<!DOCTYPE html><html><head></head><body><p id=pre>before</p><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nwindow.PL = []; window.PLC = 0;\nvar po = new MutationObserver(function (recs) { PLC++; recs.forEach(r => PL.push(R(r))); }); po.observe(document, {childList: true, subtree: true, attributes: true, characterData: true, attributeOldValue: true, characterDataOldValue: true});</script><p id=p2 class=c>after <b id=b2>bold</b> text</p><div id=d3><span>s</span></div><!-- cmt --><script>PL.push('script2 ' + document.getElementById('d3'));</script><ul><li>one<li>two</ul><table><tr><td>cell</table></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(20); return window.PL; })()"
+    },
+    {
+     "js": "window.PLC"
+    }
+   ]
+  },
+  {
+   "name": "parser-body-only",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=host><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nwindow.PL = []; window.PLC = 0;\nvar po = new MutationObserver(function (recs) { PLC++; recs.forEach(r => PL.push(R(r))); }); po.observe(document.getElementById('host'), {childList: true, subtree: true});</script><i>x</i>text<b>y</b></div></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(20); return window.PL; })()"
+    },
+    {
+     "js": "window.PLC"
+    }
+   ]
+  },
+  {
+   "name": "parser-microtask",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=host><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nwindow.PL = []; window.PLC = 0;\nvar po = new MutationObserver(function (recs) { PL.push('mo ' + recs.length); }); po.observe(document.getElementById('host'), {childList: true, subtree: true});</script><i>x</i><script>PL.push('s2 ' + po.takeRecords().length); Promise.resolve().then(() => PL.push('p'));</script><b>y</b><script>PL.push('s3');</script></div></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(20); return window.PL; })()"
+    },
+    {
+     "js": "window.PLC"
+    }
+   ]
+  },
+  {
+   "name": "parser-load-event",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=host><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\nwindow.PL = []; window.PLC = 0;\nvar po = new MutationObserver(function (recs) { PLC++; recs.forEach(r => PL.push(R(r))); }); po.observe(document, {childList: true, subtree: true, attributes: true, characterData: true});</script></div><script>document.addEventListener('DOMContentLoaded', () => PL.push('dcl')); window.addEventListener('load', () => PL.push('load'));</script></body></html>",
+   "measure": [
+    {
+     "js": "(async () => { await wait(20); return window.PL; })()"
+    },
+    {
+     "js": "window.PLC"
+    }
+   ]
+  },
+  {
+   "name": "mo-style",
+   "html": "<!DOCTYPE html><html><head></head><body><div id=a><p id=p1>x</p><span id=s1></span></div><script>\nwindow.L = [];\nfunction log(x) { L.push(x); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction d(n) { if (!n) return 'null'; if (n.nodeType == 1) return n.localName + (n.id ? '#' + n.id : ''); if (n.nodeType == 3) return '#text(' + n.data + ')'; if (n.nodeType == 8) return '#comment(' + n.data + ')'; if (n.nodeType == 9) return '#document'; if (n.nodeType == 11) return '#fragment'; return n.nodeName; }\nfunction dl(l) { return Array.from(l).map(d).join('|'); }\nfunction R(r) { return [r.type, d(r.target), dl(r.addedNodes), dl(r.removedNodes), d(r.previousSibling), d(r.nextSibling), r.attributeName, r.attributeNamespace, r.oldValue].join(' ; '); }\nfunction RS(recs) { return recs.map(R); }\nconst ALL = {childList: true, subtree: true, attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true};\nvar mo = new MutationObserver(function (recs, o) { L.push('cb ' + recs.length + ' ' + (this === o)); recs.forEach(r => L.push(R(r))); });\n\n// T: sets a's content to html, observes (the target is a unless root() gives another), runs ops,\n// and returns the records as strings (taken by takeRecords).\nfunction T(html, opts, ops, root) {\n  a.innerHTML = html;\n  const o = new MutationObserver(() => {});\n  o.observe(root ? root() : a, opts);\n  let thrown = [];\n  try { ops(); } catch (e) { thrown = ['threw ' + e.name + ': ' + e.message]; }\n  const recs = o.takeRecords();\n  o.disconnect();\n  return recs.map(R).concat(thrown);\n}\nconst CL = {childList: true};\nconst SUB = {childList: true, subtree: true};\nconst AT = {attributes: true, attributeOldValue: true};\nconst CD = {characterData: true, characterDataOldValue: true, subtree: true};\nconst P = () => a.firstElementChild;\n</script></body></html>",
+   "measure": [
+    {
+     "js": "T('<p id=p1>x</p>', ALL, () => { P().style.setProperty('x','1'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p>', ALL, () => { P().setAttribute('style','a:b'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p>', ALL, () => { P().style.color='red'; P().setAttribute('style','a:b'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p>', ALL, () => { P().style.removeProperty('color'); })"
+    },
+    {
+     "js": "T('<p id=p1>x</p>', ALL, () => { P().style.color=''; P().style.cssText=''; })"
+    }
+   ]
+  }
+ ]
+}

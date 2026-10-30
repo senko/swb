@@ -2019,7 +2019,9 @@ events, media query change events, animation frame callbacks, style
 and layout, `ResizeObserver` (the gather and broadcast loop with the
 depth rule; the loop error after its limit), `IntersectionObserver`,
 paint when the GUI presents. Headless mode runs the same steps without
-paint.
+paint. (Feature 9a: while an intersection or resize observer has a target, a
+frame is also due after a change that the observers can see, so they need no
+animation frame loop; see "Feature 9a notes".)
 
 **`requestIdleCallback`:** runs in step 4 with an `IdleDeadline` of at
 most 50 ms; with a `timeout`, a timer task runs it if it is not idle in
@@ -2703,8 +2705,8 @@ each; the Rust test is `crates/engine/tests/rendering.rs` with the cases in
   the text nodes next to it, leaves one empty text node for an empty
   value, and throws `NoModificationAllowedError` ("The element has no
   parent."). Departures: `content-visibility` (swb has none), MathML
-  (Chromium makes `math` a block with italic letters), no
-  `MutationObserver` to see the one record of the setter.
+  (Chromium makes `math` a block with italic letters). (Feature 9a: the
+  setter makes one record, as in Chromium.)
 - **`matchMedia`** (CSSOM View §4.2). A `MediaQueryList` is an event target
   whose generic data holds its listeners and its state (the parsed list of
   `swb_css`, the serialization, the matches state); `matches` evaluates at
@@ -2935,7 +2937,7 @@ are not obvious from the specifications:
   transient registered observers of removed nodes (DOM §4.3).
   `IntersectionObserver` and `ResizeObserver` run in the rendering
   update. `PerformanceObserver` delivers `mark` and `measure` entries
-  only.
+  only. (Feature 9a: see "Feature 9a notes" below.)
 - **`URL`, `URLSearchParams`** over the `url` crate (WHATWG URL);
   `crypto.getRandomValues` and `randomUUID` from the operating system's
   random source, no `crypto.subtle`; `performance.timing` and the
@@ -3245,6 +3247,145 @@ and unit tests per module, and five hostile cases):
   `durationThreshold`; `visibilitychange` from the GUI; `TextDecoderStream` and
   `TextEncoderStream` (no streams); the secure-context rule for `randomUUID`.
 
+Feature 9a notes (`MutationObserver`, `IntersectionObserver`,
+`ResizeObserver`; measured with `tools/probes/web-mutation-observer.json`
+(145 queries), `web-intersection-observer.json` (121) and
+`web-resize-observer.json` (76), three equal Chromium runs each; the Rust
+tests are `crates/web/tests/mutation_observer.rs`,
+`crates/engine/tests/script_observers.rs` and unit tests in
+`mutation_registry.rs` and `intersection_observer.rs`, and six hostile
+cases):
+
+- **`MutationObserver`** (`mutation_registry.rs`, `mutation_observer.rs`).
+  The registry (registered observers per node, transient registered
+  observers, queued records, all Rust data) is the document's mutation sink
+  from the first `observe()`; a document whose scripts never observe pays
+  nothing (the parse without an observer is within noise of the base). A
+  record is made for each interested observer at each primitive change
+  (DOM "queue a mutation record"); `MutationRecord` objects and the
+  `NodeList`s of `addedNodes` and `removedNodes` are made at delivery or at
+  `takeRecords()`. Delivery follows "queue a mutation observer microtask": the
+  registry sets a request flag, the glue of every native call and every
+  microtask checkpoint check it (`mutation_observer::after_call`) and queue
+  one host function as a microtask, so a promise reaction queued before the
+  first change runs before the callback and one queued after it runs after
+  (measured). The callbacks run in creation order, `this` and the second
+  argument the observer, and a record that a callback causes for an observer
+  that has not had its turn comes with that observer's records (measured:
+  `o2` gets 2 records). An exception is reported and the next observer
+  runs. The HTML parser makes a microtask checkpoint before it runs a
+  parser-inserted script (HTML, "an end tag whose tag name is script"; the
+  step was missing), so an observer sees the nodes that the parser inserted
+  since the last script before that script runs (measured). The records of
+  the parser equal Chromium's (the concatenated lists of five cases).
+  Chromium's order for some DOM operations differs from the standard, and
+  `dom` follows Chromium now: a node that is moved inside its parent names
+  the sibling that is left after its removal; `normalize` appends the data
+  of a text node and removes it, node by node; `splitText` truncates the
+  node before it inserts the new one; `textContent` and `innerText` replace
+  a single text child with a new node when an observer exists (the fast
+  path that keeps the node stays when none does).
+  Options and errors are Chromium's (the checks of the old-value and filter
+  options come before the "at least one of" check; measured).
+  *Lifetime*: the binding state holds an observer strongly from `observe()`
+  until `disconnect()`, as the registered observer lists of the (immortal)
+  nodes do; an observer that was never observed or was disconnected is
+  collected when script drops it. *Bounds*: 131,072 records and 128 MiB of
+  record data (old values, names, node lists, 1,024 bytes a record) wait at
+  most, and 500,000 transient registered observers exist at most; later
+  records and later transient registrations are dropped with one warning
+  (section 16 has the measurements). The work of the sink (nodes and
+  registrations visited) is counted in the registry, and the glue of the
+  native call that caused it checks the time limit when 4,096 units have
+  piled up, because native work does not tick the countdown of the VM. The
+  transient registered observers of an observer are a set of nodes
+  (removing 200,000 children one by one under a subtree observer takes
+  0.1 s), and the interested observers of a change are sorted and merged,
+  not searched. A callback that changes the tree again is stopped by the
+  time limit of the checkpoint (the hostile case ends after two tasks that
+  reach the limit, 10 s, not 15 s: measured, the log shows two terminations
+  for each such task, so the rule of section 7 stops the scripts at the
+  third termination, in the second task). A termination in the middle of "notify mutation
+  observers" puts the observers that had no turn back into the notify set,
+  so that the next delivery gives them their records. A removed node gets
+  one transient registered observer per observer and source, not one per
+  removal. *Departures*: `Attr` is not a `Node`, so it cannot be
+  observed; the old value of a `style` attribute change is the live
+  attribute text (Chromium synchronizes the attribute lazily after CSSOM
+  writes and names a stale value); `node.replaceWith(node)` is one record in
+  swb and two in Chromium; `style.setProperty('x', '1')` makes a `style`
+  record in Chromium, where `x` is the SVG geometry property, and none in
+  swb, which has no `x` property (the records of valid properties are
+  equal); `document.write` does not exist yet, so no records
+  of it; `Range` and `createProcessingInstruction` do not exist.
+- **Rendering update** (section 7). Frames are due while observers exist
+  and something changed: `Page::observers_due` compares the DOM generation,
+  the count of style and layout runs, the scroll offsets of the viewport and
+  the containers and the viewport size with what the observers saw at the
+  last frame, and an added observation requests a frame. A page that only
+  observes and does not change is idle. The frame runs, after the animation
+  frame callbacks, `run_resize_observers` and
+  `update_intersection_observers`; style and layout run on demand inside them
+  (the host calls flush). Measured order: `microtask`, `timeout0`, `raf`,
+  `resize observer`, `intersection observer` (the intersection callbacks are
+  a task that the update queues, so they run after the frame).
+- **`IntersectionObserver`** (`intersection_observer.rs`). For each target
+  the update computes the bounding box (`getBoundingClientRect`) and
+  intersects it with the padding boxes of the ancestors in the containing
+  block chain that clip (`overflow` other than `visible`, also `clip`), then
+  with the root; an absolutely positioned target skips ancestors that are
+  not positioned or transformed, a fixed one all but transformed ones;
+  `html` and `body` do not clip. The implicit root is the viewport (a
+  `Document` root too); an element root is its padding box and must be in
+  the containing block chain of the target, else all rectangles are 0, also
+  `rootBounds` (measured, also for a target without a box). Margins are
+  `px` or `%` of the root's size, both cut to whole pixels (a `20%` of a
+  114 px root is 22 px; measured); the thresholds are
+  sorted, empty means `[0]`. An entry is queued when the threshold index or
+  `isIntersecting` changed (the first computation always); a target with
+  zero area intersects with ratio 1 if the boxes touch. Entries are
+  delivered in the order of creation of the observers (Chromium's order of
+  observers is unspecified: it differed between runs, so no probe case
+  depends on it). *Departures*: `scrollMargin`, `delay` and
+  `trackVisibility` are accepted, validated and reported, but have no effect
+  and `isVisible` is false; `clip-path` and masks do not clip; the clips use
+  the transformed border box minus the border widths; a target in an SVG
+  or a shadow tree is treated like any element.
+- **`ResizeObserver`** (`resize_observer.rs`). The loop of the standard:
+  "gather active resize observations at depth" and "broadcast" (each
+  callback is a task), again below the depth of the shallowest delivered
+  target, until none is active; skipped observations fire an `ErrorEvent` at
+  the window (message `ResizeObserver loop completed with undelivered
+  notifications.`, no error object, the document's URL as `filename`, 0:0;
+  measured) and stay active, so the next frame delivers them (a callback that
+  resizes its target without end runs once per frame and reports the error
+  each time; swb logs it like Chromium). The first gather allows every depth
+  (a detached target is delivered at once; measured). A new observation is
+  active at once, also for 0x0, `display: none`, detached and inline
+  targets (size 0). Observing a target again replaces its observation.
+  Sizes are layout units as `getBoundingClientRect` has them (the content
+  size, each padding and each border width are units, and the border box is
+  their sum: a width of 100.4 px with padding 3.3 px and border 1.7 px
+  gives a content box of 100.390625 px and a border box of 108.984375 px);
+  the device pixel box is the content size times the
+  scale, rounded. *Departures*: no vertical writing modes, so inline size is
+  the width; the arrays of an entry are new at each read; `zoom` is not
+  undone; a target without a CSS box in SVG reports `getBBox`.
+- **Engine additions**: `EngineHost::observed_box` (the layout box of an
+  element: border and content sizes, padding origin, border widths, inline,
+  `position`, transform, clip), `ScriptRuntime::has_observations`,
+  `observations_requested`, `run_resize_observers` and
+  `update_intersection_observers`. `js` got `Runtime::new_host_function`
+  (a native function that the host queues as a microtask).
+  `Exception::member` words the failure of a union member as Chromium does
+  (`The provided value is not of type '(Document or Element)'.`).
+- **Not done / backlog**: `scrollMargin`, `delay` and `trackVisibility`
+  effects; `isVisible`; the IDL `[SameObject]` arrays of `ResizeObserverEntry`;
+  `writing-mode`; the observers of elements in frames (M8 has none);
+  `contenteditable`, `popover`, `Element.slot` setters (found by the probe
+  of attribute records: they write no attribute); `document.write` records;
+  `Range`.
+
 ### 14. Frames and media: out of scope
 
 M8 does not render `iframe`, `frame` or `object` documents and runs no
@@ -3306,7 +3447,12 @@ Per document, all settings with these defaults:
 | `localStorage` and `sessionStorage`, each per origin (feature 8b): UTF-16 code units of all keys and values | 5,242,880 (Chromium's quota, measured) | `QuotaExceededError`; the area stays as it was |
 | Keys in one storage area (feature 8b) | 100,000 | `QuotaExceededError` (Chromium has none: its quota in code units allows millions of one-unit keys, which would cost about 100 bytes of memory each) |
 | All storage areas of both kinds and all origins together, in bytes: UTF-8 bytes of keys and values, 64 per key, the origin and 64 per area (feature 8b) | 64 MiB | `QuotaExceededError` (a session that visits many origins holds at most 64 MiB of storage: twelve full areas of ASCII text, four of CJK text) |
-| Mutation observer records waiting | 1,000,000 | further records dropped with a warning |
+| Mutation observer records waiting (feature 9a), over all observers | 131,072 | further records dropped with one warning. The delivery of a full queue makes the JavaScript objects of each record: a callback that reads the type, the target and the added nodes of every record is delivered 150,000 records and reaches the 256 MiB heap limit at 200,000 (about 1.4 KB a record), so the bound leaves room in the heap; Chromium has no bound (it delivers 450,000) |
+| Bytes of the waiting mutation records: old values, names, node lists, 1,024 per record (feature 9a) | 128 MiB | further records dropped with one warning (a loop that sets a long attribute with `attributeOldValue` copies each old value); with the fixed cost, the bytes and the count bound are equal for records without strings |
+| Transient registered observers of mutation observers that exist at once (feature 9a) | 500,000 | further ones are not made, with one warning (records of removals under them are lost); removing 200,000 children one by one under one subtree observer makes 200,000 and takes 0.1 s |
+| Work of the mutation sink: nodes and registrations visited (feature 9a) | 4,096 units, then a check of the time limit | the task ends at its deadline although the work is native (3,000 subtree observers and 3,000 removals took 13.3 s before the bound and the check; now 0.4 s) |
+| Targets of all intersection observers, and of all resize observers, of a document (feature 9a) | 1,048,576 each | the task ends (termination, warning) |
+| Entries that wait in the queue of one intersection observer (feature 9a) | 1,048,576 | later entries are dropped with a warning |
 | Structured clone (feature 8a1): nesting depth, items, bytes of strings and buffers | 4,096, 4,194,304, 512 MiB | `RangeError` (depth) or `RangeError` "The value is too large to clone." |
 | State of one history entry (feature 8a1) | 4 MiB (the history keeps 50 entries) | `DataCloneError` |
 | Traversals of the session history that wait (`back()`, `forward()`, `go()`; feature 8a1) | 64 per task and 64 in the page's queue; one `go(0)` per task | later calls are dropped |

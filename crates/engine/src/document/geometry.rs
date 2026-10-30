@@ -33,7 +33,10 @@ use swb_layout::{
 };
 use swb_style::Position;
 use swb_style::cssom::resolved::layout_unit;
-use swb_web::{DomRect, EventOrigins, OffsetMetrics, ScrollAlign, ScrollMetrics, ScrollRequest};
+use swb_web::{
+    DomRect, EventOrigins, ObservedBox, ObservedPosition, OffsetMetrics, ScrollAlign,
+    ScrollMetrics, ScrollRequest,
+};
 
 use super::DocumentState;
 use crate::scrollers::Align;
@@ -570,6 +573,43 @@ impl DocumentState {
             found.push(root);
         }
         found
+    }
+
+    /// The layout box of `node` for the intersection and resize observers
+    /// (feature 9a); `None` if it has no box.
+    pub(crate) fn script_observed_box(&mut self, node: NodeId) -> Option<ObservedBox> {
+        if !self.geometry_flush(node) {
+            return None;
+        }
+        let g = self.box_geometry(node)?.clone();
+        let style = self.query_computed_style(node, None)?;
+        // As `snap_box`: the content size and each padding and border are
+        // layout units; the border box is their sum (measured: a width of
+        // 100.4 px gives a content box of 100.390625 px).
+        let [bt, br, bb, bl] = g.border.map(|v| f64::from(unit(v)));
+        let [pt, pr, pb, pl] = g.padding.map(|v| f64::from(unit(v)));
+        let [rbt, rbr, rbb, rbl] = g.border;
+        let [rpt, rpr, rpb, rpl] = g.padding;
+        let content_width = f64::from(unit((g.first.width - rbl - rbr - rpl - rpr).max(0.0)));
+        let content_height = f64::from(unit((g.first.height - rbt - rbb - rpt - rpb).max(0.0)));
+        Some(ObservedBox {
+            border_size: (
+                content_width + bl + br + pl + pr,
+                content_height + bt + bb + pt + pb,
+            ),
+            content_size: (content_width, content_height),
+            padding_origin: (pl, pt),
+            border_widths: [bt, br, bb, bl],
+            inline: g.inline,
+            position: match style.position {
+                Position::Absolute => ObservedPosition::Absolute,
+                Position::Fixed => ObservedPosition::Fixed,
+                Position::Static => ObservedPosition::Static,
+                _ => ObservedPosition::Relative,
+            },
+            transformed: style.has_transform(),
+            clips: style.overflow_x.clips() || style.overflow_y.clips(),
+        })
     }
 
     /// The size of the content box of the first box of `node` in layout

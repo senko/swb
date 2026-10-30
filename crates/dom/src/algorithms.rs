@@ -237,18 +237,21 @@ impl Document {
                 self.remove_node(text, false);
                 continue;
             }
-            let mut merged = String::new();
+            // One node at a time: append its data (a "characterData"
+            // record), then remove it (a "childList" record). The standard
+            // appends the data of the whole run at once; Chromium works
+            // node by node (measured, feature 9a), and so do we.
             let mut next = self.node(text).next_sibling;
             while let Some(n) = next {
                 let NodeData::Text(data) = &self.node(n).data else {
                     break;
                 };
-                merged.push_str(data);
+                let data = data.clone();
                 next = self.node(n).next_sibling;
+                if !data.is_empty() {
+                    self.append_data(text, &data)?;
+                }
                 self.remove_node(n, false);
-            }
-            if !merged.is_empty() {
-                self.append_data(text, &merged)?;
             }
         }
         Ok(())

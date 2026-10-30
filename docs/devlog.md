@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 9a, observers
+
+- `MutationObserver`: a registry of Rust data is the document's mutation
+  sink from the first `observe()`; records are JavaScript objects only at
+  delivery or `takeRecords()`. The delivery microtask is queued after
+  native calls and at checkpoints, so promise jobs keep Chromium's order.
+  An observer lives from `observe()` to `disconnect()`; at most 131,072
+  records and 500,000 transient registered observers wait.
+- `IntersectionObserver` and `ResizeObserver` run in the rendering update
+  after the animation frame callbacks. Frames are due while observers
+  exist and something changed (DOM, style, layout, scroll offsets,
+  viewport); a page that only observes stays idle.
+- Learned from Chromium: its record order for a move inside one parent,
+  `normalize` and `splitText` differs from the DOM standard (`dom` now
+  follows Chromium); `textContent` with the same text replaces the node
+  when an observer exists; the parser makes a microtask checkpoint before
+  each parser-inserted script (HTML has the step; swb lacked it); the
+  order of intersection callbacks of several observers changes between
+  runs.
+- Review fixes: the record bound fits the 256 MiB heap now (131,072
+  records; 1,000,000 stopped the scripts at delivery); the work of the
+  mutation sink counts against the task's time limit; the observer and
+  target lists are indexed, so 100,000 targets cost milliseconds; resize
+  sizes are layout units and percent root margins whole pixels, as in
+  Chromium.
+- Probes: 342 queries in three files, three equal Chromium runs; 8 listed
+  departures. `compare --js` scores and console errors unchanged; JS off:
+  snapshot identical; runtime heap +574 bytes. Hostile set 225 cases, 224
+  ok + the known failure (6 new).
+
+Next: feature 9b (forms from scripts).
+
 ## 2026-10-29: M8 feature 8b, cookies and storage
 
 - `document.cookie` reads and writes the page's jar through the

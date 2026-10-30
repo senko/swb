@@ -395,3 +395,40 @@ interface ProcessingInstruction : CharacterData {
 interface Comment : CharacterData {
   constructor(optional DOMString data = "");
 };
+
+// Feature 9a of M8 (2026-10-29): mutation observers (DOM 4.3). Chromium 148
+// has the same members; `observe` takes any Node, and Attr is not a Node in
+// swb (see above), so it is refused there.
+callback MutationCallback = undefined (sequence<MutationRecord> mutations, MutationObserver observer);
+
+[Exposed=Window]
+interface MutationObserver {
+  constructor(MutationCallback callback);
+
+  undefined observe(Node target, optional MutationObserverInit options = {});
+  undefined disconnect();
+  sequence<MutationRecord> takeRecords();
+};
+
+dictionary MutationObserverInit {
+  boolean childList = false;
+  boolean attributes;
+  boolean characterData;
+  boolean subtree = false;
+  boolean attributeOldValue;
+  boolean characterDataOldValue;
+  sequence<DOMString> attributeFilter;
+};
+
+[Exposed=Window]
+interface MutationRecord {
+  readonly attribute DOMString type;
+  [SameObject] readonly attribute Node target;
+  [SameObject] readonly attribute NodeList addedNodes;
+  [SameObject] readonly attribute NodeList removedNodes;
+  readonly attribute Node? previousSibling;
+  readonly attribute Node? nextSibling;
+  readonly attribute DOMString? attributeName;
+  readonly attribute DOMString? attributeNamespace;
+  readonly attribute DOMString? oldValue;
+};
