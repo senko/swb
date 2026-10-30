@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 11d, Craigslist test and exit of feature 11
+
+- Compared the map checks that were left with Chromium. Double click,
+  context menu and the SVG circle are equal. After a drag the map is
+  equal, but swb fires no `click`. The wheel zooms one level where
+  Chromium zooms two: Leaflet halves the wheel delta when the user
+  agent does not contain "chrome".
+- New integration test `craigslist_posting.rs`: one load of the local
+  fixture, 12 step groups (thumbnails, zoom, drag, double click, context
+  menu, wheel, reply, print, share, "copy URL"), 13 records equal to
+  Chromium's; 5 s.
+- Exit of feature 11 met: geometry 0.9804, pixels 0.9976 against the
+  legacy reference (left: the favorites item, which needs the hidden
+  storage frame); load 3.32 s against the budget of 3.65 s; no script
+  error that Chromium does not have.
+- Learned: Leaflet picks its wheel factor from the user agent string.
+  Whether swb sends a Chrome-compatible user agent is a decision for
+  the owner (backlog).
+
+Feature 11 is complete. Next: feature 12 (Wikipedia), when the owner
+asks for it.
+
 ## 2026-10-31: M8 feature 11c2, window APIs for the Craigslist page
 
 - `alert`, `confirm` and `prompt` are dismissed as in Chromium under

@@ -3757,6 +3757,28 @@ Steps:
         non-local `http:` origins). Review fix: `print()` after the
         unload does nothing. ADR 0028 "Feature 11c2 notes".
       - 11d: the integration test and the exit check, docs.
+        Done 2026-10-31: the map checks that were left (drag, double
+        click, wheel, context menu, the SVG circle) compared with
+        Chromium: double click, context menu and the circle are equal;
+        after a drag the map is equal, but swb fires no `click` (Chromium
+        fires it at the common ancestor); the wheel zooms one level where
+        Chromium zooms two, because Leaflet halves the wheel delta when
+        the user agent lacks "chrome". New test
+        `crates/automation/tests/craigslist_posting.rs`: one load, 12 step
+        groups, 13 records of the page compared with Chromium's (5 s;
+        skips without the fixture).
+        Exit of feature 11, met: `compare --js craigslist-posting`
+        (legacy reference) geometry 0.9804, size 0.9804, relative 0.9739,
+        pixels 0.9976 (what is left: the favorites item, 3 of 153 boxes
+        and 5 extra boxes, ADR 0028 section 14); load 3.32 s (median of 7
+        release runs, 3.27 to 3.34 s; budget 3.65 s); no script error
+        that Chromium does not have, at load and after each step group;
+        Hacker News and Wikipedia with JavaScript not worse. Review fixes:
+        the helpers of the fixture tests are shared
+        (`crates/automation/tests/common/mod.rs`), the captured time is
+        parsed with `jiff`, and testing.md says how the Chromium records
+        were made.
+        FEATURE 11 COMPLETE.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
       after features 1 to 11 (expected: gaps in members of the HTML
@@ -4452,6 +4474,32 @@ Steps:
 - Tools (found in feature 11c2): the click step of `run_steps` does not
   check what is under the pointer; Playwright waits until an overlay
   (a toast) is gone, so steps that click through overlays differ.
+- Engine (found in feature 11d): after a drag whose `mousedown` and
+  `mouseup` targets have a common ancestor, Chromium fires `click` at
+  that ancestor; swb fires none (`scripted_up` returns before the
+  click when the press moved past `DRAG_THRESHOLD`,
+  `crates/engine/src/page/events.rs`). That flag also keeps a drag from
+  a link from following it: measure first (drag within one element,
+  across two, from a link). The `click` of a selector step has a
+  fractional `clientX`/`clientY` (Chromium: integers). The integration
+  test `craigslist_posting.rs` compares the mouse events only after the
+  double click and the context menu because of these two.
+- Engine (found in feature 11d): swb's user agent
+  (`Mozilla/5.0 (X11; Linux x86_64) swb/0.1.0`) lacks "Chrome", so
+  user-agent sniffing differs: Leaflet halves the wheel delta (one zoom
+  level per notch instead of two; the integration test sends 240 where
+  Chromium got 120). A Chrome-compatible user agent is a product
+  decision for the owner.
+- DOM/`web` (found in feature 11d): a `style` attribute that CSSOM
+  creates is appended to the attribute list where the write happens;
+  Chromium appends it when the list is first read
+  (`getAttributeNames()` gives `a,b,style` in Chromium, `a,style,b` in
+  swb). `getClientRects()` of an inline element with a block child
+  lacks Chromium's first zero-size rectangle.
+- Tools (found in feature 11d): the Chromium records of
+  `craigslist_posting.rs` come from a scratch helper (a Chromium replay
+  of the fixture with steps and evaluations); a `swbtools` command for
+  it would let them be regenerated from the repository.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

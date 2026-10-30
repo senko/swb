@@ -1353,6 +1353,36 @@ protocol, the `Origin` check and the server limits (connections, request
 size). `crates/engine/tests/interaction.rs` tests the same interactions
 on the engine API directly, with small pages.
 
+`crates/automation/tests/hacker_news.rs` and `craigslist_posting.rs` are the
+exit tests of the M8 targets with JavaScript on. They load the local fixtures
+`fixtures/js/hacker-news` and `fixtures/js/craigslist-posting` (git-ignored,
+see "Capture with JavaScript on"). Without the fixture the test prints
+`skipped: ...` and passes; `SWB_JS_FIXTURES=DIR` names the directory
+`fixtures/js` of another checkout (an empty directory shows the skip).
+`craigslist_posting.rs` (M8 feature 11d, about 5 s) loads the posting once, on
+the legacy path (Chromium without `SharedWorker` and `Intl`, ADR 0028) with the
+page clock at the `captured` time of the fixture, and runs the steps of the
+page in order: thumbnail 2, zoom in and out, drag, double click, context menu
+and wheel on the map, and the toolbar (reply, print, share, "copy URL"). After
+the load and after each group it reads one record of the page
+(`data/craigslist-posting.js`: relative date, jQuery and Leaflet versions,
+`screen.orientation`, `matchMedia`, slide styles, map panes and tile
+containers, tile counts, the circle's SVG, mouse events, reply panel, share
+menu, print events, errors and unhandled rejections) and compares every key
+with Chromium's record of the same steps
+(`data/craigslist-posting-chromium.json`, Chromium 148.0.7778.96). The test
+also needs no console error at load and, after the steps, only the errors
+that Chromium has. The Chromium records were made by replaying the fixture
+with `swbtools.browser.session` and `swbtools.routing.Replayer` (the setup of
+`reference --js`, `SWB_NO_SHARED_WORKER=1 SWB_NO_INTL=1`), the same steps
+through Playwright's mouse and `page.click`, and a 300 ms pause after each
+step, with the wheel at 120 where the test sends 240. The script that ran
+these steps in Chromium is not in the repository: to make new records,
+replay the steps of `groups()` in the test that way and evaluate the setup
+script and `window.__s()` after the load and after each group (backlog: a
+`swbtools` command for Chromium replays with steps). The module comment of
+the test lists the keys that it skips and why.
+
 `tools/tests/test_automation.py` tests the Python client against the swb
 binary (skipped if it does not exist). `just tools-check` (part of
 `just check`) builds the release binary first, so the test uses the

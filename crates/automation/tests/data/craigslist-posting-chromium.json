@@ -1,0 +1,1049 @@
+[
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 1 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [
+   "mousedown false 234,623 b0 d1",
+   "mouseup false 234,623 b0 d1",
+   "click true 234,623 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 6,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 17; transform: translate3d(-159px, -151px, 0px) scale(2);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(-159px, -151px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-39.587342222221196,149.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map2.craigslist.org/t09/14/2619/6333.png",
+   "//map3.craigslist.org/t09/14/2619/6334.png",
+   "//map3.craigslist.org/t09/14/2620/6333.png",
+   "//map4.craigslist.org/t09/14/2619/6335.png",
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png"
+  ],
+  "ev": [
+   "mouseup false 844,214 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 17; transform: translate3d(0px, 0px, 0px) scale(0.5);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [
+   "mouseup false 844,249 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 6,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 17; transform: translate3d(0px, 0px, 0px) scale(0.5);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1309/3168.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png",
+   "//map8.craigslist.org/t09/13/1310/3168.png"
+  ],
+  "ev": [
+   "mousedown false 971,297 b0 d1",
+   "mouseup false 850,230 b0 d1",
+   "click false 850,230 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 17; transform: translate3d(-280px, -217px, 0px) scale(2);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(-280px, -217px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 971,297 b0 d1",
+   "mouseup false 971,297 b0 d1",
+   "click false 971,297 b0 d1",
+   "mousedown false 971,297 b0 d2",
+   "mouseup false 971,297 b0 d2",
+   "click false 971,297 b0 d2",
+   "dblclick false 971,297 b0 d2"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 17; transform: translate3d(-280px, -217px, 0px) scale(2);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(-280px, -217px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 971,297 b2 d1",
+   "contextmenu false 971,297 b2 d0",
+   "mouseup false 971,297 b2 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 6,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(-1960px, -1519px, 0px) scale(4);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-1481.3493688888848,-315.2804062049836a795,795 0 1,0 1590,0 a795,795 0 1,0 -1590,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map0.craigslist.org/t09/16/10481/25339.png",
+   "//map1.craigslist.org/t09/16/10481/25340.png",
+   "//map1.craigslist.org/t09/16/10482/25339.png",
+   "//map2.craigslist.org/t09/16/10482/25340.png",
+   "//map2.craigslist.org/t09/16/10483/25339.png",
+   "//map3.craigslist.org/t09/16/10483/25340.png"
+  ],
+  "ev": [],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 190,85 b0 d1",
+   "mouseup false 190,85 b0 d1",
+   "click false 190,85 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 1108,86 b0 d1",
+   "mouseup false 1108,86 b0 d1",
+   "click true 1108,86 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [
+   "bp",
+   "ap"
+  ],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 509,76 b0 d1",
+   "mouseup false 509,76 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [
+   "bp",
+   "ap"
+  ],
+  "menu": 7,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": []
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 591,287 b0 d1",
+   "mouseup false 591,287 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [
+   "bp",
+   "ap"
+  ],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": true,
+  "msgs": [
+   "message|URL copied"
+  ]
+ }
+]

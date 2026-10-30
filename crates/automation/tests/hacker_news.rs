@@ -9,63 +9,23 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+mod common;
+
+use std::path::Path;
 use std::time::Duration;
 
+use common::{fixture, on_page_thread, replay_page, value};
 use serde_json::{Value, json};
 use swb_automation::run_steps;
-use swb_engine::{ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageConfig, Size, Url};
-use swb_net::ReplayFetcher;
-
-/// The directory of the fixture, or `None` (the test then skips).
-fn fixture() -> Option<PathBuf> {
-    let root = std::env::var_os("SWB_JS_FIXTURES").map_or_else(
-        || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/js"),
-        PathBuf::from,
-    );
-    let dir = root.join("hacker-news");
-    dir.join("fixture.json").is_file().then_some(dir)
-}
-
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
+use swb_engine::{ConsoleLevel, Page};
 
 /// The front page, loaded (1280x800, test fonts).
 fn load(dir: &Path, javascript: bool) -> Page {
-    let meta: Value =
-        serde_json::from_str(&std::fs::read_to_string(dir.join("fixture.json")).unwrap()).unwrap();
-    let url = Url::parse(meta["url"].as_str().unwrap()).unwrap();
-    let config = PageConfig {
-        fetcher: Arc::new(ReplayFetcher::load(dir).unwrap()),
-        notify: Arc::new(|| {}),
-        network_threads: 2,
-        scripts_allowed: true,
-    };
-    let mut page = Page::new(
-        config,
-        FontContext::for_tests(),
-        Size::new(1280.0, 800.0),
-        1.0,
-    );
-    page.set_javascript(javascript);
+    let (mut page, url) = replay_page(dir, javascript);
     page.navigate(url);
     assert!(page.wait_until_loaded(Duration::from_secs(60)));
     page.run_event_loop(Duration::from_millis(300), Duration::from_secs(10));
     page
-}
-
-fn value(page: &mut Page, source: &str) -> Value {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 /// The URL that the page navigates to after the steps (the pending
@@ -79,7 +39,7 @@ fn navigation(dir: &Path, javascript: bool, steps: &Value) -> (String, Page) {
 
 #[test]
 fn hacker_news_works_with_javascript_on() {
-    let Some(dir) = fixture() else {
+    let Some(dir) = fixture("hacker-news") else {
         eprintln!("skipped: fixtures/js/hacker-news is missing");
         return;
     };
