@@ -29,9 +29,12 @@ use crate::string::{JsString, PropertyKey};
 use crate::value::Value;
 use crate::vm::convert::to_uint32;
 use crate::vm::native_loop::{LoopStep, NativeLoop};
-use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult, WellKnown};
+use crate::vm::{
+    Intrinsic, NativeCall, NativeReturn, SPLIT_CACHE_ENTRIES, VmError, VmResult, WellKnown,
+};
 
 use super::string::{Builder, string_result};
+use super::string_search::{Meter, find};
 
 /// The pieces of `split` between two checks of the heap limit.
 const SAFEPOINT_PIECES: usize = 256;
@@ -42,6 +45,13 @@ const SPLIT_CAPACITY: usize = 16;
 
 /// The most pieces that the split cache keeps.
 const SPLIT_CACHE_PIECES: usize = 64;
+
+/// The subjects shorter than this take the short path of `split`
+/// ([`split_short`]), whose pieces are not reserved one by one.
+const SHORT_SPLIT_UNITS: usize = 1024;
+
+/// The most pieces of the short path of `split`.
+const SHORT_SPLIT_PIECES: usize = 16;
 
 /// The `TypeError` of a receiver that is `undefined` or `null`, in V8's
 /// words.
@@ -536,15 +546,15 @@ pub(super) fn split(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         value => to_uint32(rt.to_number(value)?),
     } as usize;
     let separator_string = rt.to_string(separator)?;
-    if let Some(cache) = &rt.vm.split_cache
-        && cache.subject == string
-        && cache.separator == separator_string
-        && cache.limit == limit
-        && !separator.is_undefined()
-    {
+    let slot = string.index() as usize % SPLIT_CACHE_ENTRIES;
+    let entry = rt.vm.split_cache.get(slot).copied().flatten();
+    let seen = !separator.is_undefined()
+        && entry.is_some_and(|cache| {
+            cache.subject == string && cache.separator == separator_string && cache.limit == limit
+        });
+    if seen && let Some(pieces) = entry.and_then(|cache| cache.pieces) {
         // The same strings give the same pieces: copy them into a new
         // array in one step.
-        let pieces = cache.pieces;
         let proto = rt.intrinsic(rt.current_realm(), Intrinsic::ArrayPrototype)?;
         let length = rt.heap.dense_elements(pieces)?.map_or(0, <[Value]>::len);
         rt.charge(length)?;
@@ -555,54 +565,74 @@ pub(super) fn split(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         rt.heap.record(array);
         return Ok(NativeReturn::Value(array.into()));
     }
-    // The dense builder (`object/element_access.rs`): the pieces are
-    // appended to the vector without the general property definition.
-    let array = rt.new_array_with_capacity(limit.min(SPLIT_CAPACITY))?;
     if limit == 0 {
-        return Ok(NativeReturn::Value(array.into()));
+        return Ok(NativeReturn::Value(rt.array_from_values(&[])?.into()));
     }
     if separator.is_undefined() {
-        push_piece(rt, array, 0, string.into())?;
-        return Ok(NativeReturn::Value(array.into()));
+        return Ok(NativeReturn::Value(
+            rt.array_from_values(&[string.into()])?.into(),
+        ));
     }
     let separator_length = rt.string_len(separator_string)?;
     let length = rt.string_len(string)?;
-    if separator_length == 0 {
+    let array = if separator_length == 0 {
+        // The dense builder (`object/element_access.rs`): the pieces are
+        // appended to the vector without the general property definition.
+        let array = rt.new_array_with_capacity(limit.min(length).min(SPLIT_CAPACITY))?;
         split_units(rt, array, string, length.min(limit))?;
+        array
     } else if length == 0 {
-        push_piece(rt, array, 0, string.into())?;
+        rt.array_from_values(&[string.into()])?
+    } else if let Some(array) = split_short(rt, string, separator_string, limit)? {
+        array
     } else {
+        let array = rt.new_array_with_capacity(limit.min(SPLIT_CAPACITY))?;
         split_at_separator(rt, array, string, separator_string, limit)?;
-    }
-    remember_split(rt, string, separator_string, limit, array)?;
+        array
+    };
+    remember_split(rt, (string, separator_string, limit), array, slot, seen)?;
     Ok(NativeReturn::Value(array.into()))
 }
 
-/// Keeps the pieces of a `split` with few pieces for the next `split` of
-/// the same strings (a loop that splits a constant string makes the same
-/// pieces each time). The cache holds a private copy, so changes of the
-/// returned array do not reach it.
+/// Remembers the strings of a `split` (subject, separator, limit) in the
+/// entry `slot` of the cache, which belongs to the subject. Code that
+/// splits the same strings again and again (a constant, or the strings of
+/// a table that a loop walks) makes the same pieces each time: when the
+/// entry already held these strings (`seen`, the second call), the cache
+/// also keeps the pieces, if they are few, for the calls after it. The
+/// cache holds a private copy, so changes of the returned array do not
+/// reach it. The first `split` of a subject copies nothing. Only subjects
+/// and separators shorter than [`SHORT_SPLIT_UNITS`] are kept, so the
+/// cache holds at most about 2 MiB of strings that the page may
+/// have dropped.
 fn remember_split(
     rt: &mut Runtime,
-    subject: Gc<JsString>,
-    separator: Gc<JsString>,
-    limit: usize,
+    (subject, separator, limit): (Gc<JsString>, Gc<JsString>, usize),
     array: Gc<Object>,
+    slot: usize,
+    seen: bool,
 ) -> VmResult<()> {
-    let Some(values) = rt.heap.dense_elements(array)? else {
-        return Ok(());
-    };
-    if values.len() > SPLIT_CACHE_PIECES {
+    if rt.string_len(subject)? >= SHORT_SPLIT_UNITS
+        || rt.string_len(separator)? >= SHORT_SPLIT_UNITS
+    {
         return Ok(());
     }
-    let values = values.to_vec();
-    let pieces = rt.heap.new_array_from(None, &values, &rt.vm)?;
-    rt.vm.split_cache = Some(crate::vm::SplitCache {
-        subject,
-        separator,
-        limit,
-        pieces,
-    });
+    let mut pieces = None;
+    if seen
+        && let Some(values) = rt.heap.dense_elements(array)?
+        && values.len() <= SPLIT_CACHE_PIECES
+    {
+        let values = values.to_vec();
+        pieces = Some(rt.heap.new_array_from(None, &values, &rt.vm)?);
+    }
+    if let Some(entry) = rt.vm.split_cache.get_mut(slot) {
+        *entry = Some(crate::vm::SplitCache {
+            subject,
+            separator,
+            limit,
+            pieces,
+        });
+    }
     Ok(())
 }
 
@@ -675,6 +705,88 @@ fn split_at_separator(
     }
     let piece = rt.substring(string, start, length)?;
     push_piece(rt, array, count, piece.into())
+}
+
+/// Steps 11 to 14 of `split` for a subject shorter than
+/// [`SHORT_SPLIT_UNITS`] with at most [`SHORT_SPLIT_PIECES`] pieces (most
+/// calls: a tag split on `-`, often with no separator in it): finds all
+/// separators first, then makes the pieces and the array in one step.
+/// `None` (nothing made) for more pieces; the caller takes the general
+/// loop then. No collection happens between the first piece and the
+/// array that holds them (small strings are allocated without one, and
+/// the reservation of the array keeps its values alive), so the pieces
+/// need no handle records.
+fn split_short(
+    rt: &mut Runtime,
+    string: Gc<JsString>,
+    separator: Gc<JsString>,
+    limit: usize,
+) -> VmResult<Option<Gc<Object>>> {
+    if rt.string_len(string)? >= SHORT_SPLIT_UNITS {
+        return Ok(None);
+    }
+    rt.flatten(string)?;
+    rt.flatten(separator)?;
+    let mut ranges = [(0, 0); SHORT_SPLIT_PIECES];
+    let mut count = 0;
+    {
+        let hay = rt.heap.text(string)?;
+        let needle = rt.heap.text(separator)?;
+        let mut meter = Meter::new(&mut rt.vm, &rt.heap);
+        let mut start = 0;
+        loop {
+            let found = find(hay, needle, start, &mut meter)?;
+            let Some(range) = ranges.get_mut(count) else {
+                return Ok(None);
+            };
+            let end = found.unwrap_or(hay.len());
+            *range = (start, end);
+            count += 1;
+            if found.is_none() || count == limit {
+                break;
+            }
+            start = end + needle.len();
+        }
+        meter.flush()?;
+    }
+    let mut pieces = [Value::Undefined; SHORT_SPLIT_PIECES];
+    for (piece, &(start, end)) in pieces.iter_mut().zip(&ranges).take(count) {
+        *piece = short_piece(rt, string, start, end)?.into();
+    }
+    rt.charge(count)?;
+    let pieces = pieces
+        .get(..count)
+        .ok_or(VmError::invariant("more short pieces than room"))?;
+    Ok(Some(rt.array_from_values(pieces)?))
+}
+
+/// The units `start..end` of the flat string `string` as a string,
+/// without a collection and without a handle record (see
+/// [`split_short`]).
+fn short_piece(
+    rt: &mut Runtime,
+    string: Gc<JsString>,
+    start: usize,
+    end: usize,
+) -> VmResult<Gc<JsString>> {
+    let text = rt.heap.text(string)?;
+    if start >= end {
+        return Ok(rt.vm.atoms.empty);
+    }
+    if start == 0 && end == text.len() {
+        return Ok(string);
+    }
+    if end - start == 1
+        && let Some(unit) = text.get(start)
+    {
+        return Ok(rt.heap.unit_string(unit)?);
+    }
+    let piece = text
+        .slice(start, end)
+        .ok_or(VmError::invariant("a split position outside the string"))?
+        .to_string16();
+    rt.charge_units(end - start)?;
+    Ok(rt.heap.alloc_string(piece)?)
 }
 
 #[cfg(test)]

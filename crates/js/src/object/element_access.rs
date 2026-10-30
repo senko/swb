@@ -39,6 +39,11 @@ pub(crate) const FIRST_NAMED_INDEX: f64 = 4_294_967_295.0;
 /// [`Heap::dense_array`] allows the dense shortcut.
 pub(crate) const DENSE_CHAIN_LIMIT: usize = 64;
 
+/// The most prototypes that [`Heap::index_get_fast`] looks at for an
+/// element that the object does not store (an array has two: its
+/// prototype and `Object.prototype`).
+pub(crate) const INDEX_CHAIN_LIMIT: usize = 8;
+
 /// What a walk of the prototype chain found.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ChainInfo {
@@ -96,6 +101,26 @@ impl DenseArray {
     }
 }
 
+/// The arrays of at most this many values that [`Heap::new_array_from`]
+/// makes without a reservation: an allocation of a small, bounded size,
+/// which never collects (ADR 0026 section 8).
+const SMALL_ARRAY: usize = 16;
+
+/// The smallest capacity that a dense vector of the builder grows to when
+/// it grows a second time: a `push` of a few elements allocates twice.
+const MIN_GROWTH: usize = 4;
+
+/// The capacity of a full dense vector of the builder that must hold
+/// `needed` elements: an empty vector gets exactly `needed` (many arrays
+/// keep the one element of their first `push`), a full one double the
+/// old `capacity`, at least [`MIN_GROWTH`].
+fn grown_capacity(needed: usize, capacity: usize) -> usize {
+    if capacity == 0 {
+        return needed;
+    }
+    needed.max(capacity * 2).max(MIN_GROWTH)
+}
+
 /// Whether the index properties of an object of this kind are exactly its
 /// stored elements (see the module documentation).
 fn ordinary_elements(kind: &ObjectKind) -> bool {
@@ -148,6 +173,63 @@ impl Heap {
         }
         let value = *values.element(k as usize)?;
         (!value.is_internal()).then_some(value)
+    }
+
+    /// `object[index]` (`[[Get]]` with an array index, §10.1.8.1) when
+    /// no step can meet an exotic object, an accessor or script code: the
+    /// object has ordinary elements in the dense form, and either stores
+    /// the element, or has none there (a hole or an index past the vector)
+    /// and no prototype stores any element (then the walk of `[[Get]]`
+    /// ends at `null` with `undefined`). `None` for all other cases (a
+    /// mapped argument, sparse elements, an exotic object or a prototype
+    /// with elements on the chain, a chain longer than
+    /// [`INDEX_CHAIN_LIMIT`]); the caller takes the general steps then.
+    /// The interpreter's `a[i]` and the natives' reads of index keys.
+    #[inline]
+    pub(crate) fn index_get_fast(&self, object: Gc<Object>, index: u32) -> Option<Value> {
+        let record = self.object(object).ok()?;
+        let Elements::Dense(values) = &record.elements else {
+            return None;
+        };
+        if !ordinary_elements(&record.kind) {
+            return None;
+        }
+        match values.get(index as usize) {
+            Some(value) if !value.is_internal() => return Some(*value),
+            // A mapped argument (its parameter's cell).
+            Some(value) if !value.is_empty() => return None,
+            _ => {}
+        }
+        self.protos_without_elements(record)
+            .then_some(Value::Undefined)
+    }
+
+    /// Whether every prototype of the object `record` has ordinary
+    /// elements and stores none, for chains of at most
+    /// [`INDEX_CHAIN_LIMIT`] prototypes (a longer chain gives `false`).
+    /// Out of line: the read of a stored element stays short.
+    #[inline(never)]
+    fn protos_without_elements(&self, record: &Object) -> bool {
+        let Ok(shape) = self.arenas.shapes.get(record.shape) else {
+            return false;
+        };
+        let mut current = shape.proto;
+        for _ in 0..INDEX_CHAIN_LIMIT {
+            let Some(proto) = current else {
+                return true;
+            };
+            let Ok(record) = self.object(proto) else {
+                return false;
+            };
+            if !ordinary_elements(&record.kind) || record.elements.stored() > 0 {
+                return false;
+            }
+            let Ok(shape) = self.arenas.shapes.get(record.shape) else {
+                return false;
+            };
+            current = shape.proto;
+        }
+        current.is_none()
     }
 
     /// Walks the prototype chain of `object` (see [`ChainInfo`]). The walk
@@ -576,9 +658,10 @@ impl Heap {
     }
 
     /// A new array whose elements are `values` (`CreateArrayFromList`,
-    /// §7.3.17), made in one step: one reservation, one copy. The values
-    /// stay alive during the reservation (the prototype must be alive). An
-    /// `Empty` value is a hole.
+    /// §7.3.17), made in one step: one reservation (none for at most
+    /// [`SMALL_ARRAY`] values), one copy. The values stay alive during the
+    /// reservation (the prototype must be alive). An `Empty` value is a
+    /// hole.
     pub(crate) fn new_array_from(
         &mut self,
         proto: Option<Gc<Object>>,
@@ -589,7 +672,18 @@ impl Heap {
             return Err(Error::range_error(super::INVALID_ARRAY_LENGTH));
         }
         let bytes = size_of_val(values);
-        self.reserve_with(bytes, roots, values)?;
+        if values.len() > SMALL_ARRAY {
+            self.reserve_with(bytes, roots, values)?;
+        }
+        if !values.iter().any(|value| value.is_internal()) {
+            // No holes: the vector in one allocation of its size.
+            let length = values.len() as u32;
+            let array = self.new_array(proto, length)?;
+            self.charge(bytes);
+            self.object_mut(array)?.elements =
+                Elements::Dense(DenseVec::from_parts(values.to_vec(), length));
+            return Ok(array);
+        }
         let array = self.new_array(proto, 0)?;
         if !self.extend_elements(array, values)? {
             return Err(Error::invariant("a new array is not dense"));
@@ -600,7 +694,7 @@ impl Heap {
     /// A new array with a copy of the elements of `source`, a dense array
     /// without holes that the caller keeps alive (rooted); `None` when
     /// `source` is not one. One copy of the vector, no intermediate
-    /// buffer.
+    /// buffer; no reservation for at most [`SMALL_ARRAY`] elements.
     pub(crate) fn new_array_copy(
         &mut self,
         proto: Option<Gc<Object>>,
@@ -620,19 +714,17 @@ impl Heap {
         {
             return Ok(None);
         }
-        self.reserve(len * size_of::<Value>(), roots)?;
-        let array = self.new_array(proto, 0)?;
+        let bytes = len * size_of::<Value>();
+        if len > SMALL_ARRAY {
+            self.reserve(bytes, roots)?;
+        }
+        let array = self.new_array(proto, length)?;
         let vector = self
             .dense_elements(source)?
             .ok_or(Error::invariant("the source array changed form"))?
             .to_vec();
-        let before = self.object_bytes(array)?;
-        let record = self.object_mut(array)?;
-        record.elements = Elements::Dense(DenseVec::from_parts(vector, length));
-        if let ObjectKind::Array { length: stored, .. } = &mut record.kind {
-            *stored = length;
-        }
-        self.charge_growth(array, before)?;
+        self.charge(bytes);
+        self.object_mut(array)?.elements = Elements::Dense(DenseVec::from_parts(vector, length));
         Ok(Some(array))
     }
 
@@ -675,7 +767,7 @@ impl Heap {
         };
         let spare = vector.capacity() - vector.len();
         if values.len() > spare {
-            let grown = (vector.len() + values.len()).max(vector.capacity() * 2);
+            let grown = grown_capacity(vector.len() + values.len(), vector.capacity());
             self.check_room((grown - vector.capacity()) * size_of::<Value>())?;
         }
         let before = self.object_bytes(array)?;
@@ -684,7 +776,7 @@ impl Heap {
             return Err(Error::invariant("dense elements changed form"));
         };
         if values.len() > spare {
-            let grown = (vector.len() + values.len()).max(vector.capacity() * 2);
+            let grown = grown_capacity(vector.len() + values.len(), vector.capacity());
             vector.try_reserve_exact(grown - vector.len())?;
         }
         vector.extend_from_slice(values);

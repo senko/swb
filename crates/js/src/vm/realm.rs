@@ -118,6 +118,9 @@ pub(crate) enum Intrinsic {
     ErrorConstructor,
     /// `Array`, set when the built-in functions are installed.
     ArrayConstructor,
+    /// `Boolean`, set when the built-in functions are installed: as the
+    /// callback of `filter` it is `ToBoolean` without a call.
+    BooleanConstructor,
     /// The getter of `Array[@@species]` (§23.1.2.5), set when the
     /// built-in functions are installed: `ArraySpeciesCreate` of an array
     /// with the default `constructor` needs no call.
@@ -181,7 +184,7 @@ pub(crate) enum Intrinsic {
 pub(crate) const TYPED_ARRAY_TYPES: usize = 12;
 
 /// The number of [`Intrinsic`] values.
-const INTRINSIC_COUNT: usize = 73;
+const INTRINSIC_COUNT: usize = 74;
 
 /// A binding of the global declarative record.
 #[derive(Clone, Copy, Debug)]

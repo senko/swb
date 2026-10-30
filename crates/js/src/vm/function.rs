@@ -267,6 +267,19 @@ pub struct Resume {
     pub(crate) mode: ResumeMode,
 }
 
+/// The shapes of the last ordinary function and of its `prototype` object
+/// that the general definitions made (`length`, `name`, `prototype`; and
+/// `constructor`): a new function with the same prototype gets them
+/// directly ([`crate::heap::Heap::adopt_shape`]), with its values in the
+/// slots. The handles carry generations, so a collected shape never fits.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ClosureShapes {
+    function_proto: Gc<crate::object::Object>,
+    object_proto: Gc<crate::object::Object>,
+    function_shape: Gc<crate::object::Shape>,
+    prototype_shape: Gc<crate::object::Shape>,
+}
+
 impl Runtime {
     /// Creates a closure of `code` with the captured cells: a function
     /// object with `length`, `name` and (for ordinary and generator
@@ -326,38 +339,29 @@ impl Runtime {
         let function = self.heap.new_object_with_kind(Some(proto), kind)?;
         self.heap.record(function);
         let length = Value::Int(compiled.length as i32);
+        if compiled.kind == CodeKind::Normal {
+            return self.normal_function_properties(function, proto, realm, length, compiled.name);
+        }
         self.define_function_properties(function, length, compiled.name.into())?;
-        match compiled.kind {
-            CodeKind::Normal => {
-                let object_proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;
-                let prototype = self.heap.new_object(Some(object_proto))?;
-                self.heap.record(prototype);
-                let constructor = PropertyKey::String(self.vm.atoms.constructor);
-                self.define(prototype, constructor, function.into(), true, false, true)?;
-                let key = PropertyKey::String(self.vm.atoms.prototype);
-                self.define(function, key, prototype.into(), true, false, false)?;
-            }
-            CodeKind::Generator | CodeKind::AsyncGenerator => {
-                let which = if compiled.kind == CodeKind::Generator {
-                    Intrinsic::GeneratorPrototype
-                } else {
-                    Intrinsic::AsyncGeneratorPrototype
-                };
-                let generator_proto = self.intrinsic(realm, which)?;
-                let prototype = self.heap.new_object(Some(generator_proto))?;
-                self.heap.record(prototype);
-                let key = PropertyKey::String(self.vm.atoms.prototype);
-                self.define(function, key, prototype.into(), true, false, false)?;
-            }
-            CodeKind::Script
+        let generator_proto = match compiled.kind {
+            CodeKind::Generator => Intrinsic::GeneratorPrototype,
+            CodeKind::AsyncGenerator => Intrinsic::AsyncGeneratorPrototype,
+            // `Normal` returned above; the others have no `prototype`.
+            CodeKind::Normal
+            | CodeKind::Script
             | CodeKind::Eval
             | CodeKind::Arrow
             | CodeKind::Method
             | CodeKind::Async
             | CodeKind::ClassConstructor
             | CodeKind::DerivedConstructor
-            | CodeKind::Initializer => {}
-        }
+            | CodeKind::Initializer => return Ok(function),
+        };
+        let generator_proto = self.intrinsic(realm, generator_proto)?;
+        let prototype = self.heap.new_object(Some(generator_proto))?;
+        self.heap.record(prototype);
+        let key = PropertyKey::String(self.vm.atoms.prototype);
+        self.define(function, key, prototype.into(), true, false, false)?;
         Ok(function)
     }
 
@@ -457,6 +461,55 @@ impl Runtime {
         let name_key = PropertyKey::String(self.vm.atoms.name);
         self.heap
             .add_named(function, name_key, fixed(name.into()), &self.vm)?;
+        Ok(function)
+    }
+
+    /// `length`, `name` and `prototype` of a new ordinary function (and
+    /// `constructor` of its new `prototype` object) through the shapes
+    /// that the last function with the same prototype got
+    /// ([`ClosureShapes`]); the general definitions when they do not fit,
+    /// which also fill the cache.
+    fn normal_function_properties(
+        &mut self,
+        function: Gc<crate::object::Object>,
+        proto: Gc<crate::object::Object>,
+        realm: u32,
+        length: Value,
+        name: Gc<JsString>,
+    ) -> VmResult<Gc<crate::object::Object>> {
+        let object_proto = self.intrinsic(realm, Intrinsic::ObjectPrototype)?;
+        let prototype = self.heap.new_object(Some(object_proto))?;
+        self.heap.record(prototype);
+        if let Some(cache) = self.vm.closure_shapes
+            && cache.function_proto == proto
+            && cache.object_proto == object_proto
+            && self
+                .heap
+                .adopt_shape(prototype, cache.prototype_shape, &[function.into()])?
+        {
+            let values = [length, name.into(), prototype.into()];
+            if self
+                .heap
+                .adopt_shape(function, cache.function_shape, &values)?
+            {
+                return Ok(function);
+            }
+            self.define_function_properties(function, length, name.into())?;
+            let key = PropertyKey::String(self.vm.atoms.prototype);
+            self.define(function, key, prototype.into(), true, false, false)?;
+            return Ok(function);
+        }
+        self.define_function_properties(function, length, name.into())?;
+        let constructor = PropertyKey::String(self.vm.atoms.constructor);
+        self.define(prototype, constructor, function.into(), true, false, true)?;
+        let key = PropertyKey::String(self.vm.atoms.prototype);
+        self.define(function, key, prototype.into(), true, false, false)?;
+        self.vm.closure_shapes = Some(ClosureShapes {
+            function_proto: proto,
+            object_proto,
+            function_shape: self.heap.object(function)?.shape,
+            prototype_shape: self.heap.object(prototype)?.shape,
+        });
         Ok(function)
     }
 

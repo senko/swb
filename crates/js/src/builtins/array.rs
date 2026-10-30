@@ -203,6 +203,9 @@ impl Runtime {
     /// build its result with the dense builder. Reads only data
     /// properties; any other form takes the specification's steps.
     pub(super) fn default_species(&mut self, object: Gc<Object>) -> VmResult<bool> {
+        if self.plain_array(object) {
+            return Ok(true);
+        }
         if !matches!(self.heap.object(object)?.kind, ObjectKind::Array { .. }) {
             return Ok(false);
         }

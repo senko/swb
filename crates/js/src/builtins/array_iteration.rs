@@ -21,7 +21,7 @@ use crate::object::Object;
 use crate::runtime::Runtime;
 use crate::value::Value;
 use crate::vm::native_loop::{LoopStep, NativeLoop};
-use crate::vm::{NativeCall, NativeReturn, VmError, VmResult};
+use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmError, VmResult};
 
 use super::array::{callback_arg, receiver};
 use super::array_access::Next;
@@ -53,6 +53,10 @@ pub(super) enum Method {
 const REGISTERS: usize = 6;
 const CURRENT: usize = 4;
 const ACCUMULATOR: usize = 5;
+
+/// The length from which `filter(Boolean)` takes the general loop
+/// (`filter_truthy`).
+const FILTER_TRUTHY_MAX: f64 = 4096.0;
 
 /// The state of an element loop.
 struct ElementLoop {
@@ -347,8 +351,51 @@ pub(super) fn map(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn>
 /// `Array.prototype.filter(callback, thisArg)` (§23.1.3.8).
 pub(super) fn filter(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let mut state = start(rt, call, "filter", Method::Filter)?;
+    if let Some(result) = filter_truthy(rt, &state)? {
+        return Ok(NativeReturn::Value(result.into()));
+    }
     state.result = Some(rt.array_species_create(state.object, 0.0)?);
     state.run(rt)
+}
+
+/// `filter(Boolean)` of a plain array (`vm/plain_array.rs`) with dense
+/// elements: the running realm's `Boolean` has no effects and returns
+/// `ToBoolean` of its argument, the elements read without effects, and
+/// the holes are skipped (no prototype stores an element), so the result
+/// is the array of the truthy elements, made in one step. `None` for
+/// every other case, and for arrays of [`FILTER_TRUTHY_MAX`] elements or
+/// more (their copies outside the heap stay small).
+fn filter_truthy(rt: &mut Runtime, state: &ElementLoop) -> VmResult<Option<Gc<Object>>> {
+    let Ok(boolean) = rt.intrinsic(rt.current_realm(), Intrinsic::BooleanConstructor) else {
+        return Ok(None);
+    };
+    if state.callback != Value::Object(boolean)
+        || state.descending
+        || state.bound >= FILTER_TRUTHY_MAX
+        || !rt.plain_array(state.object)
+    {
+        return Ok(None);
+    }
+    match rt.heap.dense_array(state.object)? {
+        Some(dense) if f64::from(dense.length) == state.bound => {}
+        _ => return Ok(None),
+    }
+    let values = rt
+        .heap
+        .object(state.object)?
+        .elements
+        .dense()
+        .ok_or(VmError::invariant("a dense array without a dense vector"))?
+        .to_vec();
+    rt.charge(values.len())?;
+    let mut selected = Vec::with_capacity(values.len());
+    for value in values {
+        if !value.is_empty() && rt.to_boolean(value)? {
+            selected.push(value);
+        }
+    }
+    // The values are elements of the receiver, which the call roots.
+    Ok(Some(rt.array_from_values(&selected)?))
 }
 
 /// `Array.prototype.every(callback, thisArg)` (§23.1.3.6).

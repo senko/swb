@@ -68,6 +68,12 @@ impl Runtime {
         original: Gc<Object>,
         length: f64,
     ) -> VmResult<Gc<Object>> {
+        // A plain array (`vm/plain_array.rs`): the steps below would read
+        // `constructor` and `@@species` without effects and construct
+        // the realm's `Array`, which is `ArrayCreate(length)`.
+        if self.plain_array(original) {
+            return self.array_create(length);
+        }
         if !self.is_array(original.into())? {
             return self.array_create(length);
         }

@@ -138,6 +138,11 @@ pub struct Heap {
     pub(crate) atoms: AtomTable,
     /// Prototype → its root shape (weak in both).
     pub(crate) root_shapes: HandleMap<Option<Gc<Object>>, Gc<Shape>>,
+    /// Recent entries of `root_shapes`, by the slot index of the
+    /// prototype modulo [`ROOT_MEMO_SIZE`]: new objects come mostly from
+    /// a few prototypes, and the table's hash costs more than the object
+    /// (checked alive at use).
+    pub(crate) root_memo: [Option<RootMemo>; ROOT_MEMO_SIZE],
     /// (parent shape, key, attributes) → child shape (weak).
     pub(crate) transitions: HandleMap<Transition, Gc<Shape>>,
     roots: roots::HeapRoots,
@@ -164,6 +169,12 @@ pub struct Heap {
     stress_safepoints: u64,
     stats: GcStats,
 }
+
+/// An entry of [`Heap::root_memo`]: a prototype and its root shape.
+pub(crate) type RootMemo = (Option<Gc<Object>>, Gc<Shape>);
+
+/// The entries of [`Heap::root_memo`].
+pub(crate) const ROOT_MEMO_SIZE: usize = 8;
 
 /// The stress mode collects at each of the first `2^STRESS_ALL`
 /// safepoints, then at `2^STRESS_PER_OCTAVE` safepoints in each doubling
@@ -198,6 +209,7 @@ impl Heap {
             marks: gc::Marks::default(),
             atoms,
             root_shapes: HandleMap::default(),
+            root_memo: [None; ROOT_MEMO_SIZE],
             transitions: HandleMap::default(),
             roots: roots::HeapRoots::default(),
             weak_roots: weak_roots::WeakRoots::default(),

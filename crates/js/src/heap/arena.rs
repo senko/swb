@@ -370,11 +370,6 @@ impl MarkBits {
             .get(index / 64)
             .is_some_and(|word| word & (1u64 << (index % 64)) != 0)
     }
-
-    /// Frees the bit vector (the bits live only during a collection).
-    pub(crate) fn release(&mut self) {
-        self.words = Vec::new();
-    }
 }
 
 #[cfg(test)]

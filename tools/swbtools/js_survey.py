@@ -292,7 +292,7 @@ async def survey_page(name: str, runs: int, system_fonts: bool) -> dict[str, Any
     if not (directory / MANIFEST_FILE).is_file():
         raise FileNotFoundError(f"{directory} has no manifest; capture it with --js first")
     meta = read_meta(directory)
-    out = paths.out_dir() / "js-survey" / name
+    out = paths.out_dir() / f"js-survey{paths.variant()}" / name
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)

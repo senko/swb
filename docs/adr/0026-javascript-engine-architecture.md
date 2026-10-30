@@ -417,9 +417,13 @@ then string keys and then symbols, each in insertion order
 - Memory grows with the number of stored elements, never with `length`
   or an index from the script. Shrinking `length` costs at most the
   number of stored elements.
-- Each realm keeps a flag "no prototype of an array has indexed
-  properties". While it is set, appends and hole reads need no
-  prototype walk.
+- A read of an element that the object does not store (a hole, an
+  index past the vector) needs no full `[[Get]]` walk when every
+  prototype has ordinary elements and stores none: a short walk of at
+  most 8 prototypes checks that and gives `undefined` (M8 feature 11a,
+  section 16). The planned realm flag "no prototype of an array has
+  indexed properties" was not built: every path that stores an element
+  would have to clear it.
 
 **Exotic objects** (memo 3.4). The object kind is an enum. The fast
 paths handle ordinary objects and arrays; all other kinds go through one
@@ -563,7 +567,8 @@ and is logged; it is never a panic and never reads another object
 generational, not incremental.
 
 - Mark bits are in bit vectors beside the arenas, so the marker reads
-  slots and writes only bits.
+  slots and writes only bits. The vectors stay allocated between
+  collections (one bit per slot; M8 feature 11a, section 16).
 - Marking uses an explicit work list, never recursion. Large arrays are
   marked in parts.
 - The sweep drops the data of unmarked slots (Rust `Drop`), increments
@@ -622,7 +627,7 @@ after a collection, the script ends (termination, section 5); only the
 bytes of an `ArrayBuffer` (also the buffer that a typed array makes, and
 the memory that a typed array method reserves outside the heap) are
 a `RangeError` instead, as `CreateByteDataBlock` says, already above 90 %
-of the limit (section 15, features 11a to 11c). The
+of the limit (section 15, M7 features 11a to 11c). The
 reservation happens before the operation creates new handles that are
 not yet rooted. Buffers grow with fallible reservation (`try_reserve`).
 
@@ -3009,7 +3014,8 @@ where the first plan did not work:
     for typed-array receivers (an array's `length` is not in its shape).
     String objects, arguments objects and arrays are ordinary for the
     non-index keys of named sites; index keys (`o[0]` with a constant key)
-    are never cached.
+    are never cached: such a site takes the element fast path of `a[i]`
+    (`Heap::index_get_fast`, section 16) and then the general read.
   - Writes: an own writable data property, an own or inherited setter,
     and adds. An add entry needs an extensible receiver at the hit (the
     flag is not in the shape), no setter and no read-only property with
@@ -3448,6 +3454,110 @@ where the first plan did not work:
     13.5-hour run of the 9b review does not reproduce at 409c2f1 or at 13e;
     it was probably the 9b candidate before the fixes
     of that review round (not checked: the old build is gone).
+
+### 16. Choices made during M8
+
+- Fast paths for the Craigslist posting page (feature 11a). Without
+  `SharedWorker` and `Intl` the page loads ES5 bundles and the formatjs
+  polyfill, whose locale matcher splits short tags on `-`, reads past the
+  end of the pieces (`r[1]`, `r[2]` of `"en".split("-")`), filters with
+  `Boolean`, joins, and joins arrays with `concat` and `slice`
+  (`__spreadArray`), millions of times. Measured with callgrind on the
+  replayed page (72.1 G instructions at d3ef56c) and a `vm_bench` row of
+  the same shape (`array: 100k locale tag matches`). The changes:
+  - Element reads (`Heap::index_get_fast`, `object/element_access.rs`):
+    `a[i]` with an integer key, a constant-index site `a[0]` and every
+    `[[Get]]` of an index from the natives first look at the receiver: an
+    object with ordinary elements (not a String object, proxy, typed
+    array or host object with hooks) in the dense form returns a stored
+    element at once; a hole or an index past the vector gives
+    `undefined` when a walk of at most 8 prototypes finds only objects
+    with ordinary elements that store none. A mapped argument (a cell),
+    sparse elements, an exotic object or an element on the chain take
+    the general steps, which also keep the typed array path. The walk
+    is cheap (two prototypes for an array) and needs no invalidation; a
+    cached proof would need a hook on every path that stores an element.
+    `a[i] = v` was not changed: its own fast path (`set_own_fast`) covers
+    the existing element.
+  - `split` (`builtins/string_replace.rs`): the cache of the last call
+    copied the pieces into a private array on every call, and never hit
+    on the page (each call had another subject). It is now a table of 256
+    entries by the slot index of the subject; the first call of a
+    subject remembers only the strings, the second keeps a copy of at
+    most 64 pieces, later calls copy that. Only subjects and separators
+    shorter than 1,024 units are kept (at most about 2 MiB; a hostile
+    test splits 600 dropped subjects of 256 KiB under a 64 MiB limit).
+    A subject of fewer than 1,024 units with at most 16 pieces takes a
+    short path: the separators are found first, the pieces made without
+    a collection (small strings) and the array made in one step.
+  - Plain arrays (`vm/plain_array.rs`): `ArraySpeciesCreate` read
+    `constructor`, called the `@@species` getter and constructed `Array`
+    (3,600 instructions per call); `IsConcatSpreadable` walked the chain
+    for a symbol. A cache like the one of array patterns (section 15,
+    13e) proves for one shape of arrays that `constructor` is
+    `Array.prototype`'s data property holding the realm's `Array`, that
+    `Array[@@species]` is the built-in getter, and that neither
+    `Array.prototype` nor `Object.prototype` (the chain) has
+    `@@isConcatSpreadable`; `Array.prototype`, `Object.prototype` and
+    `Array` are watched, the cache is valid at the watch epoch of its
+    walk, and the two values are read from their slots at each use. Then
+    `ArraySpeciesCreate` is `ArrayCreate` (all its callers) and
+    `IsConcatSpreadable` is true. `concat` of plain dense arrays without
+    prototype elements, fewer than 4,096 elements in all, copies the
+    vectors into one new array (holes stay holes); `slice` copies up to
+    16 elements through a buffer on the stack; `set_length` of an array
+    whose writable `length` has the value already does nothing (the
+    `[[Set]]` finds the own data property and changes nothing).
+  - `filter(Boolean)` with the running realm's `Boolean` (a new
+    intrinsic) on a plain dense array of fewer than 4,096 elements:
+    `Boolean` has no effects and returns `ToBoolean`, so the result is
+    made from the truthy elements in one step. `join` of at most one
+    element with a string or no separator returns the element itself
+    (a string) or the empty string.
+  - Small arrays: `new_array_from` and `new_array_copy` make the vector
+    in one allocation of its size and skip the reservation for at most
+    16 values (an allocation of a small, bounded size, which never
+    collects, section 8); the dense builder gives an empty vector
+    exactly the elements of its first growth (an array that keeps the
+    one element of its first `push` costs one value, as before) and
+    grows a full one to at least 4 elements; an array literal appends
+    with the dense builder (`Push`) instead of `CreateDataProperty`.
+  - New objects: the root shape of a prototype comes from a table of 8
+    recent entries (by the slot index of the prototype) before the hash
+    table; a new ordinary function takes the shapes of the last one with
+    the same prototype (`length`, `name`, `prototype`, and `constructor`
+    of its `prototype` object) with its values in the slots
+    (`Heap::adopt_shape`, `vm/function.rs`) instead of four definitions.
+  - Conditions: `JumpIfTrue`, `JumpIfFalse` and `Not` test booleans,
+    `undefined`, `null`, integers and objects inline.
+  - The collector kept freeing its mark bit vectors after each
+    collection. Freeing a large block right after the sweep had freed
+    many small ones made glibc's allocator consolidate them: 30 M
+    instructions per collection, a quarter of the pause on the page (665
+    → 508 ms in 15 collections). The vectors stay allocated now, and
+    keep the capacity of the largest heap (one bit per slot: below
+    0.2 % of the slot memory).
+  - Result on the page (release, `--virtual-time`, median of 5): the
+    `browsePostings` task 5.66 → 3.97 s; the process 5.81 s (with a
+    raised time limit; with the 5 s limit the task stopped) → 4.05 s;
+    callgrind 72.1 → 47.8 G instructions.
+    The budget of ADR 0028 section 16 for this page (3.65 s) is not met.
+    The largest remaining costs: the interpreter running the matcher (17.6
+    G instructions in the loop itself), the allocator (glibc `malloc`
+    and `free` of the small vectors, about 5.5 G and, in time, more:
+    with jemalloc preloaded the task takes 3.2 s and the collections 240
+    ms instead of 530 ms), 9.5 M short-lived arrays swept in 15
+    collections, the arguments objects of `__spreadArray` (0.8 M, 0.7 G)
+    and the compilation of 2.5 MB of source (1.6 G).
+  - Tests: `tests/fast_paths.rs` (Node.js 22 outputs, normal and stress:
+    element reads with elements, getters, proxies, typed arrays, String
+    objects and arguments objects on the chain; `split` of repeated
+    subjects; species, `constructor` and `@@isConcatSpreadable` changes;
+    function shapes), `tests/fast_paths_hostile.rs` (the cache bound, the
+    bounds of the one-step paths, loops of reads past the end). The
+    realm test of the plain-array cache has no test: a runtime has one
+    realm, the shell has no `createRealm`, and the cross-realm test262
+    tests are skipped.
 
 ## Consequences
 

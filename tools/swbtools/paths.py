@@ -56,12 +56,41 @@ def js_fixture_dir(name: str) -> Path:
     return js_fixtures_dir() / name
 
 
+NO_SHARED_WORKER_ENV = "SWB_NO_SHARED_WORKER"
+"""Set (to `1`) by the global option `--no-shared-worker`: Chromium runs
+without `window.SharedWorker`, as swb does (M8 feature 11)."""
+
+
+def no_shared_worker() -> bool:
+    """True if Chromium runs without `SharedWorker` (`--no-shared-worker`)."""
+    return os.environ.get(NO_SHARED_WORKER_ENV) == "1"
+
+
+NO_INTL_ENV = "SWB_NO_INTL"
+"""Set (to `1`) by the global option `--no-intl`: Chromium runs without
+`window.Intl`, as swb does."""
+
+
+def no_intl() -> bool:
+    """True if Chromium runs without `Intl` (`--no-intl`)."""
+    return os.environ.get(NO_INTL_ENV) == "1"
+
+
+def variant() -> str:
+    """The suffix of the output directories of `--no-shared-worker` and
+    `--no-intl` runs (empty without the options), so that they do not
+    replace the standard output."""
+    return ("-legacy" if no_shared_worker() else "") + ("-nointl" if no_intl() else "")
+
+
 def js_reference_dir(name: str) -> Path:
     """Returns `out/js-reference/NAME/`: Chromium's output with JavaScript on
-    for the JavaScript fixture `name` (local only, like the fixture)."""
+    for the JavaScript fixture `name` (local only, like the fixture). With
+    `--no-shared-worker` or `--no-intl`: `out/js-reference-legacy/NAME/`,
+    `out/js-reference-legacy-nointl/NAME/` and so on."""
     if not name or "/" in name or name.startswith("."):
         raise ValueError(f"invalid fixture name {name!r}")
-    return out_dir() / "js-reference" / name
+    return out_dir() / f"js-reference{variant()}" / name
 
 
 def js_scores_file() -> Path:

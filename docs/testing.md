@@ -501,6 +501,21 @@ The output is in `out/js-survey/NAME/`: `survey.json` (all data),
 `js-on.png`, `js-off.png`, `js-diff.png` and `summary.md` (also printed). The
 results of the target pages are in [js-survey.md](js-survey.md).
 
+The global options `--no-shared-worker` and `--no-intl` (before the
+command; M8 feature 11) make every Chromium run with JavaScript on
+(`js-survey`, `reference --js`, `compare --js`) start without
+`window.SharedWorker` and without `window.Intl`, as swb does. Craigslist
+tests `SharedWorker` and, without it, loads `.es5.js` bundles and a
+JavaScript `Intl` (formatjs) instead of the native one, which is the path
+that swb runs. The outputs go to `out/js-survey-legacy`,
+`out/js-reference-legacy` and `out/compare/js-legacy-NAME` (with
+`--no-intl` also: `-nointl`), so the standard ones stay. Measured on
+2026-10-30 (`craigslist-posting`, five runs, `--jitless` median of
+`TaskDuration`): standard 0.149 s; `--no-shared-worker` 0.397 s;
+`--no-shared-worker --no-intl` 1.217 s (the boxes and the screenshot are
+the same in all three). The options act on documents (also frames), not on
+workers that a page starts.
+
 Limits: a wrapper counts the calls of page scripts only (not those of the
 engine, and not the members that the page cannot see); non-configurable
 members (`window.location`, `document`, `top`) cannot be wrapped and are

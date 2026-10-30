@@ -524,6 +524,28 @@ const PROGRAMS: &[(&str, &str)] = &[
         "destructuring: function f([a, b]), 1M calls",
         "function f([a, b]) { return a + b; } function run() { var p = [1, 2], s = 0; for (var i = 0; i < 1000000; i++) { s += f(p); } return s; }",
     ),
+    (
+        // The shape of a locale matcher in ES5 code: short tags split on
+        // '-', reads past the end of the pieces, filter and join, and
+        // arrays joined with concat and slice.
+        "array: 100k locale tag matches (split, filter, join, concat, slice)",
+        "var tags = ['en', 'en-US', 'en-GB', 'de', 'de-AT', 'zh-Hant-TW', 'sr-Latn-RS', 'pt-BR', 'es-419', 'fr-CA'];
+         function append(to, from) { return to.concat(Array.prototype.slice.call(from)); }
+         function run() {
+           var score = 0;
+           for (var i = 0; i < 10000; i++) {
+             for (var j = 0; j < tags.length; j++) {
+               var want = tags[(i + j) % tags.length].split('-');
+               var have = tags[j].split('-');
+               var key = [want[0], want[1], want[2]].filter(Boolean).join('-');
+               var list = append(append([], want), have);
+               if (want[0] === have[0]) score += list.length + key.length;
+               if (have[3] === undefined) score++;
+             }
+           }
+           return score;
+         }",
+    ),
 ];
 
 /// One block of the generated program (the front-end measurements use the same program).

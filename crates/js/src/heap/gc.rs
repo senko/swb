@@ -42,7 +42,11 @@ use crate::value::{BigInt, Symbol, Value, ValueCell};
 /// The number of entries that one work item marks.
 const CHUNK: usize = 1024;
 
-/// The mark bits of all arenas.
+/// The mark bits of all arenas. They stay allocated between collections
+/// (one bit per slot, not part of the heap size): freeing them after a
+/// sweep, which has just freed many small blocks, made the allocator
+/// consolidate those blocks at each collection (M8 feature 11a: a quarter
+/// of the pause of the Craigslist page).
 #[derive(Default)]
 pub(crate) struct Marks {
     objects: MarkBits,
@@ -65,19 +69,6 @@ impl Marks {
         self.shapes.reset(arenas.shapes.capacity());
         self.key_lists.reset(arenas.key_lists.capacity());
         self.generic.reset(arenas.generic.capacity());
-    }
-
-    /// Frees all bit vectors. They are transient memory: they exist during
-    /// a collection only and are not part of the heap size.
-    fn release(&mut self) {
-        self.objects.release();
-        self.strings.release();
-        self.symbols.release();
-        self.bigints.release();
-        self.cells.release();
-        self.shapes.release();
-        self.key_lists.release();
-        self.generic.release();
     }
 }
 
@@ -689,7 +680,6 @@ impl Heap {
             + arenas.shapes.slot_bytes()
             + arenas.key_lists.slot_bytes()
             + arenas.generic.slot_bytes();
-        self.marks.release();
         live += self.atoms.bytes()
             + self.transitions.capacity() * size_of::<(crate::object::Transition, Gc<Shape>)>()
             + self.root_shapes.capacity() * size_of::<(Option<Gc<Object>>, Gc<Shape>)>()

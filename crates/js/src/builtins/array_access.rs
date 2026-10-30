@@ -193,6 +193,14 @@ impl Runtime {
 
     /// `Set(object, "length", length, true)`.
     pub(super) fn set_length(&mut self, object: Gc<Object>, length: f64) -> VmResult<()> {
+        // An array whose writable `length` has the value already: the
+        // `[[Set]]` finds the own data property and changes nothing
+        // (§10.4.2.4 with the same length).
+        if let Ok((current, true)) = self.heap.array_length(object)
+            && f64::from(current) == length
+        {
+            return Ok(());
+        }
         let key = PropertyKey::String(self.heap.length_atom());
         self.set_or_throw(object, key, Value::number(length))
     }

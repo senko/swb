@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 11a, engine speed for the Craigslist page
+
+- Feature 11 started with a diagnosis session. The page's boot script
+  tests `window.SharedWorker`; swb has none, so the site serves its
+  legacy path: ES5 bundles and a JavaScript `Intl` (formatjs), because
+  swb has no `Intl` either. Decision: swb takes that path (no
+  `SharedWorker` that does not work, no `Intl` in M8). The four legacy
+  files were captured into the local fixture. New tool options
+  `--no-shared-worker` and `--no-intl` make Chromium take the same path:
+  its rendering is identical, but its jitless task time grows from
+  0.149 s to 1.217 s, so the budget of the page is now 3.65 s.
+- The owner kept frames out of M8: the site's hidden storage frame
+  stays without a document, so the favorites item stays visible and the
+  favorite button does nothing (a departure; the geometry exit is 0.95).
+- On the legacy path one task ran 5.7 s, past the 5 s task limit
+  (Chromium jitless: 1.2 s). Callgrind showed three defects: `split`
+  copied every result into a cache that never hit, `a[i]` had no fast
+  path for dense arrays (reads past the end walked the prototypes
+  through the general steps), and `concat`/`slice` called the species
+  steps for every plain array. 11a fixed these and more (small arrays
+  in one allocation, function shapes, root shapes, inline truthiness
+  tests, kept mark bit vectors). The task now takes 3.97 s and the page
+  loads in about 4.1 s; the budget is not met.
+- Learned: freeing a large block right after a sweep had freed many
+  small ones made glibc consolidate them, a quarter of each collection
+  pause. With jemalloc preloaded the page loads in 3.32 s.
+- Review: no defect in about 150 cases against Node.js (normal and
+  stress). Fixed: a minimum growth of 4 elements cost 33 % more memory
+  for arrays that keep one pushed element (an empty array now grows to
+  exactly what it needs; load time unchanged), more tests, the heap text
+  in performance.md.
+- test262 unchanged (40,286 pass, 43 fail, normal and stress); `jsbench`
+  geomean 0.99 to 1.00. `compare --js` Craigslist pixels 0.775 → 0.704:
+  the page now runs to its end and shows the layout gaps of 11b and 11c.
+
+Next: 11a2, a global memory allocator (mimalloc or jemalloc, by
+measurement; ADR 0029).
+
 ## 2026-10-30: M8 feature 10b, XMLHttpRequest, image events, Blob and FormData; end of feature 10
 
 - `XMLHttpRequest` (asynchronous; a synchronous `open` throws),

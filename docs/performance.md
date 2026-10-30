@@ -1162,6 +1162,51 @@ text), parse 26 ms of 59 ms. The share of functions that never run was
 not measured: the shell cannot run the page scripts (27 of the 84 stop
 at a missing browser object).
 
+### Engine fast paths for the Craigslist page (M8 11a)
+
+Element reads past the end, `split`, plain arrays in `concat`, `slice`,
+`filter` and `ArraySpeciesCreate`, `filter(Boolean)`, small arrays,
+function shapes and the mark bits of the collector (ADR 0026 section
+16). The page runs its legacy path in swb (no `SharedWorker`, no `Intl`:
+ES5 bundles and the formatjs polyfill), whose locale matcher dominates.
+Release build, `swb --headless --js --test-fonts --now 1792697265000
+--virtual-time --settle-ms 1500 --replay fixtures/js/craigslist-posting`,
+Intel Core i5-13500, other jobs on the machine (load average 4 to 15);
+the task time comes from a diagnostic build with a raised time limit:
+
+| Measure | d3ef56c | 11a |
+|---|---|---|
+| `browsePostings` task (median of 5) | 5.66 s | 3.97 s |
+| Process, `load` and 1.5 s of virtual time (median of 5) | 5.81 s (time limit raised; with the 5 s limit the task stops) | 4.05 s (normal build) |
+| Instructions (callgrind, whole process) | 72.1 G | 47.8 G |
+| Collections in the task, their pause | 15, 665 ms | 15, 508 to 535 ms |
+| Script heap at `load` | 126 MB (diagnostic build; 97 MB when the limit stops the task) | 181 MB |
+| The task with jemalloc preloaded (`LD_PRELOAD`, a measurement only) | 4.68 s | 3.21 s |
+
+The budget of ADR 0028 section 16 for this page is 3 × 1.217 s + 2 ms =
+3.65 s (Chromium `--jitless` on the same path); 11a does not meet it
+with glibc's allocator. The two heap sizes are not of the same work: at
+d3ef56c the task stops at the limit or (diagnostic build) its run
+differs in time and in the points of the collections. The heap estimate
+counts the capacity of the object arena (free slots too); after the last
+collection it is about 105 MB. The review found no data that 11a keeps
+alive longer (the `split` cache holds at most about 2.5 MiB; the other
+new tables hold handles that the collector does not trace). In the shell,
+with the same work, peak RSS fell: a loop of the locale matcher's shape
+88 → 69 MB, one million kept `split` results 656 → 390 MB, 500,000
+closures 212 → 182 MB.
+
+`vm_bench` row of the same shape (`array: 100k locale tag matches`):
+swb-js 153 to 159 ms, `node --jitless` 50 ms (3.1x); the same program in
+the shell took 405 ms at d3ef56c. Over the 108 other rows, two `just
+jsbench` runs against the base run give geometric means of 0.991 and
+0.998; the rows that moved by more than 5 % in one run moved the other
+way or stayed in the other (`array: read-modify-write` 0.87 and 1.28,
+the case conversions 1.30 and 1.04), and A/B runs of those programs in
+the shell show no slowdown (the read-modify-write of 1,000 elements
+1,000 times 42 → 31 ms, case conversions 412 → 300 ms, the mapped
+arguments and the array pattern rows equal).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

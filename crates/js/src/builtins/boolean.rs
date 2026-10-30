@@ -8,7 +8,8 @@ use crate::vm::{Intrinsic, NativeCall, NativeReturn, VmResult};
 
 pub(super) fn install(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     let proto = rt.intrinsic(realm, Intrinsic::BooleanPrototype)?;
-    super::constructor(rt, realm, "Boolean", 1, boolean, proto)?;
+    let boolean = super::constructor(rt, realm, "Boolean", 1, boolean, proto)?;
+    rt.set_intrinsic(realm, Intrinsic::BooleanConstructor, boolean);
     super::method(rt, realm, proto, "toString", 0, to_string)?;
     super::method(rt, realm, proto, "valueOf", 0, value_of)?;
     Ok(())

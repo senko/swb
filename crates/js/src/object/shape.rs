@@ -25,10 +25,11 @@
 use std::cell::{Cell, OnceCell};
 
 use crate::error::{Error, Result};
-use crate::heap::{Arena, Gc, HandleMap, Heap};
+use crate::heap::{Arena, Gc, HandleMap, Heap, ROOT_MEMO_SIZE};
 use crate::object::Object;
 use crate::object::property::Flags;
 use crate::string::PropertyKey;
+use crate::value::Value;
 
 /// Shapes with at most this many keys are searched linearly.
 const LINEAR_SEARCH_LIMIT: u32 = 8;
@@ -236,9 +237,19 @@ impl Heap {
     /// The root shape of `proto`: the empty shape of the objects that it
     /// is the prototype of.
     pub(crate) fn root_shape(&mut self, proto: Option<Gc<Object>>) -> Result<Gc<Shape>> {
+        let memo = proto.map_or(0, |proto| proto.index() as usize % ROOT_MEMO_SIZE);
+        if let Some(&Some((last, shape))) = self.root_memo.get(memo)
+            && last == proto
+            && self.arenas.shapes.contains(shape)
+        {
+            return Ok(shape);
+        }
         if let Some(&shape) = self.root_shapes.get(&proto)
             && self.arenas.shapes.contains(shape)
         {
+            if let Some(entry) = self.root_memo.get_mut(memo) {
+                *entry = Some((proto, shape));
+            }
             return Ok(shape);
         }
         if let Some(proto) = proto {
@@ -265,6 +276,9 @@ impl Heap {
             }),
         })?;
         self.root_shapes.insert(proto, shape);
+        if let Some(entry) = self.root_memo.get_mut(memo) {
+            *entry = Some((proto, shape));
+        }
         Ok(shape)
     }
 
@@ -336,6 +350,39 @@ impl Heap {
         Ok(child)
     }
 
+    /// Gives the new object `object` (no named properties yet) the shared
+    /// shape `shape` with the slot values `values`: the result of adding
+    /// the keys of `shape` in their order, for the objects that the engine
+    /// makes with the same properties each time (`vm/function.rs` keeps
+    /// the shape of an earlier object). Returns false and changes nothing
+    /// when `shape` is not alive, not shared, has another prototype or
+    /// another number of slots, or the object has properties.
+    pub(crate) fn adopt_shape(
+        &mut self,
+        object: Gc<Object>,
+        shape: Gc<Shape>,
+        values: &[Value],
+    ) -> Result<bool> {
+        let record = self.object(object)?;
+        let current = self.arenas.shapes.get(record.shape)?;
+        let Ok(target) = self.arenas.shapes.get(shape) else {
+            return Ok(false);
+        };
+        let fits = matches!(&current.kind, ShapeKind::Shared(shared) if shared.len == 0)
+            && matches!(&target.kind, ShapeKind::Shared(shared) if shared.slot_count as usize == values.len())
+            && target.proto == current.proto
+            && record.slots.is_empty();
+        if !fits {
+            return Ok(false);
+        }
+        self.charge(size_of_val(values));
+        let record = self.object_mut(object)?;
+        record.shape = shape;
+        record.slots = values.to_vec();
+        self.layout_changed(object)?;
+        Ok(true)
+    }
+
     /// Moves an object to dictionary mode (no change if it is already in
     /// it). The slots keep their positions.
     pub(crate) fn make_dictionary(&mut self, object: Gc<Object>) -> Result<()> {
@@ -373,7 +420,7 @@ impl Heap {
     pub(crate) fn dictionary_mut(
         &mut self,
         object: Gc<Object>,
-    ) -> Result<(&mut Dictionary, &mut Vec<crate::value::Value>)> {
+    ) -> Result<(&mut Dictionary, &mut Vec<Value>)> {
         let arenas = &mut self.arenas;
         let object = arenas.objects.get_mut(object)?;
         let shape = arenas.shapes.get_mut(object.shape)?;

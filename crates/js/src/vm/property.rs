@@ -104,6 +104,9 @@ impl Runtime {
         receiver: Value,
     ) -> VmResult<Lookup> {
         if let PropertyKey::Index(index) = key {
+            if let Some(value) = self.heap.index_get_fast(object, index) {
+                return Ok(Lookup::Value(value));
+            }
             let kind = &self.heap.object(object)?.kind;
             if kind.sets_exotic() {
                 match *kind {

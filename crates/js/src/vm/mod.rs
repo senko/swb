@@ -61,6 +61,7 @@ mod literal;
 pub(crate) mod messages;
 pub(crate) mod native_loop;
 pub(crate) mod number;
+mod plain_array;
 pub(crate) mod private;
 pub(crate) mod promise;
 mod property;
@@ -366,14 +367,19 @@ impl Atoms {
     }
 }
 
-/// The last result of `split`: the subject and separator strings (by
-/// handle; strings are immutable), the limit, and an internal array of the
-/// pieces, which a later `split` of the same strings copies.
+/// The number of entries of [`Vm::split_cache`].
+pub(crate) const SPLIT_CACHE_ENTRIES: usize = 256;
+
+/// A recent `split`: the subject and separator strings (by handle;
+/// strings are immutable) and the limit; from the second `split` of the
+/// same strings on, an internal array of the pieces, which the next
+/// `split` of them copies (`builtins/string_replace.rs`).
+#[derive(Clone, Copy)]
 pub(crate) struct SplitCache {
     pub(crate) subject: Gc<JsString>,
     pub(crate) separator: Gc<JsString>,
     pub(crate) limit: usize,
-    pub(crate) pieces: Gc<Object>,
+    pub(crate) pieces: Option<Gc<Object>>,
 }
 
 /// The VM state outside the heap: the roots of the collector.
@@ -417,9 +423,10 @@ pub(crate) struct Vm {
     pub(crate) random: random::RandomSource,
     /// The clock and the time zone of `Date` (ADR 0027).
     pub(crate) time: crate::date::TimeHost,
-    /// The last result of `String.prototype.split` with a string
-    /// separator (`builtins/string_replace.rs`).
-    pub(crate) split_cache: Option<SplitCache>,
+    /// Recent calls of `String.prototype.split` with a string separator,
+    /// [`SPLIT_CACHE_ENTRIES`] entries by the slot of the subject
+    /// (`builtins/string_replace.rs`).
+    pub(crate) split_cache: Box<[Option<SplitCache>]>,
     /// The job queue and the rejection tracker (`jobs.rs`).
     pub(crate) jobs: jobs::JobQueue,
     /// The state of the last regular expression match, whose vectors the
@@ -428,6 +435,11 @@ pub(crate) struct Vm {
     /// What the last array pattern found out about plain arrays
     /// (`array_pattern.rs`).
     pub(crate) array_pattern: Option<array_pattern::ArrayPatternCache>,
+    /// What the last walk found out about plain arrays for
+    /// `ArraySpeciesCreate` and `concat` (`plain_array.rs`).
+    pub(crate) plain_array: Option<plain_array::PlainArrayCache>,
+    /// The shapes of the last ordinary function (`function.rs`).
+    pub(crate) closure_shapes: Option<function::ClosureShapes>,
     /// The host classes and the host state (`host/mod.rs`); the host
     /// state is a root.
     pub(crate) host: crate::host::Host,
@@ -455,10 +467,12 @@ impl RootSource for Vm {
         for object in &self.join_stack {
             tracer.object(*object);
         }
-        if let Some(cache) = &self.split_cache {
+        for cache in self.split_cache.iter().flatten() {
             tracer.string(cache.subject);
             tracer.string(cache.separator);
-            tracer.object(cache.pieces);
+            if let Some(pieces) = cache.pieces {
+                tracer.object(pieces);
+            }
         }
         self.jobs.trace(tracer);
         self.host.trace(tracer);

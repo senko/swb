@@ -17,7 +17,7 @@
 //! `flat` ends deep nesting with "Maximum call stack size exceeded".
 
 use crate::heap::{Gc, HandleScope};
-use crate::object::Object;
+use crate::object::{GetResult, Object};
 use crate::runtime::Runtime;
 use crate::value::Value;
 use crate::vm::convert::{MAX_SAFE_INTEGER, checked_array_length, to_integer_or_infinity};
@@ -28,6 +28,13 @@ use super::array::{
 };
 use super::array_access::{Flow, Item};
 
+/// The elements of the results that `concat` makes in one step
+/// (`concat_plain`); longer ones take the steps of the specification.
+const CONCAT_PLAIN_MAX: usize = 4096;
+
+/// The elements that `slice` copies through a buffer on the stack.
+const SLICE_BUFFER: usize = 16;
+
 /// The values that one round of a copy appends (a fixed buffer).
 const COPY_CHUNK: usize = 256;
 
@@ -37,11 +44,21 @@ const FLAT_DEPTH_LIMIT: usize = 9_000;
 
 /// `IsConcatSpreadable(O)` (§23.1.3.1.1).
 fn is_concat_spreadable(rt: &mut Runtime, value: Value) -> VmResult<bool> {
-    if !matches!(value, Value::Object(_)) {
+    let Value::Object(object) = value else {
         return Ok(false);
+    };
+    // A plain array (`vm/plain_array.rs`) has no `@@isConcatSpreadable`
+    // on its chain.
+    if rt.plain_array(object) {
+        return Ok(true);
     }
     let key = rt.symbol_key(WellKnown::IsConcatSpreadable);
-    let spreadable = rt.get_value(value, key)?;
+    let spreadable = match rt.heap.get(object, key, value)? {
+        // A data property or none, read by the heap's walk without a
+        // handle record (`ToBoolean` cannot collect).
+        GetResult::Value(found) => found,
+        _ => rt.get_value(value, key)?,
+    };
     if !spreadable.is_undefined() {
         return rt.to_boolean(spreadable);
     }
@@ -51,6 +68,9 @@ fn is_concat_spreadable(rt: &mut Runtime, value: Value) -> VmResult<bool> {
 /// `Array.prototype.concat(...items)` (§23.1.3.1).
 pub(super) fn concat(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let object = rt.this_object_checked(call, "Array.prototype.concat")?;
+    if let Some(result) = concat_plain(rt, object, call)? {
+        return Ok(NativeReturn::Value(result.into()));
+    }
     let result = rt.array_species_create(object, 0.0)?;
     let mut n = 0.0;
     for index in 0..=call.argc() {
@@ -63,6 +83,56 @@ pub(super) fn concat(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetu
     }
     rt.set_length(result, n)?;
     Ok(NativeReturn::Value(result.into()))
+}
+
+/// `concat` when the receiver and every argument are plain arrays
+/// (`vm/plain_array.rs`: `ArraySpeciesCreate` is `ArrayCreate` and each
+/// item is spread) with dense elements and no elements on their
+/// prototypes (a hole stays a hole: `HasProperty` is false for it), with
+/// fewer than [`CONCAT_PLAIN_MAX`] elements in all: every step reads
+/// without effects, so the result is made in one step from the vectors.
+/// `None` for every other case (nothing done).
+fn concat_plain(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    call: &NativeCall,
+) -> VmResult<Option<Gc<Object>>> {
+    let mut values = Vec::new();
+    for index in 0..=call.argc() {
+        let item = if index == 0 {
+            object
+        } else {
+            match rt.arg(call, index - 1) {
+                Value::Object(item) => item,
+                _ => return Ok(None),
+            }
+        };
+        if !rt.plain_array(item) {
+            return Ok(None);
+        }
+        let Some(state) = rt.heap.dense_array(item)? else {
+            return Ok(None);
+        };
+        let length = state.length as usize;
+        if values.len() + length >= CONCAT_PLAIN_MAX {
+            return Ok(None);
+        }
+        let stored = rt
+            .heap
+            .object(item)?
+            .elements
+            .dense()
+            .ok_or(VmError::invariant("a dense array without a dense vector"))?;
+        values.extend_from_slice(stored);
+        // The holes after the last stored element.
+        values.resize(
+            values.len() + length.saturating_sub(stored.len()),
+            Value::Empty,
+        );
+    }
+    rt.charge(values.len() + call.argc())?;
+    // The values are elements of the items, which the call roots.
+    Ok(Some(rt.array_from_values(&values)?))
 }
 
 /// One item of `concat` (steps 5.b to 5.c), appended at index `n`.
@@ -199,17 +269,28 @@ pub(super) fn slice(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeRetur
         && let Some(state) = rt.heap.dense_array(object)?
         && f64::from(state.length) == length
     {
-        // The new array gets the elements and the holes of the range.
+        // The new array gets the elements and the holes of the range (a
+        // short range through a buffer on the stack).
         let stored = state.stored_len as f64;
-        let values: Vec<Value> = match rt.heap.object(object)?.elements.dense() {
-            Some(values) if start < stored => values
-                .get(start as usize..end.min(stored) as usize)
-                .unwrap_or_default()
-                .to_vec(),
-            _ => Vec::new(),
+        let mut small = [Value::Undefined; SLICE_BUFFER];
+        let large: Vec<Value>;
+        let values: &[Value] = match rt.heap.object(object)?.elements.dense() {
+            Some(values) if start < stored => {
+                let range = values
+                    .get(start as usize..end.min(stored) as usize)
+                    .unwrap_or_default();
+                if let Some(buffer) = small.get_mut(..range.len()) {
+                    buffer.copy_from_slice(range);
+                    buffer
+                } else {
+                    large = range.to_vec();
+                    &large
+                }
+            }
+            _ => &[],
         };
         rt.charge(values.len())?;
-        let result = rt.array_from_values(&values)?;
+        let result = rt.array_from_values(values)?;
         rt.heap.set_array_length_field(result, count as u32, true)?;
         return Ok(NativeReturn::Value(result.into()));
     }

@@ -2270,12 +2270,26 @@ Steps:
      2. The zoom buttons and a drag move the map (tiles that the
         fixture lacks stay empty, as in Chromium's replay).
      3. The toolbar buttons do in swb what they do in Chromium's replay
-        (feature 11 checks each in Chromium first).
+        (feature 11 checks each in Chromium first), except the favorite
+        button (below).
      4. Reply opens its panel; the contact data comes from a request
         that only the live site answers (not tested in replay).
-     Load-time budget: the `load` event within 0.45 s (three times
-     Chromium's jitless task time, 149 ms, plus the JS-off pipeline
-     time, 2 ms, measured with `perf` on 2026-10-22).
+     The page tests `window.SharedWorker`; without it (swb) the site
+     serves its legacy path: ES5 bundles and a JavaScript `Intl`
+     (formatjs), because swb has no `Intl` either. Chromium renders
+     both paths the same (feature 11, measured with the tool options
+     `--no-shared-worker --no-intl`). swb adds neither a `SharedWorker`
+     that does not work nor `Intl` in M8.
+     The favorites need the site's hidden storage frame (a same-origin
+     `iframe` whose script sends `localStorage` data to the page with
+     `postMessage`). Frames stay out of M8 (owner, 2026-10-30): in swb
+     the "favorites" item of the navigation bar stays visible and the
+     favorite button does nothing (a departure).
+     Load-time budget: the `load` event within 3.65 s on the legacy
+     path (three times Chromium's jitless task time on that path,
+     1.217 s, plus the JS-off pipeline time, 2 ms; measured on
+     2026-10-30). The modern path takes 149 ms in Chromium jitless
+     (2026-10-22).
 
    Foundations:
 
@@ -3597,9 +3611,7 @@ Steps:
         `formdata` event (9b1).
    11. Craigslist posting (`implementer`).
       Scope: what the fixture with JavaScript on still lacks after
-      features 1 to 10. The session lists the gaps first; if they need
-      more than one session, it splits them by area (11a, 11b) in this
-      section before it starts. Expected: paths of jQuery 3 and jQuery Migrate
+      features 1 to 10. Expected: paths of jQuery 3 and jQuery Migrate
       (selectors through `querySelectorAll` and `matches`, event
       delegation, style writes), Leaflet (`style.transform` with
       `translate3d`, `offsetWidth`, `getBoundingClientRect`, tile images
@@ -3612,8 +3624,66 @@ Steps:
       integration test on the local fixture drives each feature of the
       list above.
       Exit: the list works in the test; no script error that Chromium
-      does not have; `compare --js craigslist-posting` geometry and
-      pixels at least 0.98; the load-time budget is met.
+      does not have; `compare --js craigslist-posting` geometry at least
+      0.95 (the favorites item, see the target text) and pixels at
+      least 0.98; the load-time budget (3.65 s) is met.
+      Gap list (2026-10-30, one diagnosis session; tool options
+      `--no-shared-worker` and `--no-intl` for Chromium runs on the
+      site's legacy path): the four legacy files were missing from the
+      fixture (captured); the main task takes 5.7 s in swb, so the 5 s
+      task limit stops it (Chromium jitless: 1.2 s); in a flex column,
+      `margin: 0 auto` does not center (the content sits 150 px left);
+      `WebKitCSSMatrix` is missing (Leaflet does not use `translate3d`);
+      the style declaration lacks properties such as `transition`,
+      `willChange` and `touchAction` (the thumbnail slider does not
+      move); `alert`, `confirm`, `prompt`, `navigator.clipboard` and
+      `document.fullscreenElement` are missing; the reply row is 1 px
+      taller. Equal in both: the relative date, jQuery, Leaflet's tile
+      loads, `screen.orientation`, `matchMedia`, the thumbnail click,
+      the zoom buttons, the requests of the toolbar buttons. Split:
+      - 11a: engine speed (`implementer-hard`): fast paths for `split`,
+        `a[i]` of dense arrays (also past the end) and `concat`/`slice`
+        of plain arrays. Exit: the page loads without a time-limit stop,
+        within the budget if these paths suffice (else 11a2: what the
+        profile shows next); test262 and `jsbench` not worse.
+        Done 2026-10-30: element reads of objects with ordinary dense
+        elements (holes and reads past the end after a walk of at most 8
+        prototypes), a `split` cache of 256 recent subjects that copies
+        pieces only from the second call, and a short path for short
+        subjects; a cached proof that an array is plain, so that
+        `ArraySpeciesCreate` is `ArrayCreate` and `concat` copies the
+        vectors in one step; `slice`, `filter(Boolean)` and `join` of one
+        element in one step; small arrays in one allocation; new
+        functions take the shapes of the last one; a table of recent root
+        shapes; inline truthiness tests; the collector keeps its mark bit
+        vectors (freeing them made glibc consolidate the freed blocks:
+        a quarter of each pause). The main task 5.66 → 3.97 s, the load
+        4.05 to 4.15 s without a time-limit stop (callgrind 72.1 → 47.8 G
+        instructions); the budget is not met. test262 unchanged (40,286
+        pass, 43 fail, normal and stress), `jsbench` geomean 0.99 to 1.00
+        (new row: 100k locale tag matches, 405 → 156 ms). `compare --js`
+        Craigslist: size 0.686 → 0.974, pixels 0.775 → 0.704 (the page
+        now runs to its end and shows the layout gaps of 11b and 11c);
+        the other targets unchanged. ADR 0026 section 16. Review fixes:
+        an empty array grows to exactly the size it needs (a minimum of
+        4 elements cost 33 % more memory for arrays of one `push`), more
+        tests (replaced `Boolean`, deleted and accessor `constructor`,
+        getters with call counts, reduced `length`, sealed arrays,
+        array-likes in `join`), the heap text in performance.md. Tool
+        options `--no-shared-worker` and `--no-intl` (docs/testing.md).
+      - 11a2: a global memory allocator (`implementer`): glibc's `malloc`
+        and `free` of small vectors are much of what is left (with
+        jemalloc preloaded the load takes 3.32 s). Measure mimalloc and
+        jemalloc (load time, peak RSS, JS-off pipeline, platforms), pick
+        one, ADR 0029. Exit: the load within 3.65 s.
+      - 11b: layout (`implementer`): auto margins in the cross axis of
+        a flex column; the 1 px of the reply row.
+      - 11c: web APIs (`implementer`): `WebKitCSSMatrix`/`DOMMatrix` as
+        Leaflet uses them, the style declaration properties that the
+        page tests, `alert`/`confirm`/`prompt` (headless: as Chromium's
+        automation without a dialog handler), `navigator.clipboard`,
+        the fullscreen members.
+      - 11d: the integration test and the exit check, docs.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
       after features 1 to 11 (expected: gaps in members of the HTML
@@ -4248,6 +4318,20 @@ Steps:
   the search for room scans all watches when few are free; the hostile
   runner does not capture the page's console, so cases cannot check
   results.
+- `js` (found in feature 11a): a function that uses `arguments` only as
+  `arguments.length` (and has no `eval` or `with`) still makes an
+  arguments object (0.8 M objects on the Craigslist page); the heap
+  estimate counts the capacity of the object arena (free slots too), so
+  the heap at `load` reads 181 MB with about 400,000 live objects and
+  the next collection comes later; `Object.defineProperties` costs
+  about 78,000 instructions per call on that page (not looked at);
+  `string_key` of index-like strings (region codes such as `"419"`)
+  costs about 290 instructions; the plain-array cache has one entry, so
+  arrays with other own keys (regexp match results) between plain ones
+  walk the chain again (measured: no slowdown); inline storage of small
+  arrays in the object record would halve the allocations of `split`
+  results; lazy compilation (M7 13f) would save at most 1.6 G of the
+  page's 47.8 G instructions.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

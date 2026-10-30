@@ -151,6 +151,18 @@ _FIXED_START_JS = """
 """
 
 
+# Removes `SharedWorker`, so that a page that tests for it takes its path for
+# browsers without it (swb has no `SharedWorker`). Used with the global option
+# `--no-shared-worker`.
+_NO_SHARED_WORKER_JS = "delete window.SharedWorker;"
+
+# Removes `Intl` (swb has none), so that a page loads its JavaScript
+# implementation of it. Used with the global option `--no-intl`. Dates still
+# format with the native `toLocale*String`, which swb has not either; the
+# option measures the cost of the polyfills.
+_NO_INTL_JS = "delete window.Intl;"
+
+
 async def fix_start_time(context: BrowserContext, start: datetime) -> None:
     """Makes the page clock of every document in the context start at
     `start` (see `_FIXED_START_JS`)."""
@@ -173,6 +185,10 @@ async def session(
         chromium = await launch(playwright, system_fonts, extra_args)
         try:
             context = await new_context(chromium, viewport, javascript=javascript)
+            if javascript and paths.no_shared_worker():
+                await context.add_init_script(_NO_SHARED_WORKER_JS)
+            if javascript and paths.no_intl():
+                await context.add_init_script(_NO_INTL_JS)
             if start_time is not None:
                 await fix_start_time(context, start_time)
             yield chromium, context, await context.new_page()

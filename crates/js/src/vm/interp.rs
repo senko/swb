@@ -599,8 +599,14 @@ impl Runtime {
                         found
                     } else {
                         let key = site!(site);
-                        if let PropertyKey::Index(_) = key {
-                            // An index: String objects have their own.
+                        if let PropertyKey::Index(index) = key {
+                            // A constant index (`a[0]`): no cache entry;
+                            // the element fast path, else the general
+                            // read (String objects have their own).
+                            if let Some(value) = self.heap.index_get_fast(object, index) {
+                                put!(dst, value);
+                                continue;
+                            }
                             let found = tri!(self.get_property(target, key));
                             lookup!(dst, found);
                             continue;
@@ -681,6 +687,15 @@ impl Runtime {
                 Insn::GetIndex { dst, obj, key } => {
                     let target = get!(obj);
                     let key_value = get!(key);
+                    // An element of an object with ordinary elements, or
+                    // `undefined` past its end (`Heap::index_get_fast`).
+                    if let (Value::Object(object), Value::Int(index)) = (target, key_value)
+                        && index >= 0
+                        && let Some(value) = self.heap.index_get_fast(object, index as u32)
+                    {
+                        put!(dst, value);
+                        continue;
+                    }
                     save!();
                     let key = match key_value {
                         Value::Int(index) if index >= 0 => PropertyKey::Index(index as u32),
@@ -816,6 +831,10 @@ impl Runtime {
                         return Err(VmError::invariant("an array literal that is not an object"));
                     };
                     let value = get!(src);
+                    // The dense builder appends to an array without holes.
+                    if !value.is_internal() && tri!(self.heap.push_element(object, value)) {
+                        continue;
+                    }
                     let (length, _) = tri!(self.heap.array_length(object));
                     tri!(self.heap.create_data_property(
                         object,
@@ -1154,7 +1173,10 @@ impl Runtime {
                 }
                 Insn::Not { dst, src } => {
                     let value = get!(src);
-                    let truthy = tri!(self.to_boolean(value));
+                    let truthy = match quick_truthiness(value) {
+                        Some(truthy) => truthy,
+                        None => tri!(self.to_boolean(value)),
+                    };
                     put!(dst, Value::Bool(!truthy));
                 }
                 Insn::Typeof { dst, src } => {
@@ -1194,12 +1216,22 @@ impl Runtime {
                 // --- Control flow ---
                 Insn::Jump { offset } => jump!(offset),
                 Insn::JumpIfTrue { cond, offset } => {
-                    if tri!(self.to_boolean(get!(cond))) {
+                    let value = get!(cond);
+                    let truthy = match quick_truthiness(value) {
+                        Some(truthy) => truthy,
+                        None => tri!(self.to_boolean(value)),
+                    };
+                    if truthy {
                         jump!(offset);
                     }
                 }
                 Insn::JumpIfFalse { cond, offset } => {
-                    if !tri!(self.to_boolean(get!(cond))) {
+                    let value = get!(cond);
+                    let truthy = match quick_truthiness(value) {
+                        Some(truthy) => truthy,
+                        None => tri!(self.to_boolean(value)),
+                    };
+                    if !truthy {
                         jump!(offset);
                     }
                 }
@@ -2158,6 +2190,20 @@ impl Runtime {
             });
         }
         self.to_property_key(key)
+    }
+}
+
+/// `ToBoolean` (§7.1.2) of the values that need no heap read, inline in
+/// the loop of the conditions; `None` for strings, doubles, `BigInt`s and
+/// internal values (`Runtime::to_boolean`).
+#[inline]
+fn quick_truthiness(value: Value) -> Option<bool> {
+    match value {
+        Value::Bool(b) => Some(b),
+        Value::Undefined | Value::Null => Some(false),
+        Value::Int(i) => Some(i != 0),
+        Value::Object(_) | Value::Symbol(_) => Some(true),
+        _ => None,
     }
 }
 

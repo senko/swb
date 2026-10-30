@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -176,6 +177,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="swbtools", description=__doc__)
     parser.add_argument(
         "-v", "--verbose", action="count", default=0, help="more log output (-vv for debug)"
+    )
+    parser.add_argument(
+        "--no-shared-worker",
+        action="store_true",
+        help="Chromium runs without window.SharedWorker, as swb does (js-survey, reference --js, "
+        "compare --js); the references go to out/js-reference-legacy",
+    )
+    parser.add_argument(
+        "--no-intl",
+        action="store_true",
+        help="Chromium runs without window.Intl, as swb does (js-survey, reference --js, "
+        "compare --js); together with --no-shared-worker the page loads its polyfills",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -403,6 +416,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.no_shared_worker:
+        os.environ[paths.NO_SHARED_WORKER_ENV] = "1"
+    if args.no_intl:
+        os.environ[paths.NO_INTL_ENV] = "1"
     level = [logging.WARNING, logging.INFO, logging.DEBUG][min(args.verbose, 2)]
     logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
     sys.exit(args.func(args))

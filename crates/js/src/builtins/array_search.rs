@@ -302,6 +302,22 @@ pub(super) fn join(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
     if rt.vm.join_stack.contains(&object) {
         return Ok(NativeReturn::Value(rt.vm.atoms.empty.into()));
     }
+    // At most one element and a separator that converts without effects:
+    // the result is the element itself when it is a string, or empty.
+    if length <= 1.0 && matches!(rt.arg(call, 0), Value::Undefined | Value::String(_)) {
+        let element = if length == 0.0 {
+            Some(Value::Undefined)
+        } else {
+            rt.heap.index_get_fast(object, 0)
+        };
+        match element {
+            Some(Value::String(string)) => return Ok(NativeReturn::Value(string.into())),
+            Some(Value::Undefined | Value::Null) => {
+                return Ok(NativeReturn::Value(rt.vm.atoms.empty.into()));
+            }
+            _ => {}
+        }
+    }
     let separator = match rt.arg(call, 0) {
         Value::Undefined => String16::from(","),
         value => {

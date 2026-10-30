@@ -92,7 +92,9 @@ def named(file: str, suffix: str) -> str:
 def output_dir(name: str, javascript: bool = False) -> Path:
     """Returns `out/compare/<name>/`, or `out/compare/js-<name>/` for a
     JavaScript fixture."""
-    return paths.out_dir() / "compare" / (f"js-{name}" if javascript else name)
+    if javascript:
+        return paths.out_dir() / "compare" / f"js{paths.variant()}-{name}"
+    return paths.out_dir() / "compare" / name
 
 
 def fixture_path(name: str, javascript: bool = False) -> Path:
