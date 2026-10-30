@@ -1941,7 +1941,7 @@ impl LineBuilder<'_, '_> {
         // collapsible spaces) does not count for the line height (Chromium
         // skips text items of length 0).
         if trim_end != Some(part.start) {
-            let strut = strut_for(&style, run.metrics);
+            let strut = strut_for(&style, self.extent_metrics(&style, run));
             state
                 .extent
                 .include(baseline - strut.above, baseline + strut.below);
@@ -2147,6 +2147,22 @@ impl LineBuilder<'_, '_> {
             }
         }
         None
+    }
+
+    /// The font metrics that a text run adds to the line height. Measured
+    /// in Chromium 148: the metrics of a fallback font count only with
+    /// `line-height: normal`; with any other value the run counts with the
+    /// primary font of its style (whose strut is on the line anyway), so a
+    /// glyph from a fallback font does not make the line taller.
+    fn extent_metrics(&mut self, style: &ComputedStyle, run: &Run) -> LineMetrics {
+        if style.line_height.resolve(style.font_size).is_none() {
+            return run.metrics;
+        }
+        let primary = fonts::primary_font(self.ctx.fonts, style);
+        if primary == run.font {
+            return run.metrics;
+        }
+        fonts::line_metrics(self.ctx.fonts, primary, style.font_size)
     }
 
     fn text_style(&self, run: &Run) -> Arc<ComputedStyle> {

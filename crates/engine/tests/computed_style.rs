@@ -226,12 +226,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "swb does not compute `text-underline-offset` (its initial value)",
     ),
     (
-        "layout",
-        13,
-        r#"["width: 50px","height: 0px","margin-top: 0px","margin-right: 0px","margin-bottom: 40px","margin-left: 0px","padding-top: 0px","padding-right: 0px","padding-bottom: 0px","padding-left: 0px"]"#,
-        "swb's flex layout does not center an item of height 0 with `margin: auto` in the cross axis (backlog)",
-    ),
-    (
         "grid",
         0,
         r#"["grid-template-columns: 1fr 2fr 30px","grid-template-rows: auto 20px","grid-auto-rows: auto","gap: 10px","row-gap: 10px","grid-template: auto 20px / 1fr 2fr 30px","grid: auto 20px / 1fr 2fr 30px / none / row / auto / auto"]"#,

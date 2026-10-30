@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!-- Flexbox: auto margins in the cross axis (css-flexbox-1 §8.1, §9.6):
+     they take the free space of the line, win over align-self, stop the
+     stretch and are 0 when the item overflows. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flex cross-axis auto margins</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .c { display: flex; width: 400px; background: #eee; margin-bottom: 10px; }
+  .col { flex-direction: column; }
+  .row { height: 100px; }
+  .i { width: 50px; height: 30px; background: #ccc; }
+</style>
+</head>
+<body>
+  <div class="c col">
+    <div class="i" style="margin: 0 auto"></div>
+    <div class="i" style="margin-left: auto"></div>
+    <div class="i" style="margin-right: auto"></div>
+    <div class="i" style="margin-left: auto; align-self: flex-start"></div>
+    <div class="i" style="margin: 0 auto; align-self: flex-end; border: 5px solid red"></div>
+    <div class="i" style="margin: 0 auto; width: 50%"></div>
+    <div class="i" style="margin: 0 auto; width: auto; height: auto">shrink to fit</div>
+    <div class="i" style="width: auto; height: auto">stretch</div>
+  </div>
+  <div class="c col" style="width: 100px">
+    <div class="i" style="margin: 0 auto; width: 160px"></div>
+    <div class="i" style="margin-left: auto; width: 160px"></div>
+    <div class="i" style="margin-right: auto; width: 160px"></div>
+  </div>
+  <div class="c col" style="flex-direction: column-reverse; padding: 0 20px 0 10px">
+    <div class="i" style="margin: 0 auto"></div>
+    <div class="i" style="margin-left: auto"></div>
+  </div>
+  <div class="c col" style="flex-wrap: wrap; height: 70px">
+    <div class="i" style="margin: 0 auto; width: 80px"></div>
+    <div class="i" style="width: 120px"></div>
+    <div class="i" style="margin-left: auto; width: 60px"></div>
+  </div>
+  <div class="c row">
+    <div class="i" style="margin: auto"></div>
+    <div class="i" style="margin-top: auto"></div>
+    <div class="i" style="margin-bottom: auto"></div>
+    <div class="i" style="margin-top: auto; margin-bottom: auto; align-self: flex-start"></div>
+    <div class="i" style="margin-top: 10px; margin-bottom: auto; align-self: flex-end"></div>
+    <div class="i" style="height: auto; margin-top: auto">x</div>
+  </div>
+  <div class="c row" style="height: 20px">
+    <div class="i" style="margin: auto"></div>
+    <div class="i" style="margin-top: auto"></div>
+  </div>
+  <div class="c row" style="flex-wrap: wrap; height: 200px; width: 100px">
+    <div class="i" style="margin: auto"></div>
+    <div class="i" style="margin-top: auto; height: 60px"></div>
+    <div class="i" style="width: 40px"></div>
+    <div class="i" style="margin-bottom: auto"></div>
+  </div>
+  <div class="c row" style="flex-direction: row-reverse">
+    <div class="i" style="margin: auto"></div>
+    <div class="i" style="margin-top: auto"></div>
+  </div>
+</body>
+</html>

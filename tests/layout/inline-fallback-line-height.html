@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- A glyph from a fallback font changes the line height only with
+     `line-height: normal`. With another value the primary font's metrics
+     decide, so a line of a small line-height stays that height. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fallback font and line height</title>
+<style>
+  body { margin: 8px; font-size: 21.3333px; }
+  div { width: 100px; background: #eee; margin-bottom: 4px; }
+  .icon { font-size: 13.3333px; }
+  .icon span { font-size: 1.6em; line-height: .8em; }
+</style>
+</head>
+<body>
+  <div style="line-height: 17px"><span>&#9872;</span></div>
+  <div style="line-height: 18px"><span>&#9872;</span></div>
+  <div style="line-height: 20px"><span>&#9872;</span></div>
+  <div style="line-height: 24px"><span>&#9872;</span></div>
+  <div style="line-height: 30px"><span>&#9872;</span></div>
+  <div style="line-height: .8">x<span>&#9872;</span></div>
+  <div><span>&#9872;</span></div>
+  <div style="line-height: normal">x<span>&#9872;</span></div>
+  <div class="icon"><span>&#9872;</span></div>
+</body>
+</html>

@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-30: M8 feature 11b, layout gaps of the Craigslist page
+
+- Auto margins in the cross axis of a flex container now take the free
+  space of the line (css-flexbox-1 §8.1, §9.6), win over `align-self`
+  and are 0 when the item overflows. On the Craigslist page,
+  `section.body` (`margin: 0 auto` in a column flex container) is now
+  centred, and about 140 boxes move by 150 px.
+- The reply row was 1 px taller. The cause was not the inline-block
+  baseline: the flag characters of `.flagIcon` come from a fallback
+  font, and swb added that font's ascent and descent to the line height.
+  Chromium does this only for `line-height: normal`; swb now does the
+  same. This rule comes from probes, not from a spec text.
+- Learned: `getComputedStyle` margins already reported the used values;
+  the 300 px `margin-right` of the diagnosis was the unplaced item.
+- `compare --js craigslist-posting` (legacy reference): geometry
+  0.2484 → 0.9412, pixels 0.7040 → 0.9976. JS-off output and the other
+  JavaScript targets are unchanged. Probe file with 45 cases, three
+  layout tests.
+
+Next: 11c, the web APIs of the page (`WebKitCSSMatrix`, style
+declaration properties, `alert`, `navigator.clipboard`, fullscreen).
+
 ## 2026-10-30: M8 feature 11a2, global memory allocator
 
 - Measured glibc, mimalloc 2 and 3, and jemalloc (`tikv-jemallocator`)

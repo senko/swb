@@ -3689,11 +3689,29 @@ Steps:
         --js` and the hostile set unchanged. ADR 0029.
       - 11b: layout (`implementer`): auto margins in the cross axis of
         a flex column; the 1 px of the reply row.
-      - 11c: web APIs (`implementer`): `WebKitCSSMatrix`/`DOMMatrix` as
-        Leaflet uses them, the style declaration properties that the
-        page tests, `alert`/`confirm`/`prompt` (headless: as Chromium's
-        automation without a dialog handler), `navigator.clipboard`,
-        the fullscreen members.
+        Done 2026-10-30: an item with an auto cross margin takes the
+        free space of its line (css-flexbox-1 §8.1, §9.6), ignores
+        `align-self`, and gets 0 when it overflows; `section.body`
+        (`margin: 0 auto` in a column flex container) is centred, and
+        about 140 boxes move by 150 px. The 1 px came from the flag
+        characters of `.flagIcon` (a fallback-font glyph): swb added
+        the fallback font's ascent and descent to the line for every
+        `line-height`; Chromium does this only for `line-height:
+        normal`, and swb now does the same (inferred from probes).
+        Probe file `tools/probes/flex-auto-margins.json` (45 cases, all
+        equal to Chromium), three layout tests. `compare --js
+        craigslist-posting` (legacy reference): geometry 0.2484 →
+        0.9412, pixels 0.7040 → 0.9976. JS-off snapshot unchanged.
+      - 11c1: CSS from scripts (`implementer`): `DOMMatrix` and
+        `DOMMatrixReadOnly` (Geometry Interfaces) with `WebKitCSSMatrix`
+        as Chromium's alias, as Leaflet uses them; the style declaration
+        properties that the page and Leaflet test or write (for example
+        `transition`, `willChange`, `touchAction`, `perspective`),
+        parsed and stored but without effect on rendering.
+      - 11c2: window APIs (`implementer`): `alert`/`confirm`/`prompt`
+        (as Chromium's automation without a dialog handler: dismissed),
+        `navigator.clipboard`, the fullscreen members if the page needs
+        them.
       - 11d: the integration test and the exit check, docs.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
@@ -4668,10 +4686,6 @@ not repeated here; the open items of each spike session are in M6 step
   - Layout noise: rows move by up to 7 % between builds that differ in
     code they do not run, with equal instruction counts. Try function
     alignment or `codegen-units = 1` in the release profile.
-  - `language_hostile::copies_of_huge_sparse_arrays_end_at_a_limit` is
-    flaky in single runs: `a.push.apply(a, a)` can reach "Maximum call
-    stack size exceeded" before the deadline, and `is_limit` does not
-    accept that `RangeError`.
 - Maintenance (M7):
   - Left for measurement (hot paths): the line terminator test of the
     regexp matcher (`js-regexp/src/exec.rs`) and the digit value of a
@@ -5440,8 +5454,7 @@ not repeated here; the open items of each spike session are in M6 step
   optional ligatures stay on with letter-spacing; `break-spaces` breaks
   after the space run, not after every space; multi-column layout (only
   the block formatting context of multicol containers exists).
-- Text: with a fixed `line-height`, a fallback font adds its own
-  half-leading (Chromium: the line keeps the fixed height); item widths
+- Text: item widths
   are rounded from the exact sum (Chromium converts the sum to `f32`
   first; 41 of 15,001 sizes differ for a 200-glyph text); Chromium shares
   one font between nearby sizes on a page (font cache key truncated to
@@ -5506,11 +5519,15 @@ not repeated here; the open items of each spike session are in M6 step
   `transform-box`; `will-change`, `filter` and `contain` as containing
   blocks for fixed boxes; `clip-path`.
 - Flexbox: baseline alignment (`align-self: baseline` aligns at the
-  cross start); `flex-wrap: wrap-reverse` is laid out as `wrap`; auto
-  margins on the cross axis; `justify-content: normal` packs
+  cross start); `flex-wrap: wrap-reverse` is laid out as `wrap`;
+  `justify-content: normal` packs
   `row-reverse`/`column-reverse` items at the main end (Chromium: main
   start); in wrapping column containers, items with auto width get the
-  container width instead of fit-content (§9.4 step 7).
+  container width instead of fit-content (§9.4 step 7). A column item
+  with a definite `height` and no content does not shrink (Chromium:
+  two 30px items in a 40px column get 20px each; swb keeps 30px; the
+  content-size suggestion of the automatic minimum is probably laid out
+  with the specified height; found in feature 11b).
 - Block layout: percentage heights resolve against the unclamped
   specified height (`height: 300px; max-height: 100px`: a `50%` child is
   150 px, Chromium 50 px).

@@ -2223,7 +2223,15 @@ fn copies_of_huge_sparse_arrays_end_at_a_limit() {
         ] {
             let (result, elapsed) =
                 eval_with_deadline_of(&mut rt, source, Duration::from_millis(500));
-            assert!(is_limit(&result), "{source}: {result:?}");
+            // `push.apply` with too many arguments throws V8's stack
+            // RangeError; on a fast run it comes before the deadline.
+            let too_many_arguments = source.contains("push.apply")
+                && matches!(&result, Err(ScriptError::Uncaught { name, message, .. })
+                    if name == "RangeError" && message == "Maximum call stack size exceeded");
+            assert!(
+                is_limit(&result) || too_many_arguments,
+                "{source}: {result:?}"
+            );
             assert!(elapsed < Duration::from_secs(5), "{source}: {elapsed:?}");
             assert_clean(&rt);
         }

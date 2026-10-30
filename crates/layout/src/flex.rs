@@ -5,13 +5,13 @@
 //! flex-grow/shrink/basis, automatic minimum sizes, the container's own
 //! min-height and max-height, `justify-content`, `align-items`/`align-self`
 //! (start, end, center, stretch), `align-content` (start, end, center,
-//! space-*, stretch), `gap`, auto margins on the main axis, and the
+//! space-*, stretch), `gap`, auto margins on both axes, and the
 //! container's first baseline (§8.5).
 //!
 //! Absolutely positioned children get a placeholder (see
-//! `positioned.rs`). Not supported yet: auto margins on the cross axis,
-//! baseline alignment (items with `align-self: baseline` are aligned at
-//! the cross start), `flex-wrap: wrap-reverse` (laid out as `wrap`).
+//! `positioned.rs`). Not supported yet: baseline alignment (items with
+//! `align-self: baseline` are aligned at the cross start), `flex-wrap:
+//! wrap-reverse` (laid out as `wrap`).
 //! Known bug: `justify-content: normal` packs `row-reverse` and
 //! `column-reverse` items at the main end instead of the main start.
 
@@ -672,12 +672,22 @@ fn place_items(
             }
             main_pos += item.margin_main_start.unwrap_or(auto_margin);
             let free_in_line = line_cross[li] - item.outer_cross();
-            let cross_offset = match item.align_self(container) {
-                Alignment::End | Alignment::FlexEnd | Alignment::SelfEnd => free_in_line,
-                Alignment::Center => free_in_line / 2.0,
-                _ => 0.0,
+            // §8.1 and §9.6 step 14: an `auto` cross margin takes the free
+            // space of the line and wins over `align-self`. With no free
+            // space (the item overflows), it is 0.
+            let cross_autos = usize::from(item.margin_cross_start.is_none())
+                + usize::from(item.margin_cross_end.is_none());
+            let (cross_offset, cross_margin) = if cross_autos > 0 {
+                let share = free_in_line.max(0.0) / cross_autos as f32;
+                (0.0, item.margin_cross_start.unwrap_or(share))
+            } else {
+                let offset = match item.align_self(container) {
+                    Alignment::End | Alignment::FlexEnd | Alignment::SelfEnd => free_in_line,
+                    Alignment::Center => free_in_line / 2.0,
+                    _ => 0.0,
+                };
+                (offset, item.margin_cross_start.unwrap_or(0.0))
             };
-            let cross_margin = item.margin_cross_start.unwrap_or(0.0);
             if let Some(mut fragment) = item.fragment.take() {
                 let (x, y) = if axes.row {
                     (main_pos, cross_pos + cross_offset + cross_margin)

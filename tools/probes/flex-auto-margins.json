@@ -1,0 +1,431 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "fallback-glyph-line-height",
+   "html": "<!DOCTYPE html><style>body{margin:0;font-size:21.3333px}div{width:100px}</style><div style='line-height:17px'><span>&#9872;</span></div><div style='line-height:18px'><span>&#9872;</span></div><div style='line-height:20px'><span>&#9872;</span></div><div style='line-height:24px'><span>&#9872;</span></div><div style='line-height:30px'><span>&#9872;</span></div><div style='line-height:.8'>x<span>&#9872;</span></div>",
+   "measure": [
+    {
+     "boxes": "div, span"
+    }
+   ]
+  },
+  {
+   "name": "fallback-glyph-line-height-normal",
+   "html": "<!DOCTYPE html><style>body{margin:0;font-size:21.3333px}div{width:100px}</style><div><span>&#9872;</span></div><div style='line-height:normal'>x<span>&#9872;</span></div>",
+   "measure": [
+    {
+     "boxes": "div, span"
+    }
+   ]
+  },
+  {
+   "name": "fallback-glyph-flag-icon",
+   "html": "<!DOCTYPE html><style>body{margin:0;font-size:13.3333px}.f{font-size:1.6em;line-height:.8em;width:1em;margin:auto}</style><div class=f id=f><span id=s>&#9872;</span></div>",
+   "measure": [
+    {
+     "boxes": "#f, #s"
+    }
+   ]
+  },
+  {
+   "name": "fallback-glyph-inline-block",
+   "html": "<!DOCTYPE html><style>body{margin:0}</style><div style='font-size:13.3333px;line-height:1.2'>text <span style='display:inline-block;font-size:1.6em;line-height:.8em'>&#9872;</span> text</div>",
+   "measure": [
+    {
+     "boxes": "div, span"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin:0 auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-left",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-right",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin-right:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-padding-border",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='padding:0 20px 0 10px;width:300px'><div class=i style='margin:0 auto;border:5px solid red'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-width-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin:0 auto;width:auto;background:red'>shrink to fit</div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-width-auto-left",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin-left:auto;width:auto;background:red'>shrink</div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-stretch-no-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='width:auto;background:red'>stretch</div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-align-start",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='align-items:flex-start'><div class=i style='margin:0 auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-align-end",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='align-items:flex-end'><div class=i style='margin-left:auto;margin-right:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-align-self",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin-left:auto;align-self:flex-end'></div><div class=i style='margin-right:auto;align-self:flex-end'></div><div class=i style='margin:0 auto;align-self:flex-start'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='width:200px'><div class=i style='margin:0 auto;width:300px'></div><div class=i style='margin-left:auto;width:300px'></div><div class=i style='margin-right:auto;width:300px'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-percent-width",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin:0 auto;width:50%'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-mixed",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i style='margin-left:20px;margin-right:auto'></div><div class=i style='margin-left:auto;margin-right:20px'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-reverse-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='flex-direction:column-reverse'><div class=i style='margin:0 auto'></div><div class=i style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-wrap",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='flex-wrap:wrap;height:70px'><div class=i style='margin:0 auto'></div><div class=i style='margin-left:auto'></div><div class=i style='margin-right:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "col-auto-wrap-lines",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='flex-wrap:wrap;height:70px'><div class=i style='margin:0 auto;width:80px'></div><div class=i style='width:120px'></div><div class=i style='margin-left:auto;width:60px'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-top",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin-top:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-bottom",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin-bottom:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-top-bottom",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin-top:auto;margin-bottom:auto'></div><div class=i style='margin-top:10px;margin-bottom:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-align-end",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='align-items:flex-end'><div class=i style='margin-bottom:auto'></div><div class=i style='margin:auto 5px'></div><div class=i></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-align-center",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='align-items:center'><div class=i style='margin-top:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-stretch",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div style='margin-top:auto;background:red'>x</div><div style='margin-bottom:auto;background:red'>x</div><div style='background:red'>x</div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='height:20px'><div class=i style='margin:auto'></div><div class=i style='margin-top:auto'></div><div class=i style='margin-bottom:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-wrap",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='flex-wrap:wrap;height:200px;width:100px'><div class=i style='margin:auto'></div><div class=i style='margin-top:auto;height:60px'></div><div class=i style='width:40px'></div><div class=i style='margin-bottom:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-wrap-align-content",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='flex-wrap:wrap;height:200px;width:100px;align-content:flex-start'><div class=i style='margin:auto'></div><div class=i style='margin-top:auto;height:60px'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-reverse-auto",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='flex-direction:row-reverse'><div class=i style='margin:auto'></div><div class=i style='margin-top:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "row-auto-baseline",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='align-items:baseline'><div class=i style='margin-top:auto'></div><div class=i style='height:50px'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-left",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i></div><div class=i style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin:0 auto'></div><div class=i></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-two-items",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin-left:auto'></div><div class=i style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-justify",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='justify-content:flex-end'><div class=i style='margin-right:auto'></div><div class=i></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c' style='width:80px'><div class=i style='margin-left:auto'></div><div class=i style='margin:0 auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-row-grow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c'><div class=i style='margin-left:auto;flex:1'></div><div class=i style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-col-top",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='height:200px'><div class=i></div><div class=i style='margin-top:auto'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-col-both",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='height:200px'><div class=i style='margin:auto 0'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-col-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='height:40px'><div class=i style='margin-top:auto;flex-shrink:0'></div><div class=i style='margin:auto 0;flex-shrink:0'></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "main-col-reverse",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='height:200px;flex-direction:column-reverse'><div class=i style='margin-top:auto'></div><div class=i></div></div>",
+   "measure": [
+    {
+     "boxes": ".c, .i"
+    }
+   ]
+  },
+  {
+   "name": "computed-margin",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col'><div class=i id=m style='margin:0 auto'></div></div><div class='c'><div class=i id=n style='margin:auto'></div></div><div class='c'><div class=i id=o style='margin-left:auto'></div></div>",
+   "measure": [
+    {
+     "style": "#m, #n, #o",
+     "props": [
+      "margin-left",
+      "margin-right",
+      "margin-top",
+      "margin-bottom"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "computed-margin-overflow",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div class='c col' style='width:20px'><div class=i id=m style='margin:0 auto'></div></div>",
+   "measure": [
+    {
+     "style": "#m",
+     "props": [
+      "margin-left",
+      "margin-right",
+      "margin-top",
+      "margin-bottom"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "computed-margin-block",
+   "html": "<!DOCTYPE html><style>body{margin:0;font:16px/20px sans-serif}.c{display:flex;width:400px;height:100px;background:#eee}.col{flex-direction:column;height:auto;width:400px}.i{width:50px;height:30px}</style><div style='width:400px'><div class=i id=m style='margin:0 auto'></div></div>",
+   "measure": [
+    {
+     "style": "#m",
+     "props": [
+      "margin-left",
+      "margin-right",
+      "margin-top",
+      "margin-bottom"
+     ]
+    }
+   ]
+  }
+ ]
+}
