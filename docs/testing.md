@@ -1392,26 +1392,35 @@ also needs no console error at load and, after the steps, only the errors
 that Chromium has. The module comment of the test lists the keys that it
 skips and why.
 
-`wikipedia_web_browser.rs` (M8 feature 12a, about 8 s, mostly the style and
-layout runs of the 48 clicks) does the same for the Wikipedia article with
-the default settings of the tools: 48 step groups (the Appearance radios with
+`wikipedia_web_browser.rs` (M8 feature 12, about 8 s, mostly the style and
+layout runs of the 55 clicks) does the same for the Wikipedia article with
+the default settings of the tools: 55 step groups (the Appearance radios with
 the root classes and the cookie; pin and unpin of the four menus, also from
 their dropdowns; the table of contents toggle by click, `Enter` and `Space`;
 a collapsible table and a navbox the same way; the scroll to 2,000 px and a
-wheel turn with the sticky containers; the hover on a wiki link, which shows
-the error popup because the fixture lacks the REST summary; the search box
-focus, typing and `Escape`; clicks on table-of-contents links with the anchor
-scroll, then `back` and `forward` with `hashchange` and `popstate`) and the
-records of `data/wikipedia-web-browser.js`. Rectangles compare within 3 px,
-everything else exactly. Since feature 12b the records have the
-VisualEditor and Popups keys: the `ve-*` root classes (`ve-available`), the
-accesskey link that VisualEditor adds to the body, the total length of the CSS
-text in the `style` elements of `head` (the number of those elements
-depends on the frames that fall between the module loads, see ADR 0028),
-the absence of Popups' SVG fallback (`#mwe-popups-svg`), and the computed
-`clip-path` of the popup container. The module comment lists what the
-records leave out (what feature 12c changes, and the rectangles that the
-missing multi-column layout moves).
+wheel turn with the sticky containers; the hover on the link `Web_page`, which
+shows the link preview with the recorded REST summary and image; the search
+box (Codex typeahead, Vue 3): focus, typing "web", `ArrowDown` twice,
+`ArrowUp` three times, `Escape`, a click into the box and a click outside,
+with the recorded search responses; clicks on table-of-contents links with
+the anchor scroll, then `back` and `forward` with `hashchange` and
+`popstate`) and the records of `data/wikipedia-web-browser.js`. Rectangles
+compare within 3 px, everything else exactly. Since feature 12b the records
+have the VisualEditor and Popups keys: the `ve-*` root classes
+(`ve-available`), the accesskey link that VisualEditor adds to the body, the
+total length of the CSS text in the `style` elements of `head` (the number of
+those elements depends on the frames that fall between the module loads, see
+ADR 0028), the absence of Popups' SVG fallback (`#mwe-popups-svg`), and the
+computed `clip-path` of the popup container. Since feature 12d they have the
+preview's rectangles and texts (`pvr`, `pvt`) and the typeahead's rectangles
+and state (`tar`, `tat`: the `aria-*` attributes of the input, the menu, each
+item with its highlight, title, label, description, thumbnail kind and link).
+The sticky header (logged-in users only) and reference previews (off for
+logged-out users) cannot be tested on this fixture, in Chromium either. The
+fixture has the search responses for the text "web" only. The module comment
+lists what the records leave out (the rectangles that the missing
+multi-column layout moves) and the differences that they do not show
+(`box-shadow` and `text-overflow: ellipsis`, not implemented).
 
 **Chromium records of the steps** (`swbtools replay`;
 `tools/swbtools/replay.py`). The command replays `fixtures/js/NAME` in
@@ -1452,18 +1461,22 @@ Playwright's `page.click` clicks the center of its first non-empty rectangle and
 runner of the probe tool the center of the bounding box, as swb does), which
 the test skips for that group.
 
-**Pixels of the steps** (M8 feature 12c). `--screenshots DIR` saves a
+**Pixels of the steps** (M8 features 12c and 12d). `--screenshots DIR` saves a
 screenshot of the viewport after the load and after each group
 (`NNN-NAME.png`, for looking at the page). `--pixels FILE` reads
 `{"groups": ["theme night", "theme day"], "points": {"wordmark 1": [87,
 15]}}` (a group name of the steps file, or `load`; x and y in the viewport)
 and `--pixels-out FILE` writes `{"theme night": {"wordmark 1": [255, 255,
 255]}}`, the colors of the viewport screenshot at the points after those
-groups. The Wikipedia test compares swb's colors at the 23 points of
-`data/wikipedia-web-browser-pixel-points.json` with the file
-`data/wikipedia-web-browser-pixels.json` (tolerance 12 per channel), so no
-image is committed. The command that makes both records and colors (three
-runs, equal):
+groups (every point after every group). The Wikipedia test compares swb's
+colors at the points of `data/wikipedia-web-browser-pixel-points.json` with
+the file `data/wikipedia-web-browser-pixels.json` (tolerance 12 per channel),
+so no image is committed. The points file has one more key for the test,
+which the tool ignores: `group_points` maps a group to name prefixes; that
+group checks only the points whose name starts with one of them (the preview
+and menu groups of feature 12d), and every other group checks the points that
+no prefix claims (the theme groups). The command that makes both records and
+colors (three runs, equal):
 
 ```
 uv run --project tools swbtools replay wikipedia-web-browser \
@@ -1474,6 +1487,11 @@ uv run --project tools swbtools replay wikipedia-web-browser \
   --pixels-out crates/automation/tests/data/wikipedia-web-browser-pixels.json \
   --out crates/automation/tests/data/wikipedia-web-browser-chromium.json
 ```
+
+Choose the points where a screenshot of swb and one of Chromium (replay
+`--screenshots` and `swb --steps ... --screenshot`) agree within 3 per
+channel in a flat 3 x 3 neighborhood (6 in photos), and not where swb lacks
+`box-shadow` or the ellipsis of `text-overflow`.
 
 `tools/tests/test_automation.py` tests the Python client against the swb
 binary (skipped if it does not exist). `just tools-check` (part of

@@ -4,6 +4,25 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M8 feature 12d, link preview and search typeahead; exit of feature 12
+
+- The Wikipedia fixture has 15 more entries, recorded with `swb
+  --record-missing`: the REST summary of the previewed link and its
+  image, the typeahead and ULS modules, and the search responses for
+  "web" with their thumbnails.
+- The link preview and the search typeahead (Codex, Vue 3) equal
+  Chromium's in DOM, attributes, `aria-*` state and rectangles, without
+  an engine change. The test now drives the suggestions, ArrowDown,
+  ArrowUp, Escape and a click outside: 55 step groups, 56 records.
+- Not drawn: `box-shadow` (the shadows of the preview and the menu) and
+  the ellipsis of `text-overflow` (backlog).
+- Exit of feature 12: `compare --js` geometry 0.9991, pixels 0.9967
+  (JS off 0.9977 and 0.9936); `load` at 0.285 s of 0.7 s; no script
+  error. Target 3 has its JavaScript text.
+
+Next: feature 12 was the last feature of M8; the end-of-milestone
+maintenance (CLAUDE.md) follows when the owner starts it.
+
 ## 2026-10-31: M8 feature 12c, filter and premultiplied gradients
 
 - `filter` and `-webkit-filter`: all filter functions, parsed, computed

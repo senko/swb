@@ -3897,6 +3897,27 @@ Steps:
         of the typeahead code and of one link preview; then what fails
         there. Exit of feature 12: the test drives the list above
         (items 5 and 6 as far as the logged-out page allows).
+        Done 2026-11-01: 15 fixture entries recorded with `swb
+        --record-missing` (the REST summary of `Web_page` and its image,
+        the typeahead and ULS modules, the search responses for "web",
+        ten thumbnails; both browsers find every request). The link
+        preview and the typeahead (Codex, Vue 3: the suggestions on
+        focus, the 11 results of "web", ArrowDown and ArrowUp with the
+        wrap to the footer item, Escape, click outside) equal Chromium's
+        in DOM, attributes, `aria-*` state and rectangles (within 1 px)
+        without an engine change. The test has 55 step groups, 56
+        records and 27 more pixel points. Not drawn: `box-shadow`
+        around the preview, the menu and the focused input, and the
+        ellipsis of `text-overflow` (backlog).
+        Exit of feature 12, met: the test drives items 1 to 8 (items 5
+        and 6 as far as the logged-out page allows: the sticky header
+        and reference previews are shown to logged-in users only; the
+        link preview stands in for the reference preview); no script
+        error at load and after the steps; `compare --js
+        wikipedia-web-browser` geometry 0.9991, pixels 0.9967 (JS off
+        0.9977 and 0.9936); the `load` event at 0.285 s (median of 7
+        release runs, 0.274 to 0.333 s; budget 0.7 s).
+        FEATURE 12 COMPLETE.
 
    Later (not in M8):
 
@@ -3932,6 +3953,24 @@ Steps:
 
 ## Backlog from M8
 
+- Paint (found in feature 12d): `box-shadow` is not implemented (outer
+  and inset shadows, blur, spread, offsets, the border radius;
+  `getComputedStyle().boxShadow` is `undefined`). Wikipedia with
+  JavaScript on lacks the shadows of the link preview, the search menu
+  and the focus ring of the search input; it changes JS-off fixtures
+  too. The blur of `paint/src/filter.rs` can serve it.
+- Layout and paint (found in feature 12d): `text-overflow: ellipsis`
+  (no "…" at the end of a cut line, also when the text is in an inline
+  child such as `bdi`); two descriptions of Wikipedia's search menu.
+- Tools (found in feature 12d): in `swbtools replay`, a click by the
+  selector `#searchInput` fails in Playwright after Escape closed
+  Wikipedia's typeahead (the locator finds no clickable element); the
+  test clicks a point. Chromium requests `mmv` and an analytics POST in
+  some replay runs; swb never does (no record depends on it). The
+  `replay` output is one value per line (`--pixels-out` also writes the
+  points that a group does not check): the Wikipedia data files are
+  1,766 and 7,140 lines; one line per point and compact rectangles
+  would cut them.
 - Engine (found in feature 12c): the Craigslist page's load task needs
   3.4 to 3.9 s of CPU time, and the task limit (`TASK_TIME_LIMIT`,
   `crates/web/src/runtime.rs`) is 5 s of wall-clock time. On a busy

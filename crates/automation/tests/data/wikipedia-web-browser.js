@@ -44,6 +44,13 @@ window.__s=()=>{
  sticky:sh?sh.className+' '+R(sh)+' '+getComputedStyle(sh).display:null,
  stickyVisible:document.documentElement.className.includes('vector-sticky-header-visible'),
  pv:q('.mwe-popups').map(e=>e.className+' '+R(e)+' '+e.innerText.slice(0,80).replace(/\s+/g,' ')),
+ pvr:q('.mwe-popups').flatMap(p=>['.mwe-popups-container','.mwe-popups-discreet','.mwe-popups-thumbnail','.mwe-popups-extract','.mwe-popups-extract p','footer','.mwe-popups-settings-button','.mwe-popups-extract b'].map(s=>s+' '+R(p.querySelector(s)))),
+ pvt:q('.mwe-popups').map(p=>{const i=p.querySelector('img');return [p.getAttribute('aria-hidden'),p.querySelector('.mwe-popups-extract').innerText,p.querySelector('.mwe-popups-settings-button').title,i?[i.complete,i.naturalWidth,i.naturalHeight,i.currentSrc.replace(/^.*\//,'')].join(' '):'no image'].join(' | ')}),
+ tar:(()=>{const t=document.querySelector('.cdx-typeahead-search');if(!t)return null;const m=t.querySelector('.cdx-menu');return [t,t.querySelector('input.cdx-text-input__input'),m,...(m?m.querySelectorAll('li, li .cdx-thumbnail, li .cdx-menu-item__text__label, li .cdx-menu-item__text__description, .cdx-typeahead-search__search-footer__text'):[])].filter(Boolean).map(e=>e.localName+'.'+e.className.split(' ')[0]+' '+R(e))})(),
+ tat:(()=>{const t=document.querySelector('.cdx-typeahead-search');if(!t)return null;const i=t.querySelector('input.cdx-text-input__input');const m=t.querySelector('.cdx-menu');
+  const items=m?[...m.querySelectorAll('li')].map(l=>[l.id,l.classList.contains('cdx-menu-item--highlighted')?'H':'-',l.getAttribute('aria-selected'),l.title,(l.querySelector('.cdx-menu-item__text__label')||{}).textContent,(l.querySelector('.cdx-menu-item__text__description')||{}).textContent,l.querySelector('.cdx-thumbnail__placeholder')?'placeholder':l.querySelector('.cdx-thumbnail__image')?'image '+getComputedStyle(l.querySelector('.cdx-thumbnail__image')).backgroundImage.replace(/^.*\/|["')]+$/g,''):'none',l.querySelector('a').getAttribute('href')].join(' | ')):null;
+  return {cls:t.className.split(' ').sort().join(' '),input:[...i.attributes].filter(a=>/^(aria-|role|class$|value$)/.test(a.name)).map(a=>a.name+'='+a.value).sort().join(' ')+' value='+i.value+' sel='+i.selectionStart+','+i.selectionEnd,
+   menu:m?m.className+' '+getComputedStyle(m).display+' '+(m.querySelector('ul')||{}).id+' '+[...m.querySelector('ul').attributes].map(a=>a.name+'='+a.value).sort().join(' '):null,items}})(),
  body:document.body.className.split(' ').sort().join(' '),
  spc:q('.vector-sticky-pinned-container').map(e=>e.id+' '+(one?R(e):'-')+' '+getComputedStyle(e).position),
  hash:location.hash,scroll:Math.round(scrollY),

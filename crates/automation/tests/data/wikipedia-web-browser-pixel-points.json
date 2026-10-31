@@ -1,5 +1,5 @@
-{
- "groups": ["theme night", "theme day"],
+{"groups": ["theme night", "theme day", "hover link", "type search", "arrow down", "arrow up 2", "escape search"],
+ "group_points": {"hover link": ["popup"], "type search": ["menu"], "arrow down": ["menu highlight"], "arrow up 2": ["menu footer highlight"], "escape search": ["page below header"]},
  "points": {
   "wordmark 1": [87, 15],
   "wordmark 2": [107, 15],
@@ -23,6 +23,33 @@
   "content background": [600, 520],
   "header background": [700, 80],
   "infobox background": [770, 440],
-  "toc item background": [150, 214]
+  "toc item background": [150, 214],
+  "popup image 1": [350, 262],
+  "popup image 2": [556, 290],
+  "popup image 3": [526, 316],
+  "popup image 4": [452, 366],
+  "popup image 5": [454, 408],
+  "popup text background 1": [350, 610],
+  "popup text background 2": [350, 630],
+  "menu background 1": [600, 120],
+  "menu background 2": [646, 284],
+  "menu background 3": [612, 444],
+  "menu photo 1": [264, 122],
+  "menu photo 2": [262, 142],
+  "menu photo 3": [264, 148],
+  "menu logo 1": [256, 307],
+  "menu logo 2": [288, 317],
+  "menu placeholder 1": [256, 61],
+  "menu placeholder 2": [290, 77],
+  "menu diagram 1": [256, 184],
+  "menu diagram 2": [274, 194],
+  "menu highlight 1": [560, 55],
+  "menu highlight 2": [594, 71],
+  "menu highlight 3": [628, 87],
+  "menu footer highlight 1": [560, 666],
+  "menu footer highlight 2": [560, 682],
+  "page below header 1": [260, 300],
+  "page below header 2": [672, 436],
+  "page below header 3": [396, 562]
  }
 }

@@ -3095,6 +3095,55 @@ the colors of a screenshot at points) and `tools/probes/gradients.json`
 - **Tools.** The probe tool has the query `pixels`; `swbtools replay` has
   `--screenshots`, `--pixels` and `--pixels-out` (docs/testing.md).
 
+Feature 12d notes (the link preview and the search typeahead with the
+recorded responses, and the exit of feature 12; measured by replaying
+`fixtures/js/wikipedia-web-browser` with the 15 new entries in Chromium 148
+and in swb, with the same steps, and comparing the DOM of the preview and
+of the menu element by element: tag, attributes, rectangle, display,
+position, colors, `opacity`, `z-index`, `background-image`, image
+state):
+
+- **No engine change was needed.** The preview (Popups: REST summary
+  `Web_page`, its 500 x 321 image, `mwe-popups-*` classes, the settings
+  button) and the typeahead (Codex on Vue 3: the `morelike:` suggestions on
+  focus, the results of "web", `aria-activedescendant`, the highlight, the
+  wrap of `ArrowUp` from the first item to the footer item, `Escape`, the
+  click outside, 258 lines of DOM for the open menu) are equal to
+  Chromium's at the first measurement: the same elements, attributes,
+  classes and ids, rectangles within 1 px (one SVG icon is 1 px lower), no
+  script error, no `unhandledrejection`, no warning in swb except the URLs
+  that the fixture lacks, and those are the same in Chromium: the styles
+  `oojs-ui-core`, the icon images `listBullet` and `appearance`, the sort
+  icon (Chromium also asks sometimes for `mmv` and for an analytics POST).
+  None changes a record.
+- **Differences that remain (paint only; roadmap backlog).** `box-shadow`
+  is parsed as an unknown property (`getComputedStyle().boxShadow` is
+  `undefined`, `getPropertyValue('box-shadow')` is `''`) and not painted:
+  Chromium draws a soft shadow (`0 30px 90px -20px rgba(0,0,0,.3)`) around
+  the preview, two shadows around the menu and an inner ring on the
+  focused input. `text-overflow: ellipsis` is parsed and computed but
+  layout and paint ignore it: a long description in the menu is cut at
+  the edge of its box in swb, with "..." in Chromium (the rectangles of
+  the spans are equal, the text overflows in both). Both are a day or
+  more each (style, CSSOM, display list, raster, the cases and the
+  JavaScript-off snapshots of all fixtures), so they are not part of
+  this feature. The viewport match (maximum channel difference 32) of
+  the preview area is 0.9852, of the menu area 0.9949, of the viewport
+  with the menu open 0.9922 (0.9937 at the load: the rest is the
+  text anti-aliasing of the article). The text caret of a focused input
+  is on in swb at the moment of a screenshot; Chromium's is in its blink
+  phase.
+- **The test.** 55 step groups, 56 Chromium records (three equal runs, and
+  the pixel colors), the new record keys `pvr`, `pvt`, `tar` and `tat`,
+  and 27 new pixel points in five groups (`group_points` of the points
+  file); docs/testing.md. Chromium sometimes requests `mmv` (MultimediaViewer)
+  after the steps; swb does not. It is not recorded.
+- **Exit of feature 12.** Items 1 to 8 of the Wikipedia list are driven by
+  the test (5 and 6 as far as the logged-out page allows). `compare --js
+  wikipedia-web-browser`: geometry 0.9991, pixels 0.9967 (JavaScript off:
+  0.9977 and 0.9936). The `load` event: median 0.285 s of 7 runs of the
+  whole process with 1.5 s of virtual settle time (budget 0.7 s).
+
 Feature 11c1 notes (CSS from scripts for the Craigslist posting page;
 measured with `tools/probes/web-style-inert.json` (6 cases, 48 queries
 with about 600 values) and `tools/probes/web-geometry-matrix.json` (14

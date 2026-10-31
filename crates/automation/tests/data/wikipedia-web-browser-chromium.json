@@ -79,6 +79,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -180,6 +192,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -281,6 +305,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -382,6 +418,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -483,6 +531,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -584,6 +644,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -685,6 +757,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -786,6 +870,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -887,6 +983,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -988,6 +1096,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " - sticky",
@@ -1089,6 +1209,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " - sticky",
@@ -1190,6 +1322,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1291,6 +1435,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " - sticky",
@@ -1392,6 +1548,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " - sticky",
@@ -1493,6 +1661,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1594,6 +1774,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1695,6 +1887,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1796,6 +2000,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1897,6 +2113,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -1998,6 +2226,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 226,17,474,32",
+   "input.cdx-text-input__input 226,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,595,208,408 sticky",
@@ -2099,6 +2339,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -2200,6 +2452,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,364 sticky",
@@ -2301,6 +2565,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -2402,6 +2678,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,364 sticky",
@@ -2503,6 +2791,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -2604,6 +2904,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3440,474,32",
+   "input.cdx-text-input__input 266,-3440,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -2705,6 +3017,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3440,474,32",
+   "input.cdx-text-input__input 266,-3440,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -2806,6 +3130,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3440,474,32",
+   "input.cdx-text-input__input 266,-3440,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -2907,6 +3243,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3440,474,32",
+   "input.cdx-text-input__input 266,-3440,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3008,6 +3356,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3440,474,32",
+   "input.cdx-text-input__input 266,-3440,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3109,6 +3469,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-6715,474,32",
+   "input.cdx-text-input__input 266,-6715,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3210,6 +3582,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-6715,474,32",
+   "input.cdx-text-input__input 266,-6715,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3311,6 +3695,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-6715,474,32",
+   "input.cdx-text-input__input 266,-6715,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3412,6 +3808,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-6715,474,32",
+   "input.cdx-text-input__input 266,-6715,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3513,6 +3921,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-6715,474,32",
+   "input.cdx-text-input__input 266,-6715,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3614,6 +4034,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-1983,474,32",
+   "input.cdx-text-input__input 266,-1983,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3715,6 +4147,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-2283,474,32",
+   "input.cdx-text-input__input 266,-2283,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -3816,6 +4260,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -3917,6 +4373,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4020,8 +4488,31 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [
-   "mwe-popups mwe-popups-type-generic mwe-popups-fade-in-up flipped-x mwe-popups-no-image-pointer mwe-popups-is-not-tall 340,265,320,112  There was an issue displaying this preview Go to this page"
+   "mwe-popups mwe-popups-type-page mwe-popups-fade-in-up flipped-x mwe-popups-image-pointer mwe-popups-is-not-tall 340,265,320,390 A web page, or webpage, sometimes contextually shortened to just page, is a docu"
   ],
+  "pvr": [
+   ".mwe-popups-container 340,257,320,398",
+   ".mwe-popups-discreet 340,257,320,192",
+   ".mwe-popups-thumbnail 340,257,320,192",
+   ".mwe-popups-extract 356,465,288,140",
+   ".mwe-popups-extract p 356,465,288,220",
+   "footer 340,607,320,48",
+   ".mwe-popups-settings-button 612,607,32,32",
+   ".mwe-popups-extract b 368,467,64,16"
+  ],
+  "pvt": [
+   " | A web page, or webpage, sometimes contextually shortened to just page, is a document, typically published on the Web, and normally viewed using a web browser, which consists of hypertext and often additional components such as scripts and graphics. Since an author may publish one or more related web pages together in a website, the terms website and web page form a metaphor for paper pages bound together into a book. | Change page preview settings | true 500 321 500px-Platypus_article_on_Vector_2022.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  ],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4123,6 +4614,18 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail",
+   "input": "aria-label=Search Wikipedia class=cdx-text-input__input mw-searchInput value= sel=0,0",
+   "menu": null,
+   "items": null
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4150,7 +4653,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4224,6 +4727,35 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,186",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,92,16",
+   "span.cdx-menu-item__text__description 301,80,356,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,47,16",
+   "span.cdx-menu-item__text__description 301,141,187,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,105,16",
+   "span.cdx-menu-item__text__description 301,203,218,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-autocomplete=list aria-expanded=true aria-label=Search Wikipedia aria-owns=v-0 class=cdx-text-input__input role=combobox value= sel=0,0",
+   "menu": "cdx-menu cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox tabindex=-1",
+   "items": [
+    "v-1-1 | - |  | Browser wars | Browser wars | Competition between web browsing applications for share of worldwide usage | image 60px-Timeline_of_web_browsers.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Browser+wars&wprov=acrw1_0",
+    "v-1-2 | - |  | Firefox | Firefox | Web browser made by Mozilla | image 60px-Firefox_logo%2C_2019.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Firefox&wprov=acrw1_1",
+    "v-1-3 | - |  | Google Chrome | Google Chrome | Web browser developed by Google | image 60px-Google_Chrome_icon_%28February_2022%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Google+Chrome&wprov=acrw1_2"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4232,11 +4764,10 @@
   "hash": "",
   "scroll": 0,
   "h": [],
-  "ac": "input#searchInput",
+  "ac": "input#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4251,7 +4782,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4325,6 +4856,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=web sel=3,3",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4333,11 +4931,10 @@
   "hash": "",
   "scroll": 0,
   "h": [],
-  "ac": "input#searchInput",
+  "ac": "input#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4352,7 +4949,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4426,6 +5023,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-activedescendant=v-1-4 aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Web sel=3,3",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | H |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4434,11 +5098,10 @@
   "hash": "",
   "scroll": 0,
   "h": [],
-  "ac": "input#searchInput",
+  "ac": "input#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4453,7 +5116,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4527,6 +5190,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-activedescendant=v-1-5 aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Max Weber sel=9,9",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | H |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
   "spc": [
    " 32,136,208,408 sticky",
@@ -4535,11 +5265,10 @@
   "hash": "",
   "scroll": 0,
   "h": [],
-  "ac": "input#searchInput",
+  "ac": "input#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4554,7 +5283,1176 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-activedescendant=v-1-4 aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Web sel=3,3",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | H |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-activedescendant=v-1-14 aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=web sel=3,3",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | H |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 240,17,500,32",
+   "input.cdx-text-input__input 240,17,430,32",
+   "div.cdx-menu 240,49,430,654",
+   "li.cdx-menu-item 241,50,428,60",
+   "span.cdx-thumbnail 253,58,40,40",
+   "span.cdx-menu-item__text__label 301,61,29,16",
+   "span.cdx-menu-item__text__description 301,80,220,22",
+   "li.cdx-menu-item 241,111,428,60",
+   "span.cdx-thumbnail 253,119,40,40",
+   "span.cdx-menu-item__text__label 301,122,74,16",
+   "span.cdx-menu-item__text__description 301,141,228,22",
+   "li.cdx-menu-item 241,173,428,60",
+   "span.cdx-thumbnail 253,181,40,40",
+   "span.cdx-menu-item__text__label 301,184,82,16",
+   "span.cdx-menu-item__text__description 301,203,356,22",
+   "li.cdx-menu-item 241,234,428,60",
+   "span.cdx-thumbnail 253,242,40,40",
+   "span.cdx-menu-item__text__label 301,245,92,16",
+   "span.cdx-menu-item__text__description 301,264,248,22",
+   "li.cdx-menu-item 241,296,428,60",
+   "span.cdx-thumbnail 253,304,40,40",
+   "span.cdx-menu-item__text__label 301,307,95,16",
+   "span.cdx-menu-item__text__description 301,326,321,22",
+   "li.cdx-menu-item 241,357,428,60",
+   "span.cdx-thumbnail 253,365,40,40",
+   "span.cdx-menu-item__text__label 301,368,88,16",
+   "span.cdx-menu-item__text__description 301,387,211,22",
+   "li.cdx-menu-item 241,418,428,60",
+   "span.cdx-thumbnail 253,426,40,40",
+   "span.cdx-menu-item__text__label 301,429,78,16",
+   "span.cdx-menu-item__text__description 301,448,238,22",
+   "li.cdx-menu-item 241,480,428,60",
+   "span.cdx-thumbnail 253,488,40,40",
+   "span.cdx-menu-item__text__label 301,491,102,16",
+   "span.cdx-menu-item__text__description 301,510,170,22",
+   "li.cdx-menu-item 241,541,428,60",
+   "span.cdx-thumbnail 253,549,40,40",
+   "span.cdx-menu-item__text__label 301,552,75,16",
+   "span.cdx-menu-item__text__description 301,571,218,22",
+   "li.cdx-menu-item 241,603,428,60",
+   "span.cdx-thumbnail 253,611,40,40",
+   "span.cdx-menu-item__text__label 301,614,138,16",
+   "span.cdx-menu-item__text__description 301,633,356,22",
+   "li.cdx-menu-item 241,662,428,39",
+   "span.cdx-menu-item__text 301,671,205,22"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--expanded cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-activedescendant=v-1-13 aria-autocomplete=list aria-controls=v-0 aria-expanded=true aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu flex v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | H |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--expanded/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search vector-typeahead-search--active",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search/vector-typeahead-search--active",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
+  "pvClip": [],
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,17,474,32",
+   "input.cdx-text-input__input 266,17,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4628,6 +6526,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-1261,474,32",
+   "input.cdx-text-input__input 266,-1261,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -4641,9 +6606,8 @@
   ],
   "ac": "body#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4658,7 +6622,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4732,6 +6696,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3573,474,32",
+   "input.cdx-text-input__input 266,-3573,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -4747,9 +6778,8 @@
   ],
   "ac": "body#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4764,7 +6794,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4838,6 +6868,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-1261,474,32",
+   "input.cdx-text-input__input 266,-1261,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -4855,9 +6952,8 @@
   ],
   "ac": "body#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",
@@ -4872,7 +6968,7 @@
    "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
   ],
   "popupsSvg": false,
-  "headCss": 157753,
+  "headCss": 219909,
   "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
@@ -4946,6 +7042,73 @@
   "sticky": "vector-sticky-header 0,0,0,0 flex",
   "stickyVisible": false,
   "pv": [],
+  "pvr": [],
+  "pvt": [],
+  "tar": [
+   "div.cdx-typeahead-search 266,-3573,474,32",
+   "input.cdx-text-input__input 266,-3573,404,32",
+   "div.cdx-menu 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-thumbnail 0,0,0,0",
+   "span.cdx-menu-item__text__label 0,0,0,0",
+   "span.cdx-menu-item__text__description 0,0,0,0",
+   "li.cdx-menu-item 0,0,0,0",
+   "span.cdx-menu-item__text 0,0,0,0"
+  ],
+  "tat": {
+   "cls": "cdx-typeahead-search cdx-typeahead-search--auto-expand-width cdx-typeahead-search--show-thumbnail vector-typeahead-search",
+   "input": "aria-autocomplete=list aria-controls=v-0 aria-expanded=false aria-label=Search Wikipedia class=cdx-text-input__input cdx-text-input__input--has-value role=combobox value=Webster's Dictionary sel=20,20",
+   "menu": "cdx-menu cdx-menu--has-footer cdx-typeahead-search__menu none v-0 aria-label=Search results class=cdx-menu__listbox id=v-0 role=listbox style=margin-bottom: 38px; tabindex=-1",
+   "items": [
+    "v-1-4 | - |  | Web | Web | Topics referred to by the same term | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web&wprov=acrw1_0",
+    "v-1-5 | - |  | Max Weber | Max Weber | German social scientist (1864\u20131920) | image 60px-Max_Weber%2C_1918.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Max+Weber&wprov=acrw1_1",
+    "v-1-6 | - |  | Web crawler | Web crawler | Software that systematically browses the World Wide Web | image 60px-WebCrawlerArchitecture.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+crawler&wprov=acrw1_2",
+    "v-1-7 | - |  | Web scraping | Web scraping | Method of extracting data from websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+scraping&wprov=acrw1_3",
+    "v-1-8 | - |  | WebAssembly | WebAssembly | Assembly language and bytecode for web browsers | image 60px-WebAssembly_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=WebAssembly&wprov=acrw1_4",
+    "v-1-9 | - |  | Web browser | Web browser | Software used to access websites | image 60px-Safari_15.png?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+browser&wprov=acrw1_5",
+    "v-1-10 | - |  | Web design | Web design | Creation and maintenance of websites | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+design&wprov=acrw1_6",
+    "v-1-11 | - |  | Webcam model | Webcam model | Livestream video performer | image 60px-Venus_Berlin_2019_700.jpg?utm_source=en.wikipedia.org&utm_campaign=rest&utm_content=thumbnail | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webcam+model&wprov=acrw1_7",
+    "v-1-12 | - |  | Web colors | Web colors | Color used in designing web pages | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Web+colors&wprov=acrw1_8",
+    "v-1-13 | - |  | Webster's Dictionary | Webster's Dictionary | Dictionary developed by Noah Webster and other dictionaries using his name | placeholder | https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=Webster%27s+Dictionary&wprov=acrw1_9",
+    "v-1-14 | - |  |  |  |  | none | /w/index.php?title=Special%3ASearch&fulltext=1&search=web"
+   ]
+  },
   "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
   "spc": [
    " 32,24,208,408 sticky",
@@ -4965,9 +7128,8 @@
   ],
   "ac": "body#",
   "search": [
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
-   "input#searchInput ",
-   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width/vector-typeahead-search",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/vector-typeahead-search"
   ],
   "fs": "16px",
   "bg": "rgb(248, 249, 250)",

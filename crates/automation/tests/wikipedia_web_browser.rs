@@ -5,19 +5,30 @@
 //! `captured` time of the fixture, as the tools fix it. The test skips when
 //! the fixture is missing.
 //!
-//! The steps are in `data/wikipedia-web-browser-steps.json`, 48 groups for
-//! the features of the target (roadmap, M8 target "Wikipedia"): the
-//! Appearance radios (color theme, text size, page width) with the root
-//! classes and the client preference cookie; pin and unpin of the table
-//! of contents, Appearance, Tools and Main menu, also from their
-//! dropdowns; the collapse of the table of contents by click, `Enter` and
-//! `Space`; a collapsible table and a navbox by click, `Enter` and `Space`;
-//! the scroll to 2,000 px and a wheel turn, with the sticky containers;
-//! the hover on a wiki link, which shows the error popup (the fixture has
-//! no REST summary for it, in swb as in Chromium); the search box focus,
-//! typing and `Escape`; a click on table-of-contents links (the anchor
-//! scroll with `scroll-margin-top`), then back and forward with `hashchange`
-//! and `popstate`.
+//! The steps are in `data/wikipedia-web-browser-steps.json`, 55 groups for
+//! the eight features of the target (roadmap, M8 target "Wikipedia"):
+//! 1. the Appearance radios (color theme, text size, page width) with the
+//!    root classes and the client preference cookie;
+//! 2. pin and unpin of the table of contents, Appearance, Tools and Main
+//!    menu, also from their dropdowns;
+//! 3. the collapse of the table of contents by click, `Enter` and `Space`;
+//! 4. a collapsible table and a navbox by click, `Enter` and `Space`;
+//! 5. the scroll to 2,000 px and a wheel turn, with the sticky containers
+//!    (the sticky header itself is shown to logged-in users only, so the
+//!    logged-out fixture cannot test it, in Chromium either);
+//! 6. the hover on the link `Web_page`: the link preview (Popups) with the
+//!    recorded REST summary and image (reference previews are off for
+//!    logged-out users, so the link preview stands in for them), then the
+//!    pointer leaves the link;
+//! 7. the search box (Codex typeahead, Vue 3): the click shows the
+//!    recorded `morelike:` suggestions, typing "web" the recorded
+//!    `search/title` results; `ArrowDown` and `ArrowUp` (also the wrap to
+//!    the footer item), `Escape`, a click into the box again and a click
+//!    outside. Only the text "web" works: the fixture has the responses
+//!    for that query only, and the test never opens a result;
+//! 8. a click on table-of-contents links (the anchor scroll with
+//!    `scroll-margin-top`), then back and forward with `hashchange` and
+//!    `popstate`.
 //!
 //! After the load and after each group the test reads one JSON record of
 //! the page (`data/wikipedia-web-browser.js`: root and body classes, the
@@ -39,25 +50,64 @@
 //! references fit one column (swb has no multi-column layout: with the
 //! table of contents or the Appearance panel unpinned, the content is wide
 //! enough for two columns and everything below the references is 271 px
-//! higher in Chromium). Not tested because the logged-out fixture does not
-//! have them, as in Chromium: the sticky header (shown to logged-in users
-//! only), reference previews, a successful link preview and the search
-//! suggestions (their code is not in the fixture).
+//! higher in Chromium).
+//!
+//! Since feature 12d the records have the link preview (`pvr`: the
+//! rectangles of its container, image, extract, first paragraph, footer,
+//! settings button and first bold word; `pvt`: `aria-hidden`, the text of
+//! the extract, the title of the settings button, and the image's
+//! `complete` flag, natural size and file name) and the typeahead (`tar`:
+//! the rectangles of the Codex root, input, menu, each item, thumbnail,
+//! label and description and the footer text; `tat`: the root classes, the
+//! `aria-*` and `role` attributes of the input, its value and selection,
+//! the menu's class, display and listbox attributes, and per item the id,
+//! the highlight class, `aria-selected`, title, label, description,
+//! whether the thumbnail is an image (with its file name) or the
+//! placeholder, and the link). The step groups after the typing are
+//! `ArrowDown` twice, `ArrowUp` three times (the second goes to the footer
+//! item: Codex wraps and puts the highlighted title in the input), `Escape`
+//! (the menu closes, the input keeps its value), a click into the box
+//! (the menu stays closed) and a click outside.
+//!
+//! What the logged-out fixture cannot test, in Chromium either: the sticky
+//! header (shown to logged-in users only) and reference previews (off for
+//! logged-out users). The search results are the recorded responses of
+//! the fixture (`rest.php/v1/search/page?q=morelike:Web_browser` on focus,
+//! `search/title?q=web` after typing), so they test the code path, not
+//! the live search. The thumbnails of the menu are CSS background images,
+//! so the records show only their URLs; the pixel check covers their
+//! decoding and drawing.
+//!
+//! Known differences from Chromium, which the records do not show:
+//! `box-shadow` and `text-overflow: ellipsis` are not implemented (roadmap
+//! backlog), so swb draws no shadow around the preview, the menu and the
+//! focused input, and cuts a long description of a menu item at the edge
+//! without "..."; swb's text caret is on at the moment of a screenshot,
+//! Chromium's is in its blink phase. The pixel points avoid those places.
 //!
 //! Since feature 12c the test also reads pixels (the dark theme: `filter`
-//! and gradients). After the groups "theme night" and "theme day" it takes
-//! a screenshot of the viewport and compares the colors at 23 points with
-//! Chromium's, within [`PIXEL_TOLERANCE`] per channel: the five points of
-//! the wordmark of the logo (white in the dark theme, black in the light
-//! one: `filter: invert(1) ...`), the four of the thumbnail (dimmed by
-//! `filter: brightness(0.8)`, so 204 and not 255 in the dark theme), the
-//! three of the video poster (not filtered), the three of the band at the
-//! bottom of each of the two sticky containers (`linear-gradient(
-//! rgba(255, 255, 255, 0), var(--background-color-base))`: the color of the
-//! page, no gray band, in both themes) and five areas of the page. The
-//! points and the groups are in `data/wikipedia-web-browser-pixel-points.json`;
-//! Chromium's colors in `data/wikipedia-web-browser-pixels.json` (no image
-//! is committed): `swbtools replay wikipedia-web-browser --steps
+//! and gradients), since 12d also for the preview and the menu. After the
+//! groups "theme night" and "theme day" it takes a screenshot of the
+//! viewport and compares the colors at 23 points with Chromium's, within
+//! [`PIXEL_TOLERANCE`] per channel: the five points of the wordmark of the
+//! logo (white in the dark theme, black in the light one: `filter:
+//! invert(1) ...`), the four of the thumbnail (dimmed by `filter:
+//! brightness(0.8)`, so 204 and not 255 in the dark theme), the three of
+//! the video poster (not filtered), the three of the band at the bottom of
+//! each of the two sticky containers (`linear-gradient(rgba(255, 255, 255,
+//! 0), var(--background-color-base))`: the color of the page, no gray band,
+//! in both themes) and five areas of the page. Feature 12d adds five groups
+//! with their own points (`group_points` in the points file): "hover link"
+//! (five points in the preview's image, two in its white text area), "type
+//! search" (three in the white of the menu, three in the photo of the
+//! second item, two in the WebAssembly logo, two in a thumbnail with the
+//! placeholder icon, two in the diagram of the Web crawler item), "arrow
+//! down" (three in the highlighted first item, `rgb(234, 236, 240)`),
+//! "arrow up 2" (two in the highlighted footer item) and "escape search"
+//! (three in the page under the closed menu). The points and the groups are
+//! in `data/wikipedia-web-browser-pixel-points.json`; Chromium's colors in
+//! `data/wikipedia-web-browser-pixels.json` (no image is committed):
+//! `swbtools replay wikipedia-web-browser --steps
 //! crates/automation/tests/data/wikipedia-web-browser-steps.json --setup
 //! crates/automation/tests/data/wikipedia-web-browser.js --record
 //! 'window.__s()' --pixels
@@ -70,13 +120,11 @@
 //! Where the Chromium values come from: Chromium 148.0.7778.96 (headless
 //! shell, Playwright) replayed the same fixture with the same page clock,
 //! ran the steps and evaluated the setup script and `window.__s()` after
-//! the load and after each group (`swbtools replay wikipedia-web-browser
-//! --steps crates/automation/tests/data/wikipedia-web-browser-steps.json
-//! --setup crates/automation/tests/data/wikipedia-web-browser.js --record
-//! 'window.__s()' --out
-//! crates/automation/tests/data/wikipedia-web-browser-chromium.json`, a
-//! 300 ms pause after each step); the 49 records are in
-//! `data/wikipedia-web-browser-chromium.json`.
+//! the load and after each group (the command above, a 300 ms pause after
+//! each step); the 56 records are in
+//! `data/wikipedia-web-browser-chromium.json`. The fixture needs no entry
+//! for the typed text "web" beyond those recorded: other text would need
+//! other entries.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -99,7 +147,7 @@ fn record(page: &mut Page) -> Value {
 /// The keys of the record whose values hold rectangles (compared with
 /// [`TOLERANCE`]).
 const RECTANGLES: &[&str] = &[
-    "pin", "pinbtn", "ddc", "coll", "sticky", "pv", "spc", "content",
+    "pin", "pinbtn", "ddc", "coll", "sticky", "pv", "pvr", "tar", "spc", "content",
 ];
 
 /// The largest difference in px between two rectangle values. swb lays
@@ -113,18 +161,35 @@ const TOLERANCE: i64 = 3;
 /// (anti-aliased, equal within 6) and in gradients (within 3).
 const PIXEL_TOLERANCE: i32 = 12;
 
-/// The points of the pixel check (name, x, y) and the groups after which
-/// the test reads them.
-fn pixel_points() -> (Vec<String>, Vec<(String, u32, u32)>) {
+/// A point of the pixel check: name, x and y in the viewport.
+type Point = (String, u32, u32);
+
+/// The groups after which the test reads pixels, and for each group the
+/// points that it checks. A group that `group_points` names checks the
+/// points whose name starts with one of the listed prefixes; every other
+/// group checks the points that no prefix claims (the page of the theme
+/// groups).
+fn pixel_points() -> (Vec<String>, Vec<Vec<Point>>) {
     let data: Value =
         serde_json::from_str(include_str!("data/wikipedia-web-browser-pixel-points.json")).unwrap();
-    let groups = data["groups"]
+    let groups: Vec<String> = data["groups"]
         .as_array()
         .unwrap()
         .iter()
         .map(|g| g.as_str().unwrap().to_owned())
         .collect();
-    let points = data["points"]
+    let prefixes_of = |group: &str| -> Vec<String> {
+        data["group_points"][group]
+            .as_array()
+            .map(|list| {
+                list.iter()
+                    .map(|p| p.as_str().unwrap().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let claimed: Vec<String> = groups.iter().flat_map(|g| prefixes_of(g)).collect();
+    let points: Vec<Point> = data["points"]
         .as_object()
         .unwrap()
         .iter()
@@ -136,7 +201,28 @@ fn pixel_points() -> (Vec<String>, Vec<(String, u32, u32)>) {
             )
         })
         .collect();
-    (groups, points)
+    let starts = |name: &str, prefixes: &[String]| prefixes.iter().any(|p| name.starts_with(p));
+    let per_group = groups
+        .iter()
+        .map(|g| {
+            let own = prefixes_of(g);
+            let selected: Vec<Point> = points
+                .iter()
+                .filter(|(name, ..)| {
+                    if own.is_empty() {
+                        !starts(name, &claimed)
+                    } else {
+                        starts(name, &own)
+                    }
+                })
+                .cloned()
+                .collect();
+            // A misspelt prefix in `group_points` would check nothing.
+            assert!(!selected.is_empty(), "no pixel points for group {g}");
+            selected
+        })
+        .collect();
+    (groups, per_group)
 }
 
 /// The points whose color in a screenshot of the viewport differs from
@@ -145,7 +231,7 @@ fn pixel_points() -> (Vec<String>, Vec<(String, u32, u32)>) {
 fn pixel_differences(
     group: &str,
     page: &mut Page,
-    points: &[(String, u32, u32)],
+    points: &[Point],
     expected: &Value,
 ) -> Vec<String> {
     let shot = page.screenshot(false).unwrap();
@@ -281,11 +367,11 @@ fn wikipedia_web_browser_works_with_javascript_on() {
             run_steps(&mut page, steps).unwrap();
             let got = record(&mut page);
             problems.extend(differences(name, &got, &expected[index + 1]));
-            if pixel_groups.contains(name) {
+            if let Some(at) = pixel_groups.iter().position(|g| g == name) {
                 problems.extend(pixel_differences(
                     name,
                     &mut page,
-                    &points,
+                    &points[at],
                     &pixels[name.as_str()],
                 ));
                 sampled += 1;
