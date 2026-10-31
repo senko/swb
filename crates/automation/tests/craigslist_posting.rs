@@ -21,9 +21,17 @@
 //! the wheel at 120; the mouse moves as single moves, a 300 ms pause
 //! after each step, then the group's waits) and evaluated the setup
 //! script and `window.__s()` after the load and after each group; the 13
-//! records are in `data/craigslist-posting-chromium.json`. The helper
-//! that made them is not in the repository (backlog: a `swbtools`
-//! command for Chromium replays with steps). The record keys are compared
+//! records are in `data/craigslist-posting-chromium.json`. `swbtools
+//! --no-shared-worker --no-intl replay craigslist-posting --steps
+//! crates/automation/tests/data/craigslist-posting-steps.json --setup
+//! crates/automation/tests/data/craigslist-posting.js --record
+//! 'window.__s()' --out FILE` makes them again from the same steps file
+//! (docs/testing.md, "Automation tests"); the one difference from the
+//! committed file is the click point of the share menu's selector step in
+//! the `ev` key, which the test skips anyway. The "reply" group waits
+//! twice: the failed POST of the reply request takes real time, so the
+//! second wait (virtual) runs the event loop again after it. The record
+//! keys are compared
 //! as written, with one exception (swb differs, backlog in
 //! `docs/roadmap.md`): `ev` (the mouse events) is compared only after the
 //! double click and the context menu, because the click event after a drag
@@ -35,32 +43,12 @@
 
 mod common;
 
-use std::path::Path;
 use std::time::Duration;
 
-use common::{fixture, fixture_meta, on_page_thread, replay_page, value};
-use serde_json::{Value, json};
+use common::{console_errors, fixture, load_at_capture, on_page_thread, step_groups, value};
+use serde_json::Value;
 use swb_automation::run_steps;
-use swb_engine::{ClockMode, ConsoleLevel, Page, PageClock};
-
-/// The posting, loaded as `swb --headless --js --test-fonts --now CAPTURED
-/// --virtual-time --settle-ms 1500` loads it (1280x800).
-fn load(dir: &Path) -> Page {
-    let (mut page, url) = replay_page(dir, true);
-    let captured: jiff::Timestamp = fixture_meta(dir)["captured"]
-        .as_str()
-        .unwrap()
-        .parse()
-        .unwrap();
-    page.set_clock(PageClock::new(
-        ClockMode::Virtual,
-        Some(captured.as_millisecond() as f64),
-    ));
-    page.navigate(url);
-    assert!(page.wait_until_loaded(Duration::from_secs(60)));
-    page.run_event_loop(Duration::from_millis(1500), Duration::from_secs(60));
-    page
-}
+use swb_engine::Page;
 
 /// The record of the page (`window.__s()`).
 fn record(page: &mut Page) -> Value {
@@ -68,64 +56,13 @@ fn record(page: &mut Page) -> Value {
     serde_json::from_str(text.as_str().unwrap()).unwrap()
 }
 
-/// The texts of the console messages at `error` level.
-fn console_errors(page: &Page) -> Vec<String> {
-    page.console_messages()
-        .into_iter()
-        .filter(|m| m.level == ConsoleLevel::Error)
-        .map(|m| m.text)
-        .collect()
-}
-
 /// The step groups after the load, with the name of the record that each
 /// one ends with (the order of `data/craigslist-posting-chromium.json`
 /// after the first record). A group is the steps, then the wait in page
 /// time that the zoom animation (250 ms timer) and the failed requests need.
-fn groups() -> Vec<(&'static str, Value)> {
-    let map = [971, 297];
-    vec![
-        (
-            "thumbnail 2",
-            json!([{"click": "a.thumb[title=\"2\"]"}, {"wait": 800}]),
-        ),
-        (
-            "zoom in",
-            json!([{"click": ".leaflet-control-zoom-in"}, {"wait": 800}]),
-        ),
-        (
-            "zoom out",
-            json!([{"click": ".leaflet-control-zoom-out"}, {"wait": 800}]),
-        ),
-        (
-            "drag",
-            json!([
-                {"hover": map}, {"mousedown": "left"}, {"hover": [900, 250]},
-                {"hover": [850, 230]}, {"mouseup": "left"}, {"wait": 800}
-            ]),
-        ),
-        ("double click", json!([{"dblclick": map}, {"wait": 800}])),
-        ("context menu", json!([{"rightclick": map}, {"wait": 800}])),
-        (
-            "wheel in",
-            json!([{"hover": map}, {"wheel": [0, -120]}, {"wait": 800}]),
-        ),
-        ("wheel out", json!([{"wheel": [0, 120]}, {"wait": 800}])),
-        // The failed POST of the reply request is real time, so the second
-        // wait (virtual) only runs the event loop again after it.
-        (
-            "reply",
-            json!([{"click": ".reply-button"}, {"wait": 1500}, {"wait": 1500}]),
-        ),
-        ("print", json!([{"click": "#printme"}, {"wait": 2000}])),
-        (
-            "share",
-            json!([{"click": "#sharebutton-container a"}, {"wait": 500}]),
-        ),
-        (
-            "copy URL",
-            json!([{"click": ".share-menu li:nth-child(7) a"}, {"wait": 800}]),
-        ),
-    ]
+/// The file is the one that `swbtools replay` runs in Chromium.
+fn groups() -> Vec<(String, Vec<Value>)> {
+    step_groups(include_str!("data/craigslist-posting-steps.json"))
 }
 
 /// The keys of `got` and `expected` that differ, as `key: got != expected`.
@@ -157,7 +94,7 @@ fn craigslist_posting_works_with_javascript_on() {
     on_page_thread(move || {
         let expected: Vec<Value> =
             serde_json::from_str(include_str!("data/craigslist-posting-chromium.json")).unwrap();
-        let mut page = load(&dir);
+        let mut page = load_at_capture(&dir, Duration::from_millis(1500));
         assert!(page.has_script_runtime());
         // Chromium has no script error at load (three warnings of Leaflet
         // and jQuery Migrate only).
@@ -170,9 +107,9 @@ fn craigslist_posting_works_with_javascript_on() {
         let groups = groups();
         assert_eq!(groups.len() + 1, expected.len());
         for (index, (name, steps)) in groups.iter().enumerate() {
-            run_steps(&mut page, steps.as_array().unwrap()).unwrap();
+            run_steps(&mut page, steps).unwrap();
             // The mouse events: see the module comment.
-            let skip: &[&str] = if matches!(*name, "double click" | "context menu") {
+            let skip: &[&str] = if matches!(name.as_str(), "double click" | "context menu") {
                 &[]
             } else {
                 &["ev"]

@@ -288,6 +288,21 @@ pub(crate) enum Align {
 }
 
 impl Align {
+    /// [`Align::position`] for a view whose first `before` px and last
+    /// `after` px are left out (the `scroll-padding` of the scroll
+    /// container, CSS Scroll Snap 1): the box is placed in the rest of the
+    /// view, and "visible" means visible there.
+    pub(crate) fn position_padded(
+        self,
+        start: f32,
+        size: f32,
+        scroll: f32,
+        view: f32,
+        (before, after): (f32, f32),
+    ) -> f32 {
+        self.position(start, size, scroll + before, view - before - after) - before
+    }
+
     /// The scroll position on one axis that shows `start..start + size` in
     /// a view of `view` px scrolled to `scroll` (all in the coordinates of
     /// the scrolled content). Not clamped to the scroll range.
@@ -360,6 +375,36 @@ mod tests {
         // Horizontally, 32 visible px are enough.
         assert_eq!(center_if_needed(760.0, 100.0, 0.0, 800.0, Some(32.0)), 0.0);
         assert_eq!(center_if_needed(780.0, 100.0, 0.0, 800.0, Some(32.0)), 80.0);
+    }
+
+    /// Chromium's values for a 600 px view with `scroll-padding` 10 px
+    /// before and 30 px after (`tools/probes/web-scroll.json`, case
+    /// `scroll-padding`), for a box at 1000 with the size 50.
+    #[test]
+    fn padded_alignment() {
+        let pad = (10.0, 30.0);
+        let p = |align: Align, scroll| align.position_padded(1000.0, 50.0, scroll, 600.0, pad);
+        assert_eq!(p(Align::Start, 0.0), 990.0);
+        assert_eq!(p(Align::End, 0.0), 480.0);
+        assert_eq!(p(Align::Center, 0.0), 735.0);
+        // The region [scroll + 10, scroll + 570] must contain the box.
+        assert_eq!(p(Align::Nearest, 1000.0), 990.0);
+        assert_eq!(p(Align::Nearest, 980.0), 980.0);
+        assert_eq!(p(Align::Nearest, 410.0), 480.0);
+        assert_eq!(p(Align::Nearest, 455.0), 480.0);
+        // Centered if the box is not in the region (with 100 px of
+        // padding on both sides, scrolled to 450 and 600).
+        let c = |scroll| {
+            Align::CenterIfNeeded(None).position_padded(1000.0, 50.0, scroll, 600.0, (100.0, 100.0))
+        };
+        assert_eq!(c(450.0), 725.0);
+        assert_eq!(c(600.0), 600.0);
+        // A padding larger than the view changes start and end by the
+        // padding only.
+        assert_eq!(
+            Align::Start.position_padded(1000.0, 50.0, 0.0, 600.0, (400.0, 400.0)),
+            600.0
+        );
     }
 
     #[test]

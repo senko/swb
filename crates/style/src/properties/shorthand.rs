@@ -9,6 +9,7 @@ use std::sync::Arc;
 use swb_css::{ParseError, Parser};
 
 use super::ids::{LonghandId, LonghandValue};
+use super::inert::{scroll_margin, scroll_padding};
 use super::longhand::{
     AlignKind, keyword, lp_or_auto, non_negative_length, padding, parse_alignment,
     parse_background_repeat, parse_background_size, parse_bg_position, parse_border_style,
@@ -70,6 +71,16 @@ shorthands! {
     Inset "inset" [Top, Right, Bottom, Left];
     InsetBlock "inset-block" [Top, Bottom];
     InsetInline "inset-inline" [Left, Right];
+    ScrollMargin "scroll-margin" [
+        ScrollMarginTop, ScrollMarginRight, ScrollMarginBottom, ScrollMarginLeft
+    ];
+    ScrollMarginBlock "scroll-margin-block" [ScrollMarginTop, ScrollMarginBottom];
+    ScrollMarginInline "scroll-margin-inline" [ScrollMarginLeft, ScrollMarginRight];
+    ScrollPadding "scroll-padding" [
+        ScrollPaddingTop, ScrollPaddingRight, ScrollPaddingBottom, ScrollPaddingLeft
+    ];
+    ScrollPaddingBlock "scroll-padding-block" [ScrollPaddingTop, ScrollPaddingBottom];
+    ScrollPaddingInline "scroll-padding-inline" [ScrollPaddingLeft, ScrollPaddingRight];
     Border "border" [
         BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth,
         BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle,
@@ -186,6 +197,12 @@ impl ShorthandId {
                 | S::Inset
                 | S::InsetBlock
                 | S::InsetInline => parse_box_shorthand(self, p, cx, out),
+                S::ScrollMargin
+                | S::ScrollMarginBlock
+                | S::ScrollMarginInline
+                | S::ScrollPadding
+                | S::ScrollPaddingBlock
+                | S::ScrollPaddingInline => parse_scroll_shorthand(self, p, out),
                 S::Border
                 | S::BorderTop
                 | S::BorderRight
@@ -320,6 +337,58 @@ fn parse_box_shorthand(
             |p| lp_or_auto(p, false),
             |[a, b]| vec![LonghandValue::Left(a), LonghandValue::Right(b)],
         ),
+        _ => Err(ParseError::Invalid),
+    }
+}
+
+/// Parses the scroll margin and scroll padding shorthands.
+fn parse_scroll_shorthand(
+    id: ShorthandId,
+    p: &mut Parser<'_>,
+    out: &mut Vec<LonghandValue>,
+) -> ParseResult<()> {
+    use ShorthandId as S;
+    match id {
+        S::ScrollMargin => four_sides(p, out, scroll_margin, |[t, r, b, l]| {
+            vec![
+                LonghandValue::ScrollMarginTop(t),
+                LonghandValue::ScrollMarginRight(r),
+                LonghandValue::ScrollMarginBottom(b),
+                LonghandValue::ScrollMarginLeft(l),
+            ]
+        }),
+        S::ScrollMarginBlock => two_sides(p, out, scroll_margin, |[a, b]| {
+            vec![
+                LonghandValue::ScrollMarginTop(a),
+                LonghandValue::ScrollMarginBottom(b),
+            ]
+        }),
+        S::ScrollMarginInline => two_sides(p, out, scroll_margin, |[a, b]| {
+            vec![
+                LonghandValue::ScrollMarginLeft(a),
+                LonghandValue::ScrollMarginRight(b),
+            ]
+        }),
+        S::ScrollPadding => four_sides(p, out, scroll_padding, |[t, r, b, l]| {
+            vec![
+                LonghandValue::ScrollPaddingTop(t),
+                LonghandValue::ScrollPaddingRight(r),
+                LonghandValue::ScrollPaddingBottom(b),
+                LonghandValue::ScrollPaddingLeft(l),
+            ]
+        }),
+        S::ScrollPaddingBlock => two_sides(p, out, scroll_padding, |[a, b]| {
+            vec![
+                LonghandValue::ScrollPaddingTop(a),
+                LonghandValue::ScrollPaddingBottom(b),
+            ]
+        }),
+        S::ScrollPaddingInline => two_sides(p, out, scroll_padding, |[a, b]| {
+            vec![
+                LonghandValue::ScrollPaddingLeft(a),
+                LonghandValue::ScrollPaddingRight(b),
+            ]
+        }),
         _ => Err(ParseError::Invalid),
     }
 }

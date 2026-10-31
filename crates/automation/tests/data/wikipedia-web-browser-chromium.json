@@ -1,0 +1,4683 @@
+[
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-night skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-night",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-skin-theme-value-night",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(32, 33, 34)",
+  "fg": "rgb(234, 236, 240)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-os skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-os",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-skin-theme-value-os",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-skin-theme-value-day",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-2 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-2",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,4790,502,41",
+   "mw-collapsed 268,10006,744,35",
+   "mw-collapsed 268,10043,291,114",
+   "mw-collapsed 268,10043,256,35"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-vector-feature-custom-font-size-value-2",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-0 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-0",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,2818,372,30",
+   "mw-collapsed 268,5715,744,25",
+   "mw-collapsed 268,5741,204,80",
+   "mw-collapsed 268,5741,179,25"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-vector-feature-custom-font-size-value-0",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-vector-feature-custom-font-size-value-1",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-0 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-0",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,477 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,525 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-vector-feature-limited-width-value-0",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#skin-client-pref-vector-feature-limited-width-value-1",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-0",
+  "pin": [
+   "vector-toc in vector-page-titlebar-toc-unpinned-container 65,142,215,344 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 846,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1044,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 150,143,101,22",
+   "toc-pinned/unpin 0,0,0,0",
+   "page-tools-pinned/pin 895,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1136,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false null",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 49,126,247,32",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 830,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " - sticky",
+   " - sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-page-titlebar-toc-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "44,90,1192",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-0",
+  "pin": [
+   "vector-toc in vector-page-titlebar-toc-unpinned-container 65,142,215,344 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 846,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1044,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 150,143,101,22",
+   "toc-pinned/unpin 0,0,0,0",
+   "page-tools-pinned/pin 895,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1136,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox true true",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 49,126,247,376",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 830,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " - sticky",
+   " - sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-page-titlebar-toc-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "44,90,1192",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-0",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 1054,178,150,561 block",
+   "vector-appearance in vector-appearance-unpinned-container 824,65,193,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 916,66,101,22",
+   "appearance-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 1103,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false null",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 808,49,225,32",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 1038,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " - sticky",
+   " - sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-appearance-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-0",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 1054,178,150,561 block",
+   "vector-appearance in vector-appearance-unpinned-container 824,65,193,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 916,66,101,22",
+   "appearance-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 1103,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox true true",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 808,49,225,459",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 1038,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -",
+   "mw-collapsed -"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " - sticky",
+   " - sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-appearance-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false null",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox true true",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,594",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-page-tools-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-enabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-pinned-container 1056,136,164,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,729,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 0,0,0,0",
+   "page-tools-pinned/unpin 1104,137,39,22",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,730,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 0,0,0,0",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,752 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false null",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-page-tools-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox true true",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,461",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-main-menu-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-enabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,595,176,360 block",
+   "vector-main-menu in vector-main-menu-pinned-container 60,136,164,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 0,0,0,0",
+   "main-menu-pinned/unpin 145,137,39,22",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,596,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 0,0,0,0",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,595,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#vector-main-menu-dropdown-checkbox",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,316 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01110010111",
+  "tocBtn": [
+   "false",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,364 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,316 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01110010111",
+  "tocBtn": [
+   "false",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,364 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3392,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3279,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3391,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3278,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3408,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3295,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Market_share_by_type_of_device"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,0,415,34",
+   "mw-collapsed 268,3644,744,28",
+   "mw-collapsed 268,3674,233,92",
+   "mw-collapsed 268,3674,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 3457,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3367,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3392,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3279,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3391,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3278,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3408,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3295,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Market_share_by_type_of_device"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   " 264,0,505,669",
+   "mw-collapsed 268,4278,744,28",
+   "mw-collapsed 268,4308,233,92",
+   "mw-collapsed 268,4308,205,28"
+  ],
+  "toggles": [
+   "default expanded|true|hide",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 3457,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3367,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3392,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3279,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3391,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3278,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3408,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3295,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Market_share_by_type_of_device"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,0,415,34",
+   "mw-collapsed 268,3644,744,28",
+   "mw-collapsed 268,3674,233,92",
+   "mw-collapsed 268,3674,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 3457,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3367,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3392,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3279,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3391,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3278,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3408,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3295,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Market_share_by_type_of_device"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   " 264,0,505,669",
+   "mw-collapsed 268,4278,744,28",
+   "mw-collapsed 268,4308,233,92",
+   "mw-collapsed 268,4308,205,28"
+  ],
+  "toggles": [
+   "default expanded|true|hide",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 3457,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3367,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3392,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3279,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3391,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3278,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3408,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3295,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Market_share_by_type_of_device"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,0,415,34",
+   "mw-collapsed 268,3644,744,28",
+   "mw-collapsed 268,3674,233,92",
+   "mw-collapsed 268,3674,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 3457,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3367,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-6667,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-6554,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-6666,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-6553,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-6683,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-6570,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-References"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-3275,415,34",
+   "mw-collapsed 268,369,744,28",
+   "mw-collapsed 268,399,233,92",
+   "mw-collapsed 268,399,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 6732,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-6642,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-6667,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-6554,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-6666,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-6553,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-6683,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-6570,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-References"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-3275,415,34",
+   " 268,369,744,152",
+   "mw-collapsed 268,399,744,28",
+   "mw-collapsed 268,429,744,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default expanded|true|hide",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 6732,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-6642,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-6667,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-6554,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-6666,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-6553,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-6683,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-6570,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-References"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-3275,415,34",
+   "mw-collapsed 268,369,744,28",
+   "mw-collapsed 268,399,233,92",
+   "mw-collapsed 268,399,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 6732,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-6642,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-6667,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-6554,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-6666,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-6553,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-6683,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-6570,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-References"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-3275,415,34",
+   " 268,369,744,152",
+   "mw-collapsed 268,399,744,28",
+   "mw-collapsed 268,429,744,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default expanded|true|hide",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 6732,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-6642,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-6667,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-6554,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-6666,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-6553,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-6683,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-6570,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-References"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-3275,415,34",
+   "mw-collapsed 268,369,744,28",
+   "mw-collapsed 268,399,233,92",
+   "mw-collapsed 268,399,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 6732,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-6642,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-1935,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-1822,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-1934,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-1821,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-1951,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-1838,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-History"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,1457,415,34",
+   "mw-collapsed 268,5101,744,28",
+   "mw-collapsed 268,5131,233,92",
+   "mw-collapsed 268,5131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 2000,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-1910,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-2235,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-2122,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-2234,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-2121,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-2251,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-2138,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Features"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,1157,415,34",
+   "mw-collapsed 268,4801,744,28",
+   "mw-collapsed 268,4831,233,92",
+   "mw-collapsed 268,4831,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 2300,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-2210,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [
+   "mwe-popups mwe-popups-type-generic mwe-popups-fade-in-up flipped-x mwe-popups-no-image-pointer mwe-popups-is-not-tall 340,265,320,112  There was an issue displaying this preview Go to this page"
+  ],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "button#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#searchInput",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#searchInput",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#searchInput",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,65,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,178,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,136,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,66,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,137,39,22",
+   "page-tools-pinned/pin 907,179,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,137,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,49,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,162,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-mw-content-text"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,3457,415,34",
+   "mw-collapsed 268,7101,744,28",
+   "mw-collapsed 268,7131,233,92",
+   "mw-collapsed 268,7131,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide",
+  "spc": [
+   " 32,136,208,408 sticky",
+   " 1040,136,196,475 sticky"
+  ],
+  "hash": "",
+  "scroll": 0,
+  "h": [],
+  "ac": "input#searchInput",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,90,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-1213,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-1100,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-1212,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-1099,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-1229,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-1116,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-History"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,2179,415,34",
+   "mw-collapsed 268,5823,744,28",
+   "mw-collapsed 268,5853,233,92",
+   "mw-collapsed 268,5853,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "#History",
+  "scroll": 1278,
+  "h": [
+   "popstate null",
+   "hashchange undefined>History"
+  ],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-1188,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3525,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3412,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3524,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3411,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3541,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3428,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Security"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-133,415,34",
+   "mw-collapsed 268,3511,744,28",
+   "mw-collapsed 268,3541,233,92",
+   "mw-collapsed 268,3541,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "#Security",
+  "scroll": 3590,
+  "h": [
+   "popstate null",
+   "hashchange undefined>History",
+   "popstate null",
+   "hashchange History>Security"
+  ],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3500,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-1213,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-1100,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-1212,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-1099,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-1229,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-1116,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-History"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,2179,415,34",
+   "mw-collapsed 268,5823,744,28",
+   "mw-collapsed 268,5853,233,92",
+   "mw-collapsed 268,5853,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "#History",
+  "scroll": 1278,
+  "h": [
+   "popstate null",
+   "hashchange undefined>History",
+   "popstate null",
+   "hashchange History>Security",
+   "popstate null",
+   "hashchange Security>History"
+  ],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-1188,972",
+  "e": []
+ },
+ {
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
+  "pin": [
+   "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
+   "vector-main-menu in vector-main-menu-unpinned-container 53,-3525,186,427 block",
+   "vector-page-tools in vector-page-tools-unpinned-container 858,-3412,150,561 block",
+   "vector-appearance in vector-appearance-pinned-container 1056,24,164,427 block"
+  ],
+  "pinbtn": [
+   "main-menu-pinned/pin 138,-3524,101,22",
+   "main-menu-pinned/unpin 0,0,0,0",
+   "toc-pinned/pin 0,0,0,0",
+   "toc-pinned/unpin 133,25,39,22",
+   "page-tools-pinned/pin 907,-3411,101,22",
+   "page-tools-pinned/unpin 0,0,0,0",
+   "appearance-pinned/pin 0,0,0,0",
+   "appearance-pinned/unpin 1148,25,39,22"
+  ],
+  "dd": [
+   "vector-main-menu-dropdown-checkbox false false",
+   "vector-appearance-dropdown-checkbox false false",
+   "vector-user-links-dropdown-checkbox false null",
+   "vector-page-titlebar-toc-checkbox false false",
+   "p-lang-btn-checkbox false null",
+   "vector-variants-dropdown-checkbox false null",
+   "vector-page-tools-dropdown-checkbox false false",
+   "vector-sticky-header-toc-checkbox false null"
+  ],
+  "ddc": [
+   "vector-main-menu-dropdown block 37,-3541,218,32",
+   "vector-appearance-dropdown block 0,0,0,0",
+   "vector-user-links-dropdown block 0,0,0,0",
+   "vector-page-titlebar-toc block 0,0,0,0",
+   "p-lang-btn none 0,0,0,0",
+   "vector-variants-dropdown block 0,0,0,0",
+   "vector-page-tools-dropdown block 842,-3428,182,32",
+   "vector-sticky-header-toc block 0,0,0,0"
+  ],
+  "toc": "01111010111",
+  "tocBtn": [
+   "true",
+   "true"
+  ],
+  "tocActive": [
+   "toc-Security"
+  ],
+  "tocSub": [
+   "toc-Function-sublist:block",
+   "toc-History-sublist:block",
+   "toc-Features-sublist:block",
+   "toc-Browser_market-sublist:block",
+   "toc-Market_share_by_type_of_device-sublist:block",
+   "toc-Security-sublist:block",
+   "toc-Privacy-sublist:block",
+   "toc-See_also-sublist:block",
+   "toc-References-sublist:block",
+   "toc-External_links-sublist:block"
+  ],
+  "coll": [
+   "mw-collapsed 264,-133,415,34",
+   "mw-collapsed 268,3511,744,28",
+   "mw-collapsed 268,3541,233,92",
+   "mw-collapsed 268,3541,205,28"
+  ],
+  "toggles": [
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show",
+   "default collapsed|false|show"
+  ],
+  "sticky": "vector-sticky-header 0,0,0,0 flex",
+  "stickyVisible": false,
+  "pv": [],
+  "body": "action-view ltr mediawiki mw-hide-empty-elt ns-0 ns-subject page-Web_browser rootpage-Web_browser sitedir-ltr skin--responsive skin-vector skin-vector-2022 skin-vector-search-vue uls-dialog-sticky-hide vector-below-page-title",
+  "spc": [
+   " 32,24,208,408 sticky",
+   " 1040,24,196,475 sticky"
+  ],
+  "hash": "#Security",
+  "scroll": 3590,
+  "h": [
+   "popstate null",
+   "hashchange undefined>History",
+   "popstate null",
+   "hashchange History>Security",
+   "popstate null",
+   "hashchange Security>History",
+   "popstate null",
+   "hashchange History>Security"
+  ],
+  "ac": "body#",
+  "search": [
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail/cdx-typeahead-search--auto-expand-width",
+   "input#searchInput ",
+   "div# cdx-typeahead-search/cdx-typeahead-search--show-thumbnail"
+  ],
+  "fs": "16px",
+  "bg": "rgb(248, 249, 250)",
+  "fg": "rgb(32, 33, 34)",
+  "cw": 1280,
+  "content": "264,-3500,972",
+  "e": []
+ }
+]

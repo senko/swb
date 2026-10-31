@@ -1,0 +1,33 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "fragment",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>html { scroll-padding: 10px 20px 30px 40px } body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif; scroll-padding: 200px } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px; scroll-margin-top: 75px } #b { left: 1500px; top: 2000px; scroll-margin: 10px 20px 30px 40px } .sc { position: absolute; left: 100px; width: 200px; height: 200px; overflow: auto; border: 3px solid; padding: 7px } .in { height: 1000px; width: 600px; position: relative } .c { position: absolute; left: 300px; top: 500px; width: 50px; height: 50px } #s1 { top: 1500px; scroll-padding: 20px } #c1 { scroll-margin: 30px } #s2 { top: 2500px } #c2 { scroll-margin-top: 40px } #s3 { top: 3000px; scroll-padding-top: 10% } #c3 { scroll-margin-top: 15px }</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=sc id=s1><div class=in><div class=c id=c1></div></div></div><div class=sc id=s2><div class=in><div class=c id=c2></div></div></div><div class=sc id=s3><div class=in><div class=c id=c3></div></div></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction A(f) { return E(() => { Z(); return f(); }); }\nfunction P(s) { return [scrollX, scrollY, s ? s.scrollLeft : 0, s ? s.scrollTop : 0]; }\nfunction Z() { history.replaceState(null, '', location.pathname); scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "A(() => (location.hash = '#a', P()))"
+    },
+    {
+     "js": "A(() => (location.hash = '#b', P()))"
+    },
+    {
+     "js": "A(() => (location.hash = '#c1', P(s1)))"
+    },
+    {
+     "js": "A(() => (location.hash = '#c2', P(s2)))"
+    },
+    {
+     "js": "A(() => (location.hash = '#c3', P(s3)))"
+    },
+    {
+     "js": "A(() => (location.hash = '#s1', P(s1)))"
+    }
+   ]
+  }
+ ]
+}

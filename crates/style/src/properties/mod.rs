@@ -269,6 +269,14 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "-webkit-mask-repeat" => L::MaskRepeat,
         "contain-intrinsic-inline-size" => L::ContainIntrinsicWidth,
         "contain-intrinsic-block-size" => L::ContainIntrinsicHeight,
+        "scroll-margin-block-start" => L::ScrollMarginTop,
+        "scroll-margin-block-end" => L::ScrollMarginBottom,
+        "scroll-margin-inline-start" => L::ScrollMarginLeft,
+        "scroll-margin-inline-end" => L::ScrollMarginRight,
+        "scroll-padding-block-start" => L::ScrollPaddingTop,
+        "scroll-padding-block-end" => L::ScrollPaddingBottom,
+        "scroll-padding-inline-start" => L::ScrollPaddingLeft,
+        "scroll-padding-inline-end" => L::ScrollPaddingRight,
         "overflow-inline" => L::OverflowX,
         "overflow-block" => L::OverflowY,
         "-webkit-transform" => L::Transform,
@@ -432,8 +440,8 @@ mod tests {
 
     use super::compute::{ComputeContext, apply};
     use super::*;
-    use crate::ComputedStyle;
     use crate::values::*;
+    use crate::{ComputedStyle, InertStyle};
 
     /// Parses `css` as a declaration list and computes it on top of the
     /// initial style (font properties first, as the cascade does).
@@ -612,6 +620,55 @@ mod tests {
         );
         assert!(!valid("aspect-ratio", "auto auto"));
         assert!(!valid("aspect-ratio", "-1"));
+    }
+
+    /// `scroll-margin` takes lengths only (any sign), `scroll-padding`
+    /// `auto` and non-negative length-percentages; the logical names are
+    /// the physical ones for horizontal text. The `em` values are computed
+    /// to px with the element's font size (Chromium 148:
+    /// `tools/probes/web-scroll.json`, cases `scroll-margin*` and
+    /// `scroll-padding*`).
+    #[test]
+    fn scroll_margin_and_scroll_padding() {
+        let s = style("font-size: 20px; scroll-margin: 1px 2em -3px 4px; scroll-padding: 10%");
+        assert_eq!(InertStyle::scroll_margin(&s), [1.0, 40.0, -3.0, 4.0]);
+        assert_eq!(
+            InertStyle::scroll_padding(&s),
+            std::array::from_fn(|_| Some(LengthPercentage::Percent(0.1)))
+        );
+        let s = style(
+            "scroll-margin-block: 5px 6px; scroll-margin-inline-start: 7px; scroll-margin-left: 8px",
+        );
+        assert_eq!(InertStyle::scroll_margin(&s), [5.0, 0.0, 6.0, 8.0]);
+        let s = style("scroll-padding-inline: 3px auto; scroll-padding-block-end: 9px");
+        assert_eq!(
+            InertStyle::scroll_padding(&s),
+            [None, None, Some(px(9.0)), Some(px(3.0))]
+        );
+        // Initial: no margin, `auto` padding.
+        let s = style("color: red");
+        assert_eq!(InertStyle::scroll_margin(&s), [0.0; 4]);
+        assert_eq!(InertStyle::scroll_padding(&s), [None, None, None, None]);
+        for (name, value) in [
+            ("scroll-margin", "auto"),
+            ("scroll-margin", "10%"),
+            ("scroll-margin-top", "1"),
+            ("scroll-margin", "1px 2px 3px 4px 5px"),
+            ("scroll-padding", "-1px"),
+            ("scroll-padding-top", "1px 2px"),
+            ("scroll-padding", "1px 2px 3px 4px 5px"),
+        ] {
+            assert!(!valid(name, value), "{name}: {value}");
+        }
+        for (name, value) in [
+            ("scroll-margin", "-1px"),
+            ("scroll-margin", "calc(1px + 2px)"),
+            ("scroll-padding", "auto"),
+            ("scroll-padding", "10% 1px"),
+            ("scroll-padding-inline-end", "5px"),
+        ] {
+            assert!(valid(name, value), "{name}: {value}");
+        }
     }
 
     /// Measured in Chromium 148 (`tools/probes/host-sizes-auto.json`).

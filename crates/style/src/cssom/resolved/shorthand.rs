@@ -22,12 +22,24 @@ pub(super) fn value(name: &str, r: &Resolver<'_>) -> String {
     match name {
         "margin" => sides_of("margin-", ""),
         "padding" => sides_of("padding-", ""),
+        "scroll-margin" => sides_of("scroll-margin-", ""),
+        "scroll-padding" => sides_of("scroll-padding-", ""),
         "inset" => sides(&["top", "right", "bottom", "left"].map(get)),
         "border-width" => sides_of("border-", "-width"),
         "border-style" => sides_of("border-", "-style"),
         "border-color" => sides_of("border-", "-color"),
-        "margin-block" | "margin-inline" | "padding-block" | "padding-inline" | "inset-block"
-        | "inset-inline" => pair(&get(&format!("{name}-start")), &get(&format!("{name}-end"))),
+        "margin-block"
+        | "margin-inline"
+        | "padding-block"
+        | "padding-inline"
+        | "inset-block"
+        | "inset-inline"
+        | "scroll-margin-block"
+        | "scroll-margin-inline"
+        | "scroll-padding-block"
+        | "scroll-padding-inline" => {
+            pair(&get(&format!("{name}-start")), &get(&format!("{name}-end")))
+        }
         "border-block-width"
         | "border-block-style"
         | "border-block-color"

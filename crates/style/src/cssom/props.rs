@@ -159,6 +159,14 @@ const EXTRA_LONGHANDS: &[(&str, Ser)] = &[
     ("padding-block-end", Ser::Length),
     ("padding-inline-start", Ser::Length),
     ("padding-inline-end", Ser::Length),
+    ("scroll-margin-block-start", Ser::Length),
+    ("scroll-margin-block-end", Ser::Length),
+    ("scroll-margin-inline-start", Ser::Length),
+    ("scroll-margin-inline-end", Ser::Length),
+    ("scroll-padding-block-start", Ser::Length),
+    ("scroll-padding-block-end", Ser::Length),
+    ("scroll-padding-inline-start", Ser::Length),
+    ("scroll-padding-inline-end", Ser::Length),
     ("inset-block-start", Ser::Length),
     ("inset-block-end", Ser::Length),
     ("inset-inline-start", Ser::Length),
@@ -311,6 +319,46 @@ const SHORTHANDS: &[Shorthand] = &[
     sh(
         "padding-inline",
         &["padding-inline-start", "padding-inline-end"],
+        Kind::Pair,
+    ),
+    sh(
+        "scroll-margin",
+        &[
+            "scroll-margin-top",
+            "scroll-margin-right",
+            "scroll-margin-bottom",
+            "scroll-margin-left",
+        ],
+        Kind::Sides,
+    ),
+    sh(
+        "scroll-margin-block",
+        &["scroll-margin-block-start", "scroll-margin-block-end"],
+        Kind::Pair,
+    ),
+    sh(
+        "scroll-margin-inline",
+        &["scroll-margin-inline-start", "scroll-margin-inline-end"],
+        Kind::Pair,
+    ),
+    sh(
+        "scroll-padding",
+        &[
+            "scroll-padding-top",
+            "scroll-padding-right",
+            "scroll-padding-bottom",
+            "scroll-padding-left",
+        ],
+        Kind::Sides,
+    ),
+    sh(
+        "scroll-padding-block",
+        &["scroll-padding-block-start", "scroll-padding-block-end"],
+        Kind::Pair,
+    ),
+    sh(
+        "scroll-padding-inline",
+        &["scroll-padding-inline-start", "scroll-padding-inline-end"],
         Kind::Pair,
     ),
     sh("inset", &["top", "right", "bottom", "left"], Kind::Sides),
@@ -743,6 +791,14 @@ fn ser_of(name: &str) -> Ser {
         | "padding-right"
         | "padding-bottom"
         | "padding-left"
+        | "scroll-margin-top"
+        | "scroll-margin-right"
+        | "scroll-margin-bottom"
+        | "scroll-margin-left"
+        | "scroll-padding-top"
+        | "scroll-padding-right"
+        | "scroll-padding-bottom"
+        | "scroll-padding-left"
         | "border-top-width"
         | "border-right-width"
         | "border-bottom-width"

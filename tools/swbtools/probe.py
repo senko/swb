@@ -87,7 +87,8 @@ A case file is JSON (committed ones are in `tools/probes/`):
   `type` takes text, `key` a key name (`Enter`, `Tab`, `a`, `Shift+Tab`),
   `wheel` takes `[dx, dy]` at the current position, `wait` takes
   milliseconds (the event loop runs meanwhile), `focus` takes a selector
-  and calls `element.focus()` in the page, `eval` takes an expression.
+  and calls `element.focus()` in the page, `eval` takes an expression,
+  `back` and `forward` (`true`) go in the history of the tab.
   The point steps take `"modifiers": ["Shift", "Control", "Alt", "Meta"]`,
   held during the step.
 
@@ -286,7 +287,7 @@ def _parse_case(
     )
     files = _parse_files(item.get("files", {}), where)
     resources = _parse_resources(item.get("resources", {}), where)
-    steps = _parse_steps(item.get("steps", []), where)
+    steps = parse_steps(item.get("steps", []), where)
     if steps and not javascript:
         raise ProbeError(f"{where}: steps need javascript")
     return Case(name, html, viewport, queries, files, zone, javascript, resources, steps)
@@ -308,6 +309,8 @@ STEP_KINDS = (
     "eval",
     "viewport",
     "colorScheme",
+    "back",
+    "forward",
 )
 _POINT_STEPS = ("click", "dblclick", "rightclick", "middleclick", "hover")
 
@@ -320,7 +323,7 @@ def _is_point(argument: Any) -> bool:
     )
 
 
-def _parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
+def parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
     """The `steps` of a case: objects with one key of `STEP_KINDS`."""
     if not isinstance(value, list):
         raise ProbeError(f"{where}: steps must be a list")
@@ -349,6 +352,8 @@ def _parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
             ok = _is_point(argument) and all(1 <= v <= 16384 for v in argument)
         elif kind == "colorScheme":
             ok = argument in ("light", "dark")
+        elif kind in ("back", "forward"):
+            ok = argument is True
         elif kind == "wait":
             ok = isinstance(argument, int) and not isinstance(argument, bool) and argument >= 0
         elif kind in ("mousedown", "mouseup"):
@@ -1152,8 +1157,9 @@ async def _point_of(page: Page, argument: Any) -> tuple[float, float]:
     return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
 
 
-async def run_steps(page: Page, steps: Sequence[dict[str, Any]]) -> None:
-    """Sends the input of the steps to Chromium."""
+async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int = 0) -> None:
+    """Sends the input of the steps to Chromium. `pause_ms` is a pause after
+    each step (page time), for tools that record page state between steps."""
     for step in steps:
         modifiers = step.get("modifiers", [])
         ((kind, argument),) = [(k, v) for k, v in step.items() if k != "modifiers"]
@@ -1186,8 +1192,14 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]]) -> None:
             await page.set_viewport_size({"width": argument[0], "height": argument[1]})
         elif kind == "colorScheme":
             await page.emulate_media(color_scheme=argument)
+        elif kind == "back":
+            await page.go_back()
+        elif kind == "forward":
+            await page.go_forward()
         for modifier in reversed(modifiers):
             await page.keyboard.up(modifier)
+        if pause_ms:
+            await page.wait_for_timeout(pause_ms)
 
 
 async def probe_case(

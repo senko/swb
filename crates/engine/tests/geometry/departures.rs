@@ -178,4 +178,40 @@ pub(crate) const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         r#"["scrollTop,scrollLeft,scrollWidth,scrollHeight,clientTop,clientLeft,clientWidth,clientHeight,getBoundingClientRect,getClientRects,scroll,scrollBy,scrollIntoView,scrollTo","innerText,offsetParent,offsetTop,offsetLeft,offsetWidth,offsetHeight,onscroll,onscrollend","scrollingElement,onscroll,onscrollend,elementFromPoint,elementsFromPoint"]"#,
         r"swb has no `scrollIntoViewIfNeeded`, `onscrollsnapchange`, `onscrollsnapchanging`, `caretPositionFromPoint`, `caretRangeFromPoint`, `exitPointerLock`; `innerText` comes before the `offset*` members (the order of the IDL files)",
     ),
+    (
+        r"scroll-margin",
+        4,
+        r"[0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
+    (
+        r"scroll-margin",
+        9,
+        r"[0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
+    (
+        r"scroll-margin",
+        15,
+        r"[0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
+    (
+        r"scroll-padding",
+        6,
+        r"[0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
+    (
+        r"scroll-padding",
+        9,
+        r"[0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
+    (
+        r"scroll-margin-nested",
+        3,
+        r"[0,0,0,0]",
+        r"`location.hash = ...` scrolls to the fragment when the script task ends in swb (Chromium: at once); `tests/scrolling.rs` covers the fragment scroll with the margin and the padding",
+    ),
 ];

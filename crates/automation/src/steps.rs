@@ -12,7 +12,8 @@
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
 //! time; `focus` takes a selector; `eval` takes an expression; `viewport`
 //! takes `[width, height]` (`page.setViewport`); `colorScheme` takes
-//! `"light"` or `"dark"` (`prefers-color-scheme`).
+//! `"light"` or `"dark"` (`prefers-color-scheme`); `back` and `forward`
+//! take `true` (`page.back`, `page.forward`: the history of the tab).
 
 use std::time::Duration;
 
@@ -149,9 +150,23 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             Some("light") => page.set_color_scheme(false),
             _ => return Err("colorScheme needs \"light\" or \"dark\"".to_owned()),
         },
+        "back" | "forward" => history_step(page, kind, argument)?,
         other => return Err(format!("unknown step {other}")),
     }
     Ok(())
+}
+
+/// The `back` and `forward` steps: the argument is `true`.
+fn history_step(page: &mut Page, kind: &str, argument: &Value) -> Result<(), String> {
+    if argument != &json!(true) {
+        return Err(format!("{kind} needs true"));
+    }
+    let method = if kind == "back" {
+        "page.back"
+    } else {
+        "page.forward"
+    };
+    call(page, method, Value::Null).map(drop)
 }
 
 /// Splits `Shift+Tab` into the modifiers and the key. A `+` at the end is

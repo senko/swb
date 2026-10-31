@@ -2,14 +2,17 @@
 //! longhands (CSS Transitions 1 and 2), `will-change` (CSS Will Change 1),
 //! `touch-action` (Pointer Events 3), `perspective` and
 //! `perspective-origin` (CSS Transforms 2), with the `-webkit-` aliases that
-//! Chromium has.
+//! Chromium has; and `scroll-margin-*` and `scroll-padding-*` (CSS Scroll
+//! Snap 1), which only the scroll to an element reads.
 //!
 //! swb parses them with their grammar, cascades and computes them, and
 //! shows them to scripts (`element.style`, `getComputedStyle`,
 //! `CSS.supports`, feature tests such as `'transition' in element.style`),
 //! but runs no transitions and draws no perspective. Pages test and write
 //! these properties (Leaflet's tests for the transition and 3D support,
-//! sliders that set `transition-duration`).
+//! sliders that set `transition-duration`). The scroll margin and padding
+//! are read by the scroll to a fragment, `scrollIntoView()` and focus
+//! scrolling ([`InertStyle::scroll_margin`], [`InertStyle::scroll_padding`]).
 //!
 //! The computed values of the properties live in one optional, shared
 //! record, [`InertStyle`] (`ComputedStyle::inert`): an element that sets
@@ -28,7 +31,9 @@
 //! <https://www.w3.org/TR/css-transitions-2/#transition-behavior-property>,
 //! <https://www.w3.org/TR/css-will-change-1/>,
 //! <https://www.w3.org/TR/pointerevents3/#the-touch-action-css-property>,
-//! <https://www.w3.org/TR/css-transforms-2/#perspective-property>.
+//! <https://www.w3.org/TR/css-transforms-2/#perspective-property>,
+//! <https://drafts.csswg.org/css-scroll-snap-1/#scroll-margin>,
+//! <https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding>.
 
 use std::sync::Arc;
 
@@ -42,7 +47,7 @@ use crate::ComputedStyle;
 use crate::cssom::format_number;
 use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{ParseResult, parse_integer, parse_number};
-use crate::values::{PositionComponent, SpecifiedLengthPercentage as Lp};
+use crate::values::{LengthPercentage, PositionComponent, SpecifiedLengthPercentage as Lp};
 
 /// The computed values of the properties of this module. `None` is the
 /// initial value of each.
@@ -66,6 +71,11 @@ pub struct InertStyle {
     pub(crate) perspective: Option<f32>,
     /// `perspective-origin` (initial `50% 50%`).
     pub(crate) perspective_origin: Option<[PositionComponent; 2]>,
+    /// `scroll-margin-top`, `-right`, `-bottom`, `-left` in px (initial 0).
+    pub(crate) scroll_margin: [f32; 4],
+    /// `scroll-padding-top`, `-right`, `-bottom`, `-left` (initial `auto`,
+    /// which is `None`).
+    pub(crate) scroll_padding: [Option<LengthPercentage>; 4],
 }
 
 /// The record with every value initial.
@@ -79,9 +89,43 @@ static INITIAL: InertStyle = InertStyle {
     touch_action: None,
     perspective: None,
     perspective_origin: None,
+    scroll_margin: [0.0; 4],
+    scroll_padding: [None, None, None, None],
 };
 
+/// The index of a side in `scroll_margin` and `scroll_padding`: top,
+/// right, bottom, left.
+fn side_index(id: LonghandId) -> usize {
+    use LonghandId as L;
+    match id {
+        L::ScrollMarginTop | L::ScrollPaddingTop => 0,
+        L::ScrollMarginRight | L::ScrollPaddingRight => 1,
+        L::ScrollMarginBottom | L::ScrollPaddingBottom => 2,
+        _ => 3,
+    }
+}
+
 impl InertStyle {
+    /// `scroll-margin` of the element in px: top, right, bottom, left.
+    /// The scroll to the element treats the margin box as the part of the
+    /// element to reveal.
+    pub fn scroll_margin(style: &ComputedStyle) -> [f32; 4] {
+        style.inert.as_deref().unwrap_or(&INITIAL).scroll_margin
+    }
+
+    /// `scroll-padding` of the element: top, right, bottom, left, `None`
+    /// for `auto` (no padding). A scroll container leaves this much of its
+    /// scrollport out of the area where the scroll to an element places the
+    /// element; a percentage is of the scrollport's size on that axis.
+    pub fn scroll_padding(style: &ComputedStyle) -> [Option<LengthPercentage>; 4] {
+        style
+            .inert
+            .as_deref()
+            .unwrap_or(&INITIAL)
+            .scroll_padding
+            .clone()
+    }
+
     /// The text of the text-valued longhand `id` (its initial value if
     /// unset); `None` for the other longhands.
     pub(crate) fn text(style: &ComputedStyle, id: LonghandId) -> Option<&str> {
@@ -117,6 +161,18 @@ impl InertStyle {
             L::TouchAction => self.touch_action.clone_from(&s.touch_action),
             L::Perspective => self.perspective = s.perspective,
             L::PerspectiveOrigin => self.perspective_origin.clone_from(&s.perspective_origin),
+            L::ScrollMarginTop
+            | L::ScrollMarginRight
+            | L::ScrollMarginBottom
+            | L::ScrollMarginLeft => {
+                self.scroll_margin[side_index(id)] = s.scroll_margin[side_index(id)];
+            }
+            L::ScrollPaddingTop
+            | L::ScrollPaddingRight
+            | L::ScrollPaddingBottom
+            | L::ScrollPaddingLeft => {
+                self.scroll_padding[side_index(id)].clone_from(&s.scroll_padding[side_index(id)]);
+            }
             _ => {}
         }
     }
@@ -159,6 +215,16 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::PerspectiveOrigin([x, y]) => {
             r.perspective_origin = Some([x.compute(cx), y.compute(cx)]);
         }
+        V::ScrollMarginTop(v)
+        | V::ScrollMarginRight(v)
+        | V::ScrollMarginBottom(v)
+        | V::ScrollMarginLeft(v) => r.scroll_margin[side_index(value.id())] = cx.px(v),
+        V::ScrollPaddingTop(v)
+        | V::ScrollPaddingRight(v)
+        | V::ScrollPaddingBottom(v)
+        | V::ScrollPaddingLeft(v) => {
+            r.scroll_padding[side_index(value.id())] = v.as_ref().map(|lp| cx.lp(lp));
+        }
         _ => {}
     });
 }
@@ -181,6 +247,14 @@ pub(crate) fn parse_longhand(id: LonghandId, p: &mut Parser<'_>) -> ParseResult<
             let (x, y) = parse_position(p)?;
             V::PerspectiveOrigin([x, y])
         }
+        L::ScrollMarginTop => V::ScrollMarginTop(scroll_margin(p)?),
+        L::ScrollMarginRight => V::ScrollMarginRight(scroll_margin(p)?),
+        L::ScrollMarginBottom => V::ScrollMarginBottom(scroll_margin(p)?),
+        L::ScrollMarginLeft => V::ScrollMarginLeft(scroll_margin(p)?),
+        L::ScrollPaddingTop => V::ScrollPaddingTop(scroll_padding(p)?),
+        L::ScrollPaddingRight => V::ScrollPaddingRight(scroll_padding(p)?),
+        L::ScrollPaddingBottom => V::ScrollPaddingBottom(scroll_padding(p)?),
+        L::ScrollPaddingLeft => V::ScrollPaddingLeft(scroll_padding(p)?),
         _ => return Err(ParseError::Invalid),
     })
 }
@@ -555,6 +629,22 @@ fn parse_perspective(p: &mut Parser<'_>) -> ParseResult<Option<Lp>> {
         return Ok(None);
     }
     parse_length_percentage(p, LengthOptions::NON_NEGATIVE_LENGTH).map(Some)
+}
+
+// ----- scroll-margin and scroll-padding -----
+
+/// `<length>` (any sign): one side of `scroll-margin`.
+pub(crate) fn scroll_margin(p: &mut Parser<'_>) -> ParseResult<Lp> {
+    parse_length_percentage(p, LengthOptions::LENGTH)
+}
+
+/// `auto | <length-percentage [0,∞]>`: one side of `scroll-padding`;
+/// `auto` is `None`.
+pub(crate) fn scroll_padding(p: &mut Parser<'_>) -> ParseResult<Option<Lp>> {
+    if p.try_parse(|p| p.expect_ident_matching("auto")).is_ok() {
+        return Ok(None);
+    }
+    parse_length_percentage(p, LengthOptions::NON_NEGATIVE).map(Some)
 }
 
 // ----- The shorthand -----

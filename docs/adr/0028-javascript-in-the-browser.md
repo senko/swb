@@ -2771,6 +2771,65 @@ each; the Rust test is `crates/engine/tests/rendering.rs` with the cases in
   part of the outer one); text has no box. The `SVGRect` IDL describes
   Chromium's measured members.
 
+Feature 12 notes (12a: tools and the test base for the Wikipedia target;
+measured with `tools/probes/web-scroll.json` (cases `scroll-margin*`,
+`scroll-padding*`, `scroll-margin-nested`, `scroll-margin-focus`: 122
+queries, three equal Chromium 148 runs), `tools/probes/web-scroll-fragment.json`
+and the cases `history-back-*` of `tools/probes/web-input-real.json`):
+
+- **`scroll-margin` and `scroll-padding`** (CSS Scroll Snap 1). All
+  scrolls to an element use them: the fragment scroll, `scrollIntoView()`
+  and the scroll of `focus()`; the rule is the same for every alignment
+  (`start`, `center`, `end`, `nearest`, and the "center if needed" of
+  focus). The target is its border box (the transformed bounding box for a
+  transformed element) with the margin added on each side; a scroll
+  container looks at the part of its scrollport inside its
+  `scroll-padding` (the box is placed in the rest, and "visible" means
+  visible there). For the viewport the padding is that of the root
+  element (`html`; the `body` value is ignored). A
+  percentage padding is of the scrollport's size on that axis (the
+  padding box of a scroll container, the viewport otherwise); `auto` is 0;
+  `em` lengths are computed with the element's font size. The margin is
+  that of the target at every level of the chain (not of the scroll
+  containers in between), added to the part of the border box that is
+  inside the scrollport of the container before (a margin that reaches
+  outside that scrollport is not cut off). A padding larger than the
+  scrollport does not change `start` and `end`, which are plain offsets.
+  Computed values: `scroll-margin-*` in px (`0px` initial);
+  `scroll-padding-*` as `auto`, a percentage or px; the shorthands
+  serialize as `margin` does; `CSS.supports('scroll-margin', 'auto')` and
+  `'10%'` are false, `scroll-padding` accepts `auto` and percentages and
+  rejects negative values. The logical longhands are separate properties
+  in `element.style` (setting `scroll-margin-inline` does not change
+  `scrollMarginLeft`) and, as the other logical properties, the physical
+  ones for horizontal left-to-right text in the cascade. swb stores the
+  values in `InertStyle` (`properties/inert.rs`) and reads them in
+  `Document::reveal`. Wikipedia: `.mw-heading h2 { scroll-margin-top:
+  75px }`; the scroll of a table-of-contents link is now 1278 and 3590 as
+  in Chromium (it was 75 px too far).
+  Departure: `location.hash = ...` scrolls when the script task ends
+  (Chromium: at once), so the probe's queries that read the scroll in the
+  same task are departures in `geometry/departures.rs`;
+  `tests/scrolling.rs` covers the fragment scroll with the margin and the
+  padding with Chromium's values.
+- **`back` and `forward` steps** (`--steps` and the probe tool:
+  `{"back": true}`, `{"forward": true}`, `page.back`/`page.forward` and
+  Playwright's `go_back()`/`go_forward()`). The order of `popstate` and
+  `hashchange` and the final scroll are equal in the probe cases. Found
+  and not fixed (backlog): Chromium fires `popstate` before the scroll of
+  a fragment navigation (the scroll is still the old one in the listener;
+  `hashchange` sees the new one) and swb fires it after. On back to an
+  entry with a fragment that the page left while scrolled to `0,0`
+  (Playwright scrolls up to click a link that is not fixed), Chromium
+  scrolls to the fragment (1500 in the probe page) and swb does not scroll
+  (0).
+- **`swbtools replay`** records Chromium's page state after steps (the
+  tool in `tools/swbtools/replay.py`; docs/testing.md, "Automation
+  tests"). The Craigslist records are reproduced except the click point of
+  one selector step in the `ev` key (Playwright clicks the center of the
+  first non-empty rectangle of an inline element that wraps; the probe tool's runner
+  clicks the center of the bounding box, as swb does).
+
 Feature 11c1 notes (CSS from scripts for the Craigslist posting page;
 measured with `tools/probes/web-style-inert.json` (6 cases, 48 queries
 with about 600 values) and `tools/probes/web-geometry-matrix.json` (14

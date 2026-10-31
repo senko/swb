@@ -3,11 +3,18 @@
 //! `SWB_JS_FIXTURES` to the directory `fixtures/js` of another checkout;
 //! a test skips when its fixture is missing.
 
+// Each test file uses some of the helpers.
+#![allow(dead_code)]
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::Value;
-use swb_engine::{Evaluation, FontContext, JsonForm, Page, PageConfig, Size, Url};
+use swb_engine::{
+    ClockMode, ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageClock, PageConfig, Size,
+    Url,
+};
 use swb_net::ReplayFetcher;
 
 /// The directory of the fixture `name`, or `None` (the test then skips).
@@ -62,4 +69,48 @@ pub(crate) fn value(page: &mut Page, source: &str) -> Value {
         Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
         other => panic!("{source}: {other:?}"),
     }
+}
+
+/// The fixture in `dir` with JavaScript on, loaded as `swb --headless --js
+/// --test-fonts --now CAPTURED --virtual-time --settle-ms SETTLE_MS` loads
+/// it (1280x800): the page clock fixed at the `captured` time of the
+/// fixture, as the tools fix it for Chromium, and the event loop run for
+/// `settle` of page time after the `load` event.
+pub(crate) fn load_at_capture(dir: &Path, settle: Duration) -> Page {
+    let (mut page, url) = replay_page(dir, true);
+    let captured: jiff::Timestamp = fixture_meta(dir)["captured"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    page.set_clock(PageClock::new(
+        ClockMode::Virtual,
+        Some(captured.as_millisecond() as f64),
+    ));
+    page.navigate(url);
+    assert!(page.wait_until_loaded(Duration::from_secs(60)));
+    page.run_event_loop(settle, Duration::from_secs(60));
+    page
+}
+
+/// The texts of the console messages at `error` level.
+pub(crate) fn console_errors(page: &Page) -> Vec<String> {
+    page.console_messages()
+        .into_iter()
+        .filter(|m| m.level == ConsoleLevel::Error)
+        .map(|m| m.text)
+        .collect()
+}
+
+/// The step groups of a steps file (the file that `swbtools replay --steps`
+/// and the tests share): a list of `{"name": ..., "steps": [...]}`.
+pub(crate) fn step_groups(text: &str) -> Vec<(String, Vec<Value>)> {
+    let groups: Vec<Value> = serde_json::from_str(text).unwrap();
+    groups
+        .into_iter()
+        .map(|g| {
+            let name = g["name"].as_str().unwrap().to_owned();
+            (name, g["steps"].as_array().unwrap().clone())
+        })
+        .collect()
 }

@@ -271,8 +271,9 @@ longhands! {
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
 
-    // Not inherited, without effect on layout or paint: the computed
-    // values are in `ComputedStyle::inert` (see `inert.rs`).
+    // Not inherited, without effect on layout or paint (the scroll margin
+    // and padding only on scrolling to an element): the computed values are
+    // in `ComputedStyle::inert` (see `inert.rs`).
     ;
     TransitionProperty "transition-property": Arc<str>;
     TransitionDuration "transition-duration": Arc<str>;
@@ -283,6 +284,14 @@ longhands! {
     TouchAction "touch-action": Arc<str>;
     Perspective "perspective": Option<Lp>;
     PerspectiveOrigin "perspective-origin": [SpecifiedPosition; 2];
+    ScrollMarginTop "scroll-margin-top": Lp;
+    ScrollMarginRight "scroll-margin-right": Lp;
+    ScrollMarginBottom "scroll-margin-bottom": Lp;
+    ScrollMarginLeft "scroll-margin-left": Lp;
+    ScrollPaddingTop "scroll-padding-top": Option<Lp>;
+    ScrollPaddingRight "scroll-padding-right": Option<Lp>;
+    ScrollPaddingBottom "scroll-padding-bottom": Option<Lp>;
+    ScrollPaddingLeft "scroll-padding-left": Option<Lp>;
 }
 
 #[cfg(test)]

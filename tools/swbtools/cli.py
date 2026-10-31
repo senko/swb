@@ -26,6 +26,7 @@ from swbtools.pixels import DEFAULT_THRESHOLD
 from swbtools.probe import DEFAULT_TOLERANCE as PROBE_TOLERANCE
 from swbtools.probe import probe
 from swbtools.reference import reference, reference_js
+from swbtools.replay import DEFAULT_PAUSE_MS, replay_command
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
 from swbtools.substitute import substitute
 
@@ -158,6 +159,18 @@ def cmd_js_survey(args: argparse.Namespace) -> int:
         log.error("give fixture names or --all")
         return 2
     return js_survey(names, args.runs, args.system_fonts)
+
+
+def cmd_replay(args: argparse.Namespace) -> int:
+    return replay_command(
+        args.name,
+        args.setup,
+        args.steps,
+        args.record,
+        args.out,
+        args.pause_ms,
+        args.system_fonts,
+    )
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -408,6 +421,43 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--runs", type=int, default=3, help="runs of the timing measurement (default 3)")
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_js_survey)
+
+    p = commands.add_parser(
+        "replay",
+        help="replay fixtures/js/NAME in Chromium, run step groups, record the page after each",
+        description=(
+            "Loads the fixture as `reference --js` does, evaluates the setup script, then "
+            "evaluates the record expression after the load and after each step group, and "
+            "writes the records as a JSON list (docs/testing.md, 'Automation tests'). The "
+            "global options --no-shared-worker and --no-intl apply."
+        ),
+    )
+    p.add_argument("name", metavar="NAME", help="a fixture of fixtures/js")
+    p.add_argument(
+        "--steps",
+        type=Path,
+        required=True,
+        help="JSON file: a list of step groups (a list of steps, or {name, steps}); the steps "
+        "are those of `swb --steps` and of the probe tool",
+    )
+    p.add_argument(
+        "--record",
+        required=True,
+        metavar="EXPR",
+        help="expression that returns the record (a string is parsed as JSON)",
+    )
+    p.add_argument(
+        "--setup", type=Path, help="script to evaluate after the load, before the first record"
+    )
+    p.add_argument("--out", type=Path, help="write the records here (default: stdout)")
+    p.add_argument(
+        "--pause-ms",
+        type=int,
+        default=DEFAULT_PAUSE_MS,
+        help=f"pause after each step (default {DEFAULT_PAUSE_MS})",
+    )
+    p.add_argument("--system-fonts", action="store_true", help=fonts_help)
+    p.set_defaults(func=cmd_replay)
 
     p = commands.add_parser("list", help="list the page fixtures and their sizes")
     p.set_defaults(func=cmd_list)

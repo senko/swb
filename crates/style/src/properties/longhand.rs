@@ -277,7 +277,15 @@ pub(crate) fn parse_longhand(
             | L::WillChange
             | L::TouchAction
             | L::Perspective
-            | L::PerspectiveOrigin => super::inert::parse_longhand(id, p)?,
+            | L::PerspectiveOrigin
+            | L::ScrollMarginTop
+            | L::ScrollMarginRight
+            | L::ScrollMarginBottom
+            | L::ScrollMarginLeft
+            | L::ScrollPaddingTop
+            | L::ScrollPaddingRight
+            | L::ScrollPaddingBottom
+            | L::ScrollPaddingLeft => super::inert::parse_longhand(id, p)?,
         })
     })
 }

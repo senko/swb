@@ -263,7 +263,15 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         | V::WillChange(_)
         | V::TouchAction(_)
         | V::Perspective(_)
-        | V::PerspectiveOrigin(_) => super::inert::apply(value, cx, s),
+        | V::PerspectiveOrigin(_)
+        | V::ScrollMarginTop(_)
+        | V::ScrollMarginRight(_)
+        | V::ScrollMarginBottom(_)
+        | V::ScrollMarginLeft(_)
+        | V::ScrollPaddingTop(_)
+        | V::ScrollPaddingRight(_)
+        | V::ScrollPaddingBottom(_)
+        | V::ScrollPaddingLeft(_) => super::inert::apply(value, cx, s),
     }
 }
 

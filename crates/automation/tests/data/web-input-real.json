@@ -83,6 +83,19 @@
  "enter-no-form": [
   "keydown@t key=a|keypress@t key=a|beforeinput@t it=insertText data=\"a\" c=true b=true comp=false InputEvent|input@t it=insertText data=\"a\" c=false b=true comp=false InputEvent|keyup@t key=a|keydown@t key=Enter|keypress@t key=Enter|beforeinput@t it=insertLineBreak data=null c=true b=true comp=false InputEvent|change@t |keyup@t key=Enter|keydown@t key=Tab|keyup@a key=Tab"
  ],
+ "history-back-forward": [
+  "popstate null #s1|hashchange undefined>s1 #s1|popstate null #s2|hashchange s1>s2 #s2|popstate null #s1|hashchange s2>s1 #s1|popstate null |hashchange s1>undefined |popstate null #s1|hashchange undefined>s1 #s1|popstate null #s2|hashchange s1>s2 #s2",
+  [
+   2000,
+   "#s2"
+  ]
+ ],
+ "history-back-scroll": [
+  [
+   1500,
+   "#s1"
+  ]
+ ],
  "hover-chain": [
   "pointerover@o|pointerenter@document|pointerenter@HTML|pointerenter@BODY|pointerenter@o|mouseover@o|mouseenter@document|mouseenter@HTML|mouseenter@BODY|mouseenter@o|pointerout@o<c|pointerleave@o<c|pointerover@c<o|pointerenter@p<o|pointerenter@c<o|mouseout@o<c|mouseleave@o<c|mouseover@c<o|mouseenter@p<o|mouseenter@c<o|pointerout@c<p|pointerleave@c<p|pointerover@p<c|mouseout@c<p|mouseleave@c<p|mouseover@p<c|pointerout@p<HTML|pointerleave@p<HTML|pointerleave@BODY<HTML|pointerover@HTML<p|mouseout@p<HTML|mouseleave@p<HTML|mouseleave@BODY<HTML|mouseover@HTML<p|pointerout@HTML<c|pointerover@c<HTML|pointerenter@BODY<HTML|pointerenter@p<HTML|pointerenter@c<HTML|mouseout@HTML<c|mouseover@c<HTML|mouseenter@BODY<HTML|mouseenter@p<HTML|mouseenter@c<HTML"
  ],

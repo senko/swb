@@ -378,6 +378,57 @@ function W(e) { log.push(N(e.target) + '@' + N(e.currentTarget) + ':' + e.bubble
 function after(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script></body></html>";
 
+/// Page 30 of the cases.
+pub(crate) const PAGE_30: &str = r"<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px; scroll-margin-top: 75px } #b { left: 100px; top: 1000px; scroll-margin: 10px 20px 30px 40px } #c { left: 1500px; top: 2000px; scroll-margin: 10px 20px 30px 40px } #d { left: 100px; top: 1000px; font-size: 20px; scroll-margin-top: 2em } #e { left: 100px; top: 1000px; scroll-margin-top: -10px } #f { left: 100px; top: 100px; scroll-margin-top: 300px } #g { left: 100px; top: 1000px; scroll-margin-block-start: 33px } #h { left: 100px; top: 3900px; scroll-margin-bottom: 100px } #i { left: 100px; top: 1000px; scroll-margin: 5px; scroll-margin-left: 7px; scroll-margin-right: 9px } #j { left: 100px; top: 1000px; scroll-margin-inline: 3px 4px; scroll-margin-block: 11px 12px } #k { left: 100px; top: 1000px; scroll-margin-top: 10px; margin-top: 5px; border: 3px solid } #l { left: 100px; top: 1000px; scroll-margin-top: 10px; transform: translateY(40px) }</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><div class=t id=e></div><div class=t id=f></div><div class=t id=g></div><div class=t id=h></div><div class=t id=i></div><div class=t id=j></div><div class=t id=k></div><div class=t id=l></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P() { return [scrollX, scrollY]; }
+function Z() { history.replaceState(null, '', location.pathname); scrollTo(0, 0); }
+</script></body></html>";
+
+/// Page 31 of the cases.
+pub(crate) const PAGE_31: &str = r"<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px; scroll-margin-top: 75px } #b { left: 100px; top: 1000px; scroll-margin: 10px 20px 30px 40px } #c { left: 1500px; top: 2000px; scroll-margin: 10px 20px 30px 40px } #d { left: 100px; top: 1000px; font-size: 20px; scroll-margin-top: 2em } #e { left: 100px; top: 1000px; scroll-margin-top: -10px } #f { left: 100px; top: 100px; scroll-margin-top: 300px } #g { left: 100px; top: 1000px; scroll-margin-block-start: 33px } #h { left: 100px; top: 3900px; scroll-margin-bottom: 100px } #i { left: 100px; top: 1000px; scroll-margin: 5px; scroll-margin-left: 7px; scroll-margin-right: 9px } #j { left: 100px; top: 1000px; scroll-margin-inline: 3px 4px; scroll-margin-block: 11px 12px } #k { left: 100px; top: 1000px; scroll-margin-top: 10px; margin-top: 5px; border: 3px solid } #l { left: 100px; top: 1000px; scroll-margin-top: 10px; transform: translateY(40px) }</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><div class=t id=e></div><div class=t id=f></div><div class=t id=g></div><div class=t id=h></div><div class=t id=i></div><div class=t id=j></div><div class=t id=k></div><div class=t id=l></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P() { return [scrollX, scrollY]; }
+function Z() { a.removeAttribute('style'); }
+</script></body></html>";
+
+/// Page 32 of the cases.
+pub(crate) const PAGE_32: &str = r"<!DOCTYPE html><html><head><title>t</title><style>html { scroll-padding: 10px 20px 30px 40px } body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif; scroll-padding: 200px } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px } #b { left: 100px; top: 1000px; scroll-margin: 5px } #c { left: 1500px; top: 2000px } #d { left: 100px; top: 3950px } #e { left: 1500px; top: 3000px; scroll-margin: 3px 4px 5px 6px }</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><div class=t id=e></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P() { return [scrollX, scrollY]; }
+function Z() { history.replaceState(null, '', location.pathname); scrollTo(0, 0); R(''); }
+function R(v) { document.documentElement.style.scrollPadding = v; }
+</script></body></html>";
+
+/// Page 33 of the cases.
+pub(crate) const PAGE_33: &str = r"<!DOCTYPE html><html><head><title>t</title><style>html { scroll-padding: 10px 20px 30px 40px } body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif; scroll-padding: 200px } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px } #b { left: 100px; top: 1000px; scroll-margin: 5px } #c { left: 1500px; top: 2000px } #d { left: 100px; top: 3950px } #e { left: 1500px; top: 3000px; scroll-margin: 3px 4px 5px 6px }</style></head><body><div class=t id=a></div><div class=t id=b></div><div class=t id=c></div><div class=t id=d></div><div class=t id=e></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P() { return [scrollX, scrollY]; }
+function Z() { history.replaceState(null, '', location.pathname); scrollTo(0, 0); R(''); }
+function R(v) { document.documentElement.style.scrollPadding = v; }
+</script></body></html>";
+
+/// Page 34 of the cases.
+pub(crate) const PAGE_34: &str = r"<!DOCTYPE html><html><head><title>t</title><style>body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif } .sc { position: absolute; left: 100px; top: 1000px; width: 200px; height: 200px; overflow: auto; border: 3px solid; padding: 7px } .in { height: 1000px; width: 600px; position: relative } .t { position: absolute; left: 300px; top: 500px; width: 50px; height: 50px } #s1 { scroll-padding: 20px } #t1 { scroll-margin: 30px } #s2 { top: 2000px } #t2 { scroll-margin: 30px } #s3 { top: 2500px; scroll-padding: 10% } #t3 { scroll-margin-top: 40px } #s4 { top: 3000px; overflow: hidden } #t4 { scroll-margin-top: 25px } #s5 { top: 1500px; scroll-padding-top: 15px; scroll-margin-top: 60px } #s6 { top: 3500px } #t6 { left: 0; top: 0; scroll-margin-top: 100px } #s7 { top: 500px; overflow: hidden; height: 100px } #t7 { top: 150px; scroll-margin-bottom: 200px } #s8 { top: 700px; scroll-padding-top: 50px } #t8 { left: 0; top: 0; scroll-margin-top: 20px }</style></head><body><div class=sc id=s1><div class=in><div class=t id=t1 tabindex=0></div></div></div><div class=sc id=s2><div class=in><div class=t id=t2 tabindex=0></div></div></div><div class=sc id=s3><div class=in><div class=t id=t3 tabindex=0></div></div></div><div class=sc id=s4><div class=in><div class=t id=t4 tabindex=0></div></div></div><div class=sc id=s5><div class=in><div class=t id=t5 tabindex=0></div></div></div><div class=sc id=s6><div class=in><div class=t id=t6 tabindex=0></div></div></div><div class=sc id=s7><div class=in><div class=t id=t7 tabindex=0></div></div></div><div class=sc id=s8><div class=in><div class=t id=t8 tabindex=0></div></div></div><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P(s) { return [scrollX, scrollY, s.scrollLeft, s.scrollTop]; }
+function Z() { history.replaceState(null, '', location.pathname); if (document.activeElement) document.activeElement.blur(); scrollTo(0, 0); for (const e of document.querySelectorAll('.sc')) { e.scrollTop = 0; e.scrollLeft = 0; } }
+</script></body></html>";
+
+/// Page 35 of the cases.
+pub(crate) const PAGE_35: &str = r"<!DOCTYPE html><html><head><title>t</title><style>html { scroll-padding: 10px 20px 30px 40px } body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif } .t { position: absolute; width: 50px; height: 50px } #a { left: 100px; top: 1000px; scroll-margin-top: 75px } #b { left: 1500px; top: 2000px; scroll-margin: 10px 20px 30px 40px } #c { left: 100px; top: 1000px }</style></head><body><div class=t id=a tabindex=0></div><div class=t id=b tabindex=0></div><div class=t id=c tabindex=0></div><input id=i style='position:absolute;left:100px;top:1000px;scroll-margin-top:75px'><script>
+function E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null && !Array.isArray(v) ? String(v) : v); } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }
+function A(f) { return E(() => { Z(); return f(); }); }
+function P() { return [scrollX, scrollY]; }
+function Z() { history.replaceState(null, '', location.pathname); if (document.activeElement) document.activeElement.blur(); scrollTo(0, 0); N(''); }
+function N(s) { document.documentElement.style.scrollPadding = s; }
+</script></body></html>";
+
 /// The cases of `web-geometry.json`.
 pub(crate) const GEOMETRY: &[Case] = &[
     Case {
@@ -1630,6 +1681,431 @@ pub(crate) const SCROLL: &[Case] = &[
                 r"[0, 33553832, 599.984375, 33554432]",
             ),
             (r"A(() => (scrollTo(0, 33554000), P()))", r"[0, 33553832]"),
+        ],
+    },
+    Case {
+        name: "scroll-margin",
+        html: PAGE_30,
+        queries: &[
+            (r"A(() => (a.scrollIntoView(), P()))", r"[0, 925]"),
+            (
+                r"A(() => (a.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'center'}), P()))",
+                r"[0, 688]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 450]",
+            ),
+            (r"A(() => (location.hash = '#a', P()))", r"[0, 925]"),
+            (
+                r"A(() => (b.scrollIntoView({block: 'start'}), P()))",
+                r"[0, 990]",
+            ),
+            (
+                r"A(() => (b.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (b.scrollIntoView({block: 'center'}), P()))",
+                r"[0, 735]",
+            ),
+            (
+                r"A(() => (b.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 480]",
+            ),
+            (r"A(() => (location.hash = '#b', P()))", r"[0, 990]"),
+            (
+                r"A(() => (c.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[1460, 1990]",
+            ),
+            (
+                r"A(() => (c.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[770, 1480]",
+            ),
+            (
+                r"A(() => (c.scrollIntoView({block: 'center', inline: 'center'}), P()))",
+                r"[1115, 1735]",
+            ),
+            (
+                r"A(() => (c.scrollIntoView({block: 'nearest', inline: 'nearest'}), P()))",
+                r"[770, 1480]",
+            ),
+            (r"A(() => (c.scrollIntoView(), P()))", r"[770, 1990]"),
+            (r"A(() => (location.hash = '#c', P()))", r"[770, 1990]"),
+            (r"A(() => (d.scrollIntoView(), P()))", r"[0, 960]"),
+            (r"A(() => (e.scrollIntoView(), P()))", r"[0, 1010]"),
+            (r"A(() => (f.scrollIntoView(), P()))", r"[0, 0]"),
+            (r"A(() => (g.scrollIntoView(), P()))", r"[0, 967]"),
+            (
+                r"A(() => (h.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 3400]",
+            ),
+            (r"A(() => (h.scrollIntoView(), P()))", r"[0, 3400]"),
+            (
+                r"A(() => (i.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[93, 995]",
+            ),
+            (
+                r"A(() => (i.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[0, 455]",
+            ),
+            (
+                r"A(() => (j.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[97, 989]",
+            ),
+            (
+                r"A(() => (j.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[0, 462]",
+            ),
+            (r"A(() => (k.scrollIntoView(), P()))", r"[0, 995]"),
+            (r"A(() => (l.scrollIntoView(), P()))", r"[0, 1030]"),
+            (
+                r"A(() => (scrollTo(0, 1000), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 925]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 980), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 925]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 920), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 920]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 300), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 410), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 450]",
+            ),
+        ],
+    },
+    Case {
+        name: "scroll-margin-values",
+        html: PAGE_31,
+        queries: &[
+            (
+                r"A(() => [getComputedStyle(a).scrollMarginTop, getComputedStyle(a).scrollMarginRight, getComputedStyle(b).scrollMargin, getComputedStyle(d).scrollMarginTop, getComputedStyle(g).scrollMarginBlockStart, getComputedStyle(g).scrollMarginTop, getComputedStyle(j).scrollMarginInline, getComputedStyle(j).scrollMarginBlock, getComputedStyle(j).scrollMarginLeft])",
+                r#"["75px", "0px", "10px 20px 30px 40px", "40px", "33px", "33px", "3px 4px", "11px 12px", "3px"]"#,
+            ),
+            (
+                r"A(() => [a.style.scrollMarginTop, (a.style.scrollMargin = '1px 2px', a.style.scrollMargin), a.style.scrollMarginLeft, (a.style.scrollMarginInline = '5px', a.style.scrollMarginLeft + ' ' + a.style.scrollMarginRight), a.style.cssText])",
+                r#"["", "1px 2px", "2px", "2px 2px", "scroll-margin: 1px 2px; scroll-margin-inline: 5px;"]"#,
+            ),
+            (
+                r"A(() => ['scroll-margin', 'scroll-margin-top', 'scroll-margin-inline-start', 'scroll-margin-block', 'scroll-padding', 'scroll-padding-left', 'scroll-padding-inline-end', 'scroll-padding-block'].map(p => CSS.supports(p, '1px')))",
+                r"[true, true, true, true, true, true, true, true]",
+            ),
+            (
+                r"A(() => [CSS.supports('scroll-margin', 'auto'), CSS.supports('scroll-margin', '10%'), CSS.supports('scroll-margin', '-1px'), CSS.supports('scroll-padding', 'auto'), CSS.supports('scroll-padding', '10%'), CSS.supports('scroll-padding', '-1px'), CSS.supports('scroll-padding', '1px 2px 3px 4px 5px'), CSS.supports('scroll-margin', 'calc(1px + 2px)')])",
+                r"[false, false, true, true, true, false, false, true]",
+            ),
+        ],
+    },
+    Case {
+        name: "scroll-padding",
+        html: PAGE_32,
+        queries: &[
+            (r"A(() => (a.scrollIntoView(), P()))", r"[0, 990]"),
+            (
+                r"A(() => (a.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'center'}), P()))",
+                r"[0, 735]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[60, 990]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (a.scrollIntoView({block: 'center', inline: 'center'}), P()))",
+                r"[0, 735]",
+            ),
+            (r"A(() => (location.hash = '#a', P()))", r"[0, 990]"),
+            (r"A(() => (b.scrollIntoView(), P()))", r"[0, 985]"),
+            (
+                r"A(() => (b.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 485]",
+            ),
+            (r"A(() => (location.hash = '#b', P()))", r"[0, 985]"),
+            (
+                r"A(() => (c.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[1460, 1990]",
+            ),
+            (
+                r"A(() => (c.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[770, 1480]",
+            ),
+            (
+                r"A(() => (c.scrollIntoView({block: 'center', inline: 'center'}), P()))",
+                r"[1115, 1735]",
+            ),
+            (r"A(() => (c.scrollIntoView(), P()))", r"[770, 1990]"),
+            (r"A(() => (d.scrollIntoView(), P()))", r"[0, 3400]"),
+            (
+                r"A(() => (d.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 3400]",
+            ),
+            (
+                r"A(() => (e.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[1454, 2987]",
+            ),
+            (
+                r"A(() => (e.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[774, 2485]",
+            ),
+            (
+                r"A(() => (e.scrollIntoView({block: 'center', inline: 'center'}), P()))",
+                r"[1114, 2736]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 1000), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 990]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 995), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 990]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 980), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 980]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 410), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 440), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (scrollTo(0, 455), a.scrollIntoView({block: 'nearest'}), P()))",
+                r"[0, 480]",
+            ),
+            (
+                r"A(() => (R('10%'), a.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[20, 940]",
+            ),
+            (
+                r"A(() => (R('10% 20%'), a.scrollIntoView({block: 'end', inline: 'end'}), P()))",
+                r"[0, 510]",
+            ),
+            (
+                r"A(() => (R('auto'), a.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[100, 1000]",
+            ),
+            (
+                r"A(() => (R('2em'), a.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[68, 968]",
+            ),
+            (
+                r"A(() => (R('50px'), c.scrollIntoView({block: 'start', inline: 'start'}), P()))",
+                r"[1450, 1950]",
+            ),
+            (
+                r"A(() => (R('400px'), a.scrollIntoView({block: 'start'}), P()))",
+                r"[0, 600]",
+            ),
+            (
+                r"A(() => (R('290px'), a.scrollIntoView({block: 'center'}), P()))",
+                r"[0, 725]",
+            ),
+            (
+                r"A(() => (R('300px 0'), a.scrollIntoView({block: 'start'}), P()))",
+                r"[0, 700]",
+            ),
+            (
+                r"A(() => (R('0 0 300px 0'), a.scrollIntoView({block: 'end'}), P()))",
+                r"[0, 750]",
+            ),
+        ],
+    },
+    Case {
+        name: "scroll-padding-values",
+        html: PAGE_33,
+        queries: &[
+            (
+                r"A(() => [getComputedStyle(document.documentElement).scrollPadding, getComputedStyle(document.documentElement).scrollPaddingTop, getComputedStyle(document.body).scrollPaddingLeft, getComputedStyle(a).scrollPaddingTop, getComputedStyle(a).scrollPadding])",
+                r#"["10px 20px 30px 40px", "10px", "200px", "auto", "auto"]"#,
+            ),
+            (
+                r"A(() => (R('10%'), [getComputedStyle(document.documentElement).scrollPadding, getComputedStyle(document.documentElement).scrollPaddingTop, document.documentElement.style.scrollPadding]))",
+                r#"["10%", "10%", "10%"]"#,
+            ),
+            (
+                r"A(() => (R('auto'), [getComputedStyle(document.documentElement).scrollPadding, getComputedStyle(document.documentElement).scrollPaddingTop, document.documentElement.style.scrollPadding]))",
+                r#"["auto", "auto", "auto"]"#,
+            ),
+            (
+                r"A(() => (R('1px 2px'), [getComputedStyle(document.documentElement).scrollPadding, document.documentElement.style.scrollPadding, document.documentElement.style.cssText]))",
+                r#"["1px 2px", "1px 2px", "scroll-padding: 1px 2px;"]"#,
+            ),
+            (
+                r"A(() => (R('1px 2px 1px 2px'), document.documentElement.style.scrollPadding))",
+                r#""1px 2px""#,
+            ),
+            (
+                r"A(() => (R('1px 1px 1px 1px'), document.documentElement.style.scrollPadding))",
+                r#""1px""#,
+            ),
+        ],
+    },
+    Case {
+        name: "scroll-margin-nested",
+        html: PAGE_34,
+        queries: &[
+            (
+                r"A(() => (t1.scrollIntoView(), P(s1)))",
+                r"[0, 1023, 193, 457]",
+            ),
+            (
+                r"A(() => (t1.scrollIntoView({block: 'end', inline: 'end'}), P(s1)))",
+                r"[0, 597, 193, 393]",
+            ),
+            (
+                r"A(() => (t1.scrollIntoView({block: 'center', inline: 'center'}), P(s1)))",
+                r"[0, 810, 225, 425]",
+            ),
+            (
+                r"A(() => (location.hash = '#t1', P(s1)))",
+                r"[0, 1023, 225, 457]",
+            ),
+            (
+                r"A(() => (t2.scrollIntoView(), P(s2)))",
+                r"[0, 2003, 173, 477]",
+            ),
+            (
+                r"A(() => (t2.scrollIntoView({block: 'end', inline: 'end'}), P(s2)))",
+                r"[0, 1617, 173, 373]",
+            ),
+            (
+                r"A(() => (t2.scrollIntoView({block: 'center', inline: 'center'}), P(s2)))",
+                r"[0, 1810, 225, 425]",
+            ),
+            (
+                r"A(() => (t3.scrollIntoView(), P(s3)))",
+                r"[0, 2524, 164, 446]",
+            ),
+            (
+                r"A(() => (t3.scrollIntoView({block: 'end'}), P(s3)))",
+                r"[0, 2096, 164, 364]",
+            ),
+            (
+                r"A(() => (t4.scrollIntoView(), P(s4)))",
+                r"[0, 3003, 143, 482]",
+            ),
+            (r"A(() => (s5.scrollIntoView(), P(s5)))", r"[0, 1440, 0, 0]"),
+            (
+                r"A(() => (t5.scrollIntoView(), P(s5)))",
+                r"[0, 1518, 143, 492]",
+            ),
+            (r"A(() => (t1.focus(), P(s1)))", r"[0, 810, 225, 425]"),
+            (r"A(() => (t2.focus(), P(s2)))", r"[0, 1810, 225, 425]"),
+            (r"A(() => (t3.focus(), P(s3)))", r"[0, 2310, 225, 405]"),
+            (r"A(() => (t4.focus(), P(s4)))", r"[0, 2810, 225, 413]"),
+            (r"A(() => (t5.focus(), P(s5)))", r"[0, 1317, 225, 418]"),
+            (r"A(() => (t6.scrollIntoView(), P(s6)))", r"[0, 3400, 0, 0]"),
+            (
+                r"A(() => (t6.scrollIntoView({block: 'center'}), P(s6)))",
+                r"[0, 3185, 0, 0]",
+            ),
+            (
+                r"A(() => (t7.scrollIntoView({block: 'end'}), P(s7)))",
+                r"[0, 17, 143, 293]",
+            ),
+            (
+                r"A(() => (t7.scrollIntoView({block: 'start'}), P(s7)))",
+                r"[0, 503, 143, 157]",
+            ),
+            (r"A(() => (t8.scrollIntoView(), P(s8)))", r"[0, 690, 0, 0]"),
+            (
+                r"A(() => (t8.scrollIntoView({block: 'center'}), P(s8)))",
+                r"[0, 425, 0, 0]",
+            ),
+        ],
+    },
+    Case {
+        name: "scroll-margin-focus",
+        html: PAGE_35,
+        queries: &[
+            (r"A(() => (a.focus(), P()))", r"[0, 698]"),
+            (r"A(() => (c.focus(), P()))", r"[0, 735]"),
+            (r"A(() => (b.focus(), P()))", r"[1105, 1745]"),
+            (r"A(() => (i.focus(), P()))", r"[0, 683]"),
+            (r"A(() => (N('0'), a.focus(), P()))", r"[0, 688]"),
+            (r"A(() => (N('0'), c.focus(), P()))", r"[0, 725]"),
+            (r"A(() => (N('0'), b.focus(), P()))", r"[1115, 1735]"),
+            (
+                r"A(() => (N('0'), scrollTo(0, 410), a.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 410), c.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 440), a.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 440), c.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 980), a.focus(), P()))",
+                r"[0, 925]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 980), c.focus(), P()))",
+                r"[0, 980]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 1020), a.focus(), P()))",
+                r"[0, 925]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 1020), c.focus(), P()))",
+                r"[0, 1000]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 1570), c.focus(), P()))",
+                r"[0, 725]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 1570), a.focus(), P()))",
+                r"[0, 688]",
+            ),
+            (
+                r"A(() => (N('auto'), scrollTo(0, 410), a.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('0'), scrollTo(0, 450), c.focus(), P()))",
+                r"[0, 450]",
+            ),
+            (
+                r"A(() => (N('100px'), scrollTo(0, 450), c.focus(), P()))",
+                r"[0, 725]",
+            ),
+            (
+                r"A(() => (N('100px'), scrollTo(0, 470), c.focus(), P()))",
+                r"[0, 725]",
+            ),
+            (
+                r"A(() => (N('100px'), scrollTo(0, 600), c.focus(), P()))",
+                r"[0, 600]",
+            ),
         ],
     },
 ];

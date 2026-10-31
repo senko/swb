@@ -676,7 +676,7 @@
      "click": "#t"
     },
     {
-     "type": "!é"
+     "type": "!\u00e9"
     }
    ],
    "measure": [
@@ -1347,6 +1347,91 @@
     },
     {
      "js": "[scrollY].concat(['a', 'b', 'c'].map(id => document.getElementById(id) && document.getElementById(id).scrollTop))"
+    }
+   ]
+  },
+  {
+   "name": "history-back-forward",
+   "html": "<!DOCTYPE html><style>body{margin:0}.sp{height:1500px}</style><a id=l1 href='#s1' style='position:fixed;left:10px;top:10px'>one</a><a id=l2 href='#s2' style='position:fixed;left:10px;top:40px'>two</a><div class=sp></div><div id=s1 style='height:500px'>s1</div><div id=s2 style='height:2000px'>s2</div><script>\nvar log = [];\nfunction at(e) { return ' ' + location.hash; }\naddEventListener('hashchange', function (e) { log.push('hashchange ' + String(e.oldURL).split('#')[1] + '>' + String(e.newURL).split('#')[1] + at()); });\naddEventListener('popstate', function (e) { log.push('popstate ' + JSON.stringify(e.state) + at()); });\n</script>",
+   "steps": [
+    {
+     "click": "#l1"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "click": "#l2"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "back": true
+    },
+    {
+     "wait": 100
+    },
+    {
+     "back": true
+    },
+    {
+     "wait": 100
+    },
+    {
+     "forward": true
+    },
+    {
+     "wait": 100
+    },
+    {
+     "forward": true
+    },
+    {
+     "wait": 100
+    },
+    {
+     "forward": true
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join('|')"
+    },
+    {
+     "js": "[scrollY, location.hash]"
+    }
+   ]
+  },
+  {
+   "name": "history-back-scroll",
+   "html": "<!DOCTYPE html><style>body{margin:0}.sp{height:1500px}</style><a id=l1 href='#s1' style='position:fixed;left:10px;top:10px'>one</a><a id=l2 href='#s2' style='position:fixed;left:10px;top:40px'>two</a><div class=sp></div><div id=s1 style='height:500px'>s1</div><div id=s2 style='height:2000px'>s2</div><script>\nvar log = [];\nfunction at(e) { return ' ' + location.hash; }\naddEventListener('hashchange', function (e) { log.push('hashchange ' + String(e.oldURL).split('#')[1] + '>' + String(e.newURL).split('#')[1] + at()); });\naddEventListener('popstate', function (e) { log.push('popstate ' + JSON.stringify(e.state) + at()); });\n</script>",
+   "steps": [
+    {
+     "click": "#l1"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "click": "#l2"
+    },
+    {
+     "wait": 100
+    },
+    {
+     "back": true
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "[scrollY, location.hash]"
     }
    ]
   }

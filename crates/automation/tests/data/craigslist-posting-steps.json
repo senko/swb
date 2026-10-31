@@ -1,0 +1,14 @@
+[
+ {"name": "thumbnail 2", "steps": [{"click": "a.thumb[title=\"2\"]"}, {"wait": 800}]},
+ {"name": "zoom in", "steps": [{"click": ".leaflet-control-zoom-in"}, {"wait": 800}]},
+ {"name": "zoom out", "steps": [{"click": ".leaflet-control-zoom-out"}, {"wait": 800}]},
+ {"name": "drag", "steps": [{"hover": [971, 297]}, {"mousedown": "left"}, {"hover": [900, 250]}, {"hover": [850, 230]}, {"mouseup": "left"}, {"wait": 800}]},
+ {"name": "double click", "steps": [{"dblclick": [971, 297]}, {"wait": 800}]},
+ {"name": "context menu", "steps": [{"rightclick": [971, 297]}, {"wait": 800}]},
+ {"name": "wheel in", "steps": [{"hover": [971, 297]}, {"wheel": [0, -120]}, {"wait": 800}]},
+ {"name": "wheel out", "steps": [{"wheel": [0, 120]}, {"wait": 800}]},
+ {"name": "reply", "steps": [{"click": ".reply-button"}, {"wait": 1500}, {"wait": 1500}]},
+ {"name": "print", "steps": [{"click": "#printme"}, {"wait": 2000}]},
+ {"name": "share", "steps": [{"click": "#sharebutton-container a"}, {"wait": 500}]},
+ {"name": "copy URL", "steps": [{"click": ".share-menu li:nth-child(7) a"}, {"wait": 800}]}
+]

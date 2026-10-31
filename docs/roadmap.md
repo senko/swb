@@ -3803,9 +3803,77 @@ Steps:
       within 2 points of the JS-off scores; the load-time budget is
       met. If forced style runs take more than 20 % of the budget, 12b
       follows first.
-      - 12b (only if 12 shows the need; `implementer-hard`): the style
-        of one element on demand, then the restyle of dirty subtrees
-        (ADR 0028 section 9).
+      Gap list (2026-10-31, one diagnosis session, replayed fixture,
+      Chromium 148): the load has no console error in swb or Chromium
+      and takes 0.291 s (median of 7; budget 0.7 s). Forced style runs
+      take at most 41 ms (4 runs after the load) and 33 ms per
+      interaction, below 20 % of the budget (140 ms), so the style of
+      one element on demand is not needed (the former 12b is dropped).
+      Equal in both: the Appearance radios (theme, text size, width)
+      with the client preference cookie, pin and unpin of the four
+      menus, the table of contents collapse, collapsible tables and
+      navboxes (click, Enter, Space), `hashchange`, `popstate` and the
+      scroll restore of back and forward. Not testable with the
+      logged-out fixture, the same in both: the sticky header (shown
+      only to logged-in users), reference previews (off for logged-out
+      users; a link preview shows the same error popup in both, because
+      the fixture lacks the REST summary), the typeahead code (not in
+      the fixture). Differences: `contentEditable` and
+      `isContentEditable` are missing, so VisualEditor reports
+      `ve-not-available` and hides the visual edit links; `clip-path`
+      has no basic shapes, so `CSS.supports("clip-path", "polygon(...)")`
+      is false and Popups adds an SVG (the 2 extra boxes of
+      `compare --js`); `scroll-margin` and `scroll-padding` are
+      missing (an anchor scrolls 75 px too far); the dark theme lacks
+      `filter` (images not dimmed, the logo wordmark not inverted) and
+      gradients do not interpolate in premultiplied space (a gray band
+      at the bottom of the sticky containers); dark viewport pixels
+      0.9514. After "unpin" of the table of contents, the references
+      have 2 columns in Chromium (`column-width`) and 1 in swb: multicol
+      layout is missing (backlog; the default layout does not need it).
+      The automation has no back and forward steps, and no tool records
+      Chromium's page state after steps (backlog from 11d). Split:
+      - 12a (`implementer`): tools and the test base: a `swbtools`
+        command that replays a JS fixture in Chromium, runs a steps file
+        and evaluates a record script after the load and after each
+        step group (it replaces the scratch helper of the Craigslist
+        records); `back` and `forward` steps; `scroll-margin` and
+        `scroll-padding` for the fragment scroll and `scrollIntoView`;
+        the integration test `wikipedia_web_browser.rs` with records
+        for the features that work now. Exit: the new command
+        reproduces the Craigslist records; the anchor scroll equal to
+        Chromium; JS off snapshot identical.
+        Done 2026-10-31: `swbtools replay` (Chromium's page records
+        after the load and after each step group, with the setup of
+        `reference --js` and the probe tool's step runner; it
+        reproduces the 13 Craigslist records except the mouse events
+        of the "share" group, which the test skips: Playwright clicks
+        the first client rectangle of a wrapped link, the runner the
+        center of its bounding box); the steps of the Craigslist test
+        are a data file that the test and the command share; `back`
+        and `forward` steps; `scroll-margin` and `scroll-padding`
+        (longhands, shorthands, logical forms, CSSOM) for the
+        fragment scroll, `scrollIntoView` and focus scrolling (probe
+        cases with 122 queries; departure: `location.hash` scrolls
+        when the task ends, Chromium at once), so the anchor scroll of
+        the table of contents is 1278 and 3590 px as in Chromium (was
+        75 px too far); `wikipedia_web_browser.rs`: 48 step groups, 49
+        records equal to Chromium's (rectangles within 3 px), 8 s.
+        `compare --js` unchanged on all JS targets; JS off: snapshot
+        identical; hostile set unchanged.
+      - 12b (`implementer`): `contentEditable` and `isContentEditable`
+        (and what the VisualEditor start-up then needs), `clip-path`
+        basic shapes (parse, paint, hit testing). Exit: `compare --js`
+        has no extra boxes and equal tag sequences (or the remaining
+        difference is named); no console error that Chromium does not
+        have.
+      - 12c (`implementer`): the dark theme: `filter` and gradients in
+        premultiplied space. Exit: the dark viewport pixels at least
+        0.99; the light theme not worse; the test checks a pixel sample.
+      - 12d (`implementer`): the orchestrator adds the fixture entries
+        of the typeahead code and of one link preview; then what fails
+        there. Exit of feature 12: the test drives the list above
+        (items 5 and 6 as far as the logged-out page allows).
 
    Later (not in M8):
 
@@ -3841,6 +3909,33 @@ Steps:
 
 ## Backlog from M8
 
+- Engine (found in feature 12a): a click on Wikipedia costs 5 full
+  style runs and 4 layout runs (about 230 ms in the test profile), a
+  hover move 1 of each: a change of the hover or active state restyles
+  the whole document.
+- Engine (found in feature 12a): history traversal to a fragment.
+  Chromium fires `popstate` before the fragment scroll and `hashchange`
+  after it; swb fires both after it. Back or forward to a fragment
+  entry that was left at scroll 0 scrolls to the fragment in Chromium,
+  not in swb (probe case `history-back-scroll`). Chromium focuses a
+  focusable fragment target (`location.hash = '#t1'`); swb not checked.
+- Layout (found in feature 12a): with Wikipedia's small text size,
+  boxes 5,700 px down the page are 2 to 3 px off (the test allows 3 px).
+- `style`/engine (found in the 12a review): the logical
+  `scroll-margin-*` and `scroll-padding-*` longhands map to physical
+  sides for horizontal left-to-right text only. In a `direction: rtl`
+  scroll container `scrollIntoView({inline: 'start'})` gives
+  `scrollLeft` 800 where Chromium gives -20 (the positive `scrollLeft`
+  of RTL containers may be an older difference).
+- Tools (found in feature 12a): the probe runner clicks the center of
+  the bounding box; Playwright's `page.click` clicks the first non-empty
+  client rectangle. They differ only for wrapped inline elements.
+- Layout (found in feature 12): multi-column layout (`column-width`,
+  `column-count`, column balancing). On Wikipedia, after "unpin" of the
+  table of contents, Chromium sets the references (`.mw-references-wrap`,
+  `column-width: 30em`) in 2 columns and swb in 1, so the page is 271 px
+  longer. The default layout at 1280 px is 1 column in both.
+  `implementer-hard`.
 - Canvas with JavaScript off (found in feature 2): Chromium gives a
   block-level `<canvas>` with `width` and `height` attributes the
   `aspect-ratio: auto w / h` hint also with scripting off (an empty
@@ -4499,10 +4594,6 @@ Steps:
   (`getAttributeNames()` gives `a,b,style` in Chromium, `a,style,b` in
   swb). `getClientRects()` of an inline element with a block child
   lacks Chromium's first zero-size rectangle.
-- Tools (found in feature 11d): the Chromium records of
-  `craigslist_posting.rs` come from a scratch helper (a Chromium replay
-  of the fixture with steps and evaluations); a `swbtools` command for
-  it would let them be regenerated from the repository.
 - `js`/`web` (found in the 6d1 review): for a handler attribute from the
   parser, Chromium reports error positions in the HTML document (the
   line of the attribute); swb counts from the handler body (1:7). Some

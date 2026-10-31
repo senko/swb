@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use swb_dom::{Document, NodeId, QuirksMode, local_name};
 use swb_layout::{FragmentRef, FragmentTree, Point, Rect, ScrollOffsets, Size, scroll_range};
-use swb_style::{Overflow, StyleMap, Visibility};
+use swb_style::{ComputedStyle, InertStyle, Overflow, StyleMap, Visibility};
 use swb_text::FontContext;
 
 use super::DocumentState;
@@ -285,7 +285,11 @@ impl DocumentState {
     /// each scroll container, the part of the box inside its scrollport is
     /// revealed in the next one (as in Blink). Scrolls `overflow: hidden`
     /// containers too. Does not cancel a pending scroll to the fragment.
-    /// Returns true if something scrolled.
+    /// What each container reveals is the box with the `scroll-margin` of
+    /// `node` added, placed in the container's scrollport without its
+    /// `scroll-padding` (the root element's for the viewport; CSS Scroll
+    /// Snap 1, ADR 0028 "Feature 12 notes"). Returns true if something
+    /// scrolled.
     pub(crate) fn reveal(&mut self, node: NodeId, rect: Rect, x: Align, y: Align) -> bool {
         let (Some(styles), Some(tree)) = (&self.styles, &self.fragments) else {
             return false;
@@ -294,19 +298,52 @@ impl DocumentState {
             .scrollers
             .chain_and_fixed(&self.dom, styles, node, false);
         let ports = self.scrollers.ports(tree, &chain, self.scroll);
+        // The margin box of the node (`scroll-margin`) is what each scroll
+        // container reveals; the part that is clipped away is the border
+        // box's, so the margin is added again at each level (measured in
+        // Chromium).
+        let margin = styles
+            .get(node)
+            .map_or([0.0; 4], |s| InertStyle::scroll_margin(s));
+        // The scroll containers with their scrollports and `scroll-padding`,
+        // and the viewport's padding (the root element's).
+        let containers: Vec<(NodeId, Rect, [f32; 4])> = chain
+            .iter()
+            .filter_map(|&scroller| {
+                let port = *ports.get(&scroller)?;
+                let size = Size::new(port.width, port.height);
+                let style = styles.get(scroller).map(|s| &**s);
+                Some((scroller, port, scroll_padding(style, size)))
+            })
+            .collect();
+        let root_style = self
+            .dom
+            .document_element()
+            .and_then(|root| styles.get(root))
+            .map(|s| &**s);
+        let root_padding = scroll_padding(root_style, self.view.viewport);
         let mut rect = rect;
         let mut changed = false;
-        for scroller in chain {
-            let Some(&port) = ports.get(&scroller) else {
-                continue;
-            };
+        for (scroller, port, padding) in containers {
             let offset = self.scrollers.offset(scroller);
             // In the coordinates of the scrolled content.
             let start_x = rect.x - port.x + offset.x;
             let start_y = rect.y - port.y + offset.y;
             let to = Point::new(
-                x.position(start_x, rect.width, offset.x, port.width),
-                y.position(start_y, rect.height, offset.y, port.height),
+                x.position_padded(
+                    start_x - margin[3],
+                    rect.width + margin[1] + margin[3],
+                    offset.x,
+                    port.width,
+                    (padding[3], padding[1]),
+                ),
+                y.position_padded(
+                    start_y - margin[0],
+                    rect.height + margin[0] + margin[2],
+                    offset.y,
+                    port.height,
+                    (padding[0], padding[2]),
+                ),
             );
             if self.scrollers.set(scroller, to) {
                 changed = true;
@@ -325,8 +362,20 @@ impl DocumentState {
         let before = self.scroll;
         let (scroll, viewport) = (self.scroll, self.view.viewport);
         self.scroll = Point::new(
-            x.position(rect.x, rect.width, scroll.x, viewport.width),
-            y.position(rect.y, rect.height, scroll.y, viewport.height),
+            x.position_padded(
+                rect.x - margin[3],
+                rect.width + margin[1] + margin[3],
+                scroll.x,
+                viewport.width,
+                (root_padding[3], root_padding[1]),
+            ),
+            y.position_padded(
+                rect.y - margin[0],
+                rect.height + margin[0] + margin[2],
+                scroll.y,
+                viewport.height,
+                (root_padding[0], root_padding[2]),
+            ),
         );
         self.clamp_scroll();
         if self.scroll != before {
@@ -511,6 +560,26 @@ impl DocumentState {
             self.dom.parent_element(node)
         }
     }
+}
+
+/// The `scroll-padding` of a scroll container in px (top, right, bottom,
+/// left), for a scrollport of `port`: `auto` is 0, a percentage is of the
+/// scrollport's size on that axis.
+/// <https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding>
+fn scroll_padding(style: Option<&ComputedStyle>, port: Size) -> [f32; 4] {
+    let Some(style) = style else {
+        return [0.0; 4];
+    };
+    let basis = [port.height, port.width, port.height, port.width];
+    let mut padding = [0.0; 4];
+    for ((slot, value), basis) in padding
+        .iter_mut()
+        .zip(InertStyle::scroll_padding(style))
+        .zip(basis)
+    {
+        *slot = value.map_or(0.0, |v| v.resolve(basis));
+    }
+    padding
 }
 
 /// The element that a fragment indicates: by its text, then percent-decoded.

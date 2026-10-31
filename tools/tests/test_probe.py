@@ -614,6 +614,8 @@ def test_steps_all_kinds_parse():
         {"eval": "1"},
         {"viewport": [400, 300]},
         {"colorScheme": "dark"},
+        {"back": True},
+        {"forward": True},
     ]
     assert parse_steps(steps) == tuple(steps)
 
@@ -639,6 +641,8 @@ def test_steps_all_kinds_parse():
         ([{"viewport": [0, 300]}], "bad argument for viewport"),
         ([{"viewport": "800x600"}], "bad argument for viewport"),
         ([{"colorScheme": "blue"}], "bad argument for colorScheme"),
+        ([{"back": 1}], "bad argument for back"),
+        ([{"forward": "yes"}], "bad argument for forward"),
         ([{"type": "a", "modifiers": ["Shift"]}], "bad modifiers"),
         ([{"click": "#a", "modifiers": ["Super"]}], "bad modifiers"),
         ([{"click": "#a", "modifiers": "Shift"}], "bad modifiers"),

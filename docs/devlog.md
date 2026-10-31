@@ -4,6 +4,29 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 12a, tools and test base for Wikipedia
+
+- Diagnosis of feature 12: Wikipedia loads in 0.29 s without a script
+  error, and most of its features already behave as in Chromium. The
+  gaps are `contentEditable`, `clip-path` shapes, `scroll-margin`, the
+  dark theme (`filter`, gradients) and multicol (backlog). Forced style
+  runs stay far below the limit, so the style of one element on demand
+  is not needed. Split: 12a to 12d (roadmap).
+- New command `swbtools replay`: replays a JS fixture in Chromium, runs
+  step groups and writes a page record after the load and after each
+  group. It reproduces the Craigslist records. Steps `back` and
+  `forward` in `--steps` and the probe tool.
+- `scroll-margin` and `scroll-padding` for the fragment scroll,
+  `scrollIntoView()` and focus scrolling. The anchor scroll of the
+  Wikipedia table of contents is now the same as in Chromium (it was
+  75 px too far).
+- New integration test `wikipedia_web_browser.rs`: 48 step groups, 49
+  records equal to Chromium's; 8 s.
+- Learned: a click on Wikipedia costs 5 style runs and 4 layout runs in
+  swb; Chromium fires `popstate` before the fragment scroll.
+
+Next: 12b (`contentEditable`, `clip-path`).
+
 ## 2026-10-31: M8 feature 11e, Chrome-compatible user agent
 
 - The owner decided that swb sends Chrome's user-agent string with

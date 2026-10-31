@@ -291,6 +291,83 @@ fn fragments_scroll_their_target_to_the_top_of_each_container() {
     assert_eq!(rect(&mut page, "r3").y, 1000.0);
 }
 
+/// The page of `tools/probes/web-scroll-fragment.json`: a root with
+/// `scroll-padding` (the `body` one does not count), targets with
+/// `scroll-margin`, and three scroll containers.
+const MARGIN_PAGE: &str = "<!DOCTYPE html><style>\
+    html { scroll-padding: 10px 20px 30px 40px }\
+    body { margin: 0; height: 4000px; width: 3000px; font: 16px/20px sans-serif; scroll-padding: 200px }\
+    .t { position: absolute; width: 50px; height: 50px }\
+    #a { left: 100px; top: 1000px; scroll-margin-top: 75px }\
+    #b { left: 1500px; top: 2000px; scroll-margin: 10px 20px 30px 40px }\
+    .sc { position: absolute; left: 100px; width: 200px; height: 200px; overflow: auto; border: 3px solid; padding: 7px }\
+    .in { height: 1000px; width: 600px; position: relative }\
+    .c { position: absolute; left: 300px; top: 500px; width: 50px; height: 50px }\
+    #s1 { top: 1500px; scroll-padding: 20px } #c1 { scroll-margin: 30px }\
+    #s2 { top: 2500px } #c2 { scroll-margin-top: 40px }\
+    #s3 { top: 3000px; scroll-padding-top: 10% } #c3 { scroll-margin-top: 15px }\
+    </style><div class=t id=a></div><div class=t id=b></div>\
+    <div class=sc id=s1><div class=in><div class=c id=c1></div></div></div>\
+    <div class=sc id=s2><div class=in><div class=c id=c2></div></div></div>\
+    <div class=sc id=s3><div class=in><div class=c id=c3></div></div></div>";
+
+#[test]
+fn fragment_scrolls_use_scroll_margin_and_scroll_padding() {
+    let site = Site::new("scroll-fragment-margin");
+    let (mut page, url) = open(&site, MARGIN_PAGE);
+    // (fragment, the scroll container that moves, Chromium's page scroll
+    // and container offset; `tools/probes/web-scroll-fragment.json`, three
+    // equal runs).
+    let cases = [
+        ("a", "s1", (0.0, 915.0), (0.0, 0.0)),
+        ("b", "s1", (790.0, 1980.0), (0.0, 0.0)),
+        ("c1", "s1", (0.0, 1513.0), (193.0, 457.0)),
+        ("c2", "s2", (0.0, 2493.0), (143.0, 467.0)),
+        ("c3", "s3", (0.0, 3014.0), (143.0, 471.0)),
+        ("s1", "s1", (0.0, 1490.0), (0.0, 0.0)),
+    ];
+    for (fragment, container, page_scroll, inner) in cases {
+        page.scroll_to(Point::default());
+        for id in ["s1", "s2", "s3"] {
+            let n = node(&page, id);
+            page.scroll_element_to(n, Point::default());
+        }
+        let mut link = url.clone();
+        link.set_fragment(Some(fragment));
+        assert!(page.follow_link(link), "#{fragment}");
+        let at = page.scroll_position();
+        assert_eq!((at.x, at.y), page_scroll, "page, #{fragment}");
+        let at = offset(&mut page, container);
+        assert_eq!((at.x, at.y), inner, "{container}, #{fragment}");
+    }
+}
+
+/// Huge and infinite margins and paddings clamp to the scroll range; the
+/// scroll position stays a finite number.
+#[test]
+fn extreme_scroll_margin_and_padding_stay_in_the_scroll_range() {
+    let site = Site::new("scroll-fragment-extreme");
+    let html = "<!DOCTYPE html><style>\
+        html { scroll-padding: calc(1e38px * 100) 1e30px }\
+        body { margin: 0; height: 3000px; width: 2000px }\
+        .sc { overflow: auto; width: 100px; height: 100px; scroll-padding: 50% 1e300px }\
+        .in { height: 1000px; width: 1000px }\
+        #a { margin-top: 1500px; scroll-margin: calc(-1e38px * 100) 1e30px }\
+        #b { scroll-margin: 1e300px }\
+        </style><div id=a>a</div><div class=sc id=s><div class=in><div id=b>b</div></div></div>";
+    let (mut page, url) = open(&site, html);
+    for fragment in ["a", "b"] {
+        let mut link = url.clone();
+        link.set_fragment(Some(fragment));
+        page.follow_link(link);
+        let at = page.scroll_position();
+        assert!(at.x.is_finite() && at.y.is_finite(), "#{fragment}: {at:?}");
+        assert!(at.x >= 0.0 && at.y >= 0.0 && at.y <= 2400.0, "{at:?}");
+        let inner = offset(&mut page, "s");
+        assert!(inner.x.is_finite() && inner.y.is_finite(), "{inner:?}");
+    }
+}
+
 #[test]
 fn a_url_with_a_fragment_scrolls_the_container_on_load() {
     let site = Site::new("scroll-fragment-load");

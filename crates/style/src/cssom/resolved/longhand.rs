@@ -82,6 +82,22 @@ fn physical(name: &str, rtl: bool) -> Option<&'static str> {
             _ => "padding-right",
         });
     }
+    if let Some(rest) = name.strip_prefix("scroll-margin-") {
+        return Some(match side(rest)? {
+            "top" => "scroll-margin-top",
+            "bottom" => "scroll-margin-bottom",
+            "left" => "scroll-margin-left",
+            _ => "scroll-margin-right",
+        });
+    }
+    if let Some(rest) = name.strip_prefix("scroll-padding-") {
+        return Some(match side(rest)? {
+            "top" => "scroll-padding-top",
+            "bottom" => "scroll-padding-bottom",
+            "left" => "scroll-padding-left",
+            _ => "scroll-padding-right",
+        });
+    }
     if let Some(rest) = name.strip_prefix("inset-") {
         return side(rest);
     }
@@ -820,6 +836,19 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
                 .unwrap_or([PositionComponent::CENTER; 2]);
             format!("{} {}", position(&x), position(&y))
         }
+        "scroll-margin-top"
+        | "scroll-margin-right"
+        | "scroll-margin-bottom"
+        | "scroll-margin-left" => side_of(name, "scroll-margin-")
+            .map_or_else(String::new, |i| px(InertStyle::scroll_margin(s)[i])),
+        "scroll-padding-top"
+        | "scroll-padding-right"
+        | "scroll-padding-bottom"
+        | "scroll-padding-left" => side_of(name, "scroll-padding-").map_or_else(String::new, |i| {
+            InertStyle::scroll_padding(s)[i]
+                .as_ref()
+                .map_or_else(|| "auto".to_owned(), lp)
+        }),
         "border-image-slice" => "100%".to_owned(),
         "border-image-width" => "1".to_owned(),
         "border-image-outset" => "0".to_owned(),

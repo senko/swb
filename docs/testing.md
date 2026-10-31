@@ -65,6 +65,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
+| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list (see "Automation tests"). |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
@@ -989,7 +990,11 @@ temporary directory, loaded by navigation.
   "expression"}` runs a script; `{"viewport": [500, 600]}` resizes the
   viewport (Playwright's `set_viewport_size`; swb's `page.setViewport`);
   `{"colorScheme": "dark"}` sets `prefers-color-scheme` (Playwright's
-  `emulate_media`; swb's `Page::set_color_scheme`; feature 7b2). A click moves the pointer first (also
+  `emulate_media`; swb's `Page::set_color_scheme`; feature 7b2);
+  `{"back": true}` and `{"forward": true}` go back and forward in the
+  history of the tab (Playwright's `go_back()` and `go_forward()`; swb's
+  `page.back` and `page.forward`; M8 feature 12a; a navigation to
+  another document needs a `wait` step after it). A click moves the pointer first (also
   when it is there), as Playwright does. swb runs the tasks that are due
   after each step (a `javascript:` link, a `setTimeout(0)`), as Chromium runs
   them while Playwright waits for its next call. A failed step ends the
@@ -1002,7 +1007,12 @@ temporary directory, loaded by navigation.
   real_input.rs` runs the cases of that file with the steps and compares
   the queries with the Chromium values in `tests/data/web-input-real.json`
   (made from `just probe --json`; `tools/swbtools` has no script for it:
-  the file maps each case to the values of its `js` queries).
+  the file maps each case to the values of its `js` queries). The cases
+  `history-back-forward` and `history-back-scroll` of that file cover the
+  `back` and `forward` steps (the order of `popstate` and `hashchange`, the
+  scroll after back and forward). `swbtools replay` runs the same steps
+  with the same Python function (`probe.run_steps`), so that the step
+  format has one implementation in Python.
 
 Output, one line per value: `CASE  KIND  LABEL  VALUES`. A label is the
 selector and the 1-based index among its matches (`#a > p[2]`; a selector
@@ -1021,7 +1031,9 @@ other queries still run, and the exit status is 1.
 --size WxH --dump-boxes`; binary: `--swb PATH`, `$SWB`,
 `target/release/swb`, `target/debug/swb`; the last two are relative to
 the current directory, so a run for another tree, such as the review
-tree, needs `--swb` with that tree's binary). For each `boxes` element it
+tree, needs `--swb` with that tree's binary; the first that exists is
+used even when it is older than the sources, so rebuild the release
+binary or pass `--swb` after a change). For each `boxes` element it
 reads the same index of `document.querySelectorAll('*')` from swb's dump
 and prints swb's box and the deltas below the Chromium line, with `!` if a delta is above
 `--tolerance` (default 1 px). If the tag at that index differs, or only one
@@ -1353,12 +1365,14 @@ protocol, the `Origin` check and the server limits (connections, request
 size). `crates/engine/tests/interaction.rs` tests the same interactions
 on the engine API directly, with small pages.
 
-`crates/automation/tests/hacker_news.rs` and `craigslist_posting.rs` are the
-exit tests of the M8 targets with JavaScript on. They load the local fixtures
-`fixtures/js/hacker-news` and `fixtures/js/craigslist-posting` (git-ignored,
-see "Capture with JavaScript on"). Without the fixture the test prints
-`skipped: ...` and passes; `SWB_JS_FIXTURES=DIR` names the directory
-`fixtures/js` of another checkout (an empty directory shows the skip).
+`crates/automation/tests/hacker_news.rs`, `craigslist_posting.rs` and
+`wikipedia_web_browser.rs` are the exit tests of the M8 targets with
+JavaScript on. They load the local fixtures `fixtures/js/hacker-news`,
+`fixtures/js/craigslist-posting` and `fixtures/js/wikipedia-web-browser`
+(ignored by the repository, see "Capture with JavaScript on"). Without the
+fixture the test prints `skipped: ...` and passes; `SWB_JS_FIXTURES=DIR`
+names the directory `fixtures/js` of another checkout (an empty directory
+shows the skip).
 `craigslist_posting.rs` (M8 feature 11d, about 5 s) loads the posting once, on
 the legacy path (Chromium without `SharedWorker` and `Intl`, ADR 0028) with the
 page clock at the `captured` time of the fixture, and runs the steps of the
@@ -1372,16 +1386,62 @@ menu, print events, errors and unhandled rejections) and compares every key
 with Chromium's record of the same steps
 (`data/craigslist-posting-chromium.json`, Chromium 148.0.7778.96). The test
 also needs no console error at load and, after the steps, only the errors
-that Chromium has. The Chromium records were made by replaying the fixture
-with `swbtools.browser.session` and `swbtools.routing.Replayer` (the setup of
-`reference --js`, `SWB_NO_SHARED_WORKER=1 SWB_NO_INTL=1`), the same steps
-through Playwright's mouse and `page.click`, and a 300 ms pause after each
-step. The script that ran
-these steps in Chromium is not in the repository: to make new records,
-replay the steps of `groups()` in the test that way and evaluate the setup
-script and `window.__s()` after the load and after each group (backlog: a
-`swbtools` command for Chromium replays with steps). The module comment of
-the test lists the keys that it skips and why.
+that Chromium has. The module comment of the test lists the keys that it
+skips and why.
+
+`wikipedia_web_browser.rs` (M8 feature 12a, about 8 s, mostly the style and
+layout runs of the 48 clicks) does the same for the Wikipedia article with
+the default settings of the tools: 48 step groups (the Appearance radios with
+the root classes and the cookie; pin and unpin of the four menus, also from
+their dropdowns; the table of contents toggle by click, `Enter` and `Space`;
+a collapsible table and a navbox the same way; the scroll to 2,000 px and a
+wheel turn with the sticky containers; the hover on a wiki link, which shows
+the error popup because the fixture lacks the REST summary; the search box
+focus, typing and `Escape`; clicks on table-of-contents links with the anchor
+scroll, then `back` and `forward` with `hashchange` and `popstate`) and the
+records of `data/wikipedia-web-browser.js`. Rectangles compare within 3 px,
+everything else exactly. The module comment lists what the records leave out
+(what features 12b and 12c change, and the rectangles that the missing
+multi-column layout moves).
+
+**Chromium records of the steps** (`swbtools replay`;
+`tools/swbtools/replay.py`). The command replays `fixtures/js/NAME` in
+Chromium with the setup of `reference --js` (every request answered from the
+fixture, JavaScript on, the page clock at the `captured` time, the settle
+of `load_settled_js`; the global options `--no-shared-worker` and
+`--no-intl` apply), evaluates the `--setup` script, then evaluates the
+`--record` expression after the load and after each step group of the
+`--steps` file, and writes the values as a JSON list (indent 1; a string
+value is parsed as JSON first). The steps file is a JSON list of groups, each
+a list of steps or `{"name": ..., "steps": [...]}`; the tests read the same
+file (`include_str!`), so Chromium and swb run the same steps. The steps are
+those of `swb --steps` (see "Probe Chromium behaviour"), sent with the probe
+tool's runner with a pause of `--pause-ms` (default 300) after each step; the
+group's own `wait` steps follow. Console errors and exceptions of the page
+and the URLs that the fixture lacks are logged as warnings. The commands for
+the two tests (make the records three times and use them when the three runs
+are equal):
+
+```
+uv run --project tools swbtools --no-shared-worker --no-intl replay \
+  craigslist-posting \
+  --steps crates/automation/tests/data/craigslist-posting-steps.json \
+  --setup crates/automation/tests/data/craigslist-posting.js \
+  --record 'window.__s()' \
+  --out crates/automation/tests/data/craigslist-posting-chromium.json
+uv run --project tools swbtools replay wikipedia-web-browser \
+  --steps crates/automation/tests/data/wikipedia-web-browser-steps.json \
+  --setup crates/automation/tests/data/wikipedia-web-browser.js \
+  --record 'window.__s()' \
+  --out crates/automation/tests/data/wikipedia-web-browser-chromium.json
+```
+
+The Craigslist command reproduces the committed records (made with a helper
+that is not in the repository) except the click point of one selector step in
+the `ev` key (`#sharebutton-container a`: the link wraps onto two lines;
+Playwright's `page.click` clicks the center of its first non-empty rectangle and the
+runner of the probe tool the center of the bounding box, as swb does), which
+the test skips for that group.
 
 `tools/tests/test_automation.py` tests the Python client against the swb
 binary (skipped if it does not exist). `just tools-check` (part of
@@ -2738,10 +2798,15 @@ code for them (a unit test of the generator checks the glue).
   scrolled, flex, grid, table, SVG and `details` boxes, rounding, the root
   and the body in standards and quirks mode, `DOMRect`, the window's
   metrics, `elementFromPoint`, `offsetX` of dispatched events, the scroll
-  of `focus()`, `img.width`) and of `tools/probes/web-scroll.json` (8
-  cases, 123 queries: the scroll methods, clamping, `scrollIntoView`, the
+  of `focus()`, `img.width`) and of `tools/probes/web-scroll.json` (14
+  cases, 245 queries: the scroll methods, clamping, `scrollIntoView`, the
   order of `scroll` events, huge sizes, the rejected promises of feature
-  7b2) with Chromium's values
+  7b2; the six cases `scroll-margin*`, `scroll-padding*` and
+  `scroll-margin-focus` of feature 12a: `scroll-margin` and `scroll-padding`
+  for `scrollIntoView()`, `focus()` and the fragment, in the viewport and in
+  nested scroll containers, with their computed and declared values; the
+  fragment scroll itself is in `tests/scrolling.rs` with the values of
+  `tools/probes/web-scroll-fragment.json`) with Chromium's values
   (`geometry/cases.rs`, generated from the probes' `--json` output, three
   equal Chromium runs); `geometry/departures.rs` lists the departures with
   their reasons. Also: the flush counters of geometry reads, a loop of
