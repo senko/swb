@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use super::clip_path::SpecifiedClipPath;
 use super::mask::SpecifiedMaskImage;
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedContainIntrinsic, SpecifiedContent, SpecifiedFlexBasis,
@@ -20,11 +21,11 @@ use crate::font_settings::{FontFeatureSettings, FontVariationSettings};
 use crate::parse::image::SpecifiedImage;
 use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
-    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color, CompositeOperator,
-    Contain, CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection,
-    FlexWrap, Float, FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine,
-    GridTemplateAreas, Hyphens, ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit,
-    OutlineStyle, Overflow, OverflowWrap, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
+    BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, Color, CompositeOperator, Contain,
+    CounterList, Cursor, Direction, Display, EmptyCells, FillRule, FlexDirection, FlexWrap, Float,
+    FontFamily, FontStyle, FontVariantCaps, GridAutoFlow, GridLine, GridTemplateAreas, Hyphens,
+    ListStylePosition, ListStyleType, MaskClip, MaskMode, ObjectFit, OutlineStyle, Overflow,
+    OverflowWrap, PointerEvents, Position, ScrollbarWidth, ShapeRendering,
     SpecifiedLengthPercentage as Lp, SpecifiedTrackList, SpecifiedTrackSize, StrokeLinecap,
     StrokeLinejoin, SvgPaint, TableLayout, TextDecorationLine, TextDecorationStyle, TextOverflow,
     TextTransform, UnicodeBidi, UserSelect, Visibility, WhiteSpace, WordBreak, ZIndex,
@@ -168,7 +169,7 @@ longhands! {
     Transform "transform" reset transform: SpecifiedTransform;
     TransformOrigin "transform-origin" reset transform_origin: SpecifiedTransformOrigin;
     Clip "clip" reset clip: SpecifiedClip;
-    ClipPath "clip-path" reset clip_path: ClipPath;
+    ClipPath "clip-path" reset clip_path: SpecifiedClipPath;
     Width "width" reset width: SpecifiedSize;
     Height "height" reset height: SpecifiedSize;
     MinWidth "min-width" reset min_width: SpecifiedSize;

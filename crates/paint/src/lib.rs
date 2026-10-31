@@ -17,6 +17,7 @@
 //! rasterization of paths (shared with the estimate for SVG images).
 
 mod background;
+mod clip_path;
 mod control;
 mod display_list;
 mod group_bounds;

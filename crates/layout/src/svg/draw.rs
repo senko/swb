@@ -151,6 +151,11 @@ struct Resolved {
     /// The fill bounding box in the element's user space; for a group, the
     /// union of its children's boxes. `None` if there is none.
     bbox: Option<Rect>,
+    /// The stroke bounding box in the element's user space: the fill box
+    /// grown by half the stroke width of a shape that strokes (the reference
+    /// box of the basic shapes of `clip-path`); for a group, the union of
+    /// its children's.
+    stroke_bbox: Option<Rect>,
     /// For a `use` element without content: where its box is.
     empty_offset: Option<Matrix>,
     /// For a shape.
@@ -163,6 +168,7 @@ impl Resolved {
             own: Matrix::IDENTITY,
             total: Matrix::IDENTITY,
             bbox: None,
+            stroke_bbox: None,
             empty_offset: None,
             geometry: None,
         }
@@ -174,6 +180,8 @@ struct Open {
     index: usize,
     /// The union so far of the children's boxes, in the group's user space.
     acc: Option<Rect>,
+    /// The same for the stroke boxes.
+    stroke_acc: Option<Rect>,
     /// The matrix of the group around it.
     outer: Matrix,
     /// The translation of the `use` element inside, once it is known.
@@ -222,6 +230,7 @@ impl SvgContent {
                     open.push(Open {
                         index: out.len(),
                         acc: None,
+                        stroke_acc: None,
                         outer: parent,
                         offset: None,
                     });
@@ -245,13 +254,18 @@ impl SvgContent {
                     let total = parent.multiply(&own);
                     let geometry = shape_geometry(&shape.geometry, space.viewport);
                     let contribution = geometry.contributes.then(|| own.map_rect(&geometry.bbox));
+                    let stroke_bbox = stroke_box(&shape.style, space.viewport, geometry.bbox);
+                    let stroke_contribution =
+                        geometry.contributes.then(|| own.map_rect(&stroke_bbox));
                     if let Some(top) = open.last_mut() {
                         top.acc = union(top.acc, contribution);
+                        top.stroke_acc = union(top.stroke_acc, stroke_contribution);
                     }
                     out.push(Resolved {
                         own,
                         total,
                         bbox: Some(geometry.bbox),
+                        stroke_bbox: Some(stroke_bbox),
                         geometry: Some(Arc::new(geometry)),
                         ..Resolved::none()
                     });
@@ -408,6 +422,7 @@ fn close_group(out: &mut [Resolved], open: &mut [Open], frame: &Open, content: &
         return;
     };
     r.bbox = frame.acc;
+    r.stroke_bbox = frame.stroke_acc;
     r.empty_offset = frame.offset;
     let Some(top) = open.last_mut() else {
         return;
@@ -418,6 +433,28 @@ fn close_group(out: &mut [Resolved], open: &mut [Open], frame: &Open, content: &
     }
     if let Some(b) = r.bbox {
         top.acc = union(top.acc, Some(r.own.map_rect(&b)));
+    }
+    if let Some(b) = r.stroke_bbox {
+        top.stroke_acc = union(top.stroke_acc, Some(r.own.map_rect(&b)));
+    }
+}
+
+/// The fill box `bbox` of a shape grown by half its stroke width, if it
+/// strokes. (The exact stroke box of a slanted line is tighter at its
+/// ends; a rectangle's is exact.)
+fn stroke_box(style: &ComputedStyle, viewport: Viewport, bbox: Rect) -> Rect {
+    let strokes = style.stroke.used_color(style.color).is_some();
+    match stroke_style(style, viewport).filter(|_| strokes) {
+        Some(s) => {
+            let half = s.width / 2.0;
+            Rect::new(
+                bbox.x - half,
+                bbox.y - half,
+                bbox.width + s.width,
+                bbox.height + s.width,
+            )
+        }
+        None => bbox,
     }
 }
 
@@ -451,7 +488,8 @@ fn push_clip(
     env: &mut ClipEnv<'_>,
     out: &mut Vec<SvgDrawItem>,
 ) -> bool {
-    let Some(region) = clip.and_then(|c| resolve(c, &r.total, r.bbox, env, 0)) else {
+    let Some(region) = clip.and_then(|c| resolve(c, &r.total, (r.bbox, r.stroke_bbox), env, 0))
+    else {
         return false;
     };
     out.push(SvgDrawItem::PushClip(region));

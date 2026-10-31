@@ -26,7 +26,8 @@
 // `inert`, `accessKey`, `draggable`, `spellcheck`, `autocapitalize`,
 // `inputMode`, `enterKeyHint`) and the
 // members of HTMLOrSVGElement without `focus` and `blur` (feature
-// 6d; `innerText` and `outerText` since 7b2); it lacks `contentEditable`,
+// 6d; `innerText` and `outerText` since 7b2; `contentEditable` and
+// `isContentEditable` since 12b, without editing behavior); it lacks
 // `popover`, `attachInternals` and the popover members. No element
 // interface has the obsolete members, `files`, `valueAsNumber`,
 // `valueAsDate`, `stepUp()`, `stepDown()`, `showPicker()`,
@@ -201,6 +202,11 @@ interface HTMLElement : Element {
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString outerText;
   [CEReactions, Reflect, SwbKeywords="none text tel url email numeric decimal search", SwbMissing="", SwbInvalid=""] attribute DOMString inputMode;
   [CEReactions, Reflect, SwbKeywords="enter done go next previous search send", SwbMissing="", SwbInvalid=""] attribute DOMString enterKeyHint;
+
+  // contenteditable (https://html.spec.whatwg.org/multipage/interaction.html#contenteditable;
+  // copied on 2026-10-31, feature 12b of M8; swb has no editing behavior)
+  [CEReactions] attribute DOMString contentEditable;
+  readonly attribute boolean isContentEditable;
 };
 HTMLElement includes HTMLOrSVGElement;
 HTMLElement includes GlobalEventHandlers;

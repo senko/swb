@@ -76,6 +76,7 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
                 .collect();
             items.join(", ")
         }
+        Ser::ClipPath => super::clip_path::serialize_clip_path(tokens),
         Ser::Integer => match tokens {
             [ComponentValue::Number(n)] => n
                 .int_value

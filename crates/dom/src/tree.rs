@@ -655,6 +655,44 @@ impl Document {
         std::iter::successors(self.parent(id), |&n| self.parent(n))
     }
 
+    /// `isContentEditable`: whether the nearest HTML element, from `id` up,
+    /// whose `contenteditable` attribute is in the "true", "plaintext-only"
+    /// or "false" state is in a "true" or "plaintext-only" state. The empty
+    /// string is "true"; a missing, "inherit" or unknown value continues at
+    /// the parent (ASCII case-insensitive). A node that is not an HTML
+    /// element is not editable.
+    /// <https://html.spec.whatwg.org/multipage/interaction.html#contenteditable>
+    pub fn is_content_editable(&self, id: NodeId) -> bool {
+        if !self.element(id).is_some_and(ElementData::is_html) {
+            return false;
+        }
+        std::iter::once(id)
+            .chain(self.ancestors(id))
+            .find_map(|node| self.own_content_editable(node))
+            .unwrap_or(false)
+    }
+
+    /// The state of the `contenteditable` attribute of an HTML element:
+    /// `Some(true)` for the empty string, `true` and `plaintext-only`,
+    /// `Some(false)` for `false`, `None` for no attribute, `inherit` and
+    /// unknown values (ASCII case-insensitive).
+    pub fn own_content_editable(&self, id: NodeId) -> Option<bool> {
+        let value = self
+            .element(id)
+            .filter(|e| e.is_html())?
+            .attr("contenteditable")?;
+        if value.is_empty()
+            || value.eq_ignore_ascii_case("true")
+            || value.eq_ignore_ascii_case("plaintext-only")
+        {
+            Some(true)
+        } else if value.eq_ignore_ascii_case("false") {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
     /// Iterates over a node and all its descendants in tree order.
     pub fn descendants(&self, id: NodeId) -> Descendants<'_> {
         Descendants {

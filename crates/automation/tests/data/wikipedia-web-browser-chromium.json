@@ -1,6 +1,12 @@
 [
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -95,7 +101,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-night skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-night skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-night",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -190,7 +202,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-os skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-os skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-os",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -285,7 +303,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -380,7 +404,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-2 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-2 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-2",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -475,7 +505,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-0 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-0 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-0",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -570,7 +606,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -665,7 +707,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-0 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-0 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-0",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -760,7 +808,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -855,7 +909,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-0",
   "pin": [
    "vector-toc in vector-page-titlebar-toc-unpinned-container 65,142,215,344 block",
@@ -950,7 +1010,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-0 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-0",
   "pin": [
    "vector-toc in vector-page-titlebar-toc-unpinned-container 65,142,215,344 block",
@@ -1045,7 +1111,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1140,7 +1212,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-0",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1235,7 +1313,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-0 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-0",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1330,7 +1414,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1425,7 +1515,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1520,7 +1616,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-enabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-enabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1615,7 +1717,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1710,7 +1818,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1805,7 +1919,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-enabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-enabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,595,176,360 block",
@@ -1900,7 +2020,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -1995,7 +2121,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,316 block",
@@ -2090,7 +2222,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -2185,7 +2323,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,316 block",
@@ -2280,7 +2424,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -2375,7 +2525,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2470,7 +2626,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2565,7 +2727,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2660,7 +2828,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2755,7 +2929,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2850,7 +3030,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -2945,7 +3131,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3040,7 +3232,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3135,7 +3333,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3230,7 +3434,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3325,7 +3535,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3420,7 +3636,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -3515,7 +3737,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -3610,7 +3838,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -3705,7 +3939,15 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [
+   "polygon(2px 8px, calc(100% - 34px) 8px, calc(100% - 26px) 0px, calc(100% - 18px) 8px, calc(100% - 2px) 8px, 100% 10px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0px calc(100% - 2px), 0px 10px)"
+  ],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -3802,7 +4044,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -3897,7 +4145,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -3992,7 +4246,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -4087,7 +4347,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -4182,7 +4448,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,136,176,360 block",
@@ -4277,7 +4549,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -4375,7 +4653,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -4475,7 +4759,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",
@@ -4577,7 +4867,13 @@
   "e": []
  },
  {
-  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "root": "client-js skin-theme-clientpref-day skin-thumbsize-clientpref-standard skin-underline-clientpref-browser ve-available vector-animations-ready vector-feature-appearance-pinned-clientpref-1 vector-feature-custom-font-size-clientpref-1 vector-feature-language-in-header-enabled vector-feature-language-in-main-menu-disabled vector-feature-language-in-main-page-header-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-main-menu-pinned-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-toc-available",
+  "veHidden": [
+   "v oo-ui-element-hidden https://en.wikipedia.org/wiki/Web_browser?action=edit"
+  ],
+  "popupsSvg": false,
+  "headCss": 157753,
+  "pvClip": [],
   "cookie": "enwikimwuser-sessionId=X; enwikimwclientpreferences=skin-theme-clientpref-day%2Cvector-feature-custom-font-size-clientpref-1%2Cvector-feature-limited-width-clientpref-1%2Cvector-feature-toc-pinned-clientpref-1%2Cvector-feature-appearance-pinned-clientpref-1",
   "pin": [
    "vector-toc in vector-toc-pinned-container 48,24,176,360 block",

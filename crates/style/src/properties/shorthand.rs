@@ -660,7 +660,7 @@ fn push_grid_template(t: grid::GridTemplate, out: &mut Vec<LonghandValue>) {
 /// Parses one to four values and expands them to four (top, right,
 /// bottom, left, or the corners from top-left), as the box shorthands do.
 #[allow(clippy::many_single_char_names)]
-fn one_to_four<'i, T: Clone>(
+pub(crate) fn one_to_four<'i, T: Clone>(
     p: &mut Parser<'i>,
     mut item: impl FnMut(&mut Parser<'i>) -> ParseResult<T>,
 ) -> ParseResult<[T; 4]> {
@@ -843,6 +843,18 @@ fn parse_outline(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResul
 /// `border-radius`: `<length-percentage [0,∞]>{1,4} [ / <length-percentage
 /// [0,∞]>{1,4} ]?`.
 fn parse_border_radius(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> ParseResult<()> {
+    let [r0, r1, r2, r3] = parse_radii(p)?;
+    out.push(LonghandValue::BorderTopLeftRadius(r0));
+    out.push(LonghandValue::BorderTopRightRadius(r1));
+    out.push(LonghandValue::BorderBottomRightRadius(r2));
+    out.push(LonghandValue::BorderBottomLeftRadius(r3));
+    Ok(())
+}
+
+/// The value of `border-radius`, also the `round` part of the basic
+/// shapes of `clip-path`: the (horizontal, vertical) radius of the top
+/// left, top right, bottom right and bottom left corner.
+pub(crate) fn parse_radii(p: &mut Parser<'_>) -> ParseResult<[(Lp, Lp); 4]> {
     fn corners(p: &mut Parser<'_>) -> ParseResult<[Lp; 4]> {
         one_to_four(p, |p| {
             parse_length_percentage(p, LengthOptions::NON_NEGATIVE)
@@ -856,11 +868,7 @@ fn parse_border_radius(p: &mut Parser<'_>, out: &mut Vec<LonghandValue>) -> Pars
     };
     let [h0, h1, h2, h3] = horizontal;
     let [v0, v1, v2, v3] = vertical;
-    out.push(LonghandValue::BorderTopLeftRadius((h0, v0)));
-    out.push(LonghandValue::BorderTopRightRadius((h1, v1)));
-    out.push(LonghandValue::BorderBottomRightRadius((h2, v2)));
-    out.push(LonghandValue::BorderBottomLeftRadius((h3, v3)));
-    Ok(())
+    Ok([(h0, v0), (h1, v1), (h2, v2), (h3, v3)])
 }
 
 /// One layer of the `background` shorthand.

@@ -63,7 +63,7 @@ use swb_layout::{
     Ancestry, BoxContent, BoxFragment, CollapsedEdge, Fragment, FragmentTree, GroupTransform,
     Matrix, NaturalSize, NoScroll, Point, PositionedGlyph, Rect, ScrollOffsets, ScrollState,
     StickyCache, TextFragment, clip_property_area, forms_stacking_context, has_transform,
-    is_absolute_containing_block, is_fixed_containing_block,
+    is_absolute_containing_block, is_fixed_containing_block, rounded_path,
 };
 use swb_style::{
     BackgroundBox, BorderStyle, ComputedStyle, Display, FillRule, Image, PointerEvents, Position,
@@ -658,11 +658,9 @@ pub fn build_display_list(
         // The opacity and the mask of the root element apply to the canvas
         // background too (as in Chromium): it is painted inside the root's
         // groups.
-        if tree
-            .root
-            .as_ref()
-            .is_some_and(|r| r.style.has_mask() || r.style.opacity < 1.0)
-        {
+        if tree.root.as_ref().is_some_and(|r| {
+            r.style.has_mask() || r.style.opacity < 1.0 || r.style.clip_path.is_shape()
+        }) {
             builder.root_canvas = builder.list.split_off(start);
         }
     }
@@ -715,7 +713,11 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
         PaintKind::Float
     } else if b.is_inline {
         PaintKind::Inline
-    } else if style.display.is_inline_level() || style.opacity < 1.0 || style.has_mask() {
+    } else if style.display.is_inline_level()
+        || style.opacity < 1.0
+        || style.has_mask()
+        || style.clip_path.is_shape()
+    {
         PaintKind::Atomic
     } else {
         PaintKind::Block
@@ -873,6 +875,9 @@ struct Group {
     opacity_item: Option<usize>,
     /// The index of the `PushMask` item, if the box is masked.
     mask_item: Option<usize>,
+    /// The item that ends the clip of the `clip-path` of the box (a basic
+    /// shape or a geometry box), if it has one.
+    clip_pop: Option<DisplayItem>,
     /// True if the box opened a stacking context.
     context: bool,
     /// `contexts.len()` before the box's own context.
@@ -980,7 +985,7 @@ impl Builder<'_> {
         let rect = b.border_rect.translate(origin);
         let groups = ancestry.group_transforms(b, rect);
         let transforms = self.open_transforms(&groups);
-        let group = self.open_group(b, stacking_context);
+        let group = self.open_group(b, origin, stacking_context);
         let is_root = group.outer_depth == 0;
         // The clips of a stacking context root belong to the context: its
         // positioned descendants repeat them.
@@ -1144,7 +1149,7 @@ impl Builder<'_> {
         decorations: &[Decoration],
         ancestry: &Ancestry,
     ) {
-        let group = self.open_group(b, false);
+        let group = self.open_group(b, origin, false);
         self.paint_box(b, origin, false);
         let negative_z_at = self.list.len();
         let own = child_decorations(b, decorations);
@@ -1223,9 +1228,11 @@ impl Builder<'_> {
         }
     }
 
-    /// Starts the opacity group, the mask group and the stacking context
-    /// of a box, as needed.
-    fn open_group(&mut self, b: &BoxFragment, stacking_context: bool) -> Group {
+    /// Starts the opacity group, the mask group, the clip of a basic shape
+    /// and the stacking context of a box, as needed. `origin` is the
+    /// parent's border-box origin. The effects apply in the order of CSS
+    /// Masking 1 §3: the clip first, then the mask, then the opacity.
+    fn open_group(&mut self, b: &BoxFragment, origin: Point, stacking_context: bool) -> Group {
         let opacity = b.style.opacity;
         let outer_depth = self.contexts.len();
         let opacity_item = (opacity < 1.0).then(|| {
@@ -1245,18 +1252,28 @@ impl Builder<'_> {
             });
             self.list.len() - 1
         });
-        if (opacity_item.is_some() || mask_item.is_some()) && outer_depth == 0 {
+        let clip = crate::clip_path::box_clip(b, origin);
+        let clip_pop = clip.map(|clip| {
+            self.list.push(clip.push);
+            clip.pop
+        });
+        if (opacity_item.is_some() || mask_item.is_some() || clip_pop.is_some()) && outer_depth == 0
+        {
             let canvas = std::mem::take(&mut self.root_canvas);
             self.list.append(canvas);
         }
-        let context =
-            stacking_context || opacity_item.is_some() || mask_item.is_some() || outer_depth == 0;
+        let context = stacking_context
+            || opacity_item.is_some()
+            || mask_item.is_some()
+            || clip_pop.is_some()
+            || outer_depth == 0;
         if context {
             self.contexts.push(Vec::new());
         }
         Group {
             opacity_item,
             mask_item,
+            clip_pop,
             context,
             outer_depth,
         }
@@ -1273,6 +1290,9 @@ impl Builder<'_> {
         origin: Point,
         positioned: Option<Rect>,
     ) {
+        if let Some(pop) = &group.clip_pop {
+            self.list.push(pop.clone());
+        }
         if let Some(at) = group.mask_item {
             // With `no-clip`, the area of the descendants with their own
             // layer in Chromium: positioned ones, and nested groups (with
@@ -1903,79 +1923,48 @@ fn unclip_item(radii: Option<Radii>) -> DisplayItem {
 /// rectangle or one that is not finite. The radii are scaled down to fit
 /// (CSS Backgrounds 3 §4.5).
 fn rounded_clip(rect: Rect, radii: &Radii) -> Option<DisplayItem> {
-    use swb_layout::svg::{ClipShape, PathSegment};
-    const K: f32 = swb_layout::KAPPA;
-    if !(rect.width > 0.0 && rect.height > 0.0) {
-        return None;
-    }
-    let mut radii = *radii;
-    let f = [
-        (radii[0].0 + radii[1].0, rect.width),
-        (radii[1].1 + radii[2].1, rect.height),
-        (radii[2].0 + radii[3].0, rect.width),
-        (radii[3].1 + radii[0].1, rect.height),
-    ]
-    .iter()
-    .filter(|(sum, _)| *sum > 0.0)
-    .map(|(sum, len)| len / sum)
-    .fold(1.0_f32, f32::min);
-    for (h, v) in &mut radii {
-        *h *= f;
-        *v *= f;
-    }
-    let [(tlx, tly), (trx, try_), (brx, bry), (blx, bly)] = radii;
-    let (x0, y0, x1, y1) = (rect.x, rect.y, rect.right(), rect.bottom());
-    let p = Point::new;
-    let segments = [
-        PathSegment::MoveTo(p(x0 + tlx, y0)),
-        PathSegment::LineTo(p(x1 - trx, y0)),
-        PathSegment::CubicTo(
-            p(x1 - trx + trx * K, y0),
-            p(x1, y0 + try_ - try_ * K),
-            p(x1, y0 + try_),
-        ),
-        PathSegment::LineTo(p(x1, y1 - bry)),
-        PathSegment::CubicTo(
-            p(x1, y1 - bry + bry * K),
-            p(x1 - brx + brx * K, y1),
-            p(x1 - brx, y1),
-        ),
-        PathSegment::LineTo(p(x0 + blx, y1)),
-        PathSegment::CubicTo(
-            p(x0 + blx - blx * K, y1),
-            p(x0, y1 - bly + bly * K),
-            p(x0, y1 - bly),
-        ),
-        PathSegment::LineTo(p(x0, y0 + tly)),
-        PathSegment::CubicTo(
-            p(x0, y0 + tly - tly * K),
-            p(x0 + tlx - tlx * K, y0),
-            p(x0 + tlx, y0),
-        ),
-        PathSegment::Close,
-    ];
-    let path = SvgPath::from_segments(&segments)?;
+    let path = rounded_path(rect, radii)?;
+    Some(path_clip_item(
+        path,
+        FillRule::NonZero,
+        Matrix::IDENTITY,
+        rect,
+    ))
+}
+
+/// The group that is clipped to `path` (in the coordinates that
+/// `transform` maps to the list's) with `rule`; `bounds` is the extent of
+/// the path in the list's coordinates. If the layer or the coverage does
+/// not fit into the budgets, the group is clipped to `bounds` instead of
+/// being hidden.
+pub(crate) fn path_clip_item(
+    path: SvgPath,
+    rule: FillRule,
+    transform: Matrix,
+    bounds: Rect,
+) -> DisplayItem {
+    use swb_layout::svg::ClipShape;
     let clip = ClipPath {
         shapes: vec![ClipShape {
             path: Arc::new(path),
             transform: Matrix::IDENTITY,
-            rule: FillRule::NonZero,
+            rule,
             clip: None,
         }],
         outer: None,
     };
-    Some(DisplayItem::PushSvgClip {
+    DisplayItem::PushSvgClip {
         clip: Arc::new(clip),
-        transform: Matrix::IDENTITY,
-        bounds: rect,
+        transform,
+        bounds,
         rect_fallback: true,
-    })
+    }
 }
 
 /// Resolves `border-*-radius` against the border box, scaling down
 /// overlapping radii (CSS Backgrounds 3 §4.5,
 /// <https://www.w3.org/TR/css-backgrounds-3/#corner-overlap>).
-fn resolve_radii(style: &ComputedStyle, rect: Rect) -> Radii {
+pub(crate) fn resolve_radii(style: &ComputedStyle, rect: Rect) -> Radii {
     let r = |c: &swb_style::CornerRadius| {
         (
             c.horizontal.resolve(rect.width).max(0.0),

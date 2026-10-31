@@ -3,8 +3,8 @@
 //! `fill-opacity`, `stroke`, `stroke-width`, `stroke-linecap`,
 //! `stroke-linejoin`, `stroke-miterlimit`, `stroke-dasharray`,
 //! `stroke-dashoffset` and `stroke-opacity`. All are inherited. Also the
-//! `clip-path` value (`parse_clip_path`) and the shared opacity grammar
-//! (`parse_alpha`, used by `opacity` too).
+//! shared opacity grammar (`parse_alpha`, used by `opacity` too). The
+//! `clip-path` value is in `clip_path.rs`.
 //!
 //! Lengths of these properties also accept plain numbers (user units,
 //! which are px in CSS).
@@ -17,7 +17,7 @@ use crate::parse::ParseResult;
 use crate::parse::color::parse_color;
 use crate::parse::length::{LengthOptions, parse_length_percentage};
 use crate::parse::{parse_non_negative_number, parse_number};
-use crate::values::{ClipPath, SpecifiedLengthPercentage as Lp, SvgPaint};
+use crate::values::{SpecifiedLengthPercentage as Lp, SvgPaint};
 
 /// The most entries of a `stroke-dasharray`. A longer list is invalid, so
 /// that a hostile page cannot make every element carry a huge list (real
@@ -47,17 +47,6 @@ pub(crate) fn parse_paint(p: &mut Parser<'_>) -> ParseResult<SvgPaint> {
         return Ok(SvgPaint::Url { url, fallback });
     }
     parse_color(p).map(SvgPaint::Color)
-}
-
-/// `clip-path`: `none | <url>` (the basic shapes of CSS Masking 1 are not
-/// supported). Chromium 148 accepts one `url()` only, so `url(#a) url(#b)`
-/// is invalid.
-pub(crate) fn parse_clip_path(p: &mut Parser<'_>) -> ParseResult<ClipPath> {
-    if p.expect_ident_matching("none").is_ok() {
-        return Ok(ClipPath::None);
-    }
-    let url = p.expect_url()?;
-    Ok(ClipPath::Url(Arc::from(url.trim())))
 }
 
 /// `opacity`, `fill-opacity`, `stroke-opacity`: `<number> | <percentage>`,
@@ -161,19 +150,6 @@ mod tests {
         assert_eq!(parse("bogus", parse_paint), None);
         assert_eq!(parse("context-fill", parse_paint), None);
         assert_eq!(parse("red blue", parse_paint), None);
-    }
-
-    #[test]
-    fn clip_paths() {
-        let url = |s: &str| Some(ClipPath::Url(Arc::from(s)));
-        assert_eq!(parse("none", parse_clip_path), Some(ClipPath::None));
-        assert_eq!(parse("url(#a)", parse_clip_path), url("#a"));
-        assert_eq!(parse("url( '#a' )", parse_clip_path), url("#a"));
-        assert_eq!(parse("url(a.svg#b)", parse_clip_path), url("a.svg#b"));
-        // Chromium accepts one `url()`; basic shapes are not supported.
-        assert_eq!(parse("url(#a) url(#b)", parse_clip_path), None);
-        assert_eq!(parse("circle(5px)", parse_clip_path), None);
-        assert_eq!(parse("#a", parse_clip_path), None);
     }
 
     #[test]

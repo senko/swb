@@ -611,6 +611,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
         "clip-path" => match &s.clip_path {
             ClipPath::None => "none".to_owned(),
             ClipPath::Url(u) => url(u),
+            ClipPath::Shape(c) => super::shape::shape_clip(c),
         },
         "width" => size(&s.width),
         "height" => size(&s.height),

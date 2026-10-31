@@ -26,6 +26,7 @@
 //! items are `0px`.
 
 mod longhand;
+mod shape;
 mod shorthand;
 #[cfg(test)]
 mod tests;

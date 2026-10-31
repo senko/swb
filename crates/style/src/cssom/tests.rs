@@ -34,18 +34,6 @@ const DEPARTURES: &[(&str, &str, &str)] = &[
     ),
     ("transform", "perspective(100px)", "no 3D transforms in swb"),
     ("transform", "rotateX(10deg)", "no 3D transforms in swb"),
-    ("clip-path", "inset(10px)", "swb parses `url()` only"),
-    ("clip-path", "circle(50%)", "swb parses `url()` only"),
-    (
-        "clip-path",
-        "polygon(0 0, 10px 0, 0 10px)",
-        "swb parses `url()` only",
-    ),
-    (
-        "clip-path",
-        "inset(1px 2px round 3px)",
-        "swb parses `url()` only",
-    ),
     ("fill", "context-fill", "swb's parser does not take it"),
     ("grid-template-columns", "subgrid", "no subgrid in swb"),
     ("--x", "  a  b  ", "whitespace runs collapse"),

@@ -45,6 +45,15 @@ pub trait HTMLElementImpl: b::Host {
     /// The setter of `attribute DOMString outerText`.
     fn set_outer_text(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
 
+    /// `attribute DOMString contentEditable`.
+    fn content_editable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString contentEditable`.
+    fn set_content_editable(cx: &mut b::Cx<'_>, this: b::NodeId, value: String) -> b::Result<()>;
+
+    /// `readonly attribute boolean isContentEditable`.
+    fn is_content_editable(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
     /// `readonly attribute Element? offsetParent`.
     fn offset_parent(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
@@ -329,6 +338,32 @@ fn set_enter_key_hint<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
         b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, "enterkeyhint", &value)?;
         Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_content_editable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "contentEditable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::content_editable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_content_editable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLElement", "contentEditable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLElementImpl>::set_content_editable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_is_content_editable<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLElement", "isContentEditable"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_ELEMENT)?;
+        let result = <H as HTMLElementImpl>::is_content_editable(&mut b::Cx::new(rt, call, super::HTML_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }
 
@@ -2053,6 +2088,8 @@ pub fn define<H: HTMLElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_j
     rt.define_accessor(realm, target, "outerText", (Some(get_outer_text::<H> as swb_js::NativeFn), Some(set_outer_text::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "inputMode", (Some(get_input_mode::<H> as swb_js::NativeFn), Some(set_input_mode::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "enterKeyHint", (Some(get_enter_key_hint::<H> as swb_js::NativeFn), Some(set_enter_key_hint::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "contentEditable", (Some(get_content_editable::<H> as swb_js::NativeFn), Some(set_content_editable::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "isContentEditable", (Some(get_is_content_editable::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetParent", (Some(get_offset_parent::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetTop", (Some(get_offset_top::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "offsetLeft", (Some(get_offset_left::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;

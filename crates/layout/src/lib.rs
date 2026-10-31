@@ -25,7 +25,8 @@
 //! `grid`, `inline` (line layout), `intrinsic` (min- and max-content
 //! sizes), `list_marker`, `media` (video and audio controls),
 //! `positioned` (out-of-flow, sticky and transforms), `replaced`, `scroll`
-//! (scrollable overflow), `source_map` (text offsets), `svg` (inline SVG)
+//! (scrollable overflow), `shape` (the geometry of the basic shapes of
+//! `clip-path`), `source_map` (text offsets), `svg` (inline SVG)
 //! and `table`.
 
 mod align;
@@ -49,6 +50,7 @@ mod media;
 mod positioned;
 mod replaced;
 mod scroll;
+mod shape;
 mod source_map;
 pub mod svg;
 mod table;
@@ -79,6 +81,7 @@ pub use replaced::{DEFAULT_OBJECT_SIZE, NaturalSize};
 pub use scroll::{
     NoScroll, ScrollOffsets, ScrollState, clamp_scroll_offset, scroll_range, scrolling_area,
 };
+pub use shape::{CornerRadii, ShapeGeometry, box_geometry, rounded_path, shape_geometry};
 
 use block::ContainingBlock;
 use box_tree::{BuildContext, InlineFormattingContext};

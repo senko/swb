@@ -29,19 +29,33 @@
 //!   ancestors. An empty clip path clips everything.
 //! - `clip-path` on a `clipPath` and on a child intersect.
 //!
+//! A basic shape (`clip-path: circle(50%)`, a presentation attribute
+//! too) is placed in the reference box of the element (CSS Masking 1 §5.1;
+//! Chromium 148, `tools/probes/clip-path.json`, case `cp-svg`): `fill-box`,
+//! `content-box`, `padding-box` and the default (`border-box`,
+//! `stroke-box`, `margin-box`: the fill box, without the stroke) are the
+//! fill bounding box of the element in its user space (a group's box is
+//! the union of its children's), `view-box` is the viewport of the
+//! outermost `<svg>`. The shape is in the user space of the element,
+//! with its `transform`.
+//!
 //! A clip that is one axis-aligned rectangle becomes a plain clip
 //! rectangle ([`ClipRegion::Rect`]); any other clip needs a layer.
 
 use std::sync::Arc;
 
 use swb_dom::{ElementData, NodeId, ns};
-use swb_style::{ClipPath as ClipPathValue, ComputedStyle, Display, FillRule, Visibility};
+use swb_style::{
+    BasicShape, ClipPath as ClipPathValue, ComputedStyle, Display, FillRule, GeometryBox,
+    ShapeClip, Visibility,
+};
 
 use super::draw::{Viewport, shape_geometry};
 use super::path::SvgPath;
 use super::{Builder, Geometry, MAX_CLIP_DEPTH, attribute_length, rotates};
 use crate::geom::{Matrix, Rect};
 use crate::positioned::style_transform;
+use crate::shape::{ShapeGeometry, shape_geometry as basic_shape_geometry};
 
 /// The most clip shapes that the commands of one `<svg>` hold.
 pub(super) const MAX_CLIP_SHAPES: usize = 20_000;
@@ -51,8 +65,12 @@ pub(super) const MAX_CLIP_SHAPES: usize = 20_000;
 pub(crate) struct ClipDef {
     /// True for `clipPathUnits="objectBoundingBox"`.
     units_bbox: bool,
-    /// The style of the `clipPath` element (its `transform`).
-    style: Arc<ComputedStyle>,
+    /// The style of the `clipPath` element (its `transform`); `None` for
+    /// a basic shape.
+    style: Option<Arc<ComputedStyle>>,
+    /// The basic shape or geometry box of a `clip-path` that is not a
+    /// reference: `shapes` and `outer` are empty then.
+    basic: Option<Arc<ShapeClip>>,
     shapes: Vec<ClipShapeDef>,
     /// The `clip-path` of the `clipPath` element.
     outer: Option<Arc<ClipDef>>,
@@ -124,8 +142,10 @@ impl Builder<'_> {
     /// The clip path that the `clip-path` of `style` refers to, if it
     /// refers to a valid one.
     pub(super) fn clip_reference(&mut self, style: &ComputedStyle) -> Option<Arc<ClipDef>> {
-        let ClipPathValue::Url(url) = &style.clip_path else {
-            return None;
+        let url = match &style.clip_path {
+            ClipPathValue::Url(url) => url,
+            ClipPathValue::Shape(shape) => return Some(Arc::new(ClipDef::basic(shape))),
+            ClipPathValue::None => return None,
         };
         let id = url.strip_prefix('#')?;
         let node = self.budget.element_by_id(self.doc, id)?;
@@ -181,7 +201,8 @@ impl Builder<'_> {
             outer.is_none() && !rotates(style) && matches!(&shapes[..], [one] if one.maybe_rect());
         Some(ClipDef {
             units_bbox: e.attr("clipPathUnits") == Some("objectBoundingBox"),
-            style: Arc::clone(style),
+            style: Some(Arc::clone(style)),
+            basic: None,
             shapes,
             outer,
             maybe_rect,
@@ -251,6 +272,78 @@ fn paints_clip(style: &ComputedStyle) -> bool {
     style.display != Display::None && style.visibility == Visibility::Visible
 }
 
+impl ClipDef {
+    /// The clip of a `clip-path` that is a basic shape or a geometry box.
+    fn basic(shape: &Arc<ShapeClip>) -> ClipDef {
+        // An `inset()` without radii is a rectangle (a plain clip if the
+        // matrix keeps the axes), and so is a box alone.
+        let rectangular = match &shape.shape {
+            None => true,
+            Some(BasicShape::Inset(inset)) => inset.radii.is_none(),
+            Some(_) => false,
+        };
+        ClipDef {
+            units_bbox: false,
+            style: None,
+            basic: Some(Arc::clone(shape)),
+            shapes: Vec::new(),
+            outer: None,
+            maybe_rect: rectangular,
+        }
+    }
+}
+
+/// The region of the basic shape `clip` for an element whose user space is
+/// `matrix` (to the content box) and whose fill and stroke bounding boxes
+/// are `boxes`.
+fn resolve_basic(
+    clip: &ShapeClip,
+    matrix: &Matrix,
+    (fill, stroke): (Option<Rect>, Option<Rect>),
+    viewport: Viewport,
+) -> ClipRegion {
+    let reference = match clip.reference_box() {
+        GeometryBox::ViewBox => Rect::new(0.0, 0.0, viewport.width, viewport.height),
+        GeometryBox::FillBox | GeometryBox::ContentBox | GeometryBox::PaddingBox => {
+            fill.unwrap_or_default()
+        }
+        GeometryBox::StrokeBox | GeometryBox::BorderBox | GeometryBox::MarginBox => {
+            stroke.unwrap_or_default()
+        }
+    };
+    let geometry = match &clip.shape {
+        Some(shape) => basic_shape_geometry(shape, reference),
+        None => crate::shape::box_geometry(reference, None),
+    };
+    let shape = match geometry {
+        ShapeGeometry::Empty => return ClipRegion::Rect(Rect::default()),
+        ShapeGeometry::Rect(rect) => {
+            let zero = [(0.0, 0.0); 4];
+            match crate::shape::rounded_path(rect, &zero) {
+                Some(path) => ClipShape {
+                    path: Arc::new(path),
+                    transform: *matrix,
+                    rule: FillRule::NonZero,
+                    clip: None,
+                },
+                None => return ClipRegion::Rect(Rect::default()),
+            }
+        }
+        ShapeGeometry::Path {
+            path,
+            rule,
+            transform,
+            ..
+        } => ClipShape {
+            path: Arc::new(path),
+            transform: matrix.multiply(&transform),
+            rule,
+            clip: None,
+        },
+    };
+    region(vec![shape], None)
+}
+
 impl ClipShapeDef {
     /// True if the shape is an axis-aligned rectangle when the matrix of
     /// the clipped element does not rotate.
@@ -289,22 +382,30 @@ fn axis_aligned(m: &Matrix) -> bool {
 }
 
 /// The visible region of clip path `def` for an element whose user space
-/// is `matrix` (to the content box) and whose fill bounding box is `bbox`
-/// (in that user space). `None` if the clip cannot be resolved (a limit):
-/// the element is then not clipped.
+/// is `matrix` (to the content box) and whose fill and stroke bounding
+/// boxes are `boxes` (in that user space). `None` if the clip cannot be
+/// resolved (a limit): the element is then not clipped.
 pub(super) fn resolve(
     def: &ClipDef,
     matrix: &Matrix,
-    bbox: Option<Rect>,
+    boxes: (Option<Rect>, Option<Rect>),
     env: &mut ClipEnv<'_>,
     depth: usize,
 ) -> Option<ClipRegion> {
     if depth > 2 * MAX_CLIP_DEPTH {
         return None;
     }
+    let bbox = boxes.0;
+    if let Some(basic) = &def.basic {
+        if *env.shapes_left == 0 {
+            return None;
+        }
+        *env.shapes_left -= 1;
+        return Some(resolve_basic(basic, matrix, boxes, env.viewport));
+    }
     let mut space = *matrix;
-    if !def.style.transform.is_empty() {
-        space = space.multiply(&style_transform(&def.style, env.reference));
+    if let Some(style) = def.style.as_ref().filter(|s| !s.transform.is_empty()) {
+        space = space.multiply(&style_transform(style, env.reference));
     }
     if def.units_bbox {
         let Some(b) = bbox.filter(|b| b.width > 0.0 && b.height > 0.0) else {
@@ -331,7 +432,7 @@ pub(super) fn resolve(
     let outer = def
         .outer
         .as_ref()
-        .and_then(|o| resolve(o, matrix, bbox, env, depth + 1));
+        .and_then(|o| resolve(o, matrix, boxes, env, depth + 1));
     Some(region(shapes, outer))
 }
 
@@ -361,8 +462,9 @@ fn resolve_shape(
     let geometry = shape_geometry(&shape.geometry, env.viewport);
     let path = geometry.path?;
     let rule = shape.style.clip_rule;
+    let own_box = Some(geometry.bbox);
     let mut resolve_in =
-        |c: &Arc<ClipDef>, space: &Matrix| resolve(c, space, Some(geometry.bbox), env, depth + 1);
+        |c: &Arc<ClipDef>, space: &Matrix| resolve(c, space, (own_box, own_box), env, depth + 1);
     let own = shape.clip.as_ref().and_then(|c| resolve_in(c, &clip_space));
     let target = shape.target_clip.as_ref().and_then(|c| resolve_in(c, &m));
     let clip = match (own, target) {

@@ -4,6 +4,26 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 12b, contentEditable and clip-path shapes
+
+- `HTMLElement.contentEditable` and `isContentEditable`, without editing.
+  `:read-write` now matches every element in an editing host. With them
+  VisualEditor starts on Wikipedia (`ve-available`, the accesskey link)
+  without a new error.
+- `clip-path` basic shapes: `inset()`, `circle()`, `ellipse()`,
+  `polygon()`, `path()`, `rect()`, `xywh()` and the geometry boxes. They
+  are parsed, computed and serialized as in Chromium (199 probe
+  queries), painted for boxes and SVG elements, and hit testing ignores
+  the parts outside the clip. Popups now skips its SVG fallback, so
+  `compare --js` has no extra boxes.
+- The Wikipedia test records the VisualEditor and Popups state.
+- Learned: Chromium always fills `path()` with the even-odd rule; the
+  default SVG reference box is the stroke box; ResourceLoader writes
+  module CSS at animation frames, so the number of `style` elements in
+  `head` depends on frame timing (Chromium 4, swb 3, same CSS text).
+
+Next: 12c (the dark theme: `filter`, premultiplied gradients).
+
 ## 2026-10-31: M8 feature 12a, tools and test base for Wikipedia
 
 - Diagnosis of feature 12: Wikipedia loads in 0.29 s without a script

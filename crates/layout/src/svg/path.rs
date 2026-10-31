@@ -446,6 +446,19 @@ fn point(x: f64, y: f64) -> Point {
     Point::new(x as f32, y as f32)
 }
 
+/// The most segments of the path of a `path()` basic shape (an arc is up
+/// to four).
+const MAX_BASIC_SHAPE_SEGMENTS: usize = 8192;
+
+/// The path of the data of a `path()` basic shape (`clip-path`), in the
+/// coordinates of the data; `None` if no segment draws.
+pub fn path_from_data(data: &str) -> Option<SvgPath> {
+    let mut budget = MAX_BASIC_SHAPE_SEGMENTS;
+    let mut builder = PathBuilder::new(&mut budget);
+    parse_path_data(data, &mut builder);
+    builder.finish()
+}
+
 /// Parses path data into `builder`, up to the first error.
 pub(crate) fn parse_path_data(data: &str, builder: &mut PathBuilder<'_>) {
     let mut state = PathState::default();

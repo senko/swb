@@ -4,9 +4,8 @@
 // window.__s(), which returns the JSON text of the page state that the test
 // compares with Chromium's values: only class names, booleans, numbers and
 // short texts (rectangles as "x,y,width,height" in whole px).
-// Left out on purpose (features 12b and 12c): the VisualEditor root classes
-// (`ve-*`), the elements that VisualEditor and Popups add, the pixels and
-// everything that `filter` and gradients change.
+// Left out on purpose (feature 12c): the pixels and everything that `filter`
+// and gradients change.
 window.__e=[];addEventListener('error',e=>__e.push('error '+e.message));
 addEventListener('unhandledrejection',e=>__e.push('unhandled '+(e.reason&&(e.reason.name||e.reason.constructor.name))+': '+(e.reason&&e.reason.message)));
 window.__h=[];
@@ -26,7 +25,11 @@ window.__s=()=>{
  const body=document.querySelector('.mw-body');
  const b=body.getBoundingClientRect();
  return JSON.stringify({
- root:document.documentElement.className.split(' ').filter(c=>!/^ve-/.test(c)).sort().join(' '),
+ root:document.documentElement.className.split(' ').sort().join(' '),
+ veHidden:q('body > a.oo-ui-element-hidden').map(e=>e.getAttribute('accesskey')+' '+e.className+' '+e.getAttribute('href')),
+ popupsSvg:!!document.getElementById('mwe-popups-svg'),
+ headCss:[...document.head.querySelectorAll('style')].reduce((n,e)=>n+e.textContent.length,0),
+ pvClip:q('.mwe-popups-container').map(e=>getComputedStyle(e).clipPath),
  cookie:document.cookie.replace(/sessionId=\w+/,'sessionId=X'),
  pin:ids.map(i=>{const e=document.getElementById(i);return e?i+' in '+e.parentNode.id+' '+R(e)+' '+getComputedStyle(e).display:i+' none'}),
  pinbtn:q('.vector-pinnable-header-toggle-button').map(e=>e.closest('.vector-pinnable-header').dataset.featureName+'/'+(e.classList.contains('vector-pinnable-header-pin-button')?'pin':'unpin')+' '+R(e)),

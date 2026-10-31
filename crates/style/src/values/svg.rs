@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::color::{Color, Rgba};
+use super::shape::ShapeClip;
 
 /// A computed `<paint>`: `none`, a color (which can be `currentColor`,
 /// resolved against the element that paints) or a paint server reference.
@@ -25,9 +26,9 @@ pub enum SvgPaint {
     },
 }
 
-/// A computed `clip-path`: `none` or a reference to a `clipPath` element.
-/// Basic shapes and the other `<clip-source>` forms are not supported
-/// (the declaration is invalid).
+/// A computed `clip-path`: `none`, a reference to a `clipPath` element, or
+/// a basic shape and/or a geometry box (`shape()` is not supported: the
+/// declaration is invalid).
 /// <https://drafts.fxtf.org/css-masking/#the-clip-path>
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum ClipPath {
@@ -36,6 +37,17 @@ pub enum ClipPath {
     None,
     /// `url(...)`, as written (trimmed).
     Url(Arc<str>),
+    /// A basic shape and/or a geometry box. Shared between the elements
+    /// that a rule with absolute lengths styles.
+    Shape(Arc<ShapeClip>),
+}
+
+impl ClipPath {
+    /// True if the value is a basic shape or a geometry box, which clips
+    /// the element and makes it a stacking context.
+    pub fn is_shape(&self) -> bool {
+        matches!(self, ClipPath::Shape(_))
+    }
 }
 
 impl SvgPaint {

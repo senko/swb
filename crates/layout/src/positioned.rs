@@ -238,7 +238,10 @@ pub fn clip_property_area(fragment: &BoxFragment, border_rect: Rect) -> Option<R
 /// True if the box forms a stacking context in paint (CSS 2.2 Appendix E,
 /// CSS Transforms 1 §3, CSS Masking 1): a transform, fixed or sticky
 /// positioning, a positioned box with an integer `z-index`, opacity below
-/// 1, or a mask. The root element forms one whatever its style; this
+/// 1, a mask, or a `clip-path` that is a basic shape or a geometry box
+/// (measured in Chromium: a `z-index: -1` child paints above the
+/// background of its `clip-path` parent). The root element forms one
+/// whatever its style; this
 /// function does not check for it (callers start in the root's context).
 pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
     let style = &fragment.style;
@@ -247,6 +250,7 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
         || (style.position != Position::Static && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
         || style.has_mask()
+        || style.clip_path.is_shape()
 }
 
 /// The padding box of a fragment, relative to its own border-box origin.

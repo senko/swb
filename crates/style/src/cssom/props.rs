@@ -43,6 +43,8 @@ pub(crate) enum Ser {
     GridAreas,
     /// `stroke-dasharray`.
     Dasharray,
+    /// `clip-path`.
+    ClipPath,
     /// `z-index`.
     Integer,
     /// `opacity` and the SVG opacities: a percentage is a number.
@@ -253,6 +255,7 @@ const ALIASES: &[(&str, &str)] = &[
     ("-webkit-mask-size", "mask-size"),
     ("-webkit-mask-repeat", "mask-repeat"),
     ("-webkit-transform", "transform"),
+    ("-webkit-clip-path", "clip-path"),
     ("-webkit-transform-origin", "transform-origin"),
     ("grid-gap", "gap"),
     ("-webkit-flex", "flex"),
@@ -757,6 +760,7 @@ fn ser_of(name: &str) -> Ser {
         | "border-bottom-left-radius" => Ser::Radius,
         "grid-template-areas" => Ser::GridAreas,
         "stroke-dasharray" => Ser::Dasharray,
+        "clip-path" => Ser::ClipPath,
         "z-index" => Ser::Integer,
         "opacity" | "fill-opacity" | "stroke-opacity" => Ser::Opacity,
         "display" => Ser::Display,

@@ -857,6 +857,69 @@ def mask_full_page_scale() -> Page:
 
 
 @case(
+    "clip-path: polygons of 1,024 and 100,000 points, relative-unit polygons of 128 and 100,000 "
+    "points, paths of 1,000 and 200,000 segments (MAX_SHAPE_POINTS, ADR 0028 section 16)"
+)
+def clip_path_limits() -> Page:
+    def points(n: int, unit: str = "px") -> str:
+        return ",".join(f"{i % 50}{unit} {i % 7}{unit}" for i in range(n))
+
+    def path(n: int) -> str:
+        return "M0 0" + " L1 1" * n
+
+    css = (
+        f".a{{clip-path:polygon({points(1024)})}}.b{{clip-path:polygon({points(100_000)})}}"
+        f".c{{clip-path:polygon({points(128, 'em')})}}"
+        f".d{{clip-path:polygon({points(100_000, 'em')})}}"
+        f".e{{clip-path:path('{path(1000)}')}}.f{{clip-path:path('{path(200_000)}')}}"
+        "div{width:50px;height:50px;background:red}"
+    )
+    return Page(doc("".join(f"<div class={c}></div>" for c in "abcdef"), css))
+
+
+@case(
+    "clip-path on 20,000 boxes, 500 boxes with a 1,024-point polygon, and 300 nested boxes "
+    "(ADR 0028)",
+    time_limit_s=10,
+)
+def clip_path_many() -> Page:
+    polygon = ",".join(f"{i % 50}px {i % 7}px" for i in range(1024))
+    css = f".p{{clip-path:polygon({polygon})}}.c{{clip-path:circle(40%)}}"
+    css += "div{width:30px;height:30px;background:red}"
+    shapes = "<div class=c></div>" * 20_000
+    polygons = "<div class=p></div>" * 500
+    nested = nest("<div class=c style='width:auto;height:auto;padding:1px'>", "</div>", 300, "x")
+    return Page(doc(shapes + polygons + nested, css))
+
+
+@case(
+    "clip-path with huge radii, percentages and offsets: circle(1e9%), inset(-1e9px round 1e9px), "
+    'ellipse(1e9px 1e-9px), path("M1e9 1e9 L-1e9 -1e9") (ADR 0028)'
+)
+def clip_path_extreme_values() -> Page:
+    shapes = [
+        "circle(1e9%)",
+        "circle(1e9px at 1e9px -1e9px)",
+        "ellipse(1e9px 1e-9px)",
+        "inset(-1e9px round 1e9px)",
+        "inset(1e9px)",
+        "inset(0 round 1e9% / 1e9px)",
+        "polygon(1e9px 1e9px, -1e9px 0, 0 1e9%)",
+        "path('M1e9 1e9 L-1e9 -1e9 L0 1e9 z')",
+        "path('M0 0 A 1e9 1e9 0 1 1 1e-9 1e-9 z')",
+        "xywh(-1e9px -1e9px 1e9px 1e9px round 1e9px)",
+        "rect(1e9px 1e9px -1e9px -1e9px)",
+        "circle(calc(1e9px * 1e9) at calc(100% * 1e9) 0)",
+    ]
+    boxes = "".join(
+        f"<div style='clip-path:{s};width:200px;height:100px;background:red;"
+        f"transform:rotate(7deg)'></div>"
+        for s in shapes * 20
+    )
+    return Page(doc(boxes))
+
+
+@case(
     "scroll containers nested 300 deep with large content, and 20,000 sibling scrollers (ADR 0019)"
 )
 def scroll_containers() -> Page:
@@ -2240,6 +2303,23 @@ def query_selector_all_every_node_js_on() -> Page:
         "</script>"
     )
     return Page(doc("<i></i>" * 500_000 + script))
+
+
+@case(
+    "querySelectorAll(':read-only') and (':read-write') over a chain of 100,000 nested divs "
+    "built by a script, half of them in an editing host, with JavaScript on: a query finds "
+    "the editing state of each chain of ancestors once (feature 12b review: 11 s before)",
+    swb_args=("--js",),
+)
+def read_write_query_deep_tree_js_on() -> Page:
+    script = (
+        "<script>let p = document.body; for (let i = 0; i < 100000; i++) "
+        "{ const d = document.createElement('div'); "
+        "if (i === 50000) d.contentEditable = 'true'; p.appendChild(d); p = d; } "
+        "console.log(document.querySelectorAll(':read-only').length, "
+        "document.querySelectorAll(':read-write').length);</script>"
+    )
+    return Page(doc("<p>text</p>" + script))
 
 
 @case(

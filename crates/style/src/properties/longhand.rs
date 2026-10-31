@@ -16,7 +16,7 @@ use super::specified::{
     SpecifiedFlexBasis, SpecifiedFontSize, SpecifiedFontWeight, SpecifiedLineHeight,
     SpecifiedPosition, SpecifiedSize, SpecifiedTextAlign, SpecifiedVerticalAlign,
 };
-use super::{svg, transform};
+use super::{clip_path, svg, transform};
 use crate::font_settings::{parse_feature_settings, parse_variation_settings};
 use crate::parse::color::parse_color;
 use crate::parse::grid;
@@ -129,7 +129,7 @@ pub(crate) fn parse_longhand(
             L::FillRule => V::FillRule(keyword(p, FillRule::from_ident)?),
             L::ClipRule => V::ClipRule(keyword(p, FillRule::from_ident)?),
             L::ShapeRendering => V::ShapeRendering(keyword(p, ShapeRendering::from_ident)?),
-            L::ClipPath => V::ClipPath(svg::parse_clip_path(p)?),
+            L::ClipPath => V::ClipPath(clip_path::parse_clip_path(p)?),
             L::FillOpacity => V::FillOpacity(svg::parse_alpha(p)?),
             L::Stroke => V::Stroke(svg::parse_paint(p)?),
             L::StrokeWidth => V::StrokeWidth(svg::parse_stroke_width(p)?),

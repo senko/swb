@@ -3867,6 +3867,19 @@ Steps:
         has no extra boxes and equal tag sequences (or the remaining
         difference is named); no console error that Chromium does not
         have.
+        Done 2026-10-31: `contentEditable` and `isContentEditable`
+        (no editing; `:read-write` matches in editing hosts; probe
+        cases with 34 queries); VisualEditor then starts as in Chromium
+        (`ve-available`, the accesskey link) without a new error.
+        `clip-path` basic shapes and geometry boxes: parse, computed
+        values, serialization (probe cases with 199 queries), paint for
+        boxes and SVG elements, hit testing (limits in ADR 0028 section
+        16). `compare --js wikipedia-web-browser`: extra boxes 2 to 0,
+        pixels unchanged; the remaining difference is one `style`
+        element in `head` (ResourceLoader writes module CSS at
+        animation frames, and Chromium has more frames between module
+        loads; the CSS text is the same). The test records the VE and
+        Popups state. JS off: snapshot identical.
       - 12c (`implementer`): the dark theme: `filter` and gradients in
         premultiplied space. Exit: the dark viewport pixels at least
         0.99; the light theme not worse; the test checks a pixel sample.
@@ -3909,6 +3922,26 @@ Steps:
 
 ## Backlog from M8
 
+- `style`/paint (found in feature 12b): `clip-path: shape()`;
+  `clip-path` in transitions and animations. A wrapped inline box with
+  `clip-path` is clipped per fragment; the reference box should be the
+  union of the fragments. `rect()` and `xywh()` with `min()`, `max()` or
+  `clamp()` compute wrong `inset()` values: the conversion samples the
+  `calc()` at 0 and 100 % and takes it as linear
+  (`xywh(0 0 max(10px, 20%) 10px)`; keep the function in the computed
+  `calc()`; Chromium not measured). Since 12b the paint bounds of
+  rounded overflow clips and SVG clip groups include the hit regions,
+  so a transparent link box can make the rasterizer allocate a layer
+  that paints nothing (bounded by the extent; output unchanged).
+- Paint (found in feature 12b): a stacking context that is not
+  positioned (`opacity`, `mask`, `clip-path`) paints in the foreground
+  phase. CSS paints it with the z-index 0/auto layer in tree order, so a
+  positioned sibling earlier in the tree paints below it in Chromium and
+  above it in swb.
+- `web` (found in feature 12b): `HTMLStyleElement.sheet` is missing
+  (`style.sheet.cssRules`); `-webkit-user-modify` in `getComputedStyle`.
+- Tests (found in feature 12b): `craigslist_posting.rs` failed once in a
+  full parallel workspace run (timing) and passed alone.
 - Engine (found in feature 12a): a click on Wikipedia costs 5 full
   style runs and 4 layout runs (about 230 ms in the test profile), a
   hover move 1 of each: a change of the hover or active state restyles

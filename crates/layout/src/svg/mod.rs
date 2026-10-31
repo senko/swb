@@ -60,7 +60,7 @@ use swb_style::{ComputedStyle, Display, InstanceId, LengthPercentage, StyleMap};
 pub(crate) use clip::ClipDef;
 pub use clip::{ClipPath, ClipRegion, ClipShape};
 pub use draw::{HitShape, StrokeStyle, SvgDrawItem};
-pub use path::{PathSegment, SvgPath};
+pub use path::{PathSegment, SvgPath, path_from_data};
 pub(crate) use viewport::natural_size;
 pub(crate) use viewport::{PreserveAspectRatio, view_box_transform};
 

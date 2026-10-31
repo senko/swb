@@ -10,11 +10,13 @@
 //! Unknown and unsupported properties are dropped (logged at trace level:
 //! real pages have hundreds of them).
 
+pub(crate) mod clip_path;
 pub(crate) mod compute;
 pub(crate) mod ids;
 pub(crate) mod inert;
 pub(crate) mod longhand;
 pub(crate) mod mask;
+pub(crate) mod path_data;
 pub(crate) mod shorthand;
 pub(crate) mod specified;
 pub(crate) mod svg;
@@ -280,6 +282,7 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "overflow-inline" => L::OverflowX,
         "overflow-block" => L::OverflowY,
         "-webkit-transform" => L::Transform,
+        "-webkit-clip-path" => L::ClipPath,
         "-webkit-transform-origin" => L::TransformOrigin,
         "-webkit-transition-property" => L::TransitionProperty,
         "-webkit-transition-duration" => L::TransitionDuration,

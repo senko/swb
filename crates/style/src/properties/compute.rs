@@ -121,7 +121,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::FillRule(v) => s.fill_rule = *v,
         V::ClipRule(v) => s.clip_rule = *v,
         V::ShapeRendering(v) => s.shape_rendering = *v,
-        V::ClipPath(v) => s.clip_path = v.clone(),
+        V::ClipPath(v) => s.clip_path = v.compute(cx),
         V::FillOpacity(v) => s.fill_opacity = v.clamp(0.0, 1.0),
         V::Stroke(v) => s.stroke = v.clone(),
         V::StrokeWidth(v) => s.stroke_width = cx.non_negative(v),

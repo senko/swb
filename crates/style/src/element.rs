@@ -8,6 +8,7 @@
 //! except the states in [`CONTROL_STATES`], which the page passes in
 //! [`ElementStates::controls`] for the controls whose state it knows.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -278,6 +279,56 @@ pub(crate) struct StateSet<'a> {
     classes: Vec<&'a str>,
     /// For each node index, the range of its classes in `classes`.
     class_ranges: Vec<(u32, u32)>,
+    /// For each node index, whether the node is in an editing host
+    /// (`isContentEditable`); empty if no element has a `contenteditable`
+    /// attribute. `None` for a lazy set, which uses `editable_memo`.
+    editable: Option<Vec<bool>>,
+    /// The lazy set's answers of [`editing_host_state`] by node index,
+    /// allocated at the first `:read-write` or `:read-only` match, so that
+    /// a query over a deep tree walks each chain of ancestors once.
+    editable_memo: RefCell<Vec<u8>>,
+}
+
+/// Whether `node` is in an editing host: the state of the nearest
+/// inclusive ancestor with a `contenteditable` attribute. `known` holds the
+/// answers by node index (0: unknown, 1: not editable, 2: editable); the
+/// walk stops at a known node and records its answer for the nodes it
+/// passed.
+fn editing_host_state(doc: &Document, known: &mut [u8], node: NodeId) -> bool {
+    let mut path = Vec::new();
+    let mut current = Some(node);
+    let mut result = false;
+    while let Some(node) = current {
+        match known.get(node.index()).copied().unwrap_or(1) {
+            0 => {}
+            state => {
+                result = state == 2;
+                break;
+            }
+        }
+        path.push(node);
+        if let Some(own) = doc.own_content_editable(node) {
+            result = own;
+            break;
+        }
+        current = doc.parent(node);
+    }
+    for node in path {
+        if let Some(slot) = known.get_mut(node.index()) {
+            *slot = if result { 2 } else { 1 };
+        }
+    }
+    result
+}
+
+/// Whether each node is in an editing host, by node index, computed in
+/// one pass.
+fn editing_hosts(doc: &Document) -> Vec<bool> {
+    let mut known = vec![0_u8; doc.len()];
+    for node in (0..known.len()).filter_map(NodeId::from_index) {
+        editing_host_state(doc, &mut known, node);
+    }
+    known.into_iter().map(|k| k == 2).collect()
 }
 
 impl<'a> StateSet<'a> {
@@ -298,6 +349,7 @@ impl<'a> StateSet<'a> {
                 .collect()
         };
         let mut classes = Vec::new();
+        let mut any_editable = false;
         let mut class_ranges = if tables {
             vec![(0, 0); doc.len()]
         } else {
@@ -307,6 +359,7 @@ impl<'a> StateSet<'a> {
             let Some(e) = NodeId::from_index(index).and_then(|id| doc.get(id)?.as_element()) else {
                 continue;
             };
+            any_editable |= e.has_attr("contenteditable");
             let start = classes.len() as u32;
             classes.extend(e.classes());
             *range = (start, classes.len() as u32);
@@ -329,6 +382,14 @@ impl<'a> StateSet<'a> {
             },
             classes,
             class_ranges,
+            editable: tables.then(|| {
+                if any_editable {
+                    editing_hosts(doc)
+                } else {
+                    Vec::new()
+                }
+            }),
+            editable_memo: RefCell::new(Vec::new()),
         }
     }
 
@@ -474,33 +535,46 @@ impl<'a> DomElement<'a> {
                 };
             }
             "select" => {
-                state |= required_state(e, true) | ElementState::READ_ONLY | ElementState::VALID;
+                state |= required_state(e, true) | ElementState::VALID | self.editing_state();
             }
             "option" => {
                 if e.has_attr("selected") {
                     state |= ElementState::CHECKED | ElementState::DEFAULT;
                 }
-                state |= ElementState::READ_ONLY;
+                state |= self.editing_state();
             }
             "details" | "dialog" => {
                 if e.has_attr("open") {
                     state |= ElementState::OPEN;
                 }
-                state |= ElementState::READ_ONLY;
+                state |= self.editing_state();
             }
-            _ => {
-                if e.has_attr("contenteditable")
-                    && !e
-                        .attr("contenteditable")
-                        .is_some_and(|v| v.eq_ignore_ascii_case("false"))
-                {
-                    state |= ElementState::READ_WRITE;
-                } else {
-                    state |= ElementState::READ_ONLY;
-                }
-            }
+            _ => state |= self.editing_state(),
         }
         state
+    }
+
+    /// `:read-write` for an element in an editing host (an element that
+    /// `isContentEditable` is true for), else `:read-only`. Measured in
+    /// Chromium 148: this holds for every HTML element except `input` and
+    /// `textarea`, which follow their own attributes (a `readonly` or
+    /// disabled one is read-only inside a host too, a text field in a
+    /// `contenteditable=false` island is still read-write).
+    fn editing_state(&self) -> ElementState {
+        let editable = if let Some(table) = &self.states.editable {
+            table.get(self.id.index()).copied().unwrap_or(false)
+        } else {
+            let mut memo = self.states.editable_memo.borrow_mut();
+            if memo.is_empty() {
+                *memo = vec![0; self.doc.len()];
+            }
+            editing_host_state(self.doc, &mut memo, self.id)
+        };
+        if editable {
+            ElementState::READ_WRITE
+        } else {
+            ElementState::READ_ONLY
+        }
     }
 }
 
@@ -750,6 +824,27 @@ mod tests {
         let s = StateSet::new(&doc, &states);
         assert!(matches(&doc, &s, "inner", ":focus-visible"));
         assert!(!matches(&doc, &s, "outer", ":focus-visible"));
+    }
+
+    #[test]
+    fn editing_hosts_match_read_write() {
+        let doc = parse_html(
+            "<div id=h contenteditable><p id=p><b id=b>x</b></p>\
+             <div id=f contenteditable=false><i id=i>y</i><input id=in></div>\
+             <input id=ro readonly></div><p id=out>z</p><svg id=s></svg>",
+        );
+        let s = StateSet::new(&doc, &ElementStates::default());
+        for id in ["h", "p", "b", "in"] {
+            assert!(matches(&doc, &s, id, ":read-write"), "{id}");
+        }
+        for id in ["f", "i", "ro", "out"] {
+            assert!(matches(&doc, &s, id, ":read-only"), "{id}");
+        }
+        assert!(!matches(&doc, &s, "s", ":read-only"));
+        // The lazy set asks the document and agrees.
+        let lazy = StateSet::lazy(&doc, &ElementStates::default());
+        assert!(matches(&doc, &lazy, "b", ":read-write"));
+        assert!(matches(&doc, &lazy, "i", ":read-only"));
     }
 
     #[test]

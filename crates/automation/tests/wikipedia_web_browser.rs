@@ -30,15 +30,19 @@
 //! with a tolerance of 3 px (swb lays some boxes out 1 to 3 px off, see
 //! [`TOLERANCE`]); everything else, also the scroll position, exactly.
 //!
-//! Left out of the records, because feature 12b or 12c changes them: the
-//! `VisualEditor` root classes (`ve-*`), the elements that `VisualEditor` and
-//! Popups add to the body, the pixels, and what `filter` and gradients draw
-//! (the dark theme). The rectangles below the references are recorded only
-//! while the references fit one column (swb has no multi-column layout: with
-//! the table of contents or the Appearance panel unpinned, the content is
-//! wide enough for two columns and everything below the references is 271
-//! px higher in Chromium). Not tested
-//! because the logged-out fixture does not have them, as in Chromium: the
+//! Since feature 12b the records have the `VisualEditor` root classes
+//! (`ve-available`), its accesskey link in the body, the total length of
+//! the CSS in the `style` elements of `head` (not their number: it depends
+//! on the frames between the module loads), the absence of the SVG
+//! fallback of Popups and the computed `clip-path` of the popup container.
+//! Left out of the records, because feature 12c changes them: the pixels,
+//! and what `filter` and gradients draw (the dark theme). The rectangles
+//! below the references are recorded only while the references fit one
+//! column (swb has no multi-column layout: with the table of contents or
+//! the Appearance panel unpinned, the content is wide enough for two
+//! columns and everything below the references is 271 px higher in
+//! Chromium). Not tested because the logged-out fixture does not have
+//! them, as in Chromium: the
 //! sticky header (shown to logged-in users only), reference previews, a
 //! successful link preview and the search suggestions (their code is not in
 //! the fixture).

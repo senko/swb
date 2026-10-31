@@ -134,6 +134,45 @@ impl g::html_element::HTMLElementImpl for WebState {
         set_attribute(cx, this, "spellcheck", if value { "true" } else { "false" })
     }
 
+    /// `contentEditable`: the state of the `contenteditable` attribute
+    /// (`true` for the empty string, `plaintext-only`, `false`), else
+    /// `inherit`. swb has no editing behavior.
+    /// <https://html.spec.whatwg.org/multipage/interaction.html#dom-contenteditable>
+    fn content_editable(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
+        let value = lowercase_attribute(cx, this, "contenteditable")?;
+        Ok(match value.as_deref() {
+            Some("" | "true") => "true",
+            Some("false") => "false",
+            Some("plaintext-only") => "plaintext-only",
+            _ => "inherit",
+        }
+        .to_owned())
+    }
+
+    /// The setter: `inherit` removes the attribute, the other keywords
+    /// (ASCII case-insensitive) set it in lowercase, anything else is a
+    /// `SyntaxError` with Chromium's message (the glue adds the prefix
+    /// "Failed to set the 'contentEditable' property on '`HTMLElement`': ").
+    fn set_content_editable(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        match value.to_ascii_lowercase().as_str() {
+            "inherit" => remove_attribute(cx, this, "contenteditable"),
+            keyword @ ("true" | "false" | "plaintext-only") => {
+                set_attribute(cx, this, "contenteditable", keyword)
+            }
+            _ => Err(b::Exception::dom(
+                "SyntaxError",
+                format!(
+                    "The value provided ('{value}') is not one of 'true', 'false', 'plaintext-only', or 'inherit'."
+                ),
+            )),
+        }
+    }
+
+    /// `isContentEditable`: see [`swb_dom::Document::is_content_editable`].
+    fn is_content_editable(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(dom(cx.rt)?.is_content_editable(this))
+    }
+
     /// `dataset`: the one `DOMStringMap` of the element.
     fn dataset(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
         dataset(cx, this)

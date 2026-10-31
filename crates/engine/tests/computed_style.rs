@@ -155,12 +155,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     ),
     (
         "values-longhand-images",
-        6,
-        r##"["none => none","inset(10px) => none","circle(50%) => none","url(#a) => url(\"#a\")","polygon(0 0, 10px 0, 0 10px) => none","inset(1px 2px round 3px) => none"]"##,
-        "swb's `clip-path` has no basic shapes",
-    ),
-    (
-        "values-longhand-images",
         8,
         r##"["red => rgb(255, 0, 0)","none => none","url(#g) => url(\"#g\")","url(#g) blue => url(\"#g\") rgb(0, 0, 255)","context-fill => rgb(0, 0, 0)","currentcolor => rgb(0, 0, 255)"]"##,
         "swb has no `context-fill`",

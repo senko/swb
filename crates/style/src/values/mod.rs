@@ -6,6 +6,7 @@ mod grid;
 mod keywords;
 mod length;
 mod mask;
+mod shape;
 mod svg;
 mod transform;
 
@@ -26,6 +27,10 @@ pub use length::{
     LengthUnit, MaxSize, Size, SpecifiedLengthPercentage,
 };
 pub use mask::{CompositeOperator, MAX_MASK_LAYERS, MaskClip, MaskImage, MaskMode};
+pub use shape::{
+    BasicShape, GeometryBox, Inset, MAX_PATH_DATA_BYTES, MAX_RELATIVE_SHAPE_POINTS,
+    MAX_SHAPE_POINTS, ShapeClip, ShapePosition, ShapeRadius,
+};
 pub use svg::{ClipPath, SvgPaint};
 pub use transform::{ClipRect, TransformFunction, TransformOrigin};
 

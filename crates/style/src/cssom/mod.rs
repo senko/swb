@@ -24,6 +24,7 @@
 //! of a custom property has its whitespace runs collapsed; `all` is not
 //! supported.
 
+mod clip_path;
 mod longhand;
 mod props;
 pub mod resolved;

@@ -2830,6 +2830,136 @@ and the cases `history-back-*` of `tools/probes/web-input-real.json`):
   first non-empty rectangle of an inline element that wraps; the probe tool's runner
   clicks the center of the bounding box, as swb does).
 
+Feature 12b notes (`contentEditable` and `clip-path` basic shapes for the
+Wikipedia target; measured with `tools/probes/web-content-editable.json`
+(5 cases, 34 queries) and `tools/probes/clip-path.json` (29 cases, 199
+queries: the grammar, about 500 values, and the ink of boxes in
+screenshots), three equal Chromium 148 runs each; the tests are
+`crates/web/tests/content_editable.rs`, `crates/engine/tests/clip_path.rs`
+and the Wikipedia test):
+
+- **`contentEditable` and `isContentEditable`.** The getter gives `true`
+  for `contenteditable` with the value `""` or `true`, `false`,
+  `plaintext-only`, else `inherit` (ASCII case-insensitive; `inherit`, `x`
+  and a value with spaces are `inherit`). The setter takes the same
+  keywords in any case, writes `true`, `false` or `plaintext-only` in
+  lower case, removes the attribute for `inherit`, and throws a
+  `SyntaxError` `DOMException` (code 12) for anything else, also for `""`,
+  `null` and numbers: "Failed to set the 'contentEditable' property on
+  'HTMLElement': The value provided ('x') is not one of 'true', 'false',
+  'plaintext-only', or 'inherit'." `isContentEditable` is read-only
+  (`Document::is_content_editable`): the first HTML element from the
+  element up whose attribute is in the true, plaintext-only or false state
+  decides, also in a detached tree and in `display: none`; SVG elements
+  have neither member. `:read-write` matches every HTML element in an
+  editing host, and `:read-only` the others; `input` and `textarea` keep
+  their own rule (a `readonly` or disabled one is read-only in a host, a
+  text field in a `contenteditable=false` island is read-write); SVG and
+  MathML elements match neither. swb has no editing: no typing, no caret,
+  no `designMode` (Chromium has `document.designMode`, `off`), no
+  `-webkit-user-modify`, and an editing host is not focusable
+  (`tabIndex` is -1 as in Chromium, but Chromium focuses a host and swb
+  does not; backlog).
+- **VisualEditor.** With `contentEditable` the support check passes:
+  the root has `ve-available`, the accesskey link `a.oo-ui-element-hidden`
+  is the last child of `body`, and the visual edit section links show.
+  Nothing else fails on that path: no console error in swb. One
+  difference is left in `compare --js`: Chromium has one more `style`
+  element in `head`. ResourceLoader writes the CSS of the modules that
+  arrive together into one `style` element at the next
+  `requestAnimationFrame`; the frames fall between the loads of the
+  modules in Chromium (3 elements from the loads that follow the first
+  one) and not in swb (2). The CSS text is the same (94,436 characters in
+  both), and the order of the rules too; the record of the Wikipedia test
+  holds the total length. The number of elements depends on the timing of
+  the network and the frames, not on a feature.
+- **`clip-path`.** The grammar of Chromium 148: `none`, `url()`, and
+  `<basic-shape> || <geometry-box>`; the shapes `inset()`, `circle()`,
+  `ellipse()`, `polygon()`, `path()`, `rect()` and `xywh()`; the boxes
+  `margin-box`, `border-box`, `padding-box`, `content-box`, `fill-box`,
+  `stroke-box` and `view-box` (a box alone is a value; `url()` and `none`
+  take no box). `shape()` (Chromium 148 takes it) is not supported: it is
+  invalid, so `CSS.supports` is false. `-webkit-clip-path` is an alias.
+  The value is parsed in `style/src/properties/clip_path.rs`
+  (`SpecifiedClipPath`), computed to `ClipPath::Shape(Arc<ShapeClip>)`
+  (`values/shape.rs`); a shape in absolute units is computed once and
+  shared by all elements. Serialization (measured): the specified form
+  keeps `rect()`, `xywh()` and lengths as written (`1em` stays, `0` is
+  `0px`, `calc()` simplified); the sides of `inset()` and the radii after
+  `round` are as short as `margin` and `border-radius` (`inset(10px 10px)`
+  is `inset(10px)`; `round 0` is left out; `round 1px 2px 1px 2px` is
+  `round 1px 2px`); `circle(closest-side)` is `circle()`; the position
+  appears only if written, as lengths (`left top` is `0% 0%`, any zero
+  offset is `0%`, `right 0` is `100%`), `left 10px top 20px` is `10px 20px`,
+  other edge forms keep their keywords (`right 10px bottom 20px`), the
+  order is x then y; `polygon()` writes `evenodd, ` first and leaves
+  `nonzero` out; `path()` writes the data with one space between tokens,
+  `Z` for a close and quotes (`m 0 0 l 10 0 Z`); a geometry box is written
+  after a shape (`border-box` after a shape is left out; a box alone keeps
+  it). The computed form has absolute lengths (`em` to `px`), percentages
+  kept, `rect()` and `xywh()` as `inset()` (`rect(10px 20px 30px 40px)` is
+  `inset(10px calc(100% - 20px) calc(100% - 30px) 40px)`, `auto` is
+  `0%`), and `path()` data with absolute commands (`h 10` is `H 10`).
+  Invalid in Chromium and in swb: a negative radius, `polygon()` without a
+  point, a trailing comma, `circle(at left 10px top)` (three values),
+  a path string that is not path data (it must start with a move), two
+  shapes, two boxes, a box with `none` or `url()`. `clip-path` is not
+  inherited.
+- **Paint and stacking.** A box with a basic shape or a box alone is a
+  stacking context (a `z-index: -1` child paints above its background) and
+  not a containing block. The effect order is clip, mask, opacity
+  (`paint/src/clip_path.rs`: the group of the box is inside the mask and
+  opacity groups). The clip applies to the box, its descendants, its
+  outline and the positioned descendants whose containing block is
+  outside; shadows are not painted by swb at all. The reference box:
+  `border-box` (default), `stroke-box` and `view-box` are the border box
+  with the radii of `border-radius`; `padding-box` and `content-box` are
+  the boxes with the radii reduced by the border and padding;
+  `fill-box` is the content box; `margin-box` grows the box by the margins
+  (a percentage or `auto` margin counts as 0 in swb). Percentages refer to
+  the reference box; a percentage radius of `circle()` refers to
+  `sqrt((width² + height²) / 2)`; `closest-side` and `farthest-side` of a
+  circle take the four sides. `inset()` radii percentages refer to the
+  inset rectangle. `path()` starts at the top left of the reference box,
+  and Chromium fills it with the even-odd rule whatever the rule says
+  (`path(nonzero, ...)` with two contours in one direction has a hole;
+  `getComputedStyle` even writes `evenodd` for `nonzero`); swb does the
+  same for the paint and keeps the written rule in the computed value
+  (a departure in the tests). `polygon()` uses its rule. An empty shape
+  (radius 0, an inverted `inset()`, a polygon with fewer than three
+  distinct points) hides the element. Inline boxes, tables, flex items,
+  images and controls are clipped too (the reference box of an inline box
+  that wraps is, in swb, the fragment; in Chromium the union of the
+  fragments). A shape in a rectangle without rounding is a plain clip
+  rectangle, else a `PushSvgClip` group
+  (`swb_layout::shape_geometry` places the shape, `layout/src/shape.rs`).
+- **Hit testing.** Points outside the shape hit what lies below, also for
+  the descendants of the element; a transparent box is hit inside the
+  shape; `pointer-events: none` stays. The bounds of a clip group now
+  contain its hit regions (`paint/src/group_bounds.rs`).
+- **SVG elements** (`layout/src/svg/clip.rs`, the property and the
+  presentation attribute): the reference box of the default, `border-box`,
+  `margin-box` and `stroke-box` is the stroke bounding box of the element
+  in its user space (the fill box grown by half the stroke width; a
+  group's is the union of its children's; a slanted line's exact box is
+  tighter, a departure); `fill-box`, `content-box` and `padding-box` are
+  the fill box; `view-box` is the viewport of the `<svg>`. The shape is in
+  the user space of the element, with its `transform`. An outer `<svg>`
+  with a CSS box is clipped like any box. Not supported: SVG `text` and
+  nested `svg` (swb draws neither), the animation of `clip-path`
+  (`element.animate`, transitions).
+- **Popups** (Wikipedia): `CSS.supports("clip-path", "polygon(1px 1px)")`
+  is true, so the extension skips its SVG fallback (the two extra boxes
+  of `compare --js` are gone), and clips its popup container with
+  `polygon(var(--x2) var(--y2), ...)` (values with `var()` parse when the
+  variables are substituted). The pixels of the popup are compared with
+  Chromium in the notes of the feature.
+- **Bounds** (section 16): a `polygon()` has at most 1,024 points (128 if
+  a length uses `em`, `rem`, `vw` and the like, because its computed value
+  is made for each element), `path()` data at most 16 KiB and 1,024
+  segments (the path is built from at most 8,192 path segments); a longer
+  one is an invalid declaration. Chromium has no limit.
+
 Feature 11c1 notes (CSS from scripts for the Craigslist posting page;
 measured with `tools/probes/web-style-inert.json` (6 cases, 48 queries
 with about 600 values) and `tools/probes/web-geometry-matrix.json` (14
@@ -4284,6 +4414,7 @@ Per document, all settings with these defaults:
 | Entries that wait in the queue of one `PerformanceObserver` (feature 8a2) | 131,072 | later entries are not queued for that observer |
 | Idle callbacks that wait (feature 8a2) | 1,048,576 | the task ends (termination, warning) |
 | Input bytes of one `TextDecoder.decode` call (feature 8a2) | 64 MiB | `RangeError` |
+| Points of a `polygon()` and segments of the data of a `path()` in `clip-path` (feature 12b; style, not script) | 1,024 points (128 with font-relative or viewport units), 1,024 segments and 16 KiB of data | the declaration is invalid (not applied) |
 
 The budget of long tasks (feature 5b): the time limit of a task and the
 stop after three terminations do not bound a page of many scripts that

@@ -18,6 +18,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Form tests             | `crates/engine/tests/forms.rs` (editing, activation, submission, POST history; a recording in-memory fetcher) | no |
 | Details tests          | `crates/engine/tests/details.rs` (`details` and `summary`: toggling with the mouse and keyboard, hidden contents, default summary) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
+| `clip-path` tests      | `crates/engine/tests/clip_path.rs` (M8 feature 12b: every case of `tools/probes/clip-path.json`: the grammar of `inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `rect()`, `xywh()` and the geometry boxes with `CSS.supports`, `element.style` and `getComputedStyle` (about 500 values); the ink and box of 14 pages of clipped boxes in a screenshot (shapes of all kinds, reference boxes, transforms, children, inline boxes, tables, flex items, replaced elements, SVG elements with the three reference boxes); the stacking context; `elementFromPoint` and the hit test) | no |
 | Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links, `clipPath`, `use`, `shape-rendering`, hit testing of shapes); `tests/layout/inline-svg-boxes.html` (the boxes of `g`, shapes and `use` against Chromium) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
@@ -1400,9 +1401,15 @@ the error popup because the fixture lacks the REST summary; the search box
 focus, typing and `Escape`; clicks on table-of-contents links with the anchor
 scroll, then `back` and `forward` with `hashchange` and `popstate`) and the
 records of `data/wikipedia-web-browser.js`. Rectangles compare within 3 px,
-everything else exactly. The module comment lists what the records leave out
-(what features 12b and 12c change, and the rectangles that the missing
-multi-column layout moves).
+everything else exactly. Since feature 12b the records have the
+VisualEditor and Popups keys: the `ve-*` root classes (`ve-available`), the
+accesskey link that VisualEditor adds to the body, the total length of the CSS
+text in the `style` elements of `head` (the number of those elements
+depends on the frames that fall between the module loads, see ADR 0028),
+the absence of Popups' SVG fallback (`#mwe-popups-svg`), and the computed
+`clip-path` of the popup container. The module comment lists what the
+records leave out (what feature 12c changes, and the rectangles that the
+missing multi-column layout moves).
 
 **Chromium records of the steps** (`swbtools replay`;
 `tools/swbtools/replay.py`). The command replays `fixtures/js/NAME` in
@@ -2590,6 +2597,15 @@ code for them (a unit test of the generator checks the glue).
   the GC stress mode; also tests of the element lists with 2,000 to 5,000
   rows, controls and options. The test document resolves URLs against
   its `base` element.
+- `crates/web/tests/content_editable.rs`: `contentEditable` and
+  `isContentEditable` of feature 12b: every case of
+  `tools/probes/web-content-editable.json` (the getter for 16 attribute
+  values, the setter with 21 values and Chromium's `SyntaxError`, the
+  inheritance through ancestors, the SVG elements that lack the members,
+  `:read-write` and `:read-only` for hosts, islands, controls and SVG,
+  `tabIndex`) with Chromium's values (`tests/content_editable/cases.rs`,
+  generated from the probe's `--json` output, three equal Chromium runs),
+  each with and without the GC stress mode.
 - `crates/web/tests/svg_elements.rs`: the SVG element interfaces of feature
   6c2: every case of `tools/probes/web-svg-elements.json` (151 queries:
   constructor names and prototype chains of the SVG elements made by

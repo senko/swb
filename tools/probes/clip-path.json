@@ -1,0 +1,794 @@
+{
+ "viewport": [
+  900,
+  700
+ ],
+ "cases": [
+  {
+   "name": "cp-syntax-keywords",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"none\", \"initial\", \"inherit\", \"unset\", \"revert\", \"NONE\", \"auto\", \"url(#a)\", \"url('#a')\", \"url(\\\"#a\\\")\", \"url()\", \"url(#a) url(#b)\", \"url(#a) border-box\", \"none border-box\", \"border-box none\", \"var(--x)\", \"inherit border-box\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-inset",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"inset(10px)\", \"inset(10px 20px)\", \"inset(10px 20px 30px)\", \"inset(10px 20px 30px 40px)\", \"inset(1px 2px 3px 4px 5px)\", \"inset()\", \"inset(0)\", \"inset(-5px)\", \"inset(10%)\", \"inset(1em 2em)\", \"inset(calc(10px + 5%))\", \"inset(calc(10px + 5px))\", \"inset(10px,20px)\", \"inset(auto)\", \"inset(10)\", \"inset(1px round)\", \"INSET(10px)\", \"inset( 10px )\", \"inset(10px round 5px)\", \"inset(10px round 5px 10px)\", \"inset(10px round 5px 10px 15px 20px)\", \"inset(10px round 5px / 10px)\", \"inset(10px round 5px 10px / 1px 2px 3px 4px)\", \"inset(10px round 10%)\", \"inset(10px round 0)\", \"inset(10px round -5px)\", \"inset(10px round 5px 6px 7px 8px 9px)\", \"inset(10px 20px round 50%)\", \"inset(round 5px)\", \"inset(10px round 5px 5px)\", \"inset(10px round 5px 5px 5px 5px / 5px)\", \"inset(10px round 5px / 5px 5px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-circle",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"circle()\", \"circle(50%)\", \"circle(10px)\", \"circle(closest-side)\", \"circle(farthest-side)\", \"circle(at center)\", \"circle(at 10px 20px)\", \"circle(50% at 10px 20px)\", \"circle(at left top)\", \"circle(at top left)\", \"circle(at right 10px bottom 20px)\", \"circle(at left 10px top 20px)\", \"circle(-5px)\", \"circle(0)\", \"circle(0px)\", \"circle(10px at center)\", \"circle(at 10px)\", \"circle(at 10%)\", \"circle(at top)\", \"circle(at left)\", \"circle(at center center)\", \"circle(at 50% 50%)\", \"circle(at 0 0)\", \"circle(10px 20px)\", \"circle(10px at)\", \"circle(calc(10px + 5%))\", \"circle(1em)\", \"circle(at 1em 2em)\", \"circle(closest-side at 10px 10px)\", \"circle(at 10px 20px 30px)\", \"circle(at left 10px top)\", \"circle(at bottom right)\", \"circle(at 10px top)\", \"circle(at top 10px)\", \"circle(at right 10px)\", \"circle(at center 10px)\", \"circle(at 10px center)\", \"circle(at 10px 20px, 30px)\", \"CIRCLE(50%)\", \"circle(50%at 10px 10px)\", \"circle(50% at 10px 10px)\", \"circle(  50%   at   10px   10px  )\", \"circle(at 50% 50% 50%)\", \"circle(sqrt(4) * 1px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-ellipse",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"ellipse()\", \"ellipse(10px 20px)\", \"ellipse(closest-side farthest-side)\", \"ellipse(10px 20px at 30px 40px)\", \"ellipse(10px)\", \"ellipse(at center)\", \"ellipse(50% 25%)\", \"ellipse(50% 25% at 25% 75%)\", \"ellipse(closest-side closest-side)\", \"ellipse(10px closest-side)\", \"ellipse(-1px 2px)\", \"ellipse(0 0)\", \"ellipse(10px 20px 30px)\", \"ellipse(closest-side)\", \"ellipse(at 10px 20px)\", \"ellipse(farthest-side farthest-side at left top)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-polygon",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"polygon(0 0, 10px 0, 0 10px)\", \"polygon(nonzero, 0 0, 10px 0, 0 10px)\", \"polygon(evenodd, 0 0, 10px 0, 0 10px)\", \"polygon()\", \"polygon(0 0)\", \"polygon(0 0, 1px)\", \"polygon(0px 0px, 100% 0%, 50% 100%)\", \"polygon(calc(10px + 5%) 0, 10px 10px)\", \"polygon(0 0, 10px 0, 0 10px,)\", \"polygon(0 0 10px 0)\", \"polygon(NONZERO, 0 0, 10px 10px)\", \"polygon(0 0, 10px 10px) nonzero\", \"polygon(0 0,10px 10px)\", \"polygon(evenodd 0 0, 10px 10px)\", \"polygon(evenodd,)\", \"polygon(1em 2em, 3em 4em)\", \"polygon(-1px -2px, 3px 4px)\", \"polygon(0 0, 10px 0, 10px 10px, 0 10px) border-box\", \"polygon(0 0, 10px 0, 10px 10px, 0 10px) content-box\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-path",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"path('M0 0 L10 0 L10 10 z')\", \"path(\\\"M0 0 L10 0 L10 10 z\\\")\", \"path(evenodd, 'M0 0 h10 v10 z')\", \"path(nonzero, 'M0 0 h10 v10 z')\", \"path('invalid')\", \"path()\", \"path('')\", \"path('M0 0')\", \"path('M 0 0 L 10 0')\", \"path('M0,0L10,0L10,10Z')\", \"path('m0 0 l10 0 l0 10 z')\", \"path('M0 0 C 10 0 10 10 0 10')\", \"path('M0 0 L 10')\", \"path(M0 0 L10 0)\", \"path('M0 0 L10 0',)\", \"path(evenodd 'M0 0 h10')\", \"path('M0 0 h10 v10 z') content-box\", \"path('M0 0 A 10 10 0 0 1 20 0 z')\", \"path('M0 0 Q 10 10 20 0 T 40 0 S 10 10 5 5 z')\", \"path('M0 0 H 10 V 10 z m 5 5 h 3')\", \"path('M0 0 L10 0 L10 10 z  ')\", \"path(' M0 0 L10 0 L10 10 z')\", \"path('M0 0 L10 0 L10 10 z X')\", \"path('L0 0')\", \"path('M0 0 L1e1 0')\", \"path('M0 0 L.5 .5')\", \"path('M0 0 L-.5-.5')\", \"PATH('M0 0 L10 0')\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-rect",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"rect(0 100% 100% 0)\", \"rect(auto auto auto auto)\", \"rect(10px 20px 30px 40px round 5px)\", \"rect(0 0 0 0)\", \"rect(1px 2px 3px)\", \"rect(1px, 2px, 3px, 4px)\", \"rect(10%)\", \"rect(auto)\", \"rect(1px 2px 3px 4px 5px)\", \"rect(-1px -2px -3px -4px)\", \"rect(10px 20px 30px 40px round 5px / 10px)\", \"rect(calc(10px + 5%) 0 0 0)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-xywh",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"xywh(0 0 100% 100%)\", \"xywh(10px 20px 30px 40px round 5px)\", \"xywh(0 0 -1px 1px)\", \"xywh(0 0 0 0)\", \"xywh(10px 20px)\", \"xywh(10px 20px 30px)\", \"xywh(10px 20px 30px 40px 50px)\", \"xywh(-10px -20px 30px 40px)\", \"xywh(10% 20% 30% 40%)\", \"xywh(auto 0 1px 1px)\", \"xywh(1px 2px 3px 4px round 5px 6px 7px 8px / 9px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-boxes",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"border-box\", \"padding-box\", \"content-box\", \"margin-box\", \"fill-box\", \"stroke-box\", \"view-box\", \"BORDER-BOX\", \"circle(50%) border-box\", \"border-box circle(50%)\", \"circle(50%) padding-box margin-box\", \"border-box border-box\", \"circle() circle()\", \"inset(0) fill-box\", \"inset(0) stroke-box\", \"inset(0) view-box\", \"view-box inset(0)\", \"content-box polygon(0 0, 10px 10px)\", \"polygon(0 0, 10px 10px) content-box\", \"path('M0 0 h10') margin-box\", \"none content-box\", \"url(#a) content-box\", \"circle(at center) content-box\", \"circle(50%)  content-box\", \"scroll-box\", \"text\", \"no-clip\", \"geometry-box\", \"border-box padding-box\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-shape",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"shape(from 0 0, line to 10px 10px)\", \"shape(from 0 0, line to 10px 10px, close)\", \"shape(evenodd from 0 0, line to 10px 10px)\", \"shape(from 0 0, hline to 10px, vline to 10px, close)\", \"shape(from 0px 0px, curve to 10px 10px with 5px 0px)\", \"shape(from 0 0, arc to 10px 10px of 5px)\", \"shape(from 0 0, move to 5px 5px, line by 1px 1px)\", \"shape()\", \"shape(from 0 0)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-pos",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"circle(at right 10px top 20px)\", \"circle(at left 10px bottom 20px)\", \"circle(at bottom 10px right 20px)\", \"circle(at top 10px left 20px)\", \"circle(at 10px top 20px)\", \"circle(at left 10px top 20px)\", \"circle(at right 10px bottom 20px)\", \"circle(at center top 10px)\", \"circle(at left 10px center)\", \"circle(at right 20%)\", \"circle(at 20% bottom)\", \"circle(at bottom 20%)\", \"circle(at right bottom)\", \"circle(at left bottom 10px)\", \"circle(at right 10%)\", \"circle(at top left 10px)\", \"circle(at left top 10px)\", \"circle(at calc(1px + 2%) 5px)\", \"circle(at left 10px top)\", \"circle(at 10px 20px) content-box\", \"circle(at right 10px bottom 20px) border-box\", \"circle(at center bottom)\", \"circle(at center left)\", \"circle(at 50% left)\", \"circle(at left 50%)\", \"circle(at top 50%)\", \"circle(at 10px right)\", \"circle(at 0 10px)\", \"circle(at 10px 0)\", \"circle(at 0)\", \"ellipse(at 0 0)\", \"circle(at 0px 0px)\", \"circle(at left 0 top 0)\", \"circle(at right 0 bottom 0)\", \"circle(at 0% 0)\", \"circle(at calc(0px) 0)\", \"circle(at 1px 0)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-inset2",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"inset(10px 10px)\", \"inset(10px 10px 10px)\", \"inset(10px 10px 10px 10px)\", \"inset(10px 20px 10px 20px)\", \"inset(10px 20px 30px 20px)\", \"inset(10px 20px 10px)\", \"inset(1px 2px 3px 4px round 5px 5px 5px 5px)\", \"inset(0 round 1px 2px 1px 2px)\", \"inset(0 round 1px 2px 3px 2px)\", \"inset(0 round 1px 2px 3px)\", \"inset(0 round 1px 2px 1px)\", \"inset(0 round 1px 1px / 2px 2px)\", \"inset(0 round 1px / 1px 2px 3px 4px)\", \"inset(0 round 10px 10px 10px 10px / 10px 10px)\", \"inset(0 round 1px 2px / 3px)\", \"inset(0 round 1px 2px 3px 4px / 1px 2px 3px 4px)\", \"inset(0 round 1px 1px 2px 2px)\", \"rect(1px 2px 3px 4px round 5px 5px)\", \"xywh(1px 2px 3px 4px round 5px 5px 5px 5px)\", \"polygon(10% 10%, calc(100% - 10px) 50%)\", \"circle(50%) fill-box\", \"circle(50%) stroke-box\", \"ellipse(50% 50%) padding-box\", \"inset(1px) margin-box\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-syntax-misc",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'clip-path'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '} <' + e.getAttribute('style') + '>'; }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"circle(50%)\", \"none\", \"url(#a)\", \"border-box\"], '-webkit-clip-path'))"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.webkitClipPath = 'circle(50%)'; return [e.style.clipPath, e.style.cssText, 'webkitClipPath' in e.style]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.cssText = 'clip-path: polygon(0 0, 10px 0, 0 10px); clip-path: bogus(1)'; return [e.style.clipPath, e.style.cssText, e.style.length]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.clipPath = 'circle(50% at 10px 20px) content-box'; return [e.style.clipPath, e.style.getPropertyValue('clip-path'), e.style.cssText, e.style.length, e.style.item(0)]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.clipPath = 'circle(50%)'; e.style.clipPath = 'bogus'; return [e.style.clipPath]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.clipPath = 'circle(50%)'; e.style.clipPath = ''; return [e.style.clipPath, e.style.cssText]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.clipPath = 'inset(1px) !important'; return [e.style.clipPath, e.style.cssText]; })())"
+    },
+    {
+     "js": "E(() => (() => { const e = document.createElement('div'); e.style.setProperty('clip-path', 'inset(1px)', 'important'); return [e.style.clipPath, e.style.cssText, e.style.getPropertyPriority('clip-path')]; })())"
+    },
+    {
+     "js": "E(() => (() => { const c = document.getElementById('c'); const e = document.createElement('div'); e.style.fontSize = '10px'; c.appendChild(e); const r = []; for (const v of ['inset(1em)', 'circle(2em at 3em 4em)', 'ellipse(1em 2em)', 'polygon(1em 2em, 3em 4em)', 'inset(calc(1em + 5%) round 1em)', 'inset(1rem)', 'inset(1vw 2vh)', 'inset(1in)', 'inset(1pt)', 'inset(1cm)', 'circle(calc(10px + 50%))', 'circle(calc(100% - 10px) at calc(50% + 1px) calc(1em))', 'polygon(calc(1px + 1px) calc(2px * 2), 1px 1px)', 'circle(min(10px, 20px))', 'inset(max(1px, 1em))', 'circle(1ex)', 'circle(1ch)', 'inset(1Q)', 'inset(1mm)', 'inset(1pc)', 'inset(1e1px)', 'inset(0.5px)', 'inset(.5px)', 'inset(+5px)', 'inset(10.0px)', 'inset(1.50px)']) { e.style.clipPath = v; r.push(v + ' => ' + getComputedStyle(e).clipPath + ' | ' + e.style.clipPath); } e.remove(); return r.join('\\n'); })())"
+    },
+    {
+     "js": "E(() => (() => { const c = document.getElementById('c'); const r = []; for (const v of ['circle(50%)', 'inset(10px)', 'polygon(0 0, 10px 10px)', 'path(\"M0 0 L10 0\")']) { const p = document.createElement('div'); p.style.clipPath = v; c.appendChild(p); const e = document.createElement('span'); p.appendChild(e); r.push(v + ' child=' + getComputedStyle(e).clipPath); p.remove(); } return r.join('\\n'); })())"
+    },
+    {
+     "js": "E(() => (() => { const c = document.getElementById('c'); const p = document.createElement('div'); p.style.clipPath = 'circle(50%)'; const e = document.createElement('span'); e.style.clipPath = 'inherit'; p.appendChild(e); c.appendChild(p); const r = getComputedStyle(e).clipPath; p.remove(); return r; })())"
+    },
+    {
+     "js": "E(() => (() => { const c = document.getElementById('c'); const e = document.createElement('div'); c.appendChild(e); const r = []; for (const v of ['inset(10px)', 'circle(50%)']) { e.style.clipPath = v; r.push(getComputedStyle(e).getPropertyValue('clip-path'), e.style.clipPath); } e.remove(); return r.join('|'); })())"
+    },
+    {
+     "js": "E(() => CSS.supports('clip-path: circle(50%)') + ' ' + CSS.supports('(clip-path: polygon(1px 1px))') + ' ' + CSS.supports('clip-path', 'polygon(1px 1px)') + ' ' + CSS.supports('clip-path', 'polygon(1px 1px, 2px 2px)'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-paint-1",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"clip-path:none\"></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"clip-path:inset(10px)\"></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"clip-path:inset(10px 20px 30px 40px)\"></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"clip-path:inset(10% 20%)\"></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"clip-path:inset(10px round 20px)\"></div></div><div class=w id=w5 style=\"left:215px;top:165px\"><div class=t id=t5 style=\"clip-path:inset(0 round 10px 20px 30px 40px / 5px 10px 15px 20px)\"></div></div><div class=w id=w6 style=\"left:425px;top:165px\"><div class=t id=t6 style=\"clip-path:inset(0 round 50%)\"></div></div><div class=w id=w7 style=\"left:635px;top:165px\"><div class=t id=t7 style=\"clip-path:inset(-10px)\"></div></div><div class=w id=w8 style=\"left:5px;top:325px\"><div class=t id=t8 style=\"clip-path:inset(50%)\"></div></div><div class=w id=w9 style=\"left:215px;top:325px\"><div class=t id=t9 style=\"clip-path:inset(100%)\"></div></div><div class=w id=w10 style=\"left:425px;top:325px\"><div class=t id=t10 style=\"clip-path:inset(calc(10px + 5%))\"></div></div><div class=w id=w11 style=\"left:635px;top:325px\"><div class=t id=t11 style=\"clip-path:inset(60px 0 0 0)\"></div></div><div class=w id=w12 style=\"left:5px;top:485px\"><div class=t id=t12 style=\"clip-path:circle()\"></div></div><div class=w id=w13 style=\"left:215px;top:485px\"><div class=t id=t13 style=\"clip-path:circle(30px)\"></div></div><div class=w id=w14 style=\"left:425px;top:485px\"><div class=t id=t14 style=\"clip-path:circle(50%)\"></div></div><div class=w id=w15 style=\"left:635px;top:485px\"><div class=t id=t15 style=\"clip-path:circle(closest-side at 20px 20px)\"></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    },
+    {
+     "ink": "#w6"
+    },
+    {
+     "ink": "#w7"
+    },
+    {
+     "ink": "#w8"
+    },
+    {
+     "ink": "#w9"
+    },
+    {
+     "ink": "#w10"
+    },
+    {
+     "ink": "#w11"
+    },
+    {
+     "ink": "#w12"
+    },
+    {
+     "ink": "#w13"
+    },
+    {
+     "ink": "#w14"
+    },
+    {
+     "ink": "#w15"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-2",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"clip-path:circle(farthest-side at 20px 20px)\"></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"clip-path:circle(40px at right 10px bottom 20px)\"></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"clip-path:circle(at left top)\"></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"clip-path:circle(0)\"></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"clip-path:circle(500px)\"></div></div><div class=w id=w5 style=\"left:215px;top:165px\"><div class=t id=t5 style=\"clip-path:circle(25% at 100% 0)\"></div></div><div class=w id=w6 style=\"left:425px;top:165px\"><div class=t id=t6 style=\"clip-path:ellipse(30px 20px)\"></div></div><div class=w id=w7 style=\"left:635px;top:165px\"><div class=t id=t7 style=\"clip-path:ellipse(50% 25% at 25% 75%)\"></div></div><div class=w id=w8 style=\"left:5px;top:325px\"><div class=t id=t8 style=\"clip-path:ellipse(farthest-side closest-side)\"></div></div><div class=w id=w9 style=\"left:215px;top:325px\"><div class=t id=t9 style=\"clip-path:ellipse()\"></div></div><div class=w id=w10 style=\"left:425px;top:325px\"><div class=t id=t10 style=\"clip-path:polygon(50% 0, 100% 100%, 0 100%)\"></div></div><div class=w id=w11 style=\"left:635px;top:325px\"><div class=t id=t11 style=\"clip-path:polygon(nonzero, 50% 0%, 79% 90%, 2% 35%, 98% 35%, 21% 90%)\"></div></div><div class=w id=w12 style=\"left:5px;top:485px\"><div class=t id=t12 style=\"clip-path:polygon(evenodd, 50% 0%, 79% 90%, 2% 35%, 98% 35%, 21% 90%)\"></div></div><div class=w id=w13 style=\"left:215px;top:485px\"><div class=t id=t13 style=\"clip-path:polygon(10px 10px, 110px 10px, 60px 70px)\"></div></div><div class=w id=w14 style=\"left:425px;top:485px\"><div class=t id=t14 style=\"clip-path:polygon(0 0, 100% 100%)\"></div></div><div class=w id=w15 style=\"left:635px;top:485px\"><div class=t id=t15 style=\"clip-path:polygon(10px 10px)\"></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    },
+    {
+     "ink": "#w6"
+    },
+    {
+     "ink": "#w7"
+    },
+    {
+     "ink": "#w8"
+    },
+    {
+     "ink": "#w9"
+    },
+    {
+     "ink": "#w10"
+    },
+    {
+     "ink": "#w11"
+    },
+    {
+     "ink": "#w12"
+    },
+    {
+     "ink": "#w13"
+    },
+    {
+     "ink": "#w14"
+    },
+    {
+     "ink": "#w15"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-3",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"clip-path:path('M0 0 L60 0 L0 60 z')\"></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"clip-path:path(evenodd, 'M0 0h100v60h-100z M20 20h40v20h-40z')\"></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"clip-path:path(nonzero, 'M0 0h100v60h-100z M20 20h40v20h-40z')\"></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"clip-path:path('M10 40 C 10 0 90 0 90 40 S 50 80 10 40 z')\"></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"clip-path:path('M60 10 A 40 30 0 1 1 59.9 10 z')\"></div></div><div class=w id=w5 style=\"left:215px;top:165px\"><div class=t id=t5 style=\"clip-path:path('M0 0 L100 0 L100 50')\"></div></div><div class=w id=w6 style=\"left:425px;top:165px\"><div class=t id=t6 style=\"clip-path:path('m10 10 l60 0 l0 40 z')\"></div></div><div class=w id=w7 style=\"left:635px;top:165px\"><div class=t id=t7 style=\"clip-path:path('M-20 -20 L40 -20 L40 40 z')\"></div></div><div class=w id=w8 style=\"left:5px;top:325px\"><div class=t id=t8 style=\"clip-path:path('M0 0h100v60h-100z M20 20h40v20h-40z')\"></div></div><div class=w id=w9 style=\"left:215px;top:325px\"><div class=t id=t9 style=\"clip-path:path(nonzero, 'M0 0h100v60h-100z M20 20v20h40v-20z')\"></div></div><div class=w id=w10 style=\"left:425px;top:325px\"><div class=t id=t10 style=\"clip-path:path(evenodd, 'M0 0h100v60h-100z M20 20v20h40v-20z')\"></div></div><div class=w id=w11 style=\"left:635px;top:325px\"><div class=t id=t11 style=\"clip-path:path('M0 0h100v60h-100z M20 20v20h40v-20z')\"></div></div><div class=w id=w12 style=\"left:5px;top:485px\"><div class=t id=t12 style=\"clip-path:polygon(nonzero, 0 0, 100px 0, 100px 60px, 0 60px, 0 0, 20px 20px, 20px 40px, 60px 40px, 60px 20px, 20px 20px)\"></div></div><div class=w id=w13 style=\"left:215px;top:485px\"><div class=t id=t13 style=\"clip-path:polygon(evenodd, 0 0, 100px 0, 100px 60px, 0 60px, 0 0, 20px 20px, 60px 20px, 60px 40px, 20px 40px, 20px 20px)\"></div></div><div class=w id=w14 style=\"left:425px;top:485px\"><div class=t id=t14 style=\"clip-path:rect(10px 90% 70px 10px)\"></div></div><div class=w id=w15 style=\"left:635px;top:485px\"><div class=t id=t15 style=\"clip-path:rect(auto auto auto auto)\"></div></div><div class=w id=w16 style=\"left:5px;top:645px\"><div class=t id=t16 style=\"clip-path:rect(10px 100px 70px 10px round 15px)\"></div></div><div class=w id=w17 style=\"left:215px;top:645px\"><div class=t id=t17 style=\"clip-path:rect(70px 10px 10px 90px)\"></div></div><div class=w id=w18 style=\"left:425px;top:645px\"><div class=t id=t18 style=\"clip-path:xywh(10px 10px 50% 50%)\"></div></div><div class=w id=w19 style=\"left:635px;top:645px\"><div class=t id=t19 style=\"clip-path:xywh(0 0 100% 100% round 10px)\"></div></div><div class=w id=w20 style=\"left:5px;top:805px\"><div class=t id=t20 style=\"clip-path:xywh(-10px -10px 50px 50px)\"></div></div><div class=w id=w21 style=\"left:215px;top:805px\"><div class=t id=t21 style=\"clip-path:xywh(0 0 0 0)\"></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    },
+    {
+     "ink": "#w6"
+    },
+    {
+     "ink": "#w7"
+    },
+    {
+     "ink": "#w8"
+    },
+    {
+     "ink": "#w9"
+    },
+    {
+     "ink": "#w10"
+    },
+    {
+     "ink": "#w11"
+    },
+    {
+     "ink": "#w12"
+    },
+    {
+     "ink": "#w13"
+    },
+    {
+     "ink": "#w14"
+    },
+    {
+     "ink": "#w15"
+    },
+    {
+     "ink": "#w16"
+    },
+    {
+     "ink": "#w17"
+    },
+    {
+     "ink": "#w18"
+    },
+    {
+     "ink": "#w19"
+    },
+    {
+     "ink": "#w20"
+    },
+    {
+     "ink": "#w21"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-boxes",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"clip-path:circle(50% at 50% 50%) border-box\"></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"clip-path:circle(50%) padding-box\"></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"clip-path:circle(50%) content-box\"></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"clip-path:circle(50%) margin-box\"></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"clip-path:inset(0) margin-box\"></div></div><div class=w id=w5 style=\"left:215px;top:165px\"><div class=t id=t5 style=\"clip-path:inset(0) content-box\"></div></div><div class=w id=w6 style=\"left:425px;top:165px\"><div class=t id=t6 style=\"clip-path:inset(0) fill-box\"></div></div><div class=w id=w7 style=\"left:635px;top:165px\"><div class=t id=t7 style=\"clip-path:inset(0) stroke-box\"></div></div><div class=w id=w8 style=\"left:5px;top:325px\"><div class=t id=t8 style=\"clip-path:inset(0) view-box\"></div></div><div class=w id=w9 style=\"left:215px;top:325px\"><div class=t id=t9 style=\"clip-path:border-box\"></div></div><div class=w id=w10 style=\"left:425px;top:325px\"><div class=t id=t10 style=\"clip-path:padding-box\"></div></div><div class=w id=w11 style=\"left:635px;top:325px\"><div class=t id=t11 style=\"clip-path:content-box\"></div></div><div class=w id=w12 style=\"left:5px;top:485px\"><div class=t id=t12 style=\"clip-path:margin-box\"></div></div><div class=w id=w13 style=\"left:215px;top:485px\"><div class=t id=t13 style=\"clip-path:fill-box\"></div></div><div class=w id=w14 style=\"left:425px;top:485px\"><div class=t id=t14 style=\"clip-path:stroke-box\"></div></div><div class=w id=w15 style=\"left:635px;top:485px\"><div class=t id=t15 style=\"clip-path:view-box\"></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    },
+    {
+     "ink": "#w6"
+    },
+    {
+     "ink": "#w7"
+    },
+    {
+     "ink": "#w8"
+    },
+    {
+     "ink": "#w9"
+    },
+    {
+     "ink": "#w10"
+    },
+    {
+     "ink": "#w11"
+    },
+    {
+     "ink": "#w12"
+    },
+    {
+     "ink": "#w13"
+    },
+    {
+     "ink": "#w14"
+    },
+    {
+     "ink": "#w15"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-other",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"border-radius:30px;clip-path:border-box\"></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"border-radius:30px;clip-path:content-box\"></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"border-radius:30px;margin:20px 30px;clip-path:margin-box\"></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"transform:rotate(15deg);clip-path:circle(50%)\"></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"transform:scale(1.5);transform-origin:0 0;clip-path:inset(10px round 10px)\"></div></div><div class=w id=w5 style=\"left:215px;top:165px\"><div class=t id=t5 style=\"opacity:.5;clip-path:circle(50%)\"></div></div><div class=w id=w6 style=\"left:425px;top:165px\"><div class=t id=t6 style=\"border-radius:30px\"></div></div><div class=w id=w7 style=\"left:635px;top:165px\"><div class=t id=t7 style=\"outline:5px solid #000;clip-path:inset(0)\"></div></div><div class=w id=w8 style=\"left:5px;top:325px\"><div class=t id=t8 style=\"outline:5px solid #000;clip-path:inset(-10px)\"></div></div><div class=w id=w9 style=\"left:215px;top:325px\"><div class=t id=t9 style=\"position:absolute;left:30px;top:20px;margin:0;clip-path:circle(50%)\"></div></div><div class=w id=w10 style=\"left:425px;top:325px\"><div class=t id=t10 style=\"position:relative;top:5px;left:5px;clip-path:circle(50%)\"></div></div><div class=w id=w11 style=\"left:635px;top:325px\"><div class=t id=t11 style=\"display:inline-block;clip-path:circle(50%)\"></div></div><div class=w id=w12 style=\"left:5px;top:485px\"><div class=t id=t12 style=\"overflow:hidden;border-radius:20px;clip-path:inset(0 50% 0 0)\"></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    },
+    {
+     "ink": "#w6"
+    },
+    {
+     "ink": "#w7"
+    },
+    {
+     "ink": "#w8"
+    },
+    {
+     "ink": "#w9"
+    },
+    {
+     "ink": "#w10"
+    },
+    {
+     "ink": "#w11"
+    },
+    {
+     "ink": "#w12"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-child",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0;background:#fff}\n.w{position:absolute;width:200px;height:150px}\n.t{box-sizing:content-box;width:80px;height:40px;padding:10px;border:10px solid #000;margin:20px 30px;background:#888;background-clip:padding-box}\n.k{position:absolute;left:-30px;top:-10px;width:30px;height:30px;background:#444}\n</style></head><body><div class=w id=w0 style=\"left:5px;top:5px\"><div class=t id=t0 style=\"position:relative;clip-path:inset(0)\"><div class=k></div><div style='position:absolute;right:-40px;bottom:-40px;width:60px;height:60px;background:#000'></div></div></div><div class=w id=w1 style=\"left:215px;top:5px\"><div class=t id=t1 style=\"position:relative;clip-path:inset(-10px)\"><div class=k></div><div style='position:absolute;right:-40px;bottom:-40px;width:60px;height:60px;background:#000'></div></div></div><div class=w id=w2 style=\"left:425px;top:5px\"><div class=t id=t2 style=\"position:relative;clip-path:circle(50%)\"><div class=k></div><div style='position:absolute;right:-40px;bottom:-40px;width:60px;height:60px;background:#000'></div></div></div><div class=w id=w3 style=\"left:635px;top:5px\"><div class=t id=t3 style=\"position:relative;clip-path:polygon(0 0, 100% 0, 0 100%)\"><div class=k></div><div style='position:absolute;right:-40px;bottom:-40px;width:60px;height:60px;background:#000'></div></div></div><div class=w id=w4 style=\"left:5px;top:165px\"><div class=t id=t4 style=\"clip-path:inset(0)\"><div class=k></div><div style='position:absolute;right:-40px;bottom:-40px;width:60px;height:60px;background:#000'></div></div></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-contexts-base",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0;font:20px/30px sans-serif}.w{position:absolute;width:300px;height:100px;left:5px}.s{background:#888}</style></head><body><div class=w id=w0 style='top:5px'>ab <span class=s id=s0 style=''>inline span here</span> cd</div><div class=w id=w1 style='top:110px'>ab <span class=s id=s1 style=''>inline span here</span> cd</div><div class=w id=w2 style='top:215px'><table style=''><tr><td class=s style='width:100px;height:40px'>cell</td><td class=s>c2</td></tr></table></div><div class=w id=w3 style='top:320px;display:flex'><div class=s style='width:100px;height:60px;'></div><div class=s style='width:100px;height:60px;'></div></div><div class=w id=w4 style='top:425px'><img id=i4 style='' width=100 height=60 src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2260%22%3E%3Crect width=%22100%22 height=%2260%22/%3E%3C/svg%3E'></div><div class=w id=w5 style='top:530px'><button style='height:50px;width:100px'>btn</button> <input style='' value=value size=10></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    }
+   ]
+  },
+  {
+   "name": "cp-paint-contexts",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0;font:20px/30px sans-serif}.w{position:absolute;width:300px;height:100px;left:5px}.s{background:#888}</style></head><body><div class=w id=w0 style='top:5px'>ab <span class=s id=s0 style='clip-path:inset(0 50% 0 0)'>inline span here</span> cd</div><div class=w id=w1 style='top:110px'>ab <span class=s id=s1 style='clip-path:circle(30px)'>inline span here</span> cd</div><div class=w id=w2 style='top:215px'><table style='clip-path:inset(0 50% 0 0)'><tr><td class=s style='width:100px;height:40px'>cell</td><td class=s>c2</td></tr></table></div><div class=w id=w3 style='top:320px;display:flex'><div class=s style='width:100px;height:60px;clip-path:circle(30px)'></div><div class=s style='width:100px;height:60px;clip-path:inset(10px)'></div></div><div class=w id=w4 style='top:425px'><img id=i4 style='clip-path:circle(30px)' width=100 height=60 src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2260%22%3E%3Crect width=%22100%22 height=%2260%22/%3E%3C/svg%3E'></div><div class=w id=w5 style='top:530px'><button style='clip-path:circle(25px);height:50px;width:100px'>btn</button> <input style='clip-path:inset(0 50% 0 0)' value=value size=10></div></body></html>",
+   "measure": [
+    {
+     "ink": "#w0"
+    },
+    {
+     "ink": "#w1"
+    },
+    {
+     "ink": "#w2"
+    },
+    {
+     "ink": "#w3"
+    },
+    {
+     "ink": "#w4"
+    },
+    {
+     "ink": "#w5"
+    }
+   ]
+  },
+  {
+   "name": "cp-hit",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0}\n.b{position:absolute;width:100px;height:100px;background:#888}\n.u{position:absolute;left:0;top:0;width:400px;height:400px;background:#ccc}\n#a{left:10px;top:10px;clip-path:circle(50%)}\n#b{left:130px;top:10px;clip-path:inset(25%)}\n#c{left:250px;top:10px;clip-path:polygon(0 0,100% 0,0 100%)}\n#d{left:10px;top:130px;clip-path:inset(0 round 50%)}\n#e{left:130px;top:130px;clip-path:circle(30px at 0 0);}\n#f{left:250px;top:130px;clip-path:inset(50%)}\n#g{left:10px;top:250px;clip-path:path('M0 0 h50 v50 h-50 z')}\n#h{left:130px;top:250px;clip-path:margin-box;border-radius:50px}\n#i{left:250px;top:250px;clip-path:circle(50%);pointer-events:none}\n#j{left:370px;top:10px;background:none;clip-path:circle(50%)}\n#k{left:50px;top:50px;width:60px;height:60px;background:#444;clip-path:none}\n</style></head><body><div class=u id=u></div><div class=b id=a><div class=b id=k></div></div><div class=b id=b></div><div class=b id=c></div><div class=b id=d></div><div class=b id=e></div><div class=b id=f></div><div class=b id=g></div><div class=b id=h></div><div class=b id=i></div><div class=b id=j></div><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction P(x, y) { const e = document.elementFromPoint(x, y); return e ? e.id : 'null'; }\nfunction PS(x, y) { return document.elementsFromPoint(x, y).map((e) => e.id || e.localName).join(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [P(12,12),P(57,57),P(105,12),P(12,105),P(108,108),P(35,35),P(85,85),P(60,12),P(30,60)].join())"
+    },
+    {
+     "js": "E(() => [P(132,12),P(177,57),P(225,12),P(132,105),P(228,108),P(155,35),P(205,85),P(180,12),P(150,60)].join())"
+    },
+    {
+     "js": "E(() => [P(252,12),P(297,57),P(345,12),P(252,105),P(348,108),P(275,35),P(325,85),P(300,12),P(270,60)].join())"
+    },
+    {
+     "js": "E(() => [P(12,132),P(57,177),P(105,132),P(12,225),P(108,228),P(35,155),P(85,205),P(60,132),P(30,180)].join())"
+    },
+    {
+     "js": "E(() => [P(132,132),P(177,177),P(225,132),P(132,225),P(228,228),P(155,155),P(205,205),P(180,132),P(150,180)].join())"
+    },
+    {
+     "js": "E(() => [P(252,132),P(297,177),P(345,132),P(252,225),P(348,228),P(275,155),P(325,205),P(300,132),P(270,180)].join())"
+    },
+    {
+     "js": "E(() => [P(12,252),P(57,297),P(105,252),P(12,345),P(108,348),P(35,275),P(85,325),P(60,252),P(30,300)].join())"
+    },
+    {
+     "js": "E(() => [P(132,252),P(177,297),P(225,252),P(132,345),P(228,348),P(155,275),P(205,325),P(180,252),P(150,300)].join())"
+    },
+    {
+     "js": "E(() => [P(252,252),P(297,297),P(345,252),P(252,345),P(348,348),P(275,275),P(325,325),P(300,252),P(270,300)].join())"
+    },
+    {
+     "js": "E(() => [P(372,12),P(417,57),P(465,12),P(372,105),P(468,108),P(395,35),P(445,85),P(420,12),P(390,60)].join())"
+    },
+    {
+     "js": "E(() => [PS(60,60), PS(15,15), PS(95,95), PS(140,50)])"
+    },
+    {
+     "js": "E(() => [document.getElementById('a').getBoundingClientRect().width, document.getElementById('a').offsetWidth, document.getElementById('e').getClientRects().length])"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-stack",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0}\n.p{position:absolute;left:10px;width:200px;height:100px;background:#ccc}\n.lo{position:relative;z-index:-1;width:50px;height:50px;background:#f00}\n.ab{position:absolute;left:0;top:0;width:30px;height:30px;background:#00f}\n#p1{top:10px;clip-path:inset(0)}\n#p2{top:130px}\n#p3{top:250px;clip-path:inset(0)}\n#p4{top:370px;clip-path:inset(0)}\n#p5{top:490px;clip-path:inset(0);position:static;margin-left:10px}\n</style></head><body>\n<div class=p id=p1><div class=lo id=lo1></div></div>\n<div class=p id=p2><div class=lo id=lo2></div></div>\n<div class=p id=p3><div class=ab id=ab3></div></div>\n<div class=p id=p4 style=\"overflow:visible\"><div style=\"position:fixed;left:50px;top:300px;width:20px;height:20px;background:#0a0\" id=fx4></div></div>\n<div class=p id=p5 style=\"position:static\"><div class=ab id=ab5></div></div>\n<script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction R(id) { const r = document.getElementById(id).getBoundingClientRect(); return [r.x, r.y, r.width, r.height].join(); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => [R('lo1'), R('lo2'), R('ab3'), R('fx4'), R('ab5')].join(' | '))"
+    },
+    {
+     "js": "E(() => [document.elementFromPoint(20, 140).id, document.elementFromPoint(300, 140).id])"
+    },
+    {
+     "boxes": "#p1, #p2, #p3, #p4, #p5, .ab, .lo"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cp-svg",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}.w{position:absolute}</style></head><body><div class=w id=w0 style=\"left:5px;top:5px;width:200px;height:100px\"><svg id=s0 width=200 height=100><rect x=20 y=10 width=100 height=60 clip-path='circle(50%)'/></svg></div><div class=w id=w1 style=\"left:215px;top:5px;width:200px;height:100px\"><svg id=s1 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%)'/></svg></div><div class=w id=w2 style=\"left:425px;top:5px;width:200px;height:100px\"><svg id=s2 width=200 height=100><rect x=20 y=10 width=100 height=60 clip-path='inset(10px)'/></svg></div><div class=w id=w3 style=\"left:635px;top:5px;width:200px;height:100px\"><svg id=s3 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:polygon(50% 0,100% 100%,0 100%)'/></svg></div><div class=w id=w4 style=\"left:5px;top:115px;width:200px;height:100px\"><svg id=s4 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) fill-box'/></svg></div><div class=w id=w5 style=\"left:215px;top:115px;width:200px;height:100px\"><svg id=s5 width=200 height=100><rect x=20 y=10 width=100 height=60 stroke='#000' stroke-width=20 style='clip-path:circle(50%) stroke-box'/></svg></div><div class=w id=w6 style=\"left:425px;top:115px;width:200px;height:100px\"><svg id=s6 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) view-box'/></svg></div><div class=w id=w7 style=\"left:635px;top:115px;width:200px;height:100px\"><svg id=s7 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) border-box'/></svg></div><div class=w id=w8 style=\"left:5px;top:225px;width:200px;height:100px\"><svg id=s8 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) margin-box'/></svg></div><div class=w id=w9 style=\"left:215px;top:225px;width:200px;height:100px\"><svg id=s9 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) padding-box'/></svg></div><div class=w id=w10 style=\"left:425px;top:225px;width:200px;height:100px\"><svg id=s10 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(50%) content-box'/></svg></div><div class=w id=w11 style=\"left:635px;top:225px;width:200px;height:100px\"><svg id=s11 width=200 height=100><rect x=20 y=10 width=100 height=60 rx=30 style='clip-path:fill-box'/></svg></div><div class=w id=w12 style=\"left:5px;top:335px;width:200px;height:100px\"><svg id=s12 width=200 height=100><g clip-path='inset(10px)'><rect x=20 y=10 width=60 height=60 /><rect x=100 y=40 width=60 height=60 /></g></svg></div><div class=w id=w13 style=\"left:215px;top:335px;width:200px;height:100px\"><svg id=s13 width=200 height=100><g transform='translate(30 20) scale(1.5)' clip-path='circle(30px)'><rect x=0 y=0 width=60 height=40 /></g></svg></div><div class=w id=w14 style=\"left:425px;top:335px;width:200px;height:100px\"><svg id=s14 width=200 height=100><rect x=20 y=10 width=100 height=60 transform='rotate(20 70 40)' style='clip-path:inset(0 50% 0 0)'/></svg></div><div class=w id=w15 style=\"left:635px;top:335px;width:200px;height:100px\"><svg id=s15 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:path(\"M0 0 L40 0 L0 40 z\")'/></svg></div><div class=w id=w16 style=\"left:5px;top:445px;width:200px;height:100px\"><svg id=s16 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:circle(30px at 50px 40px)'/></svg></div><div class=w id=w17 style=\"left:215px;top:445px;width:200px;height:100px\"><svg id=s17 width=200 height=100><rect x=20 y=10 width=100 height=60 style='clip-path:ellipse(25% 50% at 25% 50%)'/></svg></div><div class=w id=w18 style=\"left:425px;top:445px;width:200px;height:100px\"><svg id=s18 width=200 height=100><circle cx=70 cy=40 r=30 style='clip-path:inset(0 0 50% 0)'/></svg></div><div class=w id=w19 style=\"left:635px;top:445px;width:200px;height:100px\"><svg id=s19 width=200 height=100><line x1=10 y1=10 x2=100 y2=60 stroke='#000' stroke-width=10 style='clip-path:inset(0 50% 0 0)'/></svg></div><div class=w id=w20 style=\"left:5px;top:555px;width:200px;height:100px\"><svg id=s20 width=200 height=100><defs><rect id=r x=20 y=10 width=100 height=60 /></defs><use href='#r' style='clip-path:circle(50%)'/></svg></div><div class=w id=w21 style=\"left:215px;top:555px;width:200px;height:100px\"><svg id=s21 width=200 height=100><defs><clipPath id=cc><rect x=0 y=0 width=70 height=40 /></clipPath></defs><rect x=20 y=10 width=100 height=60 clip-path='url(#cc)'/></svg></div></body></html>",
+   "measure": [
+    {
+     "ink": "#s0"
+    },
+    {
+     "ink": "#s1"
+    },
+    {
+     "ink": "#s2"
+    },
+    {
+     "ink": "#s3"
+    },
+    {
+     "ink": "#s4"
+    },
+    {
+     "ink": "#s5"
+    },
+    {
+     "ink": "#s6"
+    },
+    {
+     "ink": "#s7"
+    },
+    {
+     "ink": "#s8"
+    },
+    {
+     "ink": "#s9"
+    },
+    {
+     "ink": "#s10"
+    },
+    {
+     "ink": "#s11"
+    },
+    {
+     "ink": "#s12"
+    },
+    {
+     "ink": "#s13"
+    },
+    {
+     "ink": "#s14"
+    },
+    {
+     "ink": "#s15"
+    },
+    {
+     "ink": "#s16"
+    },
+    {
+     "ink": "#s17"
+    },
+    {
+     "ink": "#s18"
+    },
+    {
+     "ink": "#s19"
+    },
+    {
+     "ink": "#s20"
+    },
+    {
+     "ink": "#s21"
+    }
+   ]
+  },
+  {
+   "name": "cp-svg-svgroot",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}</style></head><body>\n<svg id=s0 width=200 height=100 style=\"position:absolute;left:5px;top:5px;clip-path:circle(50%);background:#888;border:10px solid #000;padding:10px\"><rect width=200 height=100 /></svg>\n<svg id=s1 width=200 height=100 style=\"position:absolute;left:250px;top:5px;clip-path:inset(10px) content-box;background:#888;border:10px solid #000;padding:10px\"><rect width=200 height=100 /></svg>\n<svg id=s2 width=200 height=100 style=\"position:absolute;left:5px;top:150px;clip-path:polygon(0 0,100% 0,0 100%)\"><rect width=200 height=100 /></svg>\n<svg id=s3 width=200 height=100 viewBox=\"0 0 100 50\" style=\"position:absolute;left:250px;top:150px;clip-path:circle(50%) view-box\"><rect width=100 height=50 /></svg>\n</body></html>",
+   "measure": [
+    {
+     "ink": "#s0"
+    },
+    {
+     "ink": "#s1"
+    },
+    {
+     "ink": "#s2"
+    },
+    {
+     "ink": "#s3"
+    }
+   ]
+  },
+  {
+   "name": "cp-svg-root2",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}</style></head><body><svg id=s0 width=200 height=100  style=\"position:absolute;left:5px;top:5px;clip-path:polygon(0 0,100% 0,0 100%)\"><rect width=200 height=100 /></svg><svg id=s1 width=200 height=100  style=\"position:absolute;left:235px;top:5px;clip-path:circle(50%)\"><rect width=200 height=100 /></svg><svg id=s2 width=200 height=100  style=\"position:absolute;left:465px;top:5px;clip-path:inset(10px)\"><rect width=200 height=100 /></svg><svg id=s3 width=200 height=100  style=\"position:absolute;left:695px;top:5px;\"><rect width=200 height=100 /></svg><svg id=s4 width=200 height=100  style=\"position:absolute;left:5px;top:135px;clip-path:polygon(0 0,100% 0,0 100%);background:#888\"><rect width=200 height=100 /></svg><svg id=s5 width=200 height=100  style=\"position:absolute;left:235px;top:135px;clip-path:polygon(0 0,100% 0,0 100%);display:block\"><rect width=200 height=100 /></svg><svg id=s6 width=200 height=100  style=\"position:absolute;left:465px;top:135px;clip-path:polygon(0 0,100% 0,0 100%);border:1px solid #000\"><rect width=200 height=100 /></svg><svg id=s7 width=200 height=100 viewBox='0 0 100 50' style=\"position:absolute;left:695px;top:135px;clip-path:polygon(0 0,100% 0,0 100%)\"><rect width=200 height=100 /></svg><svg id=s8 width=200 height=100  style=\"position:absolute;left:5px;top:265px;clip-path:circle(50%) fill-box\"><rect width=200 height=100 /></svg><svg id=s9 width=200 height=100  style=\"position:absolute;left:235px;top:265px;clip-path:circle(50%) view-box\"><rect width=200 height=100 /></svg><svg id=s10 width=200 height=100  style=\"position:absolute;left:465px;top:265px;clip-path:circle(50%) content-box\"><rect width=200 height=100 /></svg><svg id=s11 width=200 height=100  style=\"position:absolute;left:695px;top:265px;clip-path:circle(50%) margin-box;margin:10px\"><rect width=200 height=100 /></svg></body></html>",
+   "measure": [
+    {
+     "ink": "#s0"
+    },
+    {
+     "ink": "#s1"
+    },
+    {
+     "ink": "#s2"
+    },
+    {
+     "ink": "#s3"
+    },
+    {
+     "ink": "#s4"
+    },
+    {
+     "ink": "#s5"
+    },
+    {
+     "ink": "#s6"
+    },
+    {
+     "ink": "#s7"
+    },
+    {
+     "ink": "#s8"
+    },
+    {
+     "ink": "#s9"
+    },
+    {
+     "ink": "#s10"
+    },
+    {
+     "ink": "#s11"
+    }
+   ]
+  },
+  {
+   "name": "cp-margin",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0}\n.b{position:absolute;width:100px;height:60px;background:#000;clip-path:circle(25%) margin-box}\n</style></head><body>\n<div id=m0 class=b style=\"left:20px;top:20px;margin:10px\"></div>\n<div id=m1 class=b style=\"left:240px;top:20px;margin:0 20px 40px 0\"></div>\n<div id=m2 class=b style=\"left:460px;top:20px;margin:30px 0 0 50px;clip-path:circle(25%) margin-box;border-radius:20px\"></div>\n<div id=m3 class=b style=\"left:20px;top:200px;margin:10px;clip-path:inset(0) margin-box\"></div>\n<div id=m4 class=b style=\"left:240px;top:200px;margin:10px 40px;clip-path:inset(0 round 10px) margin-box\"></div>\n<svg id=m5 class=b width=100 height=60 style=\"left:460px;top:200px;margin:10px 30px 0 0;background:none\"><rect width=100 height=60 /></svg>\n<svg id=m6 width=100 height=60 style=\"position:absolute;left:20px;top:380px;margin:10px 30px 0 0;clip-path:circle(25%) margin-box\"><rect width=100 height=60 /></svg>\n<svg id=m7 width=100 height=60 style=\"position:absolute;left:240px;top:380px;margin:10px 30px 0 0;clip-path:circle(25%)\"><rect width=100 height=60 /></svg>\n</body></html>",
+   "measure": [
+    {
+     "ink": "#m0"
+    },
+    {
+     "ink": "#m1"
+    },
+    {
+     "ink": "#m2"
+    },
+    {
+     "ink": "#m3"
+    },
+    {
+     "ink": "#m4"
+    },
+    {
+     "ink": "#m5"
+    },
+    {
+     "ink": "#m6"
+    },
+    {
+     "ink": "#m7"
+    }
+   ]
+  },
+  {
+   "name": "cp-svg-stroke",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}</style></head><body>\n<svg id=s0 width=200 height=100 style=\"position:absolute;left:5px;top:5px\"><rect x=30 y=20 width=100 height=60 stroke=\"#000\" stroke-width=20 fill=\"#888\" style=\"clip-path:circle(50%)\" /></svg>\n<svg id=s1 width=200 height=100 style=\"position:absolute;left:250px;top:5px\"><rect x=30 y=20 width=100 height=60 stroke=\"#000\" stroke-width=20 fill=\"#888\" style=\"clip-path:inset(5px)\" /></svg>\n<svg id=s2 width=200 height=100 style=\"position:absolute;left:5px;top:150px\"><g stroke=\"#000\" stroke-width=20 fill=\"#888\" style=\"clip-path:inset(5px)\"><rect x=30 y=20 width=100 height=60 /></g></svg>\n<svg id=s3 width=200 height=100 style=\"position:absolute;left:250px;top:150px\"><rect x=30 y=20 width=100 height=60 stroke=\"#000\" stroke-width=20 fill=\"#888\" style=\"clip-path:inset(5px) fill-box\" /></svg>\n<svg id=s4 width=200 height=100 style=\"position:absolute;left:5px;top:300px\"><line x1=10 y1=10 x2=100 y2=60 stroke=\"#000\" stroke-width=10 style=\"clip-path:inset(0 50% 0 0) stroke-box\" /></svg>\n<svg id=s5 width=200 height=100 style=\"position:absolute;left:250px;top:300px\"><line x1=10 y1=10 x2=100 y2=60 stroke=\"#000\" stroke-width=10 style=\"clip-path:inset(0 50% 0 0) fill-box\" /></svg>\n<svg id=s6 width=200 height=100 style=\"position:absolute;left:5px;top:450px\"><rect x=30 y=20 width=100 height=60 stroke=\"#000\" stroke-width=20 fill=\"#888\" stroke-linejoin=\"miter\" transform=\"rotate(30 80 50)\" style=\"clip-path:inset(5px)\" /></svg>\n</body></html>",
+   "measure": [
+    {
+     "ink": "#s0"
+    },
+    {
+     "ink": "#s1"
+    },
+    {
+     "ink": "#s2"
+    },
+    {
+     "ink": "#s3"
+    },
+    {
+     "ink": "#s4"
+    },
+    {
+     "ink": "#s5"
+    },
+    {
+     "ink": "#s6"
+    }
+   ]
+  },
+  {
+   "name": "cp-stack2",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>\nbody{margin:0}\n.p{position:absolute;left:10px;width:200px;height:100px;background:#ccc}\n.lo{position:relative;z-index:-1;width:50px;height:50px;background:#000}\n.hi{position:relative;z-index:1;width:50px;height:50px;background:#000}\n</style></head><body>\n<div class=p id=p1 style=\"top:10px;clip-path:inset(0)\"><div class=lo></div></div>\n<div class=p id=p2 style=\"top:130px\"><div class=lo></div></div>\n<div class=p id=p3 style=\"top:250px;opacity:.99\"><div class=lo></div></div>\n<div class=p id=p4 style=\"top:370px;clip-path:inset(0)\"><div class=hi></div></div>\n<div class=p id=p5 style=\"top:490px;clip-path:circle(50%)\"><div class=lo></div></div>\n<div class=p id=p6 style=\"top:610px;z-index:0\"><div class=lo></div></div>\n</body></html>",
+   "measure": [
+    {
+     "ink": "#p1"
+    },
+    {
+     "ink": "#p2"
+    },
+    {
+     "ink": "#p3"
+    },
+    {
+     "ink": "#p4"
+    },
+    {
+     "ink": "#p5"
+    },
+    {
+     "ink": "#p6"
+    }
+   ]
+  }
+ ]
+}

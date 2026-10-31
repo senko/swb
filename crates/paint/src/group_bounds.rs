@@ -193,13 +193,18 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
             areas
         }
         // The clip path hides everything outside its extent (SVG content
-        // has no content fixed to the viewport).
+        // has no content fixed to the viewport). The bounds also hold the
+        // hit regions inside the extent, which paint nothing when the box
+        // has no background (hit testing skips a group that its bounds
+        // miss).
         DisplayItem::PushSvgClip { bounds, .. } => {
             let extent = *bounds;
             let shown = areas.paint.and_then(|p| p.intersection(&extent));
-            *bounds = shown.unwrap_or_default();
+            let hit = areas.hit.and_then(|h| h.intersection(&extent));
+            *bounds = hit.or(shown).unwrap_or_default();
             Areas {
                 paint: shown,
+                hit,
                 ..areas
             }
         }
