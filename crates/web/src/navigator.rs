@@ -2,11 +2,11 @@
 //! <https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object>;
 //! ADR 0028 section 13): the identity and the settings of the browser.
 //!
-//! `userAgent` is the user agent string of swb's requests (ADR 0025: it is
-//! unchanged), and `appVersion` is that string without `Mozilla/`. The other
-//! values do not claim to be Chromium and do not depend on the machine that
-//! runs swb (only `platform` depends on the build target), so that pages and
-//! tests see the same on every run:
+//! `userAgent` is the user agent string of swb's requests (ADR 0030:
+//! Chrome's string with swb's token at the end), and `appVersion` is that
+//! string without `Mozilla/`. The other values do not claim to be Chromium
+//! and do not depend on the machine that runs swb (only `platform` depends
+//! on the build target), so that pages and tests see the same on every run:
 //!
 //! | Member | Value | Chromium (measured) |
 //! |---|---|---|

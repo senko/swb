@@ -301,10 +301,10 @@ pub struct ImageInfo {
 
 /// The document of a task, as the engine lends it to the bindings.
 pub trait EngineHost: Any {
-    /// The user agent string (`navigator.userAgent`, ADR 0025): the one
+    /// The user agent string (`navigator.userAgent`, ADR 0030): the one
     /// that requests send.
     fn user_agent(&self) -> &'static str {
-        "Mozilla/5.0 (X11; Linux x86_64) swb"
+        swb_net::USER_AGENT
     }
 
     /// How the document was reached, and what the response was.

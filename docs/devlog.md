@@ -4,6 +4,20 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 11e, Chrome-compatible user agent
+
+- The owner decided that swb sends Chrome's user-agent string with
+  swb's token at the end (ADR 0030): `... Chrome/148.0.0.0
+  Safari/537.36 swb/0.1.0`. `vendor`, `userAgentData` and
+  `window.chrome` stay as they were.
+- Leaflet now zooms two levels per wheel notch, as in Chromium; the
+  Craigslist test sends Chromium's wheel delta (120). `compare --js`
+  is unchanged on the three targets.
+- Risk, not measured: bot-protection services can see that the
+  connection does not look like Chrome's.
+
+Next: feature 12 (Wikipedia), when the owner asks for it.
+
 ## 2026-10-31: M8 feature 11d, Craigslist test and exit of feature 11
 
 - Compared the map checks that were left with Chromium. Double click,

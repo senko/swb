@@ -103,7 +103,8 @@ The owner decided on 2026-10-09:
   site than `www.bbc.com`), and Ars Technica loads its scripts from
   `cdn.arstechnica.net`. Ad blockers use lists of ad and tracker URLs
   instead. An optional blocker of this kind is a possible later target.
-- User-agent string: unchanged.
+- User-agent string: unchanged. (Replaced on 2026-10-31 by ADR 0030:
+  Chrome's string with swb's token at the end.)
 
 ### Next decision
 

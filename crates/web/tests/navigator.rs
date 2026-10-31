@@ -19,7 +19,7 @@ const SWB_VALUES: &[Departure] = &[
         "navigator-departures",
         0,
         r#""""#,
-        "swb does not claim to be Chromium: `vendor` is empty (ADR 0028 section 13)",
+        "`vendor` is empty: only the user agent string is Chrome's (ADR 0030)",
     ),
     (
         "navigator-departures",
@@ -29,15 +29,9 @@ const SWB_VALUES: &[Departure] = &[
     ),
     (
         "navigator-departures",
-        2,
-        "false",
-        "the user agent string of swb is not Chromium's (ADR 0025)",
-    ),
-    (
-        "navigator-departures",
         3,
         "false",
-        "no `userAgentData`: swb does not claim to be Chromium",
+        "no `userAgentData`: only the user agent string is Chrome's (ADR 0030)",
     ),
     (
         "navigator-departures",

@@ -16,9 +16,14 @@ use crate::fetch::Fetcher;
 use crate::request::Request;
 use crate::response::Response;
 
-/// The `User-Agent` header value.
+/// The `User-Agent` header value, also `navigator.userAgent` (ADR 0030):
+/// Chrome's string in its reduced form (the major version only) for the
+/// Chromium version of the reference measurements, then swb's own token,
+/// as other Chromium-based browsers add theirs. Pages that test the string
+/// for "Chrome" take the code path that they take in Chromium.
 pub const USER_AGENT: &str = concat!(
-    "Mozilla/5.0 (X11; Linux x86_64) swb/",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ",
+    "Chrome/148.0.0.0 Safari/537.36 swb/",
     env!("CARGO_PKG_VERSION")
 );
 

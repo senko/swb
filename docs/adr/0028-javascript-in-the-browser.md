@@ -3325,7 +3325,8 @@ are not obvious from the specifications:
   `crypto.getRandomValues` and `randomUUID` from the operating system's
   random source, no `crypto.subtle`; `performance.timing` and the
   `navigation` entry from the engine's load times.
-- **`navigator`:** `userAgent` unchanged (ADR 0025); no `userAgentData`
+- **`navigator`:** `userAgent` unchanged (ADR 0025; since 2026-10-31
+  Chrome's string with swb's token, ADR 0030); no `userAgentData`
   (swb does not claim to be Chromium).
 - **Canvas:** with scripting on, `<canvas>` is a replaced element that
   paints nothing. `getContext('2d')` returns a context whose state
@@ -3512,7 +3513,8 @@ and unit tests per module, and five hostile cases):
   tree through other crates; ADR 0003 checked, `cargo deny` passes);
   `encoding_rs` was a workspace dependency.
 - **`navigator`** (`navigator.rs`). `userAgent` is the string of swb's
-  requests (`EngineHost::user_agent`, ADR 0025) and `appVersion` is that
+  requests (`EngineHost::user_agent`, ADR 0025; ADR 0030 changed the string
+  to Chrome's with swb's token) and `appVersion` is that
   string without `Mozilla/`. Values that describe the machine or the browser
   are stable and do not claim to be Chromium: `platform` is the operating
   system and CPU of the build (`Linux x86_64`), `vendor` is empty (Chromium:
@@ -3622,7 +3624,7 @@ and unit tests per module, and five hostile cases):
   document); no `performance.eventCounts`, `memory`, `interactionCount` and
   `onresourcetimingbufferfull`; `performance.now()` has exact tenths (Chromium's
   values carry floating point noise below 1e-6 ms); `navigator.webdriver`,
-  `vendor`, `userAgent`, `hardwareConcurrency` as above; the 64 MiB limit of
+  `vendor`, `userAgent` (until ADR 0030), `hardwareConcurrency` as above; the 64 MiB limit of
   `decode`; no `crypto.subtle`; no `webkitHidden` and `webkitVisibilityState`.
 - **Not done / backlog:** `navigator.plugins`, `mimeTypes`, `clientInformation`;
   resource entries and `PerformanceResourceTiming` of subresources; the Event

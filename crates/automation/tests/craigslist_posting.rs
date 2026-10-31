@@ -24,15 +24,11 @@
 //! records are in `data/craigslist-posting-chromium.json`. The helper
 //! that made them is not in the repository (backlog: a `swbtools`
 //! command for Chromium replays with steps). The record keys are compared
-//! as written, with these exceptions (swb differs, backlog in
-//! `docs/roadmap.md`):
-//! - `ev` (the mouse events) only after the double click and the context
-//!   menu: the click event after a drag is not fired in swb, and the click
-//!   point of a selector step is fractional in swb;
-//! - the wheel steps send 240 where Chromium got 120: Leaflet divides the
-//!   wheel delta by 2 unless `navigator.userAgent` contains "chrome" and
-//!   swb's user agent does not (measured: with 240 swb zooms by the same
-//!   two levels).
+//! as written, with one exception (swb differs, backlog in
+//! `docs/roadmap.md`): `ev` (the mouse events) is compared only after the
+//! double click and the context menu, because the click event after a drag
+//! is not fired in swb, and the click point of a selector step is
+//! fractional in swb.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -46,10 +42,6 @@ use common::{fixture, fixture_meta, on_page_thread, replay_page, value};
 use serde_json::{Value, json};
 use swb_automation::run_steps;
 use swb_engine::{ClockMode, ConsoleLevel, Page, PageClock};
-
-/// The wheel delta of the wheel steps. Chromium's records come from 120;
-/// see the module comment.
-const WHEEL: i64 = 240;
 
 /// The posting, loaded as `swb --headless --js --test-fonts --now CAPTURED
 /// --virtual-time --settle-ms 1500` loads it (1280x800).
@@ -115,9 +107,9 @@ fn groups() -> Vec<(&'static str, Value)> {
         ("context menu", json!([{"rightclick": map}, {"wait": 800}])),
         (
             "wheel in",
-            json!([{"hover": map}, {"wheel": [0, -WHEEL]}, {"wait": 800}]),
+            json!([{"hover": map}, {"wheel": [0, -120]}, {"wait": 800}]),
         ),
-        ("wheel out", json!([{"wheel": [0, WHEEL]}, {"wait": 800}])),
+        ("wheel out", json!([{"wheel": [0, 120]}, {"wait": 800}])),
         // The failed POST of the reply request is real time, so the second
         // wait (virtual) only runs the event loop again after it.
         (

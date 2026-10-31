@@ -364,10 +364,6 @@ impl swb_web::EngineHost for DocumentState {
         &self.content_type
     }
 
-    fn user_agent(&self) -> &'static str {
-        swb_net::USER_AGENT
-    }
-
     fn navigation_info(&self) -> swb_web::NavigationInfo {
         self.navigation
     }

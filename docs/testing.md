@@ -1376,7 +1376,7 @@ that Chromium has. The Chromium records were made by replaying the fixture
 with `swbtools.browser.session` and `swbtools.routing.Replayer` (the setup of
 `reference --js`, `SWB_NO_SHARED_WORKER=1 SWB_NO_INTL=1`), the same steps
 through Playwright's mouse and `page.click`, and a 300 ms pause after each
-step, with the wheel at 120 where the test sends 240. The script that ran
+step. The script that ran
 these steps in Chromium is not in the repository: to make new records,
 replay the steps of `groups()` in the test that way and evaluate the setup
 script and `window.__s()` after the load and after each group (backlog: a

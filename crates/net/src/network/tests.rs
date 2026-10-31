@@ -249,7 +249,10 @@ fn plain_response_and_default_headers() {
     let request = server.next_request();
     assert_eq!(request.request_line, "GET /plain HTTP/1.1");
     assert_eq!(request.headers["user-agent"], USER_AGENT);
-    assert!(USER_AGENT.starts_with("Mozilla/5.0 (X11; Linux x86_64) swb/"));
+    assert!(USER_AGENT.starts_with(
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
+    ));
+    assert!(USER_AGENT.contains(" Safari/537.36 swb/"));
     assert!(request.headers["accept"].starts_with("text/html,"));
     assert_eq!(request.headers["accept-encoding"], "gzip, deflate, br");
     assert_eq!(request.headers["accept-language"], "en-US,en;q=0.9");

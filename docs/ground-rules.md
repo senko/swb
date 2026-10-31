@@ -92,8 +92,11 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
   exactly as it did before JavaScript support.
 - swb runs all scripts of a page, also scripts from other sites (CDNs).
   An optional ad and tracker blocker is a possible later target.
-- The user-agent string does not change. If browser sniffing causes real
-  problems, decide again.
+- The user-agent string is Chrome's, with swb's token at the end
+  (decided on 2026-10-31, [ADR 0030](adr/0030-user-agent-string.md)).
+  Until then the string did not change, with the condition "If browser
+  sniffing causes real problems, decide again". Leaflet's map on the
+  Craigslist target behaved differently without "Chrome" in the string.
 
 ## Decisions from 2026-10-22: JavaScript in the browser
 

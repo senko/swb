@@ -3779,6 +3779,15 @@ Steps:
         parsed with `jiff`, and testing.md says how the Chromium records
         were made.
         FEATURE 11 COMPLETE.
+      - 11e: the user-agent string (owner decision of 2026-10-31, after
+        11d): Chrome's string with swb's token at the end (ADR 0030).
+        Done 2026-10-31: one constant for the header,
+        `navigator.userAgent` and `appVersion`; `vendor`,
+        `userAgentData` and `window.chrome` unchanged. The wheel steps of
+        the Craigslist test send 120, as Chromium's records; the navigator
+        probe has one departure less. `compare --js` unchanged: Craigslist
+        0.9804 / 0.9804 / 0.9739 / 0.9976, Hacker News 1.0000 / 1.0000 /
+        1.0000 / 0.9986, Wikipedia 0.9991 / 0.9991 / 0.9991 / 0.9967.
    12. Wikipedia (`implementer`).
       Scope: what the Wikipedia fixture with JavaScript on still lacks
       after features 1 to 11 (expected: gaps in members of the HTML
@@ -4484,12 +4493,6 @@ Steps:
   fractional `clientX`/`clientY` (Chromium: integers). The integration
   test `craigslist_posting.rs` compares the mouse events only after the
   double click and the context menu because of these two.
-- Engine (found in feature 11d): swb's user agent
-  (`Mozilla/5.0 (X11; Linux x86_64) swb/0.1.0`) lacks "Chrome", so
-  user-agent sniffing differs: Leaflet halves the wheel delta (one zoom
-  level per notch instead of two; the integration test sends 240 where
-  Chromium got 120). A Chrome-compatible user agent is a product
-  decision for the owner.
 - DOM/`web` (found in feature 11d): a `style` attribute that CSSOM
   creates is appended to the attribute list where the write happens;
   Chromium appends it when the list is first read
