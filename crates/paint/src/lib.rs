@@ -20,6 +20,7 @@ mod background;
 mod clip_path;
 mod control;
 mod display_list;
+mod filter;
 mod group_bounds;
 mod hit_path;
 mod image;

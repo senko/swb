@@ -25,6 +25,7 @@
 //! supported.
 
 mod clip_path;
+mod filter;
 mod longhand;
 mod props;
 pub mod resolved;

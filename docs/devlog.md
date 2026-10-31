@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-10-31: M8 feature 12c, filter and premultiplied gradients
+
+- `filter` and `-webkit-filter`: all filter functions, parsed, computed
+  and serialized as in Chromium; painted as one layer per element, with
+  `blur()` and `drop-shadow()` (`url()` parses and paints as `none`). A
+  filter makes a stacking context and the containing block of absolute
+  and fixed boxes, except on the root element.
+- Linear gradients interpolate in premultiplied space, so a fade from a
+  transparent color has no gray band.
+- Wikipedia's dark theme: the logo and icons are inverted and the images
+  dimmed as in Chromium. Dark viewport pixels 0.9514 → 0.9966; the light
+  theme is unchanged. The Wikipedia test checks 23 pixel colors after
+  the night and day clicks.
+- New tool options: the probe query `pixels`, and `swbtools replay
+  --screenshots`, `--pixels`.
+- The first session stopped when the disk was full (the build output of
+  three trees, about 320 GB); a second session finished from its patch.
+  Debug builds are now cleaned after each commit.
+- Learned: Chromium paints a repeating gradient whose stops are all at
+  one position with the last color. The Craigslist load task needs 3.4 s
+  of CPU time against the 5 s wall-clock task limit, so on a busy machine
+  the page's script is stopped and `compare --js` drops to 0.77; compare
+  it on an idle machine.
+
+Next: 12d (typeahead search and a link preview).
+
 ## 2026-10-31: M8 feature 12b, contentEditable and clip-path shapes
 
 - `HTMLElement.contentEditable` and `isContentEditable`, without editing.

@@ -1,0 +1,292 @@
+{
+ "viewport": [200, 200],
+ "cases": [
+  {
+   "name": "gr-white0-dark-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,255,255,0), rgb(16,20,24))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-white0-dark-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,255,255,0), rgb(16,20,24))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-transparent-red-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, transparent, red)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-transparent-red-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, transparent, red)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-red-transparent-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, red, transparent)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-red-transparent-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, red, transparent)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-transparent-red-blue-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, red, transparent, blue)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-transparent-red-blue-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, red, transparent, blue)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-semi-semi-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,0,0,.3), rgba(0,0,255,.8))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-semi-semi-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,0,0,.3), rgba(0,0,255,.8))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-semi-opaque-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,255,255,.2), rgb(0,0,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-semi-opaque-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,255,255,.2), rgb(0,0,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-opaque-opaque-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgb(255,0,0), rgb(0,0,255))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-opaque-opaque-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgb(255,0,0), rgb(0,0,255))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-repeating-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:repeating-linear-gradient(90deg, rgba(255,255,255,0) 0px, rgb(0,0,0) 20px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-repeating-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:repeating-linear-gradient(90deg, rgba(255,255,255,0) 0px, rgb(0,0,0) 20px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-repeating-semi-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:repeating-linear-gradient(90deg, rgba(255,0,0,.5) 0px, rgba(0,0,255,.9) 25px, rgba(0,255,0,0) 50px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-repeating-semi-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:repeating-linear-gradient(90deg, rgba(255,0,0,.5) 0px, rgba(0,0,255,.9) 25px, rgba(0,255,0,0) 50px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-diag-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(45deg, rgba(255,255,255,0), rgb(16,20,24))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-diag-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(45deg, rgba(255,255,255,0), rgb(16,20,24))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-hard-semi-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,0,0,0) 30%, rgba(255,0,0,0) 30%, rgb(0,128,0) 70%)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-hard-semi-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, rgba(255,0,0,0) 30%, rgba(255,0,0,0) 30%, rgb(0,128,0) 70%)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-tr-white-black-w",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, transparent, white, black)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-tr-white-black-d",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#102030}#a{position:absolute;left:10px;top:10px;width:100px;height:100px;background:linear-gradient(90deg, transparent, white, black)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[0,50], [4,50], [8,50], [12,50], [16,50], [20,50], [24,50], [28,50], [32,50], [36,50], [40,50], [44,50], [48,50], [52,50], [56,50], [60,50], [64,50], [68,50], [72,50], [76,50], [80,50], [84,50], [88,50], [92,50], [96,50], [0,0], [10,10], [20,20], [30,30], [40,40], [50,50], [60,60], [70,70], [80,80], [90,90]]
+    }
+   ]
+  },
+  {
+   "name": "gr-rep-one-position",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}div{position:absolute;top:10px;width:40px;height:40px}#a{left:10px;background:repeating-linear-gradient(90deg, red 10px, blue 10px)}#b{left:60px;background:repeating-linear-gradient(90deg, red 20px, lime 20px, blue 20px)}#c{left:110px;background:repeating-linear-gradient(90deg, red 0, rgba(0,0,255,.5) 0)}#d{left:10px;top:60px;background:repeating-linear-gradient(45deg, rgba(255,0,0,.5) 5px, lime 5px, blue 5px)}</style></head><body><div id=a></div><div id=b></div><div id=c></div><div id=d></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[2,20], [20,20], [38,20]]
+    },
+    {
+     "pixels": "#b",
+     "points": [[2,20], [20,20], [38,20]]
+    },
+    {
+     "pixels": "#c",
+     "points": [[2,20], [20,20], [38,20]]
+    },
+    {
+     "pixels": "#d",
+     "points": [[2,2], [20,20], [38,38]]
+    }
+   ]
+  }
+ ]
+}

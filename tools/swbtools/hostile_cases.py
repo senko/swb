@@ -920,6 +920,93 @@ def clip_path_extreme_values() -> Page:
 
 
 @case(
+    "filter with huge lengths: blur(1e9px), blur(100000px), drop-shadow(1e9px -1e9px 1e9px) and "
+    "drop-shadow(1e-9px 1e-9px 0.001px) on boxes (the blur is limited to 256 device px, "
+    "MAX_SIGMA; ADR 0028 section 16)"
+)
+def filter_huge_lengths() -> Page:
+    filters = [
+        "blur(1e9px)",
+        "blur(100000px)",
+        "blur(300px)",
+        "drop-shadow(1e9px -1e9px 1e9px red)",
+        "drop-shadow(1e-9px 1e-9px 0.001px red)",
+        "blur(1e9px) drop-shadow(1e9px 1e9px 1e9px blue) blur(1e9px)",
+        "blur(0.0001px) blur(1e-9px)",
+    ]
+    boxes = "".join(
+        f"<div style='filter:{f};width:300px;height:200px;background:linear-gradient("
+        f"rgba(255,0,0,0),#000)'><p>text</p></div>"
+        for f in filters * 3
+    )
+    return Page(doc(boxes))
+
+
+@case(
+    "filter with 64 functions (the limit, MAX_FILTER_FUNCTIONS) of blurs on a box the size of the "
+    "viewport: the filter work budget acts and the box is drawn without the rest of its filter; "
+    "and a declaration of 100,000 functions is invalid (ADR 0028 section 16)",
+    time_limit_s=10,
+    expect_log="filters: the work budget",
+)
+def filter_many_functions() -> Page:
+    blurs = " ".join(["blur(40px)"] * 64)
+    too_many = " ".join(["invert(0.01)"] * 100_000)
+    css = (
+        f".a{{filter:{blurs}}}.b{{filter:{too_many}}}"
+        "div{width:1200px;height:700px;background:linear-gradient(red,blue)}"
+    )
+    return Page(doc("<div class=a></div><div class=b></div>", css))
+
+
+@case(
+    "filter on 300 nested boxes (blur(2px) at every level, and invert), and on 5,000 boxes "
+    "(ADR 0028 section 16)",
+    time_limit_s=10,
+)
+def filter_nested_and_many() -> Page:
+    nested = nest(
+        "<div style='filter:blur(2px) invert(0.5);padding:1px;background:rgba(0,0,255,.1)'>",
+        "</div>",
+        300,
+        "text",
+    )
+    box = "<i style='display:block;width:20px;height:20px;filter:invert(1);background:red'></i>"
+    many = box * 5000
+    return Page(doc(nested + many))
+
+
+@case(
+    "filter on a box of 100,000 by 100,000 px with a blur, a box of 100,000 px with a drop "
+    "shadow, and the same boxes in a screenshot of the viewport at scale 4 (ADR 0028 "
+    "section 16)",
+    swb_args=("--scale", "4"),
+)
+def filter_huge_box() -> Page:
+    huge = (
+        "<div style='width:100000px;height:100000px;filter:blur(20px);background:red'></div>"
+        "<div style='position:absolute;left:0;top:0;width:100000px;height:100000px;"
+        "filter:drop-shadow(30px 30px 20px blue);background:rgba(0,255,0,.3)'></div>"
+    )
+    return Page(doc(huge))
+
+
+@case(
+    "filter on 200 overlapping boxes of 2,000 by 2,000 px, each with a blur, a drop shadow, a "
+    "rotation and a mask (ADR 0028 section 16)",
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def filter_large_boxes() -> Page:
+    many = (
+        "<div style='position:absolute;left:0;top:0;width:2000px;height:2000px;"
+        "filter:blur(30px) drop-shadow(20px 20px 10px blue);background:rgba(255,0,0,.3);"
+        "transform:rotate(3deg);-webkit-mask-image:linear-gradient(#000,transparent)'></div>"
+    ) * 200
+    return Page(doc(many))
+
+
+@case(
     "scroll containers nested 300 deep with large content, and 20,000 sibling scrollers (ADR 0019)"
 )
 def scroll_containers() -> Page:

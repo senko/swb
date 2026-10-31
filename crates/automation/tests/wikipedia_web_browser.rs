@@ -35,17 +35,37 @@
 //! the CSS in the `style` elements of `head` (not their number: it depends
 //! on the frames between the module loads), the absence of the SVG
 //! fallback of Popups and the computed `clip-path` of the popup container.
-//! Left out of the records, because feature 12c changes them: the pixels,
-//! and what `filter` and gradients draw (the dark theme). The rectangles
-//! below the references are recorded only while the references fit one
-//! column (swb has no multi-column layout: with the table of contents or
-//! the Appearance panel unpinned, the content is wide enough for two
-//! columns and everything below the references is 271 px higher in
-//! Chromium). Not tested because the logged-out fixture does not have
-//! them, as in Chromium: the
-//! sticky header (shown to logged-in users only), reference previews, a
-//! successful link preview and the search suggestions (their code is not in
-//! the fixture).
+//! The rectangles below the references are recorded only while the
+//! references fit one column (swb has no multi-column layout: with the
+//! table of contents or the Appearance panel unpinned, the content is wide
+//! enough for two columns and everything below the references is 271 px
+//! higher in Chromium). Not tested because the logged-out fixture does not
+//! have them, as in Chromium: the sticky header (shown to logged-in users
+//! only), reference previews, a successful link preview and the search
+//! suggestions (their code is not in the fixture).
+//!
+//! Since feature 12c the test also reads pixels (the dark theme: `filter`
+//! and gradients). After the groups "theme night" and "theme day" it takes
+//! a screenshot of the viewport and compares the colors at 23 points with
+//! Chromium's, within [`PIXEL_TOLERANCE`] per channel: the five points of
+//! the wordmark of the logo (white in the dark theme, black in the light
+//! one: `filter: invert(1) ...`), the four of the thumbnail (dimmed by
+//! `filter: brightness(0.8)`, so 204 and not 255 in the dark theme), the
+//! three of the video poster (not filtered), the three of the band at the
+//! bottom of each of the two sticky containers (`linear-gradient(
+//! rgba(255, 255, 255, 0), var(--background-color-base))`: the color of the
+//! page, no gray band, in both themes) and five areas of the page. The
+//! points and the groups are in `data/wikipedia-web-browser-pixel-points.json`;
+//! Chromium's colors in `data/wikipedia-web-browser-pixels.json` (no image
+//! is committed): `swbtools replay wikipedia-web-browser --steps
+//! crates/automation/tests/data/wikipedia-web-browser-steps.json --setup
+//! crates/automation/tests/data/wikipedia-web-browser.js --record
+//! 'window.__s()' --pixels
+//! crates/automation/tests/data/wikipedia-web-browser-pixel-points.json
+//! --pixels-out
+//! crates/automation/tests/data/wikipedia-web-browser-pixels.json --out
+//! crates/automation/tests/data/wikipedia-web-browser-chromium.json`
+//! (three equal runs).
 //!
 //! Where the Chromium values come from: Chromium 148.0.7778.96 (headless
 //! shell, Playwright) replayed the same fixture with the same page clock,
@@ -87,6 +107,67 @@ const RECTANGLES: &[&str] = &[
 /// size, the collapsible tables 5,700 px down the page are 3 px off
 /// (backlog in `docs/roadmap.md`).
 const TOLERANCE: i64 = 3;
+
+/// The largest difference of a color channel between swb's pixel and
+/// Chromium's. The points are in flat areas, in the edges of the wordmark
+/// (anti-aliased, equal within 6) and in gradients (within 3).
+const PIXEL_TOLERANCE: i32 = 12;
+
+/// The points of the pixel check (name, x, y) and the groups after which
+/// the test reads them.
+fn pixel_points() -> (Vec<String>, Vec<(String, u32, u32)>) {
+    let data: Value =
+        serde_json::from_str(include_str!("data/wikipedia-web-browser-pixel-points.json")).unwrap();
+    let groups = data["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g.as_str().unwrap().to_owned())
+        .collect();
+    let points = data["points"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(name, p)| {
+            (
+                name.clone(),
+                p[0].as_u64().unwrap() as u32,
+                p[1].as_u64().unwrap() as u32,
+            )
+        })
+        .collect();
+    (groups, points)
+}
+
+/// The points whose color in a screenshot of the viewport differs from
+/// `expected` (a map of point names to `[r, g, b]`) by more than
+/// [`PIXEL_TOLERANCE`], as `group: point: swb [..] != Chromium [..]`.
+fn pixel_differences(
+    group: &str,
+    page: &mut Page,
+    points: &[(String, u32, u32)],
+    expected: &Value,
+) -> Vec<String> {
+    let shot = page.screenshot(false).unwrap();
+    points
+        .iter()
+        .filter_map(|(name, x, y)| {
+            let want: Vec<i32> = expected[name.as_str()]
+                .as_array()
+                .unwrap_or_else(|| panic!("{group}: no Chromium color for {name}"))
+                .iter()
+                .map(|c| c.as_i64().unwrap() as i32)
+                .collect();
+            let px = shot.pixel(*x, *y).unwrap();
+            let got = [px.red(), px.green(), px.blue()].map(i32::from);
+            let off = got
+                .iter()
+                .zip(&want)
+                .any(|(g, w)| (g - w).abs() > PIXEL_TOLERANCE);
+            off.then(|| format!("{group}: {name} ({x}, {y}): swb {got:?} != Chromium {want:?}"))
+        })
+        .collect()
+}
 
 /// The whole numbers in `text`, and `text` with each number replaced by
 /// `#`. A `-` is a sign only after a character that is not a letter or
@@ -192,11 +273,29 @@ fn wikipedia_web_browser_works_with_javascript_on() {
         let mut problems = differences("load", &record(&mut page), &expected[0]);
         let groups = step_groups(include_str!("data/wikipedia-web-browser-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
+        let (pixel_groups, points) = pixel_points();
+        let pixels: Value =
+            serde_json::from_str(include_str!("data/wikipedia-web-browser-pixels.json")).unwrap();
+        let mut sampled = 0;
         for (index, (name, steps)) in groups.iter().enumerate() {
             run_steps(&mut page, steps).unwrap();
             let got = record(&mut page);
             problems.extend(differences(name, &got, &expected[index + 1]));
+            if pixel_groups.contains(name) {
+                problems.extend(pixel_differences(
+                    name,
+                    &mut page,
+                    &points,
+                    &pixels[name.as_str()],
+                ));
+                sampled += 1;
+            }
         }
+        assert_eq!(
+            sampled,
+            pixel_groups.len(),
+            "a group of the pixel check is missing"
+        );
         assert!(problems.is_empty(), "{}", problems.join("\n"));
         // No script error after the steps either (the records' `e` list
         // the uncaught ones; this is the console).

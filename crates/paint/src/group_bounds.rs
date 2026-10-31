@@ -66,10 +66,12 @@ pub(crate) fn finish_groups(items: &mut [DisplayItem]) {
         match item {
             DisplayItem::PushTransform { .. }
             | DisplayItem::PushOpacity { .. }
+            | DisplayItem::PushFilter { .. }
             | DisplayItem::PushMask { .. }
             | DisplayItem::PushSvgClip { .. } => stack.push((i, Areas::default())),
             DisplayItem::PopTransform
             | DisplayItem::PopOpacity
+            | DisplayItem::PopFilter
             | DisplayItem::PopMask
             | DisplayItem::PopSvgClip => {
                 end_group(items, &mut stack, &mut sticky);
@@ -129,6 +131,7 @@ fn end_group(items: &mut [DisplayItem], stack: &mut Vec<(usize, Areas)>, sticky:
 
 /// Stores the bounds of a group with the content `areas` in its `Push…`
 /// item, and returns the areas that the group adds to the group around it.
+#[allow(clippy::too_many_lines)] // One arm per kind of group.
 fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Areas {
     match item {
         DisplayItem::PushTransform {
@@ -191,6 +194,27 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
             *fixed_bounds = areas.fixed_paint;
             *escapes_clips = areas.escapes;
             areas
+        }
+        // The filter adds the blur and the shadows around the content; the
+        // bounds hold the content (the rasterizer adds what the filter
+        // grows), the group around gets the grown areas.
+        DisplayItem::PushFilter {
+            filter,
+            bounds,
+            fixed_bounds,
+            escapes_clips,
+            ..
+        } => {
+            *bounds = areas.paint.unwrap_or_default();
+            *fixed_bounds = areas.fixed_paint;
+            *escapes_clips = areas.escapes;
+            Areas {
+                paint: areas.paint.map(|r| crate::filter::css_output(r, filter)),
+                fixed_paint: areas
+                    .fixed_paint
+                    .map(|r| crate::filter::css_output(r, filter)),
+                ..areas
+            }
         }
         // The clip path hides everything outside its extent (SVG content
         // has no content fixed to the viewport). The bounds also hold the

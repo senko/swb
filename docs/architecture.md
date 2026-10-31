@@ -38,7 +38,7 @@ All crates are in `crates/`. The package name is `swb-<dir>`.
 | `net`        | Fetch resources: `http`, `https`, `file`, `data`, `about`. Cookie jar (RFC 6265bis). Replay from fixtures (with `replay_patterns` and a permissive CORS server). Methods, request/credentials/redirect modes, the CORS check, the preflight and its cache, and `fetch_request` (ADR 0028 section 12). `Loader` has two pools of workers (the page's loads and the script's API calls); `ByteBudget` and `Reservation` bound the memory of the API calls. | — |
 | `dom`        | Arena-based DOM tree. HTML parsing (html5ever tree builder into our tree; the resumable parser `HtmlParser` in `parser.rs` with the source positions of inline scripts in `parser/position.rs`, the tree sink in `parser/sink.rs`, fragment parsing and the parse of a whole document into a new document of the arena (`DOMParser`) in `parser/fragment.rs`), the change functions (`mutation.rs`) and the other DOM algorithms of scripts (`algorithms.rs`: clone, node equality, document position, `normalize`, the reset of form owners), the change journal and the mutation sink (`journal.rs`), the id index (`id_index.rs`), character encoding detection, the HTML serialization of `outerHTML` and `innerHTML` (`serialize.rs`, iterative), the tree dump. Scripting is enabled only for nodes of the document of `NodeId::DOCUMENT` (`scripting_for`), and each other document of the arena has its own quirks mode. | — |
 | `css`        | CSS syntax: tokenizer, rule and declaration parser, serializer, selector parser and matcher, media queries, `@supports` conditions, the `sizes` attribute. | — |
-| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. `query.rs` is the selector queries of scripts (`Matcher`: `matches`, `closest`, the first or all matches below a node, with a bound on the work of one query). `cssom/` is the declaration block of `element.style` (feature 7a): `StyleDeclarations` (longhands only, values kept as Chromium serializes them, checked by swb's property parsers), the property table with Chromium's names, logical longhands and the IDL attribute names (`props.rs`), the serialization of values (`value.rs`, `longhand.rs`) and of shorthands (`shorthand.rs`), `CSS.supports` and `CSS.escape`. `cssom/resolved/` is `getComputedStyle` (feature 7a2): the computed values serialized as Chromium resolves them, the values that layout resolves from a `UsedBox`, and the shorthands. `compute_element_styles` is the cascade of one element and its ancestors, `compute_pseudo_element_style` that of a pseudo-element also without a box (ADR 0028 section 9). Feature 11c1: `properties/inert.rs`, properties that swb parses, cascades, computes and serializes but that have no effect on layout and paint (`transition` and its longhands, `will-change`, `touch-action`, `perspective`, `perspective-origin`; feature 12a: `scroll-margin-*` and `scroll-padding-*`, which only the scroll to an element reads, in `Document::reveal`), in one optional shared record (`ComputedStyle::inert`); feature 12b: `properties/clip_path.rs` (`clip-path`: `none`, `url()`, `inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `rect()`, `xywh()` and a geometry box; a shape in absolute units is computed once and shared), `properties/path_data.rs` (the data of `path()` in the specified and computed forms), `values/shape.rs` and `cssom/clip_path.rs` (the specified form), `cssom/resolved/shape.rs` (the computed form); `transform_list.rs`, the transform list of `DOMMatrix` strings (3D functions, `f64` values, absolute lengths only). | `css`, `dom`                  |
+| `style`      | Property definitions, value parsing, cascade, inheritance, computed values, CSS counters and list item numbers, `@font-face` descriptors, `font-variation-settings` and `font-feature-settings`. `query.rs` is the selector queries of scripts (`Matcher`: `matches`, `closest`, the first or all matches below a node, with a bound on the work of one query). `cssom/` is the declaration block of `element.style` (feature 7a): `StyleDeclarations` (longhands only, values kept as Chromium serializes them, checked by swb's property parsers), the property table with Chromium's names, logical longhands and the IDL attribute names (`props.rs`), the serialization of values (`value.rs`, `longhand.rs`) and of shorthands (`shorthand.rs`), `CSS.supports` and `CSS.escape`. `cssom/resolved/` is `getComputedStyle` (feature 7a2): the computed values serialized as Chromium resolves them, the values that layout resolves from a `UsedBox`, and the shorthands. `compute_element_styles` is the cascade of one element and its ancestors, `compute_pseudo_element_style` that of a pseudo-element also without a box (ADR 0028 section 9). Feature 11c1: `properties/inert.rs`, properties that swb parses, cascades, computes and serializes but that have no effect on layout and paint (`transition` and its longhands, `will-change`, `touch-action`, `perspective`, `perspective-origin`; feature 12a: `scroll-margin-*` and `scroll-padding-*`, which only the scroll to an element reads, in `Document::reveal`), in one optional shared record (`ComputedStyle::inert`); feature 12b: `properties/clip_path.rs` (`clip-path`: `none`, `url()`, `inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `rect()`, `xywh()` and a geometry box; a shape in absolute units is computed once and shared), `properties/path_data.rs` (the data of `path()` in the specified and computed forms), `values/shape.rs` and `cssom/clip_path.rs` (the specified form), `cssom/resolved/shape.rs` (the computed form); feature 12c: `properties/filter.rs` (`filter`: `url()`, `blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()`, `hue-rotate()`, `invert()`, `opacity()`, `saturate()`, `sepia()`; at most 64 functions), `values/filter.rs` (the computed `Filter`), `cssom/filter.rs` (the specified form); `transform_list.rs`, the transform list of `DOMMatrix` strings (3D functions, `f64` values, absolute lengths only). | `css`, `dom`                  |
 | `text`       | Font discovery and matching, web font faces (`@font-face`) and their decoding (WOFF, WOFF2), fallback, shaping, glyph outlines and masks. | —                             |
 | `layout`     | Box tree construction, layout algorithms, fragment tree, the geometry of inline SVG (ADR 0023). | `dom`, `style`, `text`        |
 | `paint`      | Display list, rasterization, image decoding (raster formats; SVG images with resvg, ADR 0011), inline SVG drawing commands, hit testing of SVG shapes, group bounds, image reduction, and the cost model of path rasterization (`path_cost`). | `dom`, `layout`, `style`, `text` |
@@ -135,7 +135,10 @@ Rules:
   (ADR 0028, feature 12b) starts a clip group (`paint/src/clip_path.rs`:
   the reference box and its radii; the shape is placed by
   `layout/src/shape.rs`, which SVG elements share); it forms a stacking
-  context. A mask group carries its mask layers: images or gradients
+  context. A box with a `filter` that paints (ADR 0028, feature 12c)
+  starts a filter group (`PushFilter`, inside the clip group, so that the
+  clip, mask and opacity apply to the filtered result). A mask group
+  carries its mask layers: images or gradients
   positioned like background layers
   (`paint/src/mask.rs`, ADR 0018). The builder collects items in chunks
   (`paint/src/rope.rs`), so moving the items of positioned boxes copies
@@ -628,7 +631,7 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   shares a work budget.
 - Paint order: each stacking context (root; positioned boxes with an
   integer z-index; fixed, sticky and transformed boxes; opacity < 1;
-  masked boxes) paints its normal-flow content in three phases
+  masked and filtered boxes) paints its normal-flow content in three phases
   (backgrounds and borders of in-flow blocks, floats, inline content;
   CSS 2.2 Appendix E), then its positioned and transformed descendants
   in z-index order and, for equal values, tree order (a pre-order index
@@ -656,19 +659,31 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   and clips are snapped to whole pixels, and a single image is drawn into
   its pixel-snapped rectangle (tiled images are not snapped); an opacity or mask group draws
   into a layer that covers only its visible bounds, and a mask group's
-  layer is multiplied by the mask when the group ends. The rasterizer
+  layer is multiplied by the mask when the group ends. A filter group
+  draws without the enclosing clips into a layer that covers the visible
+  part of its result and what the steps read around it
+  (`paint/src/raster/filter_layer.rs`); `paint/src/filter.rs` applies the
+  steps when the group ends (one color pass for consecutive color
+  functions, a blur of three box blurs per axis, a drop shadow), and the
+  clips apply to the composited result. Gradients are interpolated in
+  premultiplied space: `raster.rs` cuts a pair of stops of different alpha
+  and color into sections for tiny-skia, which interpolates without the
+  alpha. The rasterizer
   works in strips: a window is one strip; a full-page screenshot is split
   into equal strips of at most the viewport height or 16 Mpx, drawn in
   place. Per strip, the layers of open groups share a memory budget
   (max(64 Mpx, 4 × strip pixels); beyond it, opacity groups draw directly
   and mask groups draw nothing), and mask groups share a work budget: a
   group starts only if all its work fits (layer pixels, a cost per row,
-  gradient tiles). SVG paths share a work budget per strip; a path
+  gradient tiles). Filter groups share another work budget (a blur is six
+  passes over the layer); a group that does not fit, or whose layer does
+  not fit the memory budget, draws without its filter. SVG paths share a work budget per strip; a path
   that does not fit is not drawn. The SVG rendering budget is shared by
   all strips.
   Full-page screenshots keep the layout of the viewport and draw at
   scroll offset 0, as Chromium does. The root
-  element's opacity and mask also apply to the canvas background.
+  element's opacity, mask and filter also apply to the canvas
+  background.
 
 ## Engine modules
 

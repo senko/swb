@@ -28,11 +28,13 @@ from swbtools.probe import (
     attach_swb,
     compare_box,
     compare_ink,
+    compare_pixels,
     format_json,
     format_row,
     format_text,
     ink_of,
     parse_cases,
+    pixels_in,
     probe,
     read_cases,
     select_cases,
@@ -297,6 +299,70 @@ def test_compare_ink_and_attach_it_from_a_screenshot():
     assert (row.swb_ink.ink, row.swb_ink.bbox, row.swb_ink.outside) == (4.0, (1, 2, 2, 2), False)
     assert format_row("c", row)[1] == "c  swb    #a[1]  ink=4 bbox=1,2,2,2  dink=0"
     assert not any_outside([result])
+
+
+def test_pixels_queries_need_points():
+    text = case_json(measure=[{"pixels": "#a", "points": [[0, 0], [5, -3]]}])
+    (case,) = parse_cases(text)
+    assert case.queries == (Query("pixels", "#a", points=((0, 0), (5, -3))),)
+    for measure, message in [
+        ([{"pixels": "#a"}], "pixels needs points"),
+        ([{"pixels": "#a", "points": []}], "pixels needs points"),
+        ([{"pixels": "#a", "points": [[1]]}], "pixels needs points"),
+        ([{"pixels": "#a", "points": [[1, 2.5]]}], "pixels needs points"),
+        ([{"pixels": "#a", "points": [[1, 2]], "props": ["x"]}], "props belongs to style"),
+        ([{"boxes": "#a", "points": [[1, 2]]}], "points belongs to pixels"),
+    ]:
+        with pytest.raises(ProbeError, match=message):
+            parse_cases(case_json(measure=measure), "f.json")
+
+
+def test_pixels_in_a_screenshot_and_their_comparison():
+    shot = Image.new("RGB", (20, 20), (255, 255, 255))
+    shot.putpixel((11, 12), (10, 20, 30))
+    area = (10.0, 10.0, 5.0, 5.0)
+    # (1, 2) from the top left of the area is (11, 12); a point outside
+    # the image is white.
+    assert pixels_in(shot, area, [[1, 2], [0, 0], [50, 0], [-30, 0]]) == [
+        (10, 20, 30),
+        (255, 255, 255),
+        (255, 255, 255),
+        (255, 255, 255),
+    ]
+    row = Row(
+        "pixels",
+        "#a[1]",
+        {"pixels": [(10, 20, 30), (255, 255, 255)], "points": [[1, 2], [0, 0]], "area": area},
+    )
+    result = CaseResult("c", (20, 20), [row])
+    attach_swb(result, dump(("html", None)), 1.0, shot)
+    assert row.swb_pixels is not None and not row.swb_pixels.outside
+    assert not any_outside([result])
+    assert format_row("c", row) == [
+        "c  pixels  #a[1]  10,20,30 255,255,255",
+        "c  swb    #a[1]  10,20,30 255,255,255",
+    ]
+    # Two levels are within the tolerance, three are not.
+    assert not compare_pixels([(10, 20, 30)], [(12, 18, 30)]).outside
+    assert compare_pixels([(10, 20, 30)], [(13, 20, 30)]).outside
+    assert compare_pixels([(10, 20, 30)], []).outside
+    row.swb_pixels = compare_pixels([(10, 20, 30)], [(40, 20, 30)])
+    assert any_outside([result])
+    assert "swb_pixels" in format_json([result])
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_reads_pixels_in_chromium():
+    html = (
+        "<style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:20px;"
+        "width:10px;height:10px;background:rgb(10,20,30)}</style><div id=a></div>"
+    )
+    case = Case("p", html, (100, 100), (Query("pixels", "#a", points=((0, 0), (9, 9), (10, 0))),))
+    (result,) = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all([case], None, 1.0, page, directory))
+    )
+    assert result.rows[0].data["pixels"] == [(10, 20, 30), (10, 20, 30), (255, 255, 255)]
+    assert result.rows[0].data["area"] == (10.0, 20.0, 10.0, 10.0)
 
 
 def test_probe_command_with_a_screenshot():

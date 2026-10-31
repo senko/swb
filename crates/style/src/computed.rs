@@ -13,7 +13,7 @@ use crate::values::{
     Alignment, AspectRatio, BackgroundAttachment, BackgroundBox, BackgroundRepeatKeyword,
     BackgroundSize, BorderCollapse, BorderStyle, BoxSizing, CaptionSide, Clear, ClipPath, Color,
     CompositeOperator, Contain, ContainIntrinsic, Content, CornerRadius, CounterList, Cursor,
-    Direction, Display, EmptyCells, FillRule, FlexBasis, FlexDirection, FlexWrap, Float,
+    Direction, Display, EmptyCells, FillRule, Filter, FlexBasis, FlexDirection, FlexWrap, Float,
     FontFamily, FontSizeOrigin, FontStyle, FontVariantCaps, Gap, GenericFamily, GridAutoFlow,
     GridLine, GridTemplateAreas, Hyphens, Image, LengthPercentage, LengthPercentageOrAuto,
     LineHeight, ListStylePosition, ListStyleType, MaskClip, MaskImage, MaskMode, MaxSize,
@@ -91,6 +91,8 @@ pub struct ComputedStyle {
     pub shape_rendering: ShapeRendering,
     /// `clip-path`: `none` or a reference to a `clipPath` element.
     pub clip_path: ClipPath,
+    /// `filter`: `none` or a list of filter functions (Filter Effects 1).
+    pub filter: Filter,
     /// `fill-opacity`, 0 to 1.
     pub fill_opacity: f32,
     /// `stroke` (SVG).
@@ -307,6 +309,7 @@ impl ComputedStyle {
             clip_rule: FillRule::NonZero,
             shape_rendering: ShapeRendering::Auto,
             clip_path: ClipPath::None,
+            filter: Filter::NONE,
             fill_opacity: 1.0,
             stroke: SvgPaint::None,
             stroke_width: LengthPercentage::Px(1.0),
@@ -512,6 +515,16 @@ impl ComputedStyle {
     /// Chromium).
     pub fn has_mask(&self) -> bool {
         self.mask_image.iter().any(|i| *i != MaskImage::None)
+    }
+
+    /// True if `filter` is not `none`, whatever the functions are (also a
+    /// `url()` and functions that change nothing). A filtered element is
+    /// a stacking context and the containing block of its absolutely
+    /// positioned and fixed descendants, like a transformed one, but not
+    /// when it is an inline box (Filter Effects 1 §5, measured in
+    /// Chromium 148).
+    pub fn has_filter(&self) -> bool {
+        !self.filter.is_none()
     }
 
     /// True if `transform` is not `none`. Transforms do not apply to

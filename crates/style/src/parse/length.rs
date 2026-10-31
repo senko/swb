@@ -157,6 +157,18 @@ impl MathExpr {
         v.is_finite().then_some(v)
     }
 
+    /// The value of a number or percentage expression (a percentage as a
+    /// fraction, `50%` is 0.5), for properties that take
+    /// `<number> | <percentage>`.
+    pub(crate) fn as_number_or_percentage(&self) -> Option<f32> {
+        let v = match self.kind {
+            CalcKind::Number => self.node.compute(&LengthContext::DEFAULT).resolve(0.0),
+            CalcKind::Percentage => self.node.compute(&LengthContext::DEFAULT).resolve(1.0),
+            _ => return None,
+        };
+        v.is_finite().then_some(v)
+    }
+
     /// Converts to a specified length-percentage. Fails for numbers, and
     /// for percentages unless `allow_percentage`.
     fn into_length_percentage(

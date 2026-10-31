@@ -2960,6 +2960,141 @@ and the Wikipedia test):
   segments (the path is built from at most 8,192 path segments); a longer
   one is an invalid declaration. Chromium has no limit.
 
+Feature 12c notes (`filter` and the interpolation of gradients in
+premultiplied space, for the dark theme of the Wikipedia target; measured
+with `tools/probes/filter.json` (137 cases, with the new `pixels` query:
+the colors of a screenshot at points) and `tools/probes/gradients.json`
+(24 cases), three equal Chromium 148 runs each; the tests are
+`crates/engine/tests/filter.rs`, `crates/paint/src/filter/tests.rs`,
+`crates/paint/src/raster/tests/gradient.rs` and the Wikipedia test):
+
+- **Grammar and values** (`style/src/properties/filter.rs`, the alias
+  `-webkit-filter`). `none`, or a list of `url()` and the functions
+  `blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()`,
+  `hue-rotate()`, `invert()`, `opacity()`, `saturate()` and `sepia()`,
+  separated by white space; a comma is invalid. Every argument is optional
+  (`blur()` is `blur(0px)`, `invert()` is `invert(1)`, `hue-rotate()` is
+  `0deg`); an unclosed function is closed at the end of the value. An
+  amount is a number or percentage (also `calc()`) that is not negative;
+  `grayscale()`, `invert()`, `opacity()` and `sepia()` are limited to 1
+  when they are parsed (`grayscale(2)` is `grayscale(1)`, `invert(200%)`
+  is `invert(100%)`), the others are not limited (`brightness(100)`).
+  `blur()` takes a length that is not negative (a percentage or a number
+  other than 0 is invalid), computed in px and at most 2^25. `hue-rotate()`
+  takes an angle or a bare 0. `drop-shadow()` takes two or three lengths
+  (the third not negative) and a color before or after them, not between;
+  `inset` and a fourth length are invalid. The specified form keeps what
+  was written (`brightness(50%)`, `blur(1em)`, `0.25turn`; `0` is `0px` or
+  `0deg`, `calc()` simplified, `drop-shadow()` with its color first and
+  `url()` with quotes); the computed form has numbers (`brightness(0.5)`),
+  px and degrees (`1rad` is `57.2958deg`), and a `drop-shadow()` as
+  `drop-shadow(rgb(0, 0, 0) 1px 2px 0px)` with the `color` of the element
+  for a missing color. An invalid value after `var()` substitution is `none`
+  (the property is not inherited; `invert(var(--x))` without `--x`).
+  Departures: an angle in `calc()` is invalid (swb's `calc()` has no angles);
+  a computed `color-mix()` is `rgb()`, Chromium's is `color(srgb ...)`.
+- **Paint** (`paint/src/filter.rs`, `paint/src/raster/filter_layer.rs`). The
+  element and its descendants (also the positioned ones outside its box and
+  fixed ones inside it) are one group; the functions apply in order, then
+  `clip-path`, the mask and `opacity`; the filter applies to the whole
+  element before the clips of its ancestors, so a blurred box at the edge
+  of an `overflow: hidden` parent reads the pixels behind the edge. The color
+  functions work in sRGB on the color without the alpha, with the matrices
+  of the specification (`grayscale()` with 0.2126, 0.7152 and 0.0722,
+  `sepia()` with 0.393, `saturate()` and `hue-rotate()` with 0.213, 0.715
+  and 0.072), clamp to 0..1 after every function and keep the alpha
+  (`opacity()` multiplies it; a transparent pixel stays transparent). Chromium and swb
+  agree within 1 level on seven colors and every function.
+  `blur(σ)` is the approximation of the specification: three box blurs
+  per axis of the size `d = floor(σ · 3 · sqrt(2π) / 4 + 0.5)` (for an
+  even `d`: two of size `d`, the first centered to the left and the second
+  to the right, and one of size `d + 1`) on the premultiplied pixels,
+  nothing beyond the content (transparent), `d` below 2 is no blur;
+  `blur(0.6px)` is none, `blur(0.9px)` and `blur(1.2px)` are two pixels.
+  The profiles of 1, 2, 5, 10 and 20 px match within 1 level. `σ` is
+  scaled by the device scale and by the transform of the box (the filter
+  is in the box's coordinates: a `scale(2)` box has a doubled blur).
+  `drop-shadow(x y σ color)` blurs the alpha as `blur(σ)` does (the third
+  length is the standard deviation, not twice), moves it by the offsets
+  rounded down to whole device pixels (`2.5px` is 2, `-0.4px` is -1), gives
+  it the color (its alpha multiplies) and draws the element over it. The
+  blur and the shadow are drawn past the box (ink overflow), which does
+  not change `getBoundingClientRect()`, the scroll size or hit testing
+  (a point on the blur or the shadow hits what lies below; a box with
+  `filter: opacity(0)` is hit). `url()` paints as `none` (SVG `filter`
+  elements are not supported) also inside a list (`url(#x) invert(1)` is
+  `invert(1)`), as Chromium does for a missing element. The root element's
+  filter applies to its canvas background (a white page of a white `body`
+  is inverted to black; without a background nothing of the canvas is
+  filtered). The `filter` of an `<svg>` element is painted; that of a
+  shape or group inside inline SVG (the property or the attribute) is not
+  (Chromium paints it; backlog). An inline box that wraps over lines is
+  filtered as Chromium does (measured on a box of four lines).
+- **Side effects** (`layout/src/positioned.rs`). A filter other than
+  `none`, also `url()`, `blur(0)` and any identity function, makes the
+  element a stacking context (a `z-index: -1` child paints above its
+  background) and, unless it is an inline box, the containing block of its
+  absolutely positioned and fixed descendants, as a transform does. It
+  paints as the elements with `opacity` below 1 do (the foreground phase when not
+  positioned). `offsetParent` of such descendants is the element; that of
+  a fixed box is the nearest transformed or filtered ancestor (also an
+  inline box, whose `offsetLeft` and `offsetTop` are then relative to the
+  viewport); swb returned `null` for every fixed box before (Chromium
+  returns the transformed ancestor: found by the probe, fixed for
+  transforms too). The `filter` of the root element is none of this
+  (measured in Chromium 148, `fcb-root`): `position: fixed; bottom: 10px`
+  in a viewport of 700 px is at y 670 and `offsetParent` is `null`, an
+  absolute box is relative to the initial containing block; a `transform`
+  on the root is a containing block (`fcb-root-transform`: y 1470, offset
+  parent `html`). `BoxFragment::is_root` marks the root fragment for this.
+- **Bounds and departures** (section 16). At most 64 functions; a longer
+  value is invalid (Chromium has no limit). The standard deviation of a
+  blur or shadow is limited to 256 device px (`MAX_SIGMA`; Chromium none:
+  `blur(500px)` of a 100 px box is a faint tint of 253, swb's 249). A filter
+  group's layer holds the visible part of the result and what the steps read
+  around it; the layer and a scratch buffer count against the layer
+  budget of the strip, and the work of the steps (one unit per pixel for a
+  color pass, six for a blur, eight for a shadow) against its own budget of
+  128 Mpx (or eight times the pixels of the strip); a group that does not
+  fit draws without its filter and logs one warning per frame.
+- **Gradients in premultiplied space** (`paint/src/raster.rs`,
+  `premultiplied_stops`). CSS Images 3 interpolates the colors with their
+  alpha multiplied in, and so does Chromium (measured on 24 cases: white
+  with alpha 0 to a dark color, `transparent` to red, two semi-transparent
+  colors, a transparent stop between two colors, hard starts, repeating
+  gradients and a diagonal one, over a light and a dark page). tiny-skia
+  interpolates the colors without the alpha. Between two stops of
+  different alpha and different color the color without the alpha is
+  `(c0·a0·(1-t) + c1·a1·t) / (a0·(1-t) + a1·t)`: the pair is cut into
+  sections (in proportion to the difference of the alphas, at most 32;
+  the error is below 0.5 of a level) with the exact color at their ends. A transparent
+  stop has the color of the stop next to it on each side (a stop with two
+  neighbors becomes two stops at one position). Stops of one alpha or one
+  color are not changed, so the controls of video (black with alpha) and
+  opaque gradients draw as before; the cut adds at most 1,024 stops
+  (sections beyond the first of each pair), so a gradient of n stops has at
+  most 2(n-1) + 1,024 stops after it. The same change fixes what the stops did before: the
+  positions of stops (the fixup of CSS Images 3: a first stop without a
+  position is at 0, a last one at 100%, a smaller position moves up to the
+  earlier one, the stops without a position between two with one are spread
+  between them; they are not limited to 0..1) and a repeating gradient
+  (it repeated the whole line instead of the part between its first and
+  last stop). A repeating gradient whose stops are all at one position
+  paints the color of its last stop (measured, `gr-rep-one-position`; CSS
+  Images 3 asks for the average color; swb painted the first color). swb has no radial or conic gradients (the parser drops them),
+  so only linear and repeating linear gradients, also in masks, change.
+- **Wikipedia** (`crates/automation/tests/wikipedia_web_browser.rs`). The
+  dark viewport (1280x800 after the click on "Dark") is equal to Chromium's
+  in 0.9966 of the pixels within 32 per channel (0.9514 before); the
+  wordmark and the icons are inverted, the images are dimmed to 204
+  (`brightness(0.8)`), and the gray band at the bottom of the two sticky
+  containers is gone. The test reads 23 colors after "theme night" and
+  "theme day" and compares them with Chromium's within 12 per channel;
+  15 of them were off before. The load of the page and the light viewport
+  are unchanged.
+- **Tools.** The probe tool has the query `pixels`; `swbtools replay` has
+  `--screenshots`, `--pixels` and `--pixels-out` (docs/testing.md).
+
 Feature 11c1 notes (CSS from scripts for the Craigslist posting page;
 measured with `tools/probes/web-style-inert.json` (6 cases, 48 queries
 with about 600 values) and `tools/probes/web-geometry-matrix.json` (14
@@ -4415,6 +4550,10 @@ Per document, all settings with these defaults:
 | Idle callbacks that wait (feature 8a2) | 1,048,576 | the task ends (termination, warning) |
 | Input bytes of one `TextDecoder.decode` call (feature 8a2) | 64 MiB | `RangeError` |
 | Points of a `polygon()` and segments of the data of a `path()` in `clip-path` (feature 12b; style, not script) | 1,024 points (128 with font-relative or viewport units), 1,024 segments and 16 KiB of data | the declaration is invalid (not applied) |
+| Functions in one `filter` value (feature 12c; style, not script) | 64 | the declaration is invalid (not applied) |
+| Standard deviation of a `blur()` and of the blur of a `drop-shadow()` (feature 12c) | 256 device px (`MAX_SIGMA`; at most 2^25 px computed) | the blur is as large as 256 px (Chromium has no limit) |
+| Work of the filter steps of one strip (feature 12c): one unit per pixel of a color pass, six for a blur, eight for a drop shadow, over the layer of the group | 128 Mpx, or eight times the pixels of the strip if that is more | a group that does not fit, or whose layer does not fit the layer budget (it holds the layer and a scratch buffer), draws its content without the filter; one warning per frame |
+| Stops that the cut for premultiplied interpolation adds to a gradient (feature 12c) | 1,024 (at most 32 sections per pair of stops); the result has at most 2(n-1) + 1,024 stops for n input stops (the number of stops is not limited by the parser) | fewer sections per pair |
 
 The budget of long tasks (feature 5b): the time limit of a task and the
 stop after three terminations do not bound a page of many scripts that

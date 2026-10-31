@@ -38,6 +38,13 @@ A case file is JSON (committed ones are in `tools/probes/`):
   bounding box of the pixels that are not white, relative to the box. It
   shows synthetic bold (more ink) and slanted glyphs (a wider box) where
   the geometry does not change.
+- `pixels`: `{"pixels": "#a", "points": [[0, 0], [5, 3]]}`: the RGB values
+  of a screenshot of the page at the points, in px from the top left of the
+  border box of each matching element (a point can lie outside the box, for
+  a blur). Output `pixels  #a[1]  255,0,0 10,20,30`. With `--with-swb`, swb's
+  values follow, with `!` when a channel differs by more than
+  `PIXEL_TOLERANCE`. The page background should be set (the screenshot has
+  no alpha).
 - `files` (case, optional): files to put next to the page, as
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root. Use it for fonts (`@font-face`) and images.
@@ -142,7 +149,10 @@ INK_TOLERANCE = 0.05
 """The largest relative difference of swb's ink from Chromium's (at least 2
 units), for anti-aliasing differences."""
 
-QUERY_KINDS = ("boxes", "rects", "style", "js", "ink")
+QUERY_KINDS = ("boxes", "rects", "style", "js", "ink", "pixels")
+PIXEL_TOLERANCE = 2
+"""The largest difference of one channel of a `pixels` value between swb and
+Chromium that still counts as equal (anti-aliasing and rounding)."""
 _SWB_LABEL = "swb"
 
 
@@ -164,6 +174,9 @@ class Query:
     (`js`)."""
     props: tuple[str, ...] = ()
     """The properties of a `style` query."""
+    points: tuple[tuple[int, int], ...] = ()
+    """The points of a `pixels` query: (x, y) in px from the top left of the
+    element's border box (also outside the box)."""
 
 
 @dataclass(frozen=True)
@@ -230,12 +243,16 @@ def _parse_query(item: Any, where: str) -> Query:
             f" ({', '.join(QUERY_KINDS)}); its keys: {found}"
         )
     kind = kinds[0]
-    extra = set(item) - {kind, "props"}
+    extra = set(item) - {kind, "props", "points"}
     if extra:
         raise ProbeError(f"{where}: unknown key {sorted(extra)[0]!r} in a {kind} entry")
     target = item[kind]
     if not isinstance(target, str) or not target.strip():
         raise ProbeError(f"{where}: {kind} must be a non-empty string")
+    if kind == "pixels":
+        return _parse_pixels(item, target, where)
+    if "points" in item:
+        raise ProbeError(f"{where}: points belongs to pixels, not {kind}")
     if kind != "style":
         if "props" in item:
             raise ProbeError(f"{where}: props belongs to style, not {kind}")
@@ -244,6 +261,25 @@ def _parse_query(item: Any, where: str) -> Query:
     if not isinstance(props, list) or not props or not all(isinstance(p, str) for p in props):
         raise ProbeError(f"{where}: style needs props, a non-empty list of property names")
     return Query(kind, target, tuple(props))
+
+
+def _parse_pixels(item: dict[str, Any], target: str, where: str) -> Query:
+    if "props" in item:
+        raise ProbeError(f"{where}: props belongs to style, not pixels")
+    points = item.get("points")
+    ok = (
+        isinstance(points, list)
+        and bool(points)
+        and all(
+            isinstance(p, list)
+            and len(p) == 2
+            and all(isinstance(v, int) and not isinstance(v, bool) for v in p)
+            for p in points
+        )
+    )
+    if not ok:
+        raise ProbeError(f"{where}: pixels needs points, a non-empty list of [x, y] integers")
+    return Query("pixels", target, points=tuple((p[0], p[1]) for p in points))
 
 
 def _parse_time_zone(value: Any, where: str) -> str | None:
@@ -522,6 +558,14 @@ class SwbInk:
 
 
 @dataclass
+class SwbPixels:
+    """swb's pixels at the points of a `pixels` row, and whether they differ."""
+
+    pixels: list[tuple[int, int, int]]
+    outside: bool
+
+
+@dataclass
 class SwbValue:
     """swb's answer to a `js` query (`--eval`) and whether it differs."""
 
@@ -540,6 +584,7 @@ class Row:
     data: dict[str, Any] = field(default_factory=dict)
     swb: SwbBox | None = None
     swb_ink: SwbInk | None = None
+    swb_pixels: SwbPixels | None = None
     swb_value: SwbValue | None = None
     """swb's value of a `js` row in a JavaScript case."""
     swb_unsupported: bool = False
@@ -586,7 +631,16 @@ def _values(row: Row) -> str:
         if not data.get("matched", True):
             return "no match"
         return format_ink(data["ink"], data["bbox"])
+    if row.kind == "pixels":
+        if not data.get("matched", True):
+            return "no match"
+        return format_pixels(data["pixels"])
     return json.dumps(data["value"], ensure_ascii=False)
+
+
+def format_pixels(pixels: Sequence[Sequence[int]]) -> str:
+    """`10,20,30 255,255,255`: the RGB values of the points."""
+    return " ".join(",".join(str(c) for c in pixel) for pixel in pixels)
 
 
 def format_ink(ink: float, bbox: tuple[int, int, int, int] | None) -> str:
@@ -619,6 +673,12 @@ def format_row(case: str, row: Row) -> list[str]:
     if swb_value is not None:
         text = swb_value.text + ("  !" if swb_value.outside else "")
         lines.append(f"{case}  {_SWB_LABEL:<5}  {row.label}  {text}")
+    swb_pixels = row.swb_pixels
+    if swb_pixels is not None:
+        lines.append(
+            f"{case}  {_SWB_LABEL:<5}  {row.label}  {format_pixels(swb_pixels.pixels)}"
+            + ("  !" if swb_pixels.outside else "")
+        )
     swb_ink = row.swb_ink
     if swb_ink is not None:
         delta = round2(swb_ink.ink - row.data["ink"])
@@ -663,6 +723,11 @@ def format_json(results: Sequence[CaseResult]) -> str:
                 }
             if row.swb_unsupported:
                 item["swb_unsupported"] = True
+            if row.swb_pixels is not None:
+                item["swb_pixels"] = {
+                    "pixels": row.swb_pixels.pixels,
+                    "outside": row.swb_pixels.outside,
+                }
             if row.swb_ink is not None:
                 item["swb_ink"] = {
                     "ink": row.swb_ink.ink,
@@ -732,11 +797,38 @@ def ink_in(screenshot: Image.Image, rect: Rect) -> tuple[float, tuple[int, int, 
     return ink_of_image(screenshot.crop(box))
 
 
+def pixels_in(
+    screenshot: Image.Image, area: Rect, points: Sequence[Sequence[int]]
+) -> list[tuple[int, int, int]]:
+    """The RGB values of a screenshot at `points`, in px from the top left
+    of `area` (a point outside the image is white)."""
+    rgb = screenshot.convert("RGB")
+    left, top = round(area[0]), round(area[1])
+    values = []
+    for x, y in points:
+        inside = 0 <= left + x < rgb.width and 0 <= top + y < rgb.height
+        values.append(rgb.getpixel((left + x, top + y)) if inside else (255, 255, 255))
+    return values  # type: ignore[return-value]
+
+
+def compare_pixels(
+    pixels: Sequence[Sequence[int]], swb_pixels: Sequence[Sequence[int]]
+) -> SwbPixels:
+    """Compares swb's pixels with Chromium's: a channel that differs by more
+    than `PIXEL_TOLERANCE` is outside."""
+    outside = len(pixels) != len(swb_pixels) or any(
+        abs(a - b) > PIXEL_TOLERANCE
+        for chromium, swb_value in zip(pixels, swb_pixels, strict=False)
+        for a, b in zip(chromium, swb_value, strict=True)
+    )
+    return SwbPixels([tuple(p) for p in swb_pixels], outside)  # type: ignore[misc]
+
+
 def attach_swb(
     result: CaseResult, dump: BoxDump, tolerance: float, screenshot: Image.Image | None = None
 ) -> None:
     """Sets the swb comparison on each `boxes` row of the result, and on
-    each `ink` row if there is a screenshot."""
+    each `ink` and `pixels` row if there is a screenshot."""
     for row in result.rows:
         if row.kind == "boxes" and "index" in row.data:
             row.swb = compare_box(
@@ -745,6 +837,9 @@ def attach_swb(
         elif row.kind == "ink" and screenshot is not None and row.data.get("area"):
             ink, bbox = ink_in(screenshot, row.data["area"])
             row.swb_ink = compare_ink(row.data["ink"], row.data["bbox"], ink, bbox, tolerance)
+        elif row.kind == "pixels" and screenshot is not None and row.data.get("area"):
+            swb_pixels = pixels_in(screenshot, row.data["area"], row.data["points"])
+            row.swb_pixels = compare_pixels(row.data["pixels"], swb_pixels)
 
 
 def any_outside(results: Sequence[CaseResult]) -> bool:
@@ -753,6 +848,7 @@ def any_outside(results: Sequence[CaseResult]) -> bool:
     return any(r.swb_error for r in results) or any(
         (row.swb is not None and row.swb.outside)
         or (row.swb_ink is not None and row.swb_ink.outside)
+        or (row.swb_pixels is not None and row.swb_pixels.outside)
         or (row.swb_value is not None and row.swb_value.outside)
         for r in results
         for row in r.rows
@@ -879,9 +975,31 @@ async def _ink_rows(page: Page, selector: str) -> list[Row]:
     return rows
 
 
+async def _pixel_rows(page: Page, selector: str, points: Sequence[Sequence[int]]) -> list[Row]:
+    """The RGB values at `points` (px from the top left of the element's
+    border box) of a screenshot of the whole page, for each match."""
+    elements = await page.evaluate(_ELEMENTS_JS, selector)
+    if not elements:
+        return [Row("pixels", selector, {"matched": False})]
+    png = await page.screenshot(full_page=True, animations="disabled", caret="hide")
+    rows = []
+    with Image.open(io.BytesIO(png)) as image:
+        for n, element in enumerate(elements, 1):
+            rect = union(element["rects"])
+            if rect is None:
+                rows.append(Row("pixels", _label(selector, n), {"matched": False}))
+                continue
+            pixels = pixels_in(image, rect, points)
+            data = {"pixels": pixels, "points": [list(p) for p in points], "area": rect}
+            rows.append(Row("pixels", _label(selector, n), data))
+    return rows
+
+
 async def _run_query(page: Page, query: Query) -> list[Row]:
     """Runs one query. A failing selector or expression gives an error row."""
     try:
+        if query.kind == "pixels":
+            return await _pixel_rows(page, query.target, query.points)
         if query.kind == "js":
             value = await page.evaluate(query.target)
             try:
@@ -1384,7 +1502,7 @@ def _compare_with_swb(
         extra += [f"{EVAL_OPTION}={expression}" for expression in expressions]
     elif case.javascript:
         mark_unsupported(result, ("js",))
-    wants_ink = any(query.kind == "ink" for query in case.queries)
+    wants_ink = any(query.kind in ("ink", "pixels") for query in case.queries)
     try:
         run = run_swb(binary, path, case.viewport, directory, wants_ink, extra, url)
         attach_swb(result, run.dump, tolerance, run.image)

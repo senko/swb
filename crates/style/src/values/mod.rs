@@ -2,6 +2,7 @@
 //! values (as stored in [`crate::ComputedStyle`]).
 
 mod color;
+mod filter;
 mod grid;
 mod keywords;
 mod length;
@@ -14,6 +15,7 @@ use std::sync::Arc;
 
 pub use color::{Color, Rgba};
 pub(crate) use color::{named_color, system_color};
+pub use filter::{DropShadow, Filter, FilterFunction, MAX_FILTER_BLUR, MAX_FILTER_FUNCTIONS};
 pub use grid::{
     GenericTrackBreadth, GenericTrackList, GenericTrackListEntry, GenericTrackListValue,
     GenericTrackRepeat, GenericTrackSize, GridAutoFlow, GridLine, GridTemplateAreas, LineName,

@@ -12,6 +12,7 @@
 
 pub(crate) mod clip_path;
 pub(crate) mod compute;
+pub(crate) mod filter;
 pub(crate) mod ids;
 pub(crate) mod inert;
 pub(crate) mod longhand;
@@ -283,6 +284,7 @@ fn longhand_alias(name: &str) -> Option<LonghandId> {
         "overflow-block" => L::OverflowY,
         "-webkit-transform" => L::Transform,
         "-webkit-clip-path" => L::ClipPath,
+        "-webkit-filter" => L::Filter,
         "-webkit-transform-origin" => L::TransformOrigin,
         "-webkit-transition-property" => L::TransitionProperty,
         "-webkit-transition-duration" => L::TransitionDuration,

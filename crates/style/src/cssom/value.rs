@@ -247,7 +247,7 @@ fn write_function(f: &Function, style: Style, out: &mut String) {
     } else if lower == "rect" {
         write_rect_arguments(&f.arguments, out);
     } else {
-        write_list(&f.arguments, inner, out);
+        write_list(trimmed(&f.arguments), inner, out);
     }
     out.push(')');
 }
@@ -261,6 +261,8 @@ fn function_zero(name: &str, outer: Zero) -> Zero {
         | "translatez"
         | "translate3d"
         | "perspective"
+        | "blur"
+        | "drop-shadow"
         | "inset"
         | "circle"
         | "ellipse"
@@ -275,7 +277,8 @@ fn function_zero(name: &str, outer: Zero) -> Zero {
         | "fit-content"
         | "repeat"
         | "rect" => Zero::Length,
-        "rotate" | "rotatex" | "rotatey" | "rotatez" | "skew" | "skewx" | "skewy" => Zero::Angle,
+        "rotate" | "rotatex" | "rotatey" | "rotatez" | "skew" | "skewx" | "skewy"
+        | "hue-rotate" => Zero::Angle,
         "matrix" | "matrix3d" | "scale" | "scalex" | "scaley" | "scalez" | "scale3d"
         | "rotate3d" | "cubic-bezier" | "steps" => Zero::Number,
         _ => outer,

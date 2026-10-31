@@ -13,14 +13,15 @@
 //! A box with `z-index: auto` and `position: relative` or `absolute`
 //! (without a transform or opacity) does not form a stacking context: its
 //! positioned descendants take part in the enclosing one.
-//! Deliberate simplifications: a box with opacity < 1 or a mask that is
-//! not positioned paints as a unit in the inline content phase (Appendix E
+//! Deliberate simplifications: a box with opacity < 1, a `filter` or a mask
+//! that is not positioned paints as a unit in the inline content phase (Appendix E
 //! paints it with the positioned boxes); outlines are painted after each
 //! box's content, not in a last phase; the image of a block-level replaced
 //! element is painted with its background; a float inside a positioned
 //! inline box paints in the float phase of the inline box's container, not
 //! with the inline box's stacking context; an inline box split over lines
-//! has an opacity or mask group per line fragment, not one per element.
+//! has an opacity, filter or mask group per line fragment, not one per
+//! element.
 //!
 //! Transforms, fixed boxes and sticky boxes are transform groups
 //! ([`DisplayItem::PushTransform`]). The offsets of fixed and sticky boxes
@@ -169,6 +170,30 @@ pub enum DisplayItem {
     },
     /// End the most recent opacity group.
     PopOpacity,
+    /// Start a group that the CSS `filter` functions change when it ends
+    /// (Filter Effects 1 §5). The group is the element and its
+    /// descendants; the functions apply in order, then the enclosing
+    /// clip, mask and opacity groups.
+    PushFilter {
+        /// The computed functions (`url()` is not painted).
+        filter: Arc<[swb_style::FilterFunction]>,
+        /// The `color` of the element, for `drop-shadow()` without a
+        /// color.
+        current_color: Rgba,
+        /// An area that contains everything the content of the group
+        /// draws, except content fixed to the viewport (not the blur or
+        /// the shadow that the filter adds).
+        bounds: Rect,
+        /// An area that contains what content fixed to the viewport in the
+        /// group draws, in viewport coordinates; `None` without such
+        /// content.
+        fixed_bounds: Option<Rect>,
+        /// True if the group contains content fixed to the viewport, which
+        /// the enclosing clips do not clip.
+        escapes_clips: bool,
+    },
+    /// End the most recent filter group.
+    PopFilter,
     /// Start a group that is masked by `layers` (CSS Masking 1 §7): its
     /// pixels are multiplied by the mask when it ends.
     PushMask {
@@ -320,6 +345,8 @@ impl DisplayItem {
             | DisplayItem::PopClip
             | DisplayItem::PushOpacity { .. }
             | DisplayItem::PopOpacity
+            | DisplayItem::PushFilter { .. }
+            | DisplayItem::PopFilter
             | DisplayItem::PushMask { .. }
             | DisplayItem::PopMask
             | DisplayItem::PushSvgClip { .. }
@@ -659,7 +686,10 @@ pub fn build_display_list(
         // background too (as in Chromium): it is painted inside the root's
         // groups.
         if tree.root.as_ref().is_some_and(|r| {
-            r.style.has_mask() || r.style.opacity < 1.0 || r.style.clip_path.is_shape()
+            r.style.has_mask()
+                || r.style.opacity < 1.0
+                || r.style.clip_path.is_shape()
+                || r.style.has_filter()
         }) {
             builder.root_canvas = builder.list.split_off(start);
         }
@@ -715,6 +745,7 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
         PaintKind::Inline
     } else if style.display.is_inline_level()
         || style.opacity < 1.0
+        || style.has_filter()
         || style.has_mask()
         || style.clip_path.is_shape()
     {
@@ -878,6 +909,8 @@ struct Group {
     /// The item that ends the clip of the `clip-path` of the box (a basic
     /// shape or a geometry box), if it has one.
     clip_pop: Option<DisplayItem>,
+    /// True if the box started a filter group.
+    filter: bool,
     /// True if the box opened a stacking context.
     context: bool,
     /// `contexts.len()` before the box's own context.
@@ -1257,7 +1290,12 @@ impl Builder<'_> {
             self.list.push(clip.push);
             clip.pop
         });
-        if (opacity_item.is_some() || mask_item.is_some() || clip_pop.is_some()) && outer_depth == 0
+        // The filter applies first, inside the clip (Filter Effects 1 §5).
+        // A `url()` and functions that change nothing paint no group.
+        let filtered = b.style.has_filter();
+        let filter = filtered && self.push_filter(b);
+        if (opacity_item.is_some() || mask_item.is_some() || clip_pop.is_some() || filtered)
+            && outer_depth == 0
         {
             let canvas = std::mem::take(&mut self.root_canvas);
             self.list.append(canvas);
@@ -1266,6 +1304,7 @@ impl Builder<'_> {
             || opacity_item.is_some()
             || mask_item.is_some()
             || clip_pop.is_some()
+            || filtered
             || outer_depth == 0;
         if context {
             self.contexts.push(Vec::new());
@@ -1274,9 +1313,29 @@ impl Builder<'_> {
             opacity_item,
             mask_item,
             clip_pop,
+            filter,
             context,
             outer_depth,
         }
+    }
+
+    /// Starts the filter group of a box if its `filter` paints. Returns
+    /// true if it did. The bounds are computed when the list is finished.
+    fn push_filter(&mut self, b: &BoxFragment) -> bool {
+        let Some(list) = b.style.filter.list() else {
+            return false;
+        };
+        if !crate::filter::paints(list) {
+            return false;
+        }
+        self.list.push(DisplayItem::PushFilter {
+            filter: Arc::clone(list),
+            current_color: b.style.color,
+            bounds: Rect::default(),
+            fixed_bounds: None,
+            escapes_clips: false,
+        });
+        true
     }
 
     /// Ends the mask and opacity groups of a box and records the areas
@@ -1290,6 +1349,9 @@ impl Builder<'_> {
         origin: Point,
         positioned: Option<Rect>,
     ) {
+        if group.filter {
+            self.list.push(DisplayItem::PopFilter);
+        }
         if let Some(pop) = &group.clip_pop {
             self.list.push(pop.clone());
         }

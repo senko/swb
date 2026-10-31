@@ -532,6 +532,10 @@ pub struct BoxFragment {
     /// after it do not count in scrollable overflow (as in Chromium); see
     /// `scroll::box_overflow_rect`.
     pub hanging_from: Option<f32>,
+    /// True for the fragment of the root element. Its `filter` is not a
+    /// containing block of fixed and absolute boxes
+    /// ([`crate::is_fixed_containing_block`]).
+    pub is_root: bool,
     /// The children of a box with hidden contents
     /// ([`ComputedStyle::contents_hidden`]: the content of a closed
     /// `details`), moved out of `children` when layout is done. They are

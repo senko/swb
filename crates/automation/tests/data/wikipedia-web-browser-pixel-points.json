@@ -1,0 +1,28 @@
+{
+ "groups": ["theme night", "theme day"],
+ "points": {
+  "wordmark 1": [87, 15],
+  "wordmark 2": [107, 15],
+  "wordmark 3": [191, 16],
+  "wordmark 4": [134, 20],
+  "wordmark 5": [158, 20],
+  "image 1": [786, 228],
+  "image 2": [855, 261],
+  "image 3": [765, 300],
+  "image 4": [984, 333],
+  "poster 1": [778, 600],
+  "poster 2": [955, 633],
+  "poster 3": [793, 663],
+  "toc band 1": [100, 529],
+  "toc band 2": [100, 536],
+  "toc band 3": [100, 543],
+  "appearance band 1": [1100, 596],
+  "appearance band 2": [1100, 603],
+  "appearance band 3": [1100, 610],
+  "page background": [20, 400],
+  "content background": [600, 520],
+  "header background": [700, 80],
+  "infobox background": [770, 440],
+  "toc item background": [150, 214]
+ }
+}

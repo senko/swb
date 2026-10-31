@@ -1,0 +1,1791 @@
+{
+ "viewport": [900, 700],
+ "cases": [
+  {
+   "name": "flt-syntax-keywords",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"none\", \"initial\", \"inherit\", \"unset\", \"revert\", \"NONE\", \"auto\", \"var(--x)\", \"none none\", \"none blur(1px)\", \"blur(1px) none\", \"inherit blur(1px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-url",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"url(#a)\", \"url('#a')\", \"url(\\\"#a\\\")\", \"url()\", \"url(#a) url(#b)\", \"url(#a) blur(2px)\", \"blur(2px) url(#a)\", \"url( #a )\", \"URL(#a)\", \"url(#a)blur(1px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-blur",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"blur()\", \"blur(0)\", \"blur(5)\", \"blur(5px)\", \"blur(-5px)\", \"blur(1em)\", \"blur(10%)\", \"blur(calc(1px + 2px))\", \"blur(1px 2px)\", \"BLUR(2px)\", \"blur( 2px )\", \"blur(0.5px)\", \"blur(1e1px)\", \"blur(2deg)\", \"blur(1vw)\", \"blur(1rem)\", \"blur(calc(2 * 3px))\", \"blur(+3px)\", \"blur(.5px)\", \"blur(0px)\", \"blur(1px)blur(2px)\", \"blur(1px), blur(2px)\", \"blur(1px) blur(2px)\", \"blur(calc(-1px))\", \"blur(1mm)\", \"blur(1pt)\", \"blur(infinity)\", \"blur(1e400px)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-brightness",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"brightness()\", \"brightness(0)\", \"brightness(0.5)\", \"brightness(50%)\", \"brightness(-1)\", \"brightness(2)\", \"brightness(200%)\", \"brightness(1px)\", \"brightness(calc(1 + 1))\", \"brightness(calc(50% + 0.5))\", \"brightness(1e3)\", \"brightness(.5)\", \"brightness(1 2)\", \"brightness(-50%)\", \"brightness(0.333333333)\", \"brightness(33.3333%)\", \"brightness(1.00001)\", \"brightness(calc(10% * 2))\", \"brightness(100)\", \"brightness(9999999999)\", \"brightness(none)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-contrast",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"contrast()\", \"contrast(0)\", \"contrast(0.5)\", \"contrast(250%)\", \"contrast(-1)\", \"contrast(2)\", \"contrast(1.5)\", \"contrast(100%)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-grayscale",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"grayscale()\", \"grayscale(0)\", \"grayscale(0.5)\", \"grayscale(50%)\", \"grayscale(1)\", \"grayscale(2)\", \"grayscale(200%)\", \"grayscale(-1)\", \"grayscale(100%)\", \"grayscale(1.5)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-hue-rotate",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"hue-rotate()\", \"hue-rotate(0)\", \"hue-rotate(90)\", \"hue-rotate(90deg)\", \"hue-rotate(0.25turn)\", \"hue-rotate(100grad)\", \"hue-rotate(1rad)\", \"hue-rotate(-90deg)\", \"hue-rotate(450deg)\", \"hue-rotate(calc(1deg + 2deg))\", \"hue-rotate(10%)\", \"hue-rotate(180DEG)\", \"hue-rotate(1px)\", \"hue-rotate(0deg)\", \"hue-rotate(-0deg)\", \"hue-rotate(3.14159rad)\", \"hue-rotate(1turn)\", \"hue-rotate(-720deg)\", \"hue-rotate(1e3deg)\", \"hue-rotate(45.5deg)\", \"hue-rotate(1.5)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-invert",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"invert()\", \"invert(0)\", \"invert(1)\", \"invert(0.5)\", \"invert(50%)\", \"invert(2)\", \"invert(-1)\", \"invert(100%)\", \"invert(var(--x))\", \"invert(var(--x, 1))\", \"invert(calc(0.5 + 0.25))\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-opacity",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"opacity()\", \"opacity(0)\", \"opacity(0.5)\", \"opacity(50%)\", \"opacity(1)\", \"opacity(2)\", \"opacity(-1)\", \"opacity(100%)\", \"opacity(0.25)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-saturate",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"saturate()\", \"saturate(0)\", \"saturate(0.5)\", \"saturate(150%)\", \"saturate(2)\", \"saturate(-1)\", \"saturate(100%)\", \"saturate(30)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-sepia",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"sepia()\", \"sepia(0)\", \"sepia(0.5)\", \"sepia(50%)\", \"sepia(1)\", \"sepia(2)\", \"sepia(-1)\", \"sepia(100%)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-drop-shadow",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"drop-shadow()\", \"drop-shadow(1px)\", \"drop-shadow(1px 2px)\", \"drop-shadow(1px 2px 3px)\", \"drop-shadow(1px 2px 3px 4px)\", \"drop-shadow(1px 2px red)\", \"drop-shadow(red 1px 2px)\", \"drop-shadow(1px red 2px)\", \"drop-shadow(1px 2px 3px red)\", \"drop-shadow(1px 2px 3px currentcolor)\", \"drop-shadow(1px 2px 3px #00ff0080)\", \"drop-shadow(1px 2px -3px)\", \"drop-shadow(0 0)\", \"drop-shadow(1em 1em)\", \"drop-shadow(inset 1px 1px)\", \"drop-shadow(1px 2px 3px red inset)\", \"drop-shadow(1px 2px 3px) drop-shadow(4px 5px 6px blue)\", \"drop-shadow(rgba(0,0,0,.5) 1px 2px)\", \"drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.5))\", \"DROP-SHADOW(1px 2px)\", \"drop-shadow(1px 2px 0)\", \"drop-shadow(0 0 0 red)\", \"drop-shadow(-1px -2px 3px #f00)\", \"drop-shadow(1px 2px 3px transparent)\", \"drop-shadow(1px 2px 3px hsl(120 100% 50%))\", \"drop-shadow(10% 10px)\", \"drop-shadow(1px 2px 3px,red)\", \"drop-shadow(calc(1px + 1px) 2px)\", \"drop-shadow(1px 2px calc(3px))\", \"drop-shadow(1px 2px 3px #abc)\", \"drop-shadow(1px 2px 3px red) blur(2px)\", \"drop-shadow(1px 2px 3px color-mix(in srgb, red, blue))\", \"drop-shadow(1px 2px 3px currentColor)\", \"drop-shadow(1px 2px 3px var(--x))\", \"drop-shadow(2rem 1rem)\", \"drop-shadow(1px 2px 3px light-dark(red, blue))\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-syntax-lists",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"blur(1px) brightness(0.5)\", \"blur(1px),brightness(.5)\", \"invert(1) hue-rotate(180deg)\", \"invert(1)brightness(55%)contrast(250%)hue-rotate(180deg)\", \"brightness(0) invert(1)\", \"blur(1px)  \\tinvert(1)\\n sepia(.5)\", \"blur(1px) /* c */ invert(1)\", \"brightness(50%) BRIGHTNESS(50%)\", \"blur(2px) brightness(1) blur(2px)\", \"invert(0) invert(0)\", \"blur(1px) bogus(1)\", \"bogus(1)\", \"blur(1px) !important\", \"blur(1px) 3\", \"3\", \"red\", \"blur\", \"blur(\", \"blur(1px\", \"invert(1) \", \"opacity(0.5) opacity(0.5) opacity(0.5) opacity(0.5)\", \"grayscale(1) sepia(1) saturate(2) contrast(2)\", \"brightness(1.5) hue-rotate(10deg) drop-shadow(0 0 2px #000) blur(1px) invert(.2)\"]))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-alias",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T(['blur(2px)', 'none', 'invert(50%)', 'bogus', 'url(#a)'], '-webkit-filter'))"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.webkitFilter = 'blur(2px)'; const a = [e.style.filter, e.style.webkitFilter, e.style.getPropertyValue('filter'), e.style.getPropertyValue('-webkit-filter'), e.getAttribute('style'), e.style.cssText, 'filter' in e.style, 'webkitFilter' in e.style, 'WebkitFilter' in e.style, 'filter' in document.body.style]; e.style.filter = 'invert(1)'; a.push(e.style.webkitFilter, e.style.cssText, e.style.length, e.style[0]); e.style.removeProperty('-webkit-filter'); a.push(e.style.cssText, e.style.length); return a; })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('c'); e.style.filter = 'blur(3px)'; const cs = getComputedStyle(e); const a = [cs.filter, cs.webkitFilter, cs.getPropertyValue('-webkit-filter'), Array.from(cs).includes('filter'), Array.from(cs).includes('-webkit-filter')]; e.style.filter = ''; return a; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.cssText = 'filter: invert(1); -webkit-filter: blur(1px)'; return [e.style.cssText, e.style.filter, e.style.length]; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.cssText = '-webkit-filter: blur(1px); filter: invert(1) !important'; return [e.style.cssText, e.style.filter, e.style.getPropertyPriority('filter'), e.style.length]; })"
+    },
+    {
+     "js": "E(() => CSS.supports('filter', 'blur(1px)') + ' ' + CSS.supports('-webkit-filter', 'blur(1px)') + ' ' + CSS.supports('(filter: blur(1px))') + ' ' + CSS.supports('filter: blur(1px)') + ' ' + CSS.supports('filter', 'blur(1px) !important'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "flt-cascade",
+   "html": "<!DOCTYPE html><html><head><style>#p{filter:blur(2px)} #q{filter:inherit} #r{filter:initial} #s{filter:invert(var(--v))} #t{--v:.5;filter:invert(var(--v))} #u{filter:var(--f)} #u2{--f:brightness(.5) blur(1px);filter:var(--f)} #w{filter:blur(2px);-webkit-filter:invert(1)} #x{filter:blur(2px) !important} #x{filter:invert(1)} #y{font-size:30px;filter:blur(1em) drop-shadow(1em 1em 2em)}</style></head><body><div id=p><div id=pc>c</div><div id=q>q</div><div id=r>r</div></div><div id=s>s</div><div id=t>t</div><div id=u>u</div><div id=u2>u2</div><div id=w>w</div><div id=x>x</div><div id=y style='color:rgb(1,2,3)'>y</div></body></html>",
+   "measure": [
+    {
+     "js": "['p','pc','q','r','s','t','u','u2','w','x','y'].map(i => i + '=' + getComputedStyle(document.getElementById(i)).filter).join(' | ')"
+    },
+    {
+     "style": "#y",
+     "props": [
+      "filter",
+      "-webkit-filter"
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fm-none",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:none\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:none\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:none\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:none\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:none\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:none\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:none\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-brightness0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:brightness(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:brightness(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:brightness(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:brightness(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:brightness(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:brightness(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:brightness(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-brightness1.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:brightness(1.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:brightness(1.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:brightness(1.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:brightness(1.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:brightness(1.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:brightness(1.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:brightness(1.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-brightness0.8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:brightness(0.8)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:brightness(0.8)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:brightness(0.8)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:brightness(0.8)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:brightness(0.8)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:brightness(0.8)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:brightness(0.8)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-contrast0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:contrast(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:contrast(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:contrast(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:contrast(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:contrast(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:contrast(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:contrast(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-contrast2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:contrast(2)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:contrast(2)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:contrast(2)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:contrast(2)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:contrast(2)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:contrast(2)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:contrast(2)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-contrast1.4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:contrast(1.4)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:contrast(1.4)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:contrast(1.4)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:contrast(1.4)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:contrast(1.4)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:contrast(1.4)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:contrast(1.4)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-grayscale1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:grayscale(1)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:grayscale(1)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:grayscale(1)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:grayscale(1)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:grayscale(1)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:grayscale(1)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:grayscale(1)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-grayscale0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:grayscale(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:grayscale(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:grayscale(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:grayscale(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:grayscale(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:grayscale(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:grayscale(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-hue-rotate90deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:hue-rotate(90deg)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:hue-rotate(90deg)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:hue-rotate(90deg)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:hue-rotate(90deg)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:hue-rotate(90deg)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:hue-rotate(90deg)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:hue-rotate(90deg)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-hue-rotate180deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:hue-rotate(180deg)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:hue-rotate(180deg)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:hue-rotate(180deg)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:hue-rotate(180deg)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:hue-rotate(180deg)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:hue-rotate(180deg)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:hue-rotate(180deg)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-hue-rotate30deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:hue-rotate(30deg)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:hue-rotate(30deg)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:hue-rotate(30deg)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:hue-rotate(30deg)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:hue-rotate(30deg)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:hue-rotate(30deg)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:hue-rotate(30deg)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-invert1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:invert(1)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:invert(1)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:invert(1)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:invert(1)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:invert(1)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:invert(1)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:invert(1)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-invert0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:invert(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:invert(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:invert(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:invert(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:invert(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:invert(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:invert(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-opacity0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:opacity(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:opacity(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:opacity(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:opacity(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:opacity(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:opacity(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:opacity(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-saturate0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:saturate(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:saturate(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:saturate(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:saturate(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:saturate(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:saturate(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:saturate(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-saturate2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:saturate(2)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:saturate(2)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:saturate(2)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:saturate(2)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:saturate(2)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:saturate(2)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:saturate(2)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-sepia1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:sepia(1)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:sepia(1)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:sepia(1)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:sepia(1)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:sepia(1)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:sepia(1)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:sepia(1)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-sepia0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:sepia(0.5)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:sepia(0.5)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:sepia(0.5)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:sepia(0.5)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:sepia(0.5)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:sepia(0.5)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:sepia(0.5)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-invert1_hue-rotate180deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:invert(1) hue-rotate(180deg)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:invert(1) hue-rotate(180deg)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fm-invert1_hue-rotate180deg_brightness0.8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c1 style=\"background:rgb(255,0,0);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c2 style=\"background:rgb(0,128,255);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c3 style=\"background:rgb(30,30,30);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c4 style=\"background:rgb(120,200,60);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c5 style=\"background:rgb(255,255,255);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div><div class=c id=c6 style=\"background:rgb(0,0,0);filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "blur-1px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(1px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-2px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(2px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-2.5px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(2.5px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-5px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(5px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-10px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(10px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-0.5px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(0.5px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "blur-20px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(20px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-40,20], [-37,20], [-34,20], [-31,20], [-28,20], [-25,20], [-22,20], [-19,20], [-16,20], [-13,20], [-10,20], [-7,20], [-4,20], [-1,20], [2,20], [5,20], [8,20], [11,20], [14,20], [17,20], [20,20], [23,20], [26,20], [29,20], [32,20], [35,20], [38,20], [41,20], [44,20], [47,20], [50,20], [53,20], [56,20], [59,20], [62,20], [65,20], [68,20], [71,20], [74,20], [77,20], [80,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-40], [20,-37], [20,-34], [20,-31], [20,-28], [20,-25], [20,-22], [20,-19], [20,-16], [20,-13], [20,-10], [20,-7], [20,-4], [20,-1], [20,2], [20,5], [20,8], [20,11], [20,14], [20,17], [20,20], [20,23], [20,26], [20,29], [20,32], [20,35], [20,38], [20,41], [20,44], [20,47], [20,50], [20,53], [20,56], [20,59], [20,62], [20,65], [20,68], [20,71], [20,74], [20,77], [20,80]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[-40,-40], [-37,-37], [-34,-34], [-31,-31], [-28,-28], [-25,-25], [-22,-22], [-19,-19], [-16,-16], [-13,-13], [-10,-10], [-7,-7], [-4,-4], [-1,-1], [2,2], [5,5], [8,8], [11,11], [14,14], [17,17], [19,19]]
+    },
+    {
+     "boxes": "#a"
+    }
+   ]
+  },
+  {
+   "name": "ds-0-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 10px 0 rgb(255,0,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-0-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 10px 0 rgb(255,0,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-5-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 10px 5px rgb(0,0,255))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-5-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 10px 5px rgb(0,0,255))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-5half-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 10px 5px rgba(0,0,255,0.5))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-5half-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 10px 5px rgba(0,0,255,0.5))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-def-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 10px 5px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-def-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 10px 5px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-nobl-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 10px rgb(0,160,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-nobl-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 10px rgb(0,160,0))}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-10-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(0 0 10px #000)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-10-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(0 0 10px #000)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-color-first-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(rgb(255,0,255) -8px 6px 2px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-color-first-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(rgb(255,0,255) -8px 6px 2px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-neg-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(-12px -7px 3px #000)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-neg-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(-12px -7px 3px #000)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-frac-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(2.5px 3.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-frac-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(2.5px 3.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-two-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(10px 0 0 #f00) drop-shadow(0 10px 0 #00f)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-two-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(10px 0 0 #f00) drop-shadow(0 10px 0 #00f)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-blur-then-shadow-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:blur(2px) drop-shadow(8px 8px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-blur-then-shadow-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:blur(2px) drop-shadow(8px 8px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-shadow-then-blur-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(8px 8px 0 #f00) blur(2px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-shadow-then-blur-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(8px 8px 0 #f00) blur(2px)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-bright-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:#000;filter:drop-shadow(8px 8px 0 #f00) brightness(0.5)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "ds-bright-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;color:rgb(0,100,0);background:rgba(0,0,0,0.5);filter:drop-shadow(8px 8px 0 #f00) brightness(0.5)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-30,20], [-25,20], [-20,20], [-15,20], [-10,20], [-5,20], [0,20], [5,20], [10,20], [15,20], [20,20], [25,20], [30,20], [35,20], [40,20], [45,20], [50,20], [55,20], [60,20], [65,20], [69,20]]
+    },
+    {
+     "pixels": "#a",
+     "points": [[20,-30], [20,-25], [20,-20], [20,-15], [20,-10], [20,-5], [20,0], [20,5], [20,10], [20,15], [20,20], [20,25], [20,30], [20,35], [20,40], [20,45], [20,50], [20,55], [20,60], [20,65], [20,69]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-0.4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(0.4px 0.4px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(0.5px 0.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-0.6",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(0.6px 0.6px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-1.4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(1.4px 1.4px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-1.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(1.5px 1.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-1.6",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(1.6px 1.6px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-2.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(2.5px 2.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-2.6",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(2.6px 2.6px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px-3.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(3.5px 3.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--0.4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-0.4px -0.4px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-0.5px -0.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--0.6",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-0.6px -0.6px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--1.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-1.5px -1.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--2.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-2.5px -2.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--2.6",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-2.6px -2.6px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "dsf-60px--3.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:drop-shadow(-3.5px -3.5px 0 #f00)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [28,20], [29,20], [30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20]]
+    }
+   ]
+  },
+  {
+   "name": "fcb-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"filter:none;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"filter:blur(0);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"filter:brightness(1);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"filter:url(#x);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"filter:drop-shadow(0 0);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"filter:blur(2px);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"filter:invert(var(--u));margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"filter:bogus;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fcb-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><span class=p id=p0 style=\"filter:none;;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p1 style=\"filter:blur(0);;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p3 style=\"filter:brightness(1);;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p6 style=\"filter:url(#x);;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p8 style=\"filter:drop-shadow(0 0);;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p9 style=\"filter:blur(2px);;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p16 style=\"filter:invert(var(--u));;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p17 style=\"filter:bogus;;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fcb-inline-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"filter:none;display:inline-block;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"filter:blur(0);display:inline-block;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"filter:brightness(1);display:inline-block;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"filter:url(#x);display:inline-block;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"filter:drop-shadow(0 0);display:inline-block;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"filter:blur(2px);display:inline-block;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"filter:invert(var(--u));display:inline-block;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"filter:bogus;display:inline-block;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fcb-abs",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"filter:none;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"filter:blur(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p2 style=\"filter:blur(0px);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a2 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f2 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"filter:brightness(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p4 style=\"filter:invert(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a4 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f4 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p5 style=\"filter:opacity(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a5 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f5 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"filter:url(#x);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p7 style=\"filter:url();position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a7 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f7 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"filter:drop-shadow(0 0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"filter:blur(2px);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p10 style=\"filter:contrast(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a10 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f10 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p11 style=\"filter:grayscale(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a11 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f11 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p12 style=\"filter:hue-rotate(0deg);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a12 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f12 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p13 style=\"filter:saturate(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a13 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f13 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p14 style=\"filter:sepia(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a14 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f14 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p15 style=\"filter:drop-shadow(0 0 0 transparent);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a15 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f15 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"filter:invert(var(--u));position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"filter:bogus;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fp-zindex-none",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#00f;filter:none}#c{position:absolute;z-index:-1;left:10px;top:10px;width:20px;height:20px;background:#f00}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[20,20], [5,5], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "fp-zindex-blur0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#00f;filter:blur(0)}#c{position:absolute;z-index:-1;left:10px;top:10px;width:20px;height:20px;background:#f00}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[20,20], [5,5], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "fp-zindex-invert0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#00f;filter:invert(0)}#c{position:absolute;z-index:-1;left:10px;top:10px;width:20px;height:20px;background:#f00}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[20,20], [5,5], [45,45]]
+    }
+   ]
+  },
+  {
+   "name": "fp-opacity-order",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#f00;opacity:.5;filter:invert(1)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[30,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-opacity-order2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:rgba(255,0,0,.5);filter:invert(1) opacity(.5)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[30,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-clip",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#000;filter:blur(4px);clip-path:inset(10px)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[-8,30], [-5,30], [-2,30], [1,30], [4,30], [7,30], [10,30], [13,30], [16,30], [19,30], [22,30], [25,30], [28,30], [30,-7], [30,-4], [30,-1], [30,2], [30,5], [30,8], [30,11], [30,14], [30,17], [30,20], [30,23], [30,26], [30,29]]
+    }
+   ]
+  },
+  {
+   "name": "fp-clip2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#000;filter:blur(4px);clip-path:inset(-20px)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[-14,30], [-13,30], [-12,30], [-11,30], [-10,30], [-9,30], [-8,30], [-7,30], [-6,30], [-5,30], [-4,30], [-3,30], [-2,30], [-1,30], [0,30], [1,30], [2,30], [3,30], [4,30], [5,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-mask",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;background:#f00;filter:invert(1);-webkit-mask-image:linear-gradient(#000,#000);-webkit-mask-size:30px 60px;-webkit-mask-repeat:no-repeat}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[10,30], [40,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-root",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}html{filter:invert(1)}</style></head><body><p style='margin:0'>x</p></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [[100,100], [150,150], [5,190]]
+    }
+   ]
+  },
+  {
+   "name": "fp-root-bg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}html{filter:invert(1);background:#f00}body{background:none}</style></head><body><p style='margin:0'>x</p></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [[100,100], [150,150]]
+    }
+   ]
+  },
+  {
+   "name": "fp-body",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}html{background:#0f0}body{filter:invert(1);background:#f00;height:100px;margin:20px}</style></head><body><p style='margin:0'>x</p></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [[30,30], [30,150], [-10,-10], [150,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-body2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}html{background:#0f0}body{filter:invert(1);height:100px;margin:20px}</style></head><body><p style='margin:0'>x</p></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [[30,30], [30,150], [-10,-10], [150,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><span id=s style='background:#f00;padding:0 20px;filter:invert(1)'>&nbsp;</span></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#s",
+     "points": [[10,8], [30,8], [-5,8]]
+    }
+   ]
+  },
+  {
+   "name": "fp-transform",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:20px;height:20px;background:#000;transform:scale(2);transform-origin:0 0;filter:blur(2px)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[-28,20], [-26,20], [-24,20], [-22,20], [-20,20], [-18,20], [-16,20], [-14,20], [-12,20], [-10,20], [-8,20], [-6,20], [-4,20], [-2,20], [0,20], [2,20], [4,20], [6,20], [8,20], [10,20], [12,20], [14,20], [16,20], [18,20]]
+    }
+   ]
+  },
+  {
+   "name": "fp-transform-rot",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:80px;top:80px;width:40px;height:40px;background:#000;transform:rotate(45deg);filter:drop-shadow(10px 0 0 #f00)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[-20,-20], [4,-20], [28,-20], [52,-20], [-12,-12], [12,-12], [36,-12], [60,-12], [-4,-4], [20,-4], [44,-4], [-20,4], [4,4], [28,4], [52,4], [-12,12], [12,12], [36,12], [60,12], [-4,20], [20,20], [44,20], [-20,28], [4,28], [28,28], [52,28], [-12,36], [12,36], [36,36], [60,36], [-4,44], [20,44], [44,44], [-20,52], [4,52], [28,52], [52,52], [-12,60], [12,60], [36,60], [60,60]]
+    }
+   ]
+  },
+  {
+   "name": "fp-children",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:30px;height:30px;background:#00f;filter:invert(1)}#k{width:60px;height:10px;margin-top:40px;background:#f00}#q{position:absolute;left:-20px;top:-20px;width:10px;height:10px;background:#0f0}</style></head><body><div id=p><div id=k></div><div id=q></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[40,45], [-15,-15], [15,15], [50,45], [50,10]]
+    }
+   ]
+  },
+  {
+   "name": "fp-overflow",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:30px;height:30px;background:#00f;overflow:hidden;filter:blur(3px)}#k{width:60px;height:60px;background:#f00}</style></head><body><div id=p><div id=k></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[-8,15], [-6,15], [-4,15], [-2,15], [0,15], [2,15], [4,15], [6,15], [8,15], [10,15], [12,15], [14,15], [16,15], [18,15], [20,15], [22,15], [24,15], [26,15], [28,15], [30,15], [32,15], [34,15], [36,15], [38,15]]
+    }
+   ]
+  },
+  {
+   "name": "fp-img",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><img id=i src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='20' height='40' fill='%23f00'/%3E%3Crect x='20' width='20' height='40' fill='%2300f'/%3E%3C/svg%3E\" style='position:absolute;left:50px;top:50px;filter:brightness(.8)'></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#i",
+     "points": [[10,20], [30,20]]
+    }
+   ]
+  },
+  {
+   "name": "fp-nested",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:40px;height:40px;background:#0f0;filter:invert(1)}#c{width:20px;height:20px;background:#f00;filter:invert(1)}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[10,10], [30,30]]
+    }
+   ]
+  },
+  {
+   "name": "fp-opacity-fn",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:40px;height:40px;background:#000;filter:opacity(.5)}</style></head><body><div id=p></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[10,10]]
+    }
+   ]
+  },
+  {
+   "name": "fp-position-fixed-child",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:40px;height:40px;background:#fff;filter:invert(1)}#c{position:fixed;left:30px;top:-30px;width:20px;height:20px;background:#fff}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[10,10], [40,-20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-root-nobg",
+   "html": "<!DOCTYPE html><html><head><style>html{filter:invert(1)}body{margin:0}</style></head><body><div id=d style='width:50px;height:50px;background:#f00'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[10,10], [100,100], [180,180]]
+    }
+   ]
+  },
+  {
+   "name": "fq-root-blur-edge",
+   "html": "<!DOCTYPE html><html><head><style>html{filter:blur(4px)}body{margin:0;background:#fff}</style></head><body><div id=d style='width:20px;height:100px;background:#000'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[0,50], [3,50], [6,50], [9,50], [12,50], [15,50], [18,50], [21,50], [24,50], [27,50], [30,50], [33,50], [36,50], [39,50], [10,-4], [10,-1], [10,2], [10,5], [190,50]]
+    }
+   ]
+  },
+  {
+   "name": "fq-offscreen-left",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:-30px;top:50px;width:50px;height:40px;background:#000;filter:blur(5px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[30,20], [31,20], [32,20], [33,20], [34,20], [35,20], [36,20], [37,20], [38,20], [39,20], [40,20], [41,20], [42,20], [43,20], [44,20], [45,20], [46,20], [47,20], [48,20], [49,20], [50,20], [51,20], [52,20], [53,20], [54,20], [55,20], [56,20], [57,20], [58,20], [59,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-offscreen-bottom",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:50px;top:100px;width:40px;height:300px;background:#000;filter:blur(5px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[20,80], [20,81], [20,82], [20,83], [20,84], [20,85], [20,86], [20,87], [20,88], [20,89], [20,90], [20,91], [20,92], [20,93], [20,94], [20,95], [20,96], [20,97], [20,98], [20,99], [20,100], [20,101], [20,102], [20,103], [20,104], [20,105], [20,106], [20,107], [20,108], [20,109], [20,0], [20,50]]
+    }
+   ]
+  },
+  {
+   "name": "fq-img-blur",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><img id=d style='position:absolute;left:50px;top:50px;filter:blur(3px)' src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23f00'/%3E%3C/svg%3E\"></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20], [10,20], [11,20], [20,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-scroll",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=s style='position:absolute;left:20px;top:20px;width:100px;height:100px;overflow:auto;filter:invert(1)'><div style='height:300px;background:linear-gradient(#f00,#00f)'></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#s",
+     "points": [[50,0], [50,50], [50,99], [-3,50], [105,50]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-0.3px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(0.3px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-0.6px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(0.6px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-0.9px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(0.9px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-1.2px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(1.2px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-1.6px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(1.6px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-3px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(3px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-7px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(7px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-blurr-15px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(15px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-20,20], [-19,20], [-18,20], [-17,20], [-16,20], [-15,20], [-14,20], [-13,20], [-12,20], [-11,20], [-10,20], [-9,20], [-8,20], [-7,20], [-6,20], [-5,20], [-4,20], [-3,20], [-2,20], [-1,20], [0,20], [1,20], [2,20], [3,20], [4,20], [5,20], [6,20], [7,20], [8,20], [9,20]]
+    }
+   ]
+  },
+  {
+   "name": "fq-gradient-filter",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:50px;top:50px;width:100px;height:20px;background:linear-gradient(90deg, rgba(255,0,0,0), rgb(255,0,0));filter:invert(1)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[0,10], [10,10], [20,10], [30,10], [40,10], [50,10], [60,10], [70,10], [80,10], [90,10]]
+    }
+   ]
+  },
+  {
+   "name": "fr-60px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:150px;top:150px;width:100px;height:100px;background:#000;filter:blur(60px)'></div></body></html>",
+   "viewport": [400, 400],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-150,50], [-125,50], [-100,50], [-75,50], [-50,50], [-25,50], [0,50], [25,50], [50,50], [75,50], [100,50], [125,50], [150,50], [175,50], [200,50], [225,50], [50,-150], [50,-125], [50,-100], [50,-75], [50,-50], [50,-25], [50,0], [50,25], [50,50], [50,75], [50,100], [50,125], [50,150], [50,175], [50,200], [50,225]]
+    }
+   ]
+  },
+  {
+   "name": "fr-100px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:150px;top:150px;width:100px;height:100px;background:#000;filter:blur(100px)'></div></body></html>",
+   "viewport": [400, 400],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-150,50], [-125,50], [-100,50], [-75,50], [-50,50], [-25,50], [0,50], [25,50], [50,50], [75,50], [100,50], [125,50], [150,50], [175,50], [200,50], [225,50], [50,-150], [50,-125], [50,-100], [50,-75], [50,-50], [50,-25], [50,0], [50,25], [50,50], [50,75], [50,100], [50,125], [50,150], [50,175], [50,200], [50,225]]
+    }
+   ]
+  },
+  {
+   "name": "fr-500px",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><div id=d style='position:absolute;left:150px;top:150px;width:100px;height:100px;background:#000;filter:blur(500px)'></div></body></html>",
+   "viewport": [400, 400],
+   "measure": [
+    {
+     "pixels": "#d",
+     "points": [[-150,50], [-125,50], [-100,50], [-75,50], [-50,50], [-25,50], [0,50], [25,50], [50,50], [75,50], [100,50], [125,50], [150,50], [175,50], [200,50], [225,50], [50,-150], [50,-125], [50,-100], [50,-75], [50,-50], [50,-25], [50,0], [50,25], [50,50], [50,75], [50,100], [50,125], [50,150], [50,175], [50,200], [50,225]]
+    }
+   ]
+  },
+  {
+   "name": "fx-url-missing",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.s{position:absolute;top:50px;width:30px;height:30px;background:#f00}#a{left:10px}#b{left:60px}#c{left:110px}#d{left:150px}</style></head><body><div class=s id=a style='filter:url(#nope)'></div><div class=s id=b style='filter:url(#nope) invert(1)'></div><div class=s id=c style='filter:invert(1) url(#nope)'></div><div class=s id=d style='filter:url(#nope) blur(4px)'></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": ".s",
+     "points": [[15,15], [-3,15], [33,15]]
+    }
+   ]
+  },
+  {
+   "name": "fx-wikipedia-list",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.s{float:left;width:30px;height:30px;margin:5px;filter:invert(1)brightness(55%)contrast(250%)hue-rotate(180deg)}</style></head><body><div class=s style='background:#202122'></div><div class=s style='background:#3366cc'></div><div class=s style='background:#fff'></div><div class=s style='background:#000'></div></body></html>",
+   "viewport": [200, 60],
+   "measure": [
+    {
+     "pixels": ".s",
+     "points": [[15,15]]
+    }
+   ]
+  },
+  {
+   "name": "fx-ancestor-clip",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#p{position:absolute;left:50px;top:50px;width:60px;height:60px;overflow:hidden}#c{position:absolute;left:30px;top:10px;width:60px;height:40px;background:#000;filter:blur(4px)}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#p",
+     "points": [[20,30], [22,30], [24,30], [26,30], [28,30], [30,30], [32,30], [34,30], [36,30], [38,30], [40,30], [42,30], [44,30], [46,30], [48,30], [50,30], [52,30], [54,30], [56,30], [58,30], [60,30], [62,30], [64,30], [66,30], [68,30]]
+    }
+   ]
+  },
+  {
+   "name": "fx-rounded",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:40px;top:40px;width:80px;height:80px;box-sizing:border-box;border:8px solid #00f;border-radius:30px;background:#fc0;filter:drop-shadow(6px 6px 3px #000)}</style></head><body><div id=a></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[40,40], [4,40], [40,4], [76,40], [40,76], [60,60], [84,84], [90,50], [50,90], [-3,-3]]
+    }
+   ]
+  },
+  {
+   "name": "fx-hit-and-extent",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:300px}#bg{position:absolute;left:0;top:0;width:200px;height:200px}#a{position:absolute;left:60px;top:60px;width:40px;height:40px;background:#000;filter:blur(10px) drop-shadow(30px 0 0 red)}#z{position:absolute;left:60px;top:150px;width:40px;height:40px;background:#00f;filter:opacity(0)}#e{position:absolute;right:0;top:250px;width:20px;height:20px;background:#000;filter:blur(40px) drop-shadow(500px 0 0 red)}</style></head><body><div id=bg></div><div id=a></div><div id=z></div><div id=e></div></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "js": "[[80,80],[50,80],[110,80],[130,80],[80,170],[200,260]].map(([x,y]) => { const e = document.elementFromPoint(x, y); return e && e.id; }).join(',')"
+    },
+    {
+     "js": "[document.documentElement.scrollWidth, document.documentElement.scrollHeight, document.getElementById('a').getBoundingClientRect().width, document.getElementById('e').getBoundingClientRect().right].join(',')"
+    },
+    {
+     "js": "document.elementsFromPoint(80, 80).map(e => e.id || e.tagName).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fx-script-style",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}#a{position:absolute;left:10px;top:10px;width:40px;height:40px;background:#f00}#b{position:absolute;left:100px;top:10px;width:40px;height:40px;background:#f00;filter:invert(1)}</style></head><body><div id=a></div><div id=b></div></body></html>",
+   "viewport": [200, 100],
+   "measure": [
+    {
+     "js": "(document.getElementById('a').style.filter = 'invert(1)', getComputedStyle(document.getElementById('a')).filter)"
+    },
+    {
+     "pixels": "#a",
+     "points": [[10,10]]
+    },
+    {
+     "js": "(document.getElementById('b').style.filter = 'none', getComputedStyle(document.getElementById('b')).filter)"
+    },
+    {
+     "js": "(document.getElementById('b').style.filter = 'blur(3px) hue-rotate(90deg)', getComputedStyle(document.getElementById('b')).webkitFilter)"
+    },
+    {
+     "js": "(document.getElementById('b').style.setProperty('-webkit-filter', 'sepia(.5)'), document.getElementById('b').getAttribute('style'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fx-svg-root-and-wrapped-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><svg id=a width=60 height=60 style='position:absolute;left:10px;top:10px;filter:invert(1)'><rect width=40 height=40 fill=red /></svg><span id=w style='position:absolute;left:100px;top:100px;width:60px;font:20px/20px Arial'><span id=s style='background:#f00;filter:invert(1)'>aaa bbb ccc ddd</span></span></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[10,10], [50,50]]
+    },
+    {
+     "pixels": "#s",
+     "points": [[2,4], [2,24], [40,24], [2,44]]
+    }
+   ]
+  },
+  {
+   "name": "fx-svg-child",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}</style></head><body><svg id=b width=60 height=60 style='position:absolute;left:100px;top:10px'><rect width=40 height=40 fill=red style='filter:invert(1)' /></svg><svg id=c width=60 height=60 style='position:absolute;left:10px;top:100px'><g filter='blur(4px)'><rect width=40 height=40 fill=red /></g></svg></body></html>",
+   "viewport": [200, 200],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [[10,10], [50,50]]
+    },
+    {
+     "pixels": "#c",
+     "points": [[10,10], [-2,10], [20,41]]
+    }
+   ]
+  },
+  {
+   "name": "fcb-offset-parent-fixed",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}.p{position:absolute;width:100px;height:40px;left:30px}.f{position:fixed;left:7px;top:8px;width:10px;height:10px}</style></head><body><div class=p id=t style='top:10px;transform:translateX(0)'><div class=f id=ft></div></div><div class=p id=r style='top:60px;position:relative'><div class=f id=fr></div></div><div class=p id=n style='top:110px;position:static'><div class=f id=fn></div></div><div class=p id=fl style='top:160px;filter:blur(1px)'><div class=f id=ff></div></div><span id=s style='filter:blur(1px)'><div class=f id=fs></div></span></body></html>",
+   "viewport": [400, 300],
+   "measure": [
+    {
+     "js": "['ft','fr','fn','ff','fs'].map(i => { const o = document.getElementById(i).offsetParent; return i + '=' + (o && (o.id || o.tagName)); }).join(' ')"
+    },
+    {
+     "js": "['ft','fr','fn','ff','fs'].map(i => { const e = document.getElementById(i); return i + '=' + e.offsetLeft + ',' + e.offsetTop; }).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fcb-root",
+   "html": "<!DOCTYPE html><html style='filter:invert(0.5)'><head><style>body{margin:0;height:1500px}#f{position:fixed;left:10px;bottom:10px;width:20px;height:20px;background:red}#a{position:absolute;right:10px;bottom:10px;width:20px;height:20px;background:blue}</style></head><body><div id=f></div><div id=a></div></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": "#f"
+    },
+    {
+     "boxes": "#a"
+    },
+    {
+     "js": "document.getElementById('f').offsetParent + ' ' + document.getElementById('a').offsetParent.tagName"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "fcb-root-transform",
+   "html": "<!DOCTYPE html><html style='transform:translateX(0)'><head><style>body{margin:0;height:1500px}#f{position:fixed;left:10px;bottom:10px;width:20px;height:20px;background:red}#a{position:absolute;right:10px;bottom:10px;width:20px;height:20px;background:blue}</style></head><body><div id=f></div><div id=a></div></body></html>",
+   "viewport": [500, 700],
+   "measure": [
+    {
+     "boxes": "#f"
+    },
+    {
+     "boxes": "#a"
+    },
+    {
+     "js": "document.getElementById('f').offsetParent + ' ' + document.getElementById('a').offsetParent.tagName"
+    }
+   ],
+   "javascript": true
+  }
+ ]
+}

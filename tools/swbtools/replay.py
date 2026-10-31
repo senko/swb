@@ -15,14 +15,27 @@ swb's records of the same steps with this file
 The steps are those of `swb --steps` and of the probe tool's `steps` key
 (`probe.run_steps` sends them to Chromium; there is one implementation of
 the step format in Python).
+
+Pixels (M8 feature 12c): `--screenshots DIR` saves a screenshot of the
+viewport after the load and after each group (`NNN-NAME.png`, for looking at
+the page). `--pixels FILE` names points and the groups after which to read
+them, `{"groups": ["theme night"], "points": {"wordmark": [x, y]}}` (`"load"`
+is the state after the load); `--pixels-out FILE` then gets
+`{"theme night": {"wordmark": [r, g, b]}}`, the colors of the viewport
+screenshot at the points. The numbers go into the tests of the targets, so
+that no image is committed.
 """
 
 import asyncio
+import io
 import json
 import logging
+import re
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
 from playwright.async_api import Page
 
 from swbtools import browser, paths
@@ -58,6 +71,82 @@ def read_groups(path: Path) -> list[tuple[dict[str, Any], ...]]:
     return groups
 
 
+def read_group_names(path: Path) -> list[str]:
+    """The names of the groups of a steps file (`group N` for a group
+    without a name), in order."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    names = []
+    for number, item in enumerate(data, 1):
+        name = item.get("name") if isinstance(item, dict) else None
+        names.append(name if isinstance(name, str) and name else f"group {number}")
+    return names
+
+
+Observer = Callable[[str, Page], Awaitable[None]]
+"""Called with the label (`load` or the name of a group) and the page after
+each record."""
+
+
+def read_pixel_points(path: Path) -> tuple[list[str], dict[str, tuple[int, int]]]:
+    """Reads a `--pixels` file: the labels to sample after and the named
+    points (x, y in viewport px)."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    groups = data.get("groups")
+    points = data.get("points")
+    if not (isinstance(groups, list) and all(isinstance(g, str) for g in groups)):
+        raise ProbeError(f"{path}: groups must be a list of group names")
+    ok = isinstance(points, dict) and all(
+        isinstance(p, list) and len(p) == 2 and all(isinstance(v, int) for v in p)
+        for p in points.values()
+    )
+    if not ok:
+        raise ProbeError(f"{path}: points must map names to [x, y] integers")
+    return groups, {name: (p[0], p[1]) for name, p in points.items()}
+
+
+def sample_pixels(png: bytes, points: dict[str, tuple[int, int]]) -> dict[str, list[int]]:
+    """The color of the screenshot `png` at each named point; a point
+    outside the image is an error."""
+    with Image.open(io.BytesIO(png)) as image:
+        rgb = image.convert("RGB")
+        out = {}
+        for name, (x, y) in points.items():
+            if not (0 <= x < rgb.width and 0 <= y < rgb.height):
+                raise ProbeError(f"point {name!r} ({x}, {y}) is outside the {rgb.size} screenshot")
+            out[name] = list(rgb.getpixel((x, y)))  # type: ignore[arg-type]
+        return out
+
+
+def pixel_observer(
+    names: list[str],
+    screenshots: Path | None,
+    wanted: list[str],
+    points: dict[str, tuple[int, int]],
+    samples: dict[str, dict[str, list[int]]],
+) -> Observer:
+    """An observer that saves screenshots into `screenshots` and reads the
+    `points` after the groups in `wanted` into `samples`. `names` are the
+    group names in order."""
+    labels = ["load", *names]
+    count = 0
+
+    async def observe(label: str, page: Page) -> None:
+        nonlocal count
+        index = count
+        count += 1
+        if screenshots is None and label not in wanted:
+            return
+        png = await page.screenshot(animations="disabled", caret="hide")
+        if screenshots is not None:
+            screenshots.mkdir(parents=True, exist_ok=True)
+            slug = re.sub(r"[^a-z0-9]+", "-", labels[index].lower()).strip("-")
+            (screenshots / f"{index:03d}-{slug}.png").write_bytes(png)
+        if label in wanted:
+            samples[label] = sample_pixels(png, points)
+
+    return observe
+
+
 async def evaluate_record(page: Page, expression: str) -> Any:
     """Evaluates the record expression. A string value is the JSON text of
     the record (as `window.__s()` of the tests returns it) and is parsed."""
@@ -72,10 +161,14 @@ async def replay(
     record: str,
     pause_ms: int = DEFAULT_PAUSE_MS,
     system_fonts: bool = False,
+    observer: Observer | None = None,
+    names: list[str] | None = None,
 ) -> tuple[list[Any], list[str], list[str]]:
     """Replays the fixture `name` and returns the records, the requested
     URLs that the fixture does not have, and the console errors and
-    uncaught exceptions of the page."""
+    uncaught exceptions of the page. `observer` is called after each
+    record with the label: `load`, or the name of the group from `names`
+    (`group N` without names)."""
     directory = paths.js_fixture_dir(name)
     meta = read_meta(directory)
     replayer = Replayer(Fixture(directory))
@@ -99,9 +192,13 @@ async def replay(
         if setup:
             await page.evaluate(setup)
         records.append(await evaluate_record(page, record))
-        for steps in groups:
+        if observer is not None:
+            await observer("load", page)
+        for number, steps in enumerate(groups, 1):
             await run_steps(page, steps, pause_ms)
             records.append(await evaluate_record(page, record))
+            if observer is not None:
+                await observer(names[number - 1] if names else f"group {number}", page)
     return records, sorted(set(replayer.missing)), errors
 
 
@@ -113,15 +210,39 @@ def replay_command(
     out: Path | None,
     pause_ms: int,
     system_fonts: bool,
+    screenshots: Path | None = None,
+    pixels: Path | None = None,
+    pixels_out: Path | None = None,
 ) -> int:
     """Runs `replay` and writes the records (JSON, indent 1) to `out` or
-    stdout. Logs the missing URLs and the page's errors."""
+    stdout. Logs the missing URLs and the page's errors. With `pixels` and
+    `pixels_out` it also writes the colors at the points; `screenshots`
+    saves the screenshots (see the module comment)."""
     groups = read_groups(steps)
+    names = read_group_names(steps)
     setup_text = setup.read_text(encoding="utf-8") if setup else ""
+    if (pixels is None) != (pixels_out is None):
+        log.error("--pixels and --pixels-out go together")
+        return 2
+    samples: dict[str, dict[str, list[int]]] = {}
+    observer = None
+    if pixels is not None or screenshots is not None:
+        wanted, points = read_pixel_points(pixels) if pixels is not None else ([], {})
+        unknown = [w for w in wanted if w != "load" and w not in names]
+        if unknown:
+            log.error("--pixels: no group named %r in %s", unknown[0], steps)
+            return 2
+        # The samples are keyed by the name: a repeated name (or a group
+        # named "load") would overwrite another sample.
+        repeated = [w for w in dict.fromkeys(wanted) if ["load", *names].count(w) > 1]
+        if repeated:
+            log.error("--pixels: %r names more than one group in %s", repeated[0], steps)
+            return 2
+        observer = pixel_observer(names, screenshots, wanted, points, samples)
     try:
         records, missing, errors = asyncio.run(
             asyncio.wait_for(
-                replay(name, setup_text, groups, record, pause_ms, system_fonts),
+                replay(name, setup_text, groups, record, pause_ms, system_fonts, observer, names),
                 REPLAY_TIMEOUT_S,
             )
         )
@@ -132,6 +253,9 @@ def replay_command(
         log.warning("%s: not in fixture: %s", name, url)
     for error in errors:
         log.warning("%s: %s", name, error)
+    if pixels_out is not None:
+        pixels_out.parent.mkdir(parents=True, exist_ok=True)
+        pixels_out.write_text(json.dumps(samples, indent=1) + "\n", encoding="utf-8")
     text = json.dumps(records, indent=1)
     if out is None:
         print(text)

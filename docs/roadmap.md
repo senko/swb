@@ -3883,6 +3883,16 @@ Steps:
       - 12c (`implementer`): the dark theme: `filter` and gradients in
         premultiplied space. Exit: the dark viewport pixels at least
         0.99; the light theme not worse; the test checks a pixel sample.
+        Done 2026-10-31: `filter` and `-webkit-filter` (all functions;
+        `url()` paints as `none`; blur and drop shadow with limits in
+        ADR 0028 section 16; stacking context and containing block,
+        not on the root element); linear gradients in premultiplied
+        space. Probe cases: 139 for `filter`, 25 for gradients, three
+        equal Chromium runs. Wikipedia dark viewport pixels 0.9514 →
+        0.9966, light 0.9967 unchanged; the test checks 23 pixel colors
+        after the night and day clicks (`swbtools replay --pixels`).
+        `compare --js` unchanged on all JS targets; JS off: snapshot
+        identical.
       - 12d (`implementer`): the orchestrator adds the fixture entries
         of the typeahead code and of one link preview; then what fails
         there. Exit of feature 12: the test drives the list above
@@ -3922,6 +3932,19 @@ Steps:
 
 ## Backlog from M8
 
+- Engine (found in feature 12c): the Craigslist page's load task needs
+  3.4 to 3.9 s of CPU time, and the task limit (`TASK_TIME_LIMIT`,
+  `crates/web/src/runtime.rs`) is 5 s of wall-clock time. On a busy
+  machine the limit stops the page's main script, and `compare --js
+  craigslist-posting` drops from 0.9804 to 0.6275. Measure the limit in
+  the thread's CPU time, find out why the task needs 3.4 s, or make
+  `compare` fail when the log has "time limit".
+- Paint (found in feature 12c): `radial-gradient()` and
+  `conic-gradient()` (also repeating) are accepted but paint nothing.
+  `repeating-linear-gradient(90deg, red)` (one stop) paints nothing;
+  Chromium paints the color.
+- Paint (found in feature 12c): `filter` on shapes and groups inside
+  inline SVG; SVG `filter` elements and `filter: url()`.
 - `style`/paint (found in feature 12b): `clip-path: shape()`;
   `clip-path` in transitions and animations. A wrapped inline box with
   `clip-path` is clipped per fragment; the reference box should be the

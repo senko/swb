@@ -170,6 +170,9 @@ def cmd_replay(args: argparse.Namespace) -> int:
         args.out,
         args.pause_ms,
         args.system_fonts,
+        args.screenshots,
+        args.pixels,
+        args.pixels_out,
     )
 
 
@@ -455,6 +458,25 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_PAUSE_MS,
         help=f"pause after each step (default {DEFAULT_PAUSE_MS})",
+    )
+    p.add_argument(
+        "--screenshots",
+        type=Path,
+        metavar="DIR",
+        help="save a screenshot of the viewport after the load and after each group here",
+    )
+    p.add_argument(
+        "--pixels",
+        type=Path,
+        metavar="FILE",
+        help='JSON {"groups": [names or "load"], "points": {name: [x, y]}}: read the colors at '
+        "the points after these groups (needs --pixels-out)",
+    )
+    p.add_argument(
+        "--pixels-out",
+        type=Path,
+        metavar="FILE",
+        help="write {group: {point: [r, g, b]}} here (needs --pixels)",
     )
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_replay)

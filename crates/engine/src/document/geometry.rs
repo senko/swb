@@ -31,8 +31,8 @@ use swb_dom::{NodeId, QuirksMode, local_name, ns};
 use swb_layout::{
     BoxContent, BoxFragment, Fragment, FragmentRef, Matrix, Point, Rect, Size, scrolling_area,
 };
-use swb_style::Position;
 use swb_style::cssom::resolved::layout_unit;
+use swb_style::{Display, Position};
 use swb_web::{
     DomRect, EventOrigins, ObservedBox, ObservedPosition, OffsetMetrics, ScrollAlign,
     ScrollMetrics, ScrollRequest,
@@ -257,8 +257,12 @@ impl DocumentState {
             .as_ref()
             .and_then(|s| s.get(node))
             .is_some_and(|s| s.position == Position::Fixed);
-        let parent = if fixed || self.dom.document_element() == Some(node) {
+        let parent = if self.dom.document_element() == Some(node) {
             None
+        } else if fixed {
+            // Chromium 148: the containing block of a fixed box that is a
+            // transformed or filtered ancestor; none for the viewport.
+            self.fixed_containing_block(node)
         } else {
             self.offset_parent(node)
         };
@@ -266,7 +270,17 @@ impl DocumentState {
         // to the border box of the root element (Chromium 148: with `html
         // { margin: 5px }` a box at x 23 has `offsetLeft` 18); for none, to
         // the initial containing block.
-        let origin = match parent {
+        // A fixed box in an inline box with a transform or a filter has it
+        // as its offset parent, but the viewport as its containing block.
+        let basis = parent.filter(|&p| {
+            !fixed
+                || self
+                    .styles
+                    .as_ref()
+                    .and_then(|s| s.get(p))
+                    .is_some_and(|s| s.display != Display::Inline)
+        });
+        let origin = match basis {
             Some(p) if Some(p) == body => self
                 .dom
                 .document_element()
@@ -318,6 +332,21 @@ impl DocumentState {
         )
     }
 
+    /// The nearest ancestor of `node` that is transformed or has a
+    /// `filter` other than `none`, also an inline box (Chromium 148 takes
+    /// it as the offset parent of a fixed box although layout does not
+    /// make it the containing block).
+    fn fixed_containing_block(&self, node: NodeId) -> Option<NodeId> {
+        let styles = self.styles.as_ref()?;
+        let root = self.dom.document_element();
+        self.dom.ancestors(node).find(|&ancestor| {
+            // The `filter` of the root element is not one (Chromium 148).
+            styles
+                .get(ancestor)
+                .is_some_and(|s| s.has_transform() || (s.has_filter() && Some(ancestor) != root))
+        })
+    }
+
     /// The offset parent of `node` (CSSOM View §7 "offsetParent"): the
     /// nearest ancestor that is the containing block of absolutely
     /// positioned boxes (positioned or transformed; Chromium 148 also
@@ -330,15 +359,18 @@ impl DocumentState {
         let own_static = styles
             .get(node)
             .is_none_or(|s| s.position == Position::Static);
+        let root = self.dom.document_element();
         for ancestor in self.dom.ancestors(node) {
             let element = self.dom.element(ancestor)?;
             if body == Some(ancestor) {
                 return Some(ancestor);
             }
-            if styles
-                .get(ancestor)
-                .is_some_and(|s| s.position != Position::Static || s.has_transform())
-            {
+            // The `filter` of the root element is not a containing block.
+            if styles.get(ancestor).is_some_and(|s| {
+                s.position != Position::Static
+                    || s.has_transform()
+                    || (s.has_filter() && Some(ancestor) != root)
+            }) {
                 return Some(ancestor);
             }
             let name = element.local_name();
@@ -607,7 +639,7 @@ impl DocumentState {
                 Position::Static => ObservedPosition::Static,
                 _ => ObservedPosition::Relative,
             },
-            transformed: style.has_transform(),
+            transformed: style.has_transform() || style.has_filter(),
             clips: style.overflow_x.clips() || style.overflow_y.clips(),
         })
     }

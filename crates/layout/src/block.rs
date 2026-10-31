@@ -1326,6 +1326,7 @@ pub(crate) fn finish_fragment(
         scrollable_overflow: None,
         in_positioned_inline: false,
         hanging_from: None,
+        is_root: false,
         hidden: None,
     }
 }

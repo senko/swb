@@ -38,7 +38,7 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
     match ser {
         Ser::Plain | Ser::Content => serialize(tokens, Style::PLAIN),
         Ser::Length => serialize(tokens, Style::LENGTH),
-        Ser::Color => color(tokens),
+        Ser::Color => color_text(tokens),
         Ser::FontFamily => font_family(tokens),
         Ser::Position => position(&words(tokens, Style::LENGTH)),
         Ser::Repeat => per_layer(tokens, |w| repeat(&words(w, Style::PLAIN))),
@@ -77,6 +77,7 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
             items.join(", ")
         }
         Ser::ClipPath => super::clip_path::serialize_clip_path(tokens),
+        Ser::Filter => super::filter::serialize_filter(tokens),
         Ser::Integer => match tokens {
             [ComponentValue::Number(n)] => n
                 .int_value
@@ -158,7 +159,7 @@ fn per_layer(tokens: &[ComponentValue], f: impl Fn(&[ComponentValue]) -> String)
 
 /// A color: a keyword as a lower-case name, otherwise `rgb()` (`value.rs`).
 /// (swb's parser has no hashless colors of the quirks mode.)
-fn color(tokens: &[ComponentValue]) -> String {
+pub(super) fn color_text(tokens: &[ComponentValue]) -> String {
     if let [ComponentValue::Ident(name)] = tokens
         && parse_color(&mut Parser::new(tokens)).is_ok()
     {

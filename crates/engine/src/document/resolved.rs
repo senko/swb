@@ -239,7 +239,7 @@ fn visit(
         display: style.display,
         row: style.flex_direction.is_row(),
         positioned: style.position != Position::Static,
-        transformed: style.has_transform(),
+        transformed: style.has_transform() || style.has_filter(),
         scroll_container: style.overflow_x.is_scroll_container()
             || style.overflow_y.is_scroll_container(),
     });

@@ -1,0 +1,236 @@
+{
+ "theme night": {
+  "wordmark 1": [
+   255,
+   255,
+   255
+  ],
+  "wordmark 2": [
+   255,
+   255,
+   255
+  ],
+  "wordmark 3": [
+   255,
+   255,
+   255
+  ],
+  "wordmark 4": [
+   231,
+   231,
+   231
+  ],
+  "wordmark 5": [
+   209,
+   210,
+   211
+  ],
+  "image 1": [
+   203,
+   203,
+   203
+  ],
+  "image 2": [
+   204,
+   204,
+   204
+  ],
+  "image 3": [
+   204,
+   204,
+   204
+  ],
+  "image 4": [
+   204,
+   204,
+   204
+  ],
+  "poster 1": [
+   26,
+   23,
+   28
+  ],
+  "poster 2": [
+   250,
+   246,
+   252
+  ],
+  "poster 3": [
+   247,
+   244,
+   250
+  ],
+  "toc band 1": [
+   16,
+   20,
+   23
+  ],
+  "toc band 2": [
+   15,
+   19,
+   23
+  ],
+  "toc band 3": [
+   16,
+   20,
+   23
+  ],
+  "appearance band 1": [
+   15,
+   19,
+   23
+  ],
+  "appearance band 2": [
+   16,
+   20,
+   24
+  ],
+  "appearance band 3": [
+   15,
+   19,
+   23
+  ],
+  "page background": [
+   16,
+   20,
+   24
+  ],
+  "content background": [
+   16,
+   20,
+   24
+  ],
+  "header background": [
+   16,
+   20,
+   24
+  ],
+  "infobox background": [
+   48,
+   53,
+   65
+  ],
+  "toc item background": [
+   16,
+   20,
+   24
+  ]
+ },
+ "theme day": {
+  "wordmark 1": [
+   0,
+   0,
+   0
+  ],
+  "wordmark 2": [
+   0,
+   0,
+   0
+  ],
+  "wordmark 3": [
+   0,
+   0,
+   0
+  ],
+  "wordmark 4": [
+   26,
+   26,
+   26
+  ],
+  "wordmark 5": [
+   49,
+   49,
+   49
+  ],
+  "image 1": [
+   254,
+   254,
+   254
+  ],
+  "image 2": [
+   255,
+   255,
+   255
+  ],
+  "image 3": [
+   255,
+   255,
+   255
+  ],
+  "image 4": [
+   255,
+   255,
+   255
+  ],
+  "poster 1": [
+   26,
+   23,
+   28
+  ],
+  "poster 2": [
+   250,
+   246,
+   252
+  ],
+  "poster 3": [
+   247,
+   244,
+   250
+  ],
+  "toc band 1": [
+   255,
+   255,
+   255
+  ],
+  "toc band 2": [
+   255,
+   255,
+   255
+  ],
+  "toc band 3": [
+   255,
+   255,
+   255
+  ],
+  "appearance band 1": [
+   254,
+   254,
+   254
+  ],
+  "appearance band 2": [
+   255,
+   255,
+   255
+  ],
+  "appearance band 3": [
+   255,
+   255,
+   255
+  ],
+  "page background": [
+   255,
+   255,
+   255
+  ],
+  "content background": [
+   255,
+   255,
+   255
+  ],
+  "header background": [
+   255,
+   255,
+   255
+  ],
+  "infobox background": [
+   218,
+   227,
+   243
+  ],
+  "toc item background": [
+   255,
+   255,
+   255
+  ]
+ }
+}

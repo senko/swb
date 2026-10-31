@@ -204,16 +204,22 @@ pub fn has_transform(fragment: &BoxFragment) -> bool {
 /// §3.2).
 pub fn is_absolute_containing_block(fragment: &BoxFragment) -> bool {
     fragment.style.position != Position::Static
-        || has_transform(fragment)
+        || is_fixed_containing_block(fragment)
         || fragment.style.contents_hidden
 }
 
 /// True if the box is the containing block of its fixed descendants
-/// instead of the viewport: transformed. Deviation: layout containment
-/// (hidden contents) does not count, so a fixed box in the hidden
-/// contents of a closed `details` is relative to the viewport.
+/// instead of the viewport: transformed, or with a `filter` other than
+/// `none` (Filter Effects 1 §5; a `url()` and a function that changes
+/// nothing count too; an inline box is neither, as with transforms; the
+/// root element's `filter` is not one, measured in Chromium 148: it is
+/// applied to the canvas, and a transform on the root is one).
+/// Deviation: layout containment (hidden contents) does not count, so a
+/// fixed box in the hidden contents of a closed `details` is relative to
+/// the viewport.
 pub fn is_fixed_containing_block(fragment: &BoxFragment) -> bool {
     has_transform(fragment)
+        || (fragment.style.has_filter() && !fragment.is_inline && !fragment.is_root)
 }
 
 /// The area of the `clip` property of an absolutely positioned box whose
@@ -238,7 +244,9 @@ pub fn clip_property_area(fragment: &BoxFragment, border_rect: Rect) -> Option<R
 /// True if the box forms a stacking context in paint (CSS 2.2 Appendix E,
 /// CSS Transforms 1 §3, CSS Masking 1): a transform, fixed or sticky
 /// positioning, a positioned box with an integer `z-index`, opacity below
-/// 1, a mask, or a `clip-path` that is a basic shape or a geometry box
+/// 1, a `filter` other than `none` (also `url()` and the identity
+/// functions, measured in Chromium), a mask, or a `clip-path` that is a
+/// basic shape or a geometry box
 /// (measured in Chromium: a `z-index: -1` child paints above the
 /// background of its `clip-path` parent). The root element forms one
 /// whatever its style; this
@@ -249,6 +257,7 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
         || matches!(style.position, Position::Fixed | Position::Sticky)
         || (style.position != Position::Static && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
+        || style.has_filter()
         || style.has_mask()
         || style.clip_path.is_shape()
 }
@@ -1487,7 +1496,7 @@ impl Ancestry {
         if is_fixed_containing_block(b) {
             inner.fixed_scrollport = inner.scrollport;
         }
-        inner.transformed |= has_transform(b);
+        inner.transformed |= is_fixed_containing_block(b);
         Cow::Owned(inner)
     }
 }

@@ -313,6 +313,7 @@ pub(crate) fn layout_with(input: &LayoutInput<'_>, ctx: &mut LayoutContext<'_>) 
     };
     let root = root_box.map(|root_box| {
         let mut root = block::layout_root(ctx, &root_box, icb);
+        root.is_root = true;
         positioned::place_out_of_flow(ctx, &root_box, &mut root, input.viewport);
         if input.styles.has_hidden_contents() {
             // The cached fragments share their children with the tree.

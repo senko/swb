@@ -613,6 +613,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
             ClipPath::Url(u) => url(u),
             ClipPath::Shape(c) => super::shape::shape_clip(c),
         },
+        "filter" => filter(s),
         "width" => size(&s.width),
         "height" => size(&s.height),
         // `auto` is 0 except for flex and grid items (which have a box).
@@ -1067,6 +1068,41 @@ pub(super) fn image(i: &Image) -> String {
             out
         }
     }
+}
+
+/// The computed `filter`: the functions with their computed amounts, a
+/// `drop-shadow()` with its color (`currentcolor` resolved), offsets and
+/// blur in px.
+fn filter(s: &ComputedStyle) -> String {
+    use crate::values::FilterFunction as F;
+    if s.filter.is_none() {
+        return "none".to_owned();
+    }
+    let items: Vec<String> = s
+        .filter
+        .functions()
+        .iter()
+        .map(|f| match f {
+            F::Blur(v) => format!("blur({})", px(*v)),
+            F::Brightness(v) => format!("brightness({})", number(*v)),
+            F::Contrast(v) => format!("contrast({})", number(*v)),
+            F::Grayscale(v) => format!("grayscale({})", number(*v)),
+            F::HueRotate(v) => format!("hue-rotate({}deg)", number(*v)),
+            F::Invert(v) => format!("invert({})", number(*v)),
+            F::Opacity(v) => format!("opacity({})", number(*v)),
+            F::Saturate(v) => format!("saturate({})", number(*v)),
+            F::Sepia(v) => format!("sepia({})", number(*v)),
+            F::DropShadow(d) => format!(
+                "drop-shadow({} {} {} {})",
+                rgba(d.color.resolve(s.color)),
+                px(d.x),
+                px(d.y),
+                px(d.blur)
+            ),
+            F::Url(u) => url(u),
+        })
+        .collect();
+    items.join(" ")
 }
 
 fn paint(p: &SvgPaint, s: &ComputedStyle) -> String {

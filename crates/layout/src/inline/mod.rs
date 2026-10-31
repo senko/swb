@@ -2253,6 +2253,7 @@ impl LineBuilder<'_, '_> {
             scrollable_overflow: None,
             in_positioned_inline: false,
             hanging_from: None,
+            is_root: false,
             hidden: None,
         };
         apply_relative_position(&mut fragment, self.cb);

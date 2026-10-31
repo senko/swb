@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use swb_dom::{Document, NodeId};
 use swb_layout::{
-    FragmentRef, FragmentTree, Point, Rect, Size, clamp_scroll_offset, has_transform,
+    FragmentRef, FragmentTree, Point, Rect, Size, clamp_scroll_offset, is_fixed_containing_block,
 };
 use swb_style::{Display, Overflow, Position, StyleMap};
 
@@ -40,7 +40,7 @@ pub(crate) struct Scrollers {
     boxes: HashMap<NodeId, ScrollBox>,
     /// The transformed elements of the last layout (containing blocks of
     /// absolutely positioned and fixed boxes), as layout decides it
-    /// (`swb_layout::has_transform`: not inline boxes).
+    /// (`swb_layout::is_fixed_containing_block`: not inline boxes).
     transformed: HashSet<NodeId>,
 }
 
@@ -68,7 +68,7 @@ impl Scrollers {
         self.transformed.clear();
         tree.walk(|fragment, _| {
             if let FragmentRef::Box(b) = fragment
-                && has_transform(b)
+                && is_fixed_containing_block(b)
                 && b.pseudo.is_none()
                 && let Some(node) = b.node
             {
@@ -193,7 +193,7 @@ impl Scrollers {
                 .get(element)
                 .filter(|s| s.display != Display::Contents && s.display != Display::None);
             let position = style.map_or(Position::Static, |s| s.position);
-            // As layout decides it (`swb_layout::has_transform`).
+            // As layout decides it (`swb_layout::is_fixed_containing_block`).
             let transformed = self.transformed.contains(&element);
             if !is_self {
                 match skip {

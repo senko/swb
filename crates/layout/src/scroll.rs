@@ -261,7 +261,7 @@ pub(crate) fn viewport_scroll_size(root: Option<&BoxFragment>, viewport: Size) -
                 state.fixed
             },
         };
-        let transformed = above.transformed || own.is_some();
+        let transformed = above.transformed || own.is_some() || is_fixed_containing_block(b);
         // Nothing inside can extend the area: all content is clipped (fixed
         // boxes without a transformed ancestor never count).
         if inner.content && inner.absolute && (inner.fixed || !transformed) {

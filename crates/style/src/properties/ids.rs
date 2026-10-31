@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use super::clip_path::SpecifiedClipPath;
+use super::filter::SpecifiedFilter;
 use super::mask::SpecifiedMaskImage;
 use super::specified::{
     SpecifiedBackgroundSize, SpecifiedContainIntrinsic, SpecifiedContent, SpecifiedFlexBasis,
@@ -271,6 +272,7 @@ longhands! {
     ObjectPosition "object-position" reset object_position: [SpecifiedPosition; 2];
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
+    Filter "filter" reset filter: SpecifiedFilter;
 
     // Not inherited, without effect on layout or paint (the scroll margin
     // and padding only on scrolling to an element): the computed values are

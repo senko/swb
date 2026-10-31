@@ -19,6 +19,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Details tests          | `crates/engine/tests/details.rs` (`details` and `summary`: toggling with the mouse and keyboard, hidden contents, default summary) | no |
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
 | `clip-path` tests      | `crates/engine/tests/clip_path.rs` (M8 feature 12b: every case of `tools/probes/clip-path.json`: the grammar of `inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `rect()`, `xywh()` and the geometry boxes with `CSS.supports`, `element.style` and `getComputedStyle` (about 500 values); the ink and box of 14 pages of clipped boxes in a screenshot (shapes of all kinds, reference boxes, transforms, children, inline boxes, tables, flex items, replaced elements, SVG elements with the three reference boxes); the stacking context; `elementFromPoint` and the hit test) | no |
+| `filter` and gradient tests | `crates/engine/tests/filter.rs` (M8 feature 12c: every case of `tools/probes/filter.json` and `tools/probes/gradients.json` with Chromium's values: the grammar, `element.style` and `getComputedStyle` of about 400 filter values, the alias `-webkit-filter`, the cascade and `var()`, hit testing and the scroll size, the boxes and offset parents of the children of filtered boxes, and about 140 cases of colors at points in a screenshot: the color functions, blur profiles, drop shadows, stacking contexts, the order with `opacity`, `clip-path` and masks, root and body, inline boxes, transforms, overflow, images, and gradients with transparent stops, also repeating); unit tests in `crates/paint/src/filter/tests.rs` (the steps against Chromium's numbers) and `crates/paint/src/raster/tests/gradient.rs` (the stops) | no |
 | Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links, `clipPath`, `use`, `shape-rendering`, hit testing of shapes); `tests/layout/inline-svg-boxes.html` (the boxes of `g`, shapes and `use` against Chromium) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
@@ -66,7 +67,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
-| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list (see "Automation tests"). |
+| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"). |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
@@ -75,7 +76,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just layout-refs [NAME...]` | `layout-refs [NAME...]`                | Writes `tests/layout/NAME.boxes.json` with Chromium. |
 | `just perf [NAME...]`        | `perf [NAME...] [--runs N]`            | Times swb's pipeline stages per fixture ([performance.md](performance.md)). |
 | `just tools measure [NAME...]` | `measure [NAME...]`                  | Measures the Chromium behaviour that some of swb's data comes from (see "Measure Chromium behaviour"). `font-size-sweep` runs only when named. |
-| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values; cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
+| `just probe FILE...`         | `probe FILE... [--case NAME]... [--with-swb] [--tolerance PX] [--json]` | Asks Chromium (and with `--with-swb`, swb) about the cases of JSON files: boxes, line fragments, computed styles, JS values, ink and the colors at points (`pixels`); cases with `"javascript": true` run their scripts (see "Probe Chromium behaviour"). |
 | `just hostile [NAME...]`     | `hostile [NAME...] [--swb PATH] [--list] [--keep]` | Runs swb on the hostile-page set and checks time and memory limits (see "Hostile-page set"). `just` builds swb first. |
 | `just bindings`              |                                        | Regenerates the binding glue from the IDL files with `swb-webidl` (see "Web API bindings"). |
 | `just test262 [ARGS]`        |                                        | Runs the test262 subset in `swb-js` and compares the pass counts with `crates/js/test262/scores.json`; `--parse-only` runs only the front end over `test/language/`, `test/built-ins/` and `test/annexB/` against `parse-scores.json` (see "JavaScript engine tools"). |
@@ -904,6 +905,7 @@ temporary directory, loaded by navigation.
   (by luminance, 1 for black), and `bbox`, the box of the pixels that are
   not white, relative to the element. It shows synthetic bold (more ink)
   and slanted glyphs where the geometry does not change.
+- `pixels`: the colors of a screenshot of the page at points: `{"pixels": "#a", "points": [[0, 0], [5, -3]]}` gives, for each element that matches, the RGB values at the points, in px from the top left of its border box (a point can lie outside the box, for a blur; one outside the screenshot is white). Output `pixels  #a[1]  10,20,30 255,255,255`. With `--with-swb`, swb's values follow, with `!` if a channel differs by more than 2. Set the page background (the screenshot has no alpha). All `pixels` queries of a case compare with swb's screenshot at the end of the case, so a case with scripts must not change what an earlier query saw. M8 feature 12c, for `filter` and gradients (`tools/probes/filter.json`, `gradients.json`; `crates/engine/tests/filter.rs` has their values).
 - `files` (case, optional): files to copy next to the page, as
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root (for example the fonts of `@font-face` rules:
@@ -1449,6 +1451,29 @@ the `ev` key (`#sharebutton-container a`: the link wraps onto two lines;
 Playwright's `page.click` clicks the center of its first non-empty rectangle and the
 runner of the probe tool the center of the bounding box, as swb does), which
 the test skips for that group.
+
+**Pixels of the steps** (M8 feature 12c). `--screenshots DIR` saves a
+screenshot of the viewport after the load and after each group
+(`NNN-NAME.png`, for looking at the page). `--pixels FILE` reads
+`{"groups": ["theme night", "theme day"], "points": {"wordmark 1": [87,
+15]}}` (a group name of the steps file, or `load`; x and y in the viewport)
+and `--pixels-out FILE` writes `{"theme night": {"wordmark 1": [255, 255,
+255]}}`, the colors of the viewport screenshot at the points after those
+groups. The Wikipedia test compares swb's colors at the 23 points of
+`data/wikipedia-web-browser-pixel-points.json` with the file
+`data/wikipedia-web-browser-pixels.json` (tolerance 12 per channel), so no
+image is committed. The command that makes both records and colors (three
+runs, equal):
+
+```
+uv run --project tools swbtools replay wikipedia-web-browser \
+  --steps crates/automation/tests/data/wikipedia-web-browser-steps.json \
+  --setup crates/automation/tests/data/wikipedia-web-browser.js \
+  --record 'window.__s()' \
+  --pixels crates/automation/tests/data/wikipedia-web-browser-pixel-points.json \
+  --pixels-out crates/automation/tests/data/wikipedia-web-browser-pixels.json \
+  --out crates/automation/tests/data/wikipedia-web-browser-chromium.json
+```
 
 `tools/tests/test_automation.py` tests the Python client against the swb
 binary (skipped if it does not exist). `just tools-check` (part of
