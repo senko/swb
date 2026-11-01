@@ -575,10 +575,14 @@ of the sets of `\p{...}`, https://www.unicode.org/Public/17.0.0/emoji/), and
 (`crates/js/src/date/zone_names_data.rs`) are generated from three files of
 the Unicode Common Locale Data Repository (CLDR) 48
 (https://unicode.org/Public/cldr/48/cldr-common-48.zip: `common/main/en.xml`,
-`common/supplemental/metaZones.xml`, `common/bcp47/timezone.xml`); their
-headers say "Copyright © 1991-2025 Unicode, Inc. For terms of use, see
-http://www.unicode.org/copyright.html" and (`en.xml`)
-"SPDX-License-Identifier: Unicode-3.0", the same license as the UCD. The
+`common/supplemental/metaZones.xml`, `common/bcp47/timezone.xml`). The
+patterns and names of `Intl` (`crates/js/src/intl/data.rs`) are generated
+from `common/main/en.xml`, `en_001.xml`, `en_GB.xml` and `root.xml` and
+`common/supplemental/supplementalData.xml` (the digits of currencies) of
+the same archive. Their headers say "Copyright © 1991-2025 Unicode, Inc. For
+terms of use, see http://www.unicode.org/copyright.html" and (the files of
+`common/main/`) "SPDX-License-Identifier: Unicode-3.0", the same license as
+the UCD. The
 header of each file of the UCD says:
 
 > © 2025 Unicode®, Inc.

@@ -4604,3 +4604,74 @@ def document_writeln_loop_js_on() -> Page:
         "<script>for (let i = 0; i < 600000; i++) document.writeln('<!--' + i + '-->');</script>"
     )
     return Page(doc("<p>write</p>" + script))
+
+
+@case(
+    "300,000 Intl.DateTimeFormat, NumberFormat and RelativeTimeFormat objects with options, "
+    "each used once, and 100,000 toLocaleString calls with options on dates and numbers, "
+    "with JavaScript on (M9 feature 3, ADR 0027 section 10): the objects are garbage at once, "
+    "and the heap does not grow with the count",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def intl_formatters_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 300000; i++) { "
+        "n += new Intl.DateTimeFormat('en-GB', {hour: 'numeric', minute: '2-digit', "
+        "timeZone: 'UTC', timeZoneName: 'short'}).format(i * 60000).length; "
+        "n += new Intl.NumberFormat('en-US', {style: 'unit', unit: 'minute', "
+        "unitDisplay: 'long'}).format(i).length; "
+        "n += new Intl.RelativeTimeFormat('en', {numeric: 'auto'}).format(i % 5 - 2, 'day')"
+        ".length; } "
+        "for (let i = 0; i < 100000; i++) { "
+        "n += new Date(i * 86400000).toLocaleDateString('en-US', {month: 'long', "
+        "timeZone: 'UTC'}).length + "
+        "i.toLocaleString('en-GB', {maximumFractionDigits: 2}).length; } "
+        "console.log('chars ' + n);</script>"
+    )
+    return Page(doc("<p>intl</p>" + script))
+
+
+@case(
+    "Intl.NumberFormat with the largest digit options on big and long numbers, with JavaScript "
+    "on: maximumFractionDigits 100 on doubles from 5e-324 to 1.8e308 and on strings and "
+    "BigInts of 300,000 digits (linear), a string of 2 million digits or an exponent of "
+    "2^30 (the infinity, read in place without a copy), and a BigInt of 2 million digits "
+    "(a RangeError, not a 2 GB string)",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def intl_number_digits_js_on() -> Page:
+    script = (
+        "<script>const f = new Intl.NumberFormat('en-US', {maximumFractionDigits: 100, "
+        "minimumFractionDigits: 100, minimumIntegerDigits: 21}); let n = 0; "
+        "for (const x of [5e-324, 1e-10, 1/3, 123456789.123456789, 1e21, 1.7976931348623157e308]) "
+        "n += f.format(x).length; "
+        "n += f.format('7'.repeat(300000)).length; n += f.format(10n ** 300000n).length; "
+        "const g = new Intl.NumberFormat('en-US'); let errors = 0; "
+        "for (const text of ['9'.repeat(2000000), '1e1073741824', '1e-1073741824x']) "
+        "try { n += g.format(text).length; } catch (e) { errors++; } "
+        "try { g.format(10n ** 2000000n); } catch (e) { errors++; } "
+        "console.log('chars ' + n + ' errors ' + errors);</script>"
+    )
+    return Page(doc("<p>intl</p>" + script))
+
+
+@case(
+    "Intl.getCanonicalLocales and the constructors with a list of 1,000,000 distinct "
+    "language tags, a list of 100,000 invalid ones after a valid one, and an array-like "
+    "of length 2^32 - 1 with JavaScript on (the time limit ends the last loop)",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def intl_locale_lists_js_on() -> Page:
+    script = (
+        "<script>const tags = Array.from({length: 1000000}, (_, i) => 'en-x-t' + i); "
+        "console.log('canonical ' + Intl.getCanonicalLocales(tags).length); "
+        "console.log('format ' + new Intl.DateTimeFormat(tags).resolvedOptions().locale); "
+        "try { Intl.getCanonicalLocales(['en'].concat(Array(100000).fill('en_US'))); } "
+        "catch (e) { console.log(e.name); } "
+        "try { Intl.getCanonicalLocales({length: 4294967295}); } "
+        "catch (e) { console.log('long ' + e.name); }</script>"
+    )
+    return Page(doc("<p>intl</p>" + script))

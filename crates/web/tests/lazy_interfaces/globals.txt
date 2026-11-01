@@ -48,6 +48,7 @@ Float32Array:dwc
 Float64Array:dwc
 Atomics:dwc
 Date:dwc
+Intl:dwc
 Symbol:dwc
 Iterator:dwc
 Map:dwc

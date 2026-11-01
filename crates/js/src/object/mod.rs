@@ -222,6 +222,10 @@ pub enum ObjectKind {
     ArrayBuffer(Box<ArrayBufferData>),
     /// A `DataView` (§25.3): its buffer, offset and length.
     DataView(Box<BufferView>),
+    /// An `Intl.DateTimeFormat`, `Intl.NumberFormat` or
+    /// `Intl.RelativeTimeFormat` (ECMA-402): the resolved format and the
+    /// cached bound `format` function (`intl/mod.rs`).
+    Intl(Box<crate::intl::IntlObject>),
 }
 
 /// The state of a `for`-`in` loop: the object and the keys that the loop
@@ -313,6 +317,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::ArrayBuffer(_) => "ArrayBuffer",
             ObjectKind::DataView(_) => "DataView",
             ObjectKind::TypedArray(_) => "TypedArray",
+            ObjectKind::Intl(_) => "Intl",
         };
         f.write_str(name)
     }
@@ -361,6 +366,11 @@ impl ObjectKind {
             | ObjectKind::ArrayBuffer(_) => {}
             ObjectKind::DataView(view) => tracer.object(view.buffer),
             ObjectKind::TypedArray(data) => tracer.object(data.view.buffer),
+            ObjectKind::Intl(data) => {
+                if let Some(bound) = data.bound_format {
+                    tracer.object(bound);
+                }
+            }
             ObjectKind::Error(data) => {
                 if let Some(data) = data {
                     data.trace(tracer);
@@ -461,6 +471,7 @@ impl ObjectKind {
             ObjectKind::ArrayBuffer(data) => data.heap_size(),
             ObjectKind::DataView(_) => size_of::<BufferView>(),
             ObjectKind::TypedArray(_) => size_of::<TypedArrayData>(),
+            ObjectKind::Intl(data) => data.heap_size(),
             _ => 0,
         }
     }

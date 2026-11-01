@@ -1,11 +1,13 @@
 //! The text forms of `Date.prototype` (ECMA-262 §21.4.4.35 to §21.4.4.45),
 //! `toJSON` (§21.4.4.37) and `@@toPrimitive` (§21.4.4.45), and the
-//! `toLocale*String` methods, which give Chromium 148's en-US output
-//! without `Intl` (their arguments are ignored; ECMA-402 is outside M7).
+//! `toLocale*String` methods: Chromium 148's en-US output without
+//! arguments, `Intl.DateTimeFormat` with a locale or options (ADR 0027
+//! sections 7 and 10).
 //! The formats themselves are in `crate::date::format`.
 
 use std::borrow::Cow;
 
+use super::intl_datetime::{self, Defaults, Required};
 use crate::date::format;
 use crate::date::time_value::{Fields, fields};
 use crate::runtime::Runtime;
@@ -90,25 +92,68 @@ pub(super) fn to_iso_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<Nat
     rt.text_result(&format::to_iso_string(&fields(t as i64)))
 }
 
-/// `Date.prototype.toLocaleString()` in en-US as Chromium 148 prints it.
+/// The text of `toLocaleString` and its two relatives (ECMA-402 §20.4):
+/// `plain` is Chromium 148's en-US output, used without arguments; with a
+/// locale or options, `Intl.DateTimeFormat` makes the text.
+fn locale_text(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    method: &'static str,
+    plain: fn(&Fields) -> String,
+    required: Required,
+    defaults: Defaults,
+) -> VmResult<NativeReturn> {
+    let (_, t) = rt.this_date(call, method)?;
+    if t.is_nan() {
+        return rt.text_result("Invalid Date");
+    }
+    let text = if rt.arg(call, 0).is_undefined() && rt.arg(call, 1).is_undefined() {
+        plain(&local(rt, t as i64).0)
+    } else {
+        let site = match method {
+            "toLocaleString" => "Date.prototype.toLocaleString",
+            "toLocaleDateString" => "Date.prototype.toLocaleDateString",
+            _ => "Date.prototype.toLocaleTimeString",
+        };
+        intl_datetime::to_locale_text(rt, call, t as i64, required, defaults, site)?
+    };
+    rt.text_result(&text)
+}
+
+/// `Date.prototype.toLocaleString([locales [, options]])`.
 pub(super) fn to_locale_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    text_of(rt, call, "toLocaleString", |rt, t| {
-        format::to_locale_string(&local(rt, t).0)
-    })
+    locale_text(
+        rt,
+        call,
+        "toLocaleString",
+        format::to_locale_string,
+        Required::Any,
+        Defaults::All,
+    )
 }
 
-/// `Date.prototype.toLocaleDateString()` in en-US.
+/// `Date.prototype.toLocaleDateString([locales [, options]])`.
 pub(super) fn to_locale_date_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    text_of(rt, call, "toLocaleDateString", |rt, t| {
-        format::to_locale_date_string(&local(rt, t).0)
-    })
+    locale_text(
+        rt,
+        call,
+        "toLocaleDateString",
+        format::to_locale_date_string,
+        Required::Date,
+        Defaults::Date,
+    )
 }
 
-/// `Date.prototype.toLocaleTimeString()` in en-US.
+/// `Date.prototype.toLocaleTimeString([locales [, options]])`.
 pub(super) fn to_locale_time_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    text_of(rt, call, "toLocaleTimeString", |rt, t| {
-        format::to_locale_time_string(&local(rt, t).0)
-    })
+    locale_text(
+        rt,
+        call,
+        "toLocaleTimeString",
+        format::to_locale_time_string,
+        Required::Time,
+        Defaults::Time,
+    )
 }
 
 /// `Date.prototype.toJSON(key)` (§21.4.4.37): `null` for a date whose

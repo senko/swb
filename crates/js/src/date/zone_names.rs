@@ -44,6 +44,14 @@ fn name_at(index: usize) -> Option<&'static str> {
     ZONE_TEXT.get(start..end.checked_sub(1)?)
 }
 
+/// The spelling of CLDR of a zone name given in any case (`europe/berlin`
+/// gives `Europe/Berlin`); `None` for a name that CLDR does not have.
+pub(crate) fn canonical_case(name: &str) -> Option<&'static str> {
+    (0..ZONE_ENDS.len())
+        .filter_map(name_at)
+        .find(|candidate| candidate.eq_ignore_ascii_case(name))
+}
+
 /// The names of the zone `name` (an identifier of the time zone database,
 /// such as `Europe/Berlin`), or `None` for a name that CLDR does not have.
 pub(super) fn find(name: &str) -> Option<ZoneNames> {
@@ -88,7 +96,7 @@ impl ZoneNames {
 /// The localized GMT format of an offset in seconds: `GMT+01:00`, and
 /// `GMT+00:53:28` for an offset with seconds (UTS #35 part 4, "GMT
 /// format", the `en` patterns `GMT{0}` and `+HH:mm;-HH:mm`).
-pub(super) fn gmt_format(offset_seconds: i32) -> String {
+pub(crate) fn gmt_format(offset_seconds: i32) -> String {
     let sign = if offset_seconds < 0 { '-' } else { '+' };
     let total = offset_seconds.unsigned_abs();
     let (hours, minutes, seconds) = (total / 3600, total / 60 % 60, total % 60);

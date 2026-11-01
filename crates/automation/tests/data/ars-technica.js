@@ -54,6 +54,11 @@
   window.__s = () => {
     const o = {};
     o.html = document.documentElement.className;
+    // The story times that Alpine writes with `toLocaleTimeString` and
+    // `toLocaleDateString` ("5:59 PM", "10/21/2026"; M9 feature 3, `Intl`).
+    o.times = Array.from(document.querySelectorAll('time[x-data="arsTimestamp()"]'))
+      .map((e) => e.textContent.trim())
+      .join('|');
     o.bg = getComputedStyle(document.body).backgroundColor;
     o.cookies = cookies();
     o.consent = consent();

@@ -37,8 +37,12 @@
 //! depends on the A/B headline variant (random per load in both browsers),
 //! the ads or the third-party scripts.
 //!
-//! Not in this test yet (the roadmap's features 3 and 5 of M9 add them): the
-//! story times in the form of Chromium ("5:59 PM", `Intl`) and the blurred
+//! The story times (`times` in the record) are those of Chromium ("5:59
+//! PM" and "10/21/2026": the `toLocaleTimeString` and `toLocaleDateString`
+//! calls of the page with `hour` and `minute`, or `year`, `month` and
+//! `day`; M9 feature 3, ADR 0027 section 10).
+//!
+//! Not in this test yet (the roadmap's feature 5 of M9 adds it): the blurred
 //! backdrop of the grid settings dialog (`backdrop-filter`, the pixels
 //! around the dialog).
 //!

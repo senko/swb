@@ -325,6 +325,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::FinalizationRegistry(_)
         | ObjectKind::ArrayBuffer(_)
         | ObjectKind::DataView(_)
+        | ObjectKind::Intl(_)
         | ObjectKind::TypedArray(_) => "Object",
     }
 }

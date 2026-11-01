@@ -1,7 +1,8 @@
 # ADR 0027: `Date` and time zones
 
 - Status: accepted
-- Date: 2026-10-18 (sections 5a, 6 and 8, the other forms and the zone names: 2026-10-21)
+- Date: 2026-10-18 (sections 5a, 6 and 8, the other forms and the zone names: 2026-10-21;
+  sections 7, 9 and 10, `Intl`: 2026-11-01)
 
 ## Context
 
@@ -321,10 +322,11 @@ mappings for these files; Chromium 148 matches them (the names "Türkiye",
 
 ### 7. `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`
 
-Without `Intl`, these give Chromium 148's output for en-US and ignore
-their arguments: `7/1/2024, 1:05:09 PM`. The space before `AM` and `PM`
-is U+0020 in the Chromium of the tools (measured; newer ICU versions use
-U+202F). The year of a date before 1 is counted down from 1 (the year -1
+Without arguments, these give Chromium 148's output for en-US:
+`7/1/2024, 1:05:09 PM` (the fast path of M7, kept). With a `locales` or
+`options` argument they use `Intl.DateTimeFormat` (section 10, ECMA-402
+§20.4). The space before `AM` and `PM` is U+0020 in the Chromium of the
+tools (measured; newer ICU versions use U+202F). The year of a date before 1 is counted down from 1 (the year -1
 shows as 2, as ICU's Gregorian calendar with eras does).
 
 ### 8. Differences from Chromium 148 (KNOWN)
@@ -387,10 +389,239 @@ covers these; the checks were made against the system's `tzdata`):
 
 ### 9. The backlog
 
-Not in M7: the `locales` and `options` arguments of `toLocaleString` and
-`Intl.DateTimeFormat` (the targets use `toLocaleDateString('en-GB', ...)`
-and `timeZone: 'UTC'`); `Intl.DateTimeFormat().resolvedOptions().timeZone`.
-Other locales' zone names (only `en`).
+Done in M9 feature 3 (section 10): the `locales` and `options` arguments
+of `toLocaleString` and its two relatives, `Intl.DateTimeFormat` and
+`Intl.DateTimeFormat().resolvedOptions().timeZone`. Still open: the zone
+names of other locales (only `en` and `en-GB`) and the generic zone names.
+
+### 10. `Intl` (M9 feature 3)
+
+`Intl` has `DateTimeFormat`, `NumberFormat`, `RelativeTimeFormat` and
+`getCanonicalLocales`, for the locales `en`, `en-US` and `en-GB`. The core
+is in `crates/js/src/intl/` (no heap, no interpreter), the objects in
+`crates/js/src/builtins/intl*.rs`. The rest of ECMA-402 is not there:
+`Collator` (`localeCompare` stays as it is), `PluralRules`, `ListFormat`,
+`Locale`, `DisplayNames`, `Segmenter`, `supportedValuesOf`, `formatRange`
+and `formatRangeToParts`.
+
+**What the pages need.** The scripts of the six JavaScript fixtures call
+`Intl` as follows. Ars Technica: `toLocaleTimeString(undefined, {hour,
+minute: "numeric"})` and `toLocaleDateString(undefined, {year, month
+numeric/short/long, day})` (the story times), and `new
+Intl.DateTimeFormat().resolvedOptions().timeZone` (Google Tag Manager,
+Snowplow, jstimezonedetect). BBC: `toLocaleDateString("en-GB", {day, month
+short/long, year, timeZone: "UTC"})`, `toLocaleTimeString("en-GB", {hour,
+minute: "2-digit", hour12, timeZone, timeZoneName: "short"})`,
+`toLocaleDateString("en-US", {month: "long", timeZone: "UTC"})`,
+`toLocaleDateString(undefined, {weekday: "short"})`, `new
+Intl.NumberFormat("en-US", {style: "unit", unit: "minute", unitDisplay:
+"long", maximumFractionDigits: 0})`, `new Intl.RelativeTimeFormat("en",
+{numeric: "auto"})` and `resolvedOptions().timeZone`. Craigslist (the
+legacy path): `Intl.DateTimeFormat(locale, {weekday | month:
+narrow/short/long})`, `{month: "short", day}`, `{weekday, month, day}`,
+`new Intl.NumberFormat(locale)`, `Intl.RelativeTimeFormat`, the
+`toLocale*String` forms of the same options, and the formatjs polyfills
+(`Intl.PluralRules`, `Intl.Locale`, `Intl.DisplayNames`, `Intl.Collator`
+are used behind `try` blocks and feature tests). Wikipedia: `Intl.Collator`
+(guarded by `window.Intl && Intl.Collator`). Hacker News and senko.net:
+none. Every option set of these calls is in `tools/probes/js-intl.json`.
+
+**Decision: no ICU and no ICU4X.** Three locales and a few patterns do not
+justify a library of the size of a megabyte: all of `Intl` (code and data)
+adds 296 KB to `swb-js` (stripped). The data comes from CLDR 48 (the
+version of the zone names) by `swbtools js-intl-data`
+(`tools/swbtools/js_intl_data.py`) into the generated
+`crates/js/src/intl/data.rs`. For `en-US` and `en-GB` (the inheritance
+`en_GB`, `en_001`, `en` is resolved when the file is written) it has the
+names of months, weekdays, eras and day periods, the standard date and time
+patterns with their skeletons, `availableFormats`, `appendItems`, the glue
+patterns, the short zone names, the symbols of numbers, 22 currencies, the
+fraction digits of all currencies (59 codes that differ from 2, from
+`supplementalData.xml`), the 45 sanctioned simple units and a few compound
+ones, and the relative-time patterns, and a table of 280 zone aliases. It is 2,964 strings (22 KB of
+text, 11 KB distinct) in 52 KB of source. License: the Unicode License v3
+(the same files as section 6, with `en_001.xml`, `en_GB.xml` and
+`root.xml`).
+
+**Locale negotiation.** `en` and `en-US` resolve to `en` and `en-US` with
+the `en-US` data, `en-GB` to `en-GB`; a tag with a Unicode extension
+resolves without it (but `-u-hc-` sets the hour cycle). Every other locale
+resolves to the default, `en-US`, as the negotiation does with only these
+locales available. Chromium 148 has more (`de` gives `de`, `en-AU` gives
+`en-AU` with the patterns of `en-AU`); `supportedLocalesOf` lists only the
+three. This is the largest difference (departure 1).
+
+**`Intl.DateTimeFormat`.** The options are read in the order of ECMA-402
+(a probe with getters shows Chromium's order). The pattern comes from the
+matching of skeletons of UTS #35 part 4 (`pattern.rs`): a request is a set
+of fields with widths; the pattern of the data whose skeleton has exactly
+the fields of the request and the nearest widths is chosen and adjusted to
+the request. The rules were set by the measurement of 256 option sets at
+five instants in `en-US` and `en-GB` (the group `matrix` of the probe file;
+253 equal, the others are departures 3 and 7):
+
+- A field keeps the width of the pattern when the request and the skeleton
+  of the data agree (`dd/MM/y` serves `yMd` in `en-GB`: `01/07/2024`), and
+  takes the width of the request when they differ (`yMMdd` in `en-US` is
+  `MM/dd/y`; `hhmm` is `hh:mm a`).
+- In the distance, a width difference of the hour counts half of one of
+  another field (measured: in `en-GB`, which has both, `HHm` takes `Hm` and
+  `Hmm` takes `HHmm`); a number against a name is far; a 12-hour clock
+  against a 24-hour one is no match; the width of a zone field does not
+  count.
+- The standard date and time patterns of the locale are skeletons too (that
+  is how `en-US` has `EEEE, MMMM d, y`).
+- A request without such a skeleton is split into a date and a time and
+  joined by the glue pattern of the locale. The pattern for a time of day
+  is used for every join (`July 1 at 1:05 PM`, `Jul 1, 1:05 PM`: the medium
+  and short patterns of `en` have the comma). A part that has no skeleton
+  is served by the largest smaller skeleton with the missing field appended
+  by `appendItems` (`{year, day}` gives `2024 (day: 1)`).
+- `dateStyle` and `timeStyle` use the standard patterns; with `hour12` or
+  `hourCycle` the time pattern is found again for its skeleton with the
+  other hour letter (`en-GB` with `hour12: true` gives `01:05 pm`).
+- The space before the day period is U+0020 (the `alt="ascii"` patterns of
+  CLDR). No result of Chromium 148 in the 256 option sets, the styles or
+  the joined patterns has U+202F. The day periods of `en-GB` are `am` and
+  `pm`.
+- `fractionalSecondDigits` appends `.SSS` to the seconds, and seconds are
+  added to a request with minutes or an hour (`05:07.00`). Without an
+  hour, minute or second the fraction is a time part of its own, joined to
+  the date like a time (`1/1/1970, 000`, `January 1 at 000`) with the zone
+  name after it (`000 UTC`). A minute or a second alone is not padded
+  (`2-digit` gives `5`).
+- `timeZoneName`: `short` is the short name of CLDR for the locale and the
+  zone (`EST`; `BST` in `en-GB`; none for `Europe/Berlin` in `en-US`), else
+  the GMT format of the offset at the time (`GMT+1`, `GMT+5:30`); `long` is
+  the name of section 6; `shortOffset` and `longOffset` are `GMT+1` and
+  `GMT+01:00` (UTC gives `GMT+0` and `GMT+00:00`, as measured). A zone given
+  as an offset (`+05:30`) is shown as the offset.
+- `timeZone`: `UTC`, `GMT`, `Etc/UTC`, `Etc/GMT`, `Zulu`, `UCT`, `Etc/UCT`,
+  `Etc/Zulu`, `Universal`, `Etc/Universal`, `GMT0`, `Etc/GMT0`, `Etc/GMT+0`,
+  `Etc/GMT-0`, `GMT+0` and `GMT-0` are the zone UTC and give `UTC`;
+  `Greenwich` and `Etc/Greenwich` give `UTC` too but keep the names of
+  Greenwich Mean Time (measured, with one probe snippet for each link of
+  the IANA database that is a name of UTC); `Etc/Unknown` is a `RangeError`.
+  An identifier in any case is canonicalized to the identifier of CLDR
+  (`Asia/Kolkata` gives `Asia/Calcutta`, `US/Eastern` gives
+  `America/New_York`: the aliases of `bcp47/timezone.xml`); an offset
+  `+hh:mm`, `+hhmm` or `+hh` is a zone (the offset zero, also written
+  `-0000`, is `+00:00` and shows the names of Greenwich Mean Time). A name
+  that the database of the system does not have is a `RangeError` ("Invalid
+  time zone specified: X"); a few old names that a database without the
+  links lacks fall back to the current identifier (`Asia/Calcutta` to
+  `Asia/Kolkata`). A POSIX rule or a name with spaces is not a zone here.
+  The zone is checked right after its option is read (before the
+  components), as in ECMA-402 and Chromium.
+- `resolvedOptions()` gives `locale`, `calendar` (`gregory`),
+  `numberingSystem` (`latn`), `timeZone`, `hourCycle` and `hour12` when the
+  pattern has an hour, and the components of the pattern (or the styles).
+  `format` is a getter that returns the same bound function each time
+  (`[[BoundFormat]]` is in the object and traced by the collector).
+- `format(undefined)` is the current time; a value that is not a time value
+  is a `RangeError` ("Invalid time value").
+
+**`Intl.NumberFormat`.** The styles `decimal`, `percent`, `currency` (symbols
+and names of 22 currencies; another code shows the code; the fraction
+digits of every code are the ISO 4217 minor units of CLDR
+`currencyData/fractions`: `KWD` 3, `CLP` 0, `CLF` 4, 59 codes differ from
+2) and `unit`; `minimumIntegerDigits`, the fraction and significant digit
+options (ranges and errors as in Chromium: "maximumFractionDigits value is
+out of range."), `useGrouping` (`auto`, `always`, `min2`, `false`),
+`signDisplay`, `currencyDisplay`, `currencySign` and `unitDisplay`. The
+options are read and checked in the order of ECMA-402 (`numberingSystem`,
+`style`, `currency`, `currencyDisplay`, `currencySign`, `unit`,
+`unitDisplay`; each check right after the read); `unit` is checked for
+every style. The plural category of a unit or a currency name is decided
+by the value (`01 minute`), not by the padded digits.
+
+A number is kept as decimal digits (a double as its shortest round-trip
+digits, a `BigInt` exactly) and rounded half away from zero, so `1.005`
+with two fraction digits is `1.01` as in Chromium. A numeric string is read
+in place, without a copy, as the number string of `ToIntlMathematicalValue`
+the way Chromium reads it (measured): a value whose `Number` is infinite
+(`1e400`, a string of 400 digits, `1e1000000000`) is the infinity, a zero
+with any exponent is zero, and only the first 1,024 significant digits are
+kept (they decide every rounding, because a value below 10^309 shows at
+most 309 places before and 100 after the point). So the length of a string
+costs time to read but no memory. The text has at most 2^20 digits (a
+`RangeError`, "Invalid string length", above; Chromium's limit is the
+string limit, 2^29): this limit applies to a `BigInt` and to a tiny number
+with significant digits (`1e-9999999`); the work is charged against the
+time limit. `Number.prototype.toLocaleString` and
+`BigInt.prototype.toLocaleString` with arguments use it; without arguments
+the fast path of M7 stays.
+
+**`Intl.RelativeTimeFormat`.** `style` and `numeric`; the patterns of the
+units second to year; `numeric: "auto"` uses the phrases of the data
+(`yesterday`, `this minute`) when the value rounded to two fraction digits
+is -1, 0 or 1 (measured: 0.001 is `today`, 0.01 is `in 0.01 days`, 0.9999
+is `tomorrow`); a negative zero is in the past (`0 days ago`). A narrow
+field without an item takes the short one, and a short field the long one
+(the aliases of the fields in CLDR's `root.xml`).
+
+**Departures from Chromium 148.** Each snippet of them is marked `!known`
+in `crates/js/tests/data/intl-snippets.txt` (81 of 1,206 snippets):
+
+1. Locales other than `en`, `en-US` and `en-GB` resolve to `en-US`
+   (`de-DE` gives `1,234.5`); `supportedLocalesOf` and `resolvedOptions`
+   report that; a tag with extensions resolves without them.
+2. Calendars and numbering systems other than `gregory` and `latn`: the
+   options are validated and ignored.
+3. `dayPeriod` is read and checked and has no effect (`in the afternoon`
+   needs the flexible day periods of CLDR, which are not in the data). It
+   does not count as a time field: `{dayPeriod: "long"}` alone gives the
+   default date and time (Chromium: `in the evening`), and with an hour the
+   text has `AM`/`PM`. A fraction of a second next to an hour but no
+   minute is `12 AM (second: 0.000)` where Chromium prints an internal
+   marker (`12 AM ├F14: 000┤`).
+4. `timeZoneName: "shortGeneric"` and `"longGeneric"` give the offset
+   (`GMT+1`), where Chromium has `ET`, `India Time`, `United Kingdom Time`.
+5. `notation` other than `standard` (compact, scientific, engineering),
+   `compactDisplay`, `roundingMode`, `roundingIncrement`, `roundingPriority`
+   and `trailingZeroDisplay` are read and have no effect; the resolved
+   values are the defaults.
+6. A unit that the table has no pattern for (a compound unit such as
+   `meter-per-acre`) shows its identifier (`1,500 meter-per-acre`).
+7. `hourCycle: "h24"` in `en-GB` prints `09:30` where Chromium prints
+   `9:30`.
+8. `formatRange`, `formatRangeToParts`, `Intl.supportedValuesOf` and the
+   other constructors do not exist; `Array.prototype.toLocaleString` does
+   not pass `locales` and `options` on to the elements (ECMA-402 §19.5.1;
+   the test262 tests of ECMA-262 require no arguments).
+9. `getCanonicalLocales` rejects a repeated singleton (`en-a-bb-a-cc`) and
+   a repeated variant (`en-1996-1996`), but it does not remove a repeated
+   keyword of a Unicode extension (`-u-ca-gregory-ca-buddhist`), does not
+   sort extensions, keywords or variants (`en-u-hc-h23-ca-gregory`,
+   `en-fonipa-1996`), does not drop the value `true` (`-u-kn-true`), and
+   applies no language or region aliases (`en-us-posix`, `iw`, `eng`).
+10. The text of a `BigInt` or of a tiny number with significant digits that
+    has more than 2^20 digits is a `RangeError`. A number string with an
+    exponent beyond 2^31 (`0e99999999999`, `1e-99999999999`) is read as
+    zero or the infinity where Chromium throws "Internal error. Icu error."
+11. Currencies other than the 22 of the data show their code instead of the
+    symbol and the name (`KWD 1.000`, `1.000 KWD`; Chromium: `1.000 Kuwaiti
+    dinars`, `₫` for `VND`); their fraction digits are right.
+
+**Craigslist.** The page takes its legacy path because `window.SharedWorker`
+is missing (`cl.oldBrowser`), not because of `Intl`. With the `Intl` of
+this section its polyfill tests (`getCanonicalLocales("und-x-private")`,
+the `1E4 bits` test of `NumberFormat`) find the native objects incomplete
+and load the polyfills as before; the page, its boxes and its scores equal
+those of the run without `Intl` (`compare --js craigslist-posting` with
+`--no-shared-worker --no-intl`: geometry 0.9804, pixels 0.9976, before and
+after), and `craigslist_posting.rs` passes.
+
+**Tests.** `tools/probes/js-intl.json` (1,206 snippets in 32 cases, three
+equal Chromium runs) and `crates/js/tests/builtins_intl.rs` (the same
+snippets in six zones, also in the GC stress mode); unit tests of the
+patterns, numbers, relative times and tags in `crates/js/src/intl/`;
+`tools/tests/test_js_intl_data.py`; the Ars Technica test (the story
+times: `data/ars-technica.js`, `ars-technica-chromium.json`); the test262
+groups `test/intl402/*` (`crates/js/test262/scores.json`); and three
+hostile cases (`tools/swbtools/hostile_cases.py`:
+`intl-formatters-loop-js-on`, `intl-number-digits-js-on`,
+`intl-locale-lists-js-on`).
 
 ## Consequences
 
@@ -403,5 +634,8 @@ Other locales' zone names (only `en`).
   different version can change an old offset (the local mean time of
   Zagreb differs between Debian's and ICU's data, which is why the
   tests use Berlin).
-- `crates/js/src/date/` is independent of the heap and the VM, so a
-  later `Intl.DateTimeFormat` can use `TimeZone` and the time arithmetic.
+- `crates/js/src/date/` is independent of the heap and the VM;
+  `Intl.DateTimeFormat` (section 10) uses `TimeZone` and the time
+  arithmetic.
+- `Intl` adds 296 KB to `swb-js` (stripped: 5.20 to 5.50 MB); the data
+  (section 10) is about 50 KB of it.

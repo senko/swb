@@ -524,6 +524,17 @@ Format: source, license (for code), what it influenced.
   (`just probe`, `tools/probes/js-date.json`, groups `names-years`,
   `names-edge`); no source of any engine, browser or ICU was read. ADR
   0027.
+- `Intl` (M9 feature 3, `crates/js/src/intl/`, `builtins/intl*.rs`,
+  `tools/swbtools/js_intl_data.py`): ECMA-402 (`DateTimeFormat`,
+  `NumberFormat`, `RelativeTimeFormat`, locale negotiation, the
+  `toLocale*String` methods) and UTS #35 (Date Format Patterns, Matching
+  Skeletons, Number Patterns, Using Time Zone Names). The data are files
+  of the Unicode CLDR 48 (`en.xml`, `en_001.xml`, `en_GB.xml`,
+  `root.xml`, `supplementalData.xml`; Unicode License v3,
+  `THIRD_PARTY_NOTICES.md`). The rules of
+  the pattern selection were fitted to black-box measurements of
+  Chromium 148 (`tools/probes/js-intl.json`); no source of ICU, ICU4X,
+  any engine or browser was read. ADR 0027 section 10.
 - Unicode (M7 feature 5d, `js-text/src/unicode/case.rs`, `normalize.rs`,
   `collate.rs`, `tools/swbtools/js_case_tables.py`, `js_norm_tables.py`),
   written from the Unicode Standard 17.0 and no library read: chapter 3

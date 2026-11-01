@@ -28,7 +28,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
-| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
+| JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); `Intl`: `builtins_intl.rs` (see "Intl tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py`, `test_js_time_zone_names.py` and `test_js_intl_data.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
@@ -85,6 +85,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just tools list`            | `list`                                 | Lists the fixtures, their entry counts and sizes. |
 | `just tools linebreaks`      | `linebreaks [--out DIR]`               | Measures Chromium's line break opportunities into `crates/text/tests/linebreak/` (see below). |
 | `just tools linebreak-tables` | `linebreak-tables`                    | Writes `crates/text/src/linebreak/tables.rs` from the UCD and `latin1.txt`. |
+| `just tools js-intl-data` | `js-intl-data` | Writes `crates/js/src/intl/data.rs` (the locale data of `Intl` for en-US and en-GB: the Gregorian calendar patterns and names, the short zone names, the symbols, currencies, currency fraction digits and units of numbers, the relative-time patterns, 280 zone aliases) from CLDR 48 (`common/main/en.xml`, `en_001.xml`, `en_GB.xml`, `root.xml`, `metaZones.xml`, `supplementalData.xml` (the fraction digits of currencies), `bcp47/timezone.xml`, downloaded like the zone names). The module is `#[rustfmt::skip]`. |
 | `just tools js-time-zone-names` | `js-time-zone-names`             | Writes `crates/js/src/date/zone_names_data.rs` (the long English time zone names: the standard and daylight names of 191 metazones, three zone names, the metazone of each of 573 zone names with the aliases) from CLDR 48 (`common/main/en.xml`, `common/supplemental/metaZones.xml`, `common/bcp47/timezone.xml`, from `https://unicode.org/Public/cldr/48/cldr-common-48.zip`, downloaded into `out/cldr/48/`). `just fmt` formats the file. |
 | `just tools js-unicode-tables` | `js-unicode-tables`                  | Writes `crates/js-text/src/unicode/tables.rs` (ID_Start, ID_Continue, Zs), `case_tables.rs` (case mapping, case folding, Cased, Case_Ignorable), `norm_tables.rs` (combining classes, decompositions, compositions, quick check), `property_names.rs` (the names and aliases of the properties of `\p{...}`) and `property_data.rs` (their code point sets and the emoji strings, `js_property_sets.py`) from the UCD 17.0.0; downloads `UnicodeData.txt`, `SpecialCasing.txt`, `CaseFolding.txt`, `DerivedCoreProperties.txt`, `DerivedNormalizationProps.txt`, `PropertyAliases.txt`, `PropertyValueAliases.txt`, `DerivedGeneralCategory.txt`, `Scripts.txt`, `ScriptExtensions.txt`, `PropList.txt`, `DerivedBinaryProperties.txt`, `emoji-data.txt`, `emoji-sequences.txt` and `emoji-zwj-sequences.txt` (the last two from the `emoji/` directory of 17.0.0) into `out/ucd/17.0.0/`. The generator checks its case runs against the source mappings. The generated files are formatted by `just fmt` (the committed `case_tables.rs`, `norm_tables.rs` and `property_names.rs` differ from the raw output only in formatting; `property_data.rs` is stable under `rustfmt`). |
 | `just tools-check`           |                                        | ruff lint, ruff format check and pytest of `tools/`. |
@@ -510,7 +511,9 @@ command; M8 feature 11) make every Chromium run with JavaScript on
 `window.SharedWorker` and without `window.Intl`, as swb does. Craigslist
 tests `SharedWorker` and, without it, loads `.es5.js` bundles and a
 JavaScript `Intl` (formatjs) instead of the native one, which is the path
-that swb runs. The outputs go to `out/js-survey-legacy`,
+that swb runs. Since M9 feature 3 swb has its own `Intl` (ADR 0027 section
+10); the page keeps its legacy path (the test is `SharedWorker`), and the
+reference for `craigslist-posting` stays the run with both options. The outputs go to `out/js-survey-legacy`,
 `out/js-reference-legacy` and `out/compare/js-legacy-NAME` (with
 `--no-intl` also: `-nointl`), so the standard ones stay. Measured on
 2026-10-30 (`craigslist-posting`, five runs, `--jitless` median of
@@ -2602,6 +2605,62 @@ the names is made by `just tools js-time-zone-names` (next table). test262 runs 
 `test/annexB/built-ins/Date` and loads `assertRelativeDateMs.js` and
 `dateConstants.js`; the 155 tests of other directories that use `Date`
 run too.
+
+### Intl tests
+
+`tools/probes/js-intl.json` has the snippet cases of `Intl` for Chromium 148
+(M9 feature 3, ADR 0027 section 10): 1,206 snippets from
+`crates/js/tests/data/intl-snippets.txt` in 32 cases, made by
+`crates/js/tests/data/gen-intl-cases.js` (the format of `js-date.json`;
+a group runs in six zones: UTC, Europe/Berlin, America/New_York,
+Asia/Kolkata, Australia/Adelaide and Australia/Lord_Howe, or in the zones
+that its `## NAME @ Zone, Zone` line names). The groups: `basics` (the
+shape of the objects, the locales, the receiver errors), `matrix` (256
+option sets of `DateTimeFormat` in `en-US` and `en-GB` at five instants:
+hours 0 and 12, one-digit days, the year boundary; the styles, the hour
+cycles, the time zone names), `number` (the options, the errors, the
+styles, `-0`, NaN, Infinity, `BigInt` and string values), `rtf` (the
+units, the styles, 0, -1, 1, fractions), `tolocale` (the arguments of the
+three `Date` methods and of `Number.prototype.toLocaleString`, and
+invalid time zones), `misc` (the order of the reads of the options, the
+time zone names, the canonical locales, `formatToParts`), `more` and
+`inventory` (the calls of Ars Technica, BBC, Craigslist and the
+analytics scripts, in six zones), and `fix` (the review fixes: the order
+and the checks of the options, the currency digits, the plural of units,
+number strings, the names of UTC, the tags, the fractions, the errors of
+`null` options; in UTC). A line that starts with `!known ` is a
+departure from Chromium (ADR 0027 section 10): it is probed, not run.
+
+```
+node crates/js/tests/data/gen-intl-cases.js probe \
+  crates/js/tests/data/intl-snippets.txt tools/probes/js-intl.json
+just probe --json tools/probes/js-intl.json > probe.json
+node crates/js/tests/data/gen-intl-cases.js cases probe.json \
+  crates/js/tests/data/intl-snippets.txt crates/js/tests/data
+```
+
+(`gen-intl-cases.js show probe.json` prints the results of a probe file as
+lines, for a scratch snippet file.) After a change of the snippets, run
+the probe three times and compare the outputs; the results must be equal.
+`crates/js/tests/builtins_intl.rs` runs `intl_cases.js` in each zone,
+normally and in the GC stress mode, against `intl_cases_ZONE.expected`
+(1,125 results in the UTC file, 40 to 91 in the others), and tests the departures, 200,000
+formatters in a loop and the limits of the options. The unit tests of
+`crates/js/src/intl/` check the patterns (`pattern.rs`: the matching, the
+widths, the joins, the appended fields), the numbers, the relative times
+and the tags. The data of the locales is made by
+`just tools js-intl-data` (next table); `tools/tests/test_js_intl_data.py`
+tests its readers. The story times of Ars Technica are in the record of
+`crates/automation/tests/ars_technica.rs` (`times` in `data/ars-technica.js`;
+Chromium's record from `swbtools replay`, three equal runs). test262 runs
+the groups `test/intl402/DateTimeFormat`, `NumberFormat`,
+`RelativeTimeFormat`, `Intl`, `Date` and `Number`
+(`crates/js/test262/subset.txt`; `group_of` counts three components for
+`test/intl402/` as for `test/built-ins/`; the tests with the features
+`Temporal`, `formatRange`, `dayPeriod`, `NumberFormat-v3` or the harness
+file `testIntl.js` are skipped). The hostile cases `intl-formatters-loop-js-on`,
+`intl-number-digits-js-on` and `intl-locale-lists-js-on` are in
+`tools/swbtools/hostile_cases.py`.
 
 ## Web API bindings
 

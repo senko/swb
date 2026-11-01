@@ -96,10 +96,23 @@ fn this_bigint(rt: &Runtime, call: &NativeCall) -> VmResult<Gc<BigInt>> {
     }
 }
 
-/// `BigInt.prototype.toLocaleString()` (§21.2.3.2) without ECMA-402.
+/// `BigInt.prototype.toLocaleString([locales [, options]])` (§21.2.3.2,
+/// ECMA-402 §19.3.3): the text of `Intl.NumberFormat`, or, without
+/// arguments, the grouped digits.
 fn to_locale_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let x = this_bigint(rt, call)?;
-    Ok(NativeReturn::Value(rt.bigint_locale_string(x)?.into()))
+    if rt.arg(call, 0).is_undefined() && rt.arg(call, 1).is_undefined() {
+        return Ok(NativeReturn::Value(rt.bigint_locale_string(x)?.into()));
+    }
+    let digits = rt.bigint_text(x);
+    if digits.len() > crate::intl::number::MAX_DIGITS {
+        return Err(VmError::range_error("Invalid string length"));
+    }
+    let number = crate::intl::number::Number::parse_decimal(digits.bytes().map(u16::from), true)
+        .ok_or(VmError::invariant("a BigInt that is not a decimal"))?;
+    let text =
+        super::intl_number::to_locale_text(rt, call, &number, "BigInt.prototype.toLocaleString")?;
+    super::intl::string_value(rt, &text).map(NativeReturn::Value)
 }
 
 /// `BigInt.prototype.toString(radix)` (§21.2.3.3): the radix is checked

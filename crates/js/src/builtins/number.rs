@@ -4,8 +4,8 @@
 //! `js-text` ([`swb_js_text::number`]): exact for `toFixed`,
 //! `toExponential` and `toPrecision`, the shortest digits that read back
 //! (the closest of them) for `toString` in radixes other than 10,
-//! Chromium's en-US output for `toLocaleString` (no ECMA-402; the
-//! arguments are ignored, ADR 0026 section 15).
+//! Chromium's en-US output for `toLocaleString` (with locale or options
+//! arguments, `Intl.NumberFormat`: ADR 0027 section 10).
 
 use swb_js_text::number;
 
@@ -197,11 +197,21 @@ fn to_fixed(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     text_result(rt, &number::to_fixed(x, f as u32), EXACT_STEPS)
 }
 
-/// `Number.prototype.toLocaleString()` (§21.1.3.4) without ECMA-402:
-/// Chromium's en-US output; the arguments are ignored.
+/// `Number.prototype.toLocaleString([locales [, options]])` (§21.1.3.4,
+/// ECMA-402 §19.3.1): without arguments Chromium's en-US output, else the
+/// text of `Intl.NumberFormat`.
 fn to_locale_string(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let x = this_number(rt, call)?;
-    text_result(rt, &number::locale_string(x), LOCALE_STEPS)
+    if rt.arg(call, 0).is_undefined() && rt.arg(call, 1).is_undefined() {
+        return text_result(rt, &number::locale_string(x), LOCALE_STEPS);
+    }
+    let text = super::intl_number::to_locale_text(
+        rt,
+        call,
+        &crate::intl::number::Number::from_f64(x),
+        "Number.prototype.toLocaleString",
+    )?;
+    text_result(rt, &text, LOCALE_STEPS)
 }
 
 /// `Number.prototype.toPrecision(precision)` (§21.1.3.5).

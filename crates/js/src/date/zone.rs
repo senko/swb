@@ -54,6 +54,26 @@ pub struct TimeZone {
     iana: bool,
 }
 
+/// What the names of a zone at one time depend on.
+#[derive(Debug)]
+pub(crate) struct NameFacts<'a> {
+    /// The name to look up in the tables of CLDR (`Etc/UTC` for UTC); none
+    /// for a POSIX rule or a file without a name.
+    pub(crate) lookup: Option<&'a str>,
+    /// Whether the zone is in daylight saving time (decided as Chromium
+    /// decides it, ADR 0027 section 6).
+    pub(crate) daylight: bool,
+    /// The offset from UTC at the time, in seconds.
+    pub(crate) offset: i32,
+    /// The long English name of CLDR, if it has one.
+    pub(crate) long: Option<&'static str>,
+    /// The offset of the GMT format for a name that CLDR does not have, in
+    /// seconds (the present rules, not the offset at the time).
+    pub(crate) name_offset: i32,
+    /// The abbreviation of a rule that has no name in CLDR (`EDT`).
+    pub(crate) abbreviation: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 enum Repr {
     Utc,
@@ -198,6 +218,12 @@ impl TimeZone {
         Ok(TimeZone::new(spec.to_owned(), Repr::Rules(zone), iana))
     }
 
+    /// Whether the zone is a name of the time zone database (not a POSIX
+    /// rule or a file without a name).
+    pub(crate) fn is_named(&self) -> bool {
+        self.iana
+    }
+
     /// The name or rule that the zone was made from.
     pub fn name(&self) -> &str {
         &self.name
@@ -225,19 +251,44 @@ impl TimeZone {
     /// that CLDR does not know (a POSIX rule) shows the abbreviation of
     /// the rule (`EDT`). ADR 0027 section 6.
     pub(crate) fn display_name_at_utc(&self, t: i64) -> Cow<'static, str> {
+        let facts = self.name_facts(t);
+        if let Some(abbreviation) = facts.abbreviation {
+            return Cow::Owned(abbreviation);
+        }
+        if let Some(name) = facts.long {
+            return Cow::Borrowed(name);
+        }
+        Cow::Owned(zone_names::gmt_format(facts.name_offset))
+    }
+
+    /// What the names of the zone at the UTC time `t` depend on (see
+    /// [`NameFacts`]).
+    pub(crate) fn name_facts(&self, t: i64) -> NameFacts<'_> {
+        let utc_facts = |long: Option<&'static str>| NameFacts {
+            lookup: Some("Etc/UTC"),
+            daylight: false,
+            offset: 0,
+            long: long.or(Some("Coordinated Universal Time")),
+            name_offset: 0,
+            abbreviation: None,
+        };
         let Repr::Rules(zone) = &self.repr else {
-            return Cow::Borrowed(
-                self.names
-                    .and_then(|names| names.long_name(false))
-                    .unwrap_or("Coordinated Universal Time"),
-            );
+            return utc_facts(self.names.and_then(|names| names.long_name(false)));
         };
         let Ok(ts) = Timestamp::from_millisecond(into_safe_span(t)) else {
-            return Cow::Borrowed("Coordinated Universal Time");
+            return utc_facts(None);
         };
         let info = zone.to_offset_info(ts);
+        let offset = info.offset().seconds();
         if !self.iana {
-            return Cow::Owned(info.abbreviation().to_owned());
+            return NameFacts {
+                lookup: None,
+                daylight: info.dst().is_dst(),
+                offset,
+                long: None,
+                name_offset: offset,
+                abbreviation: Some(info.abbreviation().to_owned()),
+            };
         }
         // The saving time is decided at the equivalent time.
         let same = equivalent_time(t);
@@ -251,16 +302,18 @@ impl TimeZone {
             }
             _ => saving.dst().is_dst(),
         };
-        if let Some(name) = self.names.and_then(|names| names.long_name(daylight)) {
-            return Cow::Borrowed(name);
-        }
         // The GMT format of the standard offset of the present rules plus
         // their saving, as ICU does for a zone that has no name of this
         // kind.
-        let (standard, saving) = self.present;
-        Cow::Owned(zone_names::gmt_format(
-            standard + if daylight { saving } else { 0 },
-        ))
+        let (standard, extra) = self.present;
+        NameFacts {
+            lookup: Some(&self.name),
+            daylight,
+            offset,
+            long: self.names.and_then(|names| names.long_name(daylight)),
+            name_offset: standard + if daylight { extra } else { 0 },
+            abbreviation: None,
+        }
     }
 
     /// `UTC(t)` (§21.4.1.26): the UTC time of the local time `local` in

@@ -4164,6 +4164,31 @@ Steps:
       the options and locales that the targets use, the options of
       `toLocaleDateString`, `toLocaleTimeString` and `toLocaleString`.
       Exit: Ars Technica's story times and BBC's dates equal Chromium's.
+      Done 2026-11-01: `Intl.DateTimeFormat`, `NumberFormat`,
+      `RelativeTimeFormat` and `getCanonicalLocales` for `en`, `en-US`
+      and `en-GB` (other locales resolve to `en-US`), in
+      `crates/js/src/intl/`; the `locales` and `options` arguments of
+      the `toLocale*String` methods of `Date`, `Number` and `BigInt`
+      (without arguments the output is unchanged). Data from CLDR 48
+      (`en`, `en_001`, `en_GB`, `root`, the currency digits of
+      `supplementalData`) by `swbtools js-intl-data`: about 3,000
+      strings; no ICU (ADR 0027 section 10). The pattern selection
+      follows UTS #35 skeleton matching, fitted to 256 option sets in
+      Chromium. Inventory of the six JS fixtures: Ars Technica and BBC
+      use date, time, number and relative-time formats; Wikipedia only
+      `Collator` (not done); Craigslist's legacy path depends on
+      `SharedWorker`, not on `Intl`, and its formatjs checks still load
+      the polyfills, so its scores do not change. Probe cases: 1,206
+      snippets in `js-intl.json` (three equal Chromium runs; 81 are
+      departures), run in six time zones. Review fixes: currency
+      digits for every ISO 4217 code, the plural of a padded number,
+      validation of `unit`, `numberingSystem` and repeated tag subtags,
+      the UTC zone aliases, numeric strings read without a copy
+      (`1e400` is `∞`). test262: six `intl402` groups
+      added to the ratchet. Ars Technica's story times equal Chromium's
+      (`ars_technica.rs`); `compare --js ars-technica`: geometry 0.9077
+      → 0.9956, pixels 0.9896 → 0.9901; the other JS fixtures unchanged.
+      JS off: snapshot identical. Departures: ADR 0027 section 10.
    4. Lazy loading (`implementer`; JavaScript on and off):
       `loading=lazy` images load when they come near the viewport
       (Chromium's distance, measured), never when `display: none`.
@@ -4259,6 +4284,24 @@ Steps:
   networks.
 - `reference --js` and `compare` do not record the request order;
   `ars_technica.rs` uses its own recording fetcher.
+- `Intl` (found in feature 3): `toLocaleString` of arrays and typed
+  arrays passes no `locales` and `options` to the elements (ECMA-402
+  §19.5.1; also an M8 item below);
+  `formatRange` and `formatRangeToParts`; compact and scientific
+  notation and the rounding options of `NumberFormat`; `dayPeriod`;
+  generic zone names (`shortGeneric`, `longGeneric`); `PluralRules`,
+  `Collator` (Wikipedia's table sort), `Locale`, `ListFormat`,
+  `DisplayNames`, `Segmenter`; locales other than `en`, `en-US` and
+  `en-GB`. The `TypeError` messages for a primitive receiver of the
+  `format` getter and of `formatToParts` are not measured in Chromium.
+  Language tags: extensions, keywords and variants are not sorted,
+  `-true` values are kept, aliases (`en-us-posix`) are not replaced.
+  Zone names that differed before `Intl` too: `Australia/Lord_Howe` at
+  1970 (swb "Lord Howe Standard Time", Chromium "Australian Eastern
+  Standard Time"), the short name of `Europe/Dublin` at 1970 (swb
+  `GMT`, Chromium `GMT+1`).
+- `js`: `10n ** 300000n` throws "Maximum BigInt size exceeded";
+  Chromium computes it.
 
 ## Backlog from M8
 
@@ -4776,8 +4819,9 @@ Steps:
   navigations during the load; `location.search = ''` on a URL with a
   fragment loads a new document in Chromium (swb: same URL, the state
   stays); the `stack` of errors is built at its first read, so an
-  accessor `message` runs then, also inside `structuredClone`. `Intl`
-  is missing (one probe query was dropped).
+  accessor `message` runs then, also inside `structuredClone`. One
+  probe query was dropped because `Intl` was missing (M9 feature 3
+  added it).
 - `web`/`engine` (found in feature 8a2 and its review): `navigator.plugins`
   and `mimeTypes` (Chromium 148: empty arrays; fingerprinting code reads
   `navigator.plugins.length` and throws without them) and
@@ -5740,11 +5784,6 @@ not repeated here; the open items of each spike session are in M6 step
     Python generator of the snippets file is not in the repository; the
     snippets file is the source now.
 - Date (M7 12a):
-  - `Intl`: `toLocaleDateString("en-GB", {day: "numeric", month:
-    "short", year: "numeric", timeZone: "UTC"})` and similar calls in
-    the BBC scripts, and `Intl.DateTimeFormat().resolvedOptions()
-    .timeZone`. Without `Intl`, swb ignores the arguments and prints
-    the en-US form (12/31/2020; Chromium 31/12/2020 for en-GB).
   - The KNOWN items where swb follows the spec and pages see V8:
     fractional `getTimezoneOffset` for old local mean times, the
     `toString` round trip for years below 100. (12b reads

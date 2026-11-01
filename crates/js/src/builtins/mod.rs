@@ -90,6 +90,10 @@ mod function;
 mod generator;
 mod global;
 mod integrity;
+mod intl;
+mod intl_datetime;
+mod intl_number;
+mod intl_relative;
 mod iterator;
 mod iterator_consume;
 mod iterator_from;
@@ -199,6 +203,7 @@ fn install_all(rt: &mut Runtime, realm: u32) -> VmResult<()> {
     typed_array::install(rt, realm)?;
     atomics::install(rt, realm)?;
     date::install(rt, realm)?;
+    intl::install(rt, realm)?;
     symbol::install(rt, realm)?;
     iterator::install(rt, realm)?;
     map::install(rt, realm)?;

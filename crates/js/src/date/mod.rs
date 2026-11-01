@@ -24,6 +24,7 @@ mod zone_names;
 mod zone_names_data;
 
 pub use zone::{TimeZone, TimeZoneError};
+pub(crate) use zone_names::{canonical_case, gmt_format};
 
 /// A source of the current time: milliseconds since the epoch (integral).
 pub type Clock = Box<dyn Fn() -> f64>;

@@ -21,6 +21,7 @@ mod date;
 mod error;
 mod heap;
 mod host;
+mod intl;
 mod object;
 mod runtime;
 mod source_text;

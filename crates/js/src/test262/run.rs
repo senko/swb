@@ -328,10 +328,11 @@ pub(crate) fn combine(results: &[(&'static str, Status)]) -> Status {
 }
 
 /// The group of a test path: the first four components of its directory
-/// (three for `test/built-ins/`, whose third component is the built-in).
+/// (three for `test/built-ins/` and `test/intl402/`, whose third component
+/// is the built-in).
 pub(crate) fn group_of(path: &str) -> String {
     let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
-    let depth = if dir.starts_with("test/built-ins/") {
+    let depth = if dir.starts_with("test/built-ins/") || dir.starts_with("test/intl402/") {
         3
     } else {
         4

@@ -551,3 +551,19 @@ dir test/built-ins/Uint8Array
 # EST5EDT,M3.2.0,M11.1.0 (ADR 0027).
 dir test/built-ins/Date
 dir test/annexB/built-ins/Date
+
+# Added in M9 feature 3: Intl (ADR 0027 section 10) for the locales en,
+# en-US and en-GB: DateTimeFormat, NumberFormat, RelativeTimeFormat and
+# getCanonicalLocales. The tests with the features Temporal, formatRange,
+# dayPeriod, NumberFormat-v3 (rounding modes and increments, compact
+# notation) and the tests that include testIntl.js stay skipped.
+feature Intl.DateTimeFormat-datetimestyle
+feature Intl.DateTimeFormat-fractionalSecondDigits
+feature Intl.NumberFormat-unified
+feature Intl.RelativeTimeFormat
+dir test/intl402/DateTimeFormat
+dir test/intl402/NumberFormat
+dir test/intl402/RelativeTimeFormat
+dir test/intl402/Intl
+dir test/intl402/Date
+dir test/intl402/Number

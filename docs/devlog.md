@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M9 feature 3: `Intl`, minimal
+
+- `Intl.DateTimeFormat`, `NumberFormat`, `RelativeTimeFormat` and
+  `getCanonicalLocales` for `en`, `en-US` and `en-GB`; other locales
+  resolve to `en-US`. The `toLocale*String` methods of `Date`, `Number`
+  and `BigInt` use them when they get `locales` or `options`; without
+  arguments the output does not change.
+- The scope came from an inventory of the six JS fixtures: Ars Technica
+  formats its story times and dates, BBC its dates, times, durations and
+  "yesterday"/"today", Wikipedia uses only `Intl.Collator` (not done).
+- Data: CLDR 48 files for `en`, `en_001`, `en_GB` and `root`, and the
+  currency digits of `supplementalData.xml`, through a new generator
+  (`swbtools js-intl-data`): about 3,000 strings, and `swb-js` grows by
+  about 300 KB. No ICU: three locales do not need it (ADR 0027
+  section 10).
+- The pattern for a set of options comes from UTS #35 skeleton matching.
+  The spec leaves the distance rules open; they were fitted to 256 option
+  sets in Chromium (253 equal). Chromium 148 prints U+0020, not U+202F,
+  in all measured times.
+- Craigslist: the site chooses its legacy path by `SharedWorker`, not by
+  `Intl`, and its formatjs checks still load the polyfills. Its scores
+  do not change.
+- Ars Technica shows "5:59 PM" as Chromium does. `compare --js
+  ars-technica`: geometry 0.9077 → 0.9956; the other JS fixtures
+  unchanged. JS off: snapshot identical. 1,206 probe snippets (81
+  departures); six test262 `intl402` groups in the ratchet.
+- The review found nine differences from Chromium (currency digits,
+  `01 minutes`, invalid tags and options accepted, zone aliases, an
+  empty `dayPeriod` result) and a 400 MB copy of a long numeric string;
+  all fixed.
+- Next: M9 feature 4 (lazy loading).
+
 ## 2026-11-01: M9 feature 2: `document.write` during the parse
 
 - `document.write`, `writeln`, `open` and `close` from a script that the
