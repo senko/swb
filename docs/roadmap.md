@@ -3949,6 +3949,228 @@ Steps:
      frame, so its first viewport differs from Chromium's until frames
      come.
 
+## M9: Ars Technica and BBC with JavaScript, frames
+
+Owner decisions (2026-11-01, ground rules):
+
+- Targets: Ars Technica and BBC with JavaScript on. Each renders like
+  Chromium with JavaScript on, no script error breaks it, and the
+  JavaScript features in the lists of step 3 work (the owner confirms
+  the lists). The M8 targets keep their scores with JavaScript on and
+  off.
+- Frames are in M9: `iframe` documents render and run their own
+  scripts, same-origin and cross-origin, with `postMessage` between
+  frames. BBC's consent dialog (Sourcepoint) is a cross-origin frame;
+  the Craigslist favorites need the site's same-origin storage frame
+  (an M8 departure that M9 removes).
+- Frames also work with JavaScript off. In general, a feature that
+  works without JavaScript in other browsers works in swb with
+  JavaScript off once swb implements it. JavaScript support itself
+  does not change the JS-off behaviour; a new HTML or CSS feature that
+  changes a JS-off fixture reports the change and its scores, which
+  must not get worse.
+- Media playback stays out (ADR 0020, ADR 0028 section 14).
+
+Fixtures: `fixtures/js/ars-technica` and `fixtures/js/bbc` from the M8
+survey (captured 2026-10-22; local only). Missing entries are added
+with `--record-missing` where the live sites still serve them.
+
+State at the start (swb 42a932c, release, replay): both pages load in
+about 3 s of wall time. Ars Technica shows the consent dialog as in
+Chromium's replay; its script errors: `document.write is not a
+function`, `ShadowRoot is not defined`. BBC: the Next.js client throws
+during hydration ("Cannot read properties of undefined (reading
+'length')"), its lazy images stay empty, and the header lacks the
+Register and Sign In buttons.
+
+Steps:
+
+1. Diagnosis (`implementer`, tools and measurements, no engine
+   changes): `reference --js` and the `compare --js` baseline of both
+   fixtures; swb's script errors against Chromium's in replay; missing
+   fixture entries; each JavaScript feature of the survey tried in
+   Chromium's replay and in swb; the load time against a budget (three
+   times Chromium's jitless task time plus the JS-off pipeline time, as
+   in M8); the frames of each page (source, origin, size, visibility,
+   message traffic). Output: the gap list with causes, the draft lists
+   of step 3 and a proposed split into features.
+   Done 2026-11-01. `compare --js` at 42a932c (JS off in brackets):
+   Ars Technica geometry 0.9006 (1.0000), pixels 0.9895 (0.9992); BBC
+   0.1087 (1.0000), 0.3720 (0.9987). Causes:
+   - Ars Technica: three small defects stop Alpine.js and with it all
+     the site's features: no `ShadowRoot` interface object, `Attr.name`
+     of a parsed `xmlns` attribute is `:xmlns`, no `document.write`.
+     With the three patched in a fixture copy, the sections menu, the
+     theme switch, the grid settings and sign-in dialogs and the
+     sticky header behave as in Chromium.
+   - BBC: no CSSOM (`document.styleSheets`, `CSSStyleSheet`,
+     `HTMLStyleElement.sheet`): styled-components fails, so Next.js
+     does not hydrate. The cookie banner comes from a module script
+     without imports, which swb does not run.
+   - Both: no `Intl` (Ars shows "5:59:40 PM" for "5:59 PM"),
+     `loading=lazy` images load at once (25 images that Chromium never
+     requests on Ars), `backdrop-filter` is inert, `document.domain`,
+     `navigator.plugins` and `window.postMessage` are missing (analytics
+     and ad scripts throw), `:focus-visible` is true after a click and a
+     script `focus()` (Chromium: false).
+   - `compare` aligns elements by index; Chromium puts hidden frames
+     and async `script` and `style` elements at different indexes in
+     different runs, so the geometry score of Ars Technica wobbles.
+   Load (swb release, replay, to `load`): Ars Technica 0.73 s, BBC
+   0.90 s (BBC stops at the hydration error; a fixture copy with a fake
+   CSSOM takes 3.6 s). Budgets (three times Chromium's jitless task time
+   of the survey plus the JS-off pipeline time): Ars Technica 1.74 s,
+   BBC 4.60 s. `getComputedStyle` costs Ars Technica 526 element-style
+   runs, 166 ms. Frames (Chromium replay): Ars Technica one hidden
+   `about:blank` locator frame; BBC the Sourcepoint consent frame
+   (1280×800, cross-origin, messages `sp.showMessage`,
+   `sp.hideMessage`), the hidden Optimizely storage frame (request and
+   reply messages) and two hidden locator frames; without frames BBC
+   shows no consent dialog.
+2. Design of frames (`implementer-hard`, docs only): ADR 0031. Runs
+   in parallel with step 1. Done 2026-11-01: one script runtime per
+   origin per page with a realm per document, the `WindowProxy` object
+   kind, cross-origin `Window` and `Location` objects, `postMessage`
+   and `MessageChannel`, the frame tree in the engine with one document
+   state per frame, the `iframe` as a replaced box with a nested display
+   list, frames with JavaScript off, budgets. Probe cases:
+   `tools/probes/web-frames.json` (21 cases). With JavaScript off, three
+   hidden frames of the JS-off fixtures will load (Ars Technica's two
+   tag-manager frames in `noscript`, the Craigslist storage frame); no
+   visible change is expected.
+3. Features, in this order. Each feature ends with a review and a
+   commit. At every commit: JavaScript is off by default; the M8
+   targets keep their scores with JavaScript on and off; a change of a
+   JS-off fixture is reported with its scores, which must not get
+   worse (ground rules, 2026-11-01). Each feature adds its probe cases
+   (Chromium's values are the expected values of the Rust tests) and
+   hostile-page cases.
+
+   What "works" means, per target (the owner confirmed this list and
+   the decisions of ADR 0031 on 2026-11-01):
+
+   - Ars Technica (front page, `ars-technica` fixture): the rendering
+     of Chromium with JavaScript on (the consent dialog "We Care About
+     Your Privacy" over the dimmed page); no script error that Chromium
+     does not have in replay; and these features:
+     1. The consent dialog: "Your Privacy Choices" opens the
+        preferences with their tabs; "I accept" sets the consent cookie
+        and closes the dialog. (The vendor data is not in the fixture:
+        the dialog shows Chromium's error text and enables its buttons
+        after the failed request, as in Chromium's replay.)
+     2. The sections menu opens and closes by click, Escape and a click
+        outside.
+     3. The theme switch (Hyperlight, Day & Night, Dark, System) changes
+        the colors, the `html` class and the `theme` cookie.
+     4. The grid settings dialog (with its blurred backdrop) and the
+        sign-in dialog open and close.
+     5. The view switcher starts its navigation.
+     6. The sticky header hides when the page scrolls down and comes
+        back when it scrolls up.
+     7. The story times have Chromium's form ("5:59 PM").
+     Not tested in replay: the live consent data, sign-in, the classic
+     view. The A/B headline variant is random per load in both
+     browsers. Load-time budget: the `load` event within 1.74 s.
+   - BBC (front page, `bbc` fixture): the rendering of Chromium with
+     JavaScript on (the client-rendered header with the menu, Register
+     and Sign In buttons, the cards with their images, the carousels
+     with their arrows, the Sourcepoint consent dialog in its frame and
+     the cookie banner); no script error that Chromium does not have in
+     replay; and these features:
+     1. The consent dialog: "I agree" and "I do not agree" close it;
+        "Manage options" opens its settings view.
+     2. The cookie banner: "Yes, I agree" closes it and sets the policy
+        cookies; "No, take me to settings" follows its link.
+     3. The menu button opens the navigation panel (search field, the
+        sections expand); Escape and the button close it.
+     4. The carousels: Previous and Next slide the row; the arrows turn
+        off at the ends.
+     5. "Save" opens the "Sign in to save for later" popover; Escape
+        closes it.
+     6. Register and Sign In navigate to `session.bbc.com`.
+     7. The language dropdown opens its list.
+     8. Cards that scroll into view show their images.
+     Not tested in replay: the consent choice requests, sign-in, the
+     video in the cards (no media playback). Load-time budget: the
+     `load` event within 4.60 s.
+   - Craigslist posting (M8 target): the favorites button works through
+     the site's storage frame (the M8 departure goes).
+
+   Features:
+
+   1. Small DOM gaps (`implementer`): the `ShadowRoot` interface
+      object (no shadow trees), `Attr.name` with an empty prefix,
+      `document.domain` (setter without effect, as in Chromium; ADR
+      0031), `navigator.plugins` and `mimeTypes` (empty),
+      `window.postMessage` to the own window (the message event of
+      ADR 0031 section 7), `:focus-visible` after a pointer click and a
+      script `focus()`. Tools: `compare` aligns elements by path and
+      ignores `script`, `style` and hidden `iframe` elements; `reference
+      --js` does not write through a symlinked `out`; a `record` step.
+      Exit: Ars Technica has no script error that Chromium does not
+      have; the integration test `ars_technica.rs` (Chromium records
+      from `swbtools replay`) covers features 2 to 6 of the list.
+   2. `document.write` during the parse (`implementer`; ADR 0028
+      section 8): `write`, `writeln`, `open`, `close` from a
+      parser-inserted script; written `script` elements run in order.
+      `implementer-hard` if the tokenizer needs a change for input at
+      the insertion point. Exit: Ars Technica's two A/B scripts request
+      their URLs in Chromium's order; hostile case: a script that
+      writes itself.
+   3. `Intl`, minimal (`implementer`; ADR 0027 update):
+      `DateTimeFormat`, `RelativeTimeFormat` and `NumberFormat` for
+      the options and locales that the targets use, the options of
+      `toLocaleDateString`, `toLocaleTimeString` and `toLocaleString`.
+      Exit: Ars Technica's story times and BBC's dates equal Chromium's.
+   4. Lazy loading (`implementer`; JavaScript on and off):
+      `loading=lazy` images load when they come near the viewport
+      (Chromium's distance, measured), never when `display: none`.
+      Exit: Ars Technica's 25 extra image requests are gone; BBC's
+      image placeholders go as Chromium's do while the page scrolls.
+   5. `backdrop-filter` (`implementer`): the `filter` functions on the
+      backdrop of a box. Exit: the pixels of Ars Technica's grid
+      settings dialog match Chromium's. With feature 5, Ars Technica
+      meets its list (it needs no frame) and its load-time budget.
+   6. CSSOM sheets and rules (`implementer-hard`; ADR 0028 section
+      10): `document.styleSheets`, `CSSStyleSheet` (`cssRules`,
+      `insertRule`, `deleteRule`, `ownerNode`, `disabled`),
+      `CSSRuleList`, `CSSStyleRule`, read-only `CSSMediaRule` and
+      `CSSImportRule` if needed, `HTMLStyleElement.sheet` and
+      `HTMLLinkElement.sheet`; the style system adds or removes one rule
+      without a parse of the others. Exit: BBC hydrates without an
+      error: Register and Sign In, carousel arrows, Save buttons,
+      images in place of the placeholders.
+   7. Module scripts without imports (`implementer`; ADR 0028
+      section 6): inline and external `type=module` scripts (deferred,
+      strict), `nomodule` not run; an `import` reports an error. Exit:
+      the BBC cookie banner appears and "Yes, I agree" sets the
+      cookies.
+   8. BBC performance and test (`implementer-hard`): the 4.60 s budget
+      with the real CSSOM (style after inserted rules without a full
+      restyle, fewer forced runs, the cost of `getComputedStyle`);
+      the integration test `bbc.rs` for features 2 to 8 of the list.
+   9. `MessageChannel` and `MessagePort` in one document
+      (`implementer`; ADR 0031 feature 1).
+   10. Frame tree, loading and rendering (`implementer-hard`; ADR 0031
+       feature 2): frames render with JavaScript off; with JavaScript
+       on, frame documents parse without scripts. Reports the three
+       JS-off fixture frames.
+   11. Input in frames, automation and tools for frames (`implementer`;
+       ADR 0031 feature 3).
+   12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
+       ADR 0031 feature 4).
+   13. Runtimes per origin and cross-origin objects
+       (`implementer-hard`; ADR 0031 feature 5).
+   14. Messaging and storage across documents (`implementer`; ADR 0031
+       feature 6). Exit: the Craigslist favorites work.
+   15. `document.open`, `write` and `close` on frame documents
+       (`implementer`; ADR 0031 feature 7). Exit: BBC's consent dialog
+       renders in its frame and its buttons close it; the BBC test
+       covers feature 1 of the list; BBC meets its list and budget;
+       targets.md for targets 4, 5 and 6.
+
+   Then the end-of-milestone maintenance.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -3956,6 +4178,19 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M9
+
+- Joint session history of frames (ADR 0031 section 2; measured in
+  Chromium: a frame navigation after the first document adds an entry,
+  and `history.back()` in the parent traverses the frame).
+- Realm collection in `js`: realms of removed frame documents stay
+  until their runtime ends (ADR 0031 section 11 bounds their number).
+- Rendering throttling of hidden frames; `loading="lazy"` frames.
+- CSP `frame-ancestors` and `frame-src`, `X-Frame-Options` (they protect
+  a framed site from clickjacking; swb has no CSP).
+- Top-level navigation from a cross-origin frame after a user
+  activation (Chromium allows it; ADR 0031 refuses it).
 
 ## Backlog from M8
 

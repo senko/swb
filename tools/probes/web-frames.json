@@ -1,0 +1,514 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "geometry",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><style>body{margin:0;font:16px Arial}</style><div id=r1>a<iframe id=a></iframe>b</div><div><iframe id=b frameborder=0></iframe></div><div><iframe id=c style='width:200px;height:100px;border:5px solid red;padding:3px'></iframe></div><div><iframe id=d srcdoc='<p>hi' scrolling=no width=120 height=60></iframe></div><div><iframe id=e style='display:block;width:50%;height:auto'></iframe></div><div><iframe id=f style='width:auto;height:40px'></iframe><iframe id=g style='min-width:400px'></iframe></div></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "boxes": "iframe, #r1"
+    },
+    {
+     "js": "[...document.querySelectorAll('iframe')].map(f => { const w = f.contentWindow, d = f.contentDocument, s = getComputedStyle(f); return [f.id, w.innerWidth, w.innerHeight, d.documentElement.clientWidth, d.documentElement.clientHeight, d.compatMode, s.display, s.borderTopStyle, s.borderTopWidth, s.borderTopColor, s.overflow, s.verticalAlign, d.body ? getComputedStyle(d.body).margin : 'nobody', d.documentElement.scrollHeight, d.URL].join(' '); })"
+    }
+   ]
+  },
+  {
+   "name": "about-blank",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n\naddEventListener('DOMContentLoaded', () => {\nconst f = document.createElement('iframe');\nf.onload = () => log.push('load:' + f.contentDocument.URL);\nlog.push('before:' + f.contentWindow);\ndocument.body.appendChild(f);\nconst w = f.contentWindow, d = f.contentDocument;\nlog.push('after:' + (w !== null) + ':' + d.URL + ':' + d.readyState + ':' + w.location.href + ':' + d.documentElement.outerHTML + ':' + n(w.origin) + ':' + d.characterSet + ':' + d.compatMode + ':' + d.contentType);\nlog.push('realm:' + (w.Array !== Array) + ':' + Array.isArray(new w.Array()) + ':' + (w.Array.from([1]) instanceof Array) + ':' + (d.createElement('i') instanceof HTMLElement) + ':' + (w.HTMLElement === HTMLElement) + ':' + (Object.getPrototypeOf(w.Object.prototype) === null));\nw.foo = 1;\nlog.push('foo:' + f.contentWindow.foo);\nconst g = document.createElement('iframe');\ng.onload = () => log.push('gload:' + g.contentDocument.URL);\ng.style.display = 'none';\ndocument.documentElement.appendChild(g);\nlog.push('g appended');\ng.src = 'javascript:';\nlog.push('g src set:' + g.contentDocument.URL);\nconst gd = g.contentWindow.document;\ngd.open();\nlog.push('opened:' + gd.readyState + ':' + n(gd.URL) + ':' + gd.documentElement);\ngd.write('<script>document.F = Object; parent.log.push(\"inner:\" + typeof parent + \":\" + document.readyState)<\\/script><p>x');\nlog.push('written:' + typeof gd.F + ':' + (gd.F === g.contentWindow.Object) + ':' + (gd.F !== Object) + ':' + gd.body.innerHTML);\ngd.close();\nlog.push('closed:' + gd.readyState);\nsetTimeout(() => log.push('t0:' + n(gd.URL) + ':' + typeof gd.F + ':' + gd.readyState), 0);\n});\n</script></head><body><p>x</p></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "log.slice()"
+    },
+    {
+     "js": "W(300).then(() => log)"
+    }
+   ]
+  },
+  {
+   "name": "load-order",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\naddEventListener('DOMContentLoaded', () => log.push('parent dcl')); addEventListener('load', () => log.push('parent load'));</script></head><body><iframe id=a src=child.html onload=\"log.push('iframe load ' + this.contentDocument.readyState)\"></iframe><iframe id=b srcdoc=\"<script>parent.log.push('srcdoc script')</script>\" onload=\"log.push('srcdoc iframe load')\"></iframe><script>log.push('parent script after iframes ' + n(a.contentDocument.URL) + ' ' + b.contentDocument.URL + ' ' + a.contentDocument.readyState + ' ' + b.contentDocument.readyState)</script></body></html>",
+   "resources": {
+    "child.html": {
+     "text": "<!DOCTYPE html><script>parent.log.push('child script ' + document.readyState); addEventListener('DOMContentLoaded', () => parent.log.push('child dcl')); addEventListener('load', () => parent.log.push('child load'));</script><p>child",
+     "delay_ms": 200
+    }
+   },
+   "measure": [
+    {
+     "js": "log"
+    }
+   ]
+  },
+  {
+   "name": "windowproxy",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe name=n1 id=a srcdoc='<p>a'></iframe><iframe id=b src=c.html></iframe><iframe id=z style='display:none'></iframe></body></html>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c"
+    }
+   },
+   "measure": [
+    {
+     "js": "[frames.length, window.frames === window, frames[0] === a.contentWindow, window.n1 === a.contentWindow, a.contentWindow.frameElement === a, a.contentWindow.parent === window, a.contentWindow.top === window, window.top === window, window.parent === window, String(window.frameElement), self === window, globalThis === window, a.contentWindow.window === a.contentWindow, a.contentDocument.defaultView === a.contentWindow, typeof frames[3], frames['n1'] === a.contentWindow, Object.keys(window).slice(0, 4).join(), JSON.stringify(Object.getOwnPropertyDescriptor(window, '0'), (k, v) => k === 'value' ? String(v === a.contentWindow) : v), '0' in window, '3' in window, frames[2] === z.contentWindow, String(a.contentWindow), Object.prototype.toString.call(a.contentWindow), a.contentWindow.name, b.contentWindow.name, history.length, E(() => { frames[0] = 1; return frames[0] === a.contentWindow; }), E(() => Object.defineProperty(window, '0', {value: 1}))]"
+    },
+    {
+     "js": "(async () => { const w = b.contentWindow; w.x = 1; const d0 = b.contentDocument; const p = new Promise(r => b.onload = r); b.src = 'c.html?2'; await p; return [w === b.contentWindow, String(w.x), w.document.URL.endsWith('?2'), d0 === b.contentDocument, String(d0.defaultView), history.length]; })()"
+    },
+    {
+     "js": "(() => { const a = document.getElementById('a'); const w = a.contentWindow, d = a.contentDocument, A = w.Array; a.remove(); return [String(a.contentWindow), String(a.contentDocument), w.closed, String(w.parent), String(w.top), String(w.frameElement), w.document === d, typeof w.Array, frames.length, w.length, String(d.defaultView), Array.isArray(new A(2)), new A(1, 2).length, String(w.location.href), w.name, E(() => w.document.body.textContent)]; })()"
+    },
+    {
+     "js": "(async () => { const p = new Promise(r => b.onload = r); b.contentWindow.location.href = 'c.html?3'; await p; const l1 = history.length; const q = new Promise(r => b.onload = r); b.contentWindow.location.replace('c.html?4'); await q; return [l1, history.length, b.contentWindow.location.search]; })()"
+    },
+    {
+     "js": "(async () => { const p = new Promise(r => b.onload = r); history.back(); const t = await Promise.race([p.then(() => 'loaded'), W(1000).then(() => 'timeout')]); return [t, history.length, b.contentWindow.location.search, n(location.href)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "cross-origin",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\nwindow.foo = 2;</script></head><body><iframe id=f></iframe><script>f.src = X('child.html')</script></body></html>",
+   "resources": {
+    "child.html": {
+     "text": "<!DOCTYPE html><title>child</title><script>\nwindow.foo = 1;\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\naddEventListener('message', e => { if (e.data === 'report') e.source.postMessage(['fromchild', E(() => parent.document), E(() => parent.location.href), E(() => top.foo), E(() => parent.length), E(() => typeof parent.postMessage), E(() => document.referrer), E(() => window.frameElement), E(() => location.ancestorOrigins && [...location.ancestorOrigins].join()), E(() => parent.frames[0] === window), E(() => { parent.location.hash = 'x'; return 'hash set'; })], '*'); });\n</script>"
+    },
+    "child2.html": {
+     "text": "<!DOCTYPE html><p>two"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const w = f.contentWindow; return [E(() => w.document), E(() => w.location.href), E(() => w.foo), E(() => w.name), E(() => f.contentDocument), E(() => w.length), E(() => w.closed), E(() => w.top === window), E(() => w.parent === window), E(() => w.frames === w), E(() => w.self === w), E(() => w.window === w), E(() => typeof w.postMessage), E(() => typeof w.close), E(() => typeof w.focus), E(() => typeof w.blur), E(() => w.opener), E(() => { w.foo = 1; return 'assigned'; }), E(() => w.location.replace), E(() => typeof w.location.replace), E(() => Object.getPrototypeOf(w)), E(() => w.postMessage === w.postMessage), E(() => Object.keys(w).join()), E(() => w[0]), E(() => w.toString()), E(() => String(w)), E(() => w.location.toString()), E(() => 'document' in w), E(() => w.then), E(() => w[Symbol.toStringTag]), E(() => w.location.then), E(() => Object.prototype.toString.call(w)), E(() => w instanceof Window), E(() => typeof w), E(() => w.location === w.location), E(() => Object.isFrozen(w)), E(() => delete w.foo)]; })()"
+    },
+    {
+     "js": "(() => { const w = f.contentWindow; return [E(() => Object.getOwnPropertyNames(w).join()), E(() => Reflect.ownKeys(w).map(String).join()), E(() => Object.getOwnPropertyNames(w.location).join()), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'postMessage'), (k, v) => typeof v === 'function' ? 'fn' : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'location'), (k, v) => typeof v === 'function' ? 'fn:' + v.name : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w.location, 'href'), (k, v) => typeof v === 'function' ? 'fn:' + v.name : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'foo'))), E(() => Object.defineProperty(w, 'foo', {value: 1})), E(() => Object.setPrototypeOf(w, null)), E(() => Object.preventExtensions(w)), E(() => w.postMessage.call(window, 'x', '*'))]; })()"
+    },
+    {
+     "js": "(async () => { const p = new Promise(r => addEventListener('message', function h(e) { if (e.data[0] === 'fromchild') { removeEventListener('message', h); r(e.data); } })); f.contentWindow.postMessage('report', '*'); return (await p).map(n); })()"
+    },
+    {
+     "js": "(async () => { const w = f.contentWindow; const p = new Promise(r => f.onload = r); const s = E(() => { w.location.href = X('child2.html'); return 'set'; }); await Promise.race([p, W(1000)]); return [s, E(() => w.location.href), w === f.contentWindow, n(location.hash)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "post-message",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=s src=echo.html></iframe><iframe id=x></iframe><script>x.src = X('echo.html')</script></body></html>",
+   "resources": {
+    "echo.html": {
+     "text": "<!DOCTYPE html><script>addEventListener('message', e => { const d = e.data; e.source.postMessage({echo: d, origin: e.origin, ports: e.ports.length, isTrusted: e.isTrusted, type: Object.prototype.toString.call(d), lastEventId: e.lastEventId, srcIsParent: e.source === parent}, '*'); if (e.ports.length) e.ports[0].postMessage('via port'); });</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => { const l = []; const h = e => { l.push('m:' + e.data + ':' + n(e.origin) + ':' + (e.source === window) + ':' + e.ports.length + ':' + e.isTrusted + ':' + e.bubbles + ':' + e.cancelable + ':' + e.eventPhase + ':' + (e.target === window) + ':' + e.lastEventId + ':' + Object.prototype.toString.call(e)); }; addEventListener('message', h); setTimeout(() => l.push('t0'), 0); postMessage('a', '*'); Promise.resolve().then(() => l.push('micro')); postMessage('b', '/'); postMessage('c', location.origin); postMessage('d', 'http://elsewhere.test'); postMessage('e'); postMessage('f', {targetOrigin: '/'}); l.push('sync'); setTimeout(() => { removeEventListener('message', h); r(l); }, 100); })"
+    },
+    {
+     "js": "[E(() => postMessage('x', 'foo')), E(() => postMessage(() => 1, '*')), E(() => postMessage('x', '*', [1])), E(() => { const b = new ArrayBuffer(8); postMessage(b, '*', [b, b]); }), E(() => postMessage(Symbol('s'), '*')), E(() => postMessage('x', '*', null)), E(() => postMessage.length), E(() => postMessage('x', 'http://a.test/path?q')), E(() => postMessage(document.body, '*')), E(() => postMessage(window, '*'))]"
+    },
+    {
+     "js": "(async () => { const out = []; const got = f => new Promise(r => addEventListener('message', function h(e) { if (e.source === f.contentWindow) { removeEventListener('message', h); r(e); } })); for (const f of [s, x]) { const buf = new ArrayBuffer(8); const p = got(f); f.contentWindow.postMessage({a: 1, d: new Date(0), m: new Map([[1, 2]]), b: buf, r: /x/g, u: undefined, big: 1n << 70n, nested: [[1], {z: null}]}, '*', [buf]); out.push(buf.byteLength); const e = await p; out.push(n(e.data.origin), e.source === f.contentWindow, n(e.origin), JSON.stringify(e.data, (k, v) => v instanceof Map ? [...v] : v instanceof ArrayBuffer ? 'AB' + v.byteLength : v instanceof RegExp ? String(v) : typeof v === 'bigint' ? String(v) + 'n' : v === undefined ? 'U' : v)); } return out; })()"
+    },
+    {
+     "js": "(async () => { const l = []; let k = 0; const done = new Promise(r => addEventListener('message', function h(e) { if (e.source !== x.contentWindow) return; l.push(e.data.echo); if (++k === 3) { removeEventListener('message', h); r(); } })); for (const i of [1, 2, 3]) x.contentWindow.postMessage(i, '*'); l.push('sync'); await done; return l; })()"
+    },
+    {
+     "js": "(async () => { const l = []; const h = e => { if (e.source === x.contentWindow) l.push(e.data.echo); }; addEventListener('message', h); x.contentWindow.postMessage('m', location.origin); x.contentWindow.postMessage('n', X('whatever.html')); x.contentWindow.postMessage('o', '/'); s.contentWindow.postMessage('p', '/'); await W(300); removeEventListener('message', h); return l; })()"
+    },
+    {
+     "js": "(async () => { const c = new MessageChannel(); const p = new Promise(r => c.port1.onmessage = e => r([e.data, e.origin, String(e.source), e.ports.length, e.target === c.port1, Object.prototype.toString.call(e), e.isTrusted])); x.contentWindow.postMessage('port', '*', [c.port2]); return await Promise.race([p, W(1000).then(() => 'timeout')]); })()"
+    }
+   ]
+  },
+  {
+   "name": "message-channel",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><p>x</p></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.onmessage = e => l.push('m' + e.data); setTimeout(() => l.push('t0'), 0); c.port2.postMessage(1); Promise.resolve().then(() => l.push('micro')); c.port2.postMessage(2); addEventListener('message', function h(e) { removeEventListener('message', h); l.push('win'); }); postMessage('w', '*'); c.port2.postMessage(3); l.push('sync'); setTimeout(() => r(l), 100); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.addEventListener('message', e => l.push('a' + e.data)); c.port2.postMessage(1); setTimeout(() => { l.push('before start'); c.port1.start(); setTimeout(() => r(l), 50); }, 50); })"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(MessagePort.prototype).join(), Object.getOwnPropertyNames(MessageChannel.prototype).join(), MessageChannel.length, typeof MessagePort, E(() => new MessagePort()), E(() => MessageChannel()), Object.getPrototypeOf(MessagePort.prototype) === EventTarget.prototype, E(() => { const c = new MessageChannel(); c.port1.postMessage(1, [c.port1]); }), E(() => { const c = new MessageChannel(); const d = new MessageChannel(); c.port1.postMessage(1, [d.port1, d.port1]); }), E(() => { const c = new MessageChannel(); c.port1.close(); c.port1.postMessage(1); return 'ok'; }), typeof BroadcastChannel, E(() => structuredClone(new MessageChannel().port1)), E(() => { const c = new MessageChannel(); return structuredClone(c.port1, {transfer: [c.port1]}) instanceof MessagePort; }), E(() => { const c = new MessageChannel(); c.port1.postMessage(1, {transfer: []}); return 'opts'; }), String(new MessageChannel().port1.onmessage)]"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const c = new MessageChannel(); let k = 0; c.port1.onmessage = () => { k++; if (k < 1000) c.port2.postMessage(0); }; let t = 0; const tick = () => { t++; if (t < 1000) setTimeout(tick, 0); }; setTimeout(tick, 0); c.port2.postMessage(0); setTimeout(() => r([k, t]), 50); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.onmessage = e => l.push('m' + e.data); c.port1.onclose = () => l.push('close'); c.port2.postMessage(1); c.port2.close(); setTimeout(() => r(l), 100); })"
+    }
+   ]
+  },
+  {
+   "name": "document-domain",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\nconst S = h => '$OTHER'.replace('127.0.0.1', h) + D + 'dd.html';</script></head><body><iframe id=fx></iframe><iframe id=fy></iframe></body></html>",
+   "resources": {
+    "dd.html": {
+     "text": "<!DOCTYPE html><script>const r = {}; r.before = document.domain; r.oac = window.originAgentCluster; try { document.domain = location.hostname.split('.').slice(1).join('.'); r.set = 'ok'; } catch (e) { r.set = e.name + ': ' + e.message; } r.after = document.domain; window.mark = 'here'; parent.postMessage({who: location.hostname.split('.')[0], r}, '*'); addEventListener('message', e => { if (e.data === 'probe') { let v; try { v = String(parent.frames[0].mark) + '|' + String(parent.frames[0].document.domain); } catch (err) { v = err.name + ': ' + err.message; } e.source.postMessage({probe: v}, '*'); } });</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const out = {top: window.originAgentCluster, dom: document.domain}; const reports = []; await Promise.race([W(3000), new Promise(r => { const h = e => { if (e.data && e.data.who) { reports.push(e.data); if (reports.length === 2) { removeEventListener('message', h); r(); } } }; addEventListener('message', h); fx.src = S('x.a.localhost'); fy.src = S('y.a.localhost'); })]); reports.sort((a, b) => a.who < b.who ? -1 : 1); out.reports = reports.map(x => x.who + ' ' + JSON.stringify(x.r)); const p = new Promise(r => addEventListener('message', function h(e) { if (e.data && e.data.probe) { removeEventListener('message', h); r(e.data.probe); } })); fy.contentWindow.postMessage('probe', '*'); out.probe = String(await Promise.race([p, W(2000).then(() => 'timeout')])); return JSON.stringify(out).replace(/:\\d{2,5}/g, ':P'); })()"
+    }
+   ]
+  },
+  {
+   "name": "cookies-frames",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f1></iframe><iframe id=f2></iframe></body></html>",
+   "resources": {
+    "tp.html": {
+     "text": "<!DOCTYPE html><script>document.cookie = 'tpc=1; SameSite=None; Secure; path=/$FOLDER/'; document.cookie = 'tpd=1; path=/$FOLDER/'; const host = location.hostname; fetch('x' + (host === 'localhost' ? 1 : 2) + '.txt').then(r => r.text()).then(() => parent.postMessage({host, cookie: document.cookie, ls: (() => { try { localStorage.setItem('k', 'v'); return localStorage.getItem('k'); } catch (e) { return e.name; } })(), hsa: typeof document.hasStorageAccess}, '*'));</script>",
+     "headers": {
+      "Set-Cookie": [
+       "tpa=1; SameSite=None; Secure; Path=/$FOLDER/",
+       "tpb=1; Path=/$FOLDER/"
+      ],
+      "Content-Type": "text/html"
+     }
+    },
+    "x1.txt": {
+     "text": "1"
+    },
+    "x2.txt": {
+     "text": "2"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const res = {}; await Promise.race([W(3000), new Promise(r => { const h = e => { if (e.data && 'cookie' in e.data) { res[e.data.host] = e.data; if (Object.keys(res).length === 2) { removeEventListener('message', h); r(); } } }; addEventListener('message', h); f1.src = L3('tp.html'); f2.src = X('tp.html'); })]); const log = (await (await fetch('__log')).json()).filter(e => /x[12]\\.txt|tp\\.html/.test(e.path)).map(e => [e.path.split('/').pop(), e.server, e.cookie].join(' ')).sort(); return [JSON.stringify(res), log, document.cookie]; })()"
+    }
+   ]
+  },
+  {
+   "name": "storage-frames",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=s src=st.html></iframe><iframe id=x></iframe><script>x.src = X('st.html')</script></body></html>",
+   "resources": {
+    "st.html": {
+     "text": "<!DOCTYPE html><script>addEventListener('message', e => { if (e.data === 'read') e.source.postMessage({k: localStorage.getItem('stk'), ss: sessionStorage.getItem('sts')}, '*'); if (e.data === 'write') { localStorage.setItem('k2', 'v2'); e.source.postMessage({wrote: 1}, '*'); } });</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('stk', 'v'); sessionStorage.setItem('sts', 'sv'); const ask = (f, m) => new Promise(r => { addEventListener('message', function h(e) { if (e.source === f.contentWindow) { removeEventListener('message', h); r(e.data); } }); f.contentWindow.postMessage(m, '*'); }); const out = []; out.push(JSON.stringify(await ask(s, 'read')), JSON.stringify(await ask(x, 'read'))); const ev = new Promise(r => addEventListener('storage', e => r([e.key, e.oldValue, e.newValue, n(e.url), e.storageArea === localStorage]), {once: true})); out.push(JSON.stringify(await ask(s, 'write'))); out.push(JSON.stringify(await Promise.race([ev, W(500).then(() => 'no storage event')]))); out.push(localStorage.getItem('k2')); localStorage.clear(); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "event-loop",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f srcdoc='<p>c'></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => { const l = []; window.L = l; const w = f.contentWindow; setTimeout(() => l.push('p1')); w.setTimeout(() => l.push('c1')); setTimeout(() => l.push('p2')); w.setTimeout(() => l.push('c2')); w.eval(\"setTimeout(() => parent.L.push('c3'))\"); setTimeout(() => l.push('p3')); setTimeout(() => r(l), 100); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const w = f.contentWindow; requestAnimationFrame(t => l.push(['p', t])); w.requestAnimationFrame(t => l.push(['c', t])); requestAnimationFrame(t => l.push(['p2', t])); setTimeout(() => r([l.map(x => x[0]).join(), l[0][1] === l[1][1], l[0][1] === l[2][1], Math.abs(l[2][1] - l[0][1]) < 17]), 200); })"
+    },
+    {
+     "js": "(() => { const w = f.contentWindow; return [w.setTimeout(() => 0) > 0, typeof w.eval('this'), w.eval('this') === w, w.eval('window') === w, w.Function('return this')() === w, (0, w.eval)('globalThis') === w]; })()"
+    }
+   ]
+  },
+  {
+   "name": "focus",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n\nconst nm = t => t === window ? 'win' : t.id || t.nodeName;\nfor (const t of ['focus', 'blur']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\naddEventListener('load', () => {\n  const w = f.contentWindow;\n  const cn = t => t === w ? 'cwin' : t.id || t.nodeName;\n  for (const t of ['focus', 'blur']) w.addEventListener(t, e => log.push('c:' + t + '@' + cn(e.target)), true);\n});\n</script></head><body><style>body{margin:0}</style><input id=p style='position:absolute;left:10px;top:10px'><iframe id=f style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0' srcdoc=\"<style>body{margin:0}</style><input id=c style='position:absolute;left:10px;top:10px;width:100px'><input id=c2 style='position:absolute;left:10px;top:50px'>\"></iframe><input id=q style='position:absolute;left:10px;top:200px'></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      30,
+      20
+     ]
+    },
+    {
+     "click": [
+      50,
+      70
+     ]
+    },
+    {
+     "type": "ab"
+    },
+    {
+     "eval": "log.push('state:' + [document.activeElement.id, f.contentDocument.activeElement.id, document.hasFocus(), f.contentDocument.hasFocus()].join())"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.activeElement.id, f.contentDocument.activeElement.id || f.contentDocument.activeElement.nodeName, document.hasFocus(), f.contentDocument.hasFocus(), f.contentDocument.getElementById('c').value, log.join(' ')]"
+    }
+   ]
+  },
+  {
+   "name": "wheel-scroll",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><style>body{margin:0;height:3000px}</style><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:150px;border:0' srcdoc=\"<div style='height:400px;background:linear-gradient(red,blue)'></div>\"></iframe><iframe id=g scrolling=no style='position:absolute;left:400px;top:0;width:300px;height:150px;border:0' srcdoc=\"<div style='height:400px;background:linear-gradient(red,blue)'></div>\"></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      100,
+      75
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "log.push([scrollY, frames[0].scrollY, frames[1].scrollY].join())"
+    },
+    {
+     "wheel": [
+      0,
+      1000
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "log.push([scrollY, frames[0].scrollY, frames[1].scrollY].join())"
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "log.push([scrollY, frames[0].scrollY, frames[1].scrollY].join())"
+    },
+    {
+     "eval": "scrollTo(0, 0)"
+    },
+    {
+     "hover": [
+      500,
+      75
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      100
+     ]
+    },
+    {
+     "wait": 300
+    },
+    {
+     "eval": "log.push([scrollY, frames[0].scrollY, frames[1].scrollY].join())"
+    },
+    {
+     "eval": "frames[1].scrollTo(0, 50)"
+    },
+    {
+     "eval": "log.push([scrollY, frames[0].scrollY, frames[1].scrollY].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log"
+    }
+   ]
+  },
+  {
+   "name": "transparency",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><style>body{margin:0;background:rgb(255,0,0)} iframe{border:0;width:100px;height:100px;position:absolute;top:0}</style><iframe id=a style='left:0' srcdoc=\"<div style='width:20px;height:20px;background:rgb(0,0,255)'></div>\"></iframe><iframe id=b style='left:120px' srcdoc=\"<meta name=color-scheme content=dark><p>x\"></iframe><iframe id=c style='left:240px;color-scheme:dark' srcdoc=\"<p>x\"></iframe><iframe id=d style='left:360px;background:rgb(0,255,0)' srcdoc=\"<style>html{background:transparent}</style>\"></iframe><iframe id=e style='left:480px;background:rgb(0,255,0)'></iframe><iframe id=g style='left:600px;color-scheme:dark' srcdoc=\"<meta name=color-scheme content=dark><p>x\"></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       50,
+       50
+      ],
+      [
+       90,
+       90
+      ]
+     ]
+    },
+    {
+     "js": "[...document.querySelectorAll('iframe')].map(f => f.id + ' ' + getComputedStyle(f.contentDocument.documentElement).colorScheme + ' ' + getComputedStyle(f.contentDocument.documentElement).backgroundColor + ' ' + getComputedStyle(f).colorScheme)"
+    }
+   ]
+  },
+  {
+   "name": "javascript-off",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:#fff} iframe{border:0;width:100px;height:100px}</style><iframe id=a srcdoc=\"<style>body{margin:0;background:rgb(0,0,255)}</style><noscript><div style='width:50px;height:50px;background:rgb(0,255,0)'></div></noscript><script>document.body.style.background='rgb(255,0,0)'</script>\"></iframe><iframe id=b src=c.html></iframe>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;background:rgb(0,0,255)}</style><noscript><div style='width:50px;height:50px;background:rgb(0,255,0)'></div></noscript><script>document.body.style.background='rgb(255,0,0)'</script>"
+    }
+   },
+   "measure": [
+    {
+     "boxes": "iframe"
+    },
+    {
+     "pixels": "iframe",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       70,
+       70
+      ]
+     ]
+    },
+    {
+     "js": "[frames.length, ...[...document.querySelectorAll('iframe')].map(f => f.contentDocument ? f.contentDocument.body.innerHTML.length : -1)]"
+    }
+   ]
+  },
+  {
+   "name": "limits",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><p>x</p></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const out = []; const fs = []; for (let i = 0; i < 1100; i++) { const f = document.createElement('iframe'); document.body.appendChild(f); fs.push(f); } out.push(frames.length, fs.filter(f => f.contentWindow === null).length, fs.findIndex(f => f.contentWindow === null)); fs.forEach(f => f.remove()); out.push(frames.length); let doc = document, depth = 0; for (let i = 0; i < 300; i++) { const f = doc.createElement('iframe'); doc.body.appendChild(f); if (!f.contentWindow) break; doc = f.contentDocument; depth++; } out.push(depth); return out; })()"
+    }
+   ]
+  },
+  {
+   "name": "self-embed",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f></iframe><script>if (parent !== window) f.src = location.href</script></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { f.src = location.href; return W(1500).then(() => { let w = window, d = 0; const s = []; while (w.frames.length && d < 50) { w = w.frames[0]; d++; s.push(n(w.location.href) + ' ' + w.document.readyState); } return [d, ...s]; }); })()"
+    }
+   ]
+  },
+  {
+   "name": "sandbox",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\naddEventListener('message', e => log.push(e.data + ' from ' + e.origin + ' ' + (e.source === b.contentWindow)));</script></head><body><iframe id=a sandbox srcdoc=\"<script>parent.postMessage('a ran', '*')</script>\"></iframe><iframe id=b sandbox='allow-scripts' srcdoc=\"<script>parent.postMessage('b ' + origin + ' ' + (() => { try { return String(parent.document); } catch (e) { return e.name; } })() + ' ' + (() => { try { localStorage.x = 1; return 'ls'; } catch (e) { return e.name; } })() + ' ' + (() => { try { return 'cookie:' + document.cookie; } catch (e) { return e.name; } })(), '*')</script>\"></iframe><iframe id=c sandbox='allow-same-origin' srcdoc=\"<p>c<script>document.body.append('ran')</script>\"></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => [log.join('; '), String(a.contentDocument), String(b.contentDocument), c.contentDocument && c.contentDocument.body.textContent, String(a.sandbox), b.sandbox.supports('allow-scripts'), E(() => b.contentWindow.document)])"
+    }
+   ]
+  },
+  {
+   "name": "referrer",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\naddEventListener('message', e => log.push(n(e.data.url) + ' <- ' + n(e.data.ref)));</script></head><body><iframe id=a src=ref.html></iframe><iframe id=b></iframe><iframe id=c srcdoc='<p>c'></iframe><iframe id=d></iframe><script>b.src = X('ref.html')</script></body></html>",
+   "resources": {
+    "ref.html": {
+     "text": "<!DOCTYPE html><script>parent.postMessage({ref: document.referrer, url: location.href}, '*')</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => [...log.sort(), n(c.contentDocument.referrer), n(d.contentDocument.referrer)])"
+    }
+   ]
+  },
+  {
+   "name": "nested-origins",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f></iframe><script>f.src = X('mid.html')</script></body></html>",
+   "resources": {
+    "mid.html": {
+     "text": "<!DOCTYPE html><title>mid</title><iframe name=leafname src='$ORIGIN/$FOLDER/leaf.html'></iframe>"
+    },
+    "leaf.html": {
+     "text": "<!DOCTYPE html><title>leaf</title><p>leaf"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => { const m = frames[0]; return [E(() => m.length), E(() => m.frames[0].document.title), E(() => m.frames[0].parent === m), E(() => m.frames[0].top === window), E(() => m.leafname === m.frames[0]), E(() => m.leafname.document.title), E(() => m.frames[0].frameElement), E(() => m.document)]; })"
+    }
+   ]
+  },
+  {
+   "name": "adopt",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f srcdoc='<p id=q>q'></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const fd = f.contentDocument, w = f.contentWindow; const b = document.createElement('b'); b.textContent = 'x'; b.onclick = () => 0; b.addEventListener('custom', () => log.push('custom')); fd.body.appendChild(b); const out = [b.ownerDocument === fd, b instanceof HTMLElement, Object.getPrototypeOf(b) === HTMLElement.prototype, b instanceof w.HTMLElement, fd.createElement('i') instanceof HTMLElement, typeof b.onclick]; b.dispatchEvent(new Event('custom')); out.push(log.join()); const q = fd.getElementById('q'); document.body.appendChild(q); out.push(q.ownerDocument === document, Object.getPrototypeOf(q) === w.HTMLParagraphElement.prototype, document.getElementById('q') === q, fd.getElementById('q')); const i = document.importNode(fd.body, true); out.push(i.ownerDocument === document, Object.getPrototypeOf(i) === HTMLBodyElement.prototype); const a = document.adoptNode(fd.createElement('span')); out.push(a.ownerDocument === document, Object.getPrototypeOf(a) === w.HTMLSpanElement.prototype); out.push(E(() => fd.body.appendChild(document)), E(() => document.body.appendChild(fd.documentElement).nodeName)); return out; })()"
+    }
+   ]
+  }
+ ]
+}

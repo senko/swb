@@ -112,3 +112,23 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
 - The W3C Software and Document License is allowed for WebIDL data
   files copied from W3C specifications
   ([ADR 0003](adr/0003-dependency-policy.md) update).
+
+## Decisions from 2026-11-01: Ars Technica and BBC with JavaScript
+
+- The next milestone (M9) targets Ars Technica and BBC with JavaScript
+  on: each renders like Chromium with JavaScript on, no script error
+  breaks the page, and the JavaScript features of the page work.
+- Frames are in M9: `iframe` documents render and run their own
+  scripts, same-origin and cross-origin, and frames exchange messages
+  with `postMessage`. (BBC's consent dialog is a cross-origin frame; the
+  Craigslist favorites need a same-origin frame.)
+- Media playback stays out of scope.
+- Frames also work with JavaScript off. In general: a feature that
+  works without JavaScript in other browsers (for example frames or
+  media queries) also works in swb with JavaScript off, once swb
+  implements it. This refines the decision of 2026-10-09 ("With
+  JavaScript off, swb behaves exactly as it did before JavaScript
+  support"): JavaScript support itself must not change the JS-off
+  behaviour, but new HTML and CSS features apply to both settings. A
+  feature that changes a JS-off fixture reports the change and its
+  scores, which must not get worse.

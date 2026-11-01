@@ -4504,6 +4504,10 @@ window_dialogs.rs`, which runs the cases with their steps against
 
 ### 14. Frames and media: out of scope
 
+(Update 2026-11-01: [ADR 0031](0031-frames.md) replaces this section for
+frames, and section 4's statement that `window`, `self`, `globalThis`
+and `frames` return the global object. Media playback stays as below.)
+
 M8 does not render `iframe`, `frame` or `object` documents and runs no
 scripts in them. An `iframe` is an empty box of its size;
 `contentWindow` and `contentDocument` are `null`; `window.frames`,

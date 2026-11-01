@@ -4,8 +4,9 @@ The owner provides these URLs. Each page must be usable in swb: it renders
 close to Chromium (with JavaScript disabled), scrolls, links work, and
 relevant interactions work. M8 adds JavaScript: Hacker News, Wikipedia
 and the Craigslist posting must also work with JavaScript on (roadmap,
-M8, lists what "works" means for each). Their fixtures with JavaScript
-on are local only (`fixtures/js/`).
+M8, lists what "works" means for each). M9 adds Ars Technica and BBC
+with JavaScript on (roadmap, M9). The fixtures with JavaScript on are
+local only (`fixtures/js/`).
 
 Status values: `pending` (not started), `in progress`, `done` (reported to
 the owner as ready for review), `accepted` (the owner verified it).

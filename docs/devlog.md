@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M9 plan: Ars Technica and BBC with JavaScript, frames
+
+- The owner chose the next milestone: Ars Technica and BBC with
+  JavaScript on, frames in, media out (ground rules). A second rule:
+  a feature that works without JavaScript in other browsers works in
+  swb with JavaScript off once swb has it; frames therefore render with
+  JavaScript off too.
+- Diagnosis (roadmap M9 step 1): three small defects stop Alpine.js on
+  Ars Technica (no `ShadowRoot`, `Attr.name` `:xmlns`, no
+  `document.write`); BBC does not hydrate because swb has no CSSOM for
+  sheets and rules (styled-components), and its cookie banner is a
+  module script. Both lack `Intl`, lazy loading and `backdrop-filter`.
+  `compare --js`: Ars Technica 0.9006 / 0.9895, BBC 0.1087 / 0.3720.
+- Design: ADR 0031 (frames), accepted. One script runtime per origin
+  per page (Chromium 148 keys agent clusters by origin, measured), the
+  `WindowProxy` object kind, one document state per frame, nested
+  display lists, `postMessage` and `MessageChannel`, frames with
+  JavaScript off, page-wide limits. 21 probe cases in
+  `tools/probes/web-frames.json`.
+- The owner confirmed the "what works" lists of both pages and the
+  ADR's decisions (no joint session history, the page-wide limits,
+  storage keyed by top-level site and origin, no top-level navigation
+  from cross-origin frames).
+- Next: M9 feature 1 (small DOM gaps, `compare` alignment).
+
 ## 2026-11-01: M8 maintenance; end of M8
 
 - Two reviewers read the Web API layer (`web`, `webidl`) and the other
