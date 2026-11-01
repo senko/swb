@@ -181,12 +181,19 @@ impl DocumentState {
                 state: WatchState::Pending,
             },
         );
-        if !self.images.by_url.contains_key(&url) {
-            self.start_image(url.clone());
-        }
+        // A lazy image of a known URL stays unstarted until its box is
+        // near the viewport (Chromium; ADR 0032), else the known result
+        // counts at once.
+        let known = self.images.by_url.contains_key(&url);
+        let deferred = if known {
+            self.lazy_defers_known(node, &url)
+        } else {
+            self.start_node_image(node, url.clone());
+            false
+        };
         match self.images.by_url.get(&url) {
-            Some(ImageState::Loaded(_)) => self.finish_watch(node, token, true),
-            Some(ImageState::Failed) => self.finish_watch(node, token, false),
+            Some(ImageState::Loaded(_)) if !deferred => self.finish_watch(node, token, true),
+            Some(ImageState::Failed) if !deferred => self.finish_watch(node, token, false),
             _ => {
                 let list = self.element_events.waiting.entry(url).or_default();
                 let known = waits_already
@@ -245,6 +252,28 @@ impl DocumentState {
         }
     }
 
+    /// The element `node` waited for a known image (a deferred lazy image
+    /// of a URL that was loaded already) and is released: its event comes
+    /// now.
+    pub(super) fn finish_known_watch(&mut self, node: NodeId) {
+        let Some(watch) = self.element_events.watches.get(&node) else {
+            return;
+        };
+        let (Some(url), WatchState::Pending, token) = (watch.url.clone(), watch.state, watch.token)
+        else {
+            return;
+        };
+        let ok = match self.images.by_url.get(&url) {
+            Some(ImageState::Loaded(_)) => true,
+            Some(ImageState::Failed) => false,
+            _ => return,
+        };
+        if let Some(list) = self.element_events.waiting.get_mut(&url) {
+            list.retain(|(n, _)| *n != node);
+        }
+        self.finish_watch(node, token, ok);
+    }
+
     /// The load of the image at `url` ended: the elements that wait for it
     /// get their event.
     pub(crate) fn image_done(&mut self, url: &Url, ok: bool) {
@@ -252,7 +281,11 @@ impl DocumentState {
             return;
         };
         for (node, token) in waiting {
-            self.finish_watch(node, token, ok);
+            // A deferred lazy image has not started: its event comes when
+            // it is released (`finish_known_watch`).
+            if !self.lazy_is_deferred(node) {
+                self.finish_watch(node, token, ok);
+            }
         }
     }
 
@@ -298,37 +331,44 @@ impl DocumentState {
             };
         };
         let current_src = watch.url.as_ref().map(Url::to_string).unwrap_or_default();
-        match watch.state {
+        let known = |this: &Self| {
+            watch
+                .url
+                .as_ref()
+                .and_then(|url| this.images.by_url.get(url))
+                .map(|state| matches!(state, ImageState::Loaded(_)))
+        };
+        let (complete, ok) = match watch.state {
+            // A deferred lazy image of a known URL (Chromium; ADR 0032):
+            // not complete, but with the source and the size of the image
+            // that is known.
+            WatchState::Pending if self.lazy_is_deferred(node) && known(self).is_some() => {
+                (false, known(self) == Some(true))
+            }
             // Chromium sets `currentSrc` when the request starts, a
             // microtask after the `src` changed; the first read in the
             // same task sees an empty string.
-            WatchState::Pending => ImageInfo {
-                complete: false,
-                natural_width: 0,
-                natural_height: 0,
-                current_src: String::new(),
-            },
-            WatchState::Done(ok) => {
-                let size = watch
-                    .url
-                    .as_ref()
-                    .filter(|_| ok)
-                    .and_then(|url| self.images.size(&ImageRef::Url(url.as_str().into())));
-                let scaled = |v: Option<f32>| {
-                    let v = v.unwrap_or(0.0) / watch.density.max(f32::MIN_POSITIVE);
-                    if v.is_finite() {
-                        v.round().max(0.0) as u32
-                    } else {
-                        0
-                    }
-                };
-                ImageInfo {
-                    complete: true,
-                    natural_width: scaled(size.as_ref().and_then(|s| s.width)),
-                    natural_height: scaled(size.as_ref().and_then(|s| s.height)),
-                    current_src,
-                }
+            WatchState::Pending => return ImageInfo::default(),
+            WatchState::Done(ok) => (true, ok),
+        };
+        let size = watch
+            .url
+            .as_ref()
+            .filter(|_| ok)
+            .and_then(|url| self.images.size(&ImageRef::Url(url.as_str().into())));
+        let scaled = |v: Option<f32>| {
+            let v = v.unwrap_or(0.0) / watch.density.max(f32::MIN_POSITIVE);
+            if v.is_finite() {
+                v.round().max(0.0) as u32
+            } else {
+                0
             }
+        };
+        ImageInfo {
+            complete,
+            natural_width: scaled(size.as_ref().and_then(|s| s.width)),
+            natural_height: scaled(size.as_ref().and_then(|s| s.height)),
+            current_src,
         }
     }
 }

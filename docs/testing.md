@@ -27,6 +27,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Responsive image tests | `crates/engine/tests/responsive_images.rs` (`srcset`, `sizes` and `<picture>` at other scales and viewports, selection again after a viewport or scale change, `object-fit` with density; by the color of the drawn image) | no |
 | Web font tests         | `crates/text/tests/web_fonts.rs` (the face set, loading requests, composite fonts, matching, variation axes, synthesis); `crates/engine/tests/web_fonts.rs` (loading in a page: each URL once, `src` fallback, URLs relative to the style sheet, one face set per document) | no |
 | Auto-size tests        | `crates/engine/tests/auto_sizes.rs` (`sizes="auto"`: selection after layout by the box width, `100vw` for eager images, the user-agent `contain: size` rule, selection again after a viewport or scale change; a recording fetcher) | no |
+| Lazy loading tests     | `crates/automation/tests/lazy_loading.rs` (M9 feature 4, ADR 0032: every case of `tools/probes/web-lazy-loading.json` (44 cases) with Chromium's values in `lazy_loading/cases.rs`; regenerate the file after a change of the probe file: run `uv run --project tools swbtools probe --json tools/probes/web-lazy-loading.json > chromium.json` three times, check that the outputs are equal, then `uv run --project tools swbtools lazy-cases chromium.json` and `just fmt` (`tools/swbtools/lazy_cases.py`, tested by `tools/tests/test_lazy_cases.py`); run against a simulated probe server: the distances 3000 px above and below and 1500 px left and right, boxes and containers (`display: none`, clipping, scrollers, `details`), scrolling by script, wheel and keyboard, `src` and `loading` changes before and after the load, `img.loading`, `complete` and `currentSrc` of an image that has not started, the window `load` event, the order of an image's `load` and an `IntersectionObserver`, `sizes="auto"`, `<picture>`, and a document without scripting; `DEPARTURES` lists the six queries where swb differs, with reasons; unit tests in `crates/engine/src/document/tests.rs` (`lazy_check_*`) cover when the check lays out); `ars_technica_lazy_images_load_as_in_chromium` in `crates/automation/tests/ars_technica.rs` (local fixture: the 20 photos at the load and the 37 after the wheel to the end and back, from `data/ars-technica-lazy-chromium.json`) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); `Intl`: `builtins_intl.rs` (see "Intl tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py`, `test_js_time_zone_names.py` and `test_js_intl_data.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
@@ -1131,7 +1132,11 @@ fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
 `var()` chains, huge lists), pages that make the parse in steps with
-JavaScript on pause many times (`parse-steps-*-js-on`), and pages with
+JavaScript on pause many times (`parse-steps-*-js-on`), lazy images (M9
+feature 4, ADR 0032: 100,000 lazy images and a script that scrolls
+down in 100 steps, 30,000 lazy images whose `loading` a script toggles 20
+times, and 200 nested scroll containers that a script scrolls
+(`lazy-*-js-on`)), and pages with
 scripts: endless loops in inline scripts (the time limit and the stop
 after three), the wrappers and child lists of many nodes, named lookups
 on the window after DOM changes, and the event loop (feature 5b):
@@ -1458,9 +1463,9 @@ the document. Chromium's replay requests the five scripts at the end
 earlier (its preload scanner) and in an order that varies between runs;
 the A/B requests come after `jquery` and before the tracking script in all
 three of its runs (`performance.getEntriesByType('resource')` in `swbtools
-replay --record`). The story times (`Intl`, feature 3) and
-the blurred backdrop of the grid settings dialog (`backdrop-filter`, feature
-5) are not in it yet. The command for the records and colors (three runs,
+replay --record`). The record has the story times (`times`, `Intl`,
+feature 3); the blurred backdrop of the grid settings dialog
+(`backdrop-filter`, feature 5) is not in it yet. The command for the records and colors (three runs,
 equal; the view switcher's click navigates away, so the record expression
 tolerates a page without the setup):
 

@@ -365,6 +365,7 @@ impl Page {
         changed |= self.deliver_element_events();
         changed |= self.run_traversal();
         changed |= self.run_frame();
+        changed |= self.release_lazy_without_frames();
         // Step 4 of the event loop: idle callbacks, if nothing else ran.
         if !changed {
             changed |= self.run_idle();

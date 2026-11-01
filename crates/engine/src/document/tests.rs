@@ -807,3 +807,80 @@ fn finished_image_watches_of_detached_images_make_room() {
     assert!(!doc.image_is_watched(a) && !doc.image_is_watched(b));
     assert!(doc.image_is_watched(c));
 }
+
+/// The state of `html` parsed with scripting on.
+fn scripted(html: &str) -> DocumentState {
+    let mut dom = swb_dom::parse_html(html);
+    dom.set_scripting(true);
+    state(dom, None, &url())
+}
+
+/// The first element of `doc` with the attribute `name`.
+fn with_attr(doc: &DocumentState, name: &str) -> NodeId {
+    doc.dom
+        .descendants(NodeId::DOCUMENT)
+        .find(|&n| doc.dom.element(n).is_some_and(|e| e.attr(name).is_some()))
+        .unwrap()
+}
+
+/// The check of the deferred lazy images lays out for a new deferred
+/// image, a scroll or a viewport change, and not for a DOM change alone
+/// (ADR 0032).
+#[test]
+fn lazy_check_does_not_lay_out_for_a_dom_change() {
+    let mut doc = scripted(
+        "<body><p id=t>x</p><img loading=lazy style='display:none' src=a.png>\
+         <div style='height:9000px'></div><img loading=lazy src=b.png width=5 height=5>",
+    );
+    let mut fonts = swb_text::FontContext::for_tests();
+    // The new deferred images: the first check lays out and starts none
+    // (one has no box, one is 9000 px away).
+    assert!(doc.has_deferred_images());
+    assert!(doc.lazy_due());
+    assert!(!doc.release_lazy_images(&mut fonts));
+    assert!(!doc.lazy_due());
+    let serial = doc.layout_serial;
+    assert!(serial > 0);
+    assert_eq!(loads(&doc, "image").len(), 0);
+    // A change of the text: not due, no layout.
+    let text = doc.dom.children(with_attr(&doc, "id")).next().unwrap();
+    doc.change_dom(|dom| dom.set_data(text, "y")).unwrap();
+    assert!(!doc.lazy_due());
+    assert!(!doc.release_lazy_images(&mut fonts));
+    assert_eq!(doc.layout_serial, serial);
+    // A layout for another reason makes the check due, without a layout of
+    // its own.
+    doc.update_layout(&mut fonts);
+    assert_eq!(doc.layout_serial, serial + 1);
+    assert!(doc.lazy_due());
+    assert!(!doc.release_lazy_images(&mut fonts));
+    assert_eq!(doc.layout_serial, serial + 1);
+    assert!(!doc.lazy_due());
+    // A scroll to the far image is due and starts its load.
+    doc.scroll = swb_layout::Point::new(0.0, 7000.0);
+    assert!(doc.lazy_due());
+    assert!(doc.release_lazy_images(&mut fonts));
+    assert_eq!(loads(&doc, "image").len(), 1);
+    assert!(!doc.lazy_due());
+}
+
+/// An image with `sizes="auto"` that is not deferred does not make the
+/// check due.
+#[test]
+fn lazy_check_ignores_auto_sized_images_that_are_not_deferred() {
+    let mut doc = scripted(
+        "<body><img sizes=auto srcset='a.png 100w, b.png 200w' width=50 height=50>\
+         <img loading=lazy src=c.png width=5 height=5 style='display:none'>",
+    );
+    let mut fonts = swb_text::FontContext::for_tests();
+    assert!(doc.lazy_due());
+    doc.release_lazy_images(&mut fonts);
+    assert!(!doc.lazy_due());
+    // A change of `loading` starts the deferred load: nothing is deferred
+    // and nothing is due.
+    let img = with_attr(&doc, "loading");
+    doc.change_dom(|dom| dom.set_attr(img, "loading", "eager"))
+        .unwrap();
+    assert!(!doc.has_deferred_images());
+    assert!(!doc.lazy_due());
+}

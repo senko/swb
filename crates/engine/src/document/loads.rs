@@ -195,17 +195,22 @@ impl DocumentState {
                 continue;
             }
             // Without a candidate, the image stays as it is (the
-            // specification returns early).
-            if let Some(image) = selection.image {
-                let url = image.url.clone();
-                if self.images.reselect(node, image) {
-                    loads.push(url);
+            // specification returns early), but it loads nothing more.
+            match selection.image {
+                Some(image) => {
+                    let url = image.url.clone();
+                    if self.images.reselect(node, image) {
+                        loads.push((node, url));
+                    } else if self.images.by_url.contains_key(&url) {
+                        self.lazy_known(node, &url);
+                    }
                 }
+                None => self.lazy_cancel(node),
             }
         }
         self.update_auto_images(only, auto_nodes);
-        for url in loads {
-            self.start_image(url);
+        for (node, url) in loads {
+            self.start_node_image(node, url);
         }
     }
 
@@ -240,6 +245,7 @@ impl DocumentState {
 
     /// Forgets the image of an element that left the document.
     pub(super) fn forget_image(&mut self, node: NodeId) {
+        self.lazy_forget(node);
         self.images.by_node.remove(&node);
         if self.images.auto_set.remove(&node) {
             self.images.auto.retain(|(n, _)| *n != node);
@@ -323,7 +329,8 @@ impl DocumentState {
         let nodes: Vec<NodeId> = self.images.auto.iter().map(|(node, _)| *node).collect();
         let widths = content_widths(tree, &nodes);
         let (doc, base) = (&self.dom, self.base_url.value());
-        let mut loads: Vec<Url> = Vec::new();
+        let mut loads: Vec<(NodeId, Url)> = Vec::new();
+        let mut known: Vec<(NodeId, Url)> = Vec::new();
         for (index, node) in nodes.into_iter().enumerate() {
             let Some((_, state)) = self.images.auto.get_mut(index) else {
                 continue;
@@ -337,11 +344,16 @@ impl DocumentState {
             };
             let url = image.url.clone();
             if self.images.reselect(node, image) {
-                loads.push(url);
+                loads.push((node, url));
+            } else if self.images.by_url.contains_key(&url) {
+                known.push((node, url));
             }
         }
-        for url in loads {
-            self.start_image(url);
+        for (node, url) in known {
+            self.lazy_known(node, &url);
+        }
+        for (node, url) in loads {
+            self.start_node_image(node, url);
         }
     }
 

@@ -4,12 +4,13 @@
 //! ADR 0028 section 7; M8 features 7b1 and 7b2): the frame runs, in this
 //! order, the resize steps (`resize` at the window), the scroll steps
 //! (`scroll` events, CSSOM View "run the scroll steps"), the media query
-//! changes (`change` at `MediaQueryList`s) and the animation frame
-//! callbacks.
+//! changes (`change` at `MediaQueryList`s), the animation frame callbacks,
+//! the check of the lazy images (M9 feature 4, ADR 0032) and the observers.
 //!
 //! A frame is due when something needs it: a scroll or a resize, a change
-//! of the media environment (`frame_due`, one frame length after it), or
-//! an animation frame callback (the next frame on a grid of 60 frames per
+//! of the media environment (`frame_due`, one frame length after it), an
+//! animation frame callback, or a deferred lazy image whose surroundings
+//! changed (the next frame on a grid of 60 frames per
 //! second of page time, at least one frame length after the last frame).
 //! In virtual time the clock jumps to the frame like to a task, so a
 //! `requestAnimationFrame` loop sees 16.67 ms between frames, as in
@@ -25,6 +26,7 @@ use swb_layout::Point;
 use swb_web::{DispatchTarget, ScriptRuntime, TrustedEvent};
 
 use super::Page;
+use crate::document::DocumentState;
 
 /// The length of a frame in milliseconds of page time (60 Hz).
 const FRAME_MS: f64 = 1000.0 / 60.0;
@@ -145,7 +147,8 @@ impl Page {
             .script
             .as_ref()
             .is_some_and(ScriptRuntime::has_animation_frame_callbacks)
-            || self.observers_due())
+            || self.observers_due()
+            || self.lazy_due())
         .then(|| self.grid_frame_time());
         match (self.input.frame_due, callbacks) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -157,7 +160,8 @@ impl Page {
     /// callbacks (a page with a `requestAnimationFrame` loop can still be
     /// idle).
     pub(super) fn frame_work_due(&self) -> Option<f64> {
-        let observers = (self.frames_run() && self.observers_due()).then(|| self.grid_frame_time());
+        let observers = (self.frames_run() && (self.observers_due() || self.lazy_due()))
+            .then(|| self.grid_frame_time());
         self.input
             .frame_due
             .filter(|_| self.frames_run())
@@ -196,6 +200,7 @@ impl Page {
             self.run_task(|s| s.run_animation_frame_callbacks(due));
             ran = true;
         }
+        ran |= self.run_lazy_check();
         // Style and layout, then the observers (HTML "update the
         // rendering"): resize observers, then intersection observers.
         if self
@@ -212,6 +217,41 @@ impl Page {
             self.input.observed = self.observed_state();
         }
         ran
+    }
+
+    /// True if a deferred lazy image can be in range now: some are
+    /// deferred and a new one, a scroll offset, the viewport, the style
+    /// sheets or a layout that happened for another reason changed since
+    /// the last check (a DOM change alone does not count; ADR 0032).
+    fn lazy_due(&self) -> bool {
+        self.frames_run() && self.doc.as_deref().is_some_and(DocumentState::lazy_due)
+    }
+
+    /// The check of the lazy images, if it is due (the loads of the images
+    /// near the viewport start). True if a load started.
+    fn run_lazy_check(&mut self) -> bool {
+        if self.lent {
+            return false;
+        }
+        match self.parts() {
+            Some((doc, fonts)) => doc.release_lazy_images(fonts),
+            None => false,
+        }
+    }
+
+    /// A document whose scripts cannot run frames (no runtime, or stopped
+    /// by the time limits) starts all its deferred lazy images.
+    pub(super) fn release_lazy_without_frames(&mut self) -> bool {
+        if self.lent || self.frames_run() {
+            return false;
+        }
+        match self.doc.as_deref_mut() {
+            Some(doc) if doc.has_deferred_images() => {
+                doc.release_all_lazy_images();
+                true
+            }
+            _ => false,
+        }
     }
 
     /// The scroll steps: fires `scroll` once at each target that scrolled

@@ -4194,6 +4194,28 @@ Steps:
       (Chromium's distance, measured), never when `display: none`.
       Exit: Ars Technica's 25 extra image requests are gone; BBC's
       image placeholders go as Chromium's do while the page scrolls.
+      Done 2026-11-01: a lazy `img` in a document with scripts waits
+      until its box comes within 3000 px of the viewport vertically or
+      1500 px horizontally (Chromium 148, measured; the viewport size and
+      the way of scrolling do not change it). An element without a box
+      never loads; overflow clipping does not matter. The check runs in
+      the page frame (`document/lazy.rs`, `page/frame.rs`) after a change
+      of the DOM, the layout, a scroll offset or the viewport. Lazy images
+      do not delay the window `load` event. With JavaScript off, Chromium
+      loads every image at once (the HTML spec turns lazy loading off
+      without scripting), and so does swb: JS-off snapshot identical.
+      Ars Technica requests 20 photos at load and 37 after a scroll to
+      the end and back, the same sets as Chromium (before: 45 at load);
+      BBC 21 images, as Chromium (before: 72). `compare --js` of the six
+      fixtures unchanged. Probe cases: 44 in `web-lazy-loading.json`
+      (three equal Chromium runs), run in `lazy_loading.rs`. ADR 0032.
+      Review fix: the check lays out only for a newly deferred image,
+      a scroll, a viewport or style sheet change; otherwise it uses a
+      layout that happens anyway (a page that changes the DOM in every
+      frame with one hidden lazy image: 30.7 s → 1.49 s, 1.10 s without
+      the image). A lazy image of an already loaded URL stays unstarted
+      until it comes near, as in Chromium.
+      BBC's placeholder timeline needs hydration: feature 8 checks it.
    5. `backdrop-filter` (`implementer`): the `filter` functions on the
       backdrop of a box. Exit: the pixels of Ars Technica's grid
       settings dialog match Chromium's. With feature 5, Ars Technica
@@ -4302,6 +4324,20 @@ Steps:
   `GMT`, Chromium `GMT+1`).
 - `js`: `10n ** 300000n` throws "Maximum BigInt size exceeded";
   Chromium computes it.
+- Lazy images (found in feature 4): `content-visibility` is not
+  implemented (content under `content-visibility: hidden` loads);
+  Chromium decides lazy or eager in a microtask after `src` is set, swb
+  when it processes the DOM changes; keyboard scrolling jumps (Chromium
+  animates it and loads images on the way); after a failed load, a
+  `sizes="auto"` image without a width does not select the 100vw source
+  again; `currentSrc` and `complete` of `sizes="auto"` images stay empty
+  and false; a page with more than 65,536 images logs the warning of
+  the image watch limit. Headless only (no paint per frame): a style
+  change of an ancestor that shows a deferred image, and a width change
+  of a loaded `sizes="auto"` image, take effect at the next layout, not
+  in the next frame. A page with 100,000 images costs 12 s with
+  JavaScript on before any scroll, with or without lazy loading (cause
+  not known).
 
 ## Backlog from M8
 

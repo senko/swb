@@ -17,6 +17,7 @@ from swbtools.js_unicode_tables import write_tables as write_js_unicode_tables
 from swbtools.jsbench import jsbench
 from swbtools.jsdiff import jsdiff
 from swbtools.layout_refs import layout_refs
+from swbtools.lazy_cases import write_lazy_cases
 from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
@@ -140,6 +141,10 @@ def cmd_linebreaks(args: argparse.Namespace) -> int:
 
 def cmd_linebreak_tables(args: argparse.Namespace) -> int:
     return write_tables()
+
+
+def cmd_lazy_cases(args: argparse.Namespace) -> int:
+    return write_lazy_cases(args.chromium)
 
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
@@ -385,6 +390,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--json", action="store_true", help="print JSON instead of text")
     p.set_defaults(func=cmd_probe)
+
+    p = commands.add_parser(
+        "lazy-cases",
+        help="write crates/automation/tests/lazy_loading/cases.rs from web-lazy-loading.json",
+    )
+    p.add_argument(
+        "chromium",
+        type=Path,
+        help="the output of `probe --json tools/probes/web-lazy-loading.json`",
+    )
+    p.set_defaults(func=cmd_lazy_cases)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"

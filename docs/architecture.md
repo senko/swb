@@ -729,6 +729,14 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   `sizes="auto"` after each layout); web fonts: the face set of the
   document, loading the faces that layout requested (`url()` through the
   loader, `local()` from the installed fonts), font files by URL.
+- `document/lazy.rs` (M9 feature 4, ADR 0032): lazy loading of images.
+  A lazy `img` in a document with scripting does not start its load when
+  its source is selected; the document keeps the URL. The frame of the
+  page (`page/frame.rs`) runs the check after style and layout when the
+  DOM, the layout, the scroll offsets or the viewport changed: it walks
+  the painted fragments once and starts the loads of the deferred images
+  within 3000 px (vertical) or 1500 px (horizontal) of the viewport. The
+  same check selects the sources of `sizes="auto"` images after layout.
 - `document/pipeline.rs`: style, layout, display list and raster with
   per-stage timings; restyles after state changes.
 - `document/queries.rs`: element boxes, scroll state and scrolls that

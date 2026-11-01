@@ -118,6 +118,9 @@ struct Batch {
     /// make a new request for their `load` and `error` events (an `img`
     /// that was only inserted does so only if it has none yet).
     attr_images: HashSet<NodeId>,
+    /// The `img` elements whose `loading` changed: a deferred lazy load of
+    /// one that is not lazy any more starts.
+    loading_images: HashSet<NodeId>,
 }
 
 impl Batch {
@@ -250,6 +253,9 @@ impl DocumentState {
                         }
                         if kind == Kind::Img && matches!(&*name.local, "src" | "srcset" | "sizes") {
                             batch.attr_images.insert(element);
+                        }
+                        if kind == Kind::Img && &*name.local == "loading" {
+                            batch.loading_images.insert(element);
                         }
                         batch.note(element, kind, false);
                     }
@@ -411,6 +417,9 @@ impl DocumentState {
             if batch.attr_images.contains(&node) || !self.image_is_watched(node) {
                 self.watch_image(node);
             }
+        }
+        for node in batch.loading_images {
+            self.lazy_loading_changed(node);
         }
         if stylist_dirty {
             self.invalidate_style();

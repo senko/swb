@@ -1,0 +1,965 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "dist-below-800x600",
+   "viewport": [
+    800,
+    600
+   ],
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(500+k*10)+'px\" src=d'+(500+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^d/))"
+    }
+   ]
+  },
+  {
+   "name": "dist-below-800x300",
+   "viewport": [
+    800,
+    300
+   ],
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(200+k*10)+'px\" src=d'+(200+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^d/))"
+    }
+   ]
+  },
+  {
+   "name": "dist-below-1600x1000",
+   "viewport": [
+    1600,
+    1000
+   ],
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(900+k*10)+'px\" src=d'+(900+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^d/))"
+    }
+   ]
+  },
+  {
+   "name": "dist-above",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:30000px'></div><script>scrollTo(0,10000);let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(10000-5-k*10)+'px\" src=u'+(10000-5-k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>[scrollY,G(/^u/)]).then(async a=>[a[0],await a[1]])"
+    }
+   ]
+  },
+  {
+   "name": "dist-right",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='width:30000px;height:50px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;top:10px;left:'+(700+k*10)+'px\" src=r'+(700+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^r/))"
+    }
+   ]
+  },
+  {
+   "name": "dist-left",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='width:30000px;height:50px'></div><script>scrollTo(10000,0);let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;top:10px;left:'+(10000-5-k*10)+'px\" src=q'+(10000-5-k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>[scrollX,G(/^q/)]).then(async a=>[a[0],await a[1]])"
+    }
+   ]
+  },
+  {
+   "name": "scroll-script",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:12000px'></div><script>let h='';for(let k=0;k<400;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(100+k*20)+'px\" src=s'+(100+k*20)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^s/))"
+    },
+    {
+     "js": "(scrollTo(0,5000),W(500)).then(()=>G(/^s/))"
+    },
+    {
+     "js": "(scrollTo(0,0),W(500)).then(()=>G(/^s/))"
+    },
+    {
+     "js": "(scrollTo(0,11000),W(500)).then(()=>G(/^s/))"
+    }
+   ]
+  },
+  {
+   "name": "scroll-wheel",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:12000px'></div><script>let h='';for(let k=0;k<400;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(100+k*20)+'px\" src=s'+(100+k*20)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      100,
+      100
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      3000
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ],
+   "measure": [
+    {
+     "js": "G(/^s/)"
+    },
+    {
+     "js": "W(300).then(()=>G(/^s/))"
+    },
+    {
+     "js": "scrollY"
+    }
+   ]
+  },
+  {
+   "name": "scroll-wheel-steps",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:12000px'></div><script>let h='';for(let k=0;k<400;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(100+k*20)+'px\" src=s'+(100+k*20)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      100,
+      100
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      300
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ],
+   "measure": [
+    {
+     "js": "G(/^s/)"
+    },
+    {
+     "js": "scrollY"
+    }
+   ]
+  },
+  {
+   "name": "scroll-key-end",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:12000px'></div><script>let h='';for(let k=0;k<400;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(100+k*20)+'px\" src=s'+(100+k*20)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      100,
+      100
+     ]
+    },
+    {
+     "key": "End"
+    },
+    {
+     "wait": 800
+    }
+   ],
+   "measure": [
+    {
+     "js": "G(/^s/)"
+    },
+    {
+     "js": "scrollY"
+    }
+   ]
+  },
+  {
+   "name": "kinds-load",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}body{height:20000px}</style></head><body><img loading=lazy width=20 height=20 src=k-plain.png><img loading=LAZY width=20 height=20 src=k-upper.png><img id=a loading=lazy width=20 height=20 style='display:none' src=k-display-none.png><div style='display:none'><img loading=lazy width=20 height=20 src=k-parent-none.png></div><img loading=lazy width=20 height=20 style='visibility:hidden' src=k-visibility-hidden.png><img loading=lazy width=0 height=0 src=k-zero.png><img loading=lazy style='width:0;height:0' src=k-zero-css.png><img loading=lazy width=20 height=20 style='opacity:0' src=k-opacity-0.png><img loading=lazy width=20 height=20 hidden src=k-hidden-attr.png><div style='content-visibility:hidden'><img loading=lazy width=20 height=20 src=k-cv-hidden.png></div><div style='content-visibility:auto'><img loading=lazy width=20 height=20 src=k-cv-auto.png></div><details><summary>d</summary><img loading=lazy width=20 height=20 src=k-details-closed.png></details><details open><summary>d</summary><img loading=lazy width=20 height=20 src=k-details-open.png></details><div style='display:contents'><img loading=lazy width=20 height=20 src=k-contents.png></div><template><img loading=lazy width=20 height=20 src=k-template.png></template><div style='position:fixed;left:300px;top:10px'><img loading=lazy width=20 height=20 src=k-fixed.png></div><img loading=lazy width=20 height=20 style='position:absolute;left:-2000px;top:10px' src=k-left-2000.png><img loading=lazy width=20 height=20 style='position:absolute;left:-4000px;top:10px' src=k-left-4000.png><img loading=lazy width=20 height=20 style='position:absolute;left:2000px;top:10px' src=k-right-2000.png><img loading=lazy width=20 height=20 style='position:absolute;left:4000px;top:10px' src=k-right-4000.png><img loading=lazy width=20 height=20 style='position:absolute;left:10px;top:-2000px' src=k-top-2000.png><div style='transform:translateY(5000px)'><img loading=lazy width=20 height=20 src=k-transform-far.png></div><picture><source srcset=k-picture-source.png><img loading=lazy width=20 height=20 src=k-picture-img.png></picture><picture><source srcset=k-picture-far-source.png><img loading=lazy width=20 height=20 style='margin-top:6000px' src=k-picture-far-img.png></picture><img loading=' lazy' width=20 height=20 style='margin-top:6000px' src=k-space-far.png><img loading=bogus width=20 height=20 style='margin-top:6000px' src=k-bogus-far.png><img loading=eager width=20 height=20 style='margin-top:6000px' src=k-eager-far.png><img width=20 height=20 style='margin-top:6000px' src=k-none-far.png><img loading=lazy width=20 height=20 style='margin-top:6000px' src=k-lazy-far.png><div style='height:2000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "kinds-js-off",
+   "javascript": false,
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}body{height:20000px}</style></head><body><img loading=lazy width=20 height=20 src=k-plain.png><img loading=LAZY width=20 height=20 src=k-upper.png><img id=a loading=lazy width=20 height=20 style='display:none' src=k-display-none.png><div style='display:none'><img loading=lazy width=20 height=20 src=k-parent-none.png></div><img loading=lazy width=20 height=20 style='visibility:hidden' src=k-visibility-hidden.png><img loading=lazy width=0 height=0 src=k-zero.png><img loading=lazy style='width:0;height:0' src=k-zero-css.png><img loading=lazy width=20 height=20 style='opacity:0' src=k-opacity-0.png><img loading=lazy width=20 height=20 hidden src=k-hidden-attr.png><div style='content-visibility:hidden'><img loading=lazy width=20 height=20 src=k-cv-hidden.png></div><div style='content-visibility:auto'><img loading=lazy width=20 height=20 src=k-cv-auto.png></div><details><summary>d</summary><img loading=lazy width=20 height=20 src=k-details-closed.png></details><details open><summary>d</summary><img loading=lazy width=20 height=20 src=k-details-open.png></details><div style='display:contents'><img loading=lazy width=20 height=20 src=k-contents.png></div><template><img loading=lazy width=20 height=20 src=k-template.png></template><div style='position:fixed;left:300px;top:10px'><img loading=lazy width=20 height=20 src=k-fixed.png></div><img loading=lazy width=20 height=20 style='position:absolute;left:-2000px;top:10px' src=k-left-2000.png><img loading=lazy width=20 height=20 style='position:absolute;left:-4000px;top:10px' src=k-left-4000.png><img loading=lazy width=20 height=20 style='position:absolute;left:2000px;top:10px' src=k-right-2000.png><img loading=lazy width=20 height=20 style='position:absolute;left:4000px;top:10px' src=k-right-4000.png><img loading=lazy width=20 height=20 style='position:absolute;left:10px;top:-2000px' src=k-top-2000.png><div style='transform:translateY(5000px)'><img loading=lazy width=20 height=20 src=k-transform-far.png></div><picture><source srcset=k-picture-source.png><img loading=lazy width=20 height=20 src=k-picture-img.png></picture><picture><source srcset=k-picture-far-source.png><img loading=lazy width=20 height=20 style='margin-top:6000px' src=k-picture-far-img.png></picture><img loading=' lazy' width=20 height=20 style='margin-top:6000px' src=k-space-far.png><img loading=bogus width=20 height=20 style='margin-top:6000px' src=k-bogus-far.png><img loading=eager width=20 height=20 style='margin-top:6000px' src=k-eager-far.png><img width=20 height=20 style='margin-top:6000px' src=k-none-far.png><img loading=lazy width=20 height=20 style='margin-top:6000px' src=k-lazy-far.png><div style='height:2000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(()=>{const x=new XMLHttpRequest();x.open('GET','__log',false);x.send();return JSON.parse(x.responseText).map(e=>e.path).sort()})()"
+    }
+   ]
+  },
+  {
+   "name": "containers-load",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}body{height:20000px}</style></head><body><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-left:300px' src=c-hidden-right.png></div><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-hidden-below.png></div><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:5000px' src=c-hidden-5000.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-auto-300.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:2900px' src=c-auto-2900.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:3500px' src=c-auto-3500.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:6000px' src=c-auto-6000.png></div><div style='overflow:clip;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-clip-300.png></div><div style='overflow:auto;width:100px;height:100px;scroll-behavior:auto'><img loading=lazy width=20 height=20 style='margin-top:6000px' id=deep src=c-scrolled-6000.png><div style='height:100px'></div></div><div style='overflow:auto;width:100px;height:100px;position:absolute;left:300px;top:0'><div style='overflow:auto;width:80px;height:80px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-nested-300.png></div></div><div style='overflow:auto;width:100px;height:100px;position:absolute;left:300px;top:200px'><div style='overflow:auto;width:80px;height:80px'><img loading=lazy width=20 height=20 style='margin-top:4000px' src=c-nested-4000.png></div></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "containers-scrolled",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}body{height:20000px}</style></head><body><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-left:300px' src=c-hidden-right.png></div><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-hidden-below.png></div><div style='overflow:hidden;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:5000px' src=c-hidden-5000.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-auto-300.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:2900px' src=c-auto-2900.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:3500px' src=c-auto-3500.png></div><div style='overflow:auto;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:6000px' src=c-auto-6000.png></div><div style='overflow:clip;width:100px;height:100px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-clip-300.png></div><div style='overflow:auto;width:100px;height:100px;scroll-behavior:auto'><img loading=lazy width=20 height=20 style='margin-top:6000px' id=deep src=c-scrolled-6000.png><div style='height:100px'></div></div><div style='overflow:auto;width:100px;height:100px;position:absolute;left:300px;top:0'><div style='overflow:auto;width:80px;height:80px'><img loading=lazy width=20 height=20 style='margin-top:300px' src=c-nested-300.png></div></div><div style='overflow:auto;width:100px;height:100px;position:absolute;left:300px;top:200px'><div style='overflow:auto;width:80px;height:80px'><img loading=lazy width=20 height=20 style='margin-top:4000px' src=c-nested-4000.png></div></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    },
+    {
+     "js": "(document.getElementById('deep').parentNode.scrollTop=5900,W(600)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "detached",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>window.a=new Image();a.loading='lazy';a.src='det-lazy.png';window.b=new Image();b.src='det-eager.png';window.c=new Image();c.loading='lazy';c.width=20;c.height=20;c.src='det-lazy-near.png';</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "(document.body.prepend(c),W(500)).then(S)"
+    },
+    {
+     "js": "(a.style.cssText='position:absolute;top:8000px',document.body.append(a),W(500)).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,6000),W(500)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "detached-attr-order",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const far=(i)=>{i.style.cssText='position:absolute;left:0;top:8000px';i.width=20;i.height=20;document.body.append(i)};window.a=new Image();a.src='ord-src-then-loading.png';a.loading='lazy';far(a);window.b=new Image();b.loading='lazy';b.src='ord-loading-then-src.png';far(b);window.c=document.createElement('img');c.setAttribute('src','ord-attr-src-then-loading.png');c.setAttribute('loading','lazy');far(c);window.d=new Image();d.src='ord-microtask.png';far(d);Promise.resolve().then(()=>{d.loading='lazy'});window.e=new Image();e.src='ord-microtask-pre.png';Promise.resolve().then(()=>{e.loading='lazy';far(e)});</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "added-by-script",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const mk=(n,top)=>{const i=document.createElement('img');i.loading='lazy';i.width=20;i.height=20;i.style.cssText='position:absolute;left:0;top:'+top+'px';i.src=n;return i};document.body.append(mk('add-near.png',100),mk('add-far.png',7000));const t=document.createElement('div');t.innerHTML='<img loading=lazy width=20 height=20 style=\"position:absolute;top:8000px\" src=add-inner-far.png><img loading=lazy width=20 height=20 style=\"position:absolute;top:150px\" src=add-inner-near.png>';document.body.append(t);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "src-change-before-load",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const i=document.createElement('img');i.loading='lazy';i.width=20;i.height=20;i.id='i';i.style.cssText='position:absolute;left:0;top:8000px';i.src='sc-a.png';document.body.append(i);const j=document.createElement('img');j.loading='lazy';j.width=20;j.height=20;j.id='j';j.style.cssText='position:absolute;left:0;top:7800px';j.srcset='sc-s1.png 1x, sc-s2.png 2x';j.src='sc-j0.png';document.body.append(j);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "(i.src='sc-b.png',j.srcset='sc-s3.png 1x',W(300)).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,7500),W(500)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "src-change-after-load",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=i loading=lazy width=20 height=20 src=sa-a.png><div style='height:9000px'></div><script>window.i=document.getElementById('i');</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "(i.src='sa-b.png',W(500)).then(S)"
+    },
+    {
+     "js": "(i.style.cssText='position:absolute;top:8000px',W(300)).then(S)"
+    },
+    {
+     "js": "(i.src='sa-c.png',W(500)).then(S)"
+    },
+    {
+     "js": "(i.removeAttribute('loading'),i.src='sa-d.png',W(500)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "loading-toggle",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const mk=(n,top,ld)=>{const i=document.createElement('img');if(ld)i.loading=ld;i.width=20;i.height=20;i.style.cssText='position:absolute;left:0;top:'+top+'px';i.src=n;document.body.append(i);return i};window.a=mk('lt-a.png',7000,'lazy');window.b=mk('lt-b.png',7500,'lazy');window.c=mk('lt-c.png',7800,'eager');window.d=mk('lt-d.png',100,'lazy');</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "(a.loading='eager',W(300)).then(S)"
+    },
+    {
+     "js": "(b.setAttribute('loading','bogus'),W(300)).then(S)"
+    },
+    {
+     "js": "(c.loading='lazy',c.src='lt-c2.png',W(300)).then(S)"
+    },
+    {
+     "js": "(a.loading='lazy',a.src='lt-a2.png',W(300)).then(S)"
+    },
+    {
+     "js": "(d.loading='eager',W(300)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "reflection",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=a src=x.png><img id=b loading=lazy src=x.png><img id=c loading=LAZY src=x.png><img id=d loading=bogus src=x.png><img id=e loading=eager src=x.png><img id=f loading='' src=x.png></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "x.png": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "['a','b','c','d','e','f'].map(n=>document.getElementById(n).loading).join()"
+    },
+    {
+     "js": "(()=>{const i=new Image();const r=[i.loading];i.loading='lazy';r.push(i.loading,i.getAttribute('loading'));i.loading='LAZY';r.push(i.loading,i.getAttribute('loading'));i.loading='junk';r.push(i.loading,i.getAttribute('loading'));i.loading=null;r.push(i.loading,i.getAttribute('loading'));i.removeAttribute('loading');r.push(i.loading);return r.join('|')})()"
+    },
+    {
+     "js": "['loading' in HTMLImageElement.prototype, 'loading' in HTMLIFrameElement.prototype].join()"
+    }
+   ]
+  },
+  {
+   "name": "unstarted-state",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>window.i=document.createElement('img');i.loading='lazy';i.style.cssText='position:absolute;left:0;top:8000px';i.onload=()=>l('load');i.onerror=()=>l('error');i.src='us-far.png';document.body.append(i);window.e=document.createElement('img');e.src='us-eager-404.png';e.onerror=()=>l('e-error');document.body.append(e);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "us-far.png": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(()=>[i.complete,i.naturalWidth,i.naturalHeight,i.currentSrc,i.width,i.height,i.src.split('/').pop(),L.join()])"
+    },
+    {
+     "js": "(scrollTo(0,6000),W(500)).then(()=>[i.complete,i.naturalWidth,i.currentSrc.split('/').pop(),L.join()])"
+    }
+   ]
+  },
+  {
+   "name": "unstarted-state-ok",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>window.i=document.createElement('img');i.loading='lazy';i.style.cssText='position:absolute;left:0;top:8000px';i.onload=()=>l('load');i.src='ok.svg';document.body.append(i);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "ok.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(()=>[i.complete,i.naturalWidth,i.naturalHeight,i.currentSrc,i.width,i.height,L.join()])"
+    },
+    {
+     "js": "(scrollTo(0,6000),W(500)).then(()=>[i.complete,i.naturalWidth,i.naturalHeight,i.currentSrc.split('/').pop(),L.join()])"
+    }
+   ]
+  },
+  {
+   "name": "window-load",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img loading=lazy width=20 height=20 onload=\"l('near-load')\" src=wl-slow.svg><img loading=lazy width=20 height=20 style='margin-top:6000px' onload=\"l('far-load')\" src=wl-far.svg><div style='height:2000px'></div><script>window.far=document.querySelectorAll('img')[1];addEventListener('load',()=>{l('win-load',document.readyState,far.complete)});document.addEventListener('readystatechange',()=>l('rs',document.readyState));</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "wl-far.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    },
+    "wl-slow.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml",
+     "delay_ms": 500
+    }
+   },
+   "measure": [
+    {
+     "js": "W(1200).then(()=>L.join(' '))"
+    }
+   ]
+  },
+  {
+   "name": "window-load-far-slow",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:6000px'></div><img loading=lazy width=20 height=20 onload=\"l('far-load')\" src=wf-far.svg><script>addEventListener('load',()=>l('win-load'));</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "wf-far.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml",
+     "delay_ms": 400
+    }
+   },
+   "measure": [
+    {
+     "js": "W(1000).then(()=>L.join(' '))"
+    },
+    {
+     "js": "(scrollTo(0,5500),W(1500)).then(()=>L.join(' '))"
+    }
+   ]
+  },
+  {
+   "name": "io-order",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><img id=t loading=lazy width=20 height=20 style='position:absolute;left:0;top:5000px' src=io.svg><script>const t=document.getElementById('t');t.onload=()=>l('load');new IntersectionObserver(es=>es.forEach(e=>l('io',e.isIntersecting))).observe(t);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "io.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(()=>L.splice(0).join(' '))"
+    },
+    {
+     "js": "(scrollTo(0,2500),W(500)).then(()=>L.splice(0).join(' '))"
+    },
+    {
+     "js": "(scrollTo(0,4800),W(500)).then(()=>L.splice(0).join(' '))"
+    }
+   ]
+  },
+  {
+   "name": "io-order-direct",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><img id=t loading=lazy width=20 height=20 style='position:absolute;left:0;top:5000px' src=io.svg><script>const t=document.getElementById('t');t.onload=()=>l('load');new IntersectionObserver(es=>es.forEach(e=>l('io',e.isIntersecting))).observe(t);scrollTo(0,4800);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "io.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>L.splice(0).join(' '))"
+    }
+   ]
+  },
+  {
+   "name": "io-order-near",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=t loading=lazy width=20 height=20 src=io.svg><div style='height:9000px'></div><script>const t=document.getElementById('t');t.onload=()=>l('load');new IntersectionObserver(es=>es.forEach(e=>l('io',e.isIntersecting))).observe(t);</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "io.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>L.splice(0).join(' '))"
+    }
+   ]
+  },
+  {
+   "name": "sizes-auto",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img loading=lazy sizes='auto'  style='width:100px;height:50px' srcset='sa-w100-200.png 200w, sa-w100-400.png 400w, sa-w100-800.png 800w, sa-w100-1600.png 1600w'><img loading=lazy sizes='auto'  style='width:300px;height:50px' srcset='sa-w300-200.png 200w, sa-w300-400.png 400w, sa-w300-800.png 800w, sa-w300-1600.png 1600w'><img loading=lazy sizes='auto'  style='width:700px;height:50px' srcset='sa-w700-200.png 200w, sa-w700-400.png 400w, sa-w700-800.png 800w, sa-w700-1600.png 1600w'><img loading=lazy sizes='auto' width=500 style='height:50px' srcset='sa-attr500-200.png 200w, sa-attr500-400.png 400w, sa-attr500-800.png 800w, sa-attr500-1600.png 1600w'><img loading=lazy sizes='auto'  style='display:none' srcset='sa-none-200.png 200w, sa-none-400.png 400w, sa-none-800.png 800w, sa-none-1600.png 1600w'><img loading=lazy sizes='auto'  style='' srcset='sa-nowidth-200.png 200w, sa-nowidth-400.png 400w, sa-nowidth-800.png 800w, sa-nowidth-1600.png 1600w'><img loading=lazy sizes='auto'  style='display:block;width:auto;height:50px' srcset='sa-block-200.png 200w, sa-block-400.png 400w, sa-block-800.png 800w, sa-block-1600.png 1600w'><img loading=lazy sizes='auto, 100px'  style='width:300px;height:50px' srcset='sa-fallback-200.png 200w, sa-fallback-400.png 400w, sa-fallback-800.png 800w, sa-fallback-1600.png 1600w'><img loading=lazy sizes='auto'  style='width:300px;height:50px;margin-top:6000px' srcset='sa-far-200.png 200w, sa-far-400.png 400w, sa-far-800.png 800w, sa-far-1600.png 1600w'><div style='height:2000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,5500),W(600)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "sizes-auto-eager",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img sizes=auto srcset='se-200.png 200w, se-400.png 400w, se-800.png 800w, se-1600.png 1600w' style='width:300px;height:50px'><img loading=lazy sizes='(min-width:100px) 300px' srcset='sf-200.png 200w, sf-400.png 400w, sf-800.png 800w' style='width:100px;height:50px'></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "sizes-auto-resize",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img loading=lazy sizes=auto srcset='sz-200.png 200w, sz-400.png 400w, sz-800.png 800w, sz-1600.png 1600w' style='width:50%;height:50px'></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    },
+    {
+     "js": "(document.querySelector('img').style.width='700px',W(600)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "picture",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><picture><source media='(min-width:100px)' srcset=pc-source.png><img loading=lazy width=20 height=20 src=pc-img.png></picture><picture><source media='(min-width:100px)' srcset=pcf-source.png><img loading=lazy width=20 height=20 style='margin-top:6000px' src=pcf-img.png></picture><div style='height:3000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,5500),W(600)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "scroller-wheel",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div id=sc style='overflow:auto;width:200px;height:200px'><div style='height:6500px'></div><img loading=lazy width=20 height=20 src=sw-deep.png></div><div style='height:9000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      100,
+      100
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      2500
+     ]
+    },
+    {
+     "wait": 500
+    },
+    {
+     "wheel": [
+      0,
+      2500
+     ]
+    },
+    {
+     "wait": 500
+    },
+    {
+     "wheel": [
+      0,
+      2000
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ],
+   "measure": [
+    {
+     "js": "W(300).then(S)"
+    },
+    {
+     "js": "[document.getElementById('sc').scrollTop]"
+    },
+    {
+     "js": "W(300).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "dist-right-1600x1000",
+   "viewport": [
+    1600,
+    1000
+   ],
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='width:30000px;height:50px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;top:10px;left:'+(1500+k*10)+'px\" src=r'+(1500+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>G(/^r/))"
+    }
+   ]
+  },
+  {
+   "name": "dist-resize",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><img loading=lazy width=5 height=5 style='position:absolute;left:0;top:3900px' src=z3900.png><img loading=lazy width=5 height=5 style='position:absolute;left:0;top:3300px' src=z3300.png></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "steps": [
+    {
+     "viewport": [
+      800,
+      1000
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ],
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "W(500).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "dist-zoom-dpr-free",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='width:30000px;height:9000px'></div><script>let h='';for(let k=0;k<500;k++){h+='<img loading=lazy width=5 height=5 style=\"position:absolute;left:0;top:'+(500+k*10)+'px\" src=d'+(500+k*10)+'.png>'}document.body.insertAdjacentHTML('beforeend',h)</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>[devicePixelRatio,G(/^d/)]).then(async a=>[a[0],await a[1]])"
+    }
+   ]
+  },
+  {
+   "name": "lazy-flag",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const mk=(n,top,ld)=>{const i=document.createElement('img');if(ld)i.loading=ld;i.width=20;i.height=20;i.style.cssText='position:absolute;left:0;top:'+top+'px';i.src=n;document.body.append(i);return i};window.mk=mk;window.a=mk('lf-a.png',200,'lazy');window.b=mk('lf-b.png',7000,'lazy');window.c=mk('lf-c-bad.png',210,'lazy');window.d=mk('lf-d.png',7100,'eager');</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(S)"
+    },
+    {
+     "js": "(a.style.top='8000px',a.src='lf-a2.png',W(300)).then(S)"
+    },
+    {
+     "js": "(b.src='lf-b2.png',b.src='lf-b3.png',W(300)).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,6500),W(500)).then(S)"
+    },
+    {
+     "js": "(scrollTo(0,0),b.src='lf-b4.png',W(300)).then(S)"
+    },
+    {
+     "js": "(c.style.top='8500px',c.src='lf-c2.png',W(300)).then(S)"
+    },
+    {
+     "js": "(d.loading='lazy',d.src='lf-d2.png',W(300)).then(S)"
+    },
+    {
+     "js": "(d.loading='eager',W(300)).then(S)"
+    },
+    {
+     "js": "(d.loading='lazy',d.src='lf-d3.png',W(300)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "lazy-flag-slow",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><script>const mk=(n,top,ld)=>{const i=document.createElement('img');if(ld)i.loading=ld;i.width=20;i.height=20;i.style.cssText='position:absolute;left:0;top:'+top+'px';i.src=n;document.body.append(i);return i};window.a=mk('ls-slow.svg',200,'lazy');</script></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "ls-slow.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml",
+     "delay_ms": 800
+    }
+   },
+   "measure": [
+    {
+     "js": "W(100).then(S)"
+    },
+    {
+     "js": "(a.style.top='8000px',a.src='ls-a2.png',W(300)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "same-url",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=a loading=lazy width=20 height=20 src=same.svg><div style='height:9000px'></div><img id=b loading=lazy width=20 height=20 src=same.svg></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    },
+    "same.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'><rect width='30' height='20' fill='red'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>[a.complete,b.complete,b.currentSrc.slice(-8),b.naturalWidth])"
+    },
+    {
+     "js": "R()"
+    },
+    {
+     "js": "(scrollTo(0,8800),W(500)).then(()=>[a.complete,b.complete,b.naturalWidth])"
+    }
+   ]
+  },
+  {
+   "name": "same-url-404",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=a loading=lazy width=20 height=20 src=same.png><div style='height:9000px'></div><img id=b loading=lazy width=20 height=20 src=same.png></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(()=>[a.complete,b.complete,b.currentSrc.slice(-8)])"
+    },
+    {
+     "js": "R()"
+    }
+   ]
+  },
+  {
+   "name": "remove-attr",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><div style='height:9000px'></div><img id=b loading=lazy width=20 height=20 src=rm.png></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(S)"
+    },
+    {
+     "js": "(b.removeAttribute('loading'),W(300)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "hide-show",
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img id=b loading=lazy style='display:none' width=20 height=20 src=hs.png></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(S)"
+    },
+    {
+     "js": "(b.style.display='block',W(300)).then(S)"
+    }
+   ]
+  },
+  {
+   "name": "js-off-static",
+   "javascript": false,
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img loading=lazy width=5 height=5 style='position:absolute;top:100px' src=o100.png><img loading=lazy width=5 height=5 style='position:absolute;top:5000px' src=o5000.png><img loading=lazy width=5 height=5 style='position:absolute;top:8000px' src=o8000.png><img loading=lazy width=5 height=5 style='display:none' src=o-none.png><img loading=eager width=5 height=5 style='position:absolute;top:7000px' src=o-eager.png><div style='height:9000px'></div></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(()=>{const x=new XMLHttpRequest();x.open('GET','__log',false);x.send();return JSON.parse(x.responseText).map(e=>e.path).sort()})()"
+    },
+    {
+     "js": "document.readyState"
+    }
+   ]
+  },
+  {
+   "name": "js-off-sizes-auto",
+   "javascript": false,
+   "html": "<!DOCTYPE html><html><head><script>window.W=(ms)=>new Promise(r=>setTimeout(r,ms));window.R=async()=>(await (await fetch('__log')).json()).map(e=>e.path);window.S=async()=>(await R()).sort();window.G=async(re)=>{const ys=(await R()).filter(p=>re.test(p)).map(p=>+p.replace(/\\D/g,'')).sort((a,b)=>a-b);return [ys.length,ys[0],ys[ys.length-1]]};window.L=[];window.l=(...a)=>L.push(a.join(':'));</script><style>html,body{margin:0}img:not([hidden]){display:block}</style></head><body><img loading=lazy sizes='auto'  style='width:300px;height:50px' srcset='jo-w300-200.png 200w, jo-w300-400.png 400w, jo-w300-800.png 800w, jo-w300-1600.png 1600w'><img loading=lazy sizes='auto'  style='display:none' srcset='jo-none-200.png 200w, jo-none-400.png 400w, jo-none-800.png 800w, jo-none-1600.png 1600w'><img loading=lazy sizes='auto'  style='width:300px;height:50px;margin-top:6000px' srcset='jo-far-200.png 200w, jo-far-400.png 400w, jo-far-800.png 800w, jo-far-1600.png 1600w'></body></html>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(()=>{const x=new XMLHttpRequest();x.open('GET','__log',false);x.send();return [...new Set(JSON.parse(x.responseText).map(e=>e.path.replace(/-\\d+\\.png$/,'')))].sort()})()"
+    }
+   ]
+  }
+ ]
+}

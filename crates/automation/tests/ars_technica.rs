@@ -72,6 +72,7 @@
 
 mod common;
 
+use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -241,6 +242,57 @@ fn ars_technica_works_with_javascript_on() {
         // No script error after the steps either (the console lists each
         // message once, so these are the new ones).
         assert_eq!(console_errors(&page), Vec::<String>::new());
+    });
+}
+
+/// The URLs of the article photos (`/wp-content/uploads/`) in `urls`.
+fn photo_requests(urls: &[String]) -> BTreeSet<String> {
+    urls.iter()
+        .filter(|url| url.starts_with("https://cdn.arstechnica.net/wp-content/uploads/"))
+        .cloned()
+        .collect()
+}
+
+/// M9 feature 4 (ADR 0032): the lazy images load as in Chromium. At the
+/// load, swb requests the 20 photos that Chromium's replay loads (the
+/// images within 3000 px of the viewport; the 25 other candidates that swb
+/// used to request, the 1440 and 1536 px sources of the images at
+/// `display: none` and far below, are gone). After the wheel to the end of
+/// the page, the 37 that Chromium has loaded, and after the wheel back to
+/// the top, the same 37 (a loaded image stays). The sets are those of the
+/// resource timing entries and of `document.images[].currentSrc` of
+/// Chromium (`swbtools replay ars-technica --steps
+/// crates/automation/tests/data/ars-technica-lazy-steps.json --record
+/// ...`, three runs with equal sets). The test compares the requests:
+/// swb's `currentSrc` of an image with `sizes="auto"` stays empty (the
+/// watch of its load events is not set; ADR 0028 section 12).
+#[test]
+fn ars_technica_lazy_images_load_as_in_chromium() {
+    let Some(dir) = fixture("ars-technica") else {
+        eprintln!("skipped: fixtures/js/ars-technica is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let expected: Vec<BTreeSet<String>> =
+            serde_json::from_str(include_str!("data/ars-technica-lazy-chromium.json")).unwrap();
+        let fetcher = Arc::new(Recording {
+            inner: ReplayFetcher::load(&dir).unwrap(),
+            urls: Mutex::new(Vec::new()),
+        });
+        let mut page = load_at_capture_with(&dir, Duration::from_millis(1500), fetcher.clone());
+        let requested = |fetcher: &Recording| photo_requests(&fetcher.urls.lock().unwrap());
+        assert_eq!(requested(&fetcher), expected[0], "requests at the load");
+        let groups = step_groups(include_str!("data/ars-technica-lazy-steps.json"));
+        assert_eq!(groups.len() + 1, expected.len());
+        for (index, (name, steps)) in groups.iter().enumerate() {
+            run_steps(&mut page, steps).unwrap();
+            page.run_event_loop(Duration::from_millis(1500), Duration::from_secs(60));
+            assert_eq!(
+                requested(&fetcher),
+                expected[index + 1],
+                "requests after {name}"
+            );
+        }
     });
 }
 

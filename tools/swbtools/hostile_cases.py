@@ -4675,3 +4675,65 @@ def intl_locale_lists_js_on() -> Page:
         "catch (e) { console.log('long ' + e.name); }</script>"
     )
     return Page(doc("<p>intl</p>" + script))
+
+
+@case(
+    "100,000 lazy images (loading=lazy) in a page of 5 million px, and a script that scrolls "
+    "down in 100 steps of 50,000 px, one step per animation frame, with JavaScript on "
+    "(feature 4 of M9): the check of the lazy images walks the painted boxes once per frame "
+    "that scrolled and starts only the loads within 3000 px of the viewport (ADR 0032)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "5000"),
+    time_limit_s=30,
+)
+def lazy_images_scrolled_in_steps_js_on() -> Page:
+    images = "".join(f"<img loading=lazy src=l{i}.png width=1 height=50>" for i in range(100_000))
+    script = (
+        "<script>let n = 0; const step = () => { scrollBy(0, 50000); if (++n < 100) "
+        "requestAnimationFrame(step); else console.log('lazy scrolled ' + scrollY); }; "
+        "addEventListener('load', () => requestAnimationFrame(step));</script>"
+    )
+    return Page(doc(images + script, "img{display:block}"))
+
+
+@case(
+    "30,000 lazy images far below the viewport, and a script that sets loading to eager and "
+    "back to lazy on all of them 20 times, with JavaScript on (feature 4 of M9): the first "
+    "change starts each deferred load once (a released image never defers again), later "
+    "changes cost the attribute change only (ADR 0032)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "2000"),
+    time_limit_s=30,
+)
+def lazy_loading_attribute_toggled_js_on() -> Page:
+    images = "".join(f"<img loading=lazy src=t{i}.png width=1 height=100>" for i in range(30_000))
+    script = (
+        "<script>addEventListener('load', () => { const all = document.images; "
+        "for (let round = 0; round < 20; round++) for (const im of all) "
+        "im.loading = round % 2 ? 'lazy' : 'eager'; "
+        "console.log('lazy toggled ' + all.length); });</script>"
+    )
+    return Page(doc(images + script, "img{display:block}"))
+
+
+@case(
+    "200 nested scroll containers (overflow: auto, 100 px high) with 50 lazy images in the "
+    "innermost, the first at 5000 px, and a script that scrolls every container down in 40 "
+    "animation frames, with JavaScript on (feature 4 of M9): the painted boxes of the images "
+    "are found through the "
+    "scroll offsets of all containers; the work of a check stays linear (ADR 0032)",
+    swb_args=("--js", "--virtual-time", "--settle-ms", "3000"),
+    time_limit_s=30,
+)
+def lazy_images_in_nested_scrollers_js_on() -> Page:
+    images = "".join(
+        f"<img loading=lazy src=n{i}.png width=1 height=100 "
+        f"style='margin-top:{5000 if i == 0 else 0}px'>"
+        for i in range(50)
+    )
+    body = nest("<div class=s>", "</div>", 200, images)
+    script = (
+        "<script>let n = 0; const step = () => { for (const s of document.querySelectorAll('.s')) "
+        "s.scrollTop += 500; if (++n < 40) requestAnimationFrame(step); "
+        "else console.log('nested scrolled ' + n); }; "
+        "addEventListener('load', () => requestAnimationFrame(step));</script>"
+    )
+    return Page(doc(body + script, ".s{overflow:auto;height:100px;width:90%}img{display:block}"))

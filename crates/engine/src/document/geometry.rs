@@ -118,7 +118,7 @@ fn snap_box(b: &BoxFragment, rect: Rect) -> Rect {
 /// difference of the edges (a box translated by 3.3 px is 7.999999 px
 /// wide; a rotation by 45 degrees gives the same `f32` values as
 /// Chromium's).
-fn map_rect(matrix: &Matrix, rect: Rect) -> Rect {
+pub(super) fn map_rect(matrix: &Matrix, rect: Rect) -> Rect {
     if *matrix == Matrix::IDENTITY {
         return rect;
     }

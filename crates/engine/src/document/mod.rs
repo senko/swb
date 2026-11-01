@@ -33,6 +33,7 @@ mod element_events;
 mod geometry;
 mod history_api;
 mod inner_text;
+mod lazy;
 mod loads;
 mod pipeline;
 mod queries;
@@ -175,6 +176,8 @@ pub struct DocumentState {
     /// that a stale response is ignored).
     pub(crate) sheet_serial: u64,
     pub(crate) images: Images,
+    /// The images whose load waits for the viewport (`loading=lazy`).
+    pub(crate) lazy: lazy::LazyImages,
     /// The web fonts of the document (`@font-face`) and their files.
     pub(crate) web_fonts: WebFonts,
     pub(crate) view: View,
@@ -293,6 +296,7 @@ impl DocumentState {
             sheets: Sheets::default(),
             sheet_serial: 0,
             images: init.images,
+            lazy: lazy::LazyImages::default(),
             web_fonts: WebFonts::default(),
             view: init.view,
             scroll: Point::default(),

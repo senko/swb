@@ -4,6 +4,29 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M9 feature 4: lazy images
+
+- `img loading=lazy` waits until its box comes within 3000 px of the
+  viewport vertically or 1500 px horizontally. Both distances were
+  measured in Chromium 148; they do not depend on the viewport size or
+  on the way the page scrolls. An element without a box never loads.
+- With JavaScript off, Chromium loads every image at once: the HTML spec
+  turns lazy loading off without scripting, so that a page cannot track
+  the scroll position through image requests. swb does the same, and
+  the JS-off output does not change.
+- Ars Technica requests 20 photos at load (before: 45) and 37 after a
+  scroll to the end and back, the same sets as Chromium. BBC requests 21
+  images (before: 72). `compare --js` scores do not change: the
+  references show the same pixels either way.
+- The review found that one hidden lazy image made a page that changes
+  the DOM in every frame 25 times slower (a full layout and a walk of all
+  boxes per frame). The check now lays out only for a scroll, a viewport
+  change or a new lazy image, and otherwise uses the layouts that happen
+  anyway: 30.7 s → 1.49 s (1.10 s without the image).
+- ADR 0032. BBC's placeholder timeline needs hydration (feature 6) and
+  moves to the BBC test of feature 8.
+- Next: M9 feature 5 (`backdrop-filter`).
+
 ## 2026-11-01: M9 feature 3: `Intl`, minimal
 
 - `Intl.DateTimeFormat`, `NumberFormat`, `RelativeTimeFormat` and
