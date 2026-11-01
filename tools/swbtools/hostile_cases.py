@@ -4525,3 +4525,82 @@ def post_message_flood_to_self_js_on() -> Page:
         "</script>"
     )
     return Page(doc("<p>messages</p>" + script))
+
+
+# --- document.write (M9 feature 2) -------------------------------------------
+
+
+@case(
+    "A script that writes itself with JavaScript on (M9 feature 2): each copy runs inside the "
+    "write of the one before. Nesting stops at script nesting level 22 as in Chromium (the "
+    "write of that script is ignored with a warning); the page loads (ADR 0028 section 8)",
+    expect_log="the script nesting level",
+    swb_args=("--js",),
+)
+def document_write_itself_js_on() -> Page:
+    script = (
+        "<script>window.n = (window.n || 0) + 1; "
+        "document.write('<script>' + document.currentScript.text + '<\\/script>'); "
+        "if (window.n > 1) console.log('depth ' + window.n);</script>"
+    )
+    return Page(doc("<p>write</p>" + script))
+
+
+@case(
+    "A script that writes two copies of itself with JavaScript on (M9 feature 2): the copies "
+    "double at each of the 21 levels of nesting, so the page would get 2^21 scripts; the "
+    "bound of 100,000 written scripts per document ends them (before it, the task time "
+    "limit ended them at more than 1 GiB), and the page loads within the time limit of "
+    "the case (ADR 0028 sections 8 and 16)",
+    expect_log="scripts from written text ran",
+    swb_args=("--js",),
+    time_limit_s=30,
+    rss_limit_mib=512,
+)
+def document_write_fork_js_on() -> Page:
+    script = (
+        "<script>var c = '<script>' + document.currentScript.text + '<\\/script>'; "
+        "document.write(c); document.write(c);</script>"
+    )
+    return Page(doc("<p>write</p>" + script))
+
+
+@case(
+    "A flood of document.write calls behind a script that the parser waits for, with "
+    "JavaScript on (M9 feature 2): 3,000,000 small writes, then 5 writes of 16 MiB, all "
+    "inside a comment. The waiting text is bounded at 64 MiB per document (ADR 0028 "
+    "section 16): the writes past it are dropped with a warning, and the page loads when "
+    "the script (a server that answers after 2 s) arrives",
+    expect_log="would wait for the parser",
+    server="slow",
+    swb_args=("--js",),
+    time_limit_s=30,
+    rss_limit_mib=2048,
+)
+def document_write_flood_pending_js_on() -> Page:
+    script = (
+        '<script>document.write(\'<script src="http://127.0.0.1:__PORT__/w.js"><\\/script>'
+        "<!--'); "
+        "for (let i = 0; i < 3000000; i++) document.write('x'); "
+        "const big = 'y'.repeat(16 << 20); "
+        "for (let i = 0; i < 5; i++) document.write(big); "
+        "document.write('-->'); "
+        "console.log('flooded');</script>"
+    )
+    return Page(doc("<p>write</p>" + script))
+
+
+@case(
+    "A loop of 600,000 document.writeln calls that each write one comment with JavaScript on "
+    "(M9 feature 2): the parser reads each call at once; the nodes of the document (a "
+    "comment and a line feed for each call) reach the limit of 1,048,576, the parser stops "
+    "with a warning, and the page loads within the time limit (ADR 0028 sections 8 and 16)",
+    expect_log="HTML parser stopped",
+    swb_args=("--js",),
+    time_limit_s=30,
+)
+def document_writeln_loop_js_on() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 600000; i++) document.writeln('<!--' + i + '-->');</script>"
+    )
+    return Page(doc("<p>write</p>" + script))

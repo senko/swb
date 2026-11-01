@@ -4137,6 +4137,28 @@ Steps:
       the insertion point. Exit: Ars Technica's two A/B scripts request
       their URLs in Chromium's order; hostile case: a script that
       writes itself.
+      Done 2026-11-01: `write`, `writeln`, `open` and `close` while a
+      parser-inserted script runs: the insertion point is a stack in
+      `HtmlParser` (`parser/write.rs`), with no change in html5ever's
+      tokenizer; written inline scripts run inside `write`, a written
+      external script becomes the pending parsing-blocking script.
+      Written scripts report errors as Chromium does (URL "", positions
+      from the start of the written text). Bounds: nesting stops at
+      level 21 as in Chromium (the 22nd write is ignored); written text
+      that waits is capped at 64 MiB per document; at most 100,000
+      written scripts run per document (review fix: a doubling fork
+      reached 1.1 GiB before the time limit). Probe cases: 32 in
+      `web-document-write.json`, three equal Chromium runs, all run in
+      `script_processing.rs`. Hostile cases: a script that writes
+      itself, a doubling fork, a flood behind a pending script, a long
+      `writeln` loop. Ars Technica has no script error; its A/B scripts
+      come after jQuery and before `cntracking`, as in Chromium's three
+      runs (Chromium's preload scanner requests the scripts at the end
+      of the page earlier, in a varying order). `compare --js
+      ars-technica`: pixels 0.9886 → 0.9896, extra boxes 2 → 1; the
+      other JS fixtures unchanged. JS off: snapshot identical.
+      Departure: a write or `open()` without an insertion point is
+      ignored with a warning (Chromium replaces the document).
    3. `Intl`, minimal (`implementer`; ADR 0027 update):
       `DateTimeFormat`, `RelativeTimeFormat` and `NumberFormat` for
       the options and locales that the targets use, the options of
@@ -4230,6 +4252,13 @@ Steps:
 - `navigator.plugins` and `mimeTypes` are empty, as in Chromium's
   headless shell; headful Chrome lists five PDF plugins. Pages that
   check `plugins.length` can take swb for a headless browser.
+- Document replacement by `document.open()` and by a write without an
+  insertion point (Chromium replaces the document; swb ignores the
+  call). Feature 15 does `open` for frame documents only.
+- Chromium's intervention that blocks written cross-site scripts on slow
+  networks.
+- `reference --js` and `compare` do not record the request order;
+  `ars_technica.rs` uses its own recording fetcher.
 
 ## Backlog from M8
 

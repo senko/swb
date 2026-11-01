@@ -422,6 +422,29 @@ impl g::document::DocumentImpl for WebState {
         crate::domain::set(cx, is_main(this), &value)
     }
 
+    /// `document.open()`, `close()`, `write()` and `writeln()` (HTML
+    /// "dynamic markup insertion", M9 feature 2; `document_write.rs`).
+    fn open(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        _unused1: Option<String>,
+        _unused2: Option<String>,
+    ) -> b::Result<NodeId> {
+        crate::document_write::open(cx, this)
+    }
+
+    fn close(cx: &mut Cx<'_>, this: NodeId) -> b::Result<()> {
+        crate::document_write::close(cx, this)
+    }
+
+    fn write(cx: &mut Cx<'_>, this: NodeId, text: Vec<String>) -> b::Result<()> {
+        crate::document_write::write(cx, this, &text, false)
+    }
+
+    fn writeln(cx: &mut Cx<'_>, this: NodeId, text: Vec<String>) -> b::Result<()> {
+        crate::document_write::write(cx, this, &text, true)
+    }
+
     fn referrer(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         if !is_main(this) {
             return Ok(String::new());

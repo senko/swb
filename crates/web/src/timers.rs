@@ -280,6 +280,7 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
                 name: "a timer",
                 script: Some((url.as_str(), &**code)),
                 start: (0, 0),
+                compile_prefix: "",
             },
         };
         match error {

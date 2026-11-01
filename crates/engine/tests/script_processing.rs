@@ -14,6 +14,8 @@
 #[path = "script_processing/cases.rs"]
 mod cases;
 mod common;
+#[path = "script_processing/write_cases.rs"]
+mod write_cases;
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -47,12 +49,106 @@ pub(crate) struct Case {
 
 /// Where swb departs from Chromium on purpose: (case, query, swb's value,
 /// why).
-const SWB_VALUES: &[(&str, usize, &str, &str)] = &[(
-    "module-not-run",
-    0,
-    r#""i:l:i rsc:i dcl:i rsc:c load:c pageshow:c""#,
-    "swb runs no module scripts (ADR 0028 section 6, item 7)",
-)];
+const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
+    (
+        "module-not-run",
+        0,
+        r#""i:l:i rsc:i dcl:i rsc:c load:c pageshow:c""#,
+        "swb runs no module scripts (ADR 0028 section 6, item 7)",
+    ),
+    // `document.write` and `open` with no insertion point replace the
+    // document in Chromium (HTML "document open steps"); swb ignores them
+    // with a warning (ADR 0028 section 8, M9 feature 2; frames bring
+    // `open` for frame documents in feature 15). The cases show the page
+    // that stays as it was, and the readiness that it keeps.
+    (
+        "timer-after-load",
+        0,
+        r#""t:c t2:c""#,
+        "swb ignores the write: no `open`, the readiness stays `complete`",
+    ),
+    (
+        "timer-after-load",
+        1,
+        STAYS,
+        "swb ignores the write: the document stays as it was",
+    ),
+    (
+        "timer-after-load",
+        2,
+        r#""complete,[object HTMLParagraphElement],false""#,
+        "swb ignores the write: the document stays as it was",
+    ),
+    (
+        "timer-while-waiting",
+        0,
+        r#""t:l t2:l t3:loading:l slow:l:slow.js""#,
+        "swb ignores the write: the parser waits and runs `slow.js` (Chromium's `open` aborts the parser)",
+    ),
+    (
+        "timer-while-waiting",
+        1,
+        r#""script,script,after""#,
+        "swb ignores the write: the parse goes on",
+    ),
+    (
+        "timer-while-waiting",
+        2,
+        r#""<html><head>S</head><body>S<script src=\"slow.js\"></script><p id=\"after\">after</p></body></html>""#,
+        "swb ignores the write: the parse goes on",
+    ),
+    (
+        "load-listener-write",
+        0,
+        r#""load:c load2:c""#,
+        "swb ignores the write: no `open`, the readiness stays `complete`",
+    ),
+    (
+        "load-listener-write",
+        1,
+        STAYS,
+        "swb ignores the write: the document stays as it was",
+    ),
+    (
+        "dcl-listener-write",
+        0,
+        r#""dcl:i dcl2:i""#,
+        "swb ignores the write: no `open`, the readiness stays `interactive`",
+    ),
+    (
+        "dcl-listener-write",
+        1,
+        STAYS,
+        "swb ignores the write: the document stays as it was",
+    ),
+    (
+        "explicit-open-after-load",
+        0,
+        r#""open:true:c written:c closed:undefined:complete:c""#,
+        "swb ignores `open()` and the write after it: the readiness stays `complete`",
+    ),
+    (
+        "explicit-open-after-load",
+        1,
+        STAYS,
+        "swb ignores `open()` and the write after it: the document stays as it was",
+    ),
+    (
+        "other-document",
+        0,
+        r#""rs:complete:l:s1 w:undefined:l:s1 body::l:s1 open:true:l:s1 close:undefined:l:s1""#,
+        "a document from `createHTMLDocument()` has no parser: swb ignores the write (Chromium replaces its content); its readiness is `complete` (Chromium: `loading`)",
+    ),
+    (
+        "other-document",
+        1,
+        r#""rs:complete:l:s1 w:undefined:l:s1 body::l:s1 open:true:l:s1 close:undefined:l:s1""#,
+        "as query 0",
+    ),
+];
+
+/// The markup of the pages of the cases above where swb ignores the write.
+const STAYS: &str = r#""<html><head>S</head><body>S<p id=\"orig\">orig</p></body></html>""#;
 
 const ORIGIN: &str = "https://site.test/";
 
@@ -92,7 +188,12 @@ impl Fetcher for DelaySite {
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
         self.most_in_flight.fetch_max(now, Ordering::SeqCst);
-        let file = self.files.get(request.url.as_str());
+        // The probe's server ignores the query of a URL.
+        let url = request.url.as_str();
+        let file = self
+            .files
+            .get(url)
+            .or_else(|| self.files.get(url.split('?').next().unwrap_or(url)));
         if let Some((_, delay, _)) = file {
             std::thread::sleep(*delay);
         }
@@ -164,9 +265,24 @@ fn run_case(case: &'static Case) -> Vec<String> {
 
 #[test]
 fn probe_cases() {
+    run_cases(cases::CASES);
+}
+
+/// Every case of `tools/probes/web-document-write.json` (M9 feature 2,
+/// ADR 0028 section 8): `document.write` and `writeln` in the parse, nested
+/// written scripts, external written scripts that hold the parser, the
+/// insertion point, `currentScript` and `readyState`, `open` and `close`,
+/// errors in written scripts, and the writes that swb ignores
+/// (`SWB_VALUES`).
+#[test]
+fn document_write_probe_cases() {
+    run_cases(write_cases::WRITE_CASES);
+}
+
+fn run_cases(cases: &'static [Case]) {
     // The cases wait for their resources in real time; they run in
     // parallel.
-    let runs: Vec<_> = cases::CASES
+    let runs: Vec<_> = cases
         .iter()
         .map(|case| {
             std::thread::Builder::new()

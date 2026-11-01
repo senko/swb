@@ -43,9 +43,13 @@
 //! around the dialog).
 //!
 //! Script errors: Chromium's replay has the errors of the ad scripts that
-//! the fixture lacks (not swb's: it does not load them) and no `document.write`
-//! error. swb lacks `document.write` until M9 feature 2: the two A/B
-//! headline scripts throw, and nothing else may be on the console.
+//! the fixture lacks (not swb's: it does not load them) and no
+//! `document.write` error. swb has none either (M9 feature 2): the two A/B
+//! headline scripts write their `ars-ajax-handler.php` script elements, and
+//! the test checks that swb requests them after the scripts of the head and
+//! before the tracking script at the end of the page, as Chromium's replay
+//! does (the `group`, `uid` and `ts` parts are random or time-based and
+//! masked).
 //!
 //! Where the Chromium values come from: Chromium 148.0.7778.96 (headless
 //! shell, Playwright) replayed the same fixture with the same page clock,
@@ -64,12 +68,14 @@
 
 mod common;
 
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use common::{console_errors, fixture, load_at_capture, on_page_thread, step_groups, value};
+use common::{console_errors, fixture, load_at_capture_with, on_page_thread, step_groups, value};
 use serde_json::Value;
 use swb_automation::run_steps;
 use swb_engine::Page;
+use swb_net::{CookieJar, Fetcher, NetError, ReplayFetcher, Request, Response};
 
 /// The keys of the record whose values hold rectangles (compared with
 /// [`TOLERANCE`]).
@@ -82,12 +88,76 @@ const TOLERANCE: i64 = 3;
 /// Chromium's. The points are in flat areas.
 const PIXEL_TOLERANCE: i32 = 12;
 
-/// The only script errors on the console: the two A/B headline scripts call
-/// `document.write` (M9 feature 2).
-const DOCUMENT_WRITE_ERRORS: [&str; 2] = [
-    "Uncaught TypeError: document.write is not a function",
-    "Uncaught TypeError: document.write is not a function",
+/// The request of an A/B script with the random parts masked (`group`,
+/// `uid`, `ts`).
+const AB_REQUEST: &str = "https://arstechnica.com/services/ars-ajax-handler.php?nonce=72098c0351&action=ars_ab_impression&id=2178084&group=G&uid=U&ts=T";
+
+/// The scripts of the site's own hosts that swb requests, in the order of
+/// the document: `jquery` in the head, the two A/B scripts that the
+/// headline scripts write in the body, then the scripts at the end of the
+/// page.
+///
+/// Chromium's replay (`performance.getEntriesByType('resource')` in
+/// `swbtools replay`, three runs) requests `jquery`, the five scripts at
+/// the end of the page, the two A/B scripts and `cntracking`: its preload
+/// scanner finds the scripts at the end before the parser reaches the
+/// headline scripts (swb has no preload scanner, ADR 0028 section 8), and
+/// the order of the three scripts `app`, `ads` and `stats` varies between
+/// runs. The parser-driven requests agree: `jquery` first, the two A/B
+/// requests together, `cntracking` last.
+const OWN_SCRIPTS: [&str; 9] = [
+    "https://cdn.arstechnica.net/wp/wp-includes/js/jquery/jquery.min.js?ver=3.7.1",
+    AB_REQUEST,
+    AB_REQUEST,
+    "https://cdn.arstechnica.net/wp-content/plugins/article-forum-connect/public/js/iframe-resizer.parent.js?ver=5.3.1",
+    "https://cdn.arstechnica.net/wp-content/plugins/article-forum-connect/public/js/iframe.js?ver=1.2.4",
+    "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/app.322081.js",
+    "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/ads.ae0b0b.js",
+    "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/stats.01cffe.js",
+    "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/cntracking.4577bc.js",
 ];
+
+/// A fetcher that records the URLs of its requests, in order, and answers
+/// from the fixture.
+struct Recording {
+    inner: ReplayFetcher,
+    urls: Mutex<Vec<String>>,
+}
+
+impl Fetcher for Recording {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        self.urls.lock().unwrap().push(request.url.to_string());
+        self.inner.fetch(request)
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.inner.cookie_jar()
+    }
+}
+
+/// The requests for scripts of the site's own hosts, with the random parts
+/// of the A/B requests masked.
+fn own_script_requests(urls: &[String]) -> Vec<String> {
+    let ab = |url: &str| {
+        url.starts_with("https://arstechnica.com/services/ars-ajax-handler.php?")
+            .then(|| {
+                let (head, _) = url.split_once("&group=").unwrap();
+                format!("{head}&group=G&uid=U&ts=T")
+            })
+    };
+    urls.iter()
+        .filter_map(|url| {
+            ab(url).or_else(|| {
+                let own = url.starts_with("https://cdn.arstechnica.net/");
+                let path = url.split(['?', '#']).next().unwrap();
+                let script = std::path::Path::new(path)
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("js"));
+                (own && script).then(|| url.clone())
+            })
+        })
+        .collect()
+}
 
 /// The URL that the button "Classic" of the view switcher navigates to.
 const CLASSIC_PREVIEW: &str = "https://arstechnica.com/classic-preview/";
@@ -107,9 +177,20 @@ fn ars_technica_works_with_javascript_on() {
     on_page_thread(move || {
         let expected: Vec<Value> =
             serde_json::from_str(include_str!("data/ars-technica-chromium.json")).unwrap();
-        let mut page = load_at_capture(&dir, Duration::from_millis(1500));
+        let fetcher = Arc::new(Recording {
+            inner: ReplayFetcher::load(&dir).unwrap(),
+            urls: Mutex::new(Vec::new()),
+        });
+        let mut page = load_at_capture_with(&dir, Duration::from_millis(1500), fetcher.clone());
         assert!(page.has_script_runtime());
-        assert_eq!(console_errors(&page), DOCUMENT_WRITE_ERRORS);
+        assert_eq!(console_errors(&page), Vec::<String>::new());
+        // The two headline scripts write their A/B scripts with
+        // `document.write` (M9 feature 2): swb requests them where Chromium
+        // does.
+        assert_eq!(
+            own_script_requests(&fetcher.urls.lock().unwrap()),
+            OWN_SCRIPTS
+        );
         assert_eq!(value(&mut page, "document.readyState"), "complete");
         assert_eq!(value(&mut page, include_str!("data/ars-technica.js")), 1);
 

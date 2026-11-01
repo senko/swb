@@ -8,11 +8,17 @@
 //! keeps the [`Document`] and lends it to each step. The stack of open
 //! elements holds `NodeId`s, which stay valid while scripts and the engine
 //! use the document between steps (also for nodes they removed).
-//! `document.write` (later work, ADR 0028 section 8) will put its text into
-//! the queue in front of the unparsed rest (`BufferQueue::push_front`).
+//! `document.write` (M9 feature 2, ADR 0028 section 8, `write.rs`) puts its
+//! text at the insertion point, in front of the unparsed rest: while a
+//! script runs ([`HtmlParser::enter_script`]), the first write moves the
+//! queue behind the insertion point, and [`HtmlParser::resume_written`]
+//! runs the tokenizer on the written text only, up to the insertion point
+//! or a `script` end tag, without ending the input.
 //! With the scripting flag on, the parser also finds where the text of each
 //! script starts in the source ([`HtmlParser::script_position`],
-//! `position.rs`), for the positions of errors in inline scripts.
+//! `position.rs`), for the positions of errors in inline scripts; scripts
+//! that come from written text have none
+//! ([`HtmlParser::script_written`]).
 //!
 //! The tree builder gets the scripting flag of the document (the JavaScript
 //! setting when the document was created, ADR 0028 section 15). With the
@@ -36,6 +42,7 @@
 mod fragment;
 mod position;
 mod sink;
+mod write;
 
 use std::rc::Rc;
 
@@ -48,6 +55,7 @@ pub use fragment::{parse_document, parse_fragment};
 use position::Positions;
 pub use position::TextPosition;
 use sink::Sink;
+pub use write::WrittenStep;
 
 use crate::encoding::decode_html;
 use crate::mutation::DomError;
@@ -79,6 +87,18 @@ pub struct HtmlParser {
     positions: Option<Positions>,
     /// The position of the text of the script of the last step.
     script_position: TextPosition,
+    /// True if the script of the last step came from `document.write`.
+    script_written: bool,
+    /// The runs of scripts that have an insertion point (`write.rs`).
+    frames: Vec<write::Frame>,
+    /// Written text that the queue does not hold yet (`write.rs`).
+    written: String,
+    /// The bytes of written text at the front of the queue.
+    queue_written: usize,
+    /// The bytes of document text that the parser had not read at the last
+    /// script from the document: a script whose end tag leaves at least
+    /// that much input came from written text.
+    doc_remaining: usize,
 }
 
 /// The largest input chunk: tendrils hold at most 4 GiB.
@@ -122,6 +142,11 @@ impl HtmlParser {
             finished: false,
             positions: scripting.then(|| Positions::new(text)),
             script_position: TextPosition::default(),
+            script_written: false,
+            frames: Vec::new(),
+            written: String::new(),
+            queue_written: 0,
+            doc_remaining: text.len(),
         }
     }
 
@@ -136,17 +161,30 @@ impl HtmlParser {
         if self.finished {
             return Ok(ParseStep::Finished);
         }
+        // The runs of scripts ended: the input is whole again.
+        while !self.frames.is_empty() {
+            self.leave_script();
+        }
+        self.flush_written();
         let sink = &self.tokenizer.sink.sink;
         std::mem::swap(&mut *sink.doc.borrow_mut(), doc);
         let step = loop {
             match self.tokenizer.feed(&self.input) {
                 TokenizerResult::Script(node) if !sink.stopped.get() => {
-                    self.script_position = script_start(
-                        self.positions.as_mut(),
-                        &self.input,
-                        &sink.doc.borrow(),
-                        node,
-                    );
+                    let remaining = queue_len(&self.input);
+                    self.script_written = remaining >= self.doc_remaining;
+                    if self.script_written {
+                        self.queue_written = remaining - self.doc_remaining;
+                    } else {
+                        self.doc_remaining = remaining;
+                        self.queue_written = 0;
+                        self.script_position = script_start(
+                            self.positions.as_mut(),
+                            remaining,
+                            &sink.doc.borrow(),
+                            node,
+                        );
+                    }
                     break ParseStep::Script(node);
                 }
                 // The input was decoded before the parse (`encoding.rs`),
@@ -155,6 +193,7 @@ impl HtmlParser {
                 TokenizerResult::Done => {
                     self.tokenizer.end();
                     self.finished = true;
+                    self.queue_written = 0;
                     break ParseStep::Finished;
                 }
             }
@@ -173,6 +212,14 @@ impl HtmlParser {
         self.script_position
     }
 
+    /// True if the script of the last [`ParseStep::Script`] or
+    /// [`WrittenStep::Script`] came from `document.write`: its text has no
+    /// place in the source, and [`script_position`](Self::script_position)
+    /// does not apply.
+    pub fn script_written(&self) -> bool {
+        self.script_written
+    }
+
     /// True after the parser returned [`ParseStep::Finished`].
     #[cfg(test)]
     pub(crate) fn is_finished(&self) -> bool {
@@ -185,29 +232,36 @@ impl HtmlParser {
     }
 }
 
+/// The number of bytes in `input`.
+fn queue_len(input: &BufferQueue) -> usize {
+    // The queue has one chunk per pushed text; taking them out and back
+    // costs a few reference counts. The callers run this once per script,
+    // so the number of chunks must stay small: the waiting writes of a
+    // script join into one text (`write.rs`), not one chunk per write.
+    let mut total = 0;
+    let mut chunks = Vec::new();
+    while let Some(chunk) = input.pop_front() {
+        total += chunk.len();
+        chunks.push(chunk);
+    }
+    for chunk in chunks {
+        input.push_back(chunk);
+    }
+    total
+}
+
 /// The start of the text of `script`, whose end tag the tokenizer just
-/// consumed: the input that is left in `input` tells where the end tag
-/// ends. Zero without `positions` (scripting off).
+/// consumed: the `remaining` bytes of input tell where the end tag ends.
+/// Zero without `positions` (scripting off).
 fn script_start(
     positions: Option<&mut Positions>,
-    input: &BufferQueue,
+    remaining: usize,
     doc: &Document,
     script: NodeId,
 ) -> TextPosition {
     let Some(positions) = positions else {
         return TextPosition::default();
     };
-    // The queue has one chunk per pushed text and per write; taking them
-    // out and back costs a few reference counts.
-    let mut remaining = 0;
-    let mut chunks = Vec::new();
-    while let Some(chunk) = input.pop_front() {
-        remaining += chunk.len();
-        chunks.push(chunk);
-    }
-    for chunk in chunks {
-        input.push_back(chunk);
-    }
     let text_chars = doc
         .children(script)
         .filter_map(|c| doc.node(c).as_text())

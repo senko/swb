@@ -4,6 +4,31 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M9 feature 2: `document.write` during the parse
+
+- `document.write`, `writeln`, `open` and `close` from a script that the
+  parser runs. The parser keeps the insertion point as a stack, one level
+  per running parser script; the tokenizer reads only the written text
+  until it is used up, and then the rest of the document. A written
+  inline script runs inside `write`; a written external script blocks
+  the parse as in the spec. html5ever's tokenizer did not need a change.
+- Bounds, measured in Chromium where it has one: a script that writes
+  itself runs 22 times, and the 22nd write is ignored without an error.
+  Written text that waits behind a blocking script is capped at 64 MiB
+  per document, and at most 100,000 written scripts run per document
+  (Chromium has neither cap). The review found that scripts that each
+  write two copies of themselves reached 1.1 GiB before the task time
+  limit stopped them; the script cap stops them at 284 MiB.
+- Departure: a write or `open()` without an insertion point (from a
+  timer, a listener, an async script, or after the parse) replaces the
+  document in Chromium; swb ignores it with one warning. Feature 15
+  brings `document.open` for frame documents.
+- Ars Technica has no script error left, and its two A/B scripts request
+  their beacon URLs at the same point of the parse as in Chromium.
+  `compare --js ars-technica`: pixels 0.9886 → 0.9896; the other JS
+  fixtures unchanged. JS off: snapshot identical.
+- Next: M9 feature 3 (`Intl`, minimal).
+
 ## 2026-11-01: M9 feature 1: small DOM gaps, Ars Technica test
 
 - Alpine.js now starts on Ars Technica. Two defects stopped it: no

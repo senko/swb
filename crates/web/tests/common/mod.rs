@@ -6,7 +6,7 @@
 
 use std::any::Any;
 
-use swb_dom::{Document, HtmlParser, ParseStep, TextPosition};
+use swb_dom::{Document, HtmlParser, ParseStep, TextPosition, WrittenStep};
 use swb_js::{HeapConfig, RuntimeConfig};
 use swb_web::{ClockMode, EngineHost, Evaluation, JsonForm, PageClock, ScriptRuntime};
 
@@ -142,13 +142,22 @@ impl EngineHost for TestDocument {
         Some(self.started.len() as u64)
     }
 
-    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+    fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
         let parser = self.parser.as_mut()?;
         if let Ok(ParseStep::Script(node)) = parser.resume(&mut self.dom) {
-            return Some((ParseStep::Script(node), parser.script_position()));
+            let position = (!parser.script_written()).then(|| parser.script_position());
+            return Some((ParseStep::Script(node), position));
         }
         self.parser = None;
-        Some((ParseStep::Finished, TextPosition::default()))
+        Some((ParseStep::Finished, None))
+    }
+
+    fn parser(&mut self) -> Option<&mut HtmlParser> {
+        self.parser.as_mut()
+    }
+
+    fn parse_written_step(&mut self) -> Option<WrittenStep> {
+        self.parser.as_mut()?.resume_written(&mut self.dom).ok()
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

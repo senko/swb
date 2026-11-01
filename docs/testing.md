@@ -30,7 +30,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture); Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -1224,7 +1224,13 @@ chain of 100,000 images, each made in the `load` handler of the one before.
 Cases for M9 feature 1: a flood of `window.postMessage` to the own window
 (100 messages of 4 MiB and 200,000 small ones in one task, and a listener
 that posts a message for each message that it gets: the queue keeps 65,536
-messages and 256 MiB, ADR 0031 section 11). The cases with
+messages and 256 MiB, ADR 0031 section 11). Cases for M9 feature 2
+(`document-write-*`, ADR 0028 sections 8 and 16): a script that writes
+itself (nesting stops at level 22), one that writes two copies of itself
+(the bound of 100,000 written scripts ends the doubling), 3,000,000 small
+writes and five of 16 MiB behind a pending script (the waiting text is
+bounded at 64 MiB), and 600,000 `writeln` calls (the node limit stops the
+parser). The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -1439,9 +1445,17 @@ scroll position, the focused element and its `:focus-visible`; the pixel
 points of `data/ars-technica-pixel-points.json` check the colors of the
 dimmed page and the dialog and of the four themes (tolerance 12). Nothing in
 the record depends on the A/B headline variant (`Math.random` in both
-browsers), the ads or the third-party scripts. The test also needs the
-console to hold only the two `document.write` errors (M9 feature 2 removes
-them) and no error after the steps. The story times (`Intl`, feature 3) and
+browsers), the ads or the third-party scripts. The test also needs no error
+on the console (since M9 feature 2 the two headline scripts' `document.write`
+works) and checks the scripts of the site's own hosts that swb requests
+(a recording fetcher): `jquery`, the two `ars-ajax-handler.php` scripts that
+the headline scripts write (with `group`, `uid` and `ts` masked), the five
+scripts at the end of the page, and the tracking script, in the order of
+the document. Chromium's replay requests the five scripts at the end
+earlier (its preload scanner) and in an order that varies between runs;
+the A/B requests come after `jquery` and before the tracking script in all
+three of its runs (`performance.getEntriesByType('resource')` in `swbtools
+replay --record`). The story times (`Intl`, feature 3) and
 the blurred backdrop of the grid settings dialog (`backdrop-filter`, feature
 5) are not in it yet. The command for the records and colors (three runs,
 equal; the view switcher's click navigates away, so the record expression
@@ -2958,6 +2972,19 @@ code for them (a unit test of the generator checks the glue).
   `crates/web/tests/document_load.rs` has the unload (`pagehide`,
   `unload`), a parse that goes on after the document's scripts stopped,
   and the readiness without a parse.
+  M9 feature 2 (`document.write`, `writeln`, `open`, `close`): the
+  32 cases of `tools/probes/web-document-write.json` run in
+  `script_processing.rs` too (`document_write_probe_cases`;
+  `tests/script_processing/write_cases.rs`, generated from the probe's
+  `--json` output of Chromium, three byte-identical runs; the cases that
+  load a page from a file have no `resources`), with the departures in
+  `SWB_VALUES` (a write or `open()` without an insertion point replaces
+  the document in Chromium; swb ignores it). `crates/web/tests/
+  document_write.rs` checks the order of nested and external written
+  scripts, `currentScript` and `readyState`, the errors, the nesting
+  limit, the waiting-text bound and a termination in a written script, each
+  also in the GC stress mode; `crates/dom/src/parser/tests.rs` the
+  insertion point of the parser.
 - Feature 8a1 (`URL`, `URLSearchParams`, `location`, `history`,
   `popstate`, `hashchange`, `structuredClone`):
   `crates/web/tests/url.rs` and `structured_clone.rs` run every case of

@@ -15,7 +15,7 @@ use swb_engine::{
     ClockMode, ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageClock, PageConfig, Size,
     Url,
 };
-use swb_net::ReplayFetcher;
+use swb_net::{Fetcher, ReplayFetcher};
 
 /// The repository root.
 pub(crate) fn repo_root() -> PathBuf {
@@ -51,9 +51,19 @@ pub(crate) fn fixture_meta(dir: &Path) -> Value {
 /// `dir`, with JavaScript on or off, and the URL of the fixture. The
 /// caller navigates.
 pub(crate) fn replay_page(dir: &Path, javascript: bool) -> (Page, Url) {
+    replay_page_with(dir, javascript, Arc::new(ReplayFetcher::load(dir).unwrap()))
+}
+
+/// [`replay_page`] with `fetcher` (a wrapper of the fixture's
+/// [`ReplayFetcher`], for a test that records the requests).
+pub(crate) fn replay_page_with(
+    dir: &Path,
+    javascript: bool,
+    fetcher: Arc<dyn Fetcher>,
+) -> (Page, Url) {
     let url = Url::parse(fixture_meta(dir)["url"].as_str().unwrap()).unwrap();
     let config = PageConfig {
-        fetcher: Arc::new(ReplayFetcher::load(dir).unwrap()),
+        fetcher,
         notify: Arc::new(|| {}),
         network_threads: 2,
         scripts_allowed: true,
@@ -82,7 +92,16 @@ pub(crate) fn value(page: &mut Page, source: &str) -> Value {
 /// fixture, as the tools fix it for Chromium, and the event loop run for
 /// `settle` of page time after the `load` event.
 pub(crate) fn load_at_capture(dir: &Path, settle: Duration) -> Page {
-    let (mut page, url) = replay_page(dir, true);
+    load_at_capture_with(dir, settle, Arc::new(ReplayFetcher::load(dir).unwrap()))
+}
+
+/// [`load_at_capture`] with `fetcher` (see [`replay_page_with`]).
+pub(crate) fn load_at_capture_with(
+    dir: &Path,
+    settle: Duration,
+    fetcher: Arc<dyn Fetcher>,
+) -> Page {
+    let (mut page, url) = replay_page_with(dir, true, fetcher);
     let captured: jiff::Timestamp = fixture_meta(dir)["captured"]
         .as_str()
         .unwrap()

@@ -174,6 +174,18 @@ pub trait DocumentImpl: b::Host {
     /// `sequence<Element> elementsFromPoint(double x, double y)`.
     fn elements_from_point(cx: &mut b::Cx<'_>, this: b::NodeId, x: f64, y: f64) -> b::Result<Vec<b::NodeId>>;
 
+    /// `Document open(optional DOMString unused1, optional DOMString unused2)`.
+    fn open(cx: &mut b::Cx<'_>, this: b::NodeId, unused1: Option<String>, unused2: Option<String>) -> b::Result<b::NodeId>;
+
+    /// `undefined close()`.
+    fn close(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
+
+    /// `undefined write(DOMString... text)`.
+    fn write(cx: &mut b::Cx<'_>, this: b::NodeId, text: Vec<String>) -> b::Result<()>;
+
+    /// `undefined writeln(DOMString... text)`.
+    fn writeln(cx: &mut b::Cx<'_>, this: b::NodeId, text: Vec<String>) -> b::Result<()>;
+
     /// `boolean hasFocus()`.
     fn has_focus(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
 
@@ -2395,6 +2407,52 @@ fn op_elements_from_point<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_
     })
 }
 
+fn op_open<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "open"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let v = rt.arg(call, 0);
+        let a0 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?) };
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { None } else { Some(b::convert::dom_string(rt, v).map_err(|e| e.argument(1))?) };
+        let result = <H as DocumentImpl>::open(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
+        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+    })
+}
+
+fn op_close<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "close"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        <H as DocumentImpl>::close(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_write<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "write"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentImpl>::write(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_writeln<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "writeln"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let mut a0 = Vec::new();
+        for i in 0..call.argc() {
+            let v = rt.arg(call, i);
+            a0.push(b::convert::dom_string(rt, v).map_err(|e| e.argument(i))?);
+        }
+        <H as DocumentImpl>::writeln(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_has_focus<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Document", "hasFocus"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -2636,6 +2694,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "onpaste", (Some(get_onpaste::<H> as swb_js::NativeFn), Some(set_onpaste::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "adoptNode", 1, op_adopt_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "append", 0, op_append::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "close", 0, op_close::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createAttribute", 1, op_create_attribute::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createAttributeNS", 2, op_create_attribute_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createComment", 1, op_create_comment::<H>, swb_js::Attributes::MEMBER)?;
@@ -2653,10 +2712,13 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_method(realm, target, "getElementsByTagNameNS", 2, op_get_elements_by_tag_name_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "hasFocus", 0, op_has_focus::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "importNode", 1, op_import_node::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "open", 0, op_open::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "prepend", 0, op_prepend::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "querySelector", 1, op_query_selector::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "querySelectorAll", 1, op_query_selector_all::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "replaceChildren", 0, op_replace_children::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "write", 0, op_write::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "writeln", 0, op_writeln::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

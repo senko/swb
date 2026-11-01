@@ -656,3 +656,209 @@ fn script_positions_count_from_the_document() {
         assert_eq!(parser.script_position(), TextPosition::default());
     }
 }
+
+/// Runs a parse with `document.write` the way the script runtime does: at
+/// each `script` of the document, `writes` gives the texts to write for the
+/// script with this text; the written text is read at once, and a written
+/// script is handled the same way (nested).
+fn parse_with_writes(html: &str, writes: &dyn Fn(&str) -> Vec<&'static str>) -> Document {
+    fn run(
+        parser: &mut HtmlParser,
+        doc: &mut Document,
+        node: NodeId,
+        writes: &dyn Fn(&str) -> Vec<&'static str>,
+    ) {
+        let text = doc.text_content(node);
+        parser.enter_script();
+        for chunk in writes(&text) {
+            assert!(parser.write(chunk));
+            while let Ok(WrittenStep::Script(inner)) = parser.resume_written(doc) {
+                assert!(parser.script_written());
+                run(parser, doc, inner, writes);
+            }
+        }
+        parser.leave_script();
+    }
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, html, true);
+    while let Ok(ParseStep::Script(node)) = parser.resume(&mut doc) {
+        run(&mut parser, &mut doc, node, writes);
+    }
+    doc
+}
+
+#[test]
+fn written_text_goes_in_front_of_the_rest() {
+    let doc = parse_with_writes("<p>a</p><script>one</script><p>b</p>", &|_| {
+        vec!["<i>x</i>", "<u>y</u>"]
+    });
+    assert_eq!(
+        dump_tree(&doc),
+        "\
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       \"a\"
+|     <script>
+|       \"one\"
+|     <i>
+|       \"x\"
+|     <u>
+|       \"y\"
+|     <p>
+|       \"b\"
+"
+    );
+}
+
+#[test]
+fn a_token_can_span_two_writes() {
+    let doc = parse_with_writes("<script>w</script><p id=z>", &|_| {
+        vec!["<di", "v id=d>t</d", "iv><!--", "c-->"]
+    });
+    let div = doc.element_by_id("d").expect("the div");
+    assert_eq!(doc.text_content(div), "t");
+    assert!(
+        dump_tree(&doc).contains("<!-- c -->"),
+        "{}",
+        dump_tree(&doc)
+    );
+    assert!(doc.element_by_id("z").is_some());
+}
+
+#[test]
+fn a_written_script_runs_in_the_write_and_the_rest_follows() {
+    let seen = std::cell::RefCell::new(Vec::new());
+    let doc = parse_with_writes("<body><script>outer</script><p id=after>", &|text| {
+        seen.borrow_mut().push(text.to_owned());
+        match text {
+            "outer" => vec!["<script>inner</script><b id=b>", "tail"],
+            "inner" => vec!["<i id=i></i>"],
+            _ => vec![],
+        }
+    });
+    assert_eq!(*seen.borrow(), ["outer", "inner"]);
+    // The nested write goes in front of the rest of the first write.
+    let body = doc.body().expect("body");
+    let ids: Vec<String> = doc
+        .descendants(body)
+        .skip(1)
+        .filter_map(|n| doc.element(n))
+        .map(|e| e.attr("id").unwrap_or(e.name.local.as_ref()).to_owned())
+        .collect();
+    assert_eq!(ids, ["script", "script", "i", "b", "after"]);
+    assert_eq!(doc.text_content(body), "outerinnertail");
+}
+
+#[test]
+fn writes_wait_behind_a_script_that_blocks_the_parser() {
+    // The runtime does not read the written text while a script blocks the
+    // parser: here the first write ends at a script, and the next writes
+    // go behind the unread text of the first.
+    let html = "<body><script>one</script><p id=rest>";
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, html, true);
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("script");
+    };
+    parser.enter_script();
+    assert!(parser.write("<script src=x></script>foo"));
+    let WrittenStep::Script(blocking) = parser.resume_written(&mut doc).unwrap() else {
+        panic!("a written script");
+    };
+    assert!(doc.is_html_element(blocking, &local_name!("script")));
+    // Not read: the parser waits for the script.
+    assert!(parser.write("bar"));
+    assert!(parser.write("<b>baz</b>"));
+    assert_eq!(parser.written_bytes(), "foo".len() + "bar<b>baz</b>".len());
+    parser.leave_script();
+    // The blocking script runs now; it writes in front of the unread text.
+    parser.enter_script();
+    assert!(parser.write("<i>w</i>"));
+    assert_eq!(parser.resume_written(&mut doc), Ok(WrittenStep::Parsed));
+    parser.leave_script();
+    while parser.resume(&mut doc) != Ok(ParseStep::Finished) {}
+    let body = doc.body().expect("body");
+    assert_eq!(doc.text_content(body), "onewfoobarbaz");
+    let names: Vec<_> = doc
+        .element_children(body)
+        .filter_map(|n| doc.element(n))
+        .map(|e| e.name.local.to_string())
+        .collect();
+    assert_eq!(names, ["script", "script", "i", "b", "p"]);
+    assert_eq!(parser.written_bytes(), 0);
+}
+
+#[test]
+fn write_without_an_insertion_point_is_refused() {
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, "<script>x</script>", true);
+    assert!(!parser.write("a"), "before the first script");
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("script");
+    };
+    assert_eq!(parser.script_depth(), 0);
+    assert!(!parser.write("a"), "between scripts");
+    parser.enter_script();
+    assert_eq!(parser.script_depth(), 1);
+    assert!(parser.write("a"));
+    parser.leave_script();
+    assert_eq!(parser.script_depth(), 0);
+    assert!(!parser.write("b"), "after the run");
+    while parser.resume(&mut doc) != Ok(ParseStep::Finished) {}
+    assert_eq!(doc.text_content(NodeId::DOCUMENT), "xa");
+}
+
+#[test]
+fn scripts_from_written_text_have_no_source_position() {
+    let html = "<script>a</script>\n<script>b</script>";
+    let mut doc = Document::new();
+    let mut parser = HtmlParser::new(&mut doc, html, true);
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("script");
+    };
+    assert!(!parser.script_written());
+    parser.enter_script();
+    assert!(parser.write("<script src=x></script><script>w</script>"));
+    let WrittenStep::Script(_) = parser.resume_written(&mut doc).unwrap() else {
+        panic!("written script");
+    };
+    assert!(parser.script_written());
+    // The second written script stays unread (a script blocks): the
+    // document parser meets it first, and it is still written text.
+    parser.leave_script();
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("the unread written script");
+    };
+    assert!(parser.script_written());
+    // The script of the document keeps its position.
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("the document's second script");
+    };
+    assert!(!parser.script_written());
+    assert_eq!(
+        parser.script_position(),
+        TextPosition { line: 1, column: 8 }
+    );
+}
+
+#[test]
+fn written_text_stops_at_the_node_limit() {
+    let mut doc = Document::with_limits(Limits {
+        max_nodes: 50,
+        max_text_bytes: 1 << 20,
+    });
+    let mut parser = HtmlParser::new(&mut doc, "<script>x</script><p>rest", true);
+    let ParseStep::Script(_) = parser.resume(&mut doc).unwrap() else {
+        panic!("script");
+    };
+    parser.enter_script();
+    assert!(parser.write(&"<i>".repeat(500)));
+    assert_eq!(parser.resume_written(&mut doc), Ok(WrittenStep::Parsed));
+    assert!(parser.stopped_at_limit());
+    assert!(!parser.write("more"), "a stopped parser takes no text");
+    parser.leave_script();
+    assert_eq!(parser.resume(&mut doc), Ok(ParseStep::Finished));
+    assert!((50..60).contains(&doc.len()), "{}", doc.len());
+}

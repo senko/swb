@@ -49,7 +49,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use encoding_rs::Encoding;
-use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition};
+use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition, WrittenStep};
 use swb_layout::{FragmentTree, Point, Size};
 use swb_net::{Loader, Origin, Url};
 use swb_paint::DisplayList;
@@ -394,8 +394,16 @@ impl swb_web::EngineHost for DocumentState {
         Some(Rc::clone(&self.storage))
     }
 
-    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+    fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
         self.parse_step()
+    }
+
+    fn parser(&mut self) -> Option<&mut HtmlParser> {
+        self.parser.as_mut()
+    }
+
+    fn parse_written_step(&mut self) -> Option<WrittenStep> {
+        self.parse_written_step()
     }
 
     fn style_sheets_block_scripts(&mut self) -> bool {
@@ -758,7 +766,7 @@ impl DocumentState {
     /// end tag or to the end, and the changes of the step are processed
     /// (the style sheets that it finds block scripts). The parser goes away
     /// at the end. `None` without a parser.
-    pub(crate) fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+    pub(crate) fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
         let mut parser = self.parser.take()?;
         self.process_changes();
         let started = Instant::now();
@@ -769,14 +777,39 @@ impl DocumentState {
         self.parser_drain = false;
         match step {
             Ok(ParseStep::Script(node)) => {
-                let position = parser.script_position();
+                let position = (!parser.script_written()).then(|| parser.script_position());
                 self.parser = Some(parser);
                 Some((ParseStep::Script(node), position))
             }
-            Ok(ParseStep::Finished) => Some((ParseStep::Finished, TextPosition::default())),
+            Ok(ParseStep::Finished) => Some((ParseStep::Finished, None)),
             Err(e) => {
                 log::warn!("HTML parser: {e}");
-                Some((ParseStep::Finished, TextPosition::default()))
+                Some((ParseStep::Finished, None))
+            }
+        }
+    }
+
+    /// The text that `document.write` put into the parser, read up to the
+    /// insertion point or the next `script` end tag (the script runtime
+    /// calls it through [`swb_web::EngineHost::parse_written_step`]). The
+    /// changes of the scripts before it are processed first, and those of
+    /// the step after it (the style sheets that it finds block scripts, as
+    /// in [`DocumentState::parse_step`]).
+    pub(crate) fn parse_written_step(&mut self) -> Option<WrittenStep> {
+        let mut parser = self.parser.take()?;
+        self.process_changes();
+        let started = Instant::now();
+        let step = parser.resume_written(&mut self.dom);
+        self.timings.parse += started.elapsed();
+        self.parser_drain = true;
+        self.process_changes();
+        self.parser_drain = false;
+        self.parser = Some(parser);
+        match step {
+            Ok(step) => Some(step),
+            Err(e) => {
+                log::warn!("HTML parser: {e}");
+                None
             }
         }
     }

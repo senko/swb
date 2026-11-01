@@ -82,6 +82,9 @@ pub(crate) struct ClassicScript {
     /// Where the text starts in its document (line and column from 0;
     /// inline scripts of the parser).
     pub(crate) start: (u32, u32),
+    /// True for the inline script of `document.write` text: it has no URL,
+    /// and the report of a compile error follows Chromium (`execute`).
+    written: bool,
     /// The bytes of the text that count against
     /// [`MAX_HELD_SCRIPT_BYTES`] while the script waits: the length of a
     /// fetched script's text, 0 for an inline script.
@@ -213,6 +216,13 @@ pub(crate) struct Scripts {
     /// True while the `load` event is dispatched: the document is not
     /// "completely loaded" yet (HTML "completely finished loading").
     pub(crate) in_load_event: bool,
+    /// The reasons (bits of `document_write::Reason`) for which a call of
+    /// `document.write()` or `open()` that swb does not run was logged as a
+    /// warning (later ones are debug lines).
+    pub(crate) ignored_write_logged: u8,
+    /// The inline scripts from written text that ran
+    /// (`document_write::MAX_WRITTEN_SCRIPTS` bounds it).
+    pub(crate) written_scripts_run: usize,
 }
 
 impl Default for Scripts {
@@ -234,6 +244,8 @@ impl Default for Scripts {
             parse_end_deferred: false,
             page_showing: false,
             in_load_event: false,
+            ignored_write_logged: 0,
+            written_scripts_run: 0,
         }
     }
 }
@@ -277,6 +289,18 @@ pub(crate) fn scripts(rt: &Runtime) -> VmResult<&Scripts> {
 /// The script state of the runtime, for changes.
 pub(crate) fn scripts_mut(rt: &mut Runtime) -> VmResult<&mut Scripts> {
     Ok(&mut state_mut(rt)?.scripts)
+}
+
+/// Where a script that the parser reached comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ParserScript {
+    /// The document's source text; the position of the script's text.
+    Document(TextPosition),
+    /// The text of `document.write` (M9 feature 2). Chromium names such a
+    /// script with an empty URL and counts lines and columns from the start
+    /// of its text (measured, `tools/probes/web-document-write.json`, case
+    /// `error-written`).
+    Written,
 }
 
 /// What the caller of [`prepare`] does next.
@@ -351,14 +375,14 @@ struct Found {
 
 /// HTML "prepare the script element"
 /// (<https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element>).
-/// `parser` is the position of the script's text when the parser calls it
-/// at the end tag (the element is parser-inserted), `None` for the steps
+/// `parser` tells where the script's text is when the parser calls it at
+/// the end tag (the element is parser-inserted), `None` for the steps
 /// after an insertion. The fetch of an external script starts here; the
 /// caller executes the script on [`Prepared::ExecuteNow`].
 pub(crate) fn prepare(
     rt: &mut Runtime,
     node: NodeId,
-    parser: Option<TextPosition>,
+    parser: Option<ParserScript>,
 ) -> VmResult<Prepared> {
     let dom = dom(rt)?;
     let Some(element) = dom.element(node) else {
@@ -485,10 +509,13 @@ fn prepare_inline(
     rt: &mut Runtime,
     node: NodeId,
     source: String,
-    parser: Option<TextPosition>,
+    parser: Option<ParserScript>,
 ) -> VmResult<Prepared> {
-    let url = engine(rt)?.url();
-    let start = parser.map_or((0, 0), |p| (p.line, p.column));
+    let (url, start) = match parser {
+        Some(ParserScript::Document(p)) => (engine(rt)?.url(), (p.line, p.column)),
+        Some(ParserScript::Written) => (String::new(), (0, 0)),
+        None => (engine(rt)?.url(), (0, 0)),
+    };
     let parser_inserted = scripts(rt)?
         .elements
         .get(&node)
@@ -502,6 +529,7 @@ fn prepare_inline(
         source,
         url,
         start,
+        written: parser == Some(ParserScript::Written),
         held: 0,
     }));
     if blocked {
@@ -547,6 +575,7 @@ pub(crate) fn mark_as_ready(
             source: script.source,
             url: script.url,
             start: (0, 0),
+            written: false,
             held,
         })),
         None => ScriptResult::Failed,
@@ -595,6 +624,19 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
         .eval_named_at(&script.source, &script.url, script.start)
         .map(drop);
     let mut outcome = match &run {
+        Err(error @ ScriptError::Compile { .. }) if script.written => {
+            // As Chromium (measured, `error-written-syntax`): the report
+            // of the compile error of a written script names the document
+            // and has the text of the failed `write` call in front of the
+            // message; its line and column count from the start of the
+            // written text.
+            let url = document_url(rt);
+            let site = crate::errors::Site {
+                compile_prefix: "Failed to execute 'write' on 'Document': ",
+                ..crate::errors::Site::script_at(&url, &script.source, script.start)
+            };
+            crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)
+        }
         Err(error @ (ScriptError::Uncaught { .. } | ScriptError::Compile { .. })) => {
             let site = crate::errors::Site::script_at(&script.url, &script.source, script.start);
             crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)

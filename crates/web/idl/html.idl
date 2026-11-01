@@ -10,7 +10,8 @@
 // Storage, its Window mixins and `Document.cookie` on 2026-10-29; `alert`,
 // `confirm`, `prompt` and `print` on 2026-10-30; `Document.domain`,
 // `Window.originAgentCluster`, `Window.postMessage`, `plugins` and
-// `mimeTypes` on 2026-11-01).
+// `mimeTypes` on 2026-11-01; `Document.open`, `close`, `write` and
+// `writeln` on 2026-11-01).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -115,6 +116,18 @@ dictionary WindowPostMessageOptions : StructuredSerializeOptions {
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
 partial interface Document {
   [CEReactions] attribute DOMString domain;
+};
+
+// Dynamic markup insertion
+// (https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dynamic-markup-insertion,
+// copied on 2026-11-01, M9 feature 2). The arguments of `write()` and
+// `writeln()` are DOMString only (no Trusted Types); the overload
+// `open(url, name, features)` is `window.open()`, which swb lacks.
+partial interface Document {
+  [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2); // both arguments are ignored
+  [CEReactions] undefined close();
+  [CEReactions] undefined write(DOMString... text);
+  [CEReactions] undefined writeln(DOMString... text);
 };
 
 // The simple dialogs (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#simple-dialogs)

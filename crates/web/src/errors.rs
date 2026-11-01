@@ -35,6 +35,10 @@ pub(crate) struct Site<'a> {
     /// Where the source text starts in its document (line and column from
     /// 0).
     pub(crate) start: (u32, u32),
+    /// Text in front of the message of a compile error in the report (not
+    /// in the error object): Chromium's report of a script from
+    /// `document.write`.
+    pub(crate) compile_prefix: &'a str,
 }
 
 impl Site<'static> {
@@ -43,12 +47,14 @@ impl Site<'static> {
         name: "a microtask",
         script: None,
         start: (0, 0),
+        compile_prefix: "",
     };
     /// The function of a timer.
     pub(crate) const TIMER: Site<'static> = Site {
         name: "a timer",
         script: None,
         start: (0, 0),
+        compile_prefix: "",
     };
 }
 
@@ -65,6 +71,7 @@ impl<'a> Site<'a> {
             name: url,
             script: Some((url, source)),
             start,
+            compile_prefix: "",
         }
     }
 
@@ -74,6 +81,7 @@ impl<'a> Site<'a> {
             name,
             script: None,
             start: (0, 0),
+            compile_prefix: "",
         }
     }
 }
@@ -101,7 +109,7 @@ pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> 
         } => {
             let value = Value::Object(rt.new_error(*kind, message)?);
             crate::runtime::pin(rt, value);
-            let message = format!("Uncaught {}: {message}", kind.name());
+            let message = format!("Uncaught {}: {}{message}", kind.name(), site.compile_prefix);
             let location = site.script.map(|(url, source)| {
                 let (line, column) = Runtime::source_location(source, *offset);
                 let (start_line, start_column) = site.start;

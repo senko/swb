@@ -11,7 +11,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use swb_dom::{Document, NodeId, ParseStep, TextPosition};
+use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition, WrittenStep};
 use swb_style::cssom::resolved::PseudoElement;
 use swb_style::{ComputedStyle, ElementStates};
 
@@ -370,10 +370,27 @@ pub trait EngineHost: Any {
 
     /// One step of the document's parser (feature 5c): it parses until the
     /// end tag of a `script` element (with the position of the script's
-    /// text in the source) or to the end of the input, and processes the
-    /// changes. `None` if the document has no parser (it is complete; a
-    /// [`ParseStep::Finished`] drops the parser).
-    fn parse_step(&mut self) -> Option<(ParseStep, TextPosition)> {
+    /// text in the source, `None` for a script from `document.write`) or
+    /// to the end of the input, and processes the changes. `None` if the
+    /// document has no parser (it is complete; a [`ParseStep::Finished`]
+    /// drops the parser).
+    fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
+        None
+    }
+
+    /// The document's parser, for the insertion point of `document.write`
+    /// (M9 feature 2): the runtime marks the run of each script that the
+    /// parser starts ([`HtmlParser::enter_script`]) and puts written text
+    /// in ([`HtmlParser::write`]). `None` without a parser.
+    fn parser(&mut self) -> Option<&mut HtmlParser> {
+        None
+    }
+
+    /// Reads the text that `document.write` put into the parser, up to the
+    /// insertion point or the end tag of a `script` element, and processes
+    /// the changes ([`HtmlParser::resume_written`]). `None` without a
+    /// parser.
+    fn parse_written_step(&mut self) -> Option<WrittenStep> {
         None
     }
 

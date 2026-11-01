@@ -43,7 +43,9 @@ use crate::events::{DispatchTarget, EventInterface, TrustedEvent};
 use crate::generated::types::DocumentReadyState;
 use crate::performance::Milestone;
 use crate::runtime::{ScriptRuntime, task_error};
-use crate::scripts::{FetchedScript, Phase, Prepared, WhenReady, scripts, scripts_mut};
+use crate::scripts::{
+    FetchedScript, ParserScript, Phase, Prepared, WhenReady, scripts, scripts_mut,
+};
 use crate::state::engine_mut;
 
 impl ScriptRuntime {
@@ -279,7 +281,7 @@ impl ScriptRuntime {
         if let Ok(scripts) = scripts_mut(&mut self.rt) {
             scripts.pending_parsing_blocking = None;
         }
-        self.execute_script(blocking);
+        self.execute_parser_script(blocking);
         if external {
             self.queue_resume();
         } else {
@@ -291,6 +293,11 @@ impl ScriptRuntime {
     /// inline script runs as a task between two steps.
     fn parse(&mut self) {
         loop {
+            // A script that `document.write` put into the document holds
+            // the parser (HTML "pending parsing-blocking script").
+            if scripts(&self.rt).is_ok_and(|s| s.pending_parsing_blocking.is_some()) {
+                return;
+            }
             let step = match engine_mut(&mut self.rt) {
                 Ok(host) => host.parse_step(),
                 Err(_) => return,
@@ -306,8 +313,9 @@ impl ScriptRuntime {
             if self.stopped() {
                 continue;
             }
-            match crate::scripts::prepare(&mut self.rt, node, Some(position)) {
-                Ok(Prepared::ExecuteNow) => self.execute_script(node),
+            let origin = position.map_or(ParserScript::Written, ParserScript::Document);
+            match crate::scripts::prepare(&mut self.rt, node, Some(origin)) {
+                Ok(Prepared::ExecuteNow) => self.execute_parser_script(node),
                 Ok(Prepared::Blocking) => {
                     if let Ok(scripts) = scripts_mut(&mut self.rt) {
                         scripts.parser_waited = true;
@@ -409,6 +417,22 @@ impl ScriptRuntime {
             }
             scripts.in_order.pop_front();
             self.execute_script(first);
+        }
+    }
+
+    /// Executes a script that the parser reached, as a task, with an
+    /// insertion point for `document.write` (HTML "insertion point").
+    fn execute_parser_script(&mut self, node: NodeId) {
+        if let Ok(host) = engine_mut(&mut self.rt)
+            && let Some(parser) = host.parser()
+        {
+            parser.enter_script();
+        }
+        self.execute_script(node);
+        if let Ok(host) = engine_mut(&mut self.rt)
+            && let Some(parser) = host.parser()
+        {
+            parser.leave_script();
         }
     }
 

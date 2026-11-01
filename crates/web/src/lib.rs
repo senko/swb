@@ -83,6 +83,7 @@ mod cssom;
 mod cssom_view;
 mod dialogs;
 mod document_load;
+mod document_write;
 mod dom;
 mod dom_matrix;
 mod domain;

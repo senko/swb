@@ -1,0 +1,538 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "basic",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/log('s1');document.write('<p id=w1>x</p>');log('s1:p='+!!document.getElementById('w1'));document.write('<di');document.write('v id=w2>y</div>');log('s1:div='+!!document.getElementById('w2'));document.write('<!--');document.write('c-->');log('s1:ret='+document.write('<i id=w3></i>'));</script><script>/*s2*/log('s2:'+kids())</script></body></html>",
+   "measure": [
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "[].map.call(document.body.childNodes,function(x){return x.nodeType+(x.nodeType===8?x.data:'')}).join()"
+    }
+   ]
+  },
+  {
+   "name": "nested-inline",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/log('s1');document.write('<script>/*n1*/log(\"n1\");document.write(\"<script>/*n2*/log(\\\\\"n2\\\\\")<\\\\/script>\");log(\"n1b\")<\\/script>');log('s1b')</script><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "document.scripts.length"
+    }
+   ]
+  },
+  {
+   "name": "arguments",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<div id=t>','a','b',1,null,undefined,{toString:function(){return 'o'}},'</div>');document.writeln('<pre id=p>x');document.writeln('y','z');document.write('</pre>');L.push('ret:'+document.write()+','+document.writeln());L.push('sym:'+E(function(){document.write(Symbol())}));L.push('obj:'+E(function(){document.write({toString:function(){throw new RangeError('ts')}})}));L.push('trusted:'+E(function(){document.write(new String('s'))}));</script></body></html>",
+   "measure": [
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "document.getElementById('t').textContent"
+    },
+    {
+     "js": "JSON.stringify(document.getElementById('p').textContent)"
+    },
+    {
+     "js": "[document.write.length,document.writeln.length,document.open.length,document.close.length,document.write.name,document.writeln.name,document.open.name,document.close.name].join()"
+    },
+    {
+     "js": "[Object.getOwnPropertyNames(Document.prototype).filter(function(k){return /^(write|writeln|open|close)$/.test(k)}).sort().join(), Object.getOwnPropertyNames(HTMLDocument.prototype).join()].join('|')"
+    }
+   ]
+  },
+  {
+   "name": "external-written",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/log('s1');document.write('<script src=w.js><\\/script><p id=after>after</p>');log('s1end:after='+!!document.getElementById('after')+',w='+!!document.querySelector('script[src]'));</script><script>/*s2*/log('s2:after='+!!document.getElementById('after'))</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},700)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "w.js": {
+     "text": "log('w');",
+     "delay_ms": 200
+    }
+   }
+  },
+  {
+   "name": "external-two-writes",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<script src=w.js><\\/script>foo');document.write('bar');document.write('<b id=b1>baz</b>');log('s1end:'+document.body.textContent.replace(/\\s+/g,' '))</script><script>/*s2*/log('s2:'+document.body.textContent.replace(/\\s+/g,' '))</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},700)})"
+    },
+    {
+     "js": "document.body.textContent.replace(/\\s+/g,' ')"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "w.js": {
+     "text": "log('w:'+document.body.textContent.replace(/\\s+/g,' '));",
+     "delay_ms": 200
+    }
+   }
+  },
+  {
+   "name": "written-mixed",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<script src=w1.js><\\/script><script>/*i1*/log(\"i1\")<\\/script><script src=w2.js><\\/script><p id=pp></p><script>/*i2*/log(\"i2:pp=\"+!!document.getElementById(\"pp\"))<\\/script>');log('s1end')</script><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},900)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "w1.js": {
+     "text": "log('w1')",
+     "delay_ms": 300
+    },
+    "w2.js": {
+     "text": "log('w2')",
+     "delay_ms": 0
+    }
+   }
+  },
+  {
+   "name": "current-script",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script id=o>/*o*/log('o0');document.write('<script id=wi>/*wi*/log(\"wi:\"+document.currentScript.id+\":\"+document.currentScript.parentNode.localName+\":\"+document.scripts.length+\":\"+document.currentScript.previousElementSibling.id);document.write(\"<b id=nb></b>\");<\\/script><script id=we src=cs.js><\\/script>');log('o1:'+document.currentScript.id+':'+document.getElementById('wi').nextElementSibling.id);L.push('rs:'+document.readyState);</script><p id=last></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "document.currentScript===null"
+    }
+   ],
+   "resources": {
+    "cs.js": {
+     "text": "log('cs:'+document.currentScript.id+':'+document.scripts.length+':'+document.currentScript.previousElementSibling.id);",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "async-write-during-parse",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script async src=a.js></script><script defer src=d.js></script><script src=slow.js></script><p id=base>base</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},900)})"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "!!document.getElementById('fromasync')+','+!!document.getElementById('fromdefer')+','+!!document.getElementById('base')+','+document.readyState"
+    }
+   ],
+   "resources": {
+    "a.js": {
+     "text": "log('a');document.write('<p id=fromasync>A</p>');log('a-end')",
+     "delay_ms": 100
+    },
+    "d.js": {
+     "text": "log('d');document.write('<p id=fromdefer>D</p>');log('d-end')",
+     "delay_ms": 0
+    },
+    "slow.js": {
+     "text": "log('slow')",
+     "delay_ms": 400
+    }
+   }
+  },
+  {
+   "name": "async-write-after-parse",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script async src=a.js></script><script defer src=d.js></script><p id=base>base</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},900)})"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "!!document.getElementById('fromasync')+','+!!document.getElementById('fromdefer')+','+!!document.getElementById('base')+','+document.readyState"
+    }
+   ],
+   "resources": {
+    "a.js": {
+     "text": "log('a');document.write('<p id=fromasync>A</p>');log('a-end')",
+     "delay_ms": 300
+    },
+    "d.js": {
+     "text": "log('d');document.write('<p id=fromdefer>D</p>');log('d-end')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "inserted-script-write",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/var s=document.createElement('script');s.textContent='log(\"ins\");document.write(\"<p id=fi>I</p>\");log(\"ins-end\")';document.body.appendChild(s);log('s1:'+!!document.getElementById('fi'));var e=document.createElement('script');e.src='e.js';document.body.appendChild(e);</script><p id=base></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},700)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "e.js": {
+     "text": "log('e');document.write('<p id=fe>E</p>');log('e-end')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "timer-after-load",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/setTimeout(function(){log('t');document.write('<p id=tw>T</p>');log('t2');},100)</script><p id=orig>orig</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    },
+    {
+     "js": "document.documentElement.outerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    },
+    {
+     "js": "document.readyState+','+document.getElementById('orig')+','+!!document.getElementById('tw')"
+    }
+   ]
+  },
+  {
+   "name": "timer-while-waiting",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/setTimeout(function(){log('t');document.write('<p id=tw>T</p>');log('t2');document.close();log('t3:'+document.readyState);},50)</script><script src=slow.js></script><p id=after>after</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},700)})"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "document.documentElement.outerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S').slice(0,300)"
+    }
+   ],
+   "resources": {
+    "slow.js": {
+     "text": "log('slow')",
+     "delay_ms": 300
+    }
+   }
+  },
+  {
+   "name": "load-listener-write",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/addEventListener('load',function(){log('load');document.write('<p id=lw>L</p>');log('load2');document.close();})</script><p id=orig>orig</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    },
+    {
+     "js": "document.documentElement.outerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    }
+   ]
+  },
+  {
+   "name": "dcl-listener-write",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.addEventListener('DOMContentLoaded',function(){log('dcl');document.write('<p id=dw>D</p>');log('dcl2');document.close();})</script><p id=orig>orig</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},400)})"
+    },
+    {
+     "js": "document.documentElement.outerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    }
+   ]
+  },
+  {
+   "name": "explicit-open-after-load",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/setTimeout(function(){var d=document.open();log('open:'+(d===document));document.write('<p id=ow>O</p>');log('written');var c=document.close();log('closed:'+c+':'+document.readyState)},100)</script><p id=orig>orig</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    },
+    {
+     "js": "document.documentElement.outerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    }
+   ]
+  },
+  {
+   "name": "open-close-parse",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/var o=document.open();log('open:'+(o===document));log('open-args:'+(document.open('text/html','replace')===document));var c=document.close();log('close:'+c);log('rs:'+document.readyState);document.write('<p id=w>w</p>');log('w:'+!!document.getElementById('w'));</script><p id=after>after</p><script>/*s2*/log('s2:'+kids())</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "kids()"
+    },
+    {
+     "js": "document.readyState"
+    }
+   ]
+  },
+  {
+   "name": "open-close-nested",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<script>/*n*/log(\"n:open=\"+(document.open()===document));document.close();log(\"n:closed\");<\\/script>');log('s1end')</script><p id=after>after</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ]
+  },
+  {
+   "name": "error-written",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/log('s1');document.write('<script>/*e1*/throw new Error(\"boom\")<\\/script>');log('s1b');document.write('<script>\\n\\n  /*e2*/throw new Error(\"boom2\")<\\/script>');log('s1c');document.write('<script>var 1x;<\\/script>');log('s1d');document.write('<p>x</p><script>/*e4*/ null.x<\\/script>');log('s1e');</script><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "error-written-syntax",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><p>x</p>\n<script>/*s1*/\n\nlog('s1');document.write('<script>\\n\\n  var 1x;<\\/script>');log('s1b');window.onerror=function(m,s,l,c,e){L.push('err2:'+m+'@'+n(s)+':'+l+':'+c+':'+(e&&e.constructor.name)+':'+(e&&e.stack&&n(e.stack).split('\\n').join('|')))};document.write('<script>\\n let a = ;<\\/script>');log('s1c')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "error-written-stack",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<script>function f(){return new Error(\"st\").stack}\\nlog(\"stack:\"+n(f()).split(\"\\\\n\").join(\"|\"));<\\/script>');</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "write-in-written-external",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<script src=w.js><\\/script><p id=tail>tail</p>');log('s1end')</script><p id=orig></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},600)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "w.js": {
+     "text": "log('w');document.write('<p id=fw>fw</p><script>/*fi*/log(\"fw-inl\")<\\/script>');log('w-end')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "write-in-blocking-external",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script src=b.js></script><p id=tail>tail</p><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},600)})"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "b.js": {
+     "text": "log('b');document.write('<p id=fb>fb</p><script>/*bi*/log(\"b-inl\")<\\/script>');log('b-end')",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "head-write",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script><script>/*s0*/document.write('<meta name=x content=1><title>T</title><p id=p1>hello');log('s0')</script><link rel=x><title>t2</title></head><body id=b><p id=p2>bye</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},200)})"
+    },
+    {
+     "js": "document.head.innerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    },
+    {
+     "js": "document.body.id+'|'+document.body.innerHTML.replace(/<script>[\\s\\S]*?<\\/script>/g,'S')"
+    },
+    {
+     "js": "document.title"
+    }
+   ]
+  },
+  {
+   "name": "recursion",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*r*/window.k=(window.k||0)+1;if(window.k<=2000){try{document.write('<script>'+document.currentScript.text+'<\\/script>')}catch(e){log('caught:'+e.name+':'+window.k)}}</script><p id=after></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    },
+    {
+     "js": "[window.k, L.length, L.slice(0,3).join(' ')].join('|')"
+    },
+    {
+     "js": "document.scripts.length+','+kids().split(',').length"
+    }
+   ]
+  },
+  {
+   "name": "recursion-detail",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*r*/var k=window.k=(window.k||0)+1;L.push('in'+k);if(k<=40){document.write('<script>'+document.currentScript.text+'<\\/script>')}L.push('out'+k+':'+document.scripts.length);</script><p id=after></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    },
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "document.scripts.length+','+kids().split(',').length"
+    }
+   ]
+  },
+  {
+   "name": "microtasks",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/Promise.resolve().then(function(){log('m1')});document.write('<script>/*w*/Promise.resolve().then(function(){log(\"mw\")});log(\"w\")<\\/script>');log('s1end')</script><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},300)})"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "split-script",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<scr');document.write('ipt>log(\"x1\");');log('mid');document.write('log(\"x2\")</scr');log('mid2');document.write('ipt><p id=q></p>');log('end:'+!!document.getElementById('q'))</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},200)})"
+    },
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "kids()"
+    }
+   ]
+  },
+  {
+   "name": "open-element",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/document.write('<div id=d><span id=sp>')</script><p id=in>in</p><script>/*s2*/log('s2:'+document.getElementById('in').parentNode.id+':'+document.getElementById('sp').parentNode.id)</script></span></div></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},200)})"
+    },
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "kids()"
+    }
+   ]
+  },
+  {
+   "name": "after-body",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><p id=a>a</p></body></html><script>/*s1*/document.write('<p id=late>late</p>');log('s1')</script><p id=after>after</p>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},200)})"
+    },
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "kids()"
+    }
+   ]
+  },
+  {
+   "name": "sheet-blocked",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><link rel=stylesheet href=s.css><script>/*s1*/log('s1');document.write('<p id=sw>x</p><script>/*i*/log(\"i\")<\\/script>');log('s1end:'+!!document.getElementById('sw'))</script><script>/*s2*/log('s2')</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},600)})"
+    },
+    {
+     "js": "L.join(' ')"
+    },
+    {
+     "js": "kids()"
+    }
+   ],
+   "resources": {
+    "s.css": {
+     "text": "p{margin:0}",
+     "delay_ms": 200
+    }
+   }
+  },
+  {
+   "name": "ajax-in-anchor",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><a id=l href=#>title<span id=sp></span><script>/*s1*/document.write('\\x3Cscript type=\"text/javascript\" src=\"aj.js?x=1&y=2\">\\x3C/script>');log('s1end')</script></a><a id=l2 href=#>second<script>/*s2*/document.write('\\x3Cscript src=\"aj.js?x=3\">\\x3C/script>');log('s2end')</script></a><p id=after></p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},700)})"
+    },
+    {
+     "js": "[].map.call(document.querySelectorAll('a'),function(a){return a.id+'['+[].map.call(a.childNodes,function(c){return c.nodeType===3?'t':c.id||c.localName+(c.src?'('+n(c.src)+')':'')}).join()+']'}).join(' ')"
+    }
+   ],
+   "resources": {
+    "aj.js": {
+     "text": "log('aj:'+document.currentScript.src.slice(-6))",
+     "delay_ms": 100
+    }
+   }
+  },
+  {
+   "name": "other-document",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];\nfunction nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}\nfunction log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}\nfunction n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/\\/case-[0-9]+\\//g,'/')}\nfunction E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return (e instanceof DOMException?'DOMException '+e.name:e.constructor.name)+': '+e.message}}\nfunction kids(){return [].map.call(document.body.children,function(e){return e.id||e.localName}).join()}\nwindow.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};\n</script></head><body><script>/*s1*/var d=document.implementation.createHTMLDocument('x');log('rs:'+d.readyState);log('w:'+E(function(){d.write('<p id=q>q</p>')}));log('body:'+(d.body?d.body.innerHTML:'none'));log('open:'+(d.open()===d));log('close:'+d.close());</script></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},200)})"
+    },
+    {
+     "js": "L.join(' ')"
+    }
+   ]
+  }
+ ]
+}

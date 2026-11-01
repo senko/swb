@@ -2101,23 +2101,50 @@ false ("in order as soon as possible"); an inline one runs during its
 insertion. Fetched scripts fire `load` or `error` at the element.
 `document.currentScript` is the running classic script element.
 
-**`document.write`** while a parser-inserted script runs: the text goes
-into the input in front of the unparsed rest, and the parser processes
-it before `write` returns (the engine puts the document back into the
-parser for the duration). A script element in the written text that is
-inline runs inside `write`; an external one becomes the pending
-parser-blocking script, and the parse waits for it after the current
-script ends (HTML §13.2.6.4.8). `write` from an external script that
-runs without an insertion point (async, deferred, inserted by a script)
-is ignored, as the specification says (the ignore-destructive-writes
-counter, HTML "document write steps"). `write` after the parse from
-other code (a timer, a listener) would run `document.open` and replace
-the document; swb ignores it with a warning (a deviation; measure
-Chromium before changing it). `document.open` is not supported.
+**`document.write`** (M9 feature 2; `web/src/document_write.rs`,
+`dom/src/parser/write.rs`) while a parser-inserted script runs: the text
+goes into the input at the insertion point, in front of the unparsed rest,
+and the parser processes it before `write` returns. Several writes of one
+script keep their order (each goes behind the written text that the
+parser has not read). A script element in the written text that is inline
+runs inside `write`, nested, with an insertion point of its own (the
+script nesting level); an external one becomes the pending
+parsing-blocking script, `write` returns, and the parse waits for it after
+the current script ends (HTML §13.2.6.4.8); the text that the later writes
+add waits behind it, and the rest of the document behind that. The
+insertion point exists while a script that the parser started runs, and
+for the scripts that this script runs in its call stack (a script it
+inserts with `appendChild` may write). `writeln` adds a line feed.
+`document.open()` with a script nesting level above 0 returns the
+document, and `close()` returns (the standard: no script-created parser).
+Written scripts have the URL "" in errors and stack traces and count lines
+and columns from the start of their text (Chromium; the report of a
+compile error names the document and starts its message with "Failed to
+execute 'write' on 'Document': "). Microtasks run when the outermost script
+ends, not at the end of a written script.
 
-No M8 target calls `document.write` (Ars Technica does), so it comes
-with the first target that needs it; the parser design above keeps it
-possible.
+Departures (measured with `tools/probes/web-document-write.json`, 32
+cases; "M9 feature notes" at the end of this section):
+
+- A write with no insertion point (from a timer, a listener, an async or
+  deferred script, a script after the parse, a document without a parser)
+  runs `document.open()` in the standard and Chromium replaces the
+  document (also while the parser waits for a script, which it then
+  aborts). swb ignores the text and logs one warning per document.
+  Document replacement is not planned; M9 feature 15 brings `open` for
+  frame documents. An explicit `open()` without an insertion point is
+  ignored the same way and returns the document.
+- Chromium stops the nesting at level 21: the write of a script at level
+  22 or more does nothing and does not throw (a script that writes itself
+  runs 22 times). swb does the same, with a warning, and the shared
+  recursion budget stays the bound beyond it.
+- Written text that waits for the parser is bounded at 64 MiB per document
+  (also one write); past it `write` drops its text with a warning.
+  Chromium has none.
+- At most 100,000 inline scripts from written text run per document;
+  past it `write` drops its text with a warning. Chromium has none.
+- A write to a document of `createHTMLDocument()` is ignored (Chromium
+  replaces its content).
 
 **Scripting flag:** the parser gets it from the document's setting
 (`<noscript>` is raw text in `head` and `body`), and so does
@@ -2229,8 +2256,8 @@ serves its scripts and style sheets with delays from a local HTTP server):
   fetch the document's URL). No preload scanner (as planned): in Chromium
   an async script that a waiting parser has not reached yet can arrive
   early and run before the end of the parse. Errors of cross-origin
-  scripts are not muted (HTML "muted errors"). `document.write` is not
-  supported.
+  scripts are not muted (HTML "muted errors"). `document.write` came with
+  M9 feature 2 (above).
 
 ### 9. Style and layout after changes; layout queries
 
@@ -4565,7 +4592,10 @@ Per document, all settings with these defaults:
 | Active timers and their extra arguments per document (feature 5b) | 1,048,576 | the task ends (termination) |
 | String handlers of the active timers of a document (feature 5b) | 32 MiB | the task ends (termination) |
 | Long tasks (50 ms or more) of a document, their total real time (feature 5b) | 30 s | the document runs no more scripts |
-| Nested event dispatch, nested `document.write`, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
+| Nested event dispatch, recursion through DOM callbacks | the shared recursion budget (ADR 0026 section 9), charged per re-entry | `RangeError` |
+| Script nesting level of `document.write` (M9 feature 2) | 21: the write of a script at level 22 or more is ignored (Chromium's measured limit; a script that writes itself runs 22 times). The recursion budget is not reached | the call returns without effect, one warning per document |
+| Written text that waits for the parser (a pending parsing-blocking script holds it), also one write (M9 feature 2) | 64 MiB per document (`document_write::MAX_WAITING_BYTES`; the writes that wait add to one string, so a flood of small writes costs no chunks) | the call drops its text, one warning per document. 21 levels of nesting could each hold 64 MiB only through 21 pending scripts, each with a 64 MiB write: the bound counts the text of all levels |
+| Inline scripts from written text that run, per document (M9 feature 2, review fix) | 100,000 (`document_write::MAX_WRITTEN_SCRIPTS`; Chromium has no limit). Without it, scripts that each write two more scripts grow until the task time limit, to more than 1 GiB (hostile case `document-write-fork-js-on`) | later writes drop their text, one warning per document |
 | Script fetches in flight (feature 5c) | 64 | queued |
 | Fetched script text that has not run, per document (feature 5c) | 256 MiB | the script fails as a network error (`error` event, warning) |
 | `fetch()` requests that run per document, and per host (feature 10a, review fix) | 8 (their own pool of workers) and 6 | queued; the page's loads do not wait for them |
@@ -4644,9 +4674,10 @@ microtask chain; `setInterval(0)` and `requestAnimationFrame` loops;
 DOM growth past the node limit; deep nesting through `appendChild`;
 recursion through `MutationObserver` callbacks and nested
 `dispatchEvent`; huge `innerHTML`; `localStorage` past its quota;
-thousands of pending fetches; with `document.write` (not implemented), a
-script that writes itself. Each case ends within the limits of the set and
-logs the limit that acted.
+thousands of pending fetches; with `document.write` (M9 feature 2), a
+script that writes itself, one that writes two copies of itself, a flood of
+writes behind a pending script, and a long loop of `writeln`. Each case ends
+within the limits of the set and logs the limit that acted.
 
 ### 17. Tests
 
@@ -4781,6 +4812,70 @@ swb).
   expression between steps (docs/testing.md). The integration test
   `ars_technica.rs` covers features 1 to 6 of the Ars Technica list with
   Chromium's records of the same steps.
+
+**Feature 2: `document.write` during the parse (Ars Technica's A/B
+scripts).** Chromium 148 values from `tools/probes/web-document-write.json`
+(32 cases, three byte-identical runs); `crates/engine/tests/
+script_processing.rs` (`document_write_probe_cases`, with the departures in
+`SWB_VALUES`) and `crates/web/tests/document_write.rs` run them in swb.
+
+- **Design.** The insertion point is a stack of frames in `HtmlParser`
+  (`enter_script`, `leave_script`; the depth is the script nesting level).
+  The first write of a frame moves the whole input queue behind the point
+  into the frame; the written text goes to a `String` and then to the
+  queue as one chunk; `resume_written` runs html5ever's tokenizer on that
+  queue only, so it stops at the insertion point without a change to the
+  tokenizer, and it never ends the input (a token that the text leaves
+  open, `<di` or `</scr`, waits for the next text: measured, a script
+  split over three writes runs when its end tag is complete). When the
+  frame ends, the text behind the point comes back after the unread
+  written text. The runtime reads the written text in `document.write`
+  (nested `prepare` and `execute` of the scripts in it) and the engine
+  processes the changes of each step (`parse_written_step`), so layout
+  queries, mutation observers and the blocking style sheets see the nodes
+  as they see those of the parser. A `script` that holds the parser sets
+  `pending_parsing_blocking`; `parse()` and `resume_parser()` check it
+  after each script. Not changed: the tokenizer, the tree builder, the
+  sink.
+- **Measured.** Same in swb as in Chromium (all 32 cases except the ones
+  listed below): the order of nested, external and mixed written scripts;
+  `currentScript`, `document.scripts`, `readyState` ("loading") in written
+  scripts; the position of written nodes (after the writing script, before
+  the unread rest; across scripts, open elements stay open: `write('<div
+  id=d>')` then markup of the page is inside the div); text across several
+  writes; `write` with several arguments and non-strings; the
+  `TypeError` of a `Symbol`; `writeln` (`pre` text); `write.length` 0 and
+  the methods on `Document.prototype`; a write in the head that opens the
+  body; a write after `</body>`; an inline script that waits for a style
+  sheet; an inline script that a script inserts (it may write: the point
+  exists in the call stack of the parser's script); the ignored writes of
+  async, deferred and inserted external scripts, also while the parser waits
+  for a slow script; `open()` and `close()` in an inline or a written script
+  (return the document, no effect); microtasks (run after the outermost
+  script, `m1 mw`); the errors (line and column from the start of the
+  written text, URL ""; the compile error names the document and starts
+  with "Failed to execute 'write' on 'Document': " in the report, but not
+  in the `message` of the error object); the Ars Technica pattern (a script
+  in an anchor writes a script element into the anchor).
+- **Departures.** Listed in section 8: a write or `open()` with no
+  insertion point replaces the document in Chromium (cases
+  `timer-after-load`, `timer-while-waiting`, `load-listener-write`,
+  `dcl-listener-write`, `explicit-open-after-load`, `other-document`); swb
+  ignores it with one warning. Chromium does not finish the load of a page
+  after such an `open()` until `close()` is called (the first run of the
+  probe timed out), so the cases close the document. The limits of
+  nesting (21) and of waiting text (64 MiB) are in section 16; Chromium
+  has the first and not the second. The preload scanner of Chromium
+  requests the scripts at the end of Ars Technica's page before its
+  parser reaches the headline scripts, so Chromium's order of request
+  times differs from swb's document order; the parser-driven requests
+  agree (`ars_technica.rs`).
+- **Ars Technica.** The two headline scripts write `ars-ajax-handler.php`
+  script elements into their anchors; swb requests them, no script error is
+  left, and `compare --js ars-technica` pixels went from 0.9886 to 0.9896
+  (geometry 0.9077 as before; the other JavaScript fixtures unchanged).
+  The A/B scripts load a script from a URL whose query has the random
+  `uid`, the time and the group.
 
 ## Consequences
 

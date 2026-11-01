@@ -29,8 +29,9 @@ pub use microsyntax::{
 };
 pub use mutation::DomError;
 pub use parser::{
-    HtmlParser, MAX_TREE_DEPTH, ParseStep, TextPosition, decode_html_bytes, parse_document,
-    parse_fragment, parse_html, parse_html_bytes, parse_html_bytes_with, parse_html_with,
+    HtmlParser, MAX_TREE_DEPTH, ParseStep, TextPosition, WrittenStep, decode_html_bytes,
+    parse_document, parse_fragment, parse_html, parse_html_bytes, parse_html_bytes_with,
+    parse_html_with,
 };
 pub use serialize::{inner_html, outer_html};
 pub use tree::{
