@@ -51,6 +51,25 @@
 //!   [`EngineHost::set_cookie`]) and `storage` (`localStorage` and
 //!   `sessionStorage` over a [`StorageStore`] that the page owns and lends
 //!   through [`EngineHost::storage`]).
+//! - The DOM and HTML interfaces (features 6 and 11): `dom` (nodes, lists,
+//!   `dataset`, attributes), `html` (the HTML element interfaces and their
+//!   activation behaviour), `svg` (the SVG element interfaces),
+//!   `mutation_observer` with `mutation_registry`, `intersection_observer`
+//!   and `resize_observer` (feature 9a), and `image_events` (the `load` and
+//!   `error` events of images and style sheets).
+//! - CSS for scripts: `cssom` (`element.style`, `CSS`), `cssom_view`
+//!   (geometry, scrolling, `screen`), and `dom_matrix` over `matrix`
+//!   (`DOMMatrix`, `DOMPoint`).
+//! - Navigation and data: `location` (`Location`, `History`), `structured`
+//!   (`structuredClone`, the state of `pushState`), `url_api` (`URL`,
+//!   `URLSearchParams`), `abort` (`AbortController`, `AbortSignal`).
+//! - Network APIs (feature 10): `fetch` (`fetch()`, `Headers`, `Request`,
+//!   `Response`), `xhr` (`XMLHttpRequest`) and `file_api` (`Blob`, `File`,
+//!   `FormData`, `FileReader`, Blob URLs).
+//! - Other services (feature 11): `clipboard` (`navigator.clipboard`) and
+//!   `dialogs` (`alert`, `confirm`, `prompt`, `print`); `mime` (the essence
+//!   of a MIME type string).
+//! - `host`: the [`EngineHost`] trait and the data types that cross it.
 
 mod abort;
 mod animation_frames;
@@ -81,6 +100,7 @@ mod intersection_observer;
 mod location;
 mod matrix;
 mod media_queries;
+mod mime;
 mod mutation_observer;
 mod mutation_registry;
 mod navigator;

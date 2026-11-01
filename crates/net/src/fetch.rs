@@ -14,7 +14,7 @@ use crate::response::Response;
 /// The maximum number of redirects for one request.
 ///
 /// <https://fetch.spec.whatwg.org/#http-redirect-fetch>, step 8.
-pub const MAX_REDIRECTS: usize = 20;
+pub(crate) const MAX_REDIRECTS: usize = 20;
 
 /// Request headers that describe the body. They are removed when a redirect
 /// changes the method to `GET`.

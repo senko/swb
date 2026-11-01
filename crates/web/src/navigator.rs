@@ -29,7 +29,7 @@ use swb_js::{Gc, Object};
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
-use crate::state::{WebState, engine, state, state_mut};
+use crate::state::{WebState, engine, no_data, state_mut, window_object};
 
 /// The language of the browser (`navigator.language`).
 const LANGUAGE: &str = "en-US";
@@ -89,12 +89,7 @@ fn send_beacon(cx: &mut Cx<'_>, url: &str, data: swb_js::Value) -> b::Result<boo
     request.mode = swb_net::RequestMode::NoCors;
     if let Some(extracted) = extracted {
         if let Some(content_type) = extracted.content_type {
-            let essence = content_type
-                .split(';')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_ascii_lowercase();
+            let essence = crate::mime::essence(&content_type);
             let safelisted = matches!(
                 essence.as_str(),
                 "text/plain" | "application/x-www-form-urlencoded" | "multipart/form-data"
@@ -209,12 +204,6 @@ impl g::navigator::NavigatorImpl for WebState {
 
 /// The window's `Navigator` object, made at the first access.
 pub(crate) fn navigator_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = state(cx.rt)?.navigator {
-        return Ok(object);
-    }
-    let object = cx
-        .rt
-        .new_host_object(cx.realm(), g::NAVIGATOR, crate::state::NOT_A_NODE)?;
-    state_mut(cx.rt)?.navigator = Some(object);
-    Ok(object)
+    let realm = cx.realm();
+    window_object(cx, realm, |s| &mut s.navigator, g::NAVIGATOR, no_data)
 }

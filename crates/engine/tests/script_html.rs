@@ -19,7 +19,7 @@ use swb_net::NetworkFetcher;
 use swb_style::Rgba;
 
 mod common;
-use common::{Site, finish_loading, new_page, node};
+use common::{Site, finish_loading, new_page, node, on_page_thread};
 
 /// A probe case: its name, its page and its queries with Chromium's
 /// values.
@@ -89,16 +89,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "an img of a form is not a named property of the form",
     ),
 ];
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A page with JavaScript on that shows `html`.
 fn open(site: &Site, html: &str) -> Page {

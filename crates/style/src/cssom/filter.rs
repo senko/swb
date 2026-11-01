@@ -8,9 +8,9 @@
 //! `drop-shadow()` with its color first, and `url()` with quotes. The
 //! tokens passed the property's parser.
 
-use swb_css::{ComponentValue, Parser};
+use swb_css::{ComponentValue, Parser, trim_whitespace};
 
-use super::value::{Style, serialize, trimmed};
+use super::value::{Style, serialize};
 use crate::parse::color::parse_color;
 
 /// Serializes the tokens of a `filter` value.
@@ -29,7 +29,7 @@ fn function(token: &ComponentValue) -> String {
         return serialize(std::slice::from_ref(token), Style::PLAIN);
     };
     let name = f.name.to_ascii_lowercase();
-    let args = trimmed(&f.arguments);
+    let args = trim_whitespace(&f.arguments);
     match name.as_str() {
         "drop-shadow" => format!("drop-shadow({})", drop_shadow(args)),
         "grayscale" | "invert" | "opacity" | "sepia" => format!("{name}({})", limited(args)),

@@ -31,7 +31,7 @@ use crate::generated::types::{
     BooleanOrScrollIntoViewOptions, DOMRectInit, ScrollLogicalPosition, ScrollToOptions,
 };
 use crate::host::{DomRect, ScrollAlign, ScrollRequest};
-use crate::state::{WebState, engine, engine_mut, state, state_mut};
+use crate::state::{WebState, engine, engine_mut};
 
 // ----- DOMRect -----
 
@@ -508,15 +508,14 @@ pub(crate) fn scroll_position(rt: &mut Runtime) -> b::Result<(f64, f64)> {
 
 /// `window.screen`: one object per window, made at the first access.
 pub(crate) fn screen(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(screen) = state(cx.rt)?.screen {
-        return Ok(screen);
-    }
     let realm = cx.realm();
-    let object = cx
-        .rt
-        .new_host_object(realm, g::SCREEN, crate::state::NOT_A_NODE)?;
-    state_mut(cx.rt)?.screen = Some(object);
-    Ok(object)
+    crate::state::window_object(
+        cx,
+        realm,
+        |s| &mut s.screen,
+        g::SCREEN,
+        crate::state::no_data,
+    )
 }
 
 impl g::screen::ScreenImpl for WebState {
@@ -554,17 +553,15 @@ impl g::screen::ScreenImpl for WebState {
 
     /// `screen.orientation` (Screen Orientation): one object per window.
     fn orientation(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
-        if let Some(orientation) = state(cx.rt)?.screen_orientation {
-            return Ok(orientation);
-        }
         // An `EventTarget` keeps its listeners in its data.
-        let data = cx
-            .rt
-            .alloc_host_data(crate::events::TargetData::default())?;
         let realm = cx.realm();
-        let object = cx.rt.new_host_object(realm, g::SCREEN_ORIENTATION, data)?;
-        state_mut(cx.rt)?.screen_orientation = Some(object);
-        Ok(object)
+        crate::state::window_object(
+            cx,
+            realm,
+            |s| &mut s.screen_orientation,
+            g::SCREEN_ORIENTATION,
+            crate::state::target_data,
+        )
     }
 }
 

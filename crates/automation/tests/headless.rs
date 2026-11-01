@@ -4,7 +4,9 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
-use std::path::{Path, PathBuf};
+mod common;
+use common::repo_root;
+
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
@@ -16,10 +18,6 @@ use swb_engine::{FontContext, Size};
 use swb_net::{Fetcher, NetworkFetcher, ReplayFetcher};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
 
 /// Starts a headless browser (1280×800, test fonts) on a free port on its
 /// own thread. Returns the thread and the port.

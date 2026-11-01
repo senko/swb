@@ -12,7 +12,7 @@ use swb_engine::{Page, Pixmap, Size, Url};
 use swb_net::NetworkFetcher;
 
 mod common;
-use common::Site;
+use common::{Site, rgb};
 
 /// Hacker News' vote arrow (`triangle.svg`).
 const TRIANGLE: &str = r##"<svg height="32" viewBox="0 0 32 16" width="32" xmlns="http://www.w3.org/2000/svg"><path d="m2 27 14-29 14 29z" fill="#999"/></svg>"##;
@@ -29,11 +29,6 @@ fn screenshot(url: Url, scale: f32) -> (Page, Pixmap) {
     common::finish_loading(&mut page, Duration::from_secs(30));
     let pixmap = page.screenshot(false).unwrap();
     (page, pixmap)
-}
-
-fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
-    let p = pixmap.pixel(x, y).unwrap().demultiply();
-    (p.red(), p.green(), p.blue())
 }
 
 const BLACK: (u8, u8, u8) = (0, 0, 0);

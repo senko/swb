@@ -15,28 +15,17 @@
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
 
+mod common;
+use common::{on_page_thread, repo_root, value};
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
 use swb_automation::run_steps;
-use swb_engine::{Evaluation, FontContext, JsonForm, Page, PageConfig, Size, Url};
+use swb_engine::{FontContext, Page, PageConfig, Size, Url};
 use swb_net::NetworkFetcher;
-
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A directory with test pages, removed at the end of the test.
 struct Site(PathBuf);
@@ -81,14 +70,6 @@ fn open(site: &Site, html: &str) -> Page {
     page.navigate(site.page("page.html", html));
     assert!(page.wait_until_loaded(Duration::from_secs(30)));
     page
-}
-
-/// The JSON value of an expression.
-fn value(page: &mut Page, source: &str) -> Value {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 /// The values where swb departs from Chromium on purpose: (case, index of

@@ -175,10 +175,9 @@ reads `<noscript>` in `head` and `body` as raw text (so `dom.querySelector`
 does not find elements inside it, and nothing in it loads); `@media
 (scripting)` matches; a `<video>` shows controls only with the `controls`
 attribute; `<canvas>` is a replaced element that paints nothing. The
-document gets a script runtime: its inline classic scripts run in tree
-order when the parse is done (M8 feature 5c moves them into the parse;
-external scripts, events and timers come with feature 5), and
-`page.evaluate` and `page.consoleMessages` work. In the GUI, the toolbar
+document gets a script runtime: its classic scripts run during the parse,
+at their place in the document (ADR 0028 section 8), and events and timers
+work. `page.evaluate` and `page.consoleMessages` work. In the GUI, the toolbar
 button "JS" and Ctrl+Shift+J flip the setting, and `page.setJavaScript`
 works the same. A page whose thread has too small a stack for scripts
 keeps JavaScript off whatever sets it: the GUI's page runs on the main

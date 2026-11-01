@@ -153,11 +153,6 @@ impl TaskQueue {
         }
         Some(entry.remove())
     }
-
-    /// The number of queued tasks.
-    pub(crate) fn len(&self) -> usize {
-        self.queue.len()
-    }
 }
 
 /// The state of the event loop in the binding state.

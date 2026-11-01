@@ -392,10 +392,7 @@ pub(crate) fn make_blob(
 /// A resolved promise with `value`.
 fn resolved(cx: &mut Cx<'_>, value: Value) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
-    match cx.rt.resolved_promise(realm, value)? {
-        Value::Object(promise) => Ok(promise),
-        _ => Err(Exception::type_error("PromiseResolve gave a non-object")),
-    }
+    b::convert::promise(cx.rt, realm, value)
 }
 
 /// Clamps a `slice` offset (File API "slice blob"): negative values count

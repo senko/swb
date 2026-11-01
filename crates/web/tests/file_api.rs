@@ -26,7 +26,7 @@ const SWB_VALUES: &[Departure] = &[(
 )];
 
 #[test]
-fn probe_cases_match_chromium() {
+fn probe_cases() {
     let failures = probe_failures(cases::CASES, SWB_VALUES);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

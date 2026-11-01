@@ -13,7 +13,7 @@ mod cases;
 
 mod common;
 
-use common::{Departure, answer, expected, load, on_big_stack, probe_failures};
+use common::{Departure, answer, check_cases, expected, load, on_big_stack, probe_failures};
 use swb_web::{ConsoleLevel, Evaluation, JsonForm, ScriptRuntime};
 
 /// The values where swb departs from Chromium on purpose: (case, query
@@ -198,32 +198,22 @@ const PRELUDE: &str = "function t(f) { try { const v = f(); return v === undefin
 /// 148 (`tools/probes/web-bindings.json`, `web-legacy.json`,
 /// `web-dom-tree.json`) unless a comment says otherwise.
 fn check(cases: &[(&str, &str)]) {
-    let cases: Vec<(String, String)> = cases
-        .iter()
-        .map(|&(s, e)| (s.to_owned(), e.to_owned()))
-        .collect();
-    let failures = std::thread::Builder::new()
-        .stack_size(64 << 20)
-        .spawn(move || {
-            let mut failures = Vec::new();
-            for (source, want) in &cases {
-                for stress in [false, true] {
-                    let mut rt = load("<!DOCTYPE html><body><div>a<p>b</p></div>", stress);
-                    rt.run_classic_script(PRELUDE, "prelude").unwrap();
-                    let got = answer(&mut rt, source);
-                    if got != serde_json::Value::String(want.clone()) {
-                        failures.push(format!(
-                            "{source} (stress {stress})\n  expected: {want}\n  actual:   {got}"
-                        ));
-                    }
-                }
+    check_cases(
+        cases,
+        |stress| {
+            let mut rt = load("<!DOCTYPE html><body><div>a<p>b</p></div>", stress);
+            rt.run_classic_script(PRELUDE, "prelude").unwrap();
+            rt
+        },
+        |rt, source, want| {
+            let got = answer(rt, source);
+            if got == serde_json::Value::String(want.to_owned()) {
+                Ok(())
+            } else {
+                Err(got.to_string())
             }
-            failures
-        })
-        .unwrap()
-        .join()
-        .unwrap();
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+        },
+    );
 }
 
 #[test]

@@ -30,7 +30,7 @@ use crate::request::{CredentialsMode, Method, RedirectMode, Request, RequestMode
 use crate::response::Response;
 
 /// The most entries of the [`PreflightCache`].
-pub const PREFLIGHT_CACHE_ENTRIES: usize = 256;
+pub(crate) const PREFLIGHT_CACHE_ENTRIES: usize = 256;
 
 /// The largest `Access-Control-Max-Age` in seconds that the cache keeps (a
 /// larger value is cut; Chromium caps it at two hours).
@@ -172,7 +172,7 @@ fn includes_credentials(request: &Request) -> bool {
 /// The CORS check.
 ///
 /// <https://fetch.spec.whatwg.org/#concept-cors-check>
-pub fn cors_check(request: &Request, response: &Response) -> Result<(), CorsFailure> {
+pub(crate) fn cors_check(request: &Request, response: &Response) -> Result<(), CorsFailure> {
     let Some(origin) = joined(&response.headers, "access-control-allow-origin") else {
         return Err(CorsFailure::MissingAllowOrigin);
     };
@@ -284,7 +284,7 @@ fn is_simple_range(value: &str) -> bool {
 /// lowercase, sorted, without duplicates.
 ///
 /// <https://fetch.spec.whatwg.org/#cors-unsafe-request-header-names>
-pub fn unsafe_request_header_names(headers: &Headers) -> Vec<String> {
+pub(crate) fn unsafe_request_header_names(headers: &Headers) -> Vec<String> {
     let mut unsafe_names = Vec::new();
     let mut potentially = Vec::new();
     let mut size = 0usize;
@@ -306,7 +306,7 @@ pub fn unsafe_request_header_names(headers: &Headers) -> Vec<String> {
 
 /// True if the request needs a preflight: the use-CORS-preflight flag, a method that is not
 /// CORS-safelisted, or a CORS-unsafe request header.
-pub fn needs_preflight(request: &Request) -> bool {
+pub(crate) fn needs_preflight(request: &Request) -> bool {
     request.use_cors_preflight
         || !request.method.is_cors_safelisted()
         || !unsafe_request_header_names(&request.headers).is_empty()
@@ -316,7 +316,7 @@ pub fn needs_preflight(request: &Request) -> bool {
 /// `Access-Control-Request-Method` and `-Headers` headers.
 ///
 /// <https://fetch.spec.whatwg.org/#cors-preflight-fetch-0>
-pub fn preflight_request(request: &Request) -> Request {
+pub(crate) fn preflight_request(request: &Request) -> Request {
     let mut headers = Headers::new();
     headers.append("accept", "*/*");
     headers.append("access-control-request-method", request.method.as_str());
@@ -344,7 +344,7 @@ pub fn preflight_request(request: &Request) -> Request {
 
 /// What a successful preflight allows, for the cache.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PreflightAnswer {
+pub(crate) struct PreflightAnswer {
     /// The methods in `Access-Control-Allow-Methods`.
     pub methods: Vec<String>,
     /// The header names in `Access-Control-Allow-Headers`, in lowercase.
@@ -367,7 +367,7 @@ fn list_values(headers: &Headers, name: &str) -> Vec<String> {
 /// CORS-preflight fetch).
 ///
 /// <https://fetch.spec.whatwg.org/#cors-preflight-fetch-0>
-pub fn check_preflight(
+pub(crate) fn check_preflight(
     request: &Request,
     response: &Response,
 ) -> Result<PreflightAnswer, CorsFailure> {
@@ -432,13 +432,13 @@ struct CacheEntry {
 /// when it is full the expired entries go, then the soonest to expire. One
 /// cache is shared by the workers of a loader.
 #[derive(Debug, Default)]
-pub struct PreflightCache {
+pub(crate) struct PreflightCache {
     entries: Mutex<HashMap<CacheKey, CacheEntry>>,
 }
 
 impl PreflightCache {
     /// Creates an empty cache.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
@@ -454,7 +454,7 @@ impl PreflightCache {
 
     /// True if a cached preflight allows `request` (its method, and all its
     /// CORS-unsafe headers).
-    pub fn allows(&self, request: &Request) -> bool {
+    pub(crate) fn allows(&self, request: &Request) -> bool {
         let credentials = includes_credentials(request);
         let guard = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
         let Some(entry) = guard.get(&Self::key(request)) else {
@@ -478,7 +478,7 @@ impl PreflightCache {
     }
 
     /// Stores what a preflight for `request` allowed.
-    pub fn store(&self, request: &Request, answer: PreflightAnswer) {
+    pub(crate) fn store(&self, request: &Request, answer: PreflightAnswer) {
         if answer.max_age == 0 {
             return;
         }
@@ -501,16 +501,12 @@ impl PreflightCache {
     }
 
     /// The number of entries.
-    pub fn len(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
         self.entries
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .len()
-    }
-
-    /// True if the cache has no entry.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 }
 
@@ -896,7 +892,7 @@ mod tests {
                 max_age: 0,
             },
         );
-        assert!(empty.is_empty());
+        assert_eq!(empty.len(), 0);
     }
 
     #[test]

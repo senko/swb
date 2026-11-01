@@ -13,7 +13,7 @@ use swb_engine::{Page, Pixmap, Size, Url};
 use swb_net::NetworkFetcher;
 
 mod common;
-use common::Site;
+use common::{Site, rgb};
 
 /// Loads `url` in a 200x100 viewport at `scale` and returns a screenshot.
 fn screenshot(url: Url, scale: f32) -> (Page, Pixmap) {
@@ -24,11 +24,6 @@ fn screenshot(url: Url, scale: f32) -> (Page, Pixmap) {
     common::finish_loading(&mut page, Duration::from_secs(30));
     let pixmap = page.screenshot(false).unwrap();
     (page, pixmap)
-}
-
-fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
-    let p = pixmap.pixel(x, y).unwrap().demultiply();
-    (p.red(), p.green(), p.blue())
 }
 
 const WHITE: (u8, u8, u8) = (255, 255, 255);

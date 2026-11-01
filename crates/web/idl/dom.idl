@@ -20,7 +20,7 @@
 // written `_any` as in the standard).
 // Document has no constructor yet (`new Document()` makes an XML
 // document); it lacks createCDATASection, createProcessingInstruction,
-// createRange and the other members of feature 6c and later;
+// createRange and the other members that the roadmap backlog lists;
 // DOMImplementation has no createDocument (swb has no XML documents);
 // Element lacks `slot` and shadow trees; the members of InnerHTML and
 // insertAdjacentHTML come from the DOM Parsing specification and sit on

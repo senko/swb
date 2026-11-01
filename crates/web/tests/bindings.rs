@@ -16,6 +16,8 @@
     reason = "a test host: the trait methods take the arguments of the test IDL"
 )]
 
+mod common;
+
 #[rustfmt::skip]
 #[allow(dead_code, unreachable_pub, unused_qualifications, clippy::all, clippy::pedantic)]
 mod generated;
@@ -745,32 +747,15 @@ fn run(rt: &mut Runtime, source: &str) -> String {
 /// Runs each (source, expected) case in a new runtime, with and without
 /// the GC stress mode, on a thread with a big stack.
 fn check(cases: &[(&str, &str)]) {
-    let cases: Vec<(String, String)> = cases
-        .iter()
-        .map(|&(s, e)| (s.to_owned(), e.to_owned()))
-        .collect();
-    let failures = std::thread::Builder::new()
-        .stack_size(64 << 20)
-        .spawn(move || {
-            let mut failures = Vec::new();
-            for (source, expected) in &cases {
-                for stress in [false, true] {
-                    let mut rt = runtime(stress);
-                    let actual = run(&mut rt, source);
-                    if actual != *expected {
-                        failures.push(format!(
-                            "{source} (stress {stress})\n  expected: {expected}\n  actual:   {actual}"
-                        ));
-                    }
-                    assert_eq!(rt.heap().stats().total_stale_roots, 0, "{source}");
-                }
-            }
-            failures
-        })
-        .unwrap()
-        .join()
-        .unwrap();
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    common::check_cases(cases, runtime, |rt, source, expected| {
+        let actual = run(rt, source);
+        assert_eq!(rt.heap().stats().total_stale_roots, 0, "{source}");
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(actual)
+        }
+    });
 }
 
 #[test]

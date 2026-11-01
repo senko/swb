@@ -17,25 +17,15 @@ from typing import ClassVar
 import pytest
 from PIL import Image
 
-from swbtools import browser, cli, paths, swb
+from swbtools import browser, cli, paths
 from swbtools.boxes import BoxDump, Element, read_dump, write_dump
 from swbtools.browser import in_chromium
 from swbtools.capture import chromium_pass
 from swbtools.compare import Options, compare_fixture
 from swbtools.manifest import Entry, Fixture
-from swbtools.probe import (
-    Case,
-    CaseResult,
-    ProbeError,
-    Query,
-    Row,
-    _compare_with_swb,
-    _probe_all,
-    any_outside,
-    format_text,
-    parse_cases,
-    parse_swb_value,
-)
+from swbtools.probe import _compare_with_swb, _probe_all, any_outside, parse_swb_value
+from swbtools.probe_cases import Case, ProbeError, Query, parse_cases
+from swbtools.probe_format import CaseResult, Row, format_text
 from swbtools.reference import render_js_fixture
 from swbtools.routing import (
     Replayer,
@@ -468,17 +458,12 @@ def test_compare_js_without_reference_names_the_command(js_repo, caplog):
     assert "swbtools reference --js tiny" in caplog.text
 
 
-# --- A fake swb: flag detection, --js, --eval ----------------------------------------
+# --- A fake swb: --js, --eval --------------------------------------------------------
 
 FAKE_SWB = """#!/usr/bin/env python3
 import json, os, shutil, sys
 
 args = sys.argv[1:]
-if "--help" in args:
-    print("Options:")
-    for flag in %r:
-        print(f"      {flag}  text")
-    sys.exit(0)
 with open(os.environ["FAKE_ARGV"], "a") as log:
     log.write(json.dumps(args) + "\\n")
 def value(flag):
@@ -494,10 +479,9 @@ if any(arg.startswith("--eval=") for arg in args) and "FAKE_ANSWERS" in os.envir
 
 @pytest.fixture
 def fake(tmp_path, monkeypatch):
-    """Returns `make(name, flags)`, which writes a fake swb with the given
-    options in its help. The fake appends its arguments to `argv.log`, copies
-    a box dump and a screenshot, and prints the lines of `answers.txt` when
-    it gets `--eval`."""
+    """Returns `make(name)`, which writes a fake swb. The fake appends its
+    arguments to `argv.log`, copies a box dump and a screenshot, and prints
+    the lines of `answers.txt` when it gets `--eval`."""
     work = tmp_path / "fake"
     work.mkdir()
     write_dump(work / "dump.json", sample_dump())
@@ -507,9 +491,9 @@ def fake(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_PNG", str(work / "shot.png"))
     monkeypatch.setenv("FAKE_ANSWERS", str(work / "answers.txt"))
 
-    def make(name: str, flags: list[str]) -> Path:
+    def make(name: str) -> Path:
         path = work / name
-        path.write_text(FAKE_SWB % (["--headless", "--dump-boxes", *flags],))
+        path.write_text(FAKE_SWB)
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
         return path
 
@@ -522,49 +506,12 @@ def fake_argv(fake) -> list[list[str]]:
     return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
 
 
-def test_supported_flags_come_from_the_help(fake):
-    binary = fake("swb-a", ["--js", "--eval <EXPR>"])
-    assert swb.supported_flags(binary) == {"--headless", "--dump-boxes", "--js", "--eval"}
-    assert swb.supported_flags(fake("swb-b", [])) == {"--headless", "--dump-boxes"}
-    assert swb.supported_flags(fake.work / "missing") == frozenset()
-
-
-def test_supported_flags_are_cached_per_binary(fake):
-    binary = fake("swb-c", ["--js"])
-    assert "--js" in swb.supported_flags(binary)
-    binary.unlink()  # a second call must not run the binary again
-    binary.write_text("not a program")
-    swb._FLAGS_CACHE[(str(binary), binary.stat().st_size, binary.stat().st_mtime_ns)] = frozenset()
-    assert swb.supported_flags(binary) == frozenset()
-
-
-def test_compare_js_runs_swb_without_js_when_it_has_no_option(js_repo, fake, capsys, caplog):
+def test_compare_js_passes_js_and_the_capture_time(js_repo, fake):
     write_js_outputs(js_repo)
-    binary = fake("swb-nojs", [])
-    scores = compare_fixture("tiny", binary, 2.0, 32, Options(javascript=True))
-    assert scores is not None
-    assert "--js" not in fake_argv(fake)[0]
-    assert "swb ran without JavaScript" in capsys.readouterr().out
-    assert "has no --js option" in caplog.text
-
-
-def test_compare_js_passes_js_when_swb_has_it(js_repo, fake, capsys):
-    write_js_outputs(js_repo)
-    binary = fake("swb-js", ["--js"])
-    scores = compare_fixture("tiny", binary, 2.0, 32, Options(javascript=True))
-    assert scores is not None
-    argv = fake_argv(fake)[0]
-    assert "--js" in argv and argv[argv.index("--replay") + 1].endswith("fixtures/js/tiny")
-    assert "without JavaScript" not in capsys.readouterr().out
-    # Without `--now` (before feature 5b), no clock options.
-    assert "--now" not in argv and "--virtual-time" not in argv
-
-
-def test_compare_js_passes_the_capture_time_when_swb_has_now(js_repo, fake):
-    write_js_outputs(js_repo)
-    binary = fake("swb-now", ["--js", "--now <MS>", "--virtual-time", "--settle-ms <MS>"])
+    binary = fake("swb-js")
     assert compare_fixture("tiny", binary, 2.0, 32, Options(javascript=True)) is not None
     argv = fake_argv(fake)[0]
+    assert "--js" in argv and argv[argv.index("--replay") + 1].endswith("fixtures/js/tiny")
     expected = round(datetime(2026, 3, 4, 5, 6, 7, tzinfo=UTC).timestamp() * 1000)
     assert argv[argv.index("--now") + 1] == str(expected)
     assert "--virtual-time" in argv
@@ -578,7 +525,7 @@ def test_plain_compare_never_passes_js(js_repo, fake):
     reference = pages / "tiny" / "reference"
     write_dump(reference / "boxes.json", sample_dump())
     save_png(reference / "screenshot.png")
-    binary = fake("swb-js2", ["--js"])
+    binary = fake("swb-js2")
     assert compare_fixture("tiny", binary, 2.0, 32) is not None
     assert "--js" not in fake_argv(fake)[0]
 
@@ -644,39 +591,8 @@ def test_parse_swb_value_prints_like_the_chromium_side():
     assert parse_swb_value('{"value": 1, "extra": 2}').startswith("invalid answer")
 
 
-def test_probe_swb_without_js_prints_not_supported(fake, tmp_path):
-    binary = fake("swb-0", [])
-    case = js_case([Query("boxes", "p"), Query("js", "1")])
-    result = chromium_result(
-        Row("boxes", "p[1]", {"tag": "p", "index": 2, "rect": (8.0, 8.0, 10.0, 10.0)}),
-        js_row("1", 1),
-    )
-    compare_js(fake, binary, case, result, None, tmp_path)
-    text = format_text([result])
-    assert "c  swb    p[1]  not supported" in text
-    assert "c  swb    1  not supported" in text
-    assert not any_outside([result])
-    assert fake_argv(fake) == []  # swb did not run
-
-
-def test_probe_swb_with_js_but_without_eval(fake, tmp_path):
-    binary = fake("swb-1", ["--js"])
-    case = js_case([Query("boxes", "body"), Query("js", "1")])
-    result = chromium_result(
-        Row("boxes", "body[1]", {"tag": "body", "index": 1, "rect": (0.0, 0.0, 60.0, 77.0)}),
-        js_row("1", 1),
-    )
-    compare_js(fake, binary, case, result, None, tmp_path)
-    argv = fake_argv(fake)[0]
-    assert "--js" in argv and not any(arg.startswith("--eval") for arg in argv)
-    text = format_text([result])
-    assert "c  swb    body[1]  x=0 y=0 w=60 h=77  dx=0 dy=0 dw=0 dh=0" in text
-    assert "c  swb    1  not supported" in text
-    assert not any_outside([result])
-
-
 def test_probe_swb_values_are_compared(fake, tmp_path):
-    binary = fake("swb-2", ["--js", "--eval"])
+    binary = fake("swb-2")
     queries = ["a", "b", "c", "d", "e", "f"]
     case = js_case([Query("js", q) for q in queries])
     result = chromium_result(
@@ -716,7 +632,7 @@ def test_probe_swb_values_are_compared(fake, tmp_path):
 
 
 def test_probe_swb_answer_count_must_match(fake, tmp_path):
-    binary = fake("swb-3", ["--js", "--eval"])
+    binary = fake("swb-3")
     case = js_case([Query("js", "1"), Query("js", "2")])
     result = chromium_result(js_row("1", 1), js_row("2", 2))
     compare_js(fake, binary, case, result, '{"value": 1}\n', tmp_path)
@@ -725,13 +641,13 @@ def test_probe_swb_answer_count_must_match(fake, tmp_path):
 
 
 def test_probe_js_off_case_keeps_js_queries_chromium_only(fake, tmp_path):
-    binary = fake("swb-4", ["--js", "--eval"])
+    binary = fake("swb-4")
     case = js_case([Query("js", "1")], javascript=False)
     result = chromium_result(js_row("1", 1))
     compare_js(fake, binary, case, result, None, tmp_path)
     argv = fake_argv(fake)[0]
     assert "--js" not in argv and not any(arg.startswith("--eval") for arg in argv)
-    assert result.rows[0].swb_value is None and not result.rows[0].swb_unsupported
+    assert result.rows[0].swb_value is None
     assert "swb" not in format_text([result])
 
 

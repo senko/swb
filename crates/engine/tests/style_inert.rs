@@ -21,10 +21,10 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
-use common::new_page;
+use common::{answer, new_page};
 
 /// A probe case with Chromium's values: (query, value).
 pub(crate) struct Case {
@@ -67,15 +67,6 @@ fn open(html: &'static str) -> Page {
     page.navigate(Url::parse(PAGE).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(20)));
     page
-}
-
-/// The value of an evaluation as the probe prints it.
-fn answer(page: &mut Page, expression: &str) -> serde_json::Value {
-    match page.evaluate(expression, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        Some(Evaluation::Error(text)) => serde_json::Value::String(format!("error: {text}")),
-        None => serde_json::Value::String("error: no script runtime".to_owned()),
-    }
 }
 
 /// Runs a case: loads it and compares each answer with Chromium's.

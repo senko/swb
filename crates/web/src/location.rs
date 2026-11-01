@@ -27,7 +27,7 @@ use crate::events::{DispatchTarget, EventInterface, TrustedEvent, fire_trusted};
 use crate::generated as g;
 use crate::generated::types::ScrollRestoration;
 use crate::scripts::scripts;
-use crate::state::{NOT_A_NODE, WebState, engine, engine_mut, state, state_mut};
+use crate::state::{NOT_A_NODE, WebState, engine, engine_mut, state, state_mut, window_object};
 use crate::structured::{self, Serialized};
 use crate::url_api::{get, set};
 
@@ -93,13 +93,14 @@ pub(crate) fn location_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
 
 /// The one `History` object of the window.
 pub(crate) fn history_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = state(cx.rt)?.history {
-        return Ok(object);
-    }
-    let data = cx.rt.alloc_host_data(NoData)?;
-    let object = cx.rt.new_host_object(cx.realm(), g::HISTORY, data)?;
-    state_mut(cx.rt)?.history = Some(object);
-    Ok(object)
+    let realm = cx.realm();
+    window_object(
+        cx,
+        realm,
+        |s| &mut s.history,
+        g::HISTORY,
+        |rt| rt.alloc_host_data(NoData),
+    )
 }
 
 /// The URL of the document.

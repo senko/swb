@@ -32,7 +32,7 @@ use swb_js::{Gc, Object};
 
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
-use crate::state::{WebState, state, state_mut};
+use crate::state::{WebState, window_object};
 
 impl g::clipboard::ClipboardImpl for WebState {
     fn read_text(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
@@ -53,13 +53,12 @@ impl g::clipboard::ClipboardImpl for WebState {
 /// The `navigator.clipboard` attribute ([`SameObject`]): one object per
 /// window. An `EventTarget` keeps its listeners in its data.
 pub(crate) fn clipboard_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = state(cx.rt)?.clipboard {
-        return Ok(object);
-    }
-    let data = cx
-        .rt
-        .alloc_host_data(crate::events::TargetData::default())?;
-    let object = cx.rt.new_host_object(cx.realm(), g::CLIPBOARD, data)?;
-    state_mut(cx.rt)?.clipboard = Some(object);
-    Ok(object)
+    let realm = cx.realm();
+    window_object(
+        cx,
+        realm,
+        |s| &mut s.clipboard,
+        g::CLIPBOARD,
+        crate::state::target_data,
+    )
 }

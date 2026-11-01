@@ -302,7 +302,7 @@ enum Kind {
 }
 
 fn kind_of(element: &swb_dom::ElementData) -> Kind {
-    let trimmed = |s: &str| s.trim_matches(|c: char| c.is_ascii_whitespace()).to_owned();
+    let trimmed = |s: &str| s.trim_ascii().to_owned();
     let type_string = match (element.attr("type"), element.attr("language")) {
         (Some(""), _) | (None, Some("") | None) => "text/javascript".to_owned(),
         (Some(kind), _) => kind.to_owned(),
@@ -334,7 +334,7 @@ fn event_for_allows(element: &swb_dom::ElementData) -> bool {
     let (Some(event), Some(target)) = (element.attr("event"), element.attr("for")) else {
         return true;
     };
-    let strip = |s: &str| s.trim_matches(|c: char| c.is_ascii_whitespace()).to_owned();
+    let strip = |s: &str| s.trim_ascii().to_owned();
     let event = strip(event);
     strip(target).eq_ignore_ascii_case("window")
         && (event.eq_ignore_ascii_case("onload") || event.eq_ignore_ascii_case("onload()"))
@@ -441,10 +441,7 @@ fn prepare_external(
     // Departure from HTML, as Chromium (measured, case
     // `ignored-attributes-and-errors`): a `src` of only whitespace is an
     // error like an empty one (HTML would fetch the document's URL).
-    if src
-        .trim_matches(|c: char| c.is_ascii_whitespace())
-        .is_empty()
-    {
+    if src.trim_ascii().is_empty() {
         queue_task(rt, Task::ScriptErrorEvent(node))?;
         return Ok(Prepared::Nothing);
     }

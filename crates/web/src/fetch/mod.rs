@@ -26,13 +26,10 @@
 //!
 //! - `Response.body` and `Request.body` are `null` (no streams) with one
 //!   warning per document.
-//! - `blob()` and `formData()` reject with `NotSupportedError` until
-//!   feature 10b.
 //! - The response is complete when the promise resolves (the engine reads
 //!   whole bodies), so an abort after the response does not interrupt the
 //!   body read.
-//! - Only `http:`, `https:` and `data:` URLs are fetched; `blob:` comes with
-//!   feature 10b.
+//! - Only `http:`, `https:`, `data:` and `blob:` URLs are fetched.
 
 pub(crate) mod body;
 pub(crate) mod headers;
@@ -168,10 +165,7 @@ fn network_error(rt: &mut Runtime) -> VmResult<Value> {
 
 /// Rejects a new promise with `reason`.
 fn rejected(rt: &mut Runtime, realm: u32, reason: Value) -> b::Result<Gc<Object>> {
-    match rt.rejected_promise(realm, reason)? {
-        Value::Object(promise) => Ok(promise),
-        _ => Err(Exception::type_error("a rejected promise is not an object")),
-    }
+    b::convert::rejected_promise(rt, realm, reason)
 }
 
 /// `fetch(input, init)` (Fetch "fetch method").
@@ -396,7 +390,7 @@ pub(crate) fn local_completed(rt: &mut Runtime, id: u64) -> VmResult<()> {
 
 /// The signal of the call `id` aborted: rejects its promise with `reason`
 /// and tells the engine to drop the request.
-pub(crate) fn abort_fetch(rt: &mut Runtime, _realm: u32, id: u64, reason: Value) -> VmResult<()> {
+pub(crate) fn abort_fetch(rt: &mut Runtime, id: u64, reason: Value) -> VmResult<()> {
     let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
         return Ok(());
     };

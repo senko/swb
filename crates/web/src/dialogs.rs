@@ -106,7 +106,7 @@ pub(crate) fn confirm(cx: &mut Cx<'_>, message: &str) -> bool {
 }
 
 /// `prompt(message, default)`: dismissed at once, so the answer is `null`.
-pub(crate) fn prompt(cx: &mut Cx<'_>, message: &str, _default: &str) -> Option<String> {
+pub(crate) fn prompt(cx: &mut Cx<'_>, message: &str) -> Option<String> {
     log_dialog(cx, "prompt", message);
     None
 }

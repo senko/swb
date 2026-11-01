@@ -16,7 +16,7 @@ use swb_net::{Fetcher, NetError, NetworkFetcher, Request, Response};
 use swb_style::Rgba;
 
 mod common;
-use common::{Site, finish_loading, new_page, node, rect};
+use common::{Site, finish_loading, new_page, node, on_page_thread, rect};
 
 /// Fetches local files and records the file names of the requests.
 struct Recorder {
@@ -41,16 +41,6 @@ impl Fetcher for Recorder {
         self.fetched.lock().unwrap().push(name.to_owned());
         self.inner.fetch(request)
     }
-}
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
 }
 
 /// A page with JavaScript on that shows `url`.

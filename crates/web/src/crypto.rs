@@ -108,14 +108,14 @@ impl g::crypto::CryptoImpl for WebState {
 
 /// The `crypto` attribute of `Window` ([`SameObject`]).
 pub(crate) fn crypto_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = crate::state::state(cx.rt)?.crypto {
-        return Ok(object);
-    }
-    let object = cx
-        .rt
-        .new_host_object(cx.realm(), g::CRYPTO, crate::state::NOT_A_NODE)?;
-    crate::state::state_mut(cx.rt)?.crypto = Some(object);
-    Ok(object)
+    let realm = cx.realm();
+    crate::state::window_object(
+        cx,
+        realm,
+        |s| &mut s.crypto,
+        g::CRYPTO,
+        crate::state::no_data,
+    )
 }
 
 #[cfg(test)]

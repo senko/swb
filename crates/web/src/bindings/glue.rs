@@ -363,8 +363,8 @@ fn unforgeable_template<H: Host>(
 
 /// Defines the `[LegacyUnforgeable]` members of `class` (and of its
 /// ancestors) on a new instance `object` (Web IDL §3.7.8, "unforgeable"
-/// properties are own properties of each instance). Feature 4c calls it
-/// for each new node wrapper; [`super::Cx::new_instance`] calls it for
+/// properties are own properties of each instance). `crate::state` calls
+/// it for each new node wrapper; [`super::Cx::new_instance`] calls it for
 /// constructed objects.
 pub fn install_unforgeables<H: Host>(
     rt: &mut Runtime,

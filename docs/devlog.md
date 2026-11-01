@@ -4,6 +4,40 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M8 maintenance; end of M8
+
+- Two reviewers read the Web API layer (`web`, `webidl`) and the other
+  M8 code, the tools and the docs; one implementer session applied 28
+  of the 34 items. Six were wrong or would change behaviour.
+  - Duplicates removed: one helper fires a trusted event at an object
+    target (six copies before); one `window_object` for the SameObject
+    getters of the window; one rejected-promise helper; one MIME
+    essence parser; one set of segment builders for ellipses and
+    rounded rectangles in layout; the CSSOM string helpers use those of
+    `swb_css`; the test helpers of the engine, automation and web tests
+    live in `tests/common/mod.rs`.
+  - Dead code removed, and twelve `net` exports narrowed to
+    `pub(crate)`. The tools lost the code for a swb without `--js`,
+    `--now`, `--eval` or `--steps`.
+  - Splits along existing seams: `performance/` (navigation timing),
+    `raster/gradient.rs`, and `probe.py` into case parsing, output
+    format and the case server.
+  - Docs: statements that named done features as future work, wrong
+    counts and file names (module lists, architecture, testing,
+    automation, ADR 0028).
+- Proof of no behaviour change: the JS-off snapshot is identical;
+  `compare --js` unchanged (senko-net 0.9990, Hacker News 0.9986,
+  Wikipedia 0.9967, Craigslist 0.9976 pixels); hostile set as before.
+- Left: the quote handling of `charset=` and `boundary=` differs (a
+  behaviour change, backlog); two test `settle` helpers with other
+  bounds; the rounded rectangle of the rasterizer keeps its own path.
+- Process: the first M8 build-up filled the disk (about 320 GB of build
+  output in three trees). Debug builds are now cleaned after each
+  commit, agent worktrees are removed after their hand-off, and agents
+  stop below 60 GB free.
+
+Next: the owner chooses the next milestone.
+
 ## 2026-11-01: M8 feature 12d, link preview and search typeahead; exit of feature 12
 
 - The Wikipedia fixture has 15 more entries, recorded with `swb

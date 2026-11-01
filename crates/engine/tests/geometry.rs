@@ -26,7 +26,7 @@ use std::time::Duration;
 use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
-use common::new_page;
+use common::{new_page, on_page_thread};
 
 /// A probe case with Chromium's values: (query, value).
 pub(crate) struct Case {
@@ -141,16 +141,6 @@ fn run_case(case: &'static Case) -> Vec<String> {
         }
     }
     failures
-}
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap()
 }
 
 /// Runs the cases on threads of their own.

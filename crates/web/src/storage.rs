@@ -166,15 +166,6 @@ impl StorageStore {
         self.area(kind, origin).map_or(0, |a| a.entries.len())
     }
 
-    /// The number of keys of all areas.
-    pub fn total_keys(&self) -> usize {
-        self.local
-            .values()
-            .chain(self.session.values())
-            .map(|a| a.entries.len())
-            .sum()
-    }
-
     /// The key at `index` in the order of the area.
     pub fn key(&self, kind: StorageKind, origin: &str, index: usize) -> Option<String> {
         let area = self.area(kind, origin)?;

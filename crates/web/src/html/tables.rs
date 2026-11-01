@@ -34,7 +34,7 @@ fn child_named(cx: &Cx<'_>, parent: NodeId, name: &str) -> b::Result<Option<Node
 /// The nodes of a list of `root`.
 fn nodes(cx: &mut Cx<'_>, root: NodeId, kind: ElementList) -> b::Result<Vec<NodeId>> {
     let object = lists::element_list(cx, root, kind)?;
-    let list = lists::platform(cx.rt, object)?;
+    let list = lists::list_platform(cx.rt, object)?;
     lists::nodes_of(cx, list)
 }
 

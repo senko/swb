@@ -25,7 +25,7 @@ use crate::response::Response;
 
 /// The result of [`fetch_request`].
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Fetched {
+pub(crate) struct Fetched {
     /// The final response after redirects. With
     /// [`Request::exposed_to_script`] it is the filtered response of
     /// `kind`; otherwise the full response.
@@ -47,7 +47,7 @@ pub struct Fetched {
 ///   sets the tainted-origin flag as Fetch says.
 ///
 /// <https://fetch.spec.whatwg.org/#main-fetch>
-pub fn fetch_request(
+pub(crate) fn fetch_request(
     fetcher: &dyn Fetcher,
     mut request: Request,
     cache: &PreflightCache,

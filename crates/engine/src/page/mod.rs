@@ -342,11 +342,6 @@ impl Page {
         self.doc.as_deref()
     }
 
-    /// The state of the current document, for changes and queries.
-    pub fn document_state_mut(&mut self) -> Option<&mut DocumentState> {
-        self.doc.as_deref_mut()
-    }
-
     /// Takes the state of the current document out of the page, for a
     /// script runtime that runs a task (ADR 0028 section 2). Until
     /// [`Page::return_document_state`], the page has no document: queries

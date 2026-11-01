@@ -241,6 +241,34 @@ pub(crate) fn fire_trusted(
     result
 }
 
+/// Fires the trusted event `kind` of the interface `class` at the object
+/// `target` (not a node) in realm 0, in a handle scope of its own: it does
+/// not bubble and is cancelable if `cancelable` says so. Returns false if
+/// a listener canceled it.
+pub(crate) fn fire_at_object(
+    rt: &mut Runtime,
+    target: Gc<Object>,
+    class: ClassId,
+    kind: &str,
+    cancelable: bool,
+    extra: Extra,
+) -> VmResult<bool> {
+    let init = EventInit {
+        bubbles: false,
+        cancelable,
+        composed: false,
+    };
+    let mut data = EventData::new(kind.to_owned(), &init, super::now(rt), extra);
+    data.is_trusted = true;
+    let scope = rt.heap_mut().open_scope();
+    let result =
+        new_event_object(rt, 0, class, data).and_then(|event| dispatch(rt, 0, target, event, None));
+    if let Err(error) = rt.heap_mut().close_scope(scope) {
+        log::warn!("the handle scope of an event was not the last one: {error:?}");
+    }
+    result
+}
+
 /// DOM "dispatch" of `event` to `target`, with the legacy target override
 /// (the target object that listeners see instead of `target`). The caller
 /// checked the dispatch and initialized flags. Returns false if the event

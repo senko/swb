@@ -796,7 +796,7 @@ pub(crate) fn element_list(
 }
 
 /// The list object as a platform object.
-pub(crate) fn platform(rt: &Runtime, list: Gc<Object>) -> b::Result<Platform> {
+pub(crate) fn list_platform(rt: &Runtime, list: Gc<Object>) -> b::Result<Platform> {
     match rt.host_object(list.into()) {
         Some((_, data)) => Ok(Platform { object: list, data }),
         None => Err(VmError::type_error("Illegal invocation").into()),

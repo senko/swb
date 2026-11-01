@@ -5,10 +5,10 @@
 //! `x 0`), equal pairs written once (`background-size: 10px auto` is
 //! `10px`), two-value `display` as its short form, and the like.
 
-use swb_css::{ComponentValue, Parser};
+use swb_css::{ComponentValue, Parser, trim_whitespace};
 
 use super::props::Ser;
-use super::value::{Style, serialize, split_commas, trimmed};
+use super::value::{Style, serialize, split_commas};
 use crate::parse::color::parse_color;
 use crate::properties::inert::declared_text as declared;
 
@@ -34,7 +34,7 @@ const GENERIC_FAMILIES: &[&str] = &[
 /// without `!important`, CSS-wide keywords and `var()`) of a longhand.
 #[allow(clippy::too_many_lines)] // One arm per serialization class.
 pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String {
-    let tokens = trimmed(tokens);
+    let tokens = trim_whitespace(tokens);
     match ser {
         Ser::Plain | Ser::Content => serialize(tokens, Style::PLAIN),
         Ser::Length => serialize(tokens, Style::LENGTH),

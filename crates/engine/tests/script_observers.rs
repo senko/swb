@@ -21,7 +21,7 @@ mod common;
 mod io_cases;
 #[path = "observers_ro/cases.rs"]
 mod ro_cases;
-use common::{TestSite, finish_loading, new_page};
+use common::{TestSite, finish_loading, new_page, on_page_thread, value};
 
 /// A probe case with Chromium's values: its page and its queries (query,
 /// value).
@@ -36,16 +36,6 @@ pub(crate) struct Case {
 type Departure = (&'static str, usize, &'static str, &'static str);
 
 const URL: &str = "https://site.test/page.html";
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A page with JavaScript on and a virtual clock that shows `html` in a
 /// viewport of 400 by 200 px (the size of the probes).
@@ -65,14 +55,6 @@ fn load(html: &str) -> Page {
     page.navigate(Url::parse(URL).unwrap());
     finish_loading(&mut page, Duration::from_secs(20));
     page
-}
-
-#[allow(dead_code)]
-fn value(page: &mut Page, source: &str) -> String {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => text,
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 /// Runs the cases; a departure replaces Chromium's value.

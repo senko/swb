@@ -221,6 +221,37 @@ pub(crate) fn on_big_stack<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'st
         .expect("the test thread")
 }
 
+/// Runs each (source, expected) case in a new runtime from `make` (called
+/// with the GC stress flag), with and without the GC stress mode, on a
+/// thread with a big stack. `judge` runs the source and gives `Err(actual)`
+/// if the result is not the expected one. Fails the test with all
+/// differences.
+pub(crate) fn check_cases<R: 'static>(
+    cases: &[(&str, &str)],
+    make: fn(bool) -> R,
+    judge: fn(&mut R, &str, &str) -> Result<(), String>,
+) {
+    let cases: Vec<(String, String)> = cases
+        .iter()
+        .map(|&(s, e)| (s.to_owned(), e.to_owned()))
+        .collect();
+    let failures = on_big_stack(move || {
+        let mut failures = Vec::new();
+        for (source, expected) in &cases {
+            for stress in [false, true] {
+                let mut rt = make(stress);
+                if let Err(actual) = judge(&mut rt, source, expected) {
+                    failures.push(format!(
+                        "{source} (stress {stress})\n  expected: {expected}\n  actual:   {actual}"
+                    ));
+                }
+            }
+        }
+        failures
+    });
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 /// Runs every case with and without the GC stress mode, each case in one
 /// runtime with its queries in order (as the probe runs them in one page),
 /// and returns the differences from Chromium's values (or from the

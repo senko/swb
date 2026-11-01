@@ -16,7 +16,7 @@
 // `DOMQuad`. Changes:
 //
 // - `[Exposed=(Window,Worker)]` and `[Serializable]` are `[Exposed=Window]`
-//   (no workers, no `structuredClone` yet).
+//   (no workers; `structuredClone` does not serialize these objects).
 // - `[Default] object toJSON()` is `object toJSON()`: the generator has no
 //   default toJSON; the binding builds the object with its members.
 // - `DOMRect` has no `[LegacyWindowAlias=SVGRect]` (Chromium 148 has no

@@ -12,11 +12,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::{Fetcher, Headers, Method, NetError, Request, Response};
 
 mod common;
-use common::{finish_loading, new_page};
+use common::{finish_loading, new_page, on_page_thread, value};
 
 const APP: &str = "https://app.test";
 const API: &str = "https://api.test";
@@ -147,16 +147,6 @@ fn fixture_builtin(request: &Request) -> Option<Result<Response, NetError>> {
         .then(|| swb_net::NetworkFetcher::new().fetch(request))
 }
 
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
-
 /// A page at `APP` with JavaScript on, served by `server`.
 fn load(server: Arc<Server>) -> Page {
     let mut page = new_page(server as Arc<dyn Fetcher>, 3, Size::new(600.0, 400.0));
@@ -164,13 +154,6 @@ fn load(server: Arc<Server>) -> Page {
     page.navigate(Url::parse(&format!("{APP}/page.html")).unwrap());
     finish_loading(&mut page, Duration::from_secs(20));
     page
-}
-
-fn value(page: &mut Page, source: &str) -> String {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => text,
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 /// The helpers of the probe pages: `T(promise)` is the type, the status and

@@ -35,7 +35,9 @@ mod value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use swb_css::{ComponentValue, Declaration, SupportsCondition, parse_component_values};
+use swb_css::{
+    ComponentValue, Declaration, SupportsCondition, parse_component_values, trim_whitespace,
+};
 
 use crate::parse::{ParserContext, is_custom_property_name};
 use crate::properties::{CssWideKeyword, has_references, is_supported, parse_declaration};
@@ -105,7 +107,7 @@ fn wide_keyword(tokens: &[ComponentValue]) -> Option<&'static str> {
         CssWideKeyword::Initial => "initial",
         CssWideKeyword::Inherit => "inherit",
         CssWideKeyword::Unset => "unset",
-        CssWideKeyword::Revert => match value::trimmed(tokens) {
+        CssWideKeyword::Revert => match trim_whitespace(tokens) {
             [ComponentValue::Ident(s)] if s.eq_ignore_ascii_case("revert-layer") => "revert-layer",
             _ => "revert",
         },
@@ -191,7 +193,7 @@ impl StyleDeclarations {
     /// swb does not parse it), and the shorthand if `name` is one. `name`
     /// is lower case except for custom properties.
     fn expand(&self, name: &str, tokens: &[ComponentValue]) -> (Vec<(Name, Value)>, Option<usize>) {
-        let tokens = value::trimmed(tokens);
+        let tokens = trim_whitespace(tokens);
         if is_custom_property_name(name) {
             if !valid_custom_value(tokens) {
                 return (Vec::new(), None);
@@ -493,7 +495,7 @@ impl StyleDeclarations {
 /// not supported.
 pub fn supports_property(property: &str, value: &str) -> bool {
     let tokens = parse_component_values(value);
-    let tokens = value::trimmed(&tokens);
+    let tokens = trim_whitespace(&tokens);
     if is_custom_property_name(property) {
         return valid_custom_value(tokens);
     }

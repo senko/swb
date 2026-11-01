@@ -22,10 +22,10 @@
 use swb_js::{Gc, Generic, Object, Runtime, Tracer, VmResult};
 
 use crate::bindings::{self as b, Cx, Platform};
-use crate::events::{EventData, Extra, TargetData};
+use crate::events::{Extra, TargetData};
 use crate::generated as g;
 use crate::generated::types::{
-    AddEventListenerOptionsOrBoolean, EventInit, EventListener, EventListenerOptionsOrBoolean,
+    AddEventListenerOptionsOrBoolean, EventListener, EventListenerOptionsOrBoolean,
 };
 use crate::state::{WebState, engine, state, state_mut};
 
@@ -183,21 +183,15 @@ pub(crate) fn report_changes(rt: &mut Runtime) -> VmResult<()> {
         let Some((target, media, matches)) = changed else {
             continue;
         };
-        let init = EventInit {
-            bubbles: false,
-            cancelable: false,
-            composed: false,
-        };
-        let now = crate::events::now(rt);
-        let mut data = EventData::new(
-            "change".to_owned(),
-            &init,
-            now,
-            Extra::MediaQuery { media, matches },
-        );
-        data.is_trusted = true;
-        let event = crate::events::new_event_object(rt, 0, g::MEDIA_QUERY_LIST_EVENT, data)?;
-        crate::events::dispatch(rt, 0, target, event, None)?;
+        let extra = Extra::MediaQuery { media, matches };
+        crate::events::fire_at_object(
+            rt,
+            target,
+            g::MEDIA_QUERY_LIST_EVENT,
+            "change",
+            false,
+            extra,
+        )?;
     }
     Ok(())
 }

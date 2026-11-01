@@ -419,7 +419,7 @@ Feature 4b notes:
   traits of a set. 4c implements the traits for its binding state; the
   glue for `EventTarget`, `Event`, `Node` and `DOMException` compiles
   without that and registers with a test host
-  (`crates/web/tests/interfaces.rs`). `[SwbCustom]` members are
+  (`crates/web/tests/bindings.rs`). `[SwbCustom]` members are
   hand-written native functions (`fn(&mut Runtime, &NativeCall)`) that the
   trait declares and the glue defines as they are.
 - (Feature 4b: the `cx` interface.) `Cx` holds `&mut Runtime`, the realm,
@@ -592,7 +592,7 @@ Feature 4c2 notes:
   attributes are cached by DOM generation (one walk per generation, at
   the first miss of the id index). A name of several elements gives one
   element, the one with the id first (HTML: an `HTMLCollection`, which
-  comes with feature 6b);
+  done in feature 6b);
   `[[OwnPropertyKeys]]` lists no names, as in Chromium.
 - (Feature 4c2: the IDL cut.) `Node` has its read-only tree accessors
   (`ownerDocument`, `parentNode`, `parentElement`, `childNodes`, the
@@ -606,8 +606,8 @@ Feature 4c2 notes:
   `documentElement`, HTML's `title` (with the setter), `body` (with the
   setter and Chromium's messages) and `head`, and `ParentNode`'s element
   accessors. `CharacterData` has `data` (with the setter) and `length`.
-  `Event` and `EventTarget` are stand-ins until feature 5a: listeners are
-  accepted and never called.
+  `Event` and `EventTarget` were stand-ins in feature 4c2 (listeners were
+  accepted and never called); feature 5a replaced them.
 - (Feature 4c2: evaluation.) `ScriptRuntime::evaluate` runs the source as
   a classic script, settles a promise with a microtask checkpoint (a
   promise still pending is an error until the event loop exists), and
@@ -622,8 +622,9 @@ Feature 4c2 notes:
   the sink gets the level. `ScriptRuntime` writes each line to the log
   (target `console`) and to a buffer of the last 1,000 messages (16 KiB
   each), which `page.consoleMessages` returns.
-- (Feature 4c2: inline scripts.) Until feature 5c, the inline classic
-  scripts of a document run in tree order after the parse, each as a
+- (Feature 4c2: inline scripts; since feature 5c the scripts run in the
+  parse, section 8.) In feature 4c2, the inline classic
+  scripts of a document ran in tree order after the parse, each as a
   task (`scripts.rs`: the type string and the JavaScript MIME type
   essence match of HTML "prepare the script element", `nomodule`
   skipped, scripts with `src` skipped). A script therefore sees the whole
@@ -748,8 +749,9 @@ Feature 5b notes (the event loop; see also section 7):
   (the first frame of its stack, `Runtime::error_location`), else where
   the value was thrown (`Runtime::throw_location`), else the place of a
   compile error; lines count from the start of a script's own text, not
-  of the document (a departure for inline scripts until feature 5c knows
-  their positions; since feature 5c they count from the document). A listener whose `handleEvent` is not callable gets a
+  of the document (a departure for inline scripts in feature 4c2, which
+  did not know their positions; since feature 5c they count from the
+  document). A listener whose `handleEvent` is not callable gets a
   console line and no `error` event, as in Chromium (measured; HTML would
   fire one). `unhandledrejection` is a cancelable `PromiseRejectionEvent`;
   not canceled, it gives `Uncaught (in promise) ...`. `rejectionhandled`
@@ -1492,9 +1494,8 @@ queries), three equal Chromium runs each; the Rust tests are
   senko.net, five runs each), for the 480 handler accessors and 20 more
   interfaces. Runtime creation now takes about 1.13 MB and 3.1 ms in total.
   That is past the limit of about 1 ms or 1 MB, which applies to the total.
-  The interface objects get lazy creation in a later feature;
-  the roadmap backlog holds the item. (Done: "Lazy interfaces notes" has
-  the new numbers.) JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
+  The interface objects got lazy creation after this feature
+  ("Lazy interfaces notes" has the new numbers). JavaScript-off pages pay nothing. Hacker News and senko.net with JavaScript on load in 19 and 12
   ms (base 20 and 13), with the boxes and pixels of the JavaScript-off run.
 
 Feature 6d2 notes (the engine's input as DOM events; measured with
@@ -3905,7 +3906,7 @@ and unit tests per module, and five hostile cases):
   (backlog: pages read `navigator.plugins.length` for fingerprinting; they
   would throw), `clientInformation`, and the feature-detection members of
   section 13's list.
-- **`performance`** (`performance.rs`, `performance_observer.rs`).
+- **`performance`** (`performance/`, `performance_observer.rs`).
   `now()` and `timeOrigin` are the document clock of feature 5b. The buffer
   holds marks and measures in order of making, at most 131,072; the
   navigation entry is the implicit first one; `getEntries*` filter and sort
@@ -4628,8 +4629,8 @@ serializer are now.
 `load` event within three times Chromium's jitless `TaskDuration`
 from the survey, plus the JavaScript-off time of the page; senko.net
 and Hacker News within 50 ms more than with JavaScript off. Each target
-in the plan states its number. Lazy compilation (M7 13f) stays later
-work: compiling the scripts of the largest surveyed page takes 176 ms
+in the plan states its number. Lazy compilation (M7 13f) is not
+implemented: compiling the scripts of the largest surveyed page takes 176 ms
 and 30 MiB.
 
 **Hostile pages.** The set (testing.md) gets cases for: an endless loop
@@ -4638,8 +4639,8 @@ microtask chain; `setInterval(0)` and `requestAnimationFrame` loops;
 DOM growth past the node limit; deep nesting through `appendChild`;
 recursion through `MutationObserver` callbacks and nested
 `dispatchEvent`; huge `innerHTML`; `localStorage` past its quota;
-thousands of pending fetches; with `document.write` (later), a script
-that writes itself. Each case ends within the limits of the set and
+thousands of pending fetches; with `document.write` (not implemented), a
+script that writes itself. Each case ends within the limits of the set and
 logs the limit that acted.
 
 ### 17. Tests

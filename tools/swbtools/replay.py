@@ -41,7 +41,8 @@ from playwright.async_api import Page
 from swbtools import browser, paths
 from swbtools.manifest import Fixture
 from swbtools.pages import read_meta
-from swbtools.probe import ProbeError, parse_steps, run_steps
+from swbtools.probe import run_steps
+from swbtools.probe_cases import ProbeError, parse_steps
 from swbtools.reference import load_settled_js, parse_captured
 from swbtools.routing import Replayer
 

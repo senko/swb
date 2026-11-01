@@ -14,21 +14,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::{CookieJar, Fetcher, Headers, NetError, ReplayFetcher, Request, Response};
 
 mod common;
-use common::{Site, finish_loading, new_page};
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
+use common::{Site, finish_loading, new_page, on_page_thread, settle, value};
 
 /// A site with a cookie jar, as the network fetcher has one: it sends the
 /// jar's `Cookie` header, stores the `Set-Cookie` headers of the responses,
@@ -91,21 +81,6 @@ fn open(fetcher: Arc<dyn Fetcher>, url: &str) -> Page {
     page.navigate(Url::parse(url).unwrap());
     finish_loading(&mut page, Duration::from_secs(20));
     page
-}
-
-fn settle(page: &mut Page) {
-    assert!(
-        page.wait_until_idle(Duration::from_millis(30), Duration::from_secs(20)),
-        "the page did not settle"
-    );
-    page.update_layout();
-}
-
-fn value(page: &mut Page, source: &str) -> String {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => text,
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 const A: &str = "https://site.test/dir/a.html";

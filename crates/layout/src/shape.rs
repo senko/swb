@@ -11,8 +11,8 @@
 
 use swb_style::{BasicShape, FillRule, Inset, LengthPercentage, ShapePosition, ShapeRadius};
 
-use crate::geom::{KAPPA, Matrix, Point, Rect};
-use crate::svg::{PathSegment, SvgPath, path_from_data};
+use crate::geom::{Matrix, Point, Rect};
+use crate::svg::{PathSegment, SvgPath, ellipse_segments, path_from_data, rounded_rect_segments};
 
 /// Corner radii (horizontal, vertical) in px: top-left, top-right,
 /// bottom-right, bottom-left.
@@ -199,24 +199,13 @@ fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32) -> ShapeGeometry {
     if !(rx > 0.0 && ry > 0.0 && rx.is_finite() && ry.is_finite()) {
         return ShapeGeometry::Empty;
     }
-    let (kx, ky) = (rx * KAPPA, ry * KAPPA);
-    let p = Point::new;
-    let segments = [
-        PathSegment::MoveTo(p(cx + rx, cy)),
-        PathSegment::CubicTo(p(cx + rx, cy + ky), p(cx + kx, cy + ry), p(cx, cy + ry)),
-        PathSegment::CubicTo(p(cx - kx, cy + ry), p(cx - rx, cy + ky), p(cx - rx, cy)),
-        PathSegment::CubicTo(p(cx - rx, cy - ky), p(cx - kx, cy - ry), p(cx, cy - ry)),
-        PathSegment::CubicTo(p(cx + kx, cy - ry), p(cx + rx, cy - ky), p(cx + rx, cy)),
-        PathSegment::Close,
-    ];
-    ShapeGeometry::path(&segments, FillRule::NonZero)
+    ShapeGeometry::path(&ellipse_segments(cx, cy, rx, ry), FillRule::NonZero)
 }
 
 /// The path of the rounded rectangle, or `None` for an empty rectangle
 /// or one that is not finite. The radii are scaled down to fit (CSS
 /// Backgrounds 3 §4.5).
 pub fn rounded_path(rect: Rect, radii: &CornerRadii) -> Option<SvgPath> {
-    const K: f32 = KAPPA;
     if !(rect.width > 0.0 && rect.height > 0.0) {
         return None;
     }
@@ -235,36 +224,5 @@ pub fn rounded_path(rect: Rect, radii: &CornerRadii) -> Option<SvgPath> {
         *h *= f;
         *v *= f;
     }
-    let [(tlx, tly), (trx, try_), (brx, bry), (blx, bly)] = radii;
-    let (x0, y0, x1, y1) = (rect.x, rect.y, rect.right(), rect.bottom());
-    let p = Point::new;
-    let segments = [
-        PathSegment::MoveTo(p(x0 + tlx, y0)),
-        PathSegment::LineTo(p(x1 - trx, y0)),
-        PathSegment::CubicTo(
-            p(x1 - trx + trx * K, y0),
-            p(x1, y0 + try_ - try_ * K),
-            p(x1, y0 + try_),
-        ),
-        PathSegment::LineTo(p(x1, y1 - bry)),
-        PathSegment::CubicTo(
-            p(x1, y1 - bry + bry * K),
-            p(x1 - brx + brx * K, y1),
-            p(x1 - brx, y1),
-        ),
-        PathSegment::LineTo(p(x0 + blx, y1)),
-        PathSegment::CubicTo(
-            p(x0 + blx - blx * K, y1),
-            p(x0, y1 - bly + bly * K),
-            p(x0, y1 - bly),
-        ),
-        PathSegment::LineTo(p(x0, y0 + tly)),
-        PathSegment::CubicTo(
-            p(x0, y0 + tly - tly * K),
-            p(x0 + tlx - tlx * K, y0),
-            p(x0 + tlx, y0),
-        ),
-        PathSegment::Close,
-    ];
-    SvgPath::from_segments(&segments)
+    SvgPath::from_segments(&rounded_rect_segments(rect, radii))
 }

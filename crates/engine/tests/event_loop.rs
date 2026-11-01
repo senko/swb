@@ -16,19 +16,9 @@ use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
 use swb_net::Fetcher;
 
 mod common;
-use common::{TestSite, finish_loading, new_page};
+use common::{TestSite, finish_loading, new_page, on_page_thread, value};
 
 const URL: &str = "https://site.test/page.html";
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A page with JavaScript on and `clock` that shows `html`.
 fn load(html: &str, clock: PageClock) -> Page {
@@ -44,13 +34,6 @@ fn load(html: &str, clock: PageClock) -> Page {
     page.navigate(Url::parse(URL).unwrap());
     finish_loading(&mut page, Duration::from_secs(20));
     page
-}
-
-fn value(page: &mut Page, source: &str) -> String {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => text,
-        other => panic!("{source}: {other:?}"),
-    }
 }
 
 /// A virtual clock that starts at 2026-01-01T00:00:00Z.

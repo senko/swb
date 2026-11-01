@@ -51,5 +51,6 @@ pub use stylesheet::{
 pub use supports::SupportsCondition;
 pub use tokenizer::{Number, Token, tokenize};
 pub use values::{
-    BlockKind, ComponentValue, Function, SimpleBlock, contains_function, trim_whitespace,
+    BlockKind, ComponentValue, Function, SimpleBlock, contains_function, split_on_commas,
+    trim_whitespace,
 };

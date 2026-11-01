@@ -734,9 +734,75 @@ impl EllipticalArc {
     }
 }
 
-/// The path of an ellipse with center `(cx, cy)` and radii `rx`, `ry`
+/// The segments of an ellipse with center `(cx, cy)` and radii `rx`, `ry`
 /// (both positive): four cubic quarters, clockwise from the right end
 /// (SVG 2 §10.4: it starts at `cx + rx, cy`).
+pub(crate) fn ellipse_segments(cx: f32, cy: f32, rx: f32, ry: f32) -> [PathSegment; 6] {
+    let (kx, ky) = (rx * KAPPA, ry * KAPPA);
+    let p = Point::new;
+    [
+        PathSegment::MoveTo(p(cx + rx, cy)),
+        PathSegment::CubicTo(p(cx + rx, cy + ky), p(cx + kx, cy + ry), p(cx, cy + ry)),
+        PathSegment::CubicTo(p(cx - kx, cy + ry), p(cx - rx, cy + ky), p(cx - rx, cy)),
+        PathSegment::CubicTo(p(cx - rx, cy - ky), p(cx - kx, cy - ry), p(cx, cy - ry)),
+        PathSegment::CubicTo(p(cx + kx, cy - ry), p(cx + rx, cy - ky), p(cx + rx, cy)),
+        PathSegment::Close,
+    ]
+}
+
+/// The segments of a rectangle with elliptical corners: clockwise from
+/// `(x + top-left rx, y)`, with the radii `(rx, ry)` of the top-left,
+/// top-right, bottom-right and bottom-left corner. The radii must fit
+/// the rectangle (CSS Backgrounds 3 §4.5 scales them down).
+pub(crate) fn rounded_rect_segments(rect: Rect, radii: [(f32, f32); 4]) -> [PathSegment; 10] {
+    const K: f32 = KAPPA;
+    let [(tlx, tly), (trx, try_), (brx, bry), (blx, bly)] = radii;
+    let (x0, y0, x1, y1) = (rect.x, rect.y, rect.right(), rect.bottom());
+    let p = Point::new;
+    [
+        PathSegment::MoveTo(p(x0 + tlx, y0)),
+        PathSegment::LineTo(p(x1 - trx, y0)),
+        PathSegment::CubicTo(
+            p(x1 - trx + trx * K, y0),
+            p(x1, y0 + try_ - try_ * K),
+            p(x1, y0 + try_),
+        ),
+        PathSegment::LineTo(p(x1, y1 - bry)),
+        PathSegment::CubicTo(
+            p(x1, y1 - bry + bry * K),
+            p(x1 - brx + brx * K, y1),
+            p(x1 - brx, y1),
+        ),
+        PathSegment::LineTo(p(x0 + blx, y1)),
+        PathSegment::CubicTo(
+            p(x0 + blx - blx * K, y1),
+            p(x0, y1 - bly + bly * K),
+            p(x0, y1 - bly),
+        ),
+        PathSegment::LineTo(p(x0, y0 + tly)),
+        PathSegment::CubicTo(
+            p(x0, y0 + tly - tly * K),
+            p(x0 + tlx - tlx * K, y0),
+            p(x0 + tlx, y0),
+        ),
+        PathSegment::Close,
+    ]
+}
+
+/// A path from `segments` within the budget, or `None` if a coordinate
+/// is not finite, the budget is used up or nothing draws.
+fn build(segments: &[PathSegment], budget: &mut usize) -> Option<SvgPath> {
+    let mut b = PathBuilder::new(budget);
+    for segment in segments {
+        if !b.push(*segment) {
+            return None;
+        }
+    }
+    b.finish()
+}
+
+/// The path of an ellipse with center `(cx, cy)` and radii `rx`, `ry`
+/// (both positive; see [`ellipse_segments`]).
 pub(crate) fn ellipse_path(
     cx: f32,
     cy: f32,
@@ -744,62 +810,29 @@ pub(crate) fn ellipse_path(
     ry: f32,
     budget: &mut usize,
 ) -> Option<SvgPath> {
-    let (kx, ky) = (rx * KAPPA, ry * KAPPA);
-    let mut b = PathBuilder::new(budget);
-    let p = Point::new;
-    let ok = b.move_to(p(cx + rx, cy))
-        && b.cubic_to(p(cx + rx, cy + ky), p(cx + kx, cy + ry), p(cx, cy + ry))
-        && b.cubic_to(p(cx - kx, cy + ry), p(cx - rx, cy + ky), p(cx - rx, cy))
-        && b.cubic_to(p(cx - rx, cy - ky), p(cx - kx, cy - ry), p(cx, cy - ry))
-        && b.cubic_to(p(cx + kx, cy - ry), p(cx + rx, cy - ky), p(cx + rx, cy))
-        && b.close();
-    if ok { b.finish() } else { None }
+    build(&ellipse_segments(cx, cy, rx, ry), budget)
 }
 
 /// The path of a rectangle with corner radii `rx`, `ry` (already clamped
 /// to half the width and height; both zero for square corners). SVG 2
 /// §10.2: clockwise from `(x + rx, y)`.
 pub(crate) fn rect_path(rect: Rect, rx: f32, ry: f32, budget: &mut usize) -> Option<SvgPath> {
+    if rx > 0.0 && ry > 0.0 {
+        return build(&rounded_rect_segments(rect, [(rx, ry); 4]), budget);
+    }
     let (left, top) = (rect.x, rect.y);
     let (right, bottom) = (rect.right(), rect.bottom());
-    let mut pb = PathBuilder::new(budget);
     let pt = Point::new;
-    let ok = if rx > 0.0 && ry > 0.0 {
-        let (kx, ky) = (rx * KAPPA, ry * KAPPA);
-        pb.move_to(pt(left + rx, top))
-            && pb.line_to(pt(right - rx, top))
-            && pb.cubic_to(
-                pt(right - rx + kx, top),
-                pt(right, top + ry - ky),
-                pt(right, top + ry),
-            )
-            && pb.line_to(pt(right, bottom - ry))
-            && pb.cubic_to(
-                pt(right, bottom - ry + ky),
-                pt(right - rx + kx, bottom),
-                pt(right - rx, bottom),
-            )
-            && pb.line_to(pt(left + rx, bottom))
-            && pb.cubic_to(
-                pt(left + rx - kx, bottom),
-                pt(left, bottom - ry + ky),
-                pt(left, bottom - ry),
-            )
-            && pb.line_to(pt(left, top + ry))
-            && pb.cubic_to(
-                pt(left, top + ry - ky),
-                pt(left + rx - kx, top),
-                pt(left + rx, top),
-            )
-            && pb.close()
-    } else {
-        pb.move_to(pt(left, top))
-            && pb.line_to(pt(right, top))
-            && pb.line_to(pt(right, bottom))
-            && pb.line_to(pt(left, bottom))
-            && pb.close()
-    };
-    if ok { pb.finish() } else { None }
+    build(
+        &[
+            PathSegment::MoveTo(pt(left, top)),
+            PathSegment::LineTo(pt(right, top)),
+            PathSegment::LineTo(pt(right, bottom)),
+            PathSegment::LineTo(pt(left, bottom)),
+            PathSegment::Close,
+        ],
+        budget,
+    )
 }
 
 /// The path of a `line` element.

@@ -15,13 +15,6 @@ from swbtools.boxes import BoxDump, Element
 from swbtools.browser import in_chromium
 from swbtools.cli import build_parser
 from swbtools.probe import (
-    Case,
-    CaseResult,
-    ProbeError,
-    Query,
-    Resource,
-    Row,
-    SwbBox,
     _probe_all,
     any_error,
     any_outside,
@@ -29,16 +22,20 @@ from swbtools.probe import (
     compare_box,
     compare_ink,
     compare_pixels,
-    format_json,
-    format_row,
-    format_text,
     ink_of,
-    parse_cases,
     pixels_in,
     probe,
+)
+from swbtools.probe_cases import (
+    Case,
+    ProbeError,
+    Query,
+    Resource,
+    parse_cases,
     read_cases,
     select_cases,
 )
+from swbtools.probe_format import CaseResult, Row, SwbBox, format_json, format_row, format_text
 
 EXAMPLE = paths.repo_root() / "tools" / "probes" / "example.json"
 
@@ -526,7 +523,7 @@ def test_case_server_answers_every_method_and_logs_the_requests(tmp_path):
     import json
     from urllib.parse import urlsplit
 
-    from swbtools.probe import CaseServer, _serve_case
+    from swbtools.probe_server import CaseServer, _serve_case
 
     resources = (
         Resource(

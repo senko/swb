@@ -19,9 +19,8 @@ use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmError,
 
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::event_loop::Task;
-use crate::events::{EventData, Extra, TargetData};
+use crate::events::{Extra, TargetData};
 use crate::generated as g;
-use crate::generated::types::EventInit;
 use crate::state::{WebState, state_mut};
 
 /// The most dependent signals (`AbortSignal.any()`) that one source signal
@@ -267,7 +266,7 @@ pub(crate) fn signal_abort(
     }
     // The abort steps, then the events (DOM "signal abort").
     for aborted in &order {
-        run_abort_steps(rt, realm, *aborted)?;
+        run_abort_steps(rt, *aborted)?;
     }
     for aborted in order {
         fire_abort(rt, aborted)?;
@@ -276,7 +275,7 @@ pub(crate) fn signal_abort(
 }
 
 /// The abort steps of one signal: the fetches and the listeners.
-fn run_abort_steps(rt: &mut Runtime, realm: u32, signal: Gc<Object>) -> VmResult<()> {
+fn run_abort_steps(rt: &mut Runtime, signal: Gc<Object>) -> VmResult<()> {
     let (reason, fetches, listeners) = {
         let state = signal_state(rt, signal)?;
         (
@@ -286,7 +285,7 @@ fn run_abort_steps(rt: &mut Runtime, realm: u32, signal: Gc<Object>) -> VmResult
         )
     };
     for id in fetches {
-        crate::fetch::abort_fetch(rt, realm, id, reason)?;
+        crate::fetch::abort_fetch(rt, id, reason)?;
     }
     for listener in listeners {
         crate::events::remove_listener(
@@ -302,16 +301,7 @@ fn run_abort_steps(rt: &mut Runtime, realm: u32, signal: Gc<Object>) -> VmResult
 
 /// Fires the trusted event `abort` at `signal`.
 fn fire_abort(rt: &mut Runtime, signal: Gc<Object>) -> VmResult<()> {
-    let init = EventInit {
-        bubbles: false,
-        cancelable: false,
-        composed: false,
-    };
-    let now = crate::events::now(rt);
-    let mut data = EventData::new("abort".to_owned(), &init, now, Extra::None);
-    data.is_trusted = true;
-    let event = crate::events::new_event_object(rt, 0, g::EVENT, data)?;
-    crate::events::dispatch(rt, 0, signal, event, None)?;
+    crate::events::fire_at_object(rt, signal, g::EVENT, "abort", false, Extra::None)?;
     Ok(())
 }
 

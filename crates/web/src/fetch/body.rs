@@ -154,10 +154,7 @@ pub(crate) fn read<T: HasBody>(
             "AbortError",
             "The user aborted a request.",
         )?;
-        return match cx.rt.rejected_promise(realm, error.into())? {
-            Value::Object(promise) => Ok(promise),
-            _ => Err(Exception::type_error("a rejected promise is not an object")),
-        };
+        return b::convert::rejected_promise(cx.rt, realm, error.into());
     }
     let bytes = match generic_mut::<T>(cx.rt, this)?.body_mut() {
         None => Vec::new(),
@@ -193,18 +190,12 @@ pub(crate) fn read<T: HasBody>(
                 let error = cx
                     .rt
                     .new_error(swb_js::ThrowKind::TypeError, "Failed to fetch")?;
-                return match cx.rt.rejected_promise(realm, error.into())? {
-                    Value::Object(promise) => Ok(promise),
-                    _ => Err(Exception::type_error("a rejected promise is not an object")),
-                };
+                return b::convert::rejected_promise(cx.rt, realm, error.into());
             };
             form_data.into()
         }
     };
-    match cx.rt.resolved_promise(realm, value)? {
-        Value::Object(promise) => Ok(promise),
-        _ => Err(Exception::type_error("PromiseResolve gave a non-object")),
-    }
+    b::convert::promise(cx.rt, realm, value)
 }
 
 /// `JSON.parse(text)`, or `null` when the text is not JSON (the `json`

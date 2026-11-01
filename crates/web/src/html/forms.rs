@@ -28,7 +28,7 @@ fn owner(cx: &Cx<'_>, node: NodeId) -> b::Result<Option<NodeId>> {
 /// A list of the element as a platform object.
 fn list(cx: &mut Cx<'_>, root: NodeId, kind: ElementList) -> b::Result<Platform> {
     let object = lists::element_list(cx, root, kind)?;
-    lists::platform(cx.rt, object)
+    lists::list_platform(cx.rt, object)
 }
 
 impl g::html_form_element::HTMLFormElementImpl for WebState {

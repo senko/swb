@@ -2162,7 +2162,7 @@ ADR 0026). The other skipped tests are proposals after ES2025.
 After M7: the bindings and the engine integration (layers 2 and 3 of
 ADR 0025) are M8.
 
-## M8: JavaScript in the browser — in progress
+## M8: JavaScript in the browser — done
 
 Owner decisions (2026-10-22, ground rules):
 
@@ -3919,6 +3919,12 @@ Steps:
         release runs, 0.274 to 0.333 s; budget 0.7 s).
         FEATURE 12 COMPLETE.
 
+   Maintenance (end of M8), done 2026-11-01: two read-only reviews (the
+   Web API layer; the other crates, tools and docs) found 34 items; 28
+   were applied without a change of behaviour (snapshot identical,
+   `compare --js` unchanged, hostile set as before), 6 were wrong or
+   would change behaviour (devlog). M8 is done.
+
    Later (not in M8):
 
    - A Craigslist search page: no special HTML features, but its result
@@ -3953,6 +3959,16 @@ Steps:
 
 ## Backlog from M8
 
+- `web` (found in the M8 maintenance review): `prompt()` does not log
+  its default value with the dialog line (compare Chromium's console
+  text first); the `charset=` parameter of XHR is split without quote
+  handling, unlike `boundary=` of `fetch` bodies (Chromium not
+  measured); `responseXML` is null for `text/xml`, `application/xml`
+  and `+xml` responses (no XML document parser), and the MIME check
+  before it lowercases the whole string and accepts an empty essence.
+- Tests (found in the M8 maintenance review): the probe tool's CORS
+  network has an `Options::Deny` answer that no case uses; add a case
+  whose preflight is denied.
 - Paint (found in feature 12d): `box-shadow` is not implemented (outer
   and inset shadows, blur, spread, offsets, the border radius;
   `getComputedStyle().boxShadow` is `undefined`). Wikipedia with
@@ -4067,10 +4083,6 @@ Steps:
 - DOM: `Document::nodes` never shrinks, and the node limit counts every
   node ever created (immortal nodes, ADR 0028 section 3). A page that
   re-renders for hours reaches the limit; node reclamation is the fix.
-- Engine: `img` elements that are not in the document do not load
-  (`new Image()` with `src` loads in browsers; in swb it loads when it
-  is inserted). Do it with `complete`, `naturalWidth` and the `load`
-  event of `img`, which nothing implements yet.
 - Engine: the text of `style` and `title` elements is their descendant
   text; HTML uses the child text content.
 - Engine: when the focused element is removed, focus becomes none, but
@@ -4106,17 +4118,16 @@ Steps:
   loops, an entry for the global object keyed by its epoch would cache
   them.
 - `js`: `HOOK_WEIGHT` is the proxy weight (2 KiB), not measured.
-- `js`: `Runtime::heap_mut` and `Heap::new_host_object` are a wide
-  `pub` surface; narrow them before 4b and 4c depend on them.
 - `js`: the source text of a script is charged only while the script's
   code object lives; its functions keep the shared text alive after
   that, uncharged (older than M8).
 - `web`: `DOMException`s that the bindings throw have no own `stack`
   (Chromium: an own string `stack` whose first line is `Name: message`).
 - `web`: overload resolution selects the overload before it converts
-  the earlier arguments (Web IDL: after). Not observable with the real
-  IDL files (no overloads yet); revisit when an overload has its
-  distinguishing argument after the first.
+  the earlier arguments (Web IDL: after). Observable only for an
+  overload whose distinguishing argument is not the first; the IDL
+  files have overloads now (`bindings/overload.rs`), but none was
+  checked for this.
 - `web`: sequences are capped at 2^24 items; a 10^9-length array-like
   runs 9 s (debug build) before the `RangeError`, and each item is
   recorded in the handle scope. A lower cap or a time charge per item

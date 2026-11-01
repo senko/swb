@@ -9,13 +9,13 @@
 
 use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 
-use super::{EventData, Extra, base, construct, this_data, this_data_mut};
+use super::{Extra, base, construct, this_data, this_data_mut};
 use crate::bindings::{self as b, Cx, NodeId, Platform};
 use crate::generated as g;
 use crate::generated::types::{
-    DeviceMotionEventInit, DeviceOrientationEventInit, EventInit, FormDataEventInit,
-    HashChangeEventInit, MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit,
-    SubmitEventInit, TransitionEventInit,
+    DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit, HashChangeEventInit,
+    MessageEventInit, PopStateEventInit, ProgressEventInit, StorageEventInit, SubmitEventInit,
+    TransitionEventInit,
 };
 use crate::state::WebState;
 
@@ -94,22 +94,8 @@ pub(crate) fn fire_progress(
     loaded: u64,
     total: u64,
 ) -> swb_js::VmResult<()> {
-    let init = EventInit {
-        bubbles: false,
-        cancelable: false,
-        composed: false,
-    };
-    let now = super::now(rt);
     let extra = Extra::Other(Box::new(progress(computable, loaded, total)));
-    let mut data = EventData::new(kind.to_owned(), &init, now, extra);
-    data.is_trusted = true;
-    let scope = rt.heap_mut().open_scope();
-    let result = super::new_event_object(rt, 0, g::PROGRESS_EVENT, data)
-        .and_then(|event| super::dispatch(rt, 0, target, event, None));
-    if let Err(error) = rt.heap_mut().close_scope(scope) {
-        log::warn!("the handle scope of an event was not the last one: {error:?}");
-    }
-    result.map(|_| ())
+    super::fire_at_object(rt, target, g::PROGRESS_EVENT, kind, false, extra).map(|_| ())
 }
 
 /// The state of a trusted `FormDataEvent`.

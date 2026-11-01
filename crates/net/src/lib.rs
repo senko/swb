@@ -46,19 +46,16 @@ mod test_util;
 pub use budget::{ByteBudget, Reservation};
 pub use cookies::{Cookie, CookieJar, SameSite};
 pub use cors::{
-    CorsFailure, PREFLIGHT_CACHE_ENTRIES, PreflightAnswer, PreflightCache, ResponseKind,
-    check_preflight, console_message, cors_check, filter_response, is_cors_safelisted_header,
-    needs_preflight, preflight_request, unsafe_request_header_names,
+    CorsFailure, ResponseKind, console_message, filter_response, is_cors_safelisted_header,
 };
-pub use cors_fetch::{Fetched, fetch_request};
 pub use data_url::percent_decode;
 pub use error::{CorsError, NetError};
 pub use escape::escape_html;
-pub use fetch::{Fetcher, MAX_REDIRECTS, fetch_following_redirects};
+pub use fetch::{Fetcher, fetch_following_redirects};
 pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};
 pub use headers::{Headers, is_token};
 pub use loader::{API_WORKERS, Completion, Loader, RequestId};
-pub use network::{MAX_BODY_SIZE, NetworkFetcher, USER_AGENT};
+pub use network::{NetworkFetcher, USER_AGENT};
 pub use request::{
     CredentialsMode, Destination, Method, RedirectMode, Request, RequestMode, Tainting,
 };

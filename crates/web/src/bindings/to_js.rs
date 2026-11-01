@@ -11,14 +11,6 @@ pub fn string(rt: &mut Runtime, text: &str) -> VmResult<Value> {
     rt.string_value(text)
 }
 
-/// A nullable string (`null` for `None`).
-pub fn nullable_string(rt: &mut Runtime, text: Option<&str>) -> VmResult<Value> {
-    match text {
-        Some(text) => rt.string_value(text),
-        None => Ok(Value::Null),
-    }
-}
-
 /// The wrapper of a node.
 pub fn node<H: Host>(rt: &mut Runtime, realm: u32, node: NodeId) -> VmResult<Value> {
     Ok(H::wrap_node(rt, realm, node)?.into())

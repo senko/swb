@@ -20,9 +20,8 @@
 
 use swb_js::{Runtime, ScriptError, SourceLocation, Value, VmError, VmResult};
 
-use crate::events::{EventData, Extra, dispatch, new_event_object};
+use crate::events::Extra;
 use crate::generated as g;
-use crate::generated::types::EventInit;
 use crate::state::state_mut;
 
 /// What ran when an error happened.
@@ -239,22 +238,9 @@ fn fire_at_window(
     class: swb_js::ClassId,
     extra: Extra,
 ) -> VmResult<bool> {
-    let init = EventInit {
-        bubbles: false,
-        cancelable: true,
-        composed: false,
-    };
-    let mut data = EventData::new(kind.to_owned(), &init, crate::events::now(rt), extra);
-    data.is_trusted = true;
-    let scope = rt.heap_mut().open_scope();
-    let result = (|| {
-        let event = new_event_object(rt, 0, class, data)?;
-        let window = rt.global(0)?;
-        dispatch(rt, 0, window, event, None)
-    })();
-    if let Err(error) = rt.heap_mut().close_scope(scope) {
-        log::warn!("the handle scope of an error report was not the last one: {error:?}");
-    }
+    let result = rt
+        .global(0)
+        .and_then(|window| crate::events::fire_at_object(rt, window, class, kind, true, extra));
     match result {
         Err(VmError::Throw(_) | VmError::Raise { .. }) => Ok(true),
         other => other,

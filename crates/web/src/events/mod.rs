@@ -33,7 +33,9 @@ mod ui;
 mod user;
 
 pub use dispatch::{DispatchTarget, EventInterface, TrustedEvent};
-pub(crate) use dispatch::{dispatch, dispatch_trusted, fire_trusted, new_event_object};
+pub(crate) use dispatch::{
+    dispatch, dispatch_trusted, fire_at_object, fire_trusted, new_event_object,
+};
 pub(crate) use handlers::{Handlers, attribute_changed as handler_attribute_changed};
 pub(crate) use listeners::Listeners;
 pub(crate) use mouse::new_click_event;

@@ -4,7 +4,7 @@
 //! calls the hand-written function of the member's interface trait with a
 //! binding context ([`Cx`]), converts the result (`to_js`) and turns an
 //! [`Exception`] into a thrown value with Chromium's message
-//! (`exception`). What the glue needs from the engine side (feature 4c)
+//! (`exception`). What the glue needs from the engine side (`crate::state`)
 //! is the [`Host`] trait: the wrapper of a node, the content attributes of
 //! an element for `[Reflect]`, and the [`GlueState`] in the host state.
 //!
@@ -137,8 +137,9 @@ pub fn node_of(data: HostData) -> Option<NodeId> {
     }
 }
 
-/// What the generated glue needs from the engine side. Feature 4c
-/// implements it for the binding state (the runtime's host data); the
+/// What the generated glue needs from the engine side.
+/// `crate::state::WebState` implements it for the binding state (the
+/// runtime's host data); the
 /// hand-written behaviour of each interface implements the interface's
 /// generated trait (for example `generated::node::NodeImpl`) for the same
 /// type.

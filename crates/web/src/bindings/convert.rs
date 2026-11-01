@@ -360,6 +360,14 @@ pub fn promise(rt: &mut Runtime, realm: u32, value: Value) -> Result<Gc<Object>>
     }
 }
 
+/// A new promise of `realm` that is rejected with `reason`.
+pub fn rejected_promise(rt: &mut Runtime, realm: u32, reason: Value) -> Result<Gc<Object>> {
+    match rt.rejected_promise(realm, reason)? {
+        Value::Object(object) => Ok(object),
+        _ => Err(Exception::type_error("a rejected promise is not an object")),
+    }
+}
+
 /// An enumeration: the index of the value of `ToString(V)` in `values`,
 /// or Chromium's `TypeError`.
 pub fn enumeration(rt: &mut Runtime, value: Value, values: &[&str], name: &str) -> Result<usize> {

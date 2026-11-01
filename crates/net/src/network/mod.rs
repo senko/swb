@@ -29,7 +29,7 @@ pub const USER_AGENT: &str = concat!(
 
 /// The maximum size of a response body in bytes, after decompression.
 /// Larger bodies cause [`NetError::BodyTooLarge`].
-pub const MAX_BODY_SIZE: u64 = 64 * 1024 * 1024;
+pub(crate) const MAX_BODY_SIZE: u64 = 64 * 1024 * 1024;
 
 /// Fetches `http:`, `https:`, `file:`, `data:` and `about:` URLs.
 ///

@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
-use common::new_page;
+use common::{answer, new_page, on_page_thread};
 
 /// A resource of a probe case: the probe's server sends it after its delay.
 pub(crate) struct Resource {
@@ -112,16 +112,6 @@ impl Fetcher for DelaySite {
     }
 }
 
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap()
-}
-
 /// A page with JavaScript on that loads `name` from `site`.
 fn open(site: DelaySite, name: &str) -> (Page, Arc<DelaySite>) {
     let url = format!("{}{name}", site.origin());
@@ -134,15 +124,6 @@ fn open(site: DelaySite, name: &str) -> (Page, Arc<DelaySite>) {
     page.set_javascript(true);
     page.navigate(Url::parse(&url).unwrap());
     (page, site)
-}
-
-/// The value of an evaluation as the probe prints it.
-fn answer(page: &mut Page, expression: &str) -> serde_json::Value {
-    match page.evaluate(expression, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        Some(Evaluation::Error(text)) => serde_json::Value::String(format!("error: {text}")),
-        None => serde_json::Value::String("error: no script runtime".to_owned()),
-    }
 }
 
 /// Runs a case: loads it and compares each answer with Chromium's.

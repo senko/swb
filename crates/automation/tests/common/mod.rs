@@ -17,6 +17,11 @@ use swb_engine::{
 };
 use swb_net::ReplayFetcher;
 
+/// The repository root.
+pub(crate) fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
 /// The directory of the fixture `name`, or `None` (the test then skips).
 pub(crate) fn fixture(name: &str) -> Option<PathBuf> {
     let root = std::env::var_os("SWB_JS_FIXTURES").map_or_else(

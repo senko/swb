@@ -13,11 +13,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::Fetcher;
 
 mod common;
-use common::{TestSite, finish_loading, new_page};
+use common::{TestSite, finish_loading, new_page, on_page_thread, settle, value};
 
 const A: &str = "https://site.test/a.html";
 const B: &str = "https://site.test/b.html";
@@ -29,16 +29,6 @@ window.LOG = [];\
 addEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state) + ':' + location.hash));\
 addEventListener('hashchange', (e) => LOG.push('hash:' + e.oldURL.slice(-7) + '>' + e.newURL.slice(-7)));\
 </script>";
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A site with the pages `A` and `B` and a page with JavaScript on that
 /// shows `A`.
@@ -60,22 +50,6 @@ fn open(b: &str) -> (Page, Arc<TestSite>) {
 
 const B_PAGE: &str = "<!DOCTYPE html><title>B</title><script>window.LOG = [];\
 addEventListener('popstate', (e) => LOG.push('pop:' + JSON.stringify(e.state)));</script>";
-
-/// Runs the tasks and loads until nothing is left.
-fn settle(page: &mut Page) {
-    assert!(
-        page.wait_until_idle(Duration::from_millis(30), Duration::from_secs(20)),
-        "the page did not settle"
-    );
-    page.update_layout();
-}
-
-fn value(page: &mut Page, source: &str) -> String {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => text,
-        other => panic!("{source}: {other:?}"),
-    }
-}
 
 /// The string value of an expression.
 fn text(page: &mut Page, source: &str) -> String {

@@ -32,7 +32,10 @@
 
 use std::fmt::Write as _;
 
-use swb_css::{BlockKind, ComponentValue, Function, Number, Parser, serialize_identifier};
+use swb_css::{
+    BlockKind, ComponentValue, Function, Number, Parser, serialize_identifier, split_on_commas,
+    trim_whitespace,
+};
 
 use crate::parse::color::parse_color;
 use crate::values::{Color, Rgba};
@@ -219,7 +222,7 @@ fn write_function(f: &Function, style: Style, out: &mut String) {
             return;
         }
         "url" => {
-            if let [ComponentValue::String(s)] = trimmed(&f.arguments) {
+            if let [ComponentValue::String(s)] = trim_whitespace(&f.arguments) {
                 write_url(s, out);
                 return;
             }
@@ -247,7 +250,7 @@ fn write_function(f: &Function, style: Style, out: &mut String) {
     } else if lower == "rect" {
         write_rect_arguments(&f.arguments, out);
     } else {
-        write_list(trimmed(&f.arguments), inner, out);
+        write_list(trim_whitespace(&f.arguments), inner, out);
     }
     out.push(')');
 }
@@ -315,23 +318,7 @@ fn write_rect_arguments(args: &[ComponentValue], out: &mut String) {
 
 /// Splits values at top-level commas.
 pub(crate) fn split_commas(values: &[ComponentValue]) -> Vec<&[ComponentValue]> {
-    values
-        .split(|v| matches!(v, ComponentValue::Comma))
-        .map(trimmed)
-        .collect()
-}
-
-/// The values without leading and trailing whitespace.
-pub(crate) fn trimmed(values: &[ComponentValue]) -> &[ComponentValue] {
-    let start = values
-        .iter()
-        .position(|v| !matches!(v, ComponentValue::Whitespace))
-        .unwrap_or(values.len());
-    let end = values
-        .iter()
-        .rposition(|v| !matches!(v, ComponentValue::Whitespace))
-        .map_or(start, |i| i + 1);
-    values.get(start..end).unwrap_or(&[])
+    split_on_commas(values).map(trim_whitespace).collect()
 }
 
 /// Writes a color value (a hash or a color function): as `rgb()` or
@@ -486,7 +473,7 @@ fn rank(unit: &str) -> (u8, String) {
 /// terms allow it, else as written with the spacing normalized.
 fn write_math(f: &Function, lower: &str, style: Style, out: &mut String) {
     let simplified = match lower {
-        "calc" | "-webkit-calc" => parse_sum(trimmed(&f.arguments)),
+        "calc" | "-webkit-calc" => parse_sum(trim_whitespace(&f.arguments)),
         "min" | "max" => {
             let sums: Option<Vec<Sum>> = split_commas(&f.arguments)
                 .into_iter()

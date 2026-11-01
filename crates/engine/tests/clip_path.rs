@@ -25,14 +25,13 @@ mod paint_cases;
 
 mod common;
 
-use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Evaluation, JsonForm, Page, Pixmap, Size, Url};
+use swb_engine::{Page, Pixmap, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, NetworkFetcher, Request, Response};
 
-use common::new_page;
+use common::{answer, differences, new_page, on_page_threads};
 
 /// A probe case with JavaScript queries: (query, Chromium's value).
 pub(crate) struct Case {
@@ -119,15 +118,6 @@ fn open(html: &'static str, javascript: bool) -> Page {
     page
 }
 
-/// The value of an evaluation as the probe prints it.
-fn answer(page: &mut Page, expression: &str) -> serde_json::Value {
-    match page.evaluate(expression, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
-        Some(Evaluation::Error(text)) => serde_json::Value::String(format!("error: {text}")),
-        None => serde_json::Value::String("error: no script runtime".to_owned()),
-    }
-}
-
 fn run_js_case(case: &'static Case) -> Vec<String> {
     let mut page = open(case.html, true);
     let mut failures = Vec::new();
@@ -162,45 +152,6 @@ fn run_js_case(case: &'static Case) -> Vec<String> {
         }
     }
     failures
-}
-
-/// The lines of two answers that differ (the answer of a query that tests
-/// many values has one line per value).
-#[allow(clippy::many_single_char_names)]
-fn differences(want: &serde_json::Value, got: &serde_json::Value) -> String {
-    let (Some(want_text), Some(got_text)) = (want.as_str(), got.as_str()) else {
-        return format!("  expected: {want}\n  actual:   {got}");
-    };
-    let (w, g): (Vec<&str>, Vec<&str>) = (want_text.lines().collect(), got_text.lines().collect());
-    let mut out = String::new();
-    for i in 0..w.len().max(g.len()) {
-        let (a, b) = (w.get(i).copied(), g.get(i).copied());
-        if a != b {
-            let _ = writeln!(
-                out,
-                "  line {i}\n    expected: {}\n    actual:   {}",
-                a.unwrap_or("(none)"),
-                b.unwrap_or("(none)")
-            );
-        }
-    }
-    out
-}
-
-/// Runs `f` for each item on a thread with the stack of swb's page thread.
-fn on_page_threads<T: Send + 'static>(
-    items: impl IntoIterator<Item = impl FnOnce() -> T + Send + 'static>,
-) -> Vec<T> {
-    let runs: Vec<_> = items
-        .into_iter()
-        .map(|f| {
-            std::thread::Builder::new()
-                .stack_size(16 << 20)
-                .spawn(f)
-                .unwrap()
-        })
-        .collect();
-    runs.into_iter().map(|run| run.join().unwrap()).collect()
 }
 
 #[test]

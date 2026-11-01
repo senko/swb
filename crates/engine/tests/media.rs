@@ -16,7 +16,7 @@ use swb_net::{Destination, Fetcher, Headers, NetError, Request, Response};
 use swb_style::Rgba;
 
 mod common;
-use common::{node, rect};
+use common::{node, rect, rgb};
 
 const ORIGIN: &str = "https://site.test/";
 
@@ -92,11 +92,6 @@ fn load(html: &str) -> (Arc<TestSite>, Page, Pixmap) {
     common::finish_loading(&mut page, Duration::from_secs(20));
     let pixmap = page.screenshot(false).unwrap();
     (site, page, pixmap)
-}
-
-fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
-    let p = pixmap.pixel(x, y).unwrap().demultiply();
-    (p.red(), p.green(), p.blue())
 }
 
 const PAGE: &str = "<!DOCTYPE html><body style='margin:0'>\

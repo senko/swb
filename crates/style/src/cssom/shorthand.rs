@@ -13,12 +13,12 @@
 
 use std::sync::Arc;
 
-use swb_css::ComponentValue;
+use swb_css::{ComponentValue, trim_whitespace};
 
 use super::Value;
 use super::longhand::serialize_longhand;
 use super::props::{Kind, Ser, Shorthand, TABLE};
-use super::value::{Style, serialize, trimmed};
+use super::value::{Style, serialize};
 use crate::parse::ParserContext;
 use crate::properties::inert::{expand_transition, transition_value};
 use crate::properties::parse_declaration;
@@ -55,7 +55,7 @@ pub(crate) fn expand(
     values
         .filter(|v| v.len() == def.longhands.len())
         .unwrap_or_else(|| {
-            let text: Arc<str> = Arc::from(serialize(trimmed(tokens), Style::MIXED));
+            let text: Arc<str> = Arc::from(serialize(trim_whitespace(tokens), Style::MIXED));
             vec![Value::Pending(index, text); def.longhands.len()]
         })
 }

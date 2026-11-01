@@ -5,12 +5,14 @@
 #![allow(dead_code)] // Each test binary uses a different subset.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use swb_engine::{
-    ElementBox, FontContext, Key, Modifiers, NodeId, Page, PageConfig, Pixmap, Rect, Size, Url,
+    ElementBox, Evaluation, FontContext, JsonForm, Key, Modifiers, NodeId, Page, PageConfig,
+    Pixmap, Rect, Size, Url,
 };
 use swb_net::{Fetcher, Headers, Method, NetError, NetworkFetcher, Request, Response};
 use swb_paint::{DisplayList, ImageRef, ImageSizes, NoHighlights, Scrolling};
@@ -49,6 +51,94 @@ impl Drop for Site {
 /// The repository root.
 pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// Runs `f` on a thread with the stack of swb's page thread.
+pub(crate) fn on_page_thread<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(f)
+        .expect("cannot start the page thread")
+        .join()
+        .expect("the page thread panicked")
+}
+
+/// Runs `f` for each item on a thread with the stack of swb's page thread.
+pub(crate) fn on_page_threads<T: Send + 'static>(
+    items: impl IntoIterator<Item = impl FnOnce() -> T + Send + 'static>,
+) -> Vec<T> {
+    let runs: Vec<_> = items
+        .into_iter()
+        .map(|f| {
+            std::thread::Builder::new()
+                .stack_size(16 << 20)
+                .spawn(f)
+                .expect("cannot start the page thread")
+        })
+        .collect();
+    runs.into_iter()
+        .map(|run| run.join().expect("the page thread panicked"))
+        .collect()
+}
+
+/// The JSON text of the value of `source` (strict form); fails the test
+/// if the script throws or the page has no script runtime.
+pub(crate) fn value(page: &mut Page, source: &str) -> String {
+    match page.evaluate(source, JsonForm::Strict) {
+        Some(Evaluation::Value(text)) => text,
+        other => panic!("{source}: {other:?}"),
+    }
+}
+
+/// The answer to `expression` as JSON (strict form): an error is the
+/// string `error: MESSAGE`, as in the probe cases.
+pub(crate) fn answer(page: &mut Page, expression: &str) -> serde_json::Value {
+    match page.evaluate(expression, JsonForm::Strict) {
+        Some(Evaluation::Value(text)) => serde_json::from_str(&text).expect("valid JSON"),
+        Some(Evaluation::Error(text)) => serde_json::Value::String(format!("error: {text}")),
+        None => serde_json::Value::String("error: no script runtime".to_owned()),
+    }
+}
+
+/// The lines of two answers that differ (the answer of a query that tests
+/// many values has one line per value).
+#[allow(clippy::many_single_char_names)]
+pub(crate) fn differences(want: &serde_json::Value, got: &serde_json::Value) -> String {
+    let (Some(want_text), Some(got_text)) = (want.as_str(), got.as_str()) else {
+        return format!("  expected: {want}\n  actual:   {got}");
+    };
+    let (w, g): (Vec<&str>, Vec<&str>) = (want_text.lines().collect(), got_text.lines().collect());
+    let mut out = String::new();
+    for i in 0..w.len().max(g.len()) {
+        let (a, b) = (w.get(i).copied(), g.get(i).copied());
+        if a != b {
+            let _ = writeln!(
+                out,
+                "  line {i}\n    expected: {}\n    actual:   {}",
+                a.unwrap_or("(none)"),
+                b.unwrap_or("(none)")
+            );
+        }
+    }
+    out
+}
+
+/// The color of the pixel at (`x`, `y`), without alpha.
+pub(crate) fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
+    let p = pixmap
+        .pixel(x, y)
+        .expect("a pixel inside the pixmap")
+        .demultiply();
+    (p.red(), p.green(), p.blue())
+}
+
+/// Runs the tasks and loads until nothing is left, then lays the page out.
+pub(crate) fn settle(page: &mut Page) {
+    assert!(
+        page.wait_until_idle(Duration::from_millis(30), Duration::from_secs(20)),
+        "the page did not settle"
+    );
+    page.update_layout();
 }
 
 /// Creates a page with `fetcher`, the bundled test fonts and the scale

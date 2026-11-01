@@ -128,7 +128,7 @@ Format: source, license (for code), what it influenced.
   and Tracking Preference Expression, M8 feature 8a2 — the IDL copied
   into `crates/web/idl/` (W3C Software and Document License,
   `THIRD_PARTY_NOTICES.md`); the `mark()` and `measure()` steps
-  (`crates/web/src/performance.rs`), the PerformanceObserver tasks
+  (`crates/web/src/performance/mod.rs`), the PerformanceObserver tasks
   (`performance_observer.rs`), the idle period steps
   (`idle_callbacks.rs`, `crates/engine/src/page/idle.rs`).
 - WHATWG Encoding Standard, Infra Standard and HTML (`Navigator`, `atob`,

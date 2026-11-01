@@ -16,7 +16,7 @@ use swb_engine::{Evaluation, JsonForm, Page, Size};
 use swb_net::NetworkFetcher;
 
 mod common;
-use common::{Site, finish_loading, new_page, node};
+use common::{Site, finish_loading, new_page, node, on_page_thread};
 
 /// A probe case: its name, its page and its queries with Chromium's
 /// values.
@@ -51,16 +51,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "swb has no `window.name`, which the handler sees as `name`",
     ),
 ];
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
-}
 
 /// A page with JavaScript on that shows `html`.
 fn open(site: &Site, html: &str) -> Page {

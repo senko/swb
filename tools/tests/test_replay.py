@@ -12,7 +12,7 @@ from PIL import Image
 from swbtools.cli import build_parser
 from swbtools.manifest import Fixture
 from swbtools.pages import FixtureMeta, write_meta
-from swbtools.probe import ProbeError
+from swbtools.probe_cases import ProbeError
 from swbtools.replay import (
     DEFAULT_PAUSE_MS,
     read_group_names,

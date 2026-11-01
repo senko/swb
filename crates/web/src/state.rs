@@ -139,7 +139,7 @@ pub(crate) struct WebState {
     pub(crate) event_loop: EventLoop,
     /// The window's `Performance` object, made at the first access.
     pub(crate) performance: Option<Gc<Object>>,
-    /// The entry buffer, the observers and the load times (`performance.rs`).
+    /// The entry buffer, the observers and the load times (`performance/`).
     pub(crate) perf: crate::performance::PerfState,
     /// The window's map of idle callbacks (`idle_callbacks.rs`).
     pub(crate) idle: crate::idle_callbacks::IdleCallbacks,
@@ -303,6 +303,41 @@ pub(crate) fn state(rt: &Runtime) -> VmResult<&WebState> {
 pub(crate) fn state_mut(rt: &mut Runtime) -> VmResult<&mut WebState> {
     rt.host_data_mut::<WebState>()
         .ok_or(VmError::type_error("the runtime has no binding state"))
+}
+
+/// The host data of an object that carries nothing ([`NOT_A_NODE`]), for
+/// [`window_object`].
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the signature of the data argument"
+)]
+pub(crate) fn no_data(_rt: &mut Runtime) -> VmResult<HostData> {
+    Ok(NOT_A_NODE)
+}
+
+/// The host data of an `EventTarget` that is no node: its listeners, for
+/// [`window_object`].
+pub(crate) fn target_data(rt: &mut Runtime) -> VmResult<HostData> {
+    rt.alloc_host_data(crate::events::TargetData::default())
+}
+
+/// The `[SameObject]` getter of a window attribute: the object in the
+/// state field that `slot` selects, made at the first access in `realm`
+/// as an instance of `class` with the host data that `data` allocates.
+pub(crate) fn window_object(
+    cx: &mut Cx<'_>,
+    realm: u32,
+    slot: fn(&mut WebState) -> &mut Option<Gc<Object>>,
+    class: ClassId,
+    data: fn(&mut Runtime) -> VmResult<HostData>,
+) -> b::Result<Gc<Object>> {
+    if let Some(object) = *slot(state_mut(cx.rt)?) {
+        return Ok(object);
+    }
+    let data = data(cx.rt)?;
+    let object = cx.rt.new_host_object(realm, class, data)?;
+    *slot(state_mut(cx.rt)?) = Some(object);
+    Ok(object)
 }
 
 /// The lent document state.

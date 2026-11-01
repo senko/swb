@@ -31,7 +31,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), and forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`); Python client: `tools/tests/test_automation.py` | no |
-| Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
+| Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
 Chromium are needed only to capture fixtures, to regenerate the expected
@@ -755,31 +755,17 @@ in the test, but the page cannot tell that for all its timers, so the tool
 changes only `Date`. The wrapper keeps the statics, the prototype,
 `instanceof`, subclassing and `Date.prototype.constructor === Date`
 (`tools/tests/test_js_tools.py`). Not covered: `Intl.DateTimeFormat().format()`
-without an argument, `Temporal`, and `performance.timeOrigin`. When swb gets
-`--now` (M8 feature 5b), `compare --js` passes the same `captured` time to
-swb: `--now MS --virtual-time --settle-ms 1500` when `swb --help` lists
-`--now`. swb then starts its page clock at the capture time and runs its
+without an argument, `Temporal`, and `performance.timeOrigin`. `compare --js`
+passes the same `captured` time to swb: `--js --now MS --virtual-time
+--settle-ms 1500`. swb then starts its page clock at the capture time and runs its
 event loop for 1.5 s of virtual time after the load (Chromium: 500 ms of
 network idle and `JS_SETTLE_MS`), so the timers that fire in Chromium's
 wait fire in swb too, without the wait, and in the same order on every
 run.
 
-**swb side** (`compare --js`). `swb --help` lists the supported options (the
-result is cached per binary, `swb.supported_flags`). With `--js` in the help,
-the tool passes `--js` to swb. Without it (before M8 feature 2), the tool
-prints a warning, runs swb without JavaScript, and appends
-`(swb ran without JavaScript: no --js option)` to the summary line, so the
-scores of such a run are a baseline of the JavaScript-off swb against the
-JavaScript-on Chromium.
-
-Baseline of 2026-10-22 (swb without `--js`; geometry, pixels):
-senko-net 1.0000, 0.9990; hacker-news 1.0000, 0.9986;
-wikipedia-web-browser 0.1810, 0.9735; craigslist-posting 0.0000, 0.6897.
-
-Since M8 feature 2 swb has `--js` (the scripting flag; no script runs
-yet). Scores of 2026-10-22 with it: senko-net 1.0000, 0.9990; hacker-news
-1.0000, 0.9986; wikipedia-web-browser 0.1810, 0.9735; craigslist-posting
-0.0000, 0.7747.
+**swb side** (`compare --js`). The tool passes `--js --now MS --virtual-time
+--settle-ms 1500` to swb, so the scripts of the page run in swb as they did
+in Chromium's capture.
 
 ### Add a layout test
 
@@ -870,7 +856,9 @@ compares them with the two data files, which the Rust tests
 
 ### Probe Chromium behaviour
 
-`swbtools probe` (`tools/swbtools/probe.py`) loads small HTML documents in
+`swbtools probe` (`tools/swbtools/probe.py`; the case file parser is in
+`probe_cases.py`, the result output in `probe_format.py`, the local server of
+the cases in `probe_server.py`) loads small HTML documents in
 Chromium and prints what you ask for. Do not write one-off Playwright
 scripts: add a case to a JSON file. Chromium has the settings above (bundled
 fonts, JavaScript disabled, device scale factor 1). Each page is a file in a
@@ -1050,15 +1038,11 @@ least 2) or an edge of the bounding box by more than the tolerance.
 Exit status 1 if a compared box is outside the tolerance, a tag differs, or
 swb fails; so `just probe --with-swb FILE` works as a quick check.
 
-**JavaScript cases with `--with-swb`.** swb runs the case with `--js`. A swb
-without `--js` does not run the case at all: the probe prints `not supported`
-for each swb line of the case (`boxes` and `js` rows), and this is not a
-failure (exit status 0 if nothing else differs). The `js` queries of the case
+**JavaScript cases with `--with-swb`.** swb runs the case with `--js`. The `js` queries of the case
 also go to swb, as `--eval=EXPR` (one argument per query, in the order of the
 queries; the `=` form keeps an expression that starts with `-`, such as `-0`,
 from being read as an option), and the probe prints swb's value under the Chromium line, with `!` and exit
-status 1 if the printed values differ. A swb with `--js` but without
-`--eval` prints `not supported` for the `js` rows only.
+status 1 if the printed values differ.
 
 ```
 case  js     document.title  "done"
@@ -2808,8 +2792,8 @@ code for them (a unit test of the generator checks the glue).
   (changes in detached subtrees and template contents keep the styles),
   the element styles against the full styles and the flush counters.
 - `crates/engine/tests/computed_style.rs`: `getComputedStyle` (feature
-  7a2): every case of `tools/probes/web-computed-style.json` (23 cases,
-  316 queries: the 843 values of `web-cssom-values.json` read through
+  7a2): every case of `tools/probes/web-computed-style.json` (25 cases,
+  324 queries: the 843 values of `web-cssom-values.json` read through
   `getComputedStyle` in a box of 400x300, the object and its errors,
   colors, values that layout resolves, grid, fonts, shorthands,
   pseudo-elements, elements that are not rendered or not in the document,
@@ -2976,7 +2960,7 @@ code for them (a unit test of the generator checks the glue).
   `waitForIdle`), `waitForIdle` waiting for a single callback, idle
   callbacks beside an animation frame loop, and `timeRemaining()` ending a
   loop in virtual time. Unit tests are in `base64.rs`, `crypto.rs`,
-  `text_codec.rs`, `performance.rs`, `performance_observer.rs` and
+  `text_codec.rs`, `performance/`, `performance_observer.rs` and
   `crates/webidl` (static attributes, buffer types, frozen arrays). The
   hostile set has five cases (`idle-callback-loops-js-on`,
   `idle-callback-flood-js-on`, `performance-mark-loop-js-on`,

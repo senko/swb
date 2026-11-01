@@ -109,43 +109,30 @@ def reference_path(name: str, javascript: bool = False) -> Path:
     return paths.fixture_dir(name) / REFERENCE_DIR
 
 
-JS_FLAG = "--js"
-NOW_FLAG = "--now"
 SWB_JS_SETTLE_MS = 1_500
 """The page time that swb runs the event loop after the load, in virtual
 time: Chromium's reference waits for 500 ms of network idle and then
 `JS_SETTLE_MS` (1 s) in real time (`reference.py`)."""
-_WARNED: set[Path] = set()
 
 
-def swb_js_options(
-    swb_binary: Path, javascript: bool, captured: str | None = None
-) -> tuple[list[str], bool]:
-    """Returns the swb options for JavaScript, and whether the run has
-    JavaScript on. A swb without `--js` (before feature 2 of M8) runs
-    without it, with a warning. With `captured` (the fixture's capture time)
-    and a swb that has `--now` (feature 5b), the page clock starts at that
-    time, as Chromium's does, runs in virtual time, and the event loop runs
-    for `SWB_JS_SETTLE_MS` after the load."""
+def swb_js_options(javascript: bool, captured: str | None = None) -> list[str]:
+    """Returns the swb options for JavaScript. With `captured` (the
+    fixture's capture time), the page clock starts at that time, as
+    Chromium's does, runs in virtual time, and the event loop runs for
+    `SWB_JS_SETTLE_MS` after the load."""
     if not javascript:
-        return [], False
-    flags = swb.supported_flags(swb_binary)
-    if JS_FLAG in flags:
-        options = [JS_FLAG]
-        if captured is not None and NOW_FLAG in flags:
-            start = parse_captured(captured)
-            options += [
-                NOW_FLAG,
-                str(round(start.timestamp() * 1000)),
-                "--virtual-time",
-                "--settle-ms",
-                str(SWB_JS_SETTLE_MS),
-            ]
-        return options, True
-    if swb_binary not in _WARNED:
-        _WARNED.add(swb_binary)
-        log.warning("%s has no %s option: swb runs without JavaScript", swb_binary, JS_FLAG)
-    return [], False
+        return []
+    options = ["--js"]
+    if captured is not None:
+        start = parse_captured(captured)
+        options += [
+            "--now",
+            str(round(start.timestamp() * 1000)),
+            "--virtual-time",
+            "--settle-ms",
+            str(SWB_JS_SETTLE_MS),
+        ]
+    return options
 
 
 def run_swb(
@@ -157,10 +144,10 @@ def run_swb(
 ) -> bool:
     """Runs swb on the fixture. Returns True if it wrote a box dump. With
     `full_page`, a second run writes the full-page screenshot. With
-    `javascript`, swb gets `--js` if it has the option."""
+    `javascript`, swb gets `--js` and the clock options."""
     fixture = fixture_path(name, javascript)
     meta = read_meta(fixture)
-    extra, _ = swb_js_options(swb_binary, javascript, meta.captured)
+    extra = swb_js_options(javascript, meta.captured)
     for stale in (SWB_BOXES, SWB_SCREENSHOT, SWB_FULL_PAGE):
         (output / stale).unlink(missing_ok=True)
     command = swb.replay_command(
@@ -271,11 +258,8 @@ def compare_fixture(
         return None
     output = output_dir(name, js)
     output.mkdir(parents=True, exist_ok=True)
-    swb_has_js = True
-    if swb_binary is not None:
-        swb_has_js = swb_js_options(swb_binary, js)[1] if js else True
-        if not run_outputs(name, swb_binary, output, options, suffix):
-            return None
+    if swb_binary is not None and not run_outputs(name, swb_binary, output, options, suffix):
+        return None
     swb_boxes = output / named(SWB_BOXES, suffix)
     if not swb_boxes.is_file():
         log.error("%s: %s does not exist", name, swb_boxes)
@@ -338,7 +322,6 @@ def compare_fixture(
             comparison.alignment.identical,
             report,
             full_page,
-            swb_without_js=js and not swb_has_js,
         )
     )
     return scores
@@ -377,16 +360,12 @@ def summary_line(
     identical: bool,
     report: Path,
     full_page: FullPage | None = None,
-    swb_without_js: bool = False,
 ) -> str:
     """One line with the scores of a fixture. With `full_page`, it adds the
     full-page score, the number of differing regions and, if the sizes
-    differ, both sizes. `swb_without_js` says that a `--js` comparison ran
-    swb without JavaScript (the binary has no `--js`)."""
+    differ, both sizes."""
     pixels = "n/a" if scores.pixels is None else f"{scores.pixels:.4f}"
     tags = "" if identical else " (tag sequences differ)"
-    if swb_without_js:
-        tags += " (swb ran without JavaScript: no --js option)"
     full = ""
     if full_page is not None:
         full = f" fullpage {full_page.score:.4f} regions {len(full_page.regions)}"

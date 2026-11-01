@@ -5,6 +5,7 @@
 use swb_style::{Color, LengthPercentage, LinearGradient};
 
 use super::*;
+use crate::raster::gradient::{MAX_GRADIENT_STOPS, premultiplied_stops, stop_positions};
 
 fn stop(r: u8, g: u8, b: u8, a: u8) -> (Color, Option<LengthPercentage>) {
     (Color::Rgba(Rgba::new(r, g, b, a)), None)

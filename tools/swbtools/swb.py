@@ -7,7 +7,6 @@ a change in this file only.
 import contextlib
 import logging
 import os
-import re
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -35,32 +34,6 @@ def find_swb(explicit: Path | None = None) -> Path | None:
         if candidate.is_file():
             return candidate
     return None
-
-
-_FLAGS_CACHE: dict[tuple[str, int, int], frozenset[str]] = {}
-
-
-def supported_flags(swb: Path) -> frozenset[str]:
-    """The long options that `swb --help` lists (for example `--js`), so
-    that the tools can use options that a swb build does not have yet. The
-    answer is cached per binary (path, size and modification time). An
-    unusable binary has no flags."""
-    try:
-        stat = swb.stat()
-    except OSError:
-        return frozenset()
-    key = (str(swb), stat.st_size, stat.st_mtime_ns)
-    if key not in _FLAGS_CACHE:
-        try:
-            result = subprocess.run(
-                [str(swb), "--help"], capture_output=True, text=True, timeout=30, check=False
-            )
-            text = result.stdout + result.stderr
-        except (OSError, subprocess.SubprocessError) as error:
-            log.warning("%s --help failed: %s", swb, error)
-            text = ""
-        _FLAGS_CACHE[key] = frozenset(re.findall(r"(?<![\w-])--[a-z][a-z0-9-]*", text))
-    return _FLAGS_CACHE[key]
 
 
 def record_command(swb: Path, fixture: Path, url: str) -> list[str]:

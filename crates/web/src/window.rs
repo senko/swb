@@ -73,9 +73,9 @@ impl g::window::WindowImpl for WebState {
         cx: &mut Cx<'_>,
         _this: Platform,
         message: String,
-        default: String,
+        _default: String,
     ) -> b::Result<Option<String>> {
-        Ok(crate::dialogs::prompt(cx, &message, &default))
+        Ok(crate::dialogs::prompt(cx, &message))
     }
 
     fn print(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
@@ -130,16 +130,14 @@ impl g::window::WindowImpl for WebState {
 
     /// `performance` (HR Time §5): one object per window.
     fn performance(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
-        if let Some(object) = state(cx.rt)?.performance {
-            return Ok(object);
-        }
         // An `EventTarget` keeps its listeners in its data.
-        let data = cx
-            .rt
-            .alloc_host_data(crate::events::TargetData::default())?;
-        let object = cx.rt.new_host_object(0, g::PERFORMANCE, data)?;
-        state_mut(cx.rt)?.performance = Some(object);
-        Ok(object)
+        crate::state::window_object(
+            cx,
+            0,
+            |s| &mut s.performance,
+            g::PERFORMANCE,
+            crate::state::target_data,
+        )
     }
 
     /// `navigator` (HTML §8.9): one object per window.
@@ -340,7 +338,7 @@ pub(crate) fn define_class(rt: &mut Runtime) -> VmResult<ClassId> {
         get_own_property: Some(get_own_property),
         define_own_property: Some(define_own_property),
         delete: Some(delete),
-        prevent_extensions: Some(prevent_extensions),
+        prevent_extensions: Some(b::legacy::prevent_extensions),
         ..HostHooks::default()
     };
     let class = rt.define_class(ClassSpec::new("WindowProperties").hooks(hooks))?;
@@ -537,10 +535,4 @@ fn define_own_property(
 /// other keys are ordinary.
 fn delete(rt: &mut Runtime, object: Gc<Object>, key: PropertyKey) -> VmResult<Option<bool>> {
     Ok(visible(rt, object, key)?.map(|_| false))
-}
-
-/// `[[PreventExtensions]]` (Web IDL §3.7.4.5): refused.
-#[allow(clippy::unnecessary_wraps, reason = "the signature of the hook")]
-fn prevent_extensions(_rt: &mut Runtime, _object: Gc<Object>) -> VmResult<Option<bool>> {
-    Ok(Some(false))
 }

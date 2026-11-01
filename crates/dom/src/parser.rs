@@ -174,7 +174,8 @@ impl HtmlParser {
     }
 
     /// True after the parser returned [`ParseStep::Finished`].
-    pub fn is_finished(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_finished(&self) -> bool {
         self.finished
     }
 

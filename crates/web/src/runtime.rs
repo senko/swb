@@ -447,11 +447,6 @@ impl ScriptRuntime {
             .next_due()
     }
 
-    /// The number of tasks that wait (timers included).
-    pub fn pending_tasks(&self) -> usize {
-        crate::state::state(&self.rt).map_or(0, |s| s.event_loop.tasks.len())
-    }
-
     /// The number of active timers.
     pub fn active_timers(&self) -> usize {
         crate::state::state(&self.rt).map_or(0, |s| s.event_loop.timers.len())

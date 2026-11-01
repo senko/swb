@@ -10,11 +10,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use swb_engine::{Page, Pixmap, Size, Url};
+use swb_engine::{Page, Size, Url};
 use swb_net::Fetcher;
 
 mod common;
-use common::{TestSite, finish_loading, new_page, node, rect};
+use common::{TestSite, finish_loading, new_page, node, rect, rgb};
 
 const URL: &str = "https://site.test/page.html";
 
@@ -45,11 +45,6 @@ fn load(html: &str, javascript: bool) -> (Arc<TestSite>, Page) {
     let mut page = page(&site, javascript);
     open(&mut page);
     (site, page)
-}
-
-fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
-    let p = pixmap.pixel(x, y).unwrap().demultiply();
-    (p.red(), p.green(), p.blue())
 }
 
 fn paths(site: &TestSite) -> Vec<String> {

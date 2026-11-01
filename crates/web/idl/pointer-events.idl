@@ -27,7 +27,7 @@
 //   stays) are all there; `getCoalescedEvents` has no [SecureContext]
 //   (Chromium has it on http://127.0.0.1 and file: pages).
 // - `Element.setPointerCapture` and its two partners, `Navigator.maxTouchPoints`
-//   and `onpointerrawupdate` are not copied (feature 6d2 and later).
+//   and `onpointerrawupdate` are not copied (docs/roadmap.md, backlog).
 // - The pointer event handler attributes (`onpointerover`, ...) are in
 //   html.idl with the other GlobalEventHandlers.
 

@@ -15,7 +15,7 @@ use swb_net::NetworkFetcher;
 use swb_paint::{DisplayItem, MaskLayerImage};
 
 mod common;
-use common::Site;
+use common::{Site, rgb};
 
 /// A 20x20 SVG: black left half.
 const LEFT_HALF: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="10" height="20"/></svg>"#;
@@ -39,11 +39,6 @@ fn screenshot(url: Url, scale: f32) -> (Page, Pixmap) {
     common::finish_loading(&mut page, Duration::from_secs(30));
     let pixmap = page.screenshot(false).unwrap();
     (page, pixmap)
-}
-
-fn rgb(pixmap: &Pixmap, x: u32, y: u32) -> (u8, u8, u8) {
-    let p = pixmap.pixel(x, y).unwrap().demultiply();
-    (p.red(), p.green(), p.blue())
 }
 
 /// A `data:` URL of an SVG image, for `url('...')`.

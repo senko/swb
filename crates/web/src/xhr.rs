@@ -56,10 +56,10 @@ use swb_js::{Gc, HostData, Object, Runtime, Tracer, Value, VmResult};
 
 use crate::bindings::{self as b, Cx, Exception, NodeId, Platform};
 use crate::event_loop::{Task, TaskKey};
-use crate::events::{EventData, Extra, TargetData};
+use crate::events::{Extra, TargetData};
 use crate::fetch::{body, headers};
 use crate::generated as g;
-use crate::generated::types::{EventInit, XMLHttpRequestResponseType as ResponseType};
+use crate::generated::types::XMLHttpRequestResponseType as ResponseType;
 use crate::state::{WebState, dom_mut, engine_mut, state_mut};
 
 /// The most request headers of one request (`setRequestHeader`); a real page
@@ -297,21 +297,7 @@ fn cancel_timeout(rt: &mut Runtime, xhr: Gc<Object>) {
 
 /// Fires the trusted event `kind` (an `Event`) at `target`.
 fn fire_plain(rt: &mut Runtime, target: Gc<Object>, kind: &str) -> VmResult<()> {
-    let init = EventInit {
-        bubbles: false,
-        cancelable: false,
-        composed: false,
-    };
-    let now = crate::events::now(rt);
-    let mut data = EventData::new(kind.to_owned(), &init, now, Extra::None);
-    data.is_trusted = true;
-    let scope = rt.heap_mut().open_scope();
-    let result = crate::events::new_event_object(rt, 0, g::EVENT, data)
-        .and_then(|event| crate::events::dispatch(rt, 0, target, event, None));
-    if let Err(error) = rt.heap_mut().close_scope(scope) {
-        log::warn!("the handle scope of an event was not the last one: {error:?}");
-    }
-    result.map(|_| ())
+    crate::events::fire_at_object(rt, target, g::EVENT, kind, false, Extra::None).map(|_| ())
 }
 
 /// Fires the progress event `kind` at the request with its current
@@ -770,12 +756,7 @@ fn type_name(kind: ResponseType) -> &'static str {
 
 /// The document of an HTML response, or `None` (XML is not parsed).
 fn html_document(rt: &mut Runtime, realm: u32, text: &str, mime: &str) -> b::Result<Option<Value>> {
-    let essence = mime
-        .split(';')
-        .next()
-        .unwrap_or("")
-        .trim()
-        .to_ascii_lowercase();
+    let essence = crate::mime::essence(mime);
     if !(essence == "text/html" || essence.is_empty()) {
         return Ok(None);
     }

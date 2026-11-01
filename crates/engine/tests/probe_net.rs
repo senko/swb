@@ -23,7 +23,7 @@ use swb_engine::{Evaluation, JsonForm, Page, Size, Url};
 use swb_net::{Fetcher, Headers, Method, NetError, Request, Response};
 
 mod common;
-use common::{finish_loading, new_page};
+use common::{finish_loading, new_page, on_page_thread};
 
 #[path = "probe_net/blob.rs"]
 mod blob_cases;
@@ -39,8 +39,6 @@ const OTHER: &str = "http://other.test";
 #[derive(Clone, Copy)]
 pub(crate) enum Options {
     None,
-    #[allow(dead_code, reason = "no 10b case denies a preflight")]
-    Deny,
     Permissive,
 }
 
@@ -257,7 +255,6 @@ impl Sim {
         let mode = resource.map_or(Options::None, |r| r.options);
         match mode {
             Options::None => reply(&request.url, 404, Vec::new(), Vec::new()),
-            Options::Deny => reply(&request.url, 200, Vec::new(), Vec::new()),
             Options::Permissive => {
                 let mut headers = vec![
                     (
@@ -279,16 +276,6 @@ impl Sim {
             }
         }
     }
-}
-
-/// Runs `f` on a thread with the stack of swb's page thread.
-fn on_page_thread(f: impl FnOnce() + Send + 'static) {
-    std::thread::Builder::new()
-        .stack_size(16 << 20)
-        .spawn(f)
-        .unwrap()
-        .join()
-        .unwrap();
 }
 
 /// The failures of the cases `cases`: a query whose value differs from
