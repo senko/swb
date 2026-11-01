@@ -30,7 +30,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py` and `test_js_time_zone_names.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), and forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`); Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -711,7 +711,9 @@ against Chromium. The references are not committed. They are in
 in `out/js-scores.json` (`compare --js --update-scores`; never
 `fixtures/scores.json`). `compare --js` writes `out/compare/js-NAME/`; the
 report and the scoring are the same as for the other fixtures (tolerance,
-threshold, first viewport), and the summary line starts with `js-NAME`.
+threshold, first viewport; the alignment leaves out the `script`, `style`,
+`link`, `meta`, `noscript` and `iframe` elements without a box, see "Scores"),
+and the summary line starts with `js-NAME`.
 `--full-page` and `--click` do not work with `--js` yet.
 
 **Chromium side** (`reference --js`; `tools/swbtools/reference.py`). Test
@@ -978,7 +980,14 @@ temporary directory, loaded by navigation.
   `Tab`, `Space`, `ArrowDown`, `a`, ...); `{"wheel": [dx, dy]}` turns the
   wheel at the pointer position; `{"wait": 100}` runs the event loop for
   100 ms; `{"focus": "#a"}` calls `focus()` in the page; `{"eval":
-  "expression"}` runs a script; `{"viewport": [500, 600]}` resizes the
+  "expression"}` runs a script; `{"record": "expression"}` evaluates the
+  expression as `--eval` does and prints its answer line (`{"value": V}` or
+  `{"error": "..."}`, the form of "The `--eval` contract" below) to standard
+  output at that point of the steps, so that a tool can read the state of
+  the page between steps (M9 feature 1; `swb_automation::run_steps` prints it
+  too, for a Rust caller; the Chromium side of the probe tool only evaluates
+  the expression, and `swbtools replay --record` is the Chromium way to read
+  state between steps); `{"viewport": [500, 600]}` resizes the
   viewport (Playwright's `set_viewport_size`; swb's `page.setViewport`);
   `{"colorScheme": "dark"}` sets `prefers-color-scheme` (Playwright's
   `emulate_media`; swb's `Page::set_color_scheme`; feature 7b2);
@@ -1212,7 +1221,10 @@ doublings of a `Blob` and 100,000 slices of slices; 100,000
 300,000 entries sent 20 times; `FileReader.readAsDataURL` of a blob of 48 MiB
 20 times; 100,000 `navigator.sendBeacon` calls (the quota of 64 KiB); and a
 chain of 100,000 images, each made in the `load` handler of the one before.
-The cases with
+Cases for M9 feature 1: a flood of `window.postMessage` to the own window
+(100 messages of 4 MiB and 200,000 small ones in one task, and a listener
+that posts a message for each message that it gets: the queue keeps 65,536
+messages and 256 MiB, ADR 0031 section 11). The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -1286,7 +1298,15 @@ and the mark goes.
    Only elements with equal tags pair. If the rest needs more than 2000
    edits, `difflib.SequenceMatcher` aligns it instead (faster, but it can
    pair the wrong copies of repeated structures such as table rows). The
-   report lists the blocks that differ.
+   report lists the blocks that differ. With `compare --js`, the elements
+   `script`, `style`, `link`, `meta`, `noscript` and `iframe` that have no
+   box in their browser do not take part (M9 feature 1): scripts insert and
+   remove them at moments that differ from run to run (Chromium put a
+   hidden frame at an index that changed between runs), they get no
+   partner, count neither as missing nor as extra, and the report's
+   differences leave them out. The summary says "tag sequences differ" only
+   for the other elements. The scores of `compare` without `--js` do not
+   change.
 2. **Element scores.** Each Chromium element that has a box counts once.
    It passes if its swb partner has a box and the values differ by at most
    the tolerance (default 2 px):
@@ -1406,6 +1426,49 @@ lists what the records leave out (the rectangles that the missing
 multi-column layout moves) and the differences that they do not show
 (`box-shadow` and `text-overflow: ellipsis`, not implemented).
 
+`ars_technica.rs` (M9 feature 1, about 10 s) does the same for the Ars
+Technica front page (the fixture `fixtures/js/ars-technica`): 26 step groups
+for the features 1 to 6 of the target (the consent dialog with its tabs, the
+failed vendor request, "I accept" and the `fides_consent` cookie; the sections
+menu by click, `Escape` and a click outside; the theme switch with each item,
+the `html` class, the `theme` cookie and the colors; the grid settings and
+sign-in dialogs; the view switcher's navigation, whose URL the test checks;
+the sticky header on the wheel). The record of `data/ars-technica.js` has
+rectangles (within 3 px), the classes, cookies, menu and dialog states, the
+scroll position, the focused element and its `:focus-visible`; the pixel
+points of `data/ars-technica-pixel-points.json` check the colors of the
+dimmed page and the dialog and of the four themes (tolerance 12). Nothing in
+the record depends on the A/B headline variant (`Math.random` in both
+browsers), the ads or the third-party scripts. The test also needs the
+console to hold only the two `document.write` errors (M9 feature 2 removes
+them) and no error after the steps. The story times (`Intl`, feature 3) and
+the blurred backdrop of the grid settings dialog (`backdrop-filter`, feature
+5) are not in it yet. The command for the records and colors (three runs,
+equal; the view switcher's click navigates away, so the record expression
+tolerates a page without the setup):
+
+```
+uv run --project tools swbtools replay ars-technica \
+  --steps crates/automation/tests/data/ars-technica-steps.json \
+  --setup crates/automation/tests/data/ars-technica.js \
+  --record 'window.__s ? window.__s() : JSON.stringify({navigated: true})' \
+  --pixels crates/automation/tests/data/ars-technica-pixel-points.json \
+  --pixels-out crates/automation/tests/data/ars-technica-pixels.json \
+  --out crates/automation/tests/data/ars-technica-chromium.json
+```
+
+`small_gaps.rs` (M9 feature 1) runs the 80 cases of
+`tools/probes/web-small-gaps.json` against Chromium's values
+(`data/web-small-gaps.json`, made from `just probe --json`, three equal
+runs): `ShadowRoot`, the qualified names of parsed `xmlns` attributes,
+`document.domain` and `originAgentCluster` (on a `file:` URL and on an
+`http:` URL, which a fake fetcher serves as `http://127.0.0.1:8000/`),
+`navigator.plugins` and `mimeTypes`, `window.postMessage` to the own window
+(the origin checks, the order of the message task, the errors, the
+structured clone and the transfer), and `:focus-visible` after clicks, keys
+and `focus()` (the input steps of `run_steps`; the types of element, the
+handlers). The departures are rows in the test with their reasons.
+
 **Chromium records of the steps** (`swbtools replay`;
 `tools/swbtools/replay.py`). The command replays `fixtures/js/NAME` in
 Chromium with the setup of `reference --js` (every request answered from the
@@ -1414,8 +1477,12 @@ of `load_settled_js`; the global options `--no-shared-worker` and
 `--no-intl` apply), evaluates the `--setup` script, then evaluates the
 `--record` expression after the load and after each step group of the
 `--steps` file, and writes the values as a JSON list (indent 1; a string
-value is parsed as JSON first). The steps file is a JSON list of groups, each
-a list of steps or `{"name": ..., "steps": [...]}`; the tests read the same
+value is parsed as JSON first). A step that navigates the page away (a click
+that sets `location.href`) leaves the later records without the setup's
+functions; use an expression such as `window.__s ? window.__s() :
+JSON.stringify({navigated: true})` and put the step last. The steps file is
+a JSON list of groups, each a list of steps or
+`{"name": ..., "steps": [...]}`; the tests read the same
 file (`include_str!`), so Chromium and swb run the same steps. The steps are
 those of `swb --steps` (see "Probe Chromium behaviour"), sent with the probe
 tool's runner with a pause of `--pause-ms` (default 300) after each step; the

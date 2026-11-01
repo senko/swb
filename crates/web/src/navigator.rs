@@ -21,6 +21,7 @@
 //! | `webdriver` | false (swb's automation is not `WebDriver`) | true under Playwright |
 //! | `doNotTrack` | null | null |
 //! | `pdfViewerEnabled`, `javaEnabled()` | false | false (headless) |
+//! | `plugins`, `mimeTypes` | empty `PluginArray`, `MimeTypeArray` | the same (headless) |
 //!
 //! `languages` is a new frozen array at each read, as in Chromium
 //! (measured: `navigator.languages === navigator.languages` is false).
@@ -193,12 +194,92 @@ impl g::navigator::NavigatorImpl for WebState {
         Ok(false)
     }
 
+    /// `navigator.plugins` ([`SameObject`]): the empty `PluginArray`.
+    fn plugins(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        let realm = cx.realm();
+        window_object(cx, realm, |s| &mut s.plugins, g::PLUGIN_ARRAY, no_data)
+    }
+
+    /// `navigator.mimeTypes` ([`SameObject`]): the empty `MimeTypeArray`.
+    fn mime_types(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+        let realm = cx.realm();
+        window_object(
+            cx,
+            realm,
+            |s| &mut s.mime_types,
+            g::MIME_TYPE_ARRAY,
+            no_data,
+        )
+    }
+
     fn hardware_concurrency(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u64> {
         Ok(HARDWARE_CONCURRENCY)
     }
 
     fn java_enabled(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
         Ok(false)
+    }
+}
+
+// `PluginArray` and `MimeTypeArray` (HTML §8.9.1.5): swb has no plugins and
+// no PDF viewer, so both are empty. Chromium's headless shell is the same
+// (measured: `length` 0, `pdfViewerEnabled` false, every `item()` and
+// `namedItem()` null). A page that tests `navigator.plugins.length` (an
+// analytics script) needs the arrays to exist.
+
+impl g::plugin_array::PluginArrayImpl for WebState {
+    fn length(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+        Ok(0)
+    }
+
+    fn refresh(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        Ok(())
+    }
+
+    fn item(_cx: &mut Cx<'_>, _this: Platform, _index: u32) -> b::Result<Option<Gc<Object>>> {
+        Ok(None)
+    }
+
+    fn named_item(
+        _cx: &mut Cx<'_>,
+        _this: Platform,
+        _name: String,
+    ) -> b::Result<Option<Gc<Object>>> {
+        Ok(None)
+    }
+
+    fn index_count(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+        Ok(0)
+    }
+
+    fn supported_names(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+}
+
+impl g::mime_type_array::MimeTypeArrayImpl for WebState {
+    fn length(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+        Ok(0)
+    }
+
+    fn item(_cx: &mut Cx<'_>, _this: Platform, _index: u32) -> b::Result<Option<Gc<Object>>> {
+        Ok(None)
+    }
+
+    fn named_item(
+        _cx: &mut Cx<'_>,
+        _this: Platform,
+        _name: String,
+    ) -> b::Result<Option<Gc<Object>>> {
+        Ok(None)
+    }
+
+    fn index_count(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+        Ok(0)
+    }
+
+    fn supported_names(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Vec<String>> {
+        Ok(Vec::new())
     }
 }
 

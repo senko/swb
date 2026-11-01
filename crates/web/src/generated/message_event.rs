@@ -21,7 +21,7 @@ pub trait MessageEventImpl: b::Host {
     /// `readonly attribute EventTarget? source`.
     fn source(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
-    /// `readonly attribute sequence<object> ports`.
+    /// `readonly attribute FrozenArray<object> ports`.
     fn ports(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>>;
 
     /// `constructor(DOMString type, optional MessageEventInit eventInitDict)`.
@@ -68,7 +68,7 @@ fn get_ports<H: MessageEventImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
     b::glue::run(rt, call, b::Context::Getter("MessageEvent", "ports"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::MESSAGE_EVENT)?;
         let result = <H as MessageEventImpl>::ports(&mut b::Cx::new(rt, call, super::MESSAGE_EVENT), this)?;
-        Ok(b::to_js::sequence(rt, call.realm(), &result, |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?)
+        Ok(b::to_js::frozen_sequence(rt, call.realm(), &result, |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?)
     })
 }
 

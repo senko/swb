@@ -675,6 +675,7 @@ def test_steps_all_kinds_parse():
         {"wait": 0},
         {"focus": "#a"},
         {"eval": "1"},
+        {"record": "1"},
         {"viewport": [400, 300]},
         {"colorScheme": "dark"},
         {"back": True},

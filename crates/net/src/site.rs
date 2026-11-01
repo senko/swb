@@ -51,6 +51,22 @@ pub(crate) fn registrable_domain(host: &str) -> Option<&str> {
     host.get(start..)
 }
 
+/// True if `host` is a top-level domain for `document.domain`: a name with
+/// one label (`localhost`, `com`) or a public suffix (`co.uk`, `github.io`).
+/// The setter of `document.domain` refuses these (Chromium: "'localhost'
+/// is a top-level domain."). `host` is in the form of the URL parser. An
+/// IP address and a name with an empty label count as top-level too: they
+/// have no registrable suffix.
+pub fn is_top_level_domain(host: &str) -> bool {
+    let name = host.strip_suffix('.').unwrap_or(host);
+    if !is_domain_name(host) || !name.contains('.') {
+        return true;
+    }
+    psl::List
+        .suffix(name.as_bytes())
+        .is_some_and(|suffix| suffix.is_known() && suffix.as_bytes().len() == name.len())
+}
+
 /// Returns the key that groups `host` with the hosts of the same site:
 /// its registrable domain, or the host itself if it has none.
 pub(crate) fn site_host(host: &str) -> &str {
@@ -220,6 +236,21 @@ mod tests {
         assert!(is_secure(&url("http://[::1]/")));
         assert!(!is_secure(&url("http://localhost.example/")));
         assert!(!is_secure(&url("file:///tmp/")));
+    }
+
+    #[test]
+    fn top_level_domains() {
+        for tld in ["localhost", "com", "co.uk", "github.io", "uk", "127.0.0.1"] {
+            assert!(is_top_level_domain(tld), "{tld}");
+        }
+        for name in [
+            "a.localhost",
+            "example.com",
+            "www.example.co.uk",
+            "me.github.io",
+        ] {
+            assert!(!is_top_level_domain(name), "{name}");
+        }
     }
 
     #[test]

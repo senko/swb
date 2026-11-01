@@ -4,6 +4,32 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-01: M9 feature 1: small DOM gaps, Ars Technica test
+
+- Alpine.js now starts on Ars Technica. Two defects stopped it: no
+  `ShadowRoot` interface (Alpine tests `instanceof ShadowRoot`), and the
+  parser gave a parsed `xmlns` attribute the empty prefix, so its name
+  was `:xmlns`. The prefix is now null, as in the HTML parser spec.
+- Also new: `document.domain` (the setter checks, then has no effect, as
+  in Chromium's origin-keyed agent clusters) and `originAgentCluster`;
+  empty `navigator.plugins` and `mimeTypes` (Chromium headless is empty
+  too); `window.postMessage` to the own window with the message queue
+  limits of ADR 0031 section 11; `:focus-visible` with the input
+  modality (73 Chromium cases: after a mouse click, a script `focus()`
+  does not show the ring).
+- Tools: `compare --js` leaves out `script`, `style`, `link`, `meta`,
+  `noscript` and unboxed `iframe` elements. A tree alignment was tried
+  and not kept: it scored the failed BBC hydration much lower and gave
+  no gain on Ars Technica. A `record` step reads page state between
+  steps.
+- `ars_technica.rs` drives items 1 to 6 of the Ars Technica list (the
+  consent dialog, the sections menu, the theme switch, the two dialogs,
+  the view switcher, the sticky header) and equals Chromium's records
+  and pixel samples. Only the two `document.write` errors remain.
+- `compare --js ars-technica`: geometry 0.8997 → 0.9077, pixels 0.9885
+  → 0.9886; the other JS fixtures unchanged. JS off: snapshot identical.
+- Next: M9 feature 2 (`document.write` during the parse).
+
 ## 2026-11-01: M9 plan: Ars Technica and BBC with JavaScript, frames
 
 - The owner chose the next milestone: Ars Technica and BBC with

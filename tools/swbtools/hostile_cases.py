@@ -4498,3 +4498,30 @@ def print_clipboard_loop_js_on() -> Page:
         "console.warn('prints ' + prints + ' clipboard ' + rejected), 100)); }, 0));</script>"
     )
     return Page(doc("<p>print</p>" + script))
+
+
+@case(
+    "A flood of window.postMessage to the own window with JavaScript on (M9 feature 1): 100 "
+    "messages of 4 MiB and then 200,000 small ones in one task, and a listener that posts a "
+    "message for each message that it gets, without end. At most 65,536 messages and 256 MiB "
+    "of serialized "
+    "bytes wait; later calls drop their message with one warning, and the task source runs "
+    "the messages as tasks, so the page settles after --settle-ms (ADR 0031 section 11)",
+    expect_log="further messages are dropped",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=30,
+    rss_limit_mib=2048,
+)
+def post_message_flood_to_self_js_on() -> Page:
+    script = (
+        "<script>let got = 0, loops = 0; "
+        "addEventListener('message', (e) => { if (e.data === 'loop') { loops++; "
+        "postMessage('loop', '*'); } else got++; }); "
+        "const big = 'x'.repeat(4 << 20); "
+        "for (let i = 0; i < 100; i++) postMessage(big + i, '*'); "
+        "for (let i = 0; i < 200000; i++) postMessage(i, '*'); "
+        "setTimeout(() => { postMessage('loop', '*'); "
+        "setTimeout(() => console.log('got ' + got + ' loops ' + loops), 700); }, 300);"
+        "</script>"
+    )
+    return Page(doc("<p>messages</p>" + script))

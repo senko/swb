@@ -1141,6 +1141,37 @@ impl DOMMatrixInit {
     }
 }
 
+/// The dictionary `WindowPostMessageOptions`.
+#[derive(Clone, Debug)]
+pub struct WindowPostMessageOptions {
+    /// `transfer`.
+    pub transfer: Vec<swb_js::Gc<swb_js::Object>>,
+    /// `targetOrigin`.
+    pub target_origin: String,
+}
+
+impl WindowPostMessageOptions {
+    /// Converts a JavaScript value (Web IDL §3.2.17).
+    pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<WindowPostMessageOptions> {
+        let object = b::convert::dictionary_object(value, "WindowPostMessageOptions")?;
+        let v = b::convert::member(rt, object, "transfer")?;
+        let transfer = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::object(item0)).map_err(|e| e.member("transfer", "StructuredSerializeOptions"))? };
+        let v = b::convert::member(rt, object, "targetOrigin")?;
+        let target_origin = if v.is_undefined() { String::from("/") } else { b::convert::usv_string(rt, v).map_err(|e| e.member("targetOrigin", "WindowPostMessageOptions"))? };
+        Ok(WindowPostMessageOptions { transfer, target_origin })
+    }
+
+    /// Converts to a JavaScript object (Web IDL §3.2.17).
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+        let object = rt.new_plain_object(realm)?;
+        let value = b::to_js::sequence(rt, realm, &self.transfer.clone(), |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?;
+        b::to_js::dictionary_member(rt, object, "transfer", value)?;
+        let value = b::to_js::string(rt, &self.target_origin.clone())?;
+        b::to_js::dictionary_member(rt, object, "targetOrigin", value)?;
+        Ok(object.into())
+    }
+}
+
 /// The dictionary `FocusOptions`.
 #[derive(Clone, Debug)]
 pub struct FocusOptions {

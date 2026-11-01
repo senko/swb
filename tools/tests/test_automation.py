@@ -3,6 +3,8 @@ serves the senko.net fixture (or a `data:` page). Skipped if the swb binary
 does not exist."""
 
 import io
+import json
+import subprocess
 
 import pytest
 from PIL import Image
@@ -72,6 +74,32 @@ def test_typing_into_a_text_field():
         b.click_node(b.query_selector("#t"))
         b.type_text("one\ntwo")
         assert b.value(b.query_selector("#t")) == "one\ntwo"
+
+
+def test_record_steps_print_one_line_each(tmp_path):
+    """`swb --steps` with `record` steps prints the answer of each, as
+    `--eval` does, in order with the other steps."""
+    page = tmp_path / "page.html"
+    page.write_text("<!DOCTYPE html><p id=a>x</p><script>window.n = 1;</script>")
+    steps = [
+        {"record": "n"},
+        {"eval": "n = 2"},
+        {"record": "[n, document.getElementById('a').textContent]"},
+        {"record": "null.x"},
+    ]
+    command = [
+        str(swb.find_swb()),
+        "--headless",
+        "--js",
+        "--test-fonts",
+        f"--steps={json.dumps(steps)}",
+        page.as_uri(),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=True)
+    answers = [json.loads(line) for line in result.stdout.splitlines()]
+    assert answers[:2] == [{"value": 1}, {"value": [2, "x"]}]
+    assert answers[2]["error"].startswith("TypeError")
+    assert len(answers) == 3
 
 
 def test_javascript_setting():

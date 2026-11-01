@@ -186,6 +186,12 @@ pub struct DocumentState {
     /// The element states that selectors see (hover, focus, form control
     /// states, ...).
     pub(crate) states: ElementStates,
+    /// True while the last input that moved the focus or pressed a key was
+    /// the keyboard, or there was none: a script's `focus()` then matches
+    /// `:focus-visible`. A mouse press that moves the focus to an element
+    /// clears it, a key sets it (Chromium 148, measured in
+    /// `tools/probes/web-small-gaps.json`, cases `fv-*`).
+    pub(crate) keyboard_modality: bool,
     /// The text selection of the page.
     pub(crate) selection: Option<Selection>,
     pub(crate) stylist: Option<Stylist>,
@@ -293,6 +299,7 @@ impl DocumentState {
             pending_scroll: init.scroll_target,
             scrollers: Scrollers::default(),
             states: ElementStates::default(),
+            keyboard_modality: true,
             selection: None,
             stylist: None,
             styles: None,
@@ -540,6 +547,14 @@ impl swb_web::EngineHost for DocumentState {
 
     fn set_focus(&mut self, node: Option<NodeId>, visible: bool) {
         self.script_set_focus(node, visible);
+    }
+
+    fn keyboard_modality(&self) -> bool {
+        self.keyboard_modality
+    }
+
+    fn set_keyboard_modality(&mut self, keyboard: bool) {
+        self.keyboard_modality = keyboard;
     }
 
     fn take_pending_change(&mut self, node: NodeId) -> bool {

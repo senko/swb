@@ -275,7 +275,9 @@ def compare_fixture(
         log.error("%s: %s does not exist", name, reference_boxes)
         return None
     reference_dump = read_dump(reference_boxes)
-    comparison = compare(reference_dump, read_dump(swb_boxes), tolerance)
+    # With JavaScript, scripts, styles and frames without a box do not count:
+    # they come and go at moments that differ from run to run.
+    comparison = compare(reference_dump, read_dump(swb_boxes), tolerance, skip_ignored=js)
 
     images: dict[str, str] = {}
     pixels = None

@@ -662,6 +662,12 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, false);
                 result
             }),
+            Task::Message => self.task("the event 'message'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::messaging::deliver(rt).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
             Task::XhrTimeout(id) => self.task("an XMLHttpRequest timeout", |rt| {
                 set_listener_checkpoints(rt, true);
                 let result = crate::xhr::timeout_fired(rt, id).map_err(task_error);

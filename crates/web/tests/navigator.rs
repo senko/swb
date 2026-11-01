@@ -36,8 +36,8 @@ const SWB_VALUES: &[Departure] = &[
     (
         "navigator-departures",
         5,
-        r#"["undefined","undefined","undefined","undefined","undefined"]"#,
-        "members that pages use only for feature detection stay absent (ADR 0028 section 13); `plugins` and `mimeTypes` are on the backlog",
+        r#"["object","object","undefined","undefined","undefined"]"#,
+        "members that pages use only for feature detection stay absent (ADR 0028 section 13); `plugins` and `mimeTypes` exist since M9 feature 1",
     ),
     (
         "navigator-departures",

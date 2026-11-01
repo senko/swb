@@ -550,7 +550,11 @@ fn activate_label(
     if is_disabled(rt, control)? || !state_mut(rt)?.busy.label.insert(label) {
         return Ok(());
     }
-    let result = super::focus::focus_node(rt, control, true)
+    // The click of a label comes from the pointer: the control gets the
+    // focus as a mouse press gives it (Chromium 148, measured:
+    // `fv-click-label-script`).
+    engine_mut(rt)?.set_keyboard_modality(false);
+    let result = super::focus::focus_node(rt, control, false)
         .and_then(|()| dispatch_click_as(rt, control, click));
     state_mut(rt)?.busy.label.remove(&label);
     result

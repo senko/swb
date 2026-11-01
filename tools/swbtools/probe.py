@@ -493,6 +493,10 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int =
             await page.evaluate("(s) => document.querySelector(s).focus()", argument)
         elif kind == "eval":
             await page.evaluate(argument)
+        elif kind == "record":
+            # swb prints the value; the Chromium side of a tool reads the
+            # state itself (`swbtools replay --record`), so the step only runs.
+            await page.evaluate(argument)
         elif kind == "viewport":
             await page.set_viewport_size({"width": argument[0], "height": argument[1]})
         elif kind == "colorScheme":

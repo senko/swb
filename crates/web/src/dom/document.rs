@@ -411,6 +411,17 @@ impl g::document::DocumentImpl for WebState {
         crate::cookie::write(cx, is_main(this), &value)
     }
 
+    /// `document.domain` (HTML "relaxing the same-origin restriction",
+    /// M9 feature 1): the host of the origin; the setter checks and has no
+    /// effect (`domain.rs`).
+    fn domain(cx: &mut Cx<'_>, _this: NodeId) -> b::Result<String> {
+        crate::domain::get(cx)
+    }
+
+    fn set_domain(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
+        crate::domain::set(cx, is_main(this), &value)
+    }
+
     fn referrer(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
         if !is_main(this) {
             return Ok(String::new());

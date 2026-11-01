@@ -1,0 +1,916 @@
+{
+ "shadow-root-interface": [
+  [
+   "function",
+   "ShadowRoot",
+   0,
+   true,
+   true,
+   "[object ShadowRoot]",
+   true
+  ],
+  "TypeError: Failed to construct 'ShadowRoot': Illegal constructor",
+  "TypeError: Illegal constructor",
+  [
+   false,
+   false,
+   false,
+   false,
+   true
+  ],
+  [
+   true,
+   false,
+   true
+  ],
+  [
+   false,
+   true,
+   false
+  ],
+  true,
+  "activeElement,adoptedStyleSheets,clonable,constructor,customElementRegistry,delegatesFocus,elementFromPoint,elementsFromPoint,fullscreenElement,getAnimations,getHTML,getSelection,host,innerHTML,mode,onslotchange,pictureInPictureElement,pointerLockElement,serializable,setHTML,setHTMLUnsafe,slotAssignment,styleSheets",
+  [
+   "function",
+   true,
+   null,
+   false
+  ]
+ ],
+ "xmlns-attribute": [
+  [
+   "[\"id\",\"id\",null,null,\"s\"]",
+   "[\"xmlns\",\"xmlns\",null,\"http://www.w3.org/2000/xmlns/\",\"http://www.w3.org/2000/svg\"]",
+   "[\"xmlns:xlink\",\"xlink\",\"xmlns\",\"http://www.w3.org/2000/xmlns/\",\"http://www.w3.org/1999/xlink\"]",
+   "[\"xlink:href\",\"href\",\"xlink\",\"http://www.w3.org/1999/xlink\",\"#a\"]",
+   "[\"xml:lang\",\"lang\",\"xml\",\"http://www.w3.org/XML/1998/namespace\",\"en\"]",
+   "[\"viewBox\",\"viewBox\",null,null,\"0 0 1 1\"]",
+   "[\":class\",\":class\",null,null,\"x\"]"
+  ],
+  [
+   "[\"id\",\"id\",null,null]",
+   "[\"xmlns\",\"xmlns\",null,\"http://www.w3.org/2000/xmlns/\"]"
+  ],
+  [
+   "[\"id\",\"id\",null,null]",
+   "[\"xmlns\",\"xmlns\",null,null]",
+   "[\"xmlns:foo\",\"xmlns:foo\",null,null]"
+  ],
+  [
+   "id",
+   "xmlns",
+   "xmlns:xlink",
+   "xlink:href",
+   "xml:lang",
+   "viewBox",
+   ":class"
+  ],
+  [
+   true,
+   "http://www.w3.org/2000/svg",
+   false,
+   null,
+   true,
+   "xmlns",
+   null,
+   "xmlns"
+  ],
+  [
+   "xmlns",
+   "xmlns:xlink",
+   "xmlns",
+   "id",
+   "0,1,2,3,4,5,6",
+   7
+  ],
+  [
+   "http://www.w3.org/2000/svg",
+   true,
+   "http://www.w3.org/1999/xlink",
+   "xmlns"
+  ],
+  [
+   "svg",
+   "svg",
+   null,
+   "svg",
+   "http://www.w3.org/2000/svg",
+   "math",
+   "math",
+   "DIV",
+   "DIV"
+  ],
+  "<svg id=\"s\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:href=\"#a\" xml:lang=\"en\" viewBox=\"0 0 1 1\" :class=\"x\"><use id=\"u\"></use></svg>",
+  "<svg id=\"s\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:href=\"#a\" xml:lang=\"en\" viewBox=\"0 0 1 1\" :class=\"x\"><use id=\"u\"></use></svg><math id=\"m\" xmlns=\"http://www.w3.org/1998/Math/MathML\"></math><div id=\"d\" xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:foo=\"urn:foo\"></div>",
+  "[\"id\",null],[\"xmlns\",null],[\"xmlns:xlink\",\"xmlns\"],[\"xlink:href\",\"xlink\"],[\"xml:lang\",\"xml\"],[\"viewBox\",null],[\":class\",null]",
+  [
+   "[\"xmlns\",null,\"xmlns\"]",
+   "[\"xmlns:xlink\",\"xmlns\",\"xlink\"]",
+   "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"></svg>"
+  ],
+  [
+   "xmlns",
+   null,
+   "xmlns"
+  ],
+  [
+   "[\"xmlns\",null,\"http://www.w3.org/2000/xmlns/\"]"
+  ],
+  [
+   "[\"xmlns\",null]"
+  ],
+  [
+   "http://www.w3.org/2000/svg",
+   "http://www.w3.org/1999/xlink",
+   "xlink",
+   true,
+   "http://www.w3.org/1998/Math/MathML"
+  ],
+  [
+   1,
+   false,
+   false,
+   true
+  ],
+  [
+   "x",
+   ":class",
+   null,
+   ":class"
+  ],
+  [
+   false,
+   6
+  ],
+  [
+   "urn:x",
+   7,
+   1,
+   "http://www.w3.org/2000/xmlns/"
+  ]
+ ],
+ "document-domain-http": [
+  [
+   "127.0.0.1",
+   "127.0.0.1",
+   true,
+   "string"
+  ],
+  [
+   "127.0.0.1",
+   true,
+   "boolean",
+   true,
+   true,
+   true
+  ],
+  [
+   "function",
+   "function",
+   true,
+   true,
+   "get domain",
+   "set domain"
+  ],
+  [
+   "function",
+   "undefined",
+   true,
+   true,
+   "get originAgentCluster"
+  ],
+  "127.0.0.1",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'example.com' is not a suffix of '127.0.0.1'.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'com' is not a suffix of '127.0.0.1'.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'localhost' is not a suffix of '127.0.0.1'.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'null' is not a suffix of '127.0.0.1'.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'undefined' is not a suffix of '127.0.0.1'.",
+  "127.0.0.1",
+  "127.0.0.1",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '0.0.0.1' is not a suffix of '127.0.0.1'.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '0.0.0.1' is not a suffix of '127.0.0.1'.",
+  "127.0.0.1",
+  "127.0.0.1",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is not a suffix of '127.0.0.1'.",
+  "127.0.0.1",
+  [
+   "127.0.0.1",
+   "DOMException SecurityError: Failed to set the 'domain' property on 'Document': A browsing context is required to set a domain."
+  ],
+  [
+   "127.0.0.1",
+   "DOMException SecurityError: Failed to set the 'domain' property on 'Document': A browsing context is required to set a domain."
+  ]
+ ],
+ "document-domain-file": [
+  [
+   "",
+   "",
+   false,
+   "string"
+  ],
+  [
+   "",
+   false,
+   "boolean",
+   true,
+   true,
+   true
+  ],
+  [
+   "function",
+   "function",
+   true,
+   true,
+   "get domain",
+   "set domain"
+  ],
+  [
+   "function",
+   "undefined",
+   true,
+   true,
+   "get originAgentCluster"
+  ],
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'example.com' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'com' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'localhost' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'null' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'undefined' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '0.0.0.1' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '0.0.0.1' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': '.' is not a suffix of ''.",
+  "DOMException SecurityError: Failed to set the 'domain' property on 'Document': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is not a suffix of ''.",
+  "",
+  [
+   "",
+   "DOMException SecurityError: Failed to set the 'domain' property on 'Document': A browsing context is required to set a domain."
+  ],
+  [
+   "",
+   "DOMException SecurityError: Failed to set the 'domain' property on 'Document': A browsing context is required to set a domain."
+  ]
+ ],
+ "navigator-plugins": [
+  [
+   "object",
+   "object",
+   0,
+   0,
+   false,
+   false
+  ],
+  [
+   "[object PluginArray]",
+   "[object MimeTypeArray]",
+   true,
+   true,
+   true,
+   true
+  ],
+  [
+   "function",
+   "function",
+   "function",
+   "function",
+   "PluginArray",
+   0,
+   0
+  ],
+  [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  [
+   0,
+   0,
+   0,
+   0,
+   "{}",
+   "{}",
+   true,
+   false
+  ],
+  "TypeError: Failed to construct 'PluginArray': Illegal constructor",
+  "TypeError: Failed to construct 'MimeTypeArray': Illegal constructor",
+  "TypeError: Failed to construct 'Plugin': Illegal constructor",
+  "TypeError: Failed to construct 'MimeType': Illegal constructor",
+  "constructor,item,length,namedItem,refresh",
+  "constructor,item,length,namedItem",
+  "constructor,description,filename,item,length,name,namedItem",
+  "constructor,description,enabledPlugin,suffixes,type",
+  [
+   "function",
+   "undefined",
+   true,
+   true,
+   "get plugins"
+  ],
+  [
+   "function",
+   "undefined",
+   true,
+   true,
+   "get mimeTypes"
+  ],
+  [
+   "function",
+   "get pdfViewerEnabled"
+  ],
+  "TypeError: Failed to execute 'item' on 'PluginArray': 1 argument required, but only 0 present.",
+  "TypeError: Failed to execute 'namedItem' on 'PluginArray': 1 argument required, but only 0 present.",
+  "TypeError: Illegal invocation",
+  [
+   1,
+   1,
+   0,
+   1,
+   1
+  ],
+  [
+   true,
+   "get length",
+   "function",
+   true
+  ],
+  [
+   1,
+   1,
+   "number"
+  ],
+  null,
+  [
+   true,
+   true
+  ],
+  [
+   null,
+   true,
+   true,
+   false
+  ]
+ ],
+ "post-message-self-http": [
+  [
+   "sync",
+   "micro",
+   "t0",
+   "m:a:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:b:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:c:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:e:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:f:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:g:O:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:h:O:true:0:true:false:false:2:true::[object MessageEvent]"
+  ],
+  [
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': Failed to convert value to 'object'.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': ArrayBuffer at index 1 is a duplicate of an earlier ArrayBuffer.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': Symbol(s) could not be cloned.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': The provided value cannot be converted to a sequence.",
+   1,
+   "undefined",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': HTMLBodyElement object could not be cloned.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': #<Window> could not be cloned."
+  ],
+  [
+   "TypeError: Failed to execute 'postMessage' on 'Window': 1 argument required, but only 0 present.",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': Failed to read the 'transfer' property from 'StructuredSerializeOptions': Failed to convert value to 'object'.",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '5' in a call to 'postMessage'.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': The object must have a callable @@iterator property.",
+   "undefined",
+   "undefined",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '' in a call to 'postMessage'.",
+   "undefined",
+   "undefined",
+   "undefined"
+  ],
+  "drained",
+  [
+   "8:SyntaxError",
+   "13:SyntaxError",
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "7",
+   "9",
+   "10",
+   "11",
+   "12",
+   "14",
+   "15"
+  ],
+  [
+   0,
+   0,
+   8,
+   7,
+   true,
+   5,
+   [
+    [
+     1,
+     2
+    ]
+   ],
+   "x",
+   true,
+   true,
+   "1180591620717411303424",
+   1,
+   null,
+   true,
+   true
+  ],
+  [
+   4,
+   0
+  ],
+  [
+   [
+    1,
+    2
+   ]
+  ],
+  [
+   "object",
+   "null",
+   true
+  ],
+  [
+   "object",
+   "[object Error]"
+  ],
+  [
+   "on:p",
+   "add:p"
+  ],
+  [
+   "object",
+   "object",
+   true,
+   1
+  ],
+  [
+   "message",
+   "{\"a\":1}",
+   "http://x.test",
+   "id",
+   true,
+   0,
+   true,
+   false,
+   false
+  ],
+  [
+   null,
+   "",
+   "",
+   null,
+   0,
+   true
+  ],
+  [
+   "t0",
+   "msg",
+   "t0b",
+   "t1"
+  ],
+  [
+   "start",
+   1,
+   2
+  ],
+  [
+   "error:Uncaught Error: bad",
+   "second"
+  ],
+  [
+   false,
+   1,
+   true,
+   true,
+   true
+  ],
+  [
+   "window"
+  ],
+  [
+   200,
+   true
+  ],
+  [
+   "TypeError: Illegal invocation",
+   "undefined",
+   "undefined",
+   "undefined",
+   "undefined"
+  ],
+  [
+   "postMessage",
+   true,
+   "undefined",
+   true,
+   null
+  ]
+ ],
+ "post-message-self-file": [
+  [
+   "sync",
+   "micro",
+   "t0",
+   "m:a:null:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:b:null:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:e:null:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:f:null:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:g:null:true:0:true:false:false:2:true::[object MessageEvent]",
+   "m:h:null:true:0:true:false:false:2:true::[object MessageEvent]"
+  ],
+  [
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': Failed to convert value to 'object'.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': ArrayBuffer at index 1 is a duplicate of an earlier ArrayBuffer.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': Symbol(s) could not be cloned.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': The provided value cannot be converted to a sequence.",
+   1,
+   "undefined",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': HTMLBodyElement object could not be cloned.",
+   "DOMException DataCloneError: Failed to execute 'postMessage' on 'Window': #<Window> could not be cloned."
+  ],
+  [
+   "TypeError: Failed to execute 'postMessage' on 'Window': 1 argument required, but only 0 present.",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': Failed to read the 'transfer' property from 'StructuredSerializeOptions': Failed to convert value to 'object'.",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '5' in a call to 'postMessage'.",
+   "TypeError: Failed to execute 'postMessage' on 'Window': The object must have a callable @@iterator property.",
+   "undefined",
+   "undefined",
+   "DOMException SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '' in a call to 'postMessage'.",
+   "undefined",
+   "undefined",
+   "undefined"
+  ],
+  "drained",
+  [
+   "8:SyntaxError",
+   "13:SyntaxError",
+   "1",
+   "2",
+   "3",
+   "4",
+   "10",
+   "11"
+  ],
+  [
+   0,
+   0,
+   8,
+   7,
+   true,
+   5,
+   [
+    [
+     1,
+     2
+    ]
+   ],
+   "x",
+   true,
+   true,
+   "1180591620717411303424",
+   1,
+   null,
+   true,
+   true
+  ],
+  [
+   4,
+   0
+  ],
+  [
+   [
+    1,
+    2
+   ]
+  ],
+  [
+   "object",
+   "null",
+   true
+  ],
+  [
+   "object",
+   "[object Error]"
+  ],
+  [
+   "on:p",
+   "add:p"
+  ],
+  [
+   "object",
+   "object",
+   true,
+   1
+  ],
+  [
+   "message",
+   "{\"a\":1}",
+   "http://x.test",
+   "id",
+   true,
+   0,
+   true,
+   false,
+   false
+  ],
+  [
+   null,
+   "",
+   "",
+   null,
+   0,
+   true
+  ],
+  [
+   "t0",
+   "msg",
+   "t0b",
+   "t1"
+  ],
+  [
+   "start",
+   1,
+   2
+  ],
+  [
+   "error:Uncaught Error: bad",
+   "second"
+  ],
+  [
+   false,
+   1,
+   true,
+   true,
+   true
+  ],
+  [
+   "window"
+  ],
+  [
+   200,
+   true
+  ],
+  [
+   "TypeError: Illegal invocation",
+   "undefined",
+   "undefined",
+   "undefined",
+   "undefined"
+  ],
+  [
+   "postMessage",
+   true,
+   "undefined",
+   true,
+   null
+  ]
+ ],
+ "fv-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-script-input": [
+  "t 0010000 0010000"
+ ],
+ "fv-script-twice": [
+  "b 0100000 0100000"
+ ],
+ "fv-click": [
+  "a 0000000 1000000"
+ ],
+ "fv-click-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-script-input": [
+  "t 0010000 0010000"
+ ],
+ "fv-click-script-div": [
+  "d 0000000 0001000"
+ ],
+ "fv-click-script-editable": [
+  "e 0000010 0000010"
+ ],
+ "fv-click-script-checkbox": [
+  "k 0000000 0000001"
+ ],
+ "fv-click-script-link": [
+  "l 0000000 0000100"
+ ],
+ "fv-click-input-script": [
+  "a 0000000 1000000"
+ ],
+ "fv-tab": [
+  "a 1000000 1000000"
+ ],
+ "fv-tab-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-tab-script-div": [
+  "d 0001000 0001000"
+ ],
+ "fv-key-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-key-letter-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-tab-click-script": [
+  "a 0000000 1000000"
+ ],
+ "fv-tab-click-div-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-tab": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-tab-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-blank-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-tab-blank-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-script-click-script": [
+  "a 0000000 1000000"
+ ],
+ "fv-script-click-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-same-script": [
+  "a 0000000 1000000"
+ ],
+ "fv-tab-blur-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-blur-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-option-true": [
+  "b 0100000 0100000"
+ ],
+ "fv-option-false": [
+  "b 0000000 0100000"
+ ],
+ "fv-option-true-fresh": [
+  "a 1000000 1000000"
+ ],
+ "fv-option-false-fresh": [
+  "a 0000000 1000000"
+ ],
+ "fv-option-false-then-plain": [
+  "b 0100000 0100000"
+ ],
+ "fv-option-true-then-plain": [
+  "a 0000000 1000000"
+ ],
+ "fv-option-prevent": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-link-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-mousedown-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-hover-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-wheel-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-type-script": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-timer": [
+  "b 0000000 0100000"
+ ],
+ "fv-tab-timer": [
+  "b 0100000 0100000"
+ ],
+ "fv-shift-tab": [
+  "k 0000001 0000001"
+ ],
+ "fv-click-shift-tab-back": [
+  "a 1000000 1000000"
+ ],
+ "fv-space-on-button": [
+  "b 0100000 0100000"
+ ],
+ "fv-enter-on-button": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-handler": [
+  "b 0000000 0100000"
+ ],
+ "fv-mousedown-handler": [
+  "a 0000000 1000000"
+ ],
+ "fv-keydown-handler": [
+  "b 0100000 0100000"
+ ],
+ "fv-tab-keydown-handler": [
+  "b 0100000 0100000"
+ ],
+ "fv-focus-handler": [
+  "a 0000000 1000000"
+ ],
+ "fv-focus-handler-tab": [
+  "t 0010000 0010000"
+ ],
+ "fv-pointerdown-handler": [
+  "a 0000000 1000000"
+ ],
+ "fv-click-handler-tab": [
+  "b 0100000 0100000"
+ ],
+ "fv-mouseup-handler": [
+  "b 0000000 0100000"
+ ],
+ "fv-script-click-same-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-blank-click-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-key-body-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-mousedown-prevent": [
+  "b 0100000 0100000"
+ ],
+ "fv-keydown-prevented": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-key-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-key-escape-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-key-arrow-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-key-input": [
+  "k 0000001 0000001"
+ ],
+ "fv-click-key-then-click-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-key-then-click-other": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-key-prevented-same": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-key-handler-blur-focus": [
+  "a 1000000 1000000"
+ ],
+ "fv-click-disabled-script": [
+  "b 0100000 0100000"
+ ],
+ "fv-click-label-script": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-text-script-button": [
+  "b 0000000 0100000"
+ ],
+ "fv-click-text-then-click-button": [
+  "a 0000000 1000000"
+ ],
+ "fv-types-mouse": [
+  "text:F1 search:F1 url:F1 tel:F1 email:F1 password:F1 number:F1 date:F1 datetime-local:F1 month:F1 week:F1 time:F1 color:F0 range:F0 file:F0 checkbox:F0 radio:F0 submit:F0 button:F0 reset:F0 readonly-text:F1 text-notype:F1 textarea:F1 select:F1 summary:F0 link:F0 tabindex:F0 editable:F1 plaintext:F1 button:F0 iframe:F0"
+ ],
+ "fv-types-keyboard": [
+  "text:F1 search:F1 url:F1 tel:F1 email:F1 password:F1 number:F1 date:F1 datetime-local:F1 month:F1 week:F1 time:F1 color:F1 range:F1 file:F1 checkbox:F1 radio:F1 submit:F1 button:F1 reset:F1 readonly-text:F1 text-notype:F1 textarea:F1 select:F1 summary:F1 link:F1 tabindex:F1 editable:F1 plaintext:F1 button:F1 iframe:F0"
+ ]
+}

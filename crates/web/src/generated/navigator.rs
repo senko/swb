@@ -60,6 +60,12 @@ pub trait NavigatorImpl: b::Host {
     /// `readonly attribute boolean cookieEnabled`.
     fn cookie_enabled(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
 
+    /// `readonly attribute PluginArray plugins`.
+    fn plugins(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `readonly attribute MimeTypeArray mimeTypes`.
+    fn mime_types(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `readonly attribute boolean pdfViewerEnabled`.
     fn pdf_viewer_enabled(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
 
@@ -210,6 +216,22 @@ fn get_cookie_enabled<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
     })
 }
 
+fn get_plugins<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Navigator", "plugins"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::NAVIGATOR)?;
+        let result = <H as NavigatorImpl>::plugins(&mut b::Cx::new(rt, call, super::NAVIGATOR), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
+fn get_mime_types<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Navigator", "mimeTypes"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::NAVIGATOR)?;
+        let result = <H as NavigatorImpl>::mime_types(&mut b::Cx::new(rt, call, super::NAVIGATOR), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn get_pdf_viewer_enabled<H: NavigatorImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Navigator", "pdfViewerEnabled"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::NAVIGATOR)?;
@@ -270,6 +292,8 @@ pub fn define<H: NavigatorImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js:
     rt.define_accessor(realm, target, "languages", (Some(get_languages::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "onLine", (Some(get_on_line::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "cookieEnabled", (Some(get_cookie_enabled::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "plugins", (Some(get_plugins::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "mimeTypes", (Some(get_mime_types::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "pdfViewerEnabled", (Some(get_pdf_viewer_enabled::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "hardwareConcurrency", (Some(get_hardware_concurrency::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "javaEnabled", 0, op_java_enabled::<H>, swb_js::Attributes::MEMBER)?;

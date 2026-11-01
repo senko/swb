@@ -196,3 +196,66 @@ def test_repeated_rows_align_with_the_fewest_edits():
     alignment = align(reference, swb)
     assert len(alignment.pairs) == len(reference) - 1
     assert [d.kind for d in alignment.differences] == ["delete", "insert"]
+
+
+def js_page(extra_script=False, extra_section=False, hidden_iframe=False, iframe_rect=None):
+    """A page as scripts change it: html > head (meta, script) and body
+    (div, p, div > span), where a run can add a script in the head, an
+    iframe (hidden, or with `iframe_rect`) and a section with a box before
+    the first div."""
+    elements = [
+        Element("html", (0, 0, 1280, 500), None),  # 0
+        Element("head", None, 0),
+        Element("meta", None, 1),
+        Element("script", None, 1),
+    ]
+    if extra_script:
+        elements.append(Element("script", None, 1))
+    elements.append(Element("body", (8, 8, 1264, 484), 0))
+    body = len(elements) - 1
+    if hidden_iframe:
+        elements.append(Element("iframe", iframe_rect, body))
+    if extra_section:
+        elements.append(Element("section", (8, 8, 1264, 1), body))
+    elements.append(Element("div", (8, 9, 1264, 100), body))
+    div = len(elements) - 1
+    elements.append(Element("p", (8, 109, 1264, 20), body))
+    elements.append(Element("div", (8, 130, 1264, 40), body))
+    elements.append(Element("span", (20, 140, 50, 17), len(elements) - 1))
+    elements.append(Element("script", None, div))
+    return dump(*elements)
+
+
+def test_scripts_and_frames_without_a_box_do_not_count_with_javascript():
+    reference = js_page(extra_script=True, hidden_iframe=True)
+    swb = js_page()
+    stock = compare(reference, swb)
+    assert not stock.alignment.identical
+    assert len(stock.alignment.differences) == 2
+    skipped = compare(reference, swb, skip_ignored=True)
+    scores = skipped.scores()
+    assert (scores.geometry, scores.size, scores.relative) == (1.0, 1.0, 1.0)
+    assert (scores.missing, scores.extra) == (0, 0)
+    assert skipped.alignment.identical
+    assert skipped.alignment.differences == []
+    # The other elements keep their partners.
+    assert skipped.alignment.pairs[len(reference.elements) - 2] == len(swb.elements) - 2
+
+
+def test_ignored_elements_with_a_box_still_count():
+    reference = js_page(hidden_iframe=True, iframe_rect=(0, 0, 10, 10))
+    comparison = compare(reference, js_page(), skip_ignored=True)
+    assert not comparison.alignment.identical
+    assert comparison.scores().missing == 1
+
+
+def test_differences_keep_the_indices_of_the_dumps():
+    # A section with a box in Chromium only, after an extra script.
+    reference = js_page(extra_script=True, extra_section=True)
+    comparison = compare(reference, js_page(), skip_ignored=True)
+    assert not comparison.alignment.identical
+    [difference] = comparison.alignment.differences
+    assert difference.kind == "delete"
+    section = next(i for i, e in enumerate(reference.elements) if e.tag == "section")
+    assert difference.reference == (section, section + 1)
+    assert comparison.scores().missing == 1

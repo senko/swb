@@ -51,12 +51,6 @@ const SWB_VALUES: &[Departure] = &[
     ),
     (
         "other-events",
-        15,
-        "false",
-        "`ports` is a new array at each read, not a frozen array",
-    ),
-    (
-        "other-events",
         17,
         r#""data,origin,lastEventId,source,ports,initMessageEvent,constructor""#,
         "MessageEvent has no `userActivation` (no UserActivation interface)",

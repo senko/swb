@@ -208,6 +208,13 @@ pub(crate) struct WebState {
     pub(crate) next_reader: u64,
     /// The bytes of the beacons that have not been sent (`navigator.rs`).
     pub(crate) beacon_bytes: usize,
+    /// The messages of `window.postMessage()` that wait for their task
+    /// (`messaging.rs`).
+    pub(crate) messages: crate::messaging::Messages,
+    /// The objects of `navigator.plugins` and `navigator.mimeTypes`, made
+    /// at the first access (`navigator.rs`).
+    pub(crate) plugins: Option<Gc<Object>>,
+    pub(crate) mime_types: Option<Gc<Object>>,
     /// The `img.decode()` promises that wait for their image
     /// (`image_events.rs`).
     pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
@@ -246,6 +253,8 @@ impl HostState for WebState {
             self.navigator,
             self.crypto,
             self.clipboard,
+            self.plugins,
+            self.mime_types,
             self.screen,
             self.screen_orientation,
             self.location,

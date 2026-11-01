@@ -30,6 +30,16 @@
 //!   `change` before `blur` when it loses the focus (measured in
 //!   `tools/probes/web-input-real.json`).
 //!
+//! `:focus-visible` (HTML "focus-visible" heuristics, Chromium 148 measured
+//! in `tools/probes/web-small-gaps.json`, cases `fv-*`): the engine keeps a
+//! modality flag. A key sets it ("keyboard"); a mouse press (or a label's
+//! activation) that moves the focus to an element clears it ("mouse"); other
+//! input (hover, wheel, a press on nothing focusable, a press on the element
+//! that has the focus, a press whose `mousedown` was canceled) leaves it. A
+//! script's `focus()` matches `:focus-visible` if the flag is set, which it
+//! is before any input; `focus({focusVisible})` overrides. A text field
+//! matches whenever it has the focus (`swb_style`).
+//!
 //! Departures: elements with `contenteditable` are not focusable in swb
 //! (`crates/engine/src/focus.rs`); `focus()` scrolls the
 //! element into view when the task ends, not at once.
@@ -182,10 +192,17 @@ pub(crate) fn focus_node(rt: &mut Runtime, node: NodeId, visible: bool) -> VmRes
     focus_with(rt, node, visible, false)
 }
 
-/// `focus(options)` of `HTMLElement` and `SVGElement`. A script's focus
-/// matches `:focus-visible` unless `focusVisible: false`.
+/// `focus(options)` of `HTMLElement` and `SVGElement`. The `focusVisible`
+/// option decides whether the element matches `:focus-visible`; without it
+/// the element matches if the last input was the keyboard or there was
+/// none (the engine's modality), as in Chromium: after a click, a script's
+/// `focus()` of another element does not match (text fields match in any
+/// case, in the style system).
 pub(crate) fn focus(cx: &mut Cx<'_>, node: NodeId, options: &FocusOptions) -> b::Result<()> {
-    let visible = options.focus_visible.unwrap_or(true);
+    let visible = match options.focus_visible {
+        Some(visible) => visible,
+        None => engine(cx.rt)?.keyboard_modality(),
+    };
     Ok(focus_with(cx.rt, node, visible, options.prevent_scroll)?)
 }
 

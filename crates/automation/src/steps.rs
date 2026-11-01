@@ -10,15 +10,18 @@
 //! `mouseup` take a button name at the pointer position; `type` takes
 //! text; `key` a key name with modifiers (`Shift+Tab`); `wheel` takes
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
-//! time; `focus` takes a selector; `eval` takes an expression; `viewport`
-//! takes `[width, height]` (`page.setViewport`); `colorScheme` takes
-//! `"light"` or `"dark"` (`prefers-color-scheme`); `back` and `forward`
-//! take `true` (`page.back`, `page.forward`: the history of the tab).
+//! time; `focus` takes a selector; `eval` takes an expression; `record`
+//! takes an expression and prints its answer line to standard output, as
+//! `--eval` does (M9 feature 1); `viewport` takes `[width, height]`
+//! (`page.setViewport`); `colorScheme` takes `"light"` or `"dark"`
+//! (`prefers-color-scheme`); `back` and `forward` take `true`
+//! (`page.back`, `page.forward`: the history of the tab).
 
+use std::io::Write;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use swb_engine::{JsonForm, Page};
+use swb_engine::{Evaluation, JsonForm, Page};
 
 use crate::methods::{Outcome, execute};
 
@@ -138,6 +141,10 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
             let source = argument.as_str().ok_or("eval needs an expression")?;
             page.evaluate(source, JsonForm::Strict);
         }
+        "record" => {
+            let source = argument.as_str().ok_or("record needs an expression")?;
+            record(page, source)?;
+        }
         "viewport" => {
             let size = argument
                 .as_array()
@@ -154,6 +161,35 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         other => return Err(format!("unknown step {other}")),
     }
     Ok(())
+}
+
+/// How long a `record` step waits for the promise that its expression
+/// returns.
+const RECORD_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// The `record` step: evaluates `source` as `--eval` does and prints its
+/// answer line (`{"value": V}` or `{"error": "..."}`, see [`answer_line`])
+/// to standard output, so that a tool can read the state of the page
+/// between steps.
+fn record(page: &mut Page, source: &str) -> Result<(), String> {
+    let evaluation = page.evaluate_with_timeout(source, JsonForm::Probe, RECORD_TIMEOUT);
+    let mut out = std::io::stdout().lock();
+    writeln!(out, "{}", answer_line(evaluation)).map_err(|e| format!("record: {e}"))?;
+    out.flush().map_err(|e| format!("record: {e}"))
+}
+
+/// The line of one answer of `--eval` or of a `record` step (docs/testing.md,
+/// "The `--eval` contract"): `{"value": V}` with V in the probe's JSON form
+/// (`NaN`, `Infinity`, `-0.0` allowed), or `{"error": "Name: message"}`.
+/// `None` is a page without scripts.
+pub fn answer_line(evaluation: Option<Evaluation>) -> String {
+    match evaluation {
+        Some(Evaluation::Value(text)) => format!("{{\"value\": {text}}}"),
+        Some(Evaluation::Error(message)) => {
+            format!("{{\"error\": {}}}", Value::String(message))
+        }
+        None => "{\"error\": \"JavaScript is off (use --js)\"}".to_owned(),
+    }
 }
 
 /// The `back` and `forward` steps: the argument is `true`.

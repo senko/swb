@@ -587,6 +587,33 @@ origins).
   both ports in one realm. This part needs no frame and comes first
   (section 14).
 
+**Done before frames (M9 feature 1, `crates/web/src/messaging.rs`;
+`document.domain` and `originAgentCluster` in `domain.rs`).**
+`window.postMessage` to the own window follows the steps above: the
+`targetOrigin` check (`*`, `/`, an absolute URL; `SyntaxError` with
+Chromium's message), `StructuredSerializeWithTransfer` (`ArrayBuffer`s
+only; any other transferable is a `DataCloneError` until ports exist), a
+task `Task::Message` on the runtime's queue, the origin check again in the
+task, and a trusted `MessageEvent` at the window with `origin` (`"null"`
+for an opaque origin), `source` the window itself, `ports` empty and
+`lastEventId` empty. The waiting messages are a per-runtime queue
+(`Messages`: at most 65,536 messages and 256 MiB of serialized bytes; a
+call past a bound drops its message with one warning until the queue
+is empty, and does not detach its transfer list; hostile case
+`post-message-flood-to-self-js-on`). `Task::Message` has no payload: the
+task takes the oldest message of its runtime's queue. Feature 6 of
+section 14 extends these functions: `post` gets a target window (a frame
+proxy) and a source `WindowProxy`, the queue moves to the page, and the
+ports travel in the transfer list. With a page-wide queue,
+`Task::Message` carries the id of its message, so that each runtime
+takes its own message and the order does not depend on how the event
+loop interleaves the runtimes' tasks. `document.domain` returns the host of
+the origin; its setter runs the checks of the standard and returns (the
+origin-keyed agent cluster), with Chromium's messages; `originAgentCluster`
+is true for a tuple origin. Probe cases: `tools/probes/web-small-gaps.json`
+(`document-domain-*`, `post-message-self-*`; the frame cases stay in
+`web-frames.json`).
+
 **`BroadcastChannel`** is out (section 13) unless the diagnosis shows
 that a target needs it.
 
@@ -776,7 +803,9 @@ scope, exit and agent type of each.
 5. **Runtimes per origin and cross-origin objects** (`implementer-hard`):
    agents in the page, the event loop across runtimes, remote proxies and
    the cross-origin `Window` and `Location`, `sandbox` origins, budgets
-   across runtimes, `document.domain` and `originAgentCluster`.
+   across runtimes, `document.domain` and `originAgentCluster` (the
+   getters and the setter's checks exist since M9 feature 1; this feature
+   keeps the cross-origin behaviour of the probe case `document-domain`).
 6. **Messaging and storage across documents** (`implementer`):
    `window.postMessage` with transfer, `MessageEvent.source`, ports
    between runtimes, storage keys and `storage` events across documents,

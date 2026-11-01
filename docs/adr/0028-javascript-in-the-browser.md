@@ -4495,8 +4495,9 @@ window_dialogs.rs`, which runs the cases with their steps against
   and neither `navigator.clipboard`, nor `Clipboard`, nor `ClipboardItem`).
   swb has no `isSecureContext` (backlog).
 - **Not done (backlog).** The other `Window` members that swb lacks: `open`,
-  `close`, `closed`, `stop`, `focus`, `blur`, `name`, `status`, `opener`,
-  `postMessage` (the share menu's other choices call `window.open`);
+  `close`, `closed`, `stop`, `focus`, `blur`, `name`, `status`, `opener`
+  (the share menu's other choices call `window.open`; `postMessage` to the
+  own window exists since M9 feature 1, see "M9 feature notes");
   `navigator.userActivation` and a model of user activation; the
   Fullscreen API (`document.fullscreenElement` is `undefined` in swb and
   `null` in Chromium; the posting page's map control is CSS only);
@@ -4676,6 +4677,110 @@ logs the limit that acted.
   the comparisons keep the tolerances of the JS-off scores.
 - `just hostile` with the JavaScript cases; `just snapshot` for the
   JS-off pages at each feature.
+
+### M9 feature notes
+
+Notes on the features of M9 that change the choices above (the plan is in
+`docs/roadmap.md`, "M9"; frames are in [ADR 0031](0031-frames.md)).
+Chromium values are those of Chromium 148 (`tools/probes/web-small-gaps.json`,
+three equal runs; `crates/automation/tests/small_gaps.rs` runs the cases in
+swb).
+
+**Feature 1: small DOM gaps (Ars Technica's Alpine.js).**
+
+- **`ShadowRoot`.** The interface object only: `ShadowRoot : DocumentFragment`
+  with no members, `new ShadowRoot()` throws `Illegal constructor`, `node
+  instanceof ShadowRoot` is false for every node. swb has no shadow trees
+  and no `attachShadow()`. Alpine.js 3 tests `parentNode instanceof
+  ShadowRoot` when it looks for the root of a component. Departures:
+  Chromium's prototype has 22 members (`mode`, `host`, `innerHTML`,
+  `adoptedStyleSheets`, ...), swb's has `constructor`; Chromium has
+  `attachShadow`, `shadowRoot` and `host`. No instance exists, so the
+  members cannot be observed except by their names.
+- **The qualified name of `xmlns`.** html5ever gives the `xmlns` attribute
+  of a foreign element (an inline `<svg xmlns="...">`) an empty prefix
+  where the standard says null ("adjust foreign attributes"); the name
+  became `:xmlns` and Alpine, which reads `attr.name`, took it for a bind
+  (`:` prefix) and evaluated the namespace URL as an expression. The
+  parser's tree sink makes an empty prefix null, so `name`, `nodeName` of
+  the element, `getAttributeNames()`, `attributes.xmlns` and the `prefix`
+  getter (null, as in Chromium) agree. Measured, and unchanged: `xmlns:foo`
+  on an HTML element has no namespace; on `svg` and `math` `xmlns` has the
+  XMLNS namespace; `outerHTML` was right already. Departure kept from M8:
+  `Attr` is not a `Node` (no `Attr.nodeName`).
+- **`document.domain`, `window.originAgentCluster`.** The getter gives the
+  host of the origin (`""` for `file:` and opaque origins, the URL host
+  form for IP addresses); the setter runs the checks of the standard
+  and returns, because Chromium keys its agent clusters by origin
+  (`originAgentCluster` is true for a tuple origin, false for `file:`;
+  ADR 0031 section 5). The error messages are Chromium's (`'' is an empty
+  domain.`, `'x' is not a suffix of 'host'.`, `'localhost' is a top-level
+  domain.`, `'v' could not be parsed properly.`, `A browsing context is
+  required to set a domain.`); the top-level check uses the Public Suffix
+  List of `swb-net` (a name with one label counts too). Departure: a value
+  with a character that a host cannot have (a space) gives the "could not
+  be parsed" error; Chromium percent-encodes it. Setting the hostname
+  itself, in another case or in an IPv4 form, returns; `document.domain`
+  of a `createHTMLDocument` document reads the host of the window and the
+  setter throws.
+- **`navigator.plugins`, `mimeTypes`.** Empty `PluginArray` and
+  `MimeTypeArray` (`length` 0, `item()`, `namedItem()` and the indexed and
+  named getters give null, `refresh()` does nothing), the same object at
+  each read; `pdfViewerEnabled` stays false. Chromium's headless shell is
+  the same (measured: empty, `pdfViewerEnabled` false), so there is no
+  departure in the values. `Plugin` and `MimeType` are interface objects
+  without members (no instance exists). The scripts of BBC and the Google
+  Publisher Tag read `navigator.plugins.length`.
+- **`window.postMessage()` to the own window** (ADR 0031 section 7 for the
+  design; frames and ports come with its feature 14). Both overloads
+  (`postMessage(message, targetOrigin, transfer)` and `postMessage(message,
+  options)`), the checks of the standard with Chromium's messages
+  (`SyntaxError` for a `targetOrigin` that is not `*`, `/` or an absolute URL,
+  the structured clone errors with the prefix `Failed to execute
+  'postMessage' on 'Window':`), `ArrayBuffer`s as the transfer list (they
+  detach at the call; a `MessagePort` or another object is a
+  `DataCloneError` because swb has no ports). The message is a task on the
+  event loop at the time of the call (after the timers that were due and queued
+  before it, before those queued after it; microtasks run first); the `message`
+  event is trusted, does not bubble, has `origin` (`"null"` for `file:`),
+  `source` the window (until the `WindowProxy` of ADR 0031), `ports` an empty
+  frozen array, `lastEventId` empty, and reaches `window.onmessage`. The
+  target origin is checked again when the task runs: a message to an origin
+  that is not the document's is dropped without an error (a `file:` URL names
+  an opaque origin, so it never matches; `/` and `*` always deliver).
+  Departures: `MessageEvent.ports` is a new frozen array at each read
+  (Chromium: one array); the waiting messages are a per-runtime queue with
+  the bounds of ADR 0031 section 11 (65,536 messages, 256 MiB of
+  serialized bytes), which Chromium lacks; a call past a bound drops its
+  message with one warning until the queue is empty.
+- **`:focus-visible`.** swb used to match `:focus-visible` after every script
+  `focus()`, and for every `input` that has the focus. Chromium keeps a
+  modality of the input: a key sets "keyboard", a mouse press that moves
+  the focus to an element sets "mouse"; other input (hover, wheel, a press on
+  nothing focusable, a press on the element that has the focus, a press
+  whose `mousedown` was canceled) leaves it; at the start it is
+  keyboard. A script's `focus()` matches `:focus-visible` in keyboard
+  modality and `focus({focusVisible})` overrides; a key that goes down
+  while an element has the focus makes it match (also a `keydown` that
+  a listener cancels); text fields match whenever they have the focus
+  (`input` of a type that takes text, also read-only, `textarea`,
+  `select`, editing hosts) and check boxes, radio buttons, buttons, color,
+  range and file inputs, links, `summary` and `tabindex` elements only
+  after keyboard focus. The activation of a label sets the mouse modality.
+  Measured with 73 cases (`fv-*`) of clicks, keys, `focus()` in
+  handlers and timers, and 31 element kinds. swb: the engine's document
+  keeps the flag (`keyboard_modality`), the page sets it at a key and at a
+  mouse press that focuses, and the style system adds the text rule.
+  Departure: swb does not focus an element with `contenteditable` (M8), so
+  Chromium's cases with an editing host differ; swb focuses an empty
+  `iframe` that Chromium does not.
+- **Tools.** `compare --js` leaves the `script`, `style`, `link`, `meta`,
+  `noscript` and `iframe` elements without a box out of the alignment
+  (they come and go at moments that differ between Chromium's runs). The
+  step `{"record": EXPR}` of `swb --steps` prints the answer line of an
+  expression between steps (docs/testing.md). The integration test
+  `ars_technica.rs` covers features 1 to 6 of the Ars Technica list with
+  Chromium's records of the same steps.
 
 ## Consequences
 

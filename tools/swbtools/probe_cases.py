@@ -200,6 +200,7 @@ STEP_KINDS = (
     "wait",
     "focus",
     "eval",
+    "record",
     "viewport",
     "colorScheme",
     "back",

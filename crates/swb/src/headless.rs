@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use swb_automation::HeadlessBrowser;
-use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, PageConfig, Size, Url};
+use swb_automation::{HeadlessBrowser, answer_line};
+use swb_engine::{ClockMode, JsonForm, Page, PageClock, PageConfig, Size, Url};
 use swb_layout::FragmentRef;
 use swb_net::Fetcher;
 use swb_text::FontContext;
@@ -161,17 +161,6 @@ fn evaluate(page: &mut Page, expressions: &[String], timeout: Duration) -> Resul
     out.flush().context("cannot write to standard output")
 }
 
-/// The line of one `--eval` answer; `None` is a page without scripts.
-fn answer_line(evaluation: Option<Evaluation>) -> String {
-    match evaluation {
-        Some(Evaluation::Value(text)) => format!("{{\"value\": {text}}}"),
-        Some(Evaluation::Error(message)) => {
-            format!("{{\"error\": {}}}", serde_json::Value::String(message))
-        }
-        None => "{\"error\": \"JavaScript is off (use --js)\"}".to_owned(),
-    }
-}
-
 /// One line per box fragment: depth, element, and absolute border box.
 fn dump_layout(page: &Page) -> String {
     use std::fmt::Write;
@@ -207,6 +196,8 @@ fn dump_layout(page: &Page) -> String {
 
 #[cfg(test)]
 mod tests {
+    use swb_engine::Evaluation;
+
     use super::*;
 
     #[test]

@@ -72,6 +72,7 @@ Document:dwc
 DOMImplementation:dwc
 DocumentType:dwc
 DocumentFragment:dwc
+ShadowRoot:dwc
 NodeList:dwc
 HTMLCollection:dwc
 Element:dwc
@@ -126,6 +127,7 @@ outerWidth:aec
 outerHeight:aec
 devicePixelRatio:aec
 event:aec
+originAgentCluster:aec
 performance:aec
 crypto:aec
 onabort:aec
@@ -253,6 +255,7 @@ confirm:dwec
 fetch:dwec
 getComputedStyle:dwec
 matchMedia:dwec
+postMessage:dwec
 print:dwec
 prompt:dwec
 queueMicrotask:dwec
@@ -350,6 +353,10 @@ ErrorEvent:dwc
 PromiseRejectionEvent:dwc
 PageTransitionEvent:dwc
 Navigator:dwc
+PluginArray:dwc
+MimeTypeArray:dwc
+Plugin:dwc
+MimeType:dwc
 History:dwc
 Location:dwc
 PopStateEvent:dwc

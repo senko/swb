@@ -423,6 +423,52 @@ impl<'a> StateSet<'a> {
         self.classes.get(start as usize..end as usize)
     }
 
+    /// True if the element is in an editing host (`isContentEditable`).
+    fn is_editable(&self, id: NodeId) -> bool {
+        if let Some(table) = &self.editable {
+            return table.get(id.index()).copied().unwrap_or(false);
+        }
+        let mut memo = self.editable_memo.borrow_mut();
+        if memo.is_empty() {
+            *memo = vec![0; self.doc.len()];
+        }
+        editing_host_state(self.doc, &mut memo, id)
+    }
+
+    /// True for an element that takes text input, which matches
+    /// `:focus-visible` whenever it has the focus (HTML "focus-visible"
+    /// heuristics; Chromium 148, measured in `tools/probes/web-small-gaps.json`
+    /// case `fv-types-mouse`): a text field (an `input` of a type that
+    /// takes text, also a read-only one), a `textarea`, a `select` and an
+    /// editing host. A button, a checkbox, a radio button, a color, range
+    /// or file input, a link, a `summary` and an element with `tabindex`
+    /// match only after keyboard focus.
+    fn takes_text_input(&self, id: NodeId) -> bool {
+        let Some(element) = self.doc.element(id).filter(|e| e.is_html()) else {
+            return false;
+        };
+        match &**element.local_name() {
+            "textarea" | "select" => true,
+            "input" => {
+                let kind = element.attr("type").unwrap_or("text").to_ascii_lowercase();
+                !matches!(
+                    kind.as_str(),
+                    "hidden"
+                        | "checkbox"
+                        | "radio"
+                        | "range"
+                        | "color"
+                        | "file"
+                        | "submit"
+                        | "reset"
+                        | "button"
+                        | "image"
+                )
+            }
+            _ => self.is_editable(id),
+        }
+    }
+
     /// The states of an element that do not depend on its attributes.
     fn interaction_state(&self, id: NodeId) -> ElementState {
         let mut state = ElementState::DEFINED;
@@ -437,7 +483,7 @@ impl<'a> StateSet<'a> {
         }
         if self.focus == Some(id) {
             state |= ElementState::FOCUS;
-            if self.focus_visible {
+            if self.focus_visible || self.takes_text_input(id) {
                 state |= ElementState::FOCUS_VISIBLE;
             }
         }
@@ -561,16 +607,7 @@ impl<'a> DomElement<'a> {
     /// disabled one is read-only inside a host too, a text field in a
     /// `contenteditable=false` island is still read-write).
     fn editing_state(&self) -> ElementState {
-        let editable = if let Some(table) = &self.states.editable {
-            table.get(self.id.index()).copied().unwrap_or(false)
-        } else {
-            let mut memo = self.states.editable_memo.borrow_mut();
-            if memo.is_empty() {
-                *memo = vec![0; self.doc.len()];
-            }
-            editing_host_state(self.doc, &mut memo, self.id)
-        };
-        if editable {
+        if self.states.is_editable(self.id) {
             ElementState::READ_WRITE
         } else {
             ElementState::READ_ONLY
@@ -716,13 +753,7 @@ impl Element for DomElement<'_> {
     }
 
     fn state(&self) -> ElementState {
-        let mut state = self.states.interaction_state(self.id) | self.form_state();
-        if state.contains(ElementState::FOCUS)
-            && matches!(&**self.data.local_name(), "input" | "textarea" | "select")
-        {
-            state |= ElementState::FOCUS_VISIBLE;
-        }
-        state
+        self.states.interaction_state(self.id) | self.form_state()
     }
 
     fn same_element(&self, other: &Self) -> bool {

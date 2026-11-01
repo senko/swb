@@ -85,6 +85,9 @@ pub(crate) enum Task {
         /// `newURL`.
         new_url: String,
     },
+    /// Deliver the oldest message that `window.postMessage()` queued (the
+    /// posted message task source, `messaging.rs`).
+    Message,
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

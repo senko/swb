@@ -176,6 +176,20 @@
    ]
   },
   {
+   "name": "document-domain-setter",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst S = h => '$OTHER'.replace('127.0.0.1', h) + D + 'dd.html';</script></head><body><iframe id=fx></iframe></body></html>",
+   "resources": {
+    "dd.html": {
+     "text": "<!DOCTYPE html><script>const E = v => { try { document.domain = v; return 'ok:' + document.domain; } catch (e) { return e.name + ': ' + e.message; } }; const r = [document.domain, window.originAgentCluster, E('a.localhost'), E('localhost'), E(''), E('x.a.localhost'), E('X.A.LOCALHOST.'), E('b.localhost'), E('a.localhost.'), E('xa.localhost'), E('a.localhost:80'), E('http://a.localhost'), E('a..localhost'), E('a localhost'), document.domain]; parent.postMessage(r, '*');</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => { addEventListener('message', e => r(JSON.stringify(e.data).replace(/:\\d{2,5}/g, ':P'))); fx.src = S('x.a.localhost'); setTimeout(() => r('timeout'), 3000); })"
+    }
+   ]
+  },
+  {
    "name": "cookies-frames",
    "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f1></iframe><iframe id=f2></iframe></body></html>",
    "resources": {

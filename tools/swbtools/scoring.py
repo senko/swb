@@ -14,6 +14,10 @@ The algorithm is described in docs/testing.md ("Scores"). In short:
      both browsers, and width and height.
 3. `missing`: elements with a box only in Chromium (or without a partner).
    `extra`: elements with a box only in swb (or without a partner).
+
+For pages with JavaScript (`compare --js`), step 1 leaves out `script`,
+`style`, `link`, `meta`, `noscript` and `iframe` elements that have no box
+(`align_without_ignored`).
 """
 
 import difflib
@@ -170,6 +174,51 @@ def align(reference: Sequence[str], swb: Sequence[str]) -> Alignment:
     return Alignment(pairs, False, differences)
 
 
+IGNORED_WITHOUT_BOX = frozenset({"script", "style", "link", "meta", "noscript", "iframe"})
+"""Tags that `align_without_ignored` skips when the element has no box. A
+page with JavaScript inserts and removes these elements at moments that
+differ from run to run in Chromium (a hidden frame, an async script or
+style), which moves every later element of an alignment by index."""
+
+
+def _kept(dump: BoxDump) -> list[int]:
+    """The indices of the elements that are not ignored, in document order."""
+    return [
+        index
+        for index, element in enumerate(dump.elements)
+        if element.rect is not None or element.tag not in IGNORED_WITHOUT_BOX
+    ]
+
+
+def _index_range(kept: list[int], total: int, span: tuple[int, int]) -> tuple[int, int]:
+    """The range of dump indices for a range of positions in `kept`."""
+    start, end = span
+    first = kept[start] if start < len(kept) else total
+    return (first, kept[end - 1] + 1 if end > start else first)
+
+
+def align_without_ignored(reference: BoxDump, swb: BoxDump) -> Alignment:
+    """Aligns the tag sequences as `align` does, but without the elements of
+    `IGNORED_WITHOUT_BOX` that have no box. They get no partner and are in
+    no difference block. `Alignment.identical` is true if the sequences
+    without them are equal."""
+    ref_kept, swb_kept = _kept(reference), _kept(swb)
+    inner = align(
+        [reference.elements[i].tag for i in ref_kept],
+        [swb.elements[j].tag for j in swb_kept],
+    )
+    pairs = {ref_kept[x]: swb_kept[y] for x, y in inner.pairs.items()}
+    differences = [
+        Difference(
+            difference.kind,
+            _index_range(ref_kept, len(reference.elements), difference.reference),
+            _index_range(swb_kept, len(swb.elements), difference.swb),
+        )
+        for difference in inner.differences
+    ]
+    return Alignment(pairs, inner.identical, differences)
+
+
 def within(a: Sequence[float], b: Sequence[float], tolerance: float) -> bool:
     """True if every component differs by at most `tolerance`."""
     return all(abs(x - y) <= tolerance for x, y in zip(a, b, strict=True))
@@ -257,11 +306,22 @@ def _relative(rect: Rect, anchor: Rect | None) -> Rect:
     return (rect[0] - anchor[0], rect[1] - anchor[1], rect[2], rect[3])
 
 
-def compare(reference: BoxDump, swb: BoxDump, tolerance: float = DEFAULT_TOLERANCE) -> Comparison:
-    """Compares the swb dump with the Chromium dump."""
-    alignment = align(
-        [element.tag for element in reference.elements], [element.tag for element in swb.elements]
-    )
+def compare(
+    reference: BoxDump,
+    swb: BoxDump,
+    tolerance: float = DEFAULT_TOLERANCE,
+    skip_ignored: bool = False,
+) -> Comparison:
+    """Compares the swb dump with the Chromium dump. With `skip_ignored`
+    (pages with JavaScript), the elements of `IGNORED_WITHOUT_BOX` that have
+    no box are left out of the alignment of the tag sequences."""
+    if skip_ignored:
+        alignment = align_without_ignored(reference, swb)
+    else:
+        alignment = align(
+            [element.tag for element in reference.elements],
+            [element.tag for element in swb.elements],
+        )
     comparison = Comparison(reference, swb, alignment, tolerance)
     pairs = alignment.pairs
 

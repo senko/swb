@@ -107,6 +107,181 @@ pub(crate) fn console_errors(page: &Page) -> Vec<String> {
         .collect()
 }
 
+/// The whole numbers in `text`, and `text` with each number replaced by
+/// `#`. A `-` is a sign only after a character that is not a letter or
+/// digit.
+pub(crate) fn numbers(text: &str) -> (String, Vec<i64>) {
+    let mut skeleton = String::new();
+    let mut found = Vec::new();
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let sign = chars[i] == '-'
+            && chars.get(i + 1).is_some_and(char::is_ascii_digit)
+            && (i == 0 || !chars[i - 1].is_alphanumeric());
+        if sign || chars[i].is_ascii_digit() {
+            let start = i;
+            i += 1;
+            while chars.get(i).is_some_and(char::is_ascii_digit) {
+                i += 1;
+            }
+            let digits: String = chars[start..i].iter().collect();
+            found.push(digits.parse().unwrap_or(0));
+            skeleton.push('#');
+        } else {
+            skeleton.push(chars[i]);
+            i += 1;
+        }
+    }
+    (skeleton, found)
+}
+
+/// True if the values are equal, with the numbers of strings within
+/// `tolerance` when `rectangles` is set (the strings are texts such as
+/// `"48,-136,176,360 block"`).
+pub(crate) fn same(got: &Value, expected: &Value, rectangles: bool, tolerance: i64) -> bool {
+    match (got, expected) {
+        (Value::Array(a), Value::Array(b)) => {
+            a.len() == b.len()
+                && a.iter()
+                    .zip(b)
+                    .all(|(x, y)| same(x, y, rectangles, tolerance))
+        }
+        (Value::String(a), Value::String(b)) if rectangles => {
+            let ((skeleton_a, na), (skeleton_b, nb)) = (numbers(a), numbers(b));
+            skeleton_a == skeleton_b
+                && na.len() == nb.len()
+                && na.iter().zip(&nb).all(|(x, y)| (x - y).abs() <= tolerance)
+        }
+        _ => got == expected,
+    }
+}
+
+/// The keys of the record `got` and of `expected` that differ, as `name:
+/// key: swb .. != Chromium ..`. The values of the keys in `rectangle_keys`
+/// compare within `tolerance` px.
+pub(crate) fn differences(
+    name: &str,
+    got: &Value,
+    expected: &Value,
+    rectangle_keys: &[&str],
+    tolerance: i64,
+) -> Vec<String> {
+    let (Some(got), Some(expected)) = (got.as_object(), expected.as_object()) else {
+        panic!("{name}: a record is an object");
+    };
+    let mut keys: Vec<&String> = got.keys().chain(expected.keys()).collect();
+    keys.sort();
+    keys.dedup();
+    keys.into_iter()
+        .filter(|k| match (got.get(*k), expected.get(*k)) {
+            (Some(a), Some(b)) => !same(a, b, rectangle_keys.contains(&k.as_str()), tolerance),
+            _ => true,
+        })
+        .map(|k| {
+            format!(
+                "{name}: {k}: swb {:?} != Chromium {:?}",
+                got.get(k),
+                expected.get(k)
+            )
+        })
+        .collect()
+}
+
+/// A point of the pixel check: name, x and y in the viewport.
+pub(crate) type Point = (String, u32, u32);
+
+/// The groups after which a test reads pixels, and for each group the points
+/// that it checks, from the text of a points file (`swbtools replay
+/// --pixels`). A group that `group_points` names checks the points whose
+/// name starts with one of the listed prefixes; every other group checks the
+/// points that no prefix claims.
+pub(crate) fn pixel_points(text: &str) -> (Vec<String>, Vec<Vec<Point>>) {
+    let data: Value = serde_json::from_str(text).unwrap();
+    let groups: Vec<String> = data["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g.as_str().unwrap().to_owned())
+        .collect();
+    let prefixes_of = |group: &str| -> Vec<String> {
+        data["group_points"][group]
+            .as_array()
+            .map(|list| {
+                list.iter()
+                    .map(|p| p.as_str().unwrap().to_owned())
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let claimed: Vec<String> = groups.iter().flat_map(|g| prefixes_of(g)).collect();
+    let points: Vec<Point> = data["points"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(name, p)| {
+            (
+                name.clone(),
+                p[0].as_u64().unwrap() as u32,
+                p[1].as_u64().unwrap() as u32,
+            )
+        })
+        .collect();
+    let starts = |name: &str, prefixes: &[String]| prefixes.iter().any(|p| name.starts_with(p));
+    let per_group = groups
+        .iter()
+        .map(|g| {
+            let own = prefixes_of(g);
+            let selected: Vec<Point> = points
+                .iter()
+                .filter(|(name, ..)| {
+                    if own.is_empty() {
+                        !starts(name, &claimed)
+                    } else {
+                        starts(name, &own)
+                    }
+                })
+                .cloned()
+                .collect();
+            // A misspelt prefix in `group_points` would check nothing.
+            assert!(!selected.is_empty(), "no pixel points for group {g}");
+            selected
+        })
+        .collect();
+    (groups, per_group)
+}
+
+/// The points whose color in a screenshot of the viewport differs from
+/// `expected` (a map of point names to `[r, g, b]`) by more than `tolerance`
+/// per channel, as `group: point (x, y): swb [..] != Chromium [..]`.
+pub(crate) fn pixel_differences(
+    group: &str,
+    page: &mut Page,
+    points: &[Point],
+    expected: &Value,
+    tolerance: i32,
+) -> Vec<String> {
+    let shot = page.screenshot(false).unwrap();
+    points
+        .iter()
+        .filter_map(|(name, x, y)| {
+            let want: Vec<i32> = expected[name.as_str()]
+                .as_array()
+                .unwrap_or_else(|| panic!("{group}: no Chromium color for {name}"))
+                .iter()
+                .map(|c| c.as_i64().unwrap() as i32)
+                .collect();
+            let px = shot.pixel(*x, *y).unwrap();
+            let got = [px.red(), px.green(), px.blue()].map(i32::from);
+            let off = got
+                .iter()
+                .zip(&want)
+                .any(|(g, w)| (g - w).abs() > tolerance);
+            off.then(|| format!("{group}: {name} ({x}, {y}): swb {got:?} != Chromium {want:?}"))
+        })
+        .collect()
+}
+
 /// The step groups of a steps file (the file that `swbtools replay --steps`
 /// and the tests share): a list of `{"name": ..., "steps": [...]}`.
 pub(crate) fn step_groups(text: &str) -> Vec<(String, Vec<Value>)> {

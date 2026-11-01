@@ -161,182 +161,26 @@ const TOLERANCE: i64 = 3;
 /// (anti-aliased, equal within 6) and in gradients (within 3).
 const PIXEL_TOLERANCE: i32 = 12;
 
-/// A point of the pixel check: name, x and y in the viewport.
-type Point = (String, u32, u32);
-
-/// The groups after which the test reads pixels, and for each group the
-/// points that it checks. A group that `group_points` names checks the
-/// points whose name starts with one of the listed prefixes; every other
-/// group checks the points that no prefix claims (the page of the theme
-/// groups).
-fn pixel_points() -> (Vec<String>, Vec<Vec<Point>>) {
-    let data: Value =
-        serde_json::from_str(include_str!("data/wikipedia-web-browser-pixel-points.json")).unwrap();
-    let groups: Vec<String> = data["groups"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|g| g.as_str().unwrap().to_owned())
-        .collect();
-    let prefixes_of = |group: &str| -> Vec<String> {
-        data["group_points"][group]
-            .as_array()
-            .map(|list| {
-                list.iter()
-                    .map(|p| p.as_str().unwrap().to_owned())
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    let claimed: Vec<String> = groups.iter().flat_map(|g| prefixes_of(g)).collect();
-    let points: Vec<Point> = data["points"]
-        .as_object()
-        .unwrap()
-        .iter()
-        .map(|(name, p)| {
-            (
-                name.clone(),
-                p[0].as_u64().unwrap() as u32,
-                p[1].as_u64().unwrap() as u32,
-            )
-        })
-        .collect();
-    let starts = |name: &str, prefixes: &[String]| prefixes.iter().any(|p| name.starts_with(p));
-    let per_group = groups
-        .iter()
-        .map(|g| {
-            let own = prefixes_of(g);
-            let selected: Vec<Point> = points
-                .iter()
-                .filter(|(name, ..)| {
-                    if own.is_empty() {
-                        !starts(name, &claimed)
-                    } else {
-                        starts(name, &own)
-                    }
-                })
-                .cloned()
-                .collect();
-            // A misspelt prefix in `group_points` would check nothing.
-            assert!(!selected.is_empty(), "no pixel points for group {g}");
-            selected
-        })
-        .collect();
-    (groups, per_group)
-}
-
-/// The points whose color in a screenshot of the viewport differs from
-/// `expected` (a map of point names to `[r, g, b]`) by more than
-/// [`PIXEL_TOLERANCE`], as `group: point: swb [..] != Chromium [..]`.
-fn pixel_differences(
-    group: &str,
-    page: &mut Page,
-    points: &[Point],
-    expected: &Value,
-) -> Vec<String> {
-    let shot = page.screenshot(false).unwrap();
-    points
-        .iter()
-        .filter_map(|(name, x, y)| {
-            let want: Vec<i32> = expected[name.as_str()]
-                .as_array()
-                .unwrap_or_else(|| panic!("{group}: no Chromium color for {name}"))
-                .iter()
-                .map(|c| c.as_i64().unwrap() as i32)
-                .collect();
-            let px = shot.pixel(*x, *y).unwrap();
-            let got = [px.red(), px.green(), px.blue()].map(i32::from);
-            let off = got
-                .iter()
-                .zip(&want)
-                .any(|(g, w)| (g - w).abs() > PIXEL_TOLERANCE);
-            off.then(|| format!("{group}: {name} ({x}, {y}): swb {got:?} != Chromium {want:?}"))
-        })
-        .collect()
-}
-
-/// The whole numbers in `text`, and `text` with each number replaced by
-/// `#`. A `-` is a sign only after a character that is not a letter or
-/// digit.
-fn numbers(text: &str) -> (String, Vec<i64>) {
-    let mut skeleton = String::new();
-    let mut found = Vec::new();
-    let chars: Vec<char> = text.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let sign = chars[i] == '-'
-            && chars.get(i + 1).is_some_and(char::is_ascii_digit)
-            && (i == 0 || !chars[i - 1].is_alphanumeric());
-        if sign || chars[i].is_ascii_digit() {
-            let start = i;
-            i += 1;
-            while chars.get(i).is_some_and(char::is_ascii_digit) {
-                i += 1;
-            }
-            let digits: String = chars[start..i].iter().collect();
-            found.push(digits.parse().unwrap_or(0));
-            skeleton.push('#');
-        } else {
-            skeleton.push(chars[i]);
-            i += 1;
-        }
-    }
-    (skeleton, found)
-}
-
-/// True if the values are equal, with the numbers of strings within
-/// [`TOLERANCE`] when `rectangles` is set.
-fn same(got: &Value, expected: &Value, rectangles: bool) -> bool {
-    match (got, expected) {
-        (Value::Array(a), Value::Array(b)) => {
-            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| same(x, y, rectangles))
-        }
-        (Value::String(a), Value::String(b)) if rectangles => {
-            let ((skeleton_a, na), (skeleton_b, nb)) = (numbers(a), numbers(b));
-            skeleton_a == skeleton_b
-                && na.len() == nb.len()
-                && na.iter().zip(&nb).all(|(x, y)| (x - y).abs() <= TOLERANCE)
-        }
-        _ => got == expected,
-    }
-}
-
 /// The keys of `got` and `expected` that differ, as `key: got != expected`.
 fn differences(name: &str, got: &Value, expected: &Value) -> Vec<String> {
-    let (Some(got), Some(expected)) = (got.as_object(), expected.as_object()) else {
-        panic!("{name}: a record is an object");
-    };
-    let mut keys: Vec<&String> = got.keys().chain(expected.keys()).collect();
-    keys.sort();
-    keys.dedup();
-    keys.into_iter()
-        .filter(|k| match (got.get(*k), expected.get(*k)) {
-            (Some(a), Some(b)) => !same(a, b, RECTANGLES.contains(&k.as_str())),
-            _ => true,
-        })
-        .map(|k| {
-            format!(
-                "{name}: {k}: swb {:?} != Chromium {:?}",
-                got.get(k),
-                expected.get(k)
-            )
-        })
-        .collect()
+    common::differences(name, got, expected, RECTANGLES, TOLERANCE)
 }
 
 #[test]
 fn numbers_in_rectangle_texts() {
     assert_eq!(
-        numbers("vector-toc in vector-toc-pinned-container 48,-136,176,360 block"),
+        common::numbers("vector-toc in vector-toc-pinned-container 48,-136,176,360 block"),
         (
             "vector-toc in vector-toc-pinned-container #,#,#,# block".to_owned(),
             vec![48, -136, 176, 360]
         )
     );
-    assert!(same(&"a 1,2".into(), &"a 4,0".into(), true));
-    assert!(!same(&"a 1,2".into(), &"a 5,2".into(), true));
-    assert!(!same(&"a 1,2".into(), &"b 1,2".into(), true));
-    assert!(!same(&"a 1,2".into(), &"a 1,3".into(), false));
+    let same =
+        |a: &str, b: &str, rectangles| common::same(&a.into(), &b.into(), rectangles, TOLERANCE);
+    assert!(same("a 1,2", "a 4,0", true));
+    assert!(!same("a 1,2", "a 5,2", true));
+    assert!(!same("a 1,2", "b 1,2", true));
+    assert!(!same("a 1,2", "a 1,3", false));
 }
 
 #[test]
@@ -359,7 +203,8 @@ fn wikipedia_web_browser_works_with_javascript_on() {
         let mut problems = differences("load", &record(&mut page), &expected[0]);
         let groups = step_groups(include_str!("data/wikipedia-web-browser-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
-        let (pixel_groups, points) = pixel_points();
+        let (pixel_groups, points) =
+            common::pixel_points(include_str!("data/wikipedia-web-browser-pixel-points.json"));
         let pixels: Value =
             serde_json::from_str(include_str!("data/wikipedia-web-browser-pixels.json")).unwrap();
         let mut sampled = 0;
@@ -368,11 +213,12 @@ fn wikipedia_web_browser_works_with_javascript_on() {
             let got = record(&mut page);
             problems.extend(differences(name, &got, &expected[index + 1]));
             if let Some(at) = pixel_groups.iter().position(|g| g == name) {
-                problems.extend(pixel_differences(
+                problems.extend(common::pixel_differences(
                     name,
                     &mut page,
                     &points[at],
                     &pixels[name.as_str()],
+                    PIXEL_TOLERANCE,
                 ));
                 sampled += 1;
             }

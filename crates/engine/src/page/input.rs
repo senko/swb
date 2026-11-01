@@ -293,6 +293,12 @@ impl Page {
         if focus.is_none() && allowed {
             self.input.focus_start = hit.as_ref().map(|h| h.node);
         }
+        // A press that moves the focus to an element makes the mouse the
+        // modality of `:focus-visible` (a press on nothing focusable, or on
+        // the focused element, leaves it).
+        if focus.is_some() && focus != self.focused_element() {
+            self.set_keyboard_modality(false);
+        }
         self.input.last_press = hit.as_ref().map(|h| h.node);
         // A text control gets the caret; the page selection goes away.
         let control = focus.filter(|&n| self.is_text_control(n));
@@ -485,6 +491,14 @@ impl Page {
     /// summary clicks it when the key goes up ([`Page::key_up`]).
     pub fn key_down(&mut self, key: &Key, modifiers: Modifiers) -> bool {
         self.input.modifiers = modifiers;
+        // A key makes the keyboard the modality of `:focus-visible`, also
+        // if a listener cancels it, and the element that has the focus
+        // matches it from now on (Chromium 148, measured: a click on a
+        // button, then any key).
+        self.set_keyboard_modality(true);
+        if self.focused_element().is_some() {
+            self.update_states(|s| s.focus_visible = true);
+        }
         if !self.script_input() {
             return self.key_default(key, modifiers);
         }
@@ -593,6 +607,14 @@ impl Page {
             self.scroll_into_view(node);
         }
         before != self.focus_state()
+    }
+
+    /// Sets the modality of `:focus-visible` (see
+    /// `DocumentState::keyboard_modality`).
+    fn set_keyboard_modality(&mut self, keyboard: bool) {
+        if let Some(doc) = self.doc.as_mut() {
+            doc.keyboard_modality = keyboard;
+        }
     }
 
     /// The focused element and whether it matches `:focus-visible`.

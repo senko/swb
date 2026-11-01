@@ -814,6 +814,30 @@ fn check_transfer(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
     Ok(())
 }
 
+/// `StructuredSerializeWithTransfer` (HTML §2.7.3) for `postMessage()`, in
+/// two steps: this function checks `transfer` and makes the record of
+/// `value`; [`detach_transfer`] then detaches the `ArrayBuffer`s of
+/// `transfer` in the sender. The caller detaches only when it keeps the
+/// record, so a failure or a dropped message leaves the transfer list as it
+/// was. The checks and their messages are those of `structuredClone()`.
+pub(crate) fn serialize_for_transfer(
+    rt: &mut Runtime,
+    value: Value,
+    transfer: &[Gc<Object>],
+) -> b::Result<Serialized> {
+    check_transfer(rt, transfer)?;
+    serialize_with(rt, value)
+}
+
+/// The second step of [`serialize_for_transfer`]: detaches the
+/// `ArrayBuffer`s of `transfer`, which that step checked.
+pub(crate) fn detach_transfer(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
+    for &buffer in transfer {
+        rt.detach_array_buffer(buffer.into())?;
+    }
+    Ok(())
+}
+
 /// `structuredClone(value, options)` (HTML §2.7.1): the clone of `value`,
 /// with the buffers of `options.transfer` moved.
 pub(crate) fn structured_clone(

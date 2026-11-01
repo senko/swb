@@ -1,0 +1,471 @@
+{
+ "load": {
+  "consent dim top left": [
+   130,
+   131,
+   132
+  ],
+  "consent dim right": [
+   130,
+   131,
+   132
+  ],
+  "consent dim bottom": [
+   19,
+   20,
+   22
+  ],
+  "consent box": [
+   255,
+   255,
+   255
+  ],
+  "consent box lower": [
+   255,
+   255,
+   255
+  ],
+  "page top": [
+   130,
+   131,
+   132
+  ],
+  "page left": [
+   130,
+   131,
+   132
+  ],
+  "page right": [
+   130,
+   131,
+   132
+  ],
+  "page below header": [
+   19,
+   20,
+   22
+  ],
+  "page content left": [
+   247,
+   250,
+   252
+  ],
+  "page content": [
+   200,
+   200,
+   200
+  ],
+  "theme menu item": [
+   255,
+   255,
+   255
+  ],
+  "theme menu bottom": [
+   2,
+   1,
+   0
+  ]
+ },
+ "privacy choices": {
+  "consent dim top left": [
+   130,
+   131,
+   132
+  ],
+  "consent dim right": [
+   130,
+   131,
+   132
+  ],
+  "consent dim bottom": [
+   19,
+   20,
+   22
+  ],
+  "consent box": [
+   247,
+   250,
+   252
+  ],
+  "consent box lower": [
+   247,
+   250,
+   252
+  ],
+  "page top": [
+   247,
+   250,
+   252
+  ],
+  "page left": [
+   130,
+   131,
+   132
+  ],
+  "page right": [
+   130,
+   131,
+   132
+  ],
+  "page below header": [
+   19,
+   20,
+   22
+  ],
+  "page content left": [
+   226,
+   229,
+   231
+  ],
+  "page content": [
+   232,
+   235,
+   237
+  ],
+  "theme menu item": [
+   247,
+   250,
+   252
+  ],
+  "theme menu bottom": [
+   2,
+   1,
+   0
+  ]
+ },
+ "accept": {
+  "consent dim top left": [
+   233,
+   234,
+   237
+  ],
+  "consent dim right": [
+   233,
+   234,
+   237
+  ],
+  "consent dim bottom": [
+   35,
+   36,
+   40
+  ],
+  "consent box": [
+   233,
+   234,
+   237
+  ],
+  "consent box lower": [
+   233,
+   234,
+   237
+  ],
+  "page top": [
+   233,
+   234,
+   237
+  ],
+  "page left": [
+   233,
+   234,
+   237
+  ],
+  "page right": [
+   233,
+   234,
+   237
+  ],
+  "page below header": [
+   35,
+   36,
+   40
+  ],
+  "page content left": [
+   35,
+   36,
+   40
+  ],
+  "page content": [
+   35,
+   36,
+   40
+  ],
+  "theme menu item": [
+   3,
+   3,
+   1
+  ],
+  "theme menu bottom": [
+   4,
+   3,
+   1
+  ]
+ },
+ "theme dark": {
+  "consent dim top left": [
+   17,
+   18,
+   20
+  ],
+  "consent dim right": [
+   17,
+   18,
+   20
+  ],
+  "consent dim bottom": [
+   35,
+   36,
+   40
+  ],
+  "consent box": [
+   17,
+   18,
+   20
+  ],
+  "consent box lower": [
+   17,
+   18,
+   20
+  ],
+  "page top": [
+   17,
+   18,
+   20
+  ],
+  "page left": [
+   17,
+   18,
+   20
+  ],
+  "page right": [
+   17,
+   18,
+   20
+  ],
+  "page below header": [
+   35,
+   36,
+   40
+  ],
+  "page content left": [
+   35,
+   36,
+   40
+  ],
+  "page content": [
+   35,
+   36,
+   40
+  ],
+  "theme menu item": [
+   59,
+   60,
+   67
+  ],
+  "theme menu bottom": [
+   59,
+   60,
+   67
+  ]
+ },
+ "theme light": {
+  "consent dim top left": [
+   255,
+   255,
+   255
+  ],
+  "consent dim right": [
+   255,
+   255,
+   255
+  ],
+  "consent dim bottom": [
+   233,
+   234,
+   237
+  ],
+  "consent box": [
+   255,
+   255,
+   255
+  ],
+  "consent box lower": [
+   255,
+   255,
+   255
+  ],
+  "page top": [
+   255,
+   255,
+   255
+  ],
+  "page left": [
+   255,
+   255,
+   255
+  ],
+  "page right": [
+   255,
+   255,
+   255
+  ],
+  "page below header": [
+   233,
+   234,
+   237
+  ],
+  "page content left": [
+   233,
+   234,
+   237
+  ],
+  "page content": [
+   233,
+   234,
+   237
+  ],
+  "theme menu item": [
+   59,
+   60,
+   67
+  ],
+  "theme menu bottom": [
+   59,
+   60,
+   67
+  ]
+ },
+ "theme dusk": {
+  "consent dim top left": [
+   233,
+   234,
+   237
+  ],
+  "consent dim right": [
+   233,
+   234,
+   237
+  ],
+  "consent dim bottom": [
+   35,
+   36,
+   40
+  ],
+  "consent box": [
+   233,
+   234,
+   237
+  ],
+  "consent box lower": [
+   233,
+   234,
+   237
+  ],
+  "page top": [
+   233,
+   234,
+   237
+  ],
+  "page left": [
+   233,
+   234,
+   237
+  ],
+  "page right": [
+   233,
+   234,
+   237
+  ],
+  "page below header": [
+   35,
+   36,
+   40
+  ],
+  "page content left": [
+   35,
+   36,
+   40
+  ],
+  "page content": [
+   35,
+   36,
+   40
+  ],
+  "theme menu item": [
+   59,
+   60,
+   67
+  ],
+  "theme menu bottom": [
+   59,
+   60,
+   67
+  ]
+ },
+ "theme system": {
+  "consent dim top left": [
+   233,
+   234,
+   237
+  ],
+  "consent dim right": [
+   233,
+   234,
+   237
+  ],
+  "consent dim bottom": [
+   35,
+   36,
+   40
+  ],
+  "consent box": [
+   233,
+   234,
+   237
+  ],
+  "consent box lower": [
+   233,
+   234,
+   237
+  ],
+  "page top": [
+   233,
+   234,
+   237
+  ],
+  "page left": [
+   233,
+   234,
+   237
+  ],
+  "page right": [
+   233,
+   234,
+   237
+  ],
+  "page below header": [
+   35,
+   36,
+   40
+  ],
+  "page content left": [
+   35,
+   36,
+   40
+  ],
+  "page content": [
+   35,
+   36,
+   40
+  ],
+  "theme menu item": [
+   35,
+   36,
+   40
+  ],
+  "theme menu bottom": [
+   35,
+   36,
+   40
+  ]
+ }
+}

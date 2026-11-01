@@ -84,6 +84,9 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute (Event or undefined) event`.
     fn event(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<super::types::EventOrUndefined>;
 
+    /// `readonly attribute boolean originAgentCluster`.
+    fn origin_agent_cluster(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
+
     /// `readonly attribute Performance performance`.
     fn performance(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -122,6 +125,12 @@ pub trait WindowImpl: b::Host {
 
     /// `Promise<Response> fetch(any input, optional RequestInit init)`.
     fn fetch(cx: &mut b::Cx<'_>, this: b::Platform, input: swb_js::Value, init: super::types::RequestInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer)`.
+    fn post_message_1(cx: &mut b::Cx<'_>, this: b::Platform, message: swb_js::Value, target_origin: String, transfer: Vec<swb_js::Gc<swb_js::Object>>) -> b::Result<()>;
+
+    /// `undefined postMessage(any message, optional WindowPostMessageOptions options)`.
+    fn post_message_2(cx: &mut b::Cx<'_>, this: b::Platform, message: swb_js::Value, options: super::types::WindowPostMessageOptions) -> b::Result<()>;
 
     /// `undefined alert()`.
     fn alert_1(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
@@ -556,6 +565,14 @@ fn set_event<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
         let _ = this;
         let this = rt.this_or_global(call)?;
         b::glue::replace(rt, call, this, "event")
+    })
+}
+
+fn get_origin_agent_cluster<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "originAgentCluster"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::origin_agent_cluster(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
 }
 
@@ -2513,6 +2530,57 @@ fn op_fetch<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) 
     })
 }
 
+fn op_post_message<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "postMessage"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        b::glue::require_arguments(call, 1)?;
+        match call.argc().min(3) {
+            1 => {
+        let v = rt.arg(call, 0);
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { super::types::WindowPostMessageOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::WindowPostMessageOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
+        <H as WindowImpl>::post_message_2(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+            }
+            2 => {
+                let v = rt.arg(call, 1);
+                let which = b::overload::select(rt, v, &[b::overload::Candidate { string: true, ..b::overload::Candidate::default() }, b::overload::Candidate { nullable_or_dictionary: true, object_like: true, optional: true, ..b::overload::Candidate::default() }])?;
+                match which {
+                    0 => {
+        let v = rt.arg(call, 0);
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::usv_string(rt, v).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::object(item0)).map_err(|e| e.argument(2))? };
+        <H as WindowImpl>::post_message_1(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1, a2)?;
+        Ok(swb_js::Value::Undefined)
+                    }
+                    _ => {
+        let v = rt.arg(call, 0);
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { super::types::WindowPostMessageOptions::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::WindowPostMessageOptions::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
+        <H as WindowImpl>::post_message_2(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1)?;
+        Ok(swb_js::Value::Undefined)
+                    }
+                }
+            }
+            _ => {
+        let v = rt.arg(call, 0);
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = b::convert::usv_string(rt, v).map_err(|e| e.argument(1))?;
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::object(item0)).map_err(|e| e.argument(2))? };
+        <H as WindowImpl>::post_message_1(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1, a2)?;
+        Ok(swb_js::Value::Undefined)
+            }
+        }
+    })
+}
+
 fn op_alert<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "alert"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
@@ -2751,6 +2819,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "outerHeight", (Some(get_outer_height::<H> as swb_js::NativeFn), Some(set_outer_height::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "devicePixelRatio", (Some(get_device_pixel_ratio::<H> as swb_js::NativeFn), Some(set_device_pixel_ratio::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "event", (Some(get_event::<H> as swb_js::NativeFn), Some(set_event::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "originAgentCluster", (Some(get_origin_agent_cluster::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "performance", (Some(get_performance::<H> as swb_js::NativeFn), Some(set_performance::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "crypto", (Some(get_crypto::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "onabort", (Some(get_onabort::<H> as swb_js::NativeFn), Some(set_onabort::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
@@ -2878,6 +2947,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "fetch", 1, op_fetch::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getComputedStyle", 1, op_get_computed_style::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "matchMedia", 1, op_match_media::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "postMessage", 1, op_post_message::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "print", 0, op_print::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "prompt", 0, op_prompt::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "queueMicrotask", 1, op_queue_microtask::<H>, swb_js::Attributes::MEMBER)?;

@@ -1,0 +1,23 @@
+{
+  "groups": ["load", "privacy choices", "accept", "theme dark", "theme light", "theme dusk", "theme system"],
+  "group_points": {
+    "load": ["consent"],
+    "privacy choices": ["consent"],
+    "accept": ["consent"]
+  },
+  "points": {
+    "consent dim top left": [6, 6],
+    "consent dim right": [1126, 302],
+    "consent dim bottom": [166, 502],
+    "consent box": [550, 206],
+    "consent box lower": [694, 302],
+    "page top": [646, 102],
+    "page left": [6, 206],
+    "page right": [1126, 206],
+    "page below header": [6, 502],
+    "page content left": [326, 606],
+    "page content": [486, 502],
+    "theme menu item": [1022, 502],
+    "theme menu bottom": [1126, 502]
+  }
+}

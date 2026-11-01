@@ -648,6 +648,19 @@ pub trait EngineHost: Any {
         let _ = (node, visible);
     }
 
+    /// True while the last input that moved the focus or pressed a key was
+    /// the keyboard, or there was none. `focus()` without the `focusVisible`
+    /// option matches `:focus-visible` exactly then (Chromium's heuristic).
+    fn keyboard_modality(&self) -> bool {
+        true
+    }
+
+    /// Sets the modality: a label's activation focuses its control as a
+    /// mouse press does.
+    fn set_keyboard_modality(&mut self, keyboard: bool) {
+        let _ = keyboard;
+    }
+
     /// True if the user edited the value of the text control `node` since
     /// it got the focus or since its last `change` event, and the value
     /// differs from the one then (the user's edit was committed: `change`

@@ -8,7 +8,9 @@
 // `location` and `history` members of Window and Document on 2026-10-29;
 // Navigator and its mixins, `navigator`, `atob` and `btoa` on 2026-10-29;
 // Storage, its Window mixins and `Document.cookie` on 2026-10-29; `alert`,
-// `confirm`, `prompt` and `print` on 2026-10-30).
+// `confirm`, `prompt` and `print` on 2026-10-30; `Document.domain`,
+// `Window.originAgentCluster`, `Window.postMessage`, `plugins` and
+// `mimeTypes` on 2026-11-01).
 //
 // Copyright © WHATWG (Apple, Google, Mozilla, Microsoft). The standard is
 // licensed under the Creative Commons Attribution 4.0 International
@@ -92,6 +94,27 @@ interface Window : EventTarget {
   [Replaceable] readonly attribute unsigned long length;
   [LegacyUnforgeable] readonly attribute WindowProxy? top;
   [Replaceable] readonly attribute WindowProxy? parent;
+};
+
+// Cross-document messaging and the agent cluster (M9 feature 1, ADR 0031
+// sections 5 and 7). `postMessage` is the window's own (no frames yet);
+// `originAgentCluster` is true for a document with a tuple origin.
+// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
+// https://html.spec.whatwg.org/multipage/browsers.html#dom-originagentcluster
+partial interface Window {
+  readonly attribute boolean originAgentCluster;
+
+  undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
+  undefined postMessage(any message, optional WindowPostMessageOptions options = {});
+};
+
+dictionary WindowPostMessageOptions : StructuredSerializeOptions {
+  USVString targetOrigin = "/";
+};
+
+// https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain
+partial interface Document {
+  [CEReactions] attribute DOMString domain;
 };
 
 // The simple dialogs (https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#simple-dialogs)
@@ -1097,8 +1120,7 @@ dictionary StructuredSerializeOptions {
 // https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object,
 // copied on 2026-10-29). swb cut the mixins to the members that pages read:
 // NavigatorID lacks the obsolete `taintEnabled` and `oscpu`; NavigatorPlugins
-// has `javaEnabled()` and `pdfViewerEnabled` but no `plugins` and
-// `mimeTypes` (no PluginArray, MimeTypeArray, Plugin, MimeType); there are no
+// has all members (since M9 feature 1; the arrays are empty); there are no
 // NavigatorContentUtils members. NavigatorConcurrentHardware is from the
 // HTML standard's workers section (copied on the same day). `maxTouchPoints`,
 // `webdriver` and `doNotTrack` are in navigator-extensions.idl.
@@ -1138,9 +1160,38 @@ interface mixin NavigatorCookies {
   readonly attribute boolean cookieEnabled;
 };
 
+// NavigatorPlugins, PluginArray, MimeTypeArray, Plugin and MimeType (HTML
+// §8.9.1.5, copied on 2026-11-01, M9 feature 1): swb has no plugins, so the
+// two arrays are always empty. `Plugin` and `MimeType` are interface objects
+// without members, because no instance exists.
 interface mixin NavigatorPlugins {
+  [SameObject] readonly attribute PluginArray plugins;
+  [SameObject] readonly attribute MimeTypeArray mimeTypes;
   boolean javaEnabled();
   readonly attribute boolean pdfViewerEnabled;
+};
+
+[Exposed=Window]
+interface PluginArray {
+  undefined refresh();
+  readonly attribute unsigned long length;
+  getter Plugin? item(unsigned long index);
+  getter Plugin? namedItem(DOMString name);
+};
+
+[Exposed=Window]
+interface MimeTypeArray {
+  readonly attribute unsigned long length;
+  getter MimeType? item(unsigned long index);
+  getter MimeType? namedItem(DOMString name);
+};
+
+[Exposed=Window]
+interface Plugin {
+};
+
+[Exposed=Window]
+interface MimeType {
 };
 
 interface mixin NavigatorConcurrentHardware {
@@ -1414,7 +1465,7 @@ interface MessageEvent : Event {
   readonly attribute USVString origin;
   readonly attribute DOMString lastEventId;
   readonly attribute EventTarget? source;
-  readonly attribute sequence<object> ports;
+  readonly attribute FrozenArray<object> ports;
 
   undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional EventTarget? source = null, optional sequence<object> ports = []);
 };

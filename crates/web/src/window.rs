@@ -100,6 +100,33 @@ impl g::window::WindowImpl for WebState {
         crate::structured::structured_clone(cx, value, options)
     }
 
+    /// `window.originAgentCluster` (HTML "origin-keyed agent clusters"):
+    /// true for a tuple origin, as in Chromium (`domain.rs`).
+    fn origin_agent_cluster(cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
+        crate::domain::origin_agent_cluster(cx)
+    }
+
+    /// `postMessage(message, targetOrigin, transfer)` (`messaging.rs`).
+    fn post_message_1(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        message: Value,
+        target_origin: String,
+        transfer: Vec<Gc<Object>>,
+    ) -> b::Result<()> {
+        crate::messaging::post(cx, message, &target_origin, &transfer)
+    }
+
+    /// `postMessage(message, options)`.
+    fn post_message_2(
+        cx: &mut Cx<'_>,
+        _this: Platform,
+        message: Value,
+        options: crate::generated::types::WindowPostMessageOptions,
+    ) -> b::Result<()> {
+        crate::messaging::post(cx, message, &options.target_origin, &options.transfer)
+    }
+
     fn frames(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
         Ok(this.object)
     }

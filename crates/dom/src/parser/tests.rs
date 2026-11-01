@@ -126,6 +126,41 @@ fn svg_hrefs_and_the_id_index() {
 }
 
 #[test]
+fn foreign_namespace_attributes_have_no_empty_prefix() {
+    // Chromium 148: `xmlns` has the prefix null, `xmlns:xlink` has `xmlns`,
+    // `xlink:href` has `xlink`; an empty prefix would make `:xmlns`.
+    let doc = parse_html(
+        "<svg id=s xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
+         xlink:href='#a' viewBox='0 0 1 1'></svg>",
+    );
+    let svg = doc.element(doc.element_by_id("s").unwrap()).unwrap();
+    let names: Vec<(Option<String>, String)> = svg
+        .attributes()
+        .iter()
+        .map(|a| {
+            (
+                a.name.prefix.as_ref().map(ToString::to_string),
+                a.name.local.to_string(),
+            )
+        })
+        .collect();
+    let expected = [
+        (None, "id"),
+        (None, "xmlns"),
+        (Some("xmlns"), "xlink"),
+        (Some("xlink"), "href"),
+        (None, "viewBox"),
+    ];
+    let expected: Vec<(Option<String>, String)> = expected
+        .iter()
+        .map(|(p, l)| (p.map(str::to_owned), (*l).to_owned()))
+        .collect();
+    assert_eq!(names, expected);
+    assert!(svg.attr_by_qualified_name("xmlns").is_some());
+    assert!(svg.attr_by_qualified_name("xmlns:xlink").is_some());
+}
+
+#[test]
 fn attributes_are_kept() {
     let doc = parse_html("<!DOCTYPE html><a href='/x' class='c d'>link</a>");
     let a = doc

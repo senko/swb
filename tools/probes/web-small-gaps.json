@@ -1,0 +1,1773 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "shadow-root-interface",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></head><body><div id=d></div></body></html>",
+   "measure": [
+    {
+     "js": "[typeof ShadowRoot, ShadowRoot.name, ShadowRoot.length, Object.getPrototypeOf(ShadowRoot) === DocumentFragment, Object.getPrototypeOf(ShadowRoot.prototype) === DocumentFragment.prototype, Object.prototype.toString.call(ShadowRoot.prototype), ShadowRoot.prototype.constructor === ShadowRoot]"
+    },
+    {
+     "js": "E(() => new ShadowRoot())"
+    },
+    {
+     "js": "E(() => ShadowRoot())"
+    },
+    {
+     "js": "[document.createDocumentFragment() instanceof ShadowRoot, document.body instanceof ShadowRoot, document.body.parentNode instanceof ShadowRoot, document instanceof ShadowRoot, document.createDocumentFragment() instanceof DocumentFragment]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'ShadowRoot'); return [d.writable, d.enumerable, d.configurable]; })()"
+    },
+    {
+     "js": "(() => { const p = document.createDocumentFragment(); const k = document.createElement('div'); p.appendChild(k); return [k.parentNode instanceof ShadowRoot, k.parentNode instanceof DocumentFragment, k.getRootNode() instanceof ShadowRoot]; })()"
+    },
+    {
+     "js": "E(() => (document.body instanceof ShadowRoot) || typeof ShadowRoot === 'function')"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(ShadowRoot.prototype).sort().join()"
+    },
+    {
+     "js": "[typeof document.body.attachShadow, 'shadowRoot' in document.body, document.body.shadowRoot, 'host' in document.createDocumentFragment()]"
+    }
+   ]
+  },
+  {
+   "name": "xmlns-attribute",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></head><body><div id=wrap><svg id=s xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xlink:href=\"#a\" xml:lang=\"en\" viewBox=\"0 0 1 1\" :class=\"x\"><use id=u></use></svg><math id=m xmlns=\"http://www.w3.org/1998/Math/MathML\"></math><div id=d xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:foo=\"urn:foo\"></div></div></body></html>",
+   "measure": [
+    {
+     "js": "[...s.attributes].map(a => JSON.stringify([a.name, a.localName, a.prefix, a.namespaceURI, a.value]))"
+    },
+    {
+     "js": "[...m.attributes].map(a => JSON.stringify([a.name, a.localName, a.prefix, a.namespaceURI]))"
+    },
+    {
+     "js": "[...d.attributes].map(a => JSON.stringify([a.name, a.localName, a.prefix, a.namespaceURI]))"
+    },
+    {
+     "js": "s.getAttributeNames()"
+    },
+    {
+     "js": "[s.hasAttribute('xmlns'), s.getAttribute('xmlns'), s.hasAttribute(':xmlns'), s.getAttribute(':xmlns'), s.hasAttribute('xmlns:xlink'), s.getAttributeNode('xmlns').name, s.getAttributeNode('xmlns').prefix, s.getAttributeNode('xmlns:xlink').prefix]"
+    },
+    {
+     "js": "[s.attributes.xmlns && s.attributes.xmlns.name, s.attributes['xmlns:xlink'].name, s.attributes.getNamedItem('xmlns').name, s.attributes.item(0).name, Object.keys(s.attributes).join(), s.attributes.length]"
+    },
+    {
+     "js": "[s.getAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns'), s.hasAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns'), s.getAttributeNS('http://www.w3.org/2000/xmlns/', 'xlink'), s.getAttributeNodeNS('http://www.w3.org/2000/xmlns/', 'xmlns').name]"
+    },
+    {
+     "js": "[s.tagName, s.nodeName, s.prefix, s.localName, s.namespaceURI, m.tagName, m.nodeName, d.tagName, d.nodeName]"
+    },
+    {
+     "js": "s.outerHTML"
+    },
+    {
+     "js": "document.getElementById('wrap').innerHTML"
+    },
+    {
+     "js": "[...s.cloneNode(true).attributes].map(a => JSON.stringify([a.name, a.prefix])).join()"
+    },
+    {
+     "js": "(() => { const e = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); e.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', 'http://www.w3.org/2000/svg'); e.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xlink', 'http://www.w3.org/1999/xlink'); return [...e.attributes].map(a => JSON.stringify([a.name, a.prefix, a.localName])).concat(e.outerHTML); })()"
+    },
+    {
+     "js": "(() => { const a = document.createAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns'); return [a.name, a.prefix, a.localName]; })()"
+    },
+    {
+     "js": "(() => { const e = document.createElement('div'); e.innerHTML = '<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>'; return [...e.firstChild.attributes].map(a => JSON.stringify([a.name, a.prefix, a.namespaceURI])); })()"
+    },
+    {
+     "js": "(() => { const doc = new DOMParser().parseFromString('<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>', 'text/html'); return [...doc.querySelector('svg').attributes].map(a => JSON.stringify([a.name, a.prefix])); })()"
+    },
+    {
+     "js": "[s.lookupNamespaceURI(null), s.lookupNamespaceURI('xlink'), s.lookupPrefix('http://www.w3.org/1999/xlink'), s.isDefaultNamespace('http://www.w3.org/2000/svg'), m.lookupNamespaceURI(null)]"
+    },
+    {
+     "js": "[document.querySelectorAll('[xmlns]').length, s.matches('[xmlns]'), s.matches('[xmlns=\"http://www.w3.org/2000/svg\"]'), [...s.attributes].some(a => a.name.charAt(0) === ':')]"
+    },
+    {
+     "js": "[s.getAttribute(':class'), s.attributes[':class'] && s.attributes[':class'].name, s.getAttributeNode(':class').prefix, s.getAttributeNode(':class').localName]"
+    },
+    {
+     "js": "(() => { const t = s.cloneNode(true); t.removeAttribute('xmlns'); return [t.hasAttribute('xmlns'), t.attributes.length]; })()"
+    },
+    {
+     "js": "(() => { s.setAttribute('xmlns', 'urn:x'); return [s.getAttribute('xmlns'), s.attributes.length, [...s.attributes].filter(a => a.localName === 'xmlns').length, s.getAttributeNode('xmlns').namespaceURI]; })()"
+    }
+   ]
+  },
+  {
+   "name": "document-domain-http",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.first = [document.domain, location.hostname, window.originAgentCluster, typeof document.domain];\n</script></head><body><p>x</p></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "window.first"
+    },
+    {
+     "js": "[document.domain, window.originAgentCluster, typeof window.originAgentCluster, 'originAgentCluster' in window, 'domain' in document, 'domain' in Document.prototype]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Document.prototype, 'domain'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set.name]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'originAgentCluster'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "E(() => { document.domain = document.domain; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'example.com'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = ''; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'com'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'localhost'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = null; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = undefined; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname.toUpperCase(); return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = '0.0.1'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = '1'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = {toString() { return location.hostname; }}; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname + '.'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'a'.repeat(300); return document.domain; })"
+    },
+    {
+     "js": "document.domain"
+    },
+    {
+     "js": "(() => { const d = document.implementation.createHTMLDocument(''); return [d.domain, E(() => { d.domain = 'x'; return d.domain; })]; })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString('<p>', 'text/html'); return [d.domain, E(() => { d.domain = 'x'; return d.domain; })]; })()"
+    }
+   ]
+  },
+  {
+   "name": "document-domain-file",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.first = [document.domain, location.hostname, window.originAgentCluster, typeof document.domain];\n</script></head><body><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "window.first"
+    },
+    {
+     "js": "[document.domain, window.originAgentCluster, typeof window.originAgentCluster, 'originAgentCluster' in window, 'domain' in document, 'domain' in Document.prototype]"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Document.prototype, 'domain'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name, d.set.name]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(window, 'originAgentCluster'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "E(() => { document.domain = document.domain; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'example.com'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = ''; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'com'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'localhost'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = null; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = undefined; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname.toUpperCase(); return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = '0.0.1'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = '1'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = {toString() { return location.hostname; }}; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = location.hostname + '.'; return document.domain; })"
+    },
+    {
+     "js": "E(() => { document.domain = 'a'.repeat(300); return document.domain; })"
+    },
+    {
+     "js": "document.domain"
+    },
+    {
+     "js": "(() => { const d = document.implementation.createHTMLDocument(''); return [d.domain, E(() => { d.domain = 'x'; return d.domain; })]; })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString('<p>', 'text/html'); return [d.domain, E(() => { d.domain = 'x'; return d.domain; })]; })()"
+    }
+   ]
+  },
+  {
+   "name": "navigator-plugins",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></head><body><embed id=e><object id=o></object></body></html>",
+   "measure": [
+    {
+     "js": "[typeof navigator.plugins, typeof navigator.mimeTypes, navigator.plugins.length, navigator.mimeTypes.length, navigator.pdfViewerEnabled, navigator.javaEnabled()]"
+    },
+    {
+     "js": "[Object.prototype.toString.call(navigator.plugins), Object.prototype.toString.call(navigator.mimeTypes), navigator.plugins === navigator.plugins, navigator.mimeTypes === navigator.mimeTypes, navigator.plugins instanceof PluginArray, navigator.mimeTypes instanceof MimeTypeArray]"
+    },
+    {
+     "js": "[typeof PluginArray, typeof Plugin, typeof MimeTypeArray, typeof MimeType, PluginArray.name, PluginArray.length, MimeTypeArray.length]"
+    },
+    {
+     "js": "[navigator.plugins.item(0), navigator.plugins[0], navigator.plugins.namedItem('x'), navigator.plugins['x'], navigator.plugins.refresh(), navigator.mimeTypes.item(0), navigator.mimeTypes[0], navigator.mimeTypes.namedItem('application/pdf'), navigator.mimeTypes['application/pdf']]"
+    },
+    {
+     "js": "[Array.from(navigator.plugins).length, [...navigator.mimeTypes].length, Object.keys(navigator.plugins).length, Object.keys(navigator.mimeTypes).length, JSON.stringify(navigator.plugins), JSON.stringify(navigator.mimeTypes), 'length' in navigator.plugins, 0 in navigator.plugins]"
+    },
+    {
+     "js": "E(() => new PluginArray())"
+    },
+    {
+     "js": "E(() => new MimeTypeArray())"
+    },
+    {
+     "js": "E(() => new Plugin())"
+    },
+    {
+     "js": "E(() => new MimeType())"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(PluginArray.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(MimeTypeArray.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(Plugin.prototype).sort().join()"
+    },
+    {
+     "js": "Object.getOwnPropertyNames(MimeType.prototype).sort().join()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'plugins'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'mimeTypes'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.get.name]; })()"
+    },
+    {
+     "js": "(() => { const d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'pdfViewerEnabled'); return [typeof d.get, d.get.name]; })()"
+    },
+    {
+     "js": "E(() => navigator.plugins.item())"
+    },
+    {
+     "js": "E(() => navigator.plugins.namedItem())"
+    },
+    {
+     "js": "E(() => navigator.plugins.item.call({}, 0))"
+    },
+    {
+     "js": "[navigator.plugins.item.length, navigator.plugins.namedItem.length, navigator.plugins.refresh.length, navigator.mimeTypes.item.length, navigator.mimeTypes.namedItem.length]"
+    },
+    {
+     "js": "[navigator.plugins.length === navigator.plugins.length, Object.getOwnPropertyDescriptor(PluginArray.prototype, 'length').get.name, typeof PluginArray.prototype[Symbol.iterator], PluginArray.prototype[Symbol.iterator] === Array.prototype[Symbol.iterator]]"
+    },
+    {
+     "js": "[document.plugins.length, document.embeds.length, typeof navigator.plugins.length]"
+    },
+    {
+     "js": "navigator.plugins.refresh()"
+    },
+    {
+     "js": "[window.PluginArray === PluginArray, Object.getPrototypeOf(PluginArray.prototype) === Object.prototype]"
+    },
+    {
+     "js": "[Object.getOwnPropertyDescriptor(window, 'navigator.plugins'), 'plugins' in navigator, 'mimeTypes' in navigator, navigator.hasOwnProperty('plugins')]"
+    }
+   ]
+  },
+  {
+   "name": "post-message-self-http",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.L = []; window.addEventListener('message', function (e) { L.push(['m', e.data, n(e.origin), e.source === window, e.ports.length, Object.isFrozen(e.ports), e.isTrusted, e.bubbles, e.cancelable, e.eventPhase, e.target === window, e.currentTarget === window, e.lastEventId, Object.prototype.toString.call(e), e.type, e instanceof MessageEvent, e.composed].join('|')); });\n</script></head><body><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(r => { const l = []; const h = e => { l.push('m:' + e.data + ':' + n(e.origin) + ':' + (e.source === window) + ':' + e.ports.length + ':' + e.isTrusted + ':' + e.bubbles + ':' + e.cancelable + ':' + e.eventPhase + ':' + (e.target === window) + ':' + e.lastEventId + ':' + Object.prototype.toString.call(e)); }; addEventListener('message', h); setTimeout(() => l.push('t0'), 0); postMessage('a', '*'); Promise.resolve().then(() => l.push('micro')); postMessage('b', '/'); postMessage('c', location.origin); postMessage('d', 'http://elsewhere.test'); postMessage('e'); postMessage('f', {targetOrigin: '/'}); postMessage('g', {targetOrigin: '*'}); postMessage('h', {}); l.push('sync'); setTimeout(() => { removeEventListener('message', h); r(l); }, 100); })"
+    },
+    {
+     "js": "[E(() => postMessage('x', 'foo')), E(() => postMessage(() => 1, '*')), E(() => postMessage('x', '*', [1])), E(() => { const b = new ArrayBuffer(8); postMessage(b, '*', [b, b]); }), E(() => postMessage(Symbol('s'), '*')), E(() => postMessage('x', '*', null)), E(() => postMessage.length), E(() => postMessage('x', 'http://a.test/path?q')), E(() => postMessage(document.body, '*')), E(() => postMessage(window, '*'))]"
+    },
+    {
+     "js": "[E(() => postMessage()), E(() => postMessage('x', {targetOrigin: 'foo'})), E(() => postMessage('x', {transfer: [1]})), E(() => postMessage('x', 5)), E(() => postMessage('x', '*', {})), E(() => postMessage('x', undefined)), E(() => postMessage('x', null)), E(() => postMessage('x', '')), E(() => postMessage('x', '*', undefined)), E(() => postMessage('x', {targetOrigin: undefined})), E(() => postMessage('x', {transfer: undefined}))]"
+    },
+    {
+     "js": "wait(50).then(() => { L.length = 0; return 'drained'; })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => got.push(e.data); addEventListener('message', h); const T = (name, f) => { try { f(); } catch (e) { got.push(name + ':' + e.name); } }; T('1', () => postMessage('1', '/')); T('2', () => postMessage('2', {targetOrigin: '/'})); T('3', () => postMessage('3', '/', [])); T('4', () => postMessage('4', {targetOrigin: '/', transfer: []})); T('5', () => postMessage('5', location.origin)); T('6', () => postMessage('6', 'file://')); T('7', () => postMessage('7', location.href)); T('8', () => postMessage('8', 'null')); T('9', () => postMessage('9', {targetOrigin: location.origin})); T('10', () => postMessage('10', '*', [])); T('11', () => postMessage('11', {})); T('12', () => postMessage('12', location.origin + '/other/path?q#f')); T('13', () => postMessage('13', '  /  ')); T('14', () => postMessage('14', location.origin + ' ')); T('15', () => postMessage('15', location.origin.toUpperCase())); setTimeout(() => { removeEventListener('message', h); r(got.map(n)); }, 100); })"
+    },
+    {
+     "js": "new Promise(r => { const buf = new ArrayBuffer(8); new Uint8Array(buf)[0] = 7; const got = []; const h = e => { removeEventListener('message', h); const d = e.data; got.push(buf.byteLength, d.b.byteLength, new Uint8Array(d.b)[0], d.date instanceof Date, d.date.getTime(), [...d.m], d.re.source, d.u === undefined, 'u' in d, String(d.big), d.nested[0][0], d.nested[1].z, d.o !== orig, d.self === d); r(got); }; addEventListener('message', h); const orig = {}; const o = {b: buf, date: new Date(5), m: new Map([[1, 2]]), re: /x/g, u: undefined, big: 1n << 70n, nested: [[1], {z: null}], inner: orig}; o.self = o; postMessage(o, '*', [buf]); got.push(buf.byteLength); })"
+    },
+    {
+     "js": "new Promise(r => { const buf = new ArrayBuffer(4); const got = []; const h = e => { removeEventListener('message', h); got.push(e.data.byteLength, buf.byteLength); r(got); }; addEventListener('message', h); postMessage(buf, {targetOrigin: '*', transfer: [buf]}); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(e.data); r(got); }; addEventListener('message', h); const a = [1, 2]; postMessage(a, '*'); a.push(3); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(typeof e.data, String(e.data), e.data === null); r(got); }; addEventListener('message', h); postMessage(null, '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(typeof e.data, Object.prototype.toString.call(e.data)); r(got); }; addEventListener('message', h); postMessage(new Error('boom'), '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; window.onmessage = e => l.push('on:' + e.data); addEventListener('message', e => l.push('add:' + e.data), {once: true}); postMessage('p', '*'); setTimeout(() => { window.onmessage = null; r(l); }, 60); })"
+    },
+    {
+     "js": "[typeof window.onmessage, typeof window.onmessageerror, 'onmessage' in window, Object.getOwnPropertyDescriptor(window, 'onmessage') && 1]"
+    },
+    {
+     "js": "(() => { const e = new MessageEvent('message', {data: {a: 1}, origin: 'http://x.test', lastEventId: 'id', source: window, ports: []}); return [e.type, JSON.stringify(e.data), e.origin, e.lastEventId, e.source === window, e.ports.length, Object.isFrozen(e.ports), e.isTrusted, e.bubbles]; })()"
+    },
+    {
+     "js": "(() => { const e = new MessageEvent('message'); return [e.data, e.origin, e.lastEventId, e.source, e.ports.length, e.ports === e.ports]; })()"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { removeEventListener('message', h); l.push('msg'); }); setTimeout(() => l.push('t0'), 0); postMessage('z', '*'); setTimeout(() => l.push('t1'), 1); setTimeout(() => l.push('t0b'), 0); setTimeout(() => r(l), 80); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; let k = 0; addEventListener('message', function h(e) { l.push(e.data); if (++k < 3) { postMessage(k, '*'); } else { removeEventListener('message', h); r(l); } }); postMessage('start', '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const eh = ev => { l.push('error:' + ev.message); ev.preventDefault(); }; addEventListener('error', eh); addEventListener('message', function h1(e) { removeEventListener('message', h1); throw new Error('bad'); }); addEventListener('message', function h2(e) { removeEventListener('message', h2); l.push('second'); }); postMessage('q', '*'); setTimeout(() => { removeEventListener('error', eh); r(l); }, 60); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { removeEventListener('message', h); e.preventDefault(); l.push(e.defaultPrevented, e.composedPath().length, e.timeStamp > 0, e.srcElement === window, window.event === e); r(l); }); postMessage('w', '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const dh = () => l.push('document'); document.addEventListener('message', dh); document.body.addEventListener('message', dh); addEventListener('message', function h() { removeEventListener('message', h); l.push('window'); }); postMessage('v', '*'); setTimeout(() => { document.removeEventListener('message', dh); document.body.removeEventListener('message', dh); r(l); }, 60); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { l.push(e.data); if (l.length === 200) { removeEventListener('message', h); r([l.length, l.every((v, i) => v === i)]); } }); for (let i = 0; i < 200; i++) postMessage(i, '*'); })"
+    },
+    {
+     "js": "[E(() => window.postMessage.call({}, 'x', '*')), E(() => window.postMessage.call(undefined, 'x', '*')), E(() => window.postMessage.call(null, 'x', '*')), E(() => self.postMessage('x', '*')), E(() => globalThis.postMessage('x', '*'))]"
+    },
+    {
+     "js": "[postMessage.name, window.postMessage === postMessage, typeof Window.prototype.postMessage, Object.getOwnPropertyDescriptor(window, 'postMessage') && Object.getOwnPropertyDescriptor(window, 'postMessage').enumerable, Object.getOwnPropertyDescriptor(Window.prototype, 'postMessage') && 1]"
+    }
+   ],
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "post-message-self-file",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.L = []; window.addEventListener('message', function (e) { L.push(['m', e.data, n(e.origin), e.source === window, e.ports.length, Object.isFrozen(e.ports), e.isTrusted, e.bubbles, e.cancelable, e.eventPhase, e.target === window, e.currentTarget === window, e.lastEventId, Object.prototype.toString.call(e), e.type, e instanceof MessageEvent, e.composed].join('|')); });\n</script></head><body><p>x</p></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(r => { const l = []; const h = e => { l.push('m:' + e.data + ':' + n(e.origin) + ':' + (e.source === window) + ':' + e.ports.length + ':' + e.isTrusted + ':' + e.bubbles + ':' + e.cancelable + ':' + e.eventPhase + ':' + (e.target === window) + ':' + e.lastEventId + ':' + Object.prototype.toString.call(e)); }; addEventListener('message', h); setTimeout(() => l.push('t0'), 0); postMessage('a', '*'); Promise.resolve().then(() => l.push('micro')); postMessage('b', '/'); postMessage('c', location.origin); postMessage('d', 'http://elsewhere.test'); postMessage('e'); postMessage('f', {targetOrigin: '/'}); postMessage('g', {targetOrigin: '*'}); postMessage('h', {}); l.push('sync'); setTimeout(() => { removeEventListener('message', h); r(l); }, 100); })"
+    },
+    {
+     "js": "[E(() => postMessage('x', 'foo')), E(() => postMessage(() => 1, '*')), E(() => postMessage('x', '*', [1])), E(() => { const b = new ArrayBuffer(8); postMessage(b, '*', [b, b]); }), E(() => postMessage(Symbol('s'), '*')), E(() => postMessage('x', '*', null)), E(() => postMessage.length), E(() => postMessage('x', 'http://a.test/path?q')), E(() => postMessage(document.body, '*')), E(() => postMessage(window, '*'))]"
+    },
+    {
+     "js": "[E(() => postMessage()), E(() => postMessage('x', {targetOrigin: 'foo'})), E(() => postMessage('x', {transfer: [1]})), E(() => postMessage('x', 5)), E(() => postMessage('x', '*', {})), E(() => postMessage('x', undefined)), E(() => postMessage('x', null)), E(() => postMessage('x', '')), E(() => postMessage('x', '*', undefined)), E(() => postMessage('x', {targetOrigin: undefined})), E(() => postMessage('x', {transfer: undefined}))]"
+    },
+    {
+     "js": "wait(50).then(() => { L.length = 0; return 'drained'; })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => got.push(e.data); addEventListener('message', h); const T = (name, f) => { try { f(); } catch (e) { got.push(name + ':' + e.name); } }; T('1', () => postMessage('1', '/')); T('2', () => postMessage('2', {targetOrigin: '/'})); T('3', () => postMessage('3', '/', [])); T('4', () => postMessage('4', {targetOrigin: '/', transfer: []})); T('5', () => postMessage('5', location.origin)); T('6', () => postMessage('6', 'file://')); T('7', () => postMessage('7', location.href)); T('8', () => postMessage('8', 'null')); T('9', () => postMessage('9', {targetOrigin: location.origin})); T('10', () => postMessage('10', '*', [])); T('11', () => postMessage('11', {})); T('12', () => postMessage('12', location.origin + '/other/path?q#f')); T('13', () => postMessage('13', '  /  ')); T('14', () => postMessage('14', location.origin + ' ')); T('15', () => postMessage('15', location.origin.toUpperCase())); setTimeout(() => { removeEventListener('message', h); r(got.map(n)); }, 100); })"
+    },
+    {
+     "js": "new Promise(r => { const buf = new ArrayBuffer(8); new Uint8Array(buf)[0] = 7; const got = []; const h = e => { removeEventListener('message', h); const d = e.data; got.push(buf.byteLength, d.b.byteLength, new Uint8Array(d.b)[0], d.date instanceof Date, d.date.getTime(), [...d.m], d.re.source, d.u === undefined, 'u' in d, String(d.big), d.nested[0][0], d.nested[1].z, d.o !== orig, d.self === d); r(got); }; addEventListener('message', h); const orig = {}; const o = {b: buf, date: new Date(5), m: new Map([[1, 2]]), re: /x/g, u: undefined, big: 1n << 70n, nested: [[1], {z: null}], inner: orig}; o.self = o; postMessage(o, '*', [buf]); got.push(buf.byteLength); })"
+    },
+    {
+     "js": "new Promise(r => { const buf = new ArrayBuffer(4); const got = []; const h = e => { removeEventListener('message', h); got.push(e.data.byteLength, buf.byteLength); r(got); }; addEventListener('message', h); postMessage(buf, {targetOrigin: '*', transfer: [buf]}); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(e.data); r(got); }; addEventListener('message', h); const a = [1, 2]; postMessage(a, '*'); a.push(3); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(typeof e.data, String(e.data), e.data === null); r(got); }; addEventListener('message', h); postMessage(null, '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const got = []; const h = e => { removeEventListener('message', h); got.push(typeof e.data, Object.prototype.toString.call(e.data)); r(got); }; addEventListener('message', h); postMessage(new Error('boom'), '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; window.onmessage = e => l.push('on:' + e.data); addEventListener('message', e => l.push('add:' + e.data), {once: true}); postMessage('p', '*'); setTimeout(() => { window.onmessage = null; r(l); }, 60); })"
+    },
+    {
+     "js": "[typeof window.onmessage, typeof window.onmessageerror, 'onmessage' in window, Object.getOwnPropertyDescriptor(window, 'onmessage') && 1]"
+    },
+    {
+     "js": "(() => { const e = new MessageEvent('message', {data: {a: 1}, origin: 'http://x.test', lastEventId: 'id', source: window, ports: []}); return [e.type, JSON.stringify(e.data), e.origin, e.lastEventId, e.source === window, e.ports.length, Object.isFrozen(e.ports), e.isTrusted, e.bubbles]; })()"
+    },
+    {
+     "js": "(() => { const e = new MessageEvent('message'); return [e.data, e.origin, e.lastEventId, e.source, e.ports.length, e.ports === e.ports]; })()"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { removeEventListener('message', h); l.push('msg'); }); setTimeout(() => l.push('t0'), 0); postMessage('z', '*'); setTimeout(() => l.push('t1'), 1); setTimeout(() => l.push('t0b'), 0); setTimeout(() => r(l), 80); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; let k = 0; addEventListener('message', function h(e) { l.push(e.data); if (++k < 3) { postMessage(k, '*'); } else { removeEventListener('message', h); r(l); } }); postMessage('start', '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const eh = ev => { l.push('error:' + ev.message); ev.preventDefault(); }; addEventListener('error', eh); addEventListener('message', function h1(e) { removeEventListener('message', h1); throw new Error('bad'); }); addEventListener('message', function h2(e) { removeEventListener('message', h2); l.push('second'); }); postMessage('q', '*'); setTimeout(() => { removeEventListener('error', eh); r(l); }, 60); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { removeEventListener('message', h); e.preventDefault(); l.push(e.defaultPrevented, e.composedPath().length, e.timeStamp > 0, e.srcElement === window, window.event === e); r(l); }); postMessage('w', '*'); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; const dh = () => l.push('document'); document.addEventListener('message', dh); document.body.addEventListener('message', dh); addEventListener('message', function h() { removeEventListener('message', h); l.push('window'); }); postMessage('v', '*'); setTimeout(() => { document.removeEventListener('message', dh); document.body.removeEventListener('message', dh); r(l); }, 60); })"
+    },
+    {
+     "js": "new Promise(r => { const l = []; addEventListener('message', function h(e) { l.push(e.data); if (l.length === 200) { removeEventListener('message', h); r([l.length, l.every((v, i) => v === i)]); } }); for (let i = 0; i < 200; i++) postMessage(i, '*'); })"
+    },
+    {
+     "js": "[E(() => window.postMessage.call({}, 'x', '*')), E(() => window.postMessage.call(undefined, 'x', '*')), E(() => window.postMessage.call(null, 'x', '*')), E(() => self.postMessage('x', '*')), E(() => globalThis.postMessage('x', '*'))]"
+    },
+    {
+     "js": "[postMessage.name, window.postMessage === postMessage, typeof Window.prototype.postMessage, Object.getOwnPropertyDescriptor(window, 'postMessage') && Object.getOwnPropertyDescriptor(window, 'postMessage').enumerable, Object.getOwnPropertyDescriptor(Window.prototype, 'postMessage') && 1]"
+    }
+   ]
+  },
+  {
+   "name": "fv-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-script-input",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#t"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-script-twice",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script-input",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#t"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script-div",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#d"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script-editable",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#e"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script-checkbox",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#k"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-script-link",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#l"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-input-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-script-div",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "focus": "#d"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-key-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "ArrowRight"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-key-letter-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-click-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-click-div-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "click": "#d"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-tab",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-tab-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-blank-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": [
+      700,
+      560
+     ]
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-blank-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "click": [
+      700,
+      560
+     ]
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-script-click-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "click": "#b"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-script-click-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-same-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "a.blur()"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-blur-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "a.blur()"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-blur-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "a.blur()"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-true",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "b.focus({focusVisible: true})"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-false",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "b.focus({focusVisible: false})"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-true-fresh",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "eval": "a.focus({focusVisible: true})"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-false-fresh",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "eval": "a.focus({focusVisible: false})"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-false-then-plain",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "eval": "a.focus({focusVisible: false})"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-true-then-plain",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "b.focus({focusVisible: true})"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-option-prevent",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "b.focus({preventScroll: true})"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-link-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#l"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-mousedown-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "mousedown": "left"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-hover-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "hover": "#b"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-wheel-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "wheel": [
+      0,
+      10
+     ]
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-type-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "focus": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-timer",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "setTimeout(() => b.focus(), 0)"
+    },
+    {
+     "wait": 50
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-timer",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "setTimeout(() => b.focus(), 0)"
+    },
+    {
+     "wait": 50
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-shift-tab",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Shift+Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-shift-tab-back",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#b"
+    },
+    {
+     "key": "Shift+Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-space-on-button",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-enter-on-button",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onclick = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-mousedown-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onmousedown = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-keydown-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onkeydown = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "key": "x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-tab-keydown-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onkeydown = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-focus-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { b.onfocus = () => a.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-focus-handler-tab",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { b.onfocus = () => t.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-pointerdown-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onpointerdown = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-handler-tab",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onclick = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Enter"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-mouseup-handler",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onmouseup = () => b.focus(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-script-click-same-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-blank-click-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "click": [
+      700,
+      560
+     ]
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-key-body-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "eval": "a.blur()"
+    },
+    {
+     "key": "x"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-mousedown-prevent",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onmousedown = e => e.preventDefault(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-keydown-prevented",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onkeydown = e => e.preventDefault(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-escape-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "Escape"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-arrow-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "ArrowDown"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-input",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#k"
+    },
+    {
+     "key": "ArrowLeft"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-then-click-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    },
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-then-click-other",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    },
+    {
+     "click": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-prevented-same",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onkeydown = e => e.preventDefault(); });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "x"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-key-handler-blur-focus",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\naddEventListener('DOMContentLoaded', () => { a.onkeydown = e => { if (e.key === 'Escape') { a.blur(); a.focus(); } }; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    },
+    {
+     "key": "Escape"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-disabled-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "focus": "#a"
+    },
+    {
+     "eval": "k.disabled = true"
+    },
+    {
+     "click": "#k"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-label-script",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "eval": "document.body.insertAdjacentHTML('beforeend', '<label id=lb for=t2>L</label><input id=t2>')"
+    },
+    {
+     "click": "#lb"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-text-script-button",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "focus": "#b"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-click-text-then-click-button",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nwindow.S = function () { const ids = ['a', 'b', 't', 'd', 'l', 'e', 'k']; const f = document.activeElement; return (f.id || f.tagName) + ' ' + ids.map(i => document.getElementById(i).matches(':focus-visible') ? 1 : 0).join('') + ' ' + ids.map(i => document.getElementById(i).matches(':focus') ? 1 : 0).join(''); };\nwindow.addEventListener('DOMContentLoaded', () => { window.EV = []; });\n</script></head><body><button id=a>A</button> <button id=b>B</button> <input id=t> <div id=d tabindex=0>D</div> <a id=l href=\"#x\">L</a> <div id=e contenteditable>E</div> <input id=k type=checkbox> <p>fill</p></body></html>",
+   "steps": [
+    {
+     "click": "#t"
+    },
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "S()"
+    }
+   ]
+  },
+  {
+   "name": "fv-types-mouse",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></head><body><button id=a>A</button><input data-t=text type=text><input data-t=search type=search><input data-t=url type=url><input data-t=tel type=tel><input data-t=email type=email><input data-t=password type=password><input data-t=number type=number><input data-t=date type=date><input data-t=datetime-local type=datetime-local><input data-t=month type=month><input data-t=week type=week><input data-t=time type=time><input data-t=color type=color><input data-t=range type=range><input data-t=file type=file><input data-t=checkbox type=checkbox><input data-t=radio type=radio><input data-t=submit type=submit><input data-t=button type=button><input data-t=reset type=reset><input data-t=readonly-text readonly><input data-t=text-notype><textarea data-t=textarea></textarea><select data-t=select><option>1</select><details><summary data-t=summary>S</summary>x</details><a data-t=link href=#x>L</a><div data-t=tabindex tabindex=0>D</div><div data-t=editable contenteditable>E</div><div data-t=plaintext contenteditable=plaintext-only>P</div><button data-t=button>B</button><iframe data-t=iframe></iframe></body></html>",
+   "steps": [
+    {
+     "click": "#a"
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const out = []; for (const el of document.querySelectorAll('[data-t]')) { el.focus(); out.push(el.dataset.t + ':' + (document.activeElement === el ? 'F' : '-') + (el.matches(':focus-visible') ? 1 : 0)); } return out.join(' '); })()"
+    }
+   ]
+  },
+  {
+   "name": "fv-types-keyboard",
+   "html": "<!DOCTYPE html><html><head><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e instanceof DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction n(s) { return String(s).split(location.origin).join('O'); }\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\n</script></head><body><button id=a>A</button><input data-t=text type=text><input data-t=search type=search><input data-t=url type=url><input data-t=tel type=tel><input data-t=email type=email><input data-t=password type=password><input data-t=number type=number><input data-t=date type=date><input data-t=datetime-local type=datetime-local><input data-t=month type=month><input data-t=week type=week><input data-t=time type=time><input data-t=color type=color><input data-t=range type=range><input data-t=file type=file><input data-t=checkbox type=checkbox><input data-t=radio type=radio><input data-t=submit type=submit><input data-t=button type=button><input data-t=reset type=reset><input data-t=readonly-text readonly><input data-t=text-notype><textarea data-t=textarea></textarea><select data-t=select><option>1</select><details><summary data-t=summary>S</summary>x</details><a data-t=link href=#x>L</a><div data-t=tabindex tabindex=0>D</div><div data-t=editable contenteditable>E</div><div data-t=plaintext contenteditable=plaintext-only>P</div><button data-t=button>B</button><iframe data-t=iframe></iframe></body></html>",
+   "steps": [
+    {
+     "key": "Tab"
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const out = []; for (const el of document.querySelectorAll('[data-t]')) { el.focus(); out.push(el.dataset.t + ':' + (document.activeElement === el ? 'F' : '-') + (el.matches(':focus-visible') ? 1 : 0)); } return out.join(' '); })()"
+    }
+   ]
+  }
+ ]
+}

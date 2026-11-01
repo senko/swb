@@ -4110,6 +4110,26 @@ Steps:
       Exit: Ars Technica has no script error that Chromium does not
       have; the integration test `ars_technica.rs` (Chromium records
       from `swbtools replay`) covers features 2 to 6 of the list.
+      Done 2026-11-01: the `ShadowRoot` interface object; a parsed
+      `xmlns` attribute has a null prefix (its name was `:xmlns`);
+      `document.domain` (the setter checks with Chromium's messages,
+      then no effect) and `originAgentCluster`; empty `navigator.plugins`
+      and `mimeTypes`, `pdfViewerEnabled` false (Chromium headless is
+      the same); `window.postMessage` to the own window (task,
+      `MessageEvent`, `ArrayBuffer` transfer, the limits of ADR 0031
+      section 11); `:focus-visible` with the input modality (73
+      Chromium cases). Probe cases: 80 in `web-small-gaps.json`, three
+      equal Chromium runs. Tools: `compare --js` leaves out `script`,
+      `style`, `link`, `meta`, `noscript` and unboxed `iframe` elements
+      (a tree alignment scored the failed BBC hydration lower and gave
+      no gain on Ars Technica, so the tag-sequence alignment stays); a
+      `record` step. Alpine.js starts; `ars_technica.rs` (26 step
+      groups) equals Chromium's records and pixel samples for items 1
+      to 6 of the list. Only the two `document.write` errors remain.
+      `compare --js ars-technica`: geometry 0.8997 → 0.9077, pixels
+      0.9885 → 0.9886; the other JS fixtures unchanged. JS off: snapshot
+      identical. Not done: `reference --js` through a symlinked `out`
+      (backlog).
    2. `document.write` during the parse (`implementer`; ADR 0028
       section 8): `write`, `writeln`, `open`, `close` from a
       parser-inserted script; written `script` elements run in order.
@@ -4191,6 +4211,25 @@ Steps:
   a framed site from clickjacking; swb has no CSP).
 - Top-level navigation from a cross-origin frame after a user
   activation (Chromium allows it; ADR 0031 refuses it).
+- `contenteditable` elements are not focusable; an empty `iframe` is
+  (Chromium: the other way round; feature 1 probe cases).
+- `MessageEvent.ports` returns a new frozen array on each read
+  (Chromium: the same array).
+- `Attr` is not a `Node` (`nodeName`, M8 departure).
+- `reference --js` writes through a symlinked `out` into the main tree;
+  the briefs copy the references instead.
+- `compare --js`: Chromium's index wobble of hidden frames did not
+  reproduce in three runs of Ars Technica and BBC; check again on an
+  idle machine.
+- Load-sensitive tests: `craigslist_posting` hit its 5 s task limit
+  once in `just check` under load; `test_probe_reads_pixels_in_chromium`
+  failed once next to a cargo build.
+- `:focus-visible`: in Chromium a Shift key alone sets the keyboard
+  modality, Control and Alt alone do not; swb sets it for every key.
+  No input path sends a modifier key alone today.
+- `navigator.plugins` and `mimeTypes` are empty, as in Chromium's
+  headless shell; headful Chrome lists five PDF plugins. Pages that
+  check `plugins.length` can take swb for a headless browser.
 
 ## Backlog from M8
 

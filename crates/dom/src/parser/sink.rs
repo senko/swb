@@ -62,12 +62,22 @@ impl Sink {
     }
 }
 
+/// The attributes of a token as the tree stores them. The HTML parser gives
+/// the `xmlns` attribute of a foreign element an empty prefix; the standard
+/// says null (HTML "adjust foreign attributes": `xmlns`, prefix null, local
+/// name `xmlns`, XMLNS namespace). An empty prefix would make the qualified
+/// name `:xmlns`.
 fn convert_attrs(attrs: Vec<html5ever::Attribute>) -> Vec<Attribute> {
     attrs
         .into_iter()
-        .map(|a| Attribute {
-            name: a.name,
-            value: a.value.to_string(),
+        .map(|mut a| {
+            if a.name.prefix.as_ref().is_some_and(|p| p.is_empty()) {
+                a.name.prefix = None;
+            }
+            Attribute {
+                name: a.name,
+                value: a.value.to_string(),
+            }
         })
         .collect()
 }

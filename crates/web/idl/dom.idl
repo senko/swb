@@ -252,6 +252,16 @@ interface DocumentFragment : Node {
   constructor();
 };
 
+// ShadowRoot (https://dom.spec.whatwg.org/#interface-shadowroot, copied on
+// 2026-11-01, M9 feature 1): the interface object only. swb has no shadow
+// trees and no `attachShadow()`, so no instance exists and the members
+// (`mode`, `delegatesFocus`, `slotAssignment`, `clonable`, `serializable`,
+// `host`, `onslotchange`) are left out. Scripts test `node instanceof
+// ShadowRoot` (Alpine.js).
+[Exposed=Window]
+interface ShadowRoot : DocumentFragment {
+};
+
 interface mixin NonElementParentNode {
   Element? getElementById(DOMString elementId);
 };
