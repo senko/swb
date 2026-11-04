@@ -74,6 +74,10 @@ pub(crate) enum Task {
     ScriptErrorEvent(swb_dom::NodeId),
     /// The fetch of a script element's script failed at once.
     ScriptFetchFailed(swb_dom::NodeId),
+    /// The module script of an element is ready without a fetch: an inline
+    /// module, or a URL that the module map already has (HTML "fetch an
+    /// inline module script graph", "fetch a single module script").
+    ModuleReady(swb_dom::NodeId),
     /// Run the script of a `javascript:` URL that a link or a form
     /// navigates to (HTML "navigate to a javascript: URL" queues a task).
     JavascriptUrl(String),

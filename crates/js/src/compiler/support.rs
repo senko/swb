@@ -2,8 +2,10 @@
 //! compile: a linear scan over the node tables of a script before any
 //! function compiles. The script fails with a `SyntaxError` "not
 //! supported yet (construct)" at the first such construct in the source;
-//! the compile functions never see them. These are module code,
-//! `import()` and `import.meta`.
+//! the compile functions never see them. These are `import()`,
+//! `import.meta`, the `import` and `export` forms and the top-level
+//! `await` of a module. A module without them runs (ADR 0028 section 6,
+//! item 7).
 
 use swb_js_syntax::{ExprKind, Script, StmtKind};
 
@@ -30,8 +32,14 @@ pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
 /// The first construct of the script (by source offset) that the
 /// compiler does not support, with its offset.
 pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> {
-    if script.module.is_some() {
-        return Some((0, "module"));
+    // A module with top-level `await` suspends: modules that wait are not
+    // supported (ADR 0028 section 6, item 7). The record has no offset.
+    if script
+        .module
+        .as_ref()
+        .is_some_and(|m| m.has_top_level_await)
+    {
+        return Some((0, "top-level await"));
     }
     let ast = &script.ast;
     let mut first: Option<(u32, &'static str)> = None;

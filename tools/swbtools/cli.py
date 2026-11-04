@@ -23,6 +23,7 @@ from swbtools.linebreak_tables import write_tables
 from swbtools.linebreaks import linebreaks
 from swbtools.manifest import FILES_DIR, read_manifest
 from swbtools.measure import MEASUREMENTS, SLOW_MEASUREMENTS, measure
+from swbtools.module_cases import write_module_cases
 from swbtools.pages import list_fixtures, list_js_fixtures, read_meta
 from swbtools.perf import perf
 from swbtools.pixels import DEFAULT_THRESHOLD
@@ -150,6 +151,10 @@ def cmd_lazy_cases(args: argparse.Namespace) -> int:
 
 def cmd_cssom_cases(args: argparse.Namespace) -> int:
     return write_cssom_cases(args.chromium)
+
+
+def cmd_module_cases(args: argparse.Namespace) -> int:
+    return write_module_cases(args.chromium)
 
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
@@ -417,6 +422,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="the output of `probe --json tools/probes/web-cssom-sheets.json`",
     )
     p.set_defaults(func=cmd_cssom_cases)
+
+    p = commands.add_parser(
+        "module-cases",
+        help="write crates/engine/tests/probe_net/modules.rs from web-module-scripts.json",
+    )
+    p.add_argument(
+        "chromium",
+        type=Path,
+        help="the output of `probe --json tools/probes/web-module-scripts.json`",
+    )
+    p.set_defaults(func=cmd_module_cases)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"

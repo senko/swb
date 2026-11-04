@@ -420,8 +420,8 @@ impl swb_web::EngineHost for DocumentState {
         self.style_sheets_block_scripts()
     }
 
-    fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
-        self.fetch_script(node, url)
+    fn fetch_script(&mut self, node: NodeId, url: &str, mode: swb_web::ScriptFetchMode) -> bool {
+        self.fetch_script(node, url, mode)
     }
 
     fn start_api_fetch(&mut self, request: swb_net::Request) -> Option<u64> {

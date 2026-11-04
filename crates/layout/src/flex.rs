@@ -411,9 +411,24 @@ fn column_cross_is_definite(
         || (axes.cross_available.is_some() && item.stretches(container, false))
 }
 
+/// The tolerance of the line-fit test for `f32` rounding noise in the line
+/// limit (the sizes it adds are multiples of 1/64 px, see [`layout_units`]).
+const LINE_FIT_EPSILON: f32 = 0.001;
+
+/// `size` truncated to 1/64 px. Chromium measures the sizes that it adds up
+/// for a line break in units of 1/64 px and truncates each one (measured:
+/// four items of `25.001%` of 1000 px fit one line, four of `25.003%` do
+/// not; `20% + 60% + 20%` of 976 px fits one line, while the `f32` sum is a
+/// little more than 976: BBC's cookie banner, M9 feature 7). The small
+/// addition keeps a size that is a multiple of 1/64 px in `f32` noise (for
+/// example 249.99998 for 250) from losing one unit.
+fn layout_units(size: f32) -> f32 {
+    (size * 64.0 + 0.01).floor() / 64.0
+}
+
 /// §9.3: collects the items into flex lines of at most `line_limit` (the
-/// outer hypothetical main sizes and the gaps; a line has at least one
-/// item).
+/// outer hypothetical main sizes and the gaps, each truncated to 1/64 px as
+/// Chromium does; a line has at least one item).
 fn collect_lines(
     container: &ComputedStyle,
     items: &[Item<'_>],
@@ -426,14 +441,11 @@ fn collect_lines(
     let mut lines = Vec::new();
     let mut start = 0;
     let mut used = 0.0;
+    let gap = layout_units(axes.main_gap);
     for (i, item) in items.iter().enumerate() {
-        let size = item.outer_hypothetical();
-        let with_gap = if i > start {
-            used + axes.main_gap + size
-        } else {
-            size
-        };
-        if i > start && with_gap > line_limit {
+        let size = layout_units(item.outer_hypothetical());
+        let with_gap = if i > start { used + gap + size } else { size };
+        if i > start && with_gap > line_limit + LINE_FIT_EPSILON {
             lines.push(start..i);
             start = i;
             used = size;

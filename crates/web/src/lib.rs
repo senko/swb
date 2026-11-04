@@ -136,7 +136,7 @@ pub use runtime::{
     ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
     JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
-pub use scripts::{FetchedScript, is_javascript_mime_type};
+pub use scripts::{FetchedScript, ScriptFetchMode, is_javascript_mime_type};
 pub use storage::{
     AREA_COST_BYTES, AREA_QUOTA_UNITS, KEY_COST_BYTES, MAX_KEYS_PER_AREA, QuotaExceeded,
     SharedStorage, StorageKind, StorageStore, TOTAL_LIMIT_BYTES,

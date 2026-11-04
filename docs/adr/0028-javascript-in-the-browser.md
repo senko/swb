@@ -1912,11 +1912,24 @@ lists the design; these are the parts to build):
    element's property, measured in Chromium). An early error is
    `ScriptError::Compile` with the offset in the body.)
 7. **Module scripts without imports:** a Module goal script with no
-   `import`, `export`, `import()` or `import.meta` runs as strict code
-   with `this` undefined and its top-level declarations local to the
-   script (M7 feature 14 note). A module with imports is reported as
-   unsupported and does not run. This item comes with the first target
-   that has such a script; until then module scripts do not run.
+   `import`, `export`, `import()`, `import.meta` or top-level `await`
+   runs as strict code with `this` undefined and its top-level
+   declarations local to the module (M7 feature 14 note; done in M9
+   feature 7, "M9 feature notes" below). `Runtime::eval_module_at`
+   parses with the Module goal (`swb_js_syntax::parse_module`) and
+   compiles the module as a function without parameters
+   (`CodeKind::Normal`, strict): its top-level declarations are bindings
+   of the module scope, registers or cells of that function, so the
+   limits of a function's variables apply (about 64,500 registers; a
+   module over them fails to compile as a function does). It runs in a
+   frame that has no function, with `this` undefined and a return to the
+   host. A module that needs another module (an `import` or `export`
+   declaration, `import()`, `import.meta`, top-level `await`) fails to
+   compile with a `SyntaxError` "not supported yet (...)"
+   (`ScriptError::is_unsupported`), the marker that the test262 runner
+   reads; the web layer then refuses the script (section 8). A syntax
+   error of the Module goal (octal literals, `with`, HTML comments, `await`
+   as a name, and so on) is a real `SyntaxError`.
 8. **The heap accounting of source text** charges its real size
    (`SourceText::byte_size`), together with the per-document heap limit
    (backlog item of M7 13e).
@@ -2087,9 +2100,11 @@ element"), at each script result of the parser:
 - `defer` scripts and module scripts run in order after the parse, before
   `DOMContentLoaded`. `async` scripts run when they arrive, each in a
   task.
-- `nomodule` scripts do not run. Scripts whose `type` is not a
-  JavaScript MIME type (JSON, `ld+json`, templates) do not run. Module
-  scripts with imports do not run (section 6, item 7) and log a warning.
+- `nomodule` classic scripts do not run (and are not fetched); `nomodule`
+  has no effect on a module script. Scripts whose `type` is not a
+  JavaScript MIME type or `module` (JSON, `ld+json`, templates) do not
+  run. Module scripts that need another module do not run (section 6,
+  item 7; "Module scripts" below).
 - The parse between two scripts runs in one step. The parser does not
   yield in the middle of long markup; no speculative fetch of later
   resources (a preload scanner) in M8.
@@ -2250,14 +2265,79 @@ serves its scripts and style sheets with delays from a local HTTP server):
   tasks) parses on without them: the page abandons the script fetches,
   runs the parser to the end and counts the document as loaded, with the
   readiness "complete" and no events.
-- (Feature 5c: departures.) Module scripts, import maps, speculation rules
-  and SVG scripts do not run (a warning for modules). A `src` of only
+- (Feature 5c: departures.) Import maps, speculation rules and SVG
+  scripts do not run; module scripts came with M9 feature 7. A `src` of only
   whitespace fires `error` like an empty one, as Chromium (HTML would
   fetch the document's URL). No preload scanner (as planned): in Chromium
   an async script that a waiting parser has not reached yet can arrive
   early and run before the end of the parse. Errors of cross-origin
   scripts are not muted (HTML "muted errors"). `document.write` came with
   M9 feature 2 (above).
+
+**Module scripts** (M9 feature 7; `web/src/scripts.rs`; Chromium 148
+values, `tools/probes/web-module-scripts.json`, three equal runs, run in
+`engine/tests/probe_net.rs`). A `script` element whose `type` is `module`
+(ASCII case-insensitive, no trimming: `" module "` is not a module) is
+prepared as HTML says, with the module-only steps:
+
+- *Lists.* A module script behaves as an external classic script with
+  `defer`: parser-inserted without `async` it waits in the list of
+  scripts that run after the parse, in document order with `defer`
+  scripts (an inline module too); with `async` it runs as soon as it is
+  ready; inserted by a script without `async` it runs as soon as
+  possible (`createElement` sets "force async"), or in order after `async
+  = false`. `defer` has no effect. `nomodule`, `event` and `for` apply to
+  classic scripts only (`<script type=module nomodule>` runs). A module
+  never blocks the parser, and the `load` event waits for async modules
+  but `DOMContentLoaded` does not.
+- *Inline modules.* The result is ready without a fetch. One that waits
+  for the end of the parse is ready at once; the others become ready in a
+  task (`Task::ModuleReady`): Chromium runs an async or inserted inline
+  module in a task of its own, never inside the call that inserted it,
+  and after the parser's step that prepared it (the tasks of the parser
+  come first: `ScriptRuntime::parse` queues them when its step ends).
+- *The module map* (`Scripts::modules`): one entry per URL of the
+  document, with the fragment (`a.js` and `a.js#x` are two modules, as in
+  Chromium), for the life of the document. An element whose URL has an
+  entry waits for its fetch (no new request), or becomes ready in a task;
+  the first element to run the module evaluates it, the others fire
+  `load` without a run. A failed fetch is an entry too: each element
+  fires `error`. Departures: the second `#frag` URL costs a request
+  (Chromium's memory cache answers it); an element after the first one
+  reports no error if the module threw or failed to parse (Chromium
+  reports the module's error again, for each element).
+- *The fetch* (`EngineHost::fetch_script` with `ScriptFetchMode::Module`):
+  a `GET` in the mode `cors` with the credentials mode `same-origin`, or
+  `include` for `crossorigin=use-credentials` (any other value is
+  `anonymous`); a response from another origin needs
+  `Access-Control-Allow-Origin` (the CORS check of `swb_net::fetch_request`,
+  also for `Access-Control-Allow-Credentials` with `use-credentials`), and
+  a cross-origin request without credentials gets no cookies and stores
+  none (measured). The response needs a JavaScript MIME type essence
+  (the list of `is_javascript_mime_type`; `text/plain`, `text/html`,
+  `application/json`, `application/octet-stream` and no type fail), whether
+  or not `X-Content-Type-Options` is `nosniff`. A module fails to fetch
+  with the `error` event at the element, no `window.onerror`. The text is
+  decoded with the BOM, else the charset of the response, else UTF-8 (a
+  classic script: else the document's encoding; HTML says UTF-8 only).
+  Chromium sends an `Origin` header also on a same-origin module request;
+  swb follows Fetch (no header for a same-origin `GET`; section 12). The
+  replay fetcher gives a request with an `Origin` header the origin as
+  `Access-Control-Allow-Origin`, so a module from another origin (BBC's
+  `dotcom-bootstrap.js`) loads in swb's and Chromium's replay alike
+  (`docs/testing.md`, "Request interception").
+- *The run.* `document.currentScript` is null; the microtask checkpoint
+  and the `load` event follow as for a classic script (an external module
+  fires `load` also after an error of its run, a syntax error included;
+  an inline one fires nothing). Errors are reported as a classic script's,
+  with one difference: a thrown value that is not an error object has the
+  position 0:0 and the document's URL (`errors::Site::module`).
+- *Refused modules* (section 6, item 7): a module that needs another
+  module does not run. swb logs a warning (the first 10 of a document;
+  later ones the debug level), fires `error` at the element, and marks the
+  module map entry, so that later elements with the URL fire `error` too.
+  Chromium loads the graph. `import()` in a classic script stays
+  unsupported (a `SyntaxError`, as before).
 
 ### 9. Style and layout after changes; layout queries
 
@@ -5156,6 +5236,69 @@ swb with the departures in `SWB_VALUES`.
   `clear_cascade_blocks`) stays in the types, marked: the timed stylist
   build must include the parse, and re-creating the sheet would lose the
   rules that scripts inserted.
+
+**Feature 7: module scripts without imports (BBC's cookie banner).** The
+design is in section 6, item 7, and "Module scripts" in section 8. Here the
+measurements and the decisions.
+
+- **What BBC needs.** One module script: `dotcom-bootstrap.js`, from
+  `gn-web-assets.api.bbc.com` (another origin than the page), `async
+  type=module defer`, no `crossorigin`, 76 KB, an IIFE without `import`,
+  `export`, `import()`, `import.meta` or top-level `await`. It builds the
+  cookie banner (`#bbccookies`, 15 elements, 22 with the wrappers of the
+  page) and the ads bootstrap. The other module script of the page, the
+  Next.js chunk with `nomodule`, is not fetched.
+- **Measured in Chromium 148** (`tools/probes/web-module-scripts.json`, 46
+  cases with 53 queries, three equal runs). Order: parser-inserted modules, inline and
+  external, run after the parse in document order with `defer` scripts;
+  async ones run when ready, also while the parser waits for a classic
+  script; an inline async module runs in a task after the parser's step; a
+  module that a script inserts runs in a task, after the microtask of the
+  script. `this` is `undefined`, the code is strict, the declarations of a
+  module are not properties of `window` and not visible to a classic
+  script or another module; `document.currentScript` is null; microtasks
+  run after each module. The module map: one run per URL (`a.js?1` and
+  `a.js#x` are other modules); each element fires `load`; a failed fetch
+  fires `error` for each element. The fetch: `Origin` on every request of
+  a module (also same-origin); cross-origin without
+  `Access-Control-Allow-Origin` fails with `error` (and no cookie stored);
+  `*` with `crossorigin=use-credentials` fails; a MIME type other than
+  JavaScript fails; the text is decoded with the BOM, else the charset,
+  else UTF-8. Errors: a syntax error is reported to `window.onerror` with
+  the V8 text and the position in the document (inline) or file; an
+  external module fires `load` after an error. Chromium also runs
+  `export` declarations, `import`, `import()`, `import.meta` and top-level
+  `await`.
+- **Departures.** (1) A module that needs another module is refused
+  (above). `export` alone could run (Chromium does), but no target needs
+  it, and exported bindings must be cells that a linker can share
+  (`swb_js_syntax::ModuleRecord`); it stays refused with the other forms.
+  (2) The `Origin` header of a same-origin module request. (3) The
+  second request for `a.js#x` after `a.js`. (4) The error of a module that
+  threw is reported once per URL. (5) The error of a classic script from
+  another origin without CORS reports the message and the position
+  (Chromium: "Script error." at 0:0; not changed, backlog). (6) The text
+  of an uncaught non-error object (`throw {message: 'x'}`) differs from
+  Chromium's, in classic scripts too (backlog).
+- **Layout.** The banner exposed a rounding difference of the flex line
+  break: `20% + 60% + 20%` of 976 px did not fit one line, because the sum
+  of the `f32` sizes is a little over the line. Chromium adds sizes in
+  units of 1/64 px and truncates each one. So `collect_lines` truncates
+  each outer hypothetical main size and the gap to 1/64 px
+  (`layout_units`) and keeps a tolerance of 0.001 px for `f32` noise in
+  the limit (review fix: a fixed tolerance of 0.01 px left four items of
+  `25.001%` of 1000 px on two lines; Chromium has one, and four of
+  `25.003%` wrap in both). The layout test `flex-wrap-percent-sum` has
+  Chromium's boxes for both cases.
+- **Budgets** (section 16). Held text: the fetched text of a module counts
+  in the 256 MiB of script text that has not run, until the module runs.
+  The module map has an entry per URL of an element, so it is bounded by
+  the nodes. A module is compiled as a function: the register limit and the
+  recursion budget of the compiler apply. Hostile cases
+  `module-scripts-inline-10000-js-on`, `module-scripts-same-url-10000-js-on`,
+  `module-scripts-refused-10000-js-on`, `module-top-level-bindings-70000-js-on`,
+  `module-inserts-modules-loop-js-on` and `module-syntax-error-1mib-js-on`
+  end in 0.1 to 0.2 s.
 
 ## Consequences
 

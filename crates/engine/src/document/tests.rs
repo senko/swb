@@ -948,6 +948,150 @@ fn lazy_check_does_not_lay_out_for_a_dom_change() {
     assert!(!doc.lazy_due());
 }
 
+/// A fetcher that keeps the requests it gets.
+#[derive(Default)]
+struct Recorder {
+    requests: std::sync::Mutex<Vec<Request>>,
+}
+
+impl Fetcher for Recorder {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        self.requests.lock().unwrap().push(request.clone());
+        Ok(Response {
+            url: request.url.clone(),
+            status: 200,
+            headers: [("content-type", "text/javascript")].into_iter().collect(),
+            body: b"1".to_vec(),
+            redirected: false,
+        })
+    }
+}
+
+/// A classic script is fetched in the mode `no-cors`; a module script in
+/// the mode `cors`, with the credentials mode `same-origin`, or `include`
+/// for `crossorigin=use-credentials` (HTML "fetch a module script graph";
+/// M9 feature 7).
+#[test]
+fn module_scripts_are_fetched_in_cors_mode() {
+    use swb_net::{CredentialsMode, RequestMode};
+    use swb_web::ScriptFetchMode;
+    let recorder = Arc::new(Recorder::default());
+    let loader = Rc::new(Loader::new(recorder.clone(), 1, Arc::new(|| {})));
+    let mut doc = state_with(swb_dom::parse_html("<p>x"), None, &url(), loader);
+    let node = NodeId::DOCUMENT;
+    assert!(doc.fetch_script(node, "https://b.test/classic.js", ScriptFetchMode::Classic));
+    let anonymous = ScriptFetchMode::Module { credentials: false };
+    assert!(doc.fetch_script(node, "https://b.test/anonymous.js", anonymous));
+    let include = ScriptFetchMode::Module { credentials: true };
+    assert!(doc.fetch_script(node, "https://b.test/include.js", include));
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while recorder.requests.lock().unwrap().len() < 3 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the requests did not arrive"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let seen: Vec<_> = recorder
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|r| (r.url.path().to_owned(), r.mode, r.credentials))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            (
+                "/classic.js".to_owned(),
+                RequestMode::NoCors,
+                CredentialsMode::Include
+            ),
+            (
+                "/anonymous.js".to_owned(),
+                RequestMode::Cors,
+                CredentialsMode::SameOrigin
+            ),
+            (
+                "/include.js".to_owned(),
+                RequestMode::Cors,
+                CredentialsMode::Include
+            ),
+        ]
+    );
+}
+
+fn script_response(content_type: &str, nosniff: bool, body: &[u8]) -> Response {
+    let mut headers: swb_net::Headers = [("content-type", content_type)].into_iter().collect();
+    if nosniff {
+        headers.append("x-content-type-options", "nosniff");
+    }
+    Response {
+        url: Url::parse("https://a.test/m.js").unwrap(),
+        status: 200,
+        headers,
+        body: body.to_vec(),
+        redirected: false,
+    }
+}
+
+/// The type check and the decoding of a module script differ from a classic
+/// script's (measured in Chromium, `tools/probes/web-module-scripts.json`,
+/// cases `mime-types`, `mime-types-classic`, `encoding`, `encoding-page`).
+#[test]
+fn module_scripts_need_a_javascript_type_and_decode_as_utf8() {
+    use swb_web::ScriptFetchMode;
+    let mut doc = walked("<p>x", &url());
+    doc.encoding = encoding_rs::WINDOWS_1252;
+    let module = ScriptFetchMode::Module { credentials: false };
+    let node = NodeId::DOCUMENT;
+    let mut run = |mode, response| {
+        doc.script_arrived(node, mode, Ok(response));
+        let mut arrived = doc.take_arrived_scripts();
+        assert_eq!(arrived.len(), 1);
+        arrived.remove(0).1.map(|script| script.source)
+    };
+    let utf8 = "'\u{e9}'".as_bytes();
+    // A classic script of any type that a script may have runs.
+    let classic = ScriptFetchMode::Classic;
+    assert!(run(classic, script_response("text/plain", false, b"1")).is_some());
+    assert!(run(classic, script_response("text/plain", true, b"1")).is_none());
+    // A module needs a JavaScript type, with or without `nosniff`.
+    for (kind, nosniff, ok) in [
+        ("text/javascript", false, true),
+        ("text/javascript; charset=utf-8", false, true),
+        ("TEXT/JavaScript", true, true),
+        ("application/x-javascript", false, true),
+        ("text/jscript", false, true),
+        ("text/plain", false, false),
+        ("text/html", false, false),
+        ("application/json", false, false),
+        ("application/octet-stream", false, false),
+        ("text/javascript-x", false, false),
+    ] {
+        let got = run(module, script_response(kind, nosniff, b"1")).is_some();
+        assert_eq!(got, ok, "{kind}");
+    }
+    // The text of a module is UTF-8 without a charset (a classic script:
+    // the document's encoding), else the charset of the response; a BOM
+    // wins.
+    let mut source = |mode, kind: &str, body: &[u8]| run(mode, script_response(kind, false, body));
+    assert_eq!(source(module, "text/javascript", utf8).unwrap(), "'\u{e9}'");
+    assert_eq!(
+        source(classic, "text/javascript", utf8).unwrap(),
+        "'\u{c3}\u{a9}'"
+    );
+    assert_eq!(
+        source(module, "text/javascript; charset=iso-8859-1", utf8).unwrap(),
+        "'\u{c3}\u{a9}'"
+    );
+    let with_bom = [b"\xef\xbb\xbf".as_slice(), utf8].concat();
+    assert_eq!(
+        source(module, "text/javascript; charset=iso-8859-1", &with_bom).unwrap(),
+        "'\u{e9}'"
+    );
+}
+
 /// An image with `sizes="auto"` that is not deferred does not make the
 /// check due.
 #[test]

@@ -234,7 +234,7 @@ impl<'a> FunctionCompiler<'a> {
         if self.fscope.register_count > MAX_REGISTERS {
             return Err(self.too_many_variables());
         }
-        let kind = self.code_kind()?;
+        let kind = self.code_kind();
         self.kind = kind;
         // Script and eval code have a completion value (§16.1.6, §19.2.1.1).
         let is_script = matches!(kind, CodeKind::Script | CodeKind::Eval);
@@ -334,9 +334,9 @@ impl<'a> FunctionCompiler<'a> {
         })
     }
 
-    fn code_kind(&self) -> CResult<CodeKind> {
+    fn code_kind(&self) -> CodeKind {
         let function = self.function;
-        Ok(match function.kind {
+        match function.kind {
             // Indirect eval code is global code with a top scope of its own.
             FunctionKind::Script if self.scopes.scope(function.scope).kind == ScopeKind::Eval => {
                 CodeKind::Eval
@@ -346,7 +346,10 @@ impl<'a> FunctionCompiler<'a> {
             _ if function.is_generator && function.is_async => CodeKind::AsyncGenerator,
             _ if function.is_generator => CodeKind::Generator,
             _ if function.is_async => CodeKind::Async,
-            FunctionKind::Normal => CodeKind::Normal,
+            // A module without requests runs as a strict function called
+            // with `this` undefined (ADR 0028 section 6, item 7): its
+            // top-level declarations are bindings of the module scope.
+            FunctionKind::Normal | FunctionKind::Module => CodeKind::Normal,
             FunctionKind::Arrow => CodeKind::Arrow,
             // Accessors of object literals are methods (§15.4.5): not
             // constructors, without `prototype`.
@@ -356,8 +359,7 @@ impl<'a> FunctionCompiler<'a> {
             FunctionKind::InstanceInitializer | FunctionKind::StaticInitializer => {
                 CodeKind::Initializer
             }
-            FunctionKind::Module => return Err(self.unsupported("module")),
-        })
+        }
     }
 
     /// The source range of the function for `Function.prototype.toString`:

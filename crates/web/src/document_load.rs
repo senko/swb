@@ -82,25 +82,46 @@ impl ScriptRuntime {
                 return;
             }
         };
-        match ready {
-            Some(WhenReady::Asap) => {
-                self.execute_script(node);
-                if let Ok(scripts) = scripts_mut(&mut self.rt) {
-                    scripts.asap.remove(&node);
+        self.scripts_ready(ready);
+    }
+
+    /// [`Task::ModuleReady`]: the module script of an element is ready
+    /// without a fetch (an inline module, or a URL that the module map has
+    /// already fetched).
+    pub(crate) fn module_ready(&mut self, node: NodeId) {
+        let ready = match crate::scripts::mark_module_ready(&mut self.rt, node) {
+            Ok(ready) => ready,
+            Err(error) => {
+                log::warn!("a module script was lost: {error:?}");
+                return;
+            }
+        };
+        self.scripts_ready(ready);
+    }
+
+    /// The steps to run when the results of script elements are ready
+    /// (HTML "steps to run when the result is ready"), in order.
+    fn scripts_ready(&mut self, ready: Vec<(NodeId, WhenReady)>) {
+        for (node, when) in ready {
+            match when {
+                WhenReady::Asap => {
+                    self.execute_script(node);
+                    if let Ok(scripts) = scripts_mut(&mut self.rt) {
+                        scripts.asap.remove(&node);
+                    }
+                }
+                WhenReady::InOrder => self.run_in_order_scripts(),
+                WhenReady::ParserExecuted => {
+                    if let Ok(scripts) = scripts_mut(&mut self.rt)
+                        && let Some(el) = scripts.elements.get_mut(&node)
+                    {
+                        el.ready_to_be_parser_executed = true;
+                    }
+                    if self.is_pending_parsing_blocking(node) {
+                        self.queue_resume();
+                    }
                 }
             }
-            Some(WhenReady::InOrder) => self.run_in_order_scripts(),
-            Some(WhenReady::ParserExecuted) => {
-                if let Ok(scripts) = scripts_mut(&mut self.rt)
-                    && let Some(el) = scripts.elements.get_mut(&node)
-                {
-                    el.ready_to_be_parser_executed = true;
-                }
-                if self.is_pending_parsing_blocking(node) {
-                    self.queue_resume();
-                }
-            }
-            None => {}
         }
         self.advance_document();
     }
@@ -290,8 +311,30 @@ impl ScriptRuntime {
     }
 
     /// Parses until the parser waits for a script or the input ends. Each
-    /// inline script runs as a task between two steps.
+    /// inline script runs as a task between two steps. The inline module
+    /// scripts that run as soon as possible become ready in tasks behind
+    /// the parser's own (Chromium runs them after the end of the parse
+    /// when nothing stops it, and while the parser waits otherwise;
+    /// measured, cases `order` and `async-before-blocking`).
     fn parse(&mut self) {
+        if let Ok(scripts) = scripts_mut(&mut self.rt) {
+            scripts.in_parse_step = true;
+        }
+        self.parse_steps();
+        let Ok(scripts) = scripts_mut(&mut self.rt) else {
+            return;
+        };
+        scripts.in_parse_step = false;
+        for node in std::mem::take(&mut scripts.module_ready_queue) {
+            if let Err(error) = queue_task(&mut self.rt, Task::ModuleReady(node)) {
+                log::warn!("a module task was not queued: {error:?}");
+            }
+        }
+    }
+
+    /// The steps of [`ScriptRuntime::parse`]: the parser runs until it waits
+    /// or the input ends.
+    fn parse_steps(&mut self) {
         loop {
             // A script that `document.write` put into the document holds
             // the parser (HTML "pending parsing-blocking script").

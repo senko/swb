@@ -4256,7 +4256,7 @@ Steps:
       arrows, 122 images and 51 placeholders as in Chromium); no script
       error but the module script. `compare --js bbc`: geometry
       0.1087 → 0.9915, pixels 0.3720 → 0.2471 (consent frame and cookie
-      banner). Load 0.30 s. Hostile cases `cssom-*` (6). JS off:
+      banner). Load 0.30 s. Hostile cases `cssom-*` (15). JS off:
       snapshot identical; the other JS fixtures unchanged. ADR 0028
       "Feature 6".
    7. Module scripts without imports (`implementer`; ADR 0028
@@ -4264,6 +4264,21 @@ Steps:
       strict), `nomodule` not run; an `import` reports an error. Exit:
       the BBC cookie banner appears and "Yes, I agree" sets the
       cookies.
+      Done 2026-11-04: inline and external module scripts that need no
+      other module (ADR 0028 section 8 "Module scripts", "Feature 7"):
+      the lists of `defer`, `async` and ordered scripts, the module map
+      by URL, the CORS fetch and the strict MIME check, `load` and
+      `error` events, `Runtime::eval_module_at`. Refused with `error`:
+      `import`, `export`, `import()`, `import.meta`, top-level `await`.
+      Probe cases: 46 in `web-module-scripts.json` (three equal Chromium
+      runs), run in `probe_net.rs`; hostile cases `module-*` (6). BBC:
+      the cookie banner appears as in Chromium (boxes within 0.02 px);
+      "Yes, I agree" sets `ckns_explicit` and `ckns_policy` as in
+      Chromium; no script error. `compare --js bbc`: geometry
+      0.9915 → 0.9992, missing 22 → 2 (the consent frame). Also the
+      flex line fit truncates sizes to 1/64 px as Chromium does
+      (`flex-wrap-percent-sum`). JS off: snapshot
+      identical; the other JS fixtures and test262 unchanged.
    8. BBC performance and test (`implementer-hard`): the 4.60 s budget
       with the real CSSOM (style after inserted rules without a full
       restyle, fewer forced runs, the cost of `getComputedStyle`);
@@ -4424,6 +4439,26 @@ Steps:
   `StyleDeclarations::set_declaration` searches linearly; the charge of
   script style data counts declarations that the cascade merges (an
   upper bound).
+- Module scripts (found in feature 7): modules that need another module
+  (`import`, `export`, `import()`, `import.meta`, top-level `await`) are
+  refused; Chromium runs them (GitHub's modules: 8 of 9 import), and
+  `export`-only modules would be the first step. `import()` in classic
+  scripts. A module that threw reports its error once per URL (Chromium:
+  for each element). `a.js` and `a.js#x` cost two requests (Chromium:
+  one, from its memory cache). Chromium sends `Origin` on a same-origin
+  module `GET` too. `<script crossorigin src>` for classic scripts is a
+  CORS fetch in Chromium (swb: `no-cors`). The error of a classic script
+  from another origin without CORS is not muted (Chromium: "Script
+  error." at 0:0). An uncaught non-`Error` object prints
+  `Uncaught Error: obj` in swb (Chromium: `[object Object]` in classic
+  scripts, `#<Object>` in modules). If the first element of a module URL
+  is removed before its turn, the fetched text stays in the module map
+  until another element with that URL runs it (bounded by the 256 MiB of
+  held script text). The web layer recognizes a refused module by the
+  "not supported yet" prefix of the compile error, the engine's
+  convention (a flag in `ScriptError::Compile` would be sturdier).
+  `swbtools` has three near-copies of the probe-case generator
+  (`lazy_cases.py`, `cssom_cases.py`, `module_cases.py`).
 - Tools (found in feature 6): `swbtools replay` has no option for a
   script that runs before the page's scripts (the inventory of BBC's
   CSSOM calls needed a patched fixture copy).

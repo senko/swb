@@ -131,6 +131,24 @@ pub enum ScriptError {
     Internal(InternalError),
 }
 
+/// The goal symbol of the source that a run compiles (§16): a classic
+/// script or a module.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Goal {
+    Script,
+    Module,
+}
+
+impl ScriptError {
+    /// True for a compile error of a construct that the engine does not
+    /// support (a `SyntaxError` "not supported yet (construct)"), as
+    /// opposed to an early error of the source text.
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self, ScriptError::Compile { message, .. }
+            if message.starts_with(swb_js_syntax::messages::NOT_SUPPORTED))
+    }
+}
+
 impl fmt::Display for ScriptError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -399,7 +417,31 @@ impl Runtime {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(text.as_str16(), name, start);
+        let result = self.eval_text(text.as_str16(), name, start, Goal::Script);
+        self.budget.leave(REENTRY_WEIGHT);
+        result
+    }
+
+    /// Compiles and runs a module that requests no other module, in realm
+    /// 0 (§16.2.1.5, "Source Text Module Records", for a module without
+    /// imports; ADR 0028 section 6, item 7): strict code with `this`
+    /// undefined, whose top-level declarations belong to the module and
+    /// not to the global object. `name` and `start` are as in
+    /// [`Runtime::eval_named_at`]. The module needs no other module:
+    /// `import` and `export` declarations, `import()`, `import.meta` and
+    /// top-level `await` fail to compile with a `SyntaxError` whose message
+    /// starts with "not supported yet" ([`ScriptError::is_unsupported`]).
+    pub fn eval_module_at(
+        &mut self,
+        source: &str,
+        name: &str,
+        start: (u32, u32),
+    ) -> Result<Value, ScriptError> {
+        if self.budget.enter(REENTRY_WEIGHT).is_err() {
+            return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
+        }
+        let text = String16::from(source);
+        let result = self.eval_text(text.as_str16(), name, start, Goal::Module);
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
@@ -409,26 +451,37 @@ impl Runtime {
         source: Str16<'_>,
         name: &str,
         position: (u32, u32),
+        goal: Goal,
     ) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
         let start = self.run_start();
-        let (code, compiled) = self.compile(source, name, position)?;
-        let result = self.run_script(code, compiled, 0);
+        let (code, compiled) = self.compile(source, name, position, goal)?;
+        // A script runs with the global object as `this`; a module has
+        // none (§16.2.1.6.4 `InitializeEnvironment`: `this` is undefined).
+        let this = match goal {
+            Goal::Script => None,
+            Goal::Module => Some(Value::Undefined),
+        };
+        let result = self.run_script(code, compiled, 0, this);
         if result.is_err() {
             self.restore_run_start(&start);
         }
         self.finish(result)
     }
 
-    /// Parses and compiles a script; the code object is not rooted, so the
-    /// caller runs it before anything can collect.
+    /// Parses and compiles a script or a module; the code object is not
+    /// rooted, so the caller runs it before anything can collect.
     fn compile(
         &mut self,
         source: Str16<'_>,
         name: &str,
         start: (u32, u32),
+        goal: Goal,
     ) -> Result<(Gc<Generic>, Rc<FunctionCode>), ScriptError> {
-        let script = swb_js_syntax::parse_script(source, &mut self.budget)?;
+        let script = match goal {
+            Goal::Script => swb_js_syntax::parse_script(source, &mut self.budget)?,
+            Goal::Module => swb_js_syntax::parse_module(source, &mut self.budget)?,
+        };
         // The compile data counts against the heap limit while it exists
         // (ADR 0026 section 3).
         let size = script.ast.heap_size() + script.scopes.heap_size();
@@ -448,7 +501,7 @@ impl Runtime {
     /// measurements); nothing runs.
     pub fn compile_stats(&mut self, source: &str) -> Result<CompileStats, ScriptError> {
         let text = String16::from(source);
-        let (_, compiled) = self.compile(text.as_str16(), "", (0, 0))?;
+        let (_, compiled) = self.compile(text.as_str16(), "", (0, 0), Goal::Script)?;
         Ok(CompileStats::of(&compiled))
     }
 
@@ -456,17 +509,19 @@ impl Runtime {
     /// functions (for tests and debugging); nothing runs.
     pub fn disassemble(&mut self, source: &str) -> Result<String, ScriptError> {
         let text = String16::from(source);
-        let (_, compiled) = self.compile(text.as_str16(), "", (0, 0))?;
+        let (_, compiled) = self.compile(text.as_str16(), "", (0, 0), Goal::Script)?;
         Ok(crate::bytecode::disassemble(&compiled, &self.heap))
     }
 
     /// Runs the code of a script in a realm: a frame whose result goes to
-    /// the host.
+    /// the host. `this` is the value of `this` (the realm's global object
+    /// for `None`).
     fn run_script(
         &mut self,
         code: Gc<Generic>,
         compiled: Rc<FunctionCode>,
         realm: u32,
+        this: Option<Value>,
     ) -> VmResult<Value> {
         let global = self.global_object(realm)?;
         let restore_top = self.vm.stack.len();
@@ -485,7 +540,7 @@ impl Runtime {
             pc: 0,
             base: window as u32,
             restore_top: restore_top as u32,
-            this: global.into(),
+            this: this.unwrap_or_else(|| global.into()),
             new_target: Value::Undefined,
             argc: 0,
             extra_args: Vec::new(),

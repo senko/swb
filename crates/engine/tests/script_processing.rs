@@ -50,12 +50,6 @@ pub(crate) struct Case {
 /// Where swb departs from Chromium on purpose: (case, query, swb's value,
 /// why).
 const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
-    (
-        "module-not-run",
-        0,
-        r#""i:l:i rsc:i dcl:i rsc:c load:c pageshow:c""#,
-        "swb runs no module scripts (ADR 0028 section 6, item 7)",
-    ),
     // `document.write` and `open` with no insertion point replace the
     // document in Chromium (HTML "document open steps"); swb ignores them
     // with a warning (ADR 0028 section 8, M9 feature 2; frames bring

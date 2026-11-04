@@ -4,6 +4,38 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-04: M9 feature 7: module scripts without imports
+
+- `type=module` scripts, inline and external, run when they need no
+  other module. They go through the lists of `defer`, `async` and
+  ordered scripts, and a module map per document runs each URL once.
+  The fetch is in CORS mode with the strict JavaScript MIME check.
+  `Runtime::eval_module_at` runs a module as a strict function with
+  `this` undefined and module-local declarations.
+- Refused with a warning and an `error` event: `import`, `export`,
+  `import()`, `import.meta`, top-level `await` (Chromium runs them; no
+  target needs them; GitHub's modules import).
+- Chromium 148: 46 probe cases, 53 queries, three equal runs. Findings:
+  modules run after the parse in order with `defer` scripts; `type` is
+  matched exactly; `nomodule` applies to classic scripts only; a URL
+  with another query or fragment is another module; every module
+  request has `Origin`.
+- BBC: `dotcom-bootstrap.js` runs and the cookie banner appears as in
+  Chromium (boxes within 0.02 px). "Yes, I agree" sets `ckns_explicit=2`
+  and `ckns_policy=111` as in Chromium; no script error.
+  `compare --js bbc`: geometry 0.9915 → 0.9992, missing elements
+  22 → 2 (the consent frame). Load 0.31 s → 0.35 s.
+- The banner showed a flex rounding error: items of 20 %, 60 % and
+  20 % of 976 px wrapped onto two lines. Chromium truncates each size
+  to 1/64 px before it adds them up for the line break; swb's line fit
+  now does the same (review fix: a fixed tolerance was not enough),
+  with a layout test from Chromium's boxes.
+- Replay: a request with `Origin` gets that origin as
+  `Access-Control-Allow-Origin` (the fixtures keep only `content-type`).
+- JS-off snapshot identical; the other JS fixtures unchanged; test262
+  unchanged (40,574 pass).
+- Next: M9 feature 8 (BBC performance and test).
+
 ## 2026-11-04: M9 feature 6: CSSOM style sheets and rules
 
 - `document.styleSheets`, `sheet` of `style` and `link`, `CSSStyleSheet`

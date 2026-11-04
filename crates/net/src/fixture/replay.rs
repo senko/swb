@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use log::warn;
+use log::{debug, warn};
 
 use super::{
     body_path, entry_url, fixture_error, natural_cmp, pattern_matches, read_manifest,
@@ -203,6 +203,7 @@ impl Fetcher for ReplayFetcher {
             );
             return Err(NetError::NotInFixture(request.url.clone()));
         };
+        debug!("served {} {}", request.method, key.0);
         Ok(Response {
             url: request.url.clone(),
             status: entry.status,

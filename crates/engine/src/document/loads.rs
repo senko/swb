@@ -46,7 +46,7 @@ impl DocumentState {
         match pending {
             Pending::Stylesheet { owner, serial } => self.stylesheet_arrived(owner, serial, result),
             Pending::Font { url } => self.font_file_arrived(&url, result, fonts),
-            Pending::Script { node } => self.script_arrived(node, result),
+            Pending::Script { node, mode } => self.script_arrived(node, mode, result),
             Pending::Image { url } => {
                 let state = ImageState::from_fetch(&url, result, &self.images.counting);
                 let ok = matches!(state, ImageState::Loaded(_));

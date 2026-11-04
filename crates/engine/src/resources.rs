@@ -30,8 +30,11 @@ pub(crate) enum Pending {
     Image { url: Url },
     /// A web font file.
     Font { url: Url },
-    /// The classic script of a script element.
-    Script { node: NodeId },
+    /// The script of a script element, classic or module.
+    Script {
+        node: NodeId,
+        mode: swb_web::ScriptFetchMode,
+    },
 }
 
 /// Where the text of an author stylesheet comes from.
@@ -648,7 +651,7 @@ pub(crate) struct ScriptFetches {
     /// The script requests in flight.
     pub(crate) in_flight: usize,
     /// The fetches that wait for a free place, in order.
-    pub(crate) queued: VecDeque<(NodeId, Url)>,
+    pub(crate) queued: VecDeque<(NodeId, Url, swb_web::ScriptFetchMode)>,
     /// The scripts that arrived (`None`: the fetch failed) and wait for the
     /// script runtime, in order of arrival.
     pub(crate) arrived: Vec<(NodeId, Option<swb_web::FetchedScript>)>,

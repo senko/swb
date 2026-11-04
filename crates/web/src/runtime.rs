@@ -652,6 +652,10 @@ impl ScriptRuntime {
                 self.script_fetched(node, None);
                 Ok(())
             }
+            Task::ModuleReady(node) => {
+                self.module_ready(node);
+                Ok(())
+            }
             Task::JavascriptUrl(source) => self.task("a javascript: URL", |rt| {
                 crate::html::activation::run_javascript_url(rt, &source).map_err(task_error)
             }),

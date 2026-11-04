@@ -402,13 +402,13 @@ pub trait EngineHost: Any {
         false
     }
 
-    /// Starts the fetch of the classic script at `url` (absolute, from
-    /// [`EngineHost::parse_url`]) for the script element `node`; the
-    /// engine hands the result to [`crate::ScriptRuntime::script_fetched`].
-    /// False if the document may not load the URL (the fetch fails at
-    /// once).
-    fn fetch_script(&mut self, node: NodeId, url: &str) -> bool {
-        let _ = (node, url);
+    /// Starts the fetch of the script at `url` (absolute, from
+    /// [`EngineHost::parse_url`]) for the script element `node`, as a
+    /// classic script or a module script (`mode`); the engine hands the
+    /// result to [`crate::ScriptRuntime::script_fetched`]. False if the
+    /// document may not load the URL (the fetch fails at once).
+    fn fetch_script(&mut self, node: NodeId, url: &str, mode: crate::ScriptFetchMode) -> bool {
+        let _ = (node, url, mode);
         false
     }
 

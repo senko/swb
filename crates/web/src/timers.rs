@@ -281,6 +281,7 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
                 script: Some((url.as_str(), &**code)),
                 start: (0, 0),
                 compile_prefix: "",
+                module: false,
             },
         };
         match error {

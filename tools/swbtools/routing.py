@@ -194,6 +194,7 @@ class Replayer(Interceptor):
             self.missing.append(url)
             await self.fail(event)
             return
+        log.info("served %s %s", method, url)
         await self.fulfill(event, entry, self.fixture.read_body(entry))
 
 

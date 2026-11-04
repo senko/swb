@@ -29,6 +29,8 @@ use common::{finish_loading, new_page, on_page_thread};
 mod blob_cases;
 #[path = "probe_net/images.rs"]
 mod image_cases;
+#[path = "probe_net/modules.rs"]
+mod module_cases;
 #[path = "probe_net/xhr.rs"]
 mod xhr_cases;
 
@@ -231,6 +233,7 @@ impl Fetcher for Sim {
                 Some("svg") => "image/svg+xml",
                 Some("css") => "text/css",
                 Some("png") => "image/png",
+                Some("js") => "text/javascript",
                 _ => "application/octet-stream",
             };
             out.push((
@@ -279,8 +282,13 @@ impl Sim {
 }
 
 /// The failures of the cases `cases`: a query whose value differs from
-/// Chromium's and is not a departure.
-fn failures(cases: &'static [Case], departures: &'static [Departure]) -> Vec<String> {
+/// Chromium's and is not a departure. The page's loader has `workers`
+/// threads (Chromium has six connections per host).
+fn failures(
+    cases: &'static [Case],
+    departures: &'static [Departure],
+    workers: usize,
+) -> Vec<String> {
     let mut out = Vec::new();
     for case in cases {
         let folder = format!("case-{}", case.name);
@@ -297,7 +305,7 @@ fn failures(cases: &'static [Case], departures: &'static [Departure]) -> Vec<Str
         });
         let mut page = new_page(
             Arc::clone(&sim) as Arc<dyn Fetcher>,
-            3,
+            workers,
             Size::new(400.0, 300.0),
         );
         page.set_javascript(true);
@@ -409,10 +417,89 @@ const BLOB_DEPARTURES: &[Departure] = &[
     ),
 ];
 
+const ORIGIN_HEADER: &str = "swb sends no `Origin` header with a same-origin GET (Fetch \"append a \
+     request Origin header\"); Chromium sends it with a module script";
+const NO_COOKIE_JAR: &str = "the simulated server has no cookie jar (the credentials of a module \
+     fetch are checked in `crates/engine/src/document/tests.rs`)";
+const REFUSED: &str = "swb refuses a module that needs another module (`import`, `export`, \
+     `import()`, `import.meta`, top-level `await`): it does not run, and `error` fires at the \
+     element (ADR 0028 section 8)";
+const REFUSED_M1: &str = r#""rsc:i error-m1:i m2:i d:i:d.js load-d.js:i dcl:i rsc:c load:c""#;
+
+/// The departures of the module script probe (M9 feature 7, ADR 0028
+/// section 8).
+const MODULE_DEPARTURES: &[Departure] = &[
+    (
+        "module-map-requests",
+        1,
+        r#""a.js:main:-:- a.js:main:-:- a.js:main:-:-""#,
+        ORIGIN_HEADER,
+    ),
+    (
+        "nomodule",
+        1,
+        r#""m.js:main:-:- nm.js:main:-:-""#,
+        ORIGIN_HEADER,
+    ),
+    (
+        "module-map-failed",
+        1,
+        r#""bad-type.js:main:-:- missing.js:main:-:-""#,
+        ORIGIN_HEADER,
+    ),
+    (
+        "cors-same-origin",
+        1,
+        r#""a.js:main:-:- b.js:main:-:- c.js:main:-:- d.js:main:-:- e.js:main:-:- f.js:main:-:- g.js:main:-:- setc.js:main:-:-""#,
+        ORIGIN_HEADER,
+    ),
+    ("cors-same-origin", 2, r#""""#, NO_COOKIE_JAR),
+    ("cors-cross-origin", 2, r#""""#, NO_COOKIE_JAR),
+    (
+        "module-map-throws",
+        0,
+        r#""rsc:i t:i err:Uncaught TypeError: Cannot read properties of null (reading 'x')@O/t.js:2:6 load-t.js:i load-t.js:i err:Uncaught SyntaxError: Unexpected token ';'@O/s.js:2:9 load-s.js:i load-s.js:i dcl:i rsc:c load:c""#,
+        "an element with the URL of a module that failed to run reports no error: swb reports an \
+         error once per module (Chromium: for each element)",
+    ),
+    ("import-ok", 0, REFUSED_M1, REFUSED),
+    ("import-named", 0, REFUSED_M1, REFUSED),
+    ("import-bad-name", 0, REFUSED_M1, REFUSED),
+    ("export-const", 0, REFUSED_M1, REFUSED),
+    ("export-default", 0, REFUSED_M1, REFUSED),
+    ("export-list", 0, REFUSED_M1, REFUSED),
+    ("export-from", 0, REFUSED_M1, REFUSED),
+    ("import-call", 0, REFUSED_M1, REFUSED),
+    ("import-call-missing", 0, REFUSED_M1, REFUSED),
+    ("import-meta", 0, REFUSED_M1, REFUSED),
+    ("tla", 0, REFUSED_M1, REFUSED),
+    ("tla-sequence", 0, REFUSED_M1, REFUSED),
+    (
+        "import-external",
+        0,
+        r#""rsc:i error-x.js:i error-y.js:i dcl:i rsc:c load:c""#,
+        REFUSED,
+    ),
+    (
+        "import-call-classic",
+        0,
+        r#""err:Uncaught SyntaxError: not supported yet (import())@DOC:1:1118 rsc:i dcl:i rsc:c load:c""#,
+        "swb does not support `import()` (a syntax error \"not supported yet\")",
+    ),
+];
+
+#[test]
+fn module_probe_cases_match_chromium() {
+    on_page_thread(|| {
+        let failures = failures(module_cases::CASES, MODULE_DEPARTURES, 8);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
+
 #[test]
 fn xhr_probe_cases_match_chromium() {
     on_page_thread(|| {
-        let failures = failures(xhr_cases::CASES, XHR_DEPARTURES);
+        let failures = failures(xhr_cases::CASES, XHR_DEPARTURES, 3);
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }
@@ -420,7 +507,7 @@ fn xhr_probe_cases_match_chromium() {
 #[test]
 fn image_probe_cases_match_chromium() {
     on_page_thread(|| {
-        let failures = failures(image_cases::CASES, IMAGE_DEPARTURES);
+        let failures = failures(image_cases::CASES, IMAGE_DEPARTURES, 3);
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }
@@ -428,7 +515,7 @@ fn image_probe_cases_match_chromium() {
 #[test]
 fn blob_probe_cases_match_chromium() {
     on_page_thread(|| {
-        let failures = failures(blob_cases::CASES, BLOB_DEPARTURES);
+        let failures = failures(blob_cases::CASES, BLOB_DEPARTURES, 3);
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     });
 }

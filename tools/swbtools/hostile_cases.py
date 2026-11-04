@@ -5121,3 +5121,149 @@ def cssom_rule_style_all_loop_js_on() -> Page:
         "console.log('rules ' + sh.cssRules.length);</script>"
     )
     return Page(doc("<p>x</p>" + script))
+
+
+# --- Module scripts (M9 feature 7) -------------------------------------------
+
+
+def replay_scripts_page(html: str, scripts: dict[str, str]) -> Page:
+    """Like `replay_page`, with JavaScript files of `http://hostile.test/`."""
+    entries = [
+        {
+            "method": "GET",
+            "url": REPLAY_URL,
+            "status": 200,
+            "headers": [["content-type", "text/html; charset=utf-8"]],
+            "body": "files/index.html",
+        }
+    ]
+    files: dict[str, str | bytes] = {"files/index.html": html}
+    for name, text in scripts.items():
+        entries.append(
+            {
+                "method": "GET",
+                "url": f"http://hostile.test/{name}",
+                "status": 200,
+                "headers": [["content-type", "text/javascript"]],
+                "body": f"files/{name}",
+            }
+        )
+        files[f"files/{name}"] = text
+    files["manifest.json"] = json.dumps({"version": 1, "entries": entries})
+    return Page(html, files)
+
+
+@case(
+    "10,000 inline module scripts in one page, with JavaScript on (M9 feature 7): each runs "
+    "in a task of its own after the parse, in order, with a microtask checkpoint; the page "
+    "loads within the time limit (ADR 0028 section 8)",
+    swb_args=("--js",),
+    time_limit_s=10,
+)
+def module_scripts_inline_10000_js_on() -> Page:
+    modules = "<script type=module>window.n = (window.n || 0) + 1;</script>" * 10_000
+    script = "<script>addEventListener('load', () => console.log('ran ' + window.n));</script>"
+    return Page(doc("<p>modules</p>" + modules + script))
+
+
+@case(
+    "10,000 module scripts with the same URL, with JavaScript on and an http: page from a "
+    "replayed fixture (M9 feature 7): the module map has one entry, so the page fetches the "
+    "URL once, the module runs once, and each element gets its `load` event (ADR 0028 "
+    "section 8)",
+    swb_args=("--js", "--replay", "{dir}"),
+    time_limit_s=10,
+    url=REPLAY_URL,
+)
+def module_scripts_same_url_10000_js_on() -> Page:
+    modules = '<script type=module src="m.js"></script>' * 10_000
+    script = (
+        "<script>let loads = 0; document.addEventListener('load', (e) => { "
+        "if (e.target.localName === 'script') loads++; }, true); "
+        "addEventListener('load', () => console.log('runs ' + window.n + ' loads ' + loads));"
+        "</script>"
+    )
+    return replay_scripts_page(
+        doc("<p>modules</p>" + script + modules),
+        {"m.js": "window.n = (window.n || 0) + 1;"},
+    )
+
+
+@case(
+    "10,000 module scripts that need another module (an import), with JavaScript on (M9 "
+    "feature 7): swb refuses each one with an `error` event; the first 10 log a warning and "
+    "the others a debug line; the page loads within the time limit (ADR 0028 section 8)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    expect_log="is not run",
+)
+def module_scripts_refused_10000_js_on() -> Page:
+    modules = "<script type=module>import './dep.js';</script>" * 10_000
+    script = (
+        "<script>let errors = 0; document.addEventListener('error', (e) => { "
+        "if (e.target.localName === 'script') errors++; }, true); "
+        "addEventListener('load', () => console.log('errors ' + errors));</script>"
+    )
+    return Page(doc("<p>modules</p>" + script + modules))
+
+
+@case(
+    "A module with 70,000 top-level let bindings, with JavaScript on (M9 feature 7): the "
+    "bindings of a module are registers of its function, so the module is over the compiler's "
+    "limit and fails to compile as a function with so many variables does, with an error "
+    "report; the page loads (ADR 0028 sections 6 and 16)",
+    swb_args=("--js",),
+    time_limit_s=10,
+    expect_log="Uncaught",
+)
+def module_top_level_bindings_70000_js_on() -> Page:
+    lets = "".join(f"let v{i}=0;" for i in range(70_000))
+    return Page(doc("<p>modules</p><script type=module>" + lets + "</script>"))
+
+
+@case(
+    "A module that inserts 20,000 inline module scripts in a loop, and each of the first "
+    "1,000 inserts 10 more, with JavaScript on (M9 feature 7): each inserted module runs in "
+    "a task of its own as soon as possible; the page loads within the time limit (ADR 0028 "
+    "section 8)",
+    swb_args=("--js",),
+    time_limit_s=15,
+)
+def module_inserts_modules_loop_js_on() -> Page:
+    insert = (
+        "const s = document.createElement('script'); s.type = 'module'; "
+        "s.text = 'window.n++'; document.body.append(s);"
+    )
+    heavy = f"window.n++; for (let j = 0; j < 10; j++) {{ {insert} }}"
+    script = (
+        "<script type=module>"
+        "window.n = 0; "
+        "function add(text) { const s = document.createElement('script'); s.type = 'module'; "
+        "s.text = text; document.body.append(s); } "
+        f"const heavy = {json.dumps(heavy)}; "
+        "for (let i = 0; i < 20000; i++) add(i < 1000 ? heavy : 'window.n++'); "
+        "addEventListener('load', () => console.log('ran ' + window.n));"
+        "</script>"
+    )
+    return Page(doc("<p>modules</p>" + script))
+
+
+@case(
+    "A module with a syntax error at the end of 1 MiB of source, inline and as a file, "
+    "with JavaScript on and an http: page from a replayed fixture (M9 feature 7): the "
+    "parser reports the error once for each; the page loads (ADR 0028 section 8)",
+    swb_args=("--js", "--replay", "{dir}"),
+    time_limit_s=10,
+    url=REPLAY_URL,
+    expect_log="Unexpected token",
+)
+def module_syntax_error_1mib_js_on() -> Page:
+    text = "var a = 1;\n" * (MIB // 11) + "var x = ;"
+    return replay_scripts_page(
+        doc(
+            "<p>modules</p><script type=module>"
+            + text
+            + '</script><script type=module src="big.js"></script>'
+        ),
+        {"big.js": text},
+    )
