@@ -93,6 +93,9 @@ pub struct ComputedStyle {
     pub clip_path: ClipPath,
     /// `filter`: `none` or a list of filter functions (Filter Effects 1).
     pub filter: Filter,
+    /// `backdrop-filter`: `none` or a list of filter functions (Filter
+    /// Effects 2).
+    pub backdrop_filter: Filter,
     /// `fill-opacity`, 0 to 1.
     pub fill_opacity: f32,
     /// `stroke` (SVG).
@@ -310,6 +313,7 @@ impl ComputedStyle {
             shape_rendering: ShapeRendering::Auto,
             clip_path: ClipPath::None,
             filter: Filter::NONE,
+            backdrop_filter: Filter::NONE,
             fill_opacity: 1.0,
             stroke: SvgPaint::None,
             stroke_width: LengthPercentage::Px(1.0),
@@ -525,6 +529,69 @@ impl ComputedStyle {
     /// Chromium 148).
     pub fn has_filter(&self) -> bool {
         !self.filter.is_none()
+    }
+
+    /// True if `filter` or `backdrop-filter` is not `none`: the element is
+    /// a stacking context and the containing block of its absolutely
+    /// positioned and fixed descendants (unless it is an inline box or the
+    /// root element).
+    pub fn has_filter_effect(&self) -> bool {
+        self.has_filter() || self.has_backdrop_filter()
+    }
+
+    /// True if the element is the containing block of its absolutely
+    /// positioned and fixed descendants because of a filter: `filter` or
+    /// `backdrop-filter` is not `none` ([`Self::has_filter_effect`]), or
+    /// `will-change` names one of them (CSS Will Change 1 §3, measured in
+    /// Chromium 148). The caller excludes inline boxes and the root
+    /// element.
+    pub fn is_filter_containing_block(&self) -> bool {
+        self.has_filter_effect() || self.will_change_makes_containing_block()
+    }
+
+    /// True if `backdrop-filter` is not `none`, whatever the functions are.
+    /// Such an element is a stacking context, the containing block of its
+    /// absolutely positioned and fixed descendants (not when it is an
+    /// inline box), and a backdrop root for its descendants (Filter
+    /// Effects 2 §2, measured in Chromium 148).
+    pub fn has_backdrop_filter(&self) -> bool {
+        !self.backdrop_filter.is_none()
+    }
+
+    /// True if the element is a backdrop root (Filter Effects 2 §2,
+    /// <https://drafts.fxtf.org/filter-effects-2/#BackdropRoot>): the
+    /// `backdrop-filter` of a descendant sees only what is painted inside
+    /// the element. Measured in Chromium 148: `opacity` below 1, a `filter`
+    /// (any, also an identity or a missing `url()`), a mask, a `clip-path`
+    /// shape, a `backdrop-filter`, and `will-change` with one of these
+    /// properties. (`mix-blend-mode` also makes a root in Chromium; swb
+    /// does not have the property.) The root element is the root of the
+    /// page.
+    pub fn is_backdrop_root(&self) -> bool {
+        self.opacity < 1.0
+            || self.has_filter()
+            || self.has_backdrop_filter()
+            || self.has_mask()
+            || self.clip_path.is_shape()
+            || self.will_change_makes_stacking_context()
+    }
+
+    /// True if `will-change` names a property that makes a stacking
+    /// context and a backdrop root: `opacity`, `filter`,
+    /// `backdrop-filter`, a mask or `clip-path` (CSS Will Change 1 §3: a
+    /// property that would make a stacking context does so in
+    /// `will-change` too; measured for the backdrop root in Chromium 148).
+    /// `will-change: transform` does neither in swb (inert).
+    pub fn will_change_makes_stacking_context(&self) -> bool {
+        InertStyle::will_change_effects(self).stacking_context
+    }
+
+    /// True if `will-change` names `filter` or `backdrop-filter`, which
+    /// makes the element the containing block of its absolutely positioned
+    /// and fixed descendants (CSS Will Change 1 §3; `opacity`, `clip-path`
+    /// and masks do not, measured in Chromium 148).
+    pub fn will_change_makes_containing_block(&self) -> bool {
+        InertStyle::will_change_effects(self).containing_block
     }
 
     /// True if `transform` is not `none`. Transforms do not apply to

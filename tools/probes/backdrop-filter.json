@@ -1,0 +1,6550 @@
+{
+ "viewport": [
+  200,
+  200
+ ],
+ "cases": [
+  {
+   "name": "bf-syntax-keywords",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"none\", \"initial\", \"inherit\", \"unset\", \"revert\", \"NONE\", \"auto\", \"var(--x)\", \"none none\", \"none blur(1px)\", \"blur(1px) none\", \"inherit blur(1px)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-url",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"url(#a)\", \"url('#a')\", \"url(\\\"#a\\\")\", \"url()\", \"url(#a) url(#b)\", \"url(#a) blur(2px)\", \"blur(2px) url(#a)\", \"url( #a )\", \"URL(#a)\", \"url(#a)blur(1px)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-blur",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"blur()\", \"blur(0)\", \"blur(5)\", \"blur(5px)\", \"blur(-5px)\", \"blur(1em)\", \"blur(10%)\", \"blur(calc(1px + 2px))\", \"blur(1px 2px)\", \"BLUR(2px)\", \"blur( 2px )\", \"blur(0.5px)\", \"blur(1e1px)\", \"blur(2deg)\", \"blur(1vw)\", \"blur(1rem)\", \"blur(calc(2 * 3px))\", \"blur(+3px)\", \"blur(.5px)\", \"blur(0px)\", \"blur(1px)blur(2px)\", \"blur(1px), blur(2px)\", \"blur(1px) blur(2px)\", \"blur(calc(-1px))\", \"blur(1mm)\", \"blur(1pt)\", \"blur(infinity)\", \"blur(1e400px)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-brightness",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"brightness()\", \"brightness(0)\", \"brightness(0.5)\", \"brightness(50%)\", \"brightness(-1)\", \"brightness(2)\", \"brightness(200%)\", \"brightness(1px)\", \"brightness(calc(1 + 1))\", \"brightness(calc(50% + 0.5))\", \"brightness(1e3)\", \"brightness(.5)\", \"brightness(1 2)\", \"brightness(-50%)\", \"brightness(0.333333333)\", \"brightness(33.3333%)\", \"brightness(1.00001)\", \"brightness(calc(10% * 2))\", \"brightness(100)\", \"brightness(9999999999)\", \"brightness(none)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-contrast",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"contrast()\", \"contrast(0)\", \"contrast(0.5)\", \"contrast(250%)\", \"contrast(-1)\", \"contrast(2)\", \"contrast(1.5)\", \"contrast(100%)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-grayscale",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"grayscale()\", \"grayscale(0)\", \"grayscale(0.5)\", \"grayscale(50%)\", \"grayscale(1)\", \"grayscale(2)\", \"grayscale(200%)\", \"grayscale(-1)\", \"grayscale(100%)\", \"grayscale(1.5)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-hue-rotate",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"hue-rotate()\", \"hue-rotate(0)\", \"hue-rotate(90)\", \"hue-rotate(90deg)\", \"hue-rotate(0.25turn)\", \"hue-rotate(100grad)\", \"hue-rotate(1rad)\", \"hue-rotate(-90deg)\", \"hue-rotate(450deg)\", \"hue-rotate(calc(1deg + 2deg))\", \"hue-rotate(10%)\", \"hue-rotate(180DEG)\", \"hue-rotate(1px)\", \"hue-rotate(0deg)\", \"hue-rotate(-0deg)\", \"hue-rotate(3.14159rad)\", \"hue-rotate(1turn)\", \"hue-rotate(-720deg)\", \"hue-rotate(1e3deg)\", \"hue-rotate(45.5deg)\", \"hue-rotate(1.5)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-invert",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"invert()\", \"invert(0)\", \"invert(1)\", \"invert(0.5)\", \"invert(50%)\", \"invert(2)\", \"invert(-1)\", \"invert(100%)\", \"invert(var(--x))\", \"invert(var(--x, 1))\", \"invert(calc(0.5 + 0.25))\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-opacity",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"opacity()\", \"opacity(0)\", \"opacity(0.5)\", \"opacity(50%)\", \"opacity(1)\", \"opacity(2)\", \"opacity(-1)\", \"opacity(100%)\", \"opacity(0.25)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-saturate",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"saturate()\", \"saturate(0)\", \"saturate(0.5)\", \"saturate(150%)\", \"saturate(2)\", \"saturate(-1)\", \"saturate(100%)\", \"saturate(30)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-sepia",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"sepia()\", \"sepia(0)\", \"sepia(0.5)\", \"sepia(50%)\", \"sepia(1)\", \"sepia(2)\", \"sepia(-1)\", \"sepia(100%)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-drop-shadow",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"drop-shadow()\", \"drop-shadow(1px)\", \"drop-shadow(1px 2px)\", \"drop-shadow(1px 2px 3px)\", \"drop-shadow(1px 2px 3px 4px)\", \"drop-shadow(1px 2px red)\", \"drop-shadow(red 1px 2px)\", \"drop-shadow(1px red 2px)\", \"drop-shadow(1px 2px 3px red)\", \"drop-shadow(1px 2px 3px currentcolor)\", \"drop-shadow(1px 2px 3px #00ff0080)\", \"drop-shadow(1px 2px -3px)\", \"drop-shadow(0 0)\", \"drop-shadow(1em 1em)\", \"drop-shadow(inset 1px 1px)\", \"drop-shadow(1px 2px 3px red inset)\", \"drop-shadow(1px 2px 3px) drop-shadow(4px 5px 6px blue)\", \"drop-shadow(rgba(0,0,0,.5) 1px 2px)\", \"drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.5))\", \"DROP-SHADOW(1px 2px)\", \"drop-shadow(1px 2px 0)\", \"drop-shadow(0 0 0 red)\", \"drop-shadow(-1px -2px 3px #f00)\", \"drop-shadow(1px 2px 3px transparent)\", \"drop-shadow(1px 2px 3px hsl(120 100% 50%))\", \"drop-shadow(10% 10px)\", \"drop-shadow(1px 2px 3px,red)\", \"drop-shadow(calc(1px + 1px) 2px)\", \"drop-shadow(1px 2px calc(3px))\", \"drop-shadow(1px 2px 3px #abc)\", \"drop-shadow(1px 2px 3px red) blur(2px)\", \"drop-shadow(1px 2px 3px color-mix(in srgb, red, blue))\", \"drop-shadow(1px 2px 3px currentColor)\", \"drop-shadow(1px 2px 3px var(--x))\", \"drop-shadow(2rem 1rem)\", \"drop-shadow(1px 2px 3px light-dark(red, blue))\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-syntax-lists",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "measure": [
+    {
+     "js": "E(() => T([\"blur(1px) brightness(0.5)\", \"blur(1px),brightness(.5)\", \"invert(1) hue-rotate(180deg)\", \"invert(1)brightness(55%)contrast(250%)hue-rotate(180deg)\", \"brightness(0) invert(1)\", \"blur(1px)  \\tinvert(1)\\n sepia(.5)\", \"blur(1px) /* c */ invert(1)\", \"brightness(50%) BRIGHTNESS(50%)\", \"blur(2px) brightness(1) blur(2px)\", \"invert(0) invert(0)\", \"blur(1px) bogus(1)\", \"bogus(1)\", \"blur(1px) !important\", \"blur(1px) 3\", \"3\", \"red\", \"blur\", \"blur(\", \"blur(1px\", \"invert(1) \", \"opacity(0.5) opacity(0.5) opacity(0.5) opacity(0.5)\", \"grayscale(1) sepia(1) saturate(2) contrast(2)\", \"brightness(1.5) hue-rotate(10deg) drop-shadow(0 0 2px #000) blur(1px) invert(.2)\"], 'backdrop-filter'))"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-alias",
+   "html": "<!DOCTYPE html><html><head><title>t</title><style>body{margin:0}#c{width:200px;height:100px;font-size:20px}</style></head><body><div id=c></div><script>\nfunction S(v) { return typeof v === 'string' ? JSON.stringify(v) : String(v); }\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : (typeof v === 'object' && v !== null ? JSON.stringify(v) : v); } catch (e) { return e.constructor.name + ': ' + e.message; } }\nfunction T(vs, p) { p = p || 'filter'; const c = document.getElementById('c'); return vs.map((v) => { const e = document.createElement('div'); e.style.setProperty(p, v); const s = e.style.getPropertyValue(p); let comp = ''; if (s) { c.appendChild(e); comp = getComputedStyle(e).getPropertyValue(p); e.remove(); } return S(v) + ' => ' + CSS.supports(p, v) + ' [' + s + '] {' + comp + '}' + (e.getAttribute('style') === (s ? p + ': ' + s + ';' : null) ? '' : ' <' + e.getAttribute('style') + '>'); }).join('\\n'); }\n</script></body></html>",
+   "viewport": [
+    900,
+    700
+   ],
+   "javascript": true,
+   "measure": [
+    {
+     "js": "E(() => T(['blur(2px)', 'none', 'invert(50%)', 'bogus', 'url(#a)'], '-webkit-backdrop-filter'))"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.webkitBackdropFilter = 'blur(2px)'; const a = [e.style.backdropFilter, e.style.webkitBackdropFilter, e.style.getPropertyValue('backdrop-filter'), e.style.getPropertyValue('-webkit-backdrop-filter'), e.getAttribute('style'), e.style.cssText, 'backdropFilter' in e.style, 'webkitBackdropFilter' in e.style, 'WebkitBackdropFilter' in e.style]; e.style.backdropFilter = 'invert(1)'; a.push(e.style.webkitBackdropFilter, e.style.cssText, e.style.length, e.style[0]); e.style.removeProperty('-webkit-backdrop-filter'); a.push(e.style.cssText, e.style.length); return a; })"
+    },
+    {
+     "js": "E(() => { const e = document.getElementById('c'); e.style.backdropFilter = 'blur(3px)'; const cs = getComputedStyle(e); const a = [cs.backdropFilter, cs.webkitBackdropFilter, cs.getPropertyValue('-webkit-backdrop-filter'), Array.from(cs).includes('backdrop-filter'), Array.from(cs).includes('-webkit-backdrop-filter'), cs.filter]; e.style.backdropFilter = ''; return a; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.cssText = 'backdrop-filter: invert(1); -webkit-backdrop-filter: blur(1px)'; return [e.style.cssText, e.style.backdropFilter, e.style.length]; })"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.cssText = '-webkit-backdrop-filter: blur(1px); backdrop-filter: invert(1) !important'; return [e.style.cssText, e.style.backdropFilter, e.style.getPropertyPriority('backdrop-filter'), e.style.length]; })"
+    },
+    {
+     "js": "E(() => CSS.supports('backdrop-filter', 'blur(1px)') + ' ' + CSS.supports('-webkit-backdrop-filter', 'blur(1px)') + ' ' + CSS.supports('(backdrop-filter: blur(1px))') + ' ' + CSS.supports('backdrop-filter: blur(1px)') + ' ' + CSS.supports('backdrop-filter', 'blur(1px) !important') + ' ' + CSS.supports('selector(a)'))"
+    },
+    {
+     "js": "E(() => { const e = document.createElement('div'); e.style.filter = 'blur(2px)'; e.style.backdropFilter = 'invert(1)'; return [e.style.cssText, e.style.filter, e.style.backdropFilter]; })"
+    }
+   ]
+  },
+  {
+   "name": "bf-cascade",
+   "html": "<!DOCTYPE html><html><head><style>#p{backdrop-filter:blur(2px)} #q{backdrop-filter:inherit} #r{backdrop-filter:initial} #s{backdrop-filter:invert(var(--v))} #t{--v:.5;backdrop-filter:invert(var(--v))} #u{backdrop-filter:var(--f)} #u2{--f:brightness(.5) blur(1px);backdrop-filter:var(--f)} #w{backdrop-filter:blur(2px);-webkit-backdrop-filter:invert(1)} #x{backdrop-filter:blur(2px) !important} #x{backdrop-filter:invert(1)} #y{font-size:30px;backdrop-filter:blur(1em) drop-shadow(1em 1em 2em)}</style></head><body><div id=p><div id=pc>c</div><div id=q>q</div><div id=r>r</div></div><div id=s>s</div><div id=t>t</div><div id=u>u</div><div id=u2>u2</div><div id=w>w</div><div id=x>x</div><div id=y style='color:rgb(1,2,3)'>y</div></body></html>",
+   "viewport": [
+    900,
+    700
+   ],
+   "javascript": true,
+   "measure": [
+    {
+     "js": "['p','pc','q','r','s','t','u','u2','w','x','y'].map(i => i + '=' + getComputedStyle(document.getElementById(i)).backdropFilter).join(' | ')"
+    },
+    {
+     "style": "#y",
+     "props": [
+      "backdrop-filter",
+      "-webkit-backdrop-filter",
+      "filter"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"backdrop-filter:none;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"backdrop-filter:blur(0);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"backdrop-filter:brightness(1);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"backdrop-filter:url(#x);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"backdrop-filter:drop-shadow(0 0);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"backdrop-filter:blur(2px);margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"backdrop-filter:invert(var(--u));margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"backdrop-filter:bogus;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><span class=p id=p0 style=\"backdrop-filter:none;;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p1 style=\"backdrop-filter:blur(0);;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p3 style=\"backdrop-filter:brightness(1);;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p6 style=\"backdrop-filter:url(#x);;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p8 style=\"backdrop-filter:drop-shadow(0 0);;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p9 style=\"backdrop-filter:blur(2px);;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p16 style=\"backdrop-filter:invert(var(--u));;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span><span class=p id=p17 style=\"backdrop-filter:bogus;;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></span></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-inline-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"backdrop-filter:none;display:inline-block;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"backdrop-filter:blur(0);display:inline-block;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"backdrop-filter:brightness(1);display:inline-block;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"backdrop-filter:url(#x);display:inline-block;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"backdrop-filter:drop-shadow(0 0);display:inline-block;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"backdrop-filter:blur(2px);display:inline-block;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"backdrop-filter:invert(var(--u));display:inline-block;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"backdrop-filter:bogus;display:inline-block;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-abs",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"backdrop-filter:none;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"backdrop-filter:blur(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p2 style=\"backdrop-filter:blur(0px);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a2 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f2 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"backdrop-filter:brightness(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p4 style=\"backdrop-filter:invert(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a4 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f4 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p5 style=\"backdrop-filter:opacity(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a5 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f5 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"backdrop-filter:url(#x);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p7 style=\"backdrop-filter:url();position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a7 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f7 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"backdrop-filter:drop-shadow(0 0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"backdrop-filter:blur(2px);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p10 style=\"backdrop-filter:contrast(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a10 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f10 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p11 style=\"backdrop-filter:grayscale(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a11 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f11 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p12 style=\"backdrop-filter:hue-rotate(0deg);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a12 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f12 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p13 style=\"backdrop-filter:saturate(1);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a13 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f13 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p14 style=\"backdrop-filter:sepia(0);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a14 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f14 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p15 style=\"backdrop-filter:drop-shadow(0 0 0 transparent);position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a15 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f15 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p16 style=\"backdrop-filter:invert(var(--u));position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a16 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f16 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p17 style=\"backdrop-filter:bogus;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a17 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f17 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-offset-parent-fixed",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}.p{position:absolute;width:100px;height:40px;left:30px}.f{position:fixed;left:7px;top:8px;width:10px;height:10px}</style></head><body><div class=p id=t style='top:10px;transform:translateX(0)'><div class=f id=ft></div></div><div class=p id=r style='top:60px;position:relative'><div class=f id=fr></div></div><div class=p id=n style='top:110px;position:static'><div class=f id=fn></div></div><div class=p id=fl style='top:160px;backdrop-filter:blur(1px)'><div class=f id=ff></div></div><span id=s style='backdrop-filter:blur(1px)'><div class=f id=fs></div></span></body></html>",
+   "viewport": [
+    400,
+    300
+   ],
+   "measure": [
+    {
+     "js": "['ft','fr','fn','ff','fs'].map(i => { const o = document.getElementById(i).offsetParent; return i + '=' + (o && (o.id || o.tagName)); }).join(' ')"
+    },
+    {
+     "js": "['ft','fr','fn','ff','fs'].map(i => { const e = document.getElementById(i); return i + '=' + e.offsetLeft + ',' + e.offsetTop; }).join(' ')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-root",
+   "html": "<!DOCTYPE html><html style='backdrop-filter:invert(0.5)'><head><style>body{margin:0;height:1500px}#f{position:fixed;left:10px;bottom:10px;width:20px;height:20px;background:red}#a{position:absolute;right:10px;bottom:10px;width:20px;height:20px;background:blue}</style></head><body><div id=f></div><div id=a></div></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": "#f"
+    },
+    {
+     "boxes": "#a"
+    },
+    {
+     "js": "document.getElementById('f').offsetParent + ' ' + document.getElementById('a').offsetParent.tagName"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-root-transform",
+   "html": "<!DOCTYPE html><html style='transform:translateX(0)'><head><style>body{margin:0;height:1500px}#f{position:fixed;left:10px;bottom:10px;width:20px;height:20px;background:red}#a{position:absolute;right:10px;bottom:10px;width:20px;height:20px;background:blue}</style></head><body><div id=f></div><div id=a></div></body></html>",
+   "viewport": [
+    500,
+    700
+   ],
+   "measure": [
+    {
+     "boxes": "#f"
+    },
+    {
+     "boxes": "#a"
+    },
+    {
+     "js": "document.getElementById('f').offsetParent + ' ' + document.getElementById('a').offsetParent.tagName"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-edge-blur10",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -6,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       24,
+       50
+      ],
+      [
+       27,
+       50
+      ],
+      [
+       30,
+       50
+      ],
+      [
+       33,
+       50
+      ],
+      [
+       36,
+       50
+      ],
+      [
+       39,
+       50
+      ],
+      [
+       42,
+       50
+      ],
+      [
+       45,
+       50
+      ],
+      [
+       48,
+       50
+      ],
+      [
+       51,
+       50
+      ],
+      [
+       54,
+       50
+      ],
+      [
+       57,
+       50
+      ],
+      [
+       60,
+       50
+      ],
+      [
+       63,
+       50
+      ],
+      [
+       66,
+       50
+      ],
+      [
+       69,
+       50
+      ],
+      [
+       72,
+       50
+      ],
+      [
+       75,
+       50
+      ],
+      [
+       78,
+       50
+      ],
+      [
+       81,
+       50
+      ],
+      [
+       84,
+       50
+      ],
+      [
+       87,
+       50
+      ],
+      [
+       90,
+       50
+      ],
+      [
+       93,
+       50
+      ],
+      [
+       96,
+       50
+      ],
+      [
+       99,
+       50
+      ],
+      [
+       102,
+       50
+      ],
+      [
+       105,
+       50
+      ],
+      [
+       108,
+       50
+      ],
+      [
+       111,
+       50
+      ],
+      [
+       114,
+       50
+      ],
+      [
+       117,
+       50
+      ],
+      [
+       120,
+       50
+      ],
+      [
+       123,
+       50
+      ]
+     ]
+    },
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       60,
+       -6
+      ],
+      [
+       60,
+       -2
+      ],
+      [
+       60,
+       2
+      ],
+      [
+       60,
+       6
+      ],
+      [
+       60,
+       10
+      ],
+      [
+       60,
+       14
+      ],
+      [
+       60,
+       18
+      ],
+      [
+       60,
+       22
+      ],
+      [
+       60,
+       26
+      ],
+      [
+       60,
+       30
+      ],
+      [
+       60,
+       34
+      ],
+      [
+       60,
+       38
+      ],
+      [
+       60,
+       42
+      ],
+      [
+       60,
+       46
+      ],
+      [
+       60,
+       50
+      ],
+      [
+       60,
+       54
+      ],
+      [
+       60,
+       58
+      ],
+      [
+       60,
+       62
+      ],
+      [
+       60,
+       66
+      ],
+      [
+       60,
+       70
+      ],
+      [
+       60,
+       74
+      ],
+      [
+       60,
+       78
+      ],
+      [
+       60,
+       82
+      ],
+      [
+       60,
+       86
+      ],
+      [
+       60,
+       90
+      ],
+      [
+       60,
+       94
+      ],
+      [
+       60,
+       98
+      ],
+      [
+       60,
+       102
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-box-at-step",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:60px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -6,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       24,
+       50
+      ],
+      [
+       27,
+       50
+      ],
+      [
+       30,
+       50
+      ],
+      [
+       33,
+       50
+      ],
+      [
+       36,
+       50
+      ],
+      [
+       39,
+       50
+      ],
+      [
+       42,
+       50
+      ],
+      [
+       45,
+       50
+      ],
+      [
+       48,
+       50
+      ],
+      [
+       51,
+       50
+      ],
+      [
+       54,
+       50
+      ],
+      [
+       57,
+       50
+      ],
+      [
+       60,
+       50
+      ],
+      [
+       63,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w4-s3",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(3px)}</style></head><body><div style='left:100px;top:0px;width:4px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w8-s2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(2px)}</style></head><body><div style='left:100px;top:0px;width:8px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w8-s4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(4px)}</style></head><body><div style='left:100px;top:0px;width:8px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w8-s8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(8px)}</style></head><body><div style='left:100px;top:0px;width:8px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w16-s4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(4px)}</style></head><body><div style='left:100px;top:0px;width:16px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-w16-s8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(8px)}</style></head><body><div style='left:100px;top:0px;width:16px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ],
+      [
+       20,
+       50
+      ],
+      [
+       21,
+       50
+      ],
+      [
+       22,
+       50
+      ],
+      [
+       23,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-straddle",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(3px)}</style></head><body><div style='left:96px;top:0px;width:8px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       -4,
+       50
+      ],
+      [
+       -3,
+       50
+      ],
+      [
+       -2,
+       50
+      ],
+      [
+       -1,
+       50
+      ],
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       50
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       50
+      ],
+      [
+       7,
+       50
+      ],
+      [
+       8,
+       50
+      ],
+      [
+       9,
+       50
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       50
+      ],
+      [
+       13,
+       50
+      ],
+      [
+       14,
+       50
+      ],
+      [
+       15,
+       50
+      ],
+      [
+       16,
+       50
+      ],
+      [
+       17,
+       50
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       19,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-top",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(3px)}</style></head><body><div style='left:0px;top:50px;width:300px;height:4px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       50,
+       -4
+      ],
+      [
+       50,
+       -3
+      ],
+      [
+       50,
+       -2
+      ],
+      [
+       50,
+       -1
+      ],
+      [
+       50,
+       0
+      ],
+      [
+       50,
+       1
+      ],
+      [
+       50,
+       2
+      ],
+      [
+       50,
+       3
+      ],
+      [
+       50,
+       4
+      ],
+      [
+       50,
+       5
+      ],
+      [
+       50,
+       6
+      ],
+      [
+       50,
+       7
+      ],
+      [
+       50,
+       8
+      ],
+      [
+       50,
+       9
+      ],
+      [
+       50,
+       10
+      ],
+      [
+       50,
+       11
+      ],
+      [
+       50,
+       12
+      ],
+      [
+       50,
+       13
+      ],
+      [
+       50,
+       14
+      ],
+      [
+       50,
+       15
+      ],
+      [
+       50,
+       16
+      ],
+      [
+       50,
+       17
+      ],
+      [
+       50,
+       18
+      ],
+      [
+       50,
+       19
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-right",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(3px)}</style></head><body><div style='left:196px;top:0px;width:4px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       80,
+       50
+      ],
+      [
+       81,
+       50
+      ],
+      [
+       82,
+       50
+      ],
+      [
+       83,
+       50
+      ],
+      [
+       84,
+       50
+      ],
+      [
+       85,
+       50
+      ],
+      [
+       86,
+       50
+      ],
+      [
+       87,
+       50
+      ],
+      [
+       88,
+       50
+      ],
+      [
+       89,
+       50
+      ],
+      [
+       90,
+       50
+      ],
+      [
+       91,
+       50
+      ],
+      [
+       92,
+       50
+      ],
+      [
+       93,
+       50
+      ],
+      [
+       94,
+       50
+      ],
+      [
+       95,
+       50
+      ],
+      [
+       96,
+       50
+      ],
+      [
+       97,
+       50
+      ],
+      [
+       98,
+       50
+      ],
+      [
+       99,
+       50
+      ],
+      [
+       100,
+       50
+      ],
+      [
+       101,
+       50
+      ],
+      [
+       102,
+       50
+      ],
+      [
+       103,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-stripe-bottom",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:100px;height:100px;backdrop-filter:blur(3px)}</style></head><body><div style='left:0px;top:146px;width:300px;height:4px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    300,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       50,
+       80
+      ],
+      [
+       50,
+       81
+      ],
+      [
+       50,
+       82
+      ],
+      [
+       50,
+       83
+      ],
+      [
+       50,
+       84
+      ],
+      [
+       50,
+       85
+      ],
+      [
+       50,
+       86
+      ],
+      [
+       50,
+       87
+      ],
+      [
+       50,
+       88
+      ],
+      [
+       50,
+       89
+      ],
+      [
+       50,
+       90
+      ],
+      [
+       50,
+       91
+      ],
+      [
+       50,
+       92
+      ],
+      [
+       50,
+       93
+      ],
+      [
+       50,
+       94
+      ],
+      [
+       50,
+       95
+      ],
+      [
+       50,
+       96
+      ],
+      [
+       50,
+       97
+      ],
+      [
+       50,
+       98
+      ],
+      [
+       50,
+       99
+      ],
+      [
+       50,
+       100
+      ],
+      [
+       50,
+       101
+      ],
+      [
+       50,
+       102
+      ],
+      [
+       50,
+       103
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-edge-page-right",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:100px;top:50px;width:300px;height:100px;backdrop-filter:blur(5px)}</style></head><body><div style='left:190px;top:0px;width:10px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#b",
+     "points": [
+      [
+       60,
+       50
+      ],
+      [
+       62,
+       50
+      ],
+      [
+       64,
+       50
+      ],
+      [
+       66,
+       50
+      ],
+      [
+       68,
+       50
+      ],
+      [
+       70,
+       50
+      ],
+      [
+       72,
+       50
+      ],
+      [
+       74,
+       50
+      ],
+      [
+       76,
+       50
+      ],
+      [
+       78,
+       50
+      ],
+      [
+       80,
+       50
+      ],
+      [
+       82,
+       50
+      ],
+      [
+       84,
+       50
+      ],
+      [
+       86,
+       50
+      ],
+      [
+       88,
+       50
+      ],
+      [
+       90,
+       50
+      ],
+      [
+       92,
+       50
+      ],
+      [
+       94,
+       50
+      ],
+      [
+       96,
+       50
+      ],
+      [
+       98,
+       50
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-brightness0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-brightness1.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(1.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-brightness0.8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:brightness(0.8)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-contrast0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-contrast2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(2)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-contrast1.4",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:contrast(1.4)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-grayscale1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(1)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-grayscale0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:grayscale(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-hue-rotate90deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(90deg)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-hue-rotate180deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(180deg)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-hue-rotate30deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:hue-rotate(30deg)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-invert1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-invert0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-opacity0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:opacity(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-saturate0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-saturate2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:saturate(2)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-sepia1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(1)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-sepia0.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:sepia(0.5)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-invert1_hue-rotate180deg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-invert1_hue-rotate180deg_brightness0.8",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff}.c{width:20px;height:20px;float:left;margin:2px}</style></head><body><div class=c id=c0 style=\"background:rgb(200,100,50);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c1 style=\"background:rgb(255,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c2 style=\"background:rgb(0,128,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c3 style=\"background:rgb(30,30,30);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c4 style=\"background:rgb(120,200,60);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c5 style=\"background:rgb(255,255,255);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div><div class=c id=c6 style=\"background:rgb(0,0,0);position:relative\"><i style=\"position:absolute;left:0;top:0;width:20px;height:20px;backdrop-filter:invert(1) hue-rotate(180deg) brightness(0.8)\"></i></div></body></html>",
+   "measure": [
+    {
+     "pixels": ".c",
+     "points": [
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-fn-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:drop-shadow(10px 10px 0 #f00)}</style></head><body><div id=w><div style='left:60px;top:60px;width:40px;height:40px;background:#000'></div><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       50,
+       80
+      ],
+      [
+       55,
+       80
+      ],
+      [
+       60,
+       80
+      ],
+      [
+       65,
+       80
+      ],
+      [
+       70,
+       80
+      ],
+      [
+       75,
+       80
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       85,
+       80
+      ],
+      [
+       90,
+       80
+      ],
+      [
+       95,
+       80
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       105,
+       80
+      ],
+      [
+       110,
+       80
+      ],
+      [
+       115,
+       80
+      ],
+      [
+       120,
+       80
+      ],
+      [
+       125,
+       80
+      ],
+      [
+       130,
+       80
+      ],
+      [
+       135,
+       80
+      ],
+      [
+       140,
+       80
+      ],
+      [
+       145,
+       80
+      ],
+      [
+       80,
+       50
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       80,
+       60
+      ],
+      [
+       80,
+       65
+      ],
+      [
+       80,
+       70
+      ],
+      [
+       80,
+       75
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       80,
+       85
+      ],
+      [
+       80,
+       90
+      ],
+      [
+       80,
+       95
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       80,
+       105
+      ],
+      [
+       80,
+       110
+      ],
+      [
+       80,
+       115
+      ],
+      [
+       80,
+       120
+      ],
+      [
+       80,
+       125
+      ],
+      [
+       80,
+       130
+      ],
+      [
+       80,
+       135
+      ],
+      [
+       80,
+       140
+      ],
+      [
+       80,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-fn-blur",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:drop-shadow(10px 10px 4px #f00)}</style></head><body><div id=w><div style='left:60px;top:60px;width:40px;height:40px;background:#000'></div><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       50,
+       80
+      ],
+      [
+       55,
+       80
+      ],
+      [
+       60,
+       80
+      ],
+      [
+       65,
+       80
+      ],
+      [
+       70,
+       80
+      ],
+      [
+       75,
+       80
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       85,
+       80
+      ],
+      [
+       90,
+       80
+      ],
+      [
+       95,
+       80
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       105,
+       80
+      ],
+      [
+       110,
+       80
+      ],
+      [
+       115,
+       80
+      ],
+      [
+       120,
+       80
+      ],
+      [
+       125,
+       80
+      ],
+      [
+       130,
+       80
+      ],
+      [
+       135,
+       80
+      ],
+      [
+       140,
+       80
+      ],
+      [
+       145,
+       80
+      ],
+      [
+       80,
+       50
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       80,
+       60
+      ],
+      [
+       80,
+       65
+      ],
+      [
+       80,
+       70
+      ],
+      [
+       80,
+       75
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       80,
+       85
+      ],
+      [
+       80,
+       90
+      ],
+      [
+       80,
+       95
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       80,
+       105
+      ],
+      [
+       80,
+       110
+      ],
+      [
+       80,
+       115
+      ],
+      [
+       80,
+       120
+      ],
+      [
+       80,
+       125
+      ],
+      [
+       80,
+       130
+      ],
+      [
+       80,
+       135
+      ],
+      [
+       80,
+       140
+      ],
+      [
+       80,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-fn-clip",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:drop-shadow(60px 0 0 #f00)}</style></head><body><div id=w><div style='left:60px;top:60px;width:40px;height:40px;background:#000'></div><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       50,
+       80
+      ],
+      [
+       55,
+       80
+      ],
+      [
+       60,
+       80
+      ],
+      [
+       65,
+       80
+      ],
+      [
+       70,
+       80
+      ],
+      [
+       75,
+       80
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       85,
+       80
+      ],
+      [
+       90,
+       80
+      ],
+      [
+       95,
+       80
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       105,
+       80
+      ],
+      [
+       110,
+       80
+      ],
+      [
+       115,
+       80
+      ],
+      [
+       120,
+       80
+      ],
+      [
+       125,
+       80
+      ],
+      [
+       130,
+       80
+      ],
+      [
+       135,
+       80
+      ],
+      [
+       140,
+       80
+      ],
+      [
+       145,
+       80
+      ],
+      [
+       80,
+       50
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       80,
+       60
+      ],
+      [
+       80,
+       65
+      ],
+      [
+       80,
+       70
+      ],
+      [
+       80,
+       75
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       80,
+       85
+      ],
+      [
+       80,
+       90
+      ],
+      [
+       80,
+       95
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       80,
+       105
+      ],
+      [
+       80,
+       110
+      ],
+      [
+       80,
+       115
+      ],
+      [
+       80,
+       120
+      ],
+      [
+       80,
+       125
+      ],
+      [
+       80,
+       130
+      ],
+      [
+       80,
+       135
+      ],
+      [
+       80,
+       140
+      ],
+      [
+       80,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-fn-blur5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:blur(5px)}</style></head><body><div id=w><div style='left:60px;top:60px;width:40px;height:40px;background:#000'></div><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       50,
+       80
+      ],
+      [
+       55,
+       80
+      ],
+      [
+       60,
+       80
+      ],
+      [
+       65,
+       80
+      ],
+      [
+       70,
+       80
+      ],
+      [
+       75,
+       80
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       85,
+       80
+      ],
+      [
+       90,
+       80
+      ],
+      [
+       95,
+       80
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       105,
+       80
+      ],
+      [
+       110,
+       80
+      ],
+      [
+       115,
+       80
+      ],
+      [
+       120,
+       80
+      ],
+      [
+       125,
+       80
+      ],
+      [
+       130,
+       80
+      ],
+      [
+       135,
+       80
+      ],
+      [
+       140,
+       80
+      ],
+      [
+       145,
+       80
+      ],
+      [
+       80,
+       50
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       80,
+       60
+      ],
+      [
+       80,
+       65
+      ],
+      [
+       80,
+       70
+      ],
+      [
+       80,
+       75
+      ],
+      [
+       80,
+       80
+      ],
+      [
+       80,
+       85
+      ],
+      [
+       80,
+       90
+      ],
+      [
+       80,
+       95
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       80,
+       105
+      ],
+      [
+       80,
+       110
+      ],
+      [
+       80,
+       115
+      ],
+      [
+       80,
+       120
+      ],
+      [
+       80,
+       125
+      ],
+      [
+       80,
+       130
+      ],
+      [
+       80,
+       135
+      ],
+      [
+       80,
+       140
+      ],
+      [
+       80,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-opacity-0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99;background:#f00}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:opacity(0)}</style></head><body><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-opacity-5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99;background:#f00}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:opacity(.5)}</style></head><body><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-brightness-0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99;background:#f00}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:brightness(0)}</style></head><body><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-opacity.99",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.99}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-filter-invert0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;filter:invert(0)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-filter-blur0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;filter:blur(0)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-filter-url",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;filter:url(#x)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-mask",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;mask-image:linear-gradient(#000,#000)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-clip-path-inset",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;clip-path:inset(0)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-backdrop-blur1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;backdrop-filter:blur(1px)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-backdrop-brightness1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;backdrop-filter:brightness(1)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-will-opacity",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;will-change:opacity}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-will-filter",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;will-change:filter}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-will-backdrop",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;will-change:backdrop-filter}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-will-transform",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;will-change:transform}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-transform",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;transform:translateX(0)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-isolation",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;isolation:isolate}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-fixed",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;position:fixed}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-overflow",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;overflow:hidden}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-contain-paint",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;contain:paint}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-z-index",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;z-index:1}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-rootkind-opacity1",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:1}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-own-backdrop",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;backdrop-filter:invert(1);background:rgba(255,0,0,.5)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-own-backdrop-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;backdrop-filter:invert(1);background:rgba(255,0,0,1)}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-root-opacity-and-backdrop",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:0;top:0;width:200px;height:200px;opacity:.5;backdrop-filter:invert(1);background:#f00}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       20
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-opacity.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);opacity:.5}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-opacity.5-bg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);opacity:.5;background:rgba(255,0,0,.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-bg-alpha",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);background:rgba(255,0,0,.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-bg-solid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);background:#f00}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-filter-invert",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-filter-blur2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);filter:blur(2px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-clip-circle",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);clip-path:circle(30px at 50px 50px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-clip-inset",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);clip-path:inset(0 0 0 40px)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-mask-half",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);mask-image:linear-gradient(to right,#000 50%,transparent 50%)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-radius",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);border-radius:40px}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-border",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);border:10px solid rgba(0,0,255,.5);width:80px;height:80px}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-translate",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);transform:translate(10px,0)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-outline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);outline:10px solid rgba(0,255,0,.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-visibility",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);visibility:hidden}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-self-opacity0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);opacity:0}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-radius",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1);border-radius:40px}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       57,
+       57
+      ],
+      [
+       58,
+       58
+      ],
+      [
+       59,
+       59
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       62,
+       62
+      ],
+      [
+       63,
+       63
+      ],
+      [
+       64,
+       64
+      ],
+      [
+       65,
+       65
+      ],
+      [
+       53,
+       90
+      ],
+      [
+       51,
+       90
+      ],
+      [
+       90,
+       51
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-radius-elliptic",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1);border-radius:50px / 20px}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       57,
+       57
+      ],
+      [
+       59,
+       59
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       61,
+       61
+      ],
+      [
+       62,
+       62
+      ],
+      [
+       63,
+       63
+      ],
+      [
+       64,
+       64
+      ],
+      [
+       65,
+       65
+      ],
+      [
+       53,
+       90
+      ],
+      [
+       51,
+       90
+      ],
+      [
+       90,
+       51
+      ],
+      [
+       51,
+       70
+      ],
+      [
+       52,
+       60
+      ],
+      [
+       55,
+       55
+      ],
+      [
+       100,
+       51
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-border-box",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:60px;height:60px;border:20px solid transparent;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       55,
+       100
+      ],
+      [
+       65,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       135,
+       100
+      ],
+      [
+       145,
+       100
+      ],
+      [
+       40,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-overflow-clip",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:20px;top:20px;width:100px;height:100px;overflow:hidden}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       60
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       119,
+       119
+      ],
+      [
+       121,
+       121
+      ],
+      [
+       160,
+       160
+      ],
+      [
+       110,
+       130
+      ],
+      [
+       130,
+       110
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-overflow-radius",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#w{left:20px;top:20px;width:100px;height:100px;overflow:hidden;border-radius:50px}#b{left:0px;top:0px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=w><div id=b></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       22,
+       22
+      ],
+      [
+       25,
+       25
+      ],
+      [
+       30,
+       30
+      ],
+      [
+       35,
+       35
+      ],
+      [
+       70,
+       70
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-area-inline",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#s{backdrop-filter:invert(1);padding:0 10px;position:static}#p{left:20px;top:50px;width:100px;font:20px/30px Ahem;color:#f00}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=p>ab <span id=s>cd e</span> fg</div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       25,
+       60
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       100,
+       60
+      ],
+      [
+       115,
+       60
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-zindex",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{backdrop-filter:invert(1)}</style></head><body><div style='left:0;top:0;width:200px;height:200px;background:#000'></div><div style='left:10px;top:10px;width:180px;height:30px;background:#f00;z-index:1'></div><div id=b style='left:30px;top:20px;width:100px;height:100px;z-index:2'></div><div style='left:10px;top:60px;width:180px;height:30px;background:#0f0;z-index:3'></div><div style='left:10px;top:100px;width:180px;height:30px;background:#00f;z-index:1'></div><div style='left:10px;top:140px;width:180px;height:30px;background:#ff0;z-index:2'></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       5,
+       30
+      ],
+      [
+       20,
+       30
+      ],
+      [
+       50,
+       30
+      ],
+      [
+       50,
+       70
+      ],
+      [
+       50,
+       110
+      ],
+      [
+       50,
+       150
+      ],
+      [
+       150,
+       30
+      ],
+      [
+       150,
+       110
+      ],
+      [
+       140,
+       150
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-children",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:30px;top:30px;width:100px;height:100px;backdrop-filter:invert(1)}#c{left:10px;top:10px;width:30px;height:30px;background:#f00}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       35,
+       35
+      ],
+      [
+       50,
+       50
+      ],
+      [
+       100,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-nested-black",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:invert(1)}#c{left:30px;top:30px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       160,
+       160
+      ],
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-nested-bg",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:invert(1);background:#f00}#c{left:30px;top:30px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       160,
+       160
+      ],
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-nested-blur",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:20px;top:20px;width:160px;height:160px;backdrop-filter:blur(8px);background:linear-gradient(90deg,#f00 50%,#00f 50%)}#c{left:30px;top:30px;width:100px;height:100px;backdrop-filter:invert(1)}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=b><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       30,
+       30
+      ],
+      [
+       60,
+       60
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       100,
+       160
+      ],
+      [
+       110,
+       100
+      ],
+      [
+       160,
+       160
+      ],
+      [
+       10,
+       10
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-negative-z",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#p{left:50px;top:50px;width:60px;height:60px;background:#00f;backdrop-filter:invert(1)}#c{z-index:-1;left:10px;top:10px;width:20px;height:20px;background:#f00}</style></head><body><div style='left:0px;top:0px;width:200px;height:200px;background:#000'></div><div id=p><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       60
+      ],
+      [
+       55,
+       55
+      ],
+      [
+       95,
+       95
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-order-stacking",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#p{left:50px;top:50px;width:60px;height:60px;background:#00f;backdrop-filter:blur(0)}#c{z-index:-1;left:10px;top:10px;width:20px;height:20px;background:#f00}</style></head><body><div id=p><div id=c></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       60
+      ],
+      [
+       55,
+       55
+      ],
+      [
+       95,
+       95
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-transform-scale1.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);transform:scale(1.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       55
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       99,
+       55
+      ],
+      [
+       101,
+       55
+      ],
+      [
+       120,
+       55
+      ],
+      [
+       140,
+       55
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       99,
+       100
+      ],
+      [
+       101,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       60,
+       145
+      ],
+      [
+       80,
+       145
+      ],
+      [
+       99,
+       145
+      ],
+      [
+       101,
+       145
+      ],
+      [
+       120,
+       145
+      ],
+      [
+       140,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-transform-rotate45",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);transform:rotate(45deg)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       55
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       99,
+       55
+      ],
+      [
+       101,
+       55
+      ],
+      [
+       120,
+       55
+      ],
+      [
+       140,
+       55
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       99,
+       100
+      ],
+      [
+       101,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       60,
+       145
+      ],
+      [
+       80,
+       145
+      ],
+      [
+       99,
+       145
+      ],
+      [
+       101,
+       145
+      ],
+      [
+       120,
+       145
+      ],
+      [
+       140,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-transform-scale.5",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);transform:scale(.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       55
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       99,
+       55
+      ],
+      [
+       101,
+       55
+      ],
+      [
+       120,
+       55
+      ],
+      [
+       140,
+       55
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       99,
+       100
+      ],
+      [
+       101,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       60,
+       145
+      ],
+      [
+       80,
+       145
+      ],
+      [
+       99,
+       145
+      ],
+      [
+       101,
+       145
+      ],
+      [
+       120,
+       145
+      ],
+      [
+       140,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-transform-scale2",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(10px);transform:scale(2)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       60,
+       55
+      ],
+      [
+       80,
+       55
+      ],
+      [
+       99,
+       55
+      ],
+      [
+       101,
+       55
+      ],
+      [
+       120,
+       55
+      ],
+      [
+       140,
+       55
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       99,
+       100
+      ],
+      [
+       101,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       60,
+       145
+      ],
+      [
+       80,
+       145
+      ],
+      [
+       99,
+       145
+      ],
+      [
+       101,
+       145
+      ],
+      [
+       120,
+       145
+      ],
+      [
+       140,
+       145
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-scroll-fixed-mid",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:800px}div{position:absolute}#b{position:fixed;left:20px;top:50px;width:160px;height:100px;backdrop-filter:blur(6px)}</style></head><body><div style='left:0;top:0px;width:200px;height:200px;background:#000'></div><div id=v style='position:fixed;left:0;top:0;width:0;height:0'></div><div id=b></div><script>window.scrollTo(0,100)</script></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#v",
+     "points": [
+      [
+       100,
+       40
+      ],
+      [
+       100,
+       45
+      ],
+      [
+       100,
+       50
+      ],
+      [
+       100,
+       55
+      ],
+      [
+       100,
+       60
+      ],
+      [
+       100,
+       65
+      ],
+      [
+       100,
+       70
+      ],
+      [
+       100,
+       75
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       100,
+       85
+      ],
+      [
+       100,
+       90
+      ],
+      [
+       100,
+       95
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       100,
+       105
+      ],
+      [
+       100,
+       110
+      ],
+      [
+       100,
+       115
+      ],
+      [
+       100,
+       120
+      ],
+      [
+       100,
+       125
+      ],
+      [
+       100,
+       130
+      ],
+      [
+       100,
+       135
+      ],
+      [
+       100,
+       140
+      ],
+      [
+       100,
+       145
+      ],
+      [
+       100,
+       150
+      ],
+      [
+       100,
+       155
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-scroll-fixed-inset0",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:800px}div{position:absolute}#b{position:fixed;left:0;top:0;right:0;bottom:0;backdrop-filter:blur(6px)}</style></head><body><div style='left:0;top:150px;width:200px;height:100px;background:#000'></div><div id=v style='position:fixed;left:0;top:0;width:0;height:0'></div><div id=b></div><script>window.scrollTo(0,100)</script></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "#v",
+     "points": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       8
+      ],
+      [
+       100,
+       16
+      ],
+      [
+       100,
+       24
+      ],
+      [
+       100,
+       32
+      ],
+      [
+       100,
+       40
+      ],
+      [
+       100,
+       48
+      ],
+      [
+       100,
+       56
+      ],
+      [
+       100,
+       64
+      ],
+      [
+       100,
+       72
+      ],
+      [
+       100,
+       80
+      ],
+      [
+       100,
+       88
+      ],
+      [
+       100,
+       96
+      ],
+      [
+       100,
+       104
+      ],
+      [
+       100,
+       112
+      ],
+      [
+       100,
+       120
+      ],
+      [
+       100,
+       128
+      ],
+      [
+       100,
+       136
+      ],
+      [
+       100,
+       144
+      ],
+      [
+       100,
+       152
+      ],
+      [
+       100,
+       160
+      ],
+      [
+       100,
+       168
+      ],
+      [
+       100,
+       176
+      ],
+      [
+       100,
+       184
+      ],
+      [
+       100,
+       192
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-scroll-sticky",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div id=s style='left:0;top:0;width:200px;height:200px;overflow:auto'><div id=h style='position:sticky;z-index:1;top:0;width:200px;height:40px;backdrop-filter:blur(6px)'></div><div style='position:relative;height:1000px'><div style='left:0;top:0;width:200px;height:60px;background:#000'></div><div style='left:0;top:60px;width:200px;height:60px;background:#fff'></div><div style='left:0;top:120px;width:200px;height:60px;background:#000'></div></div></div><script>document.getElementById('s').scrollTop=30</script></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       4
+      ],
+      [
+       100,
+       8
+      ],
+      [
+       100,
+       12
+      ],
+      [
+       100,
+       16
+      ],
+      [
+       100,
+       20
+      ],
+      [
+       100,
+       24
+      ],
+      [
+       100,
+       28
+      ],
+      [
+       100,
+       32
+      ],
+      [
+       100,
+       36
+      ],
+      [
+       100,
+       40
+      ],
+      [
+       100,
+       44
+      ],
+      [
+       100,
+       48
+      ],
+      [
+       100,
+       52
+      ],
+      [
+       100,
+       56
+      ]
+     ]
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-self-many",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}#b{left:50px;top:50px;width:100px;height:100px;backdrop-filter:blur(2px) blur(2px) blur(2px) invert(1) invert(1) sepia(.5)}</style></head><body><div style='left:0px;top:0px;width:100px;height:200px;background:#000'></div><div id=b></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       20,
+       100
+      ],
+      [
+       60,
+       100
+      ],
+      [
+       80,
+       100
+      ],
+      [
+       95,
+       100
+      ],
+      [
+       100,
+       100
+      ],
+      [
+       105,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       160,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-drop-shadow-edge-blur",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:0;top:0;width:200px;height:200px;opacity:.99'><div style='left:70px;top:70px;width:60px;height:60px;background:#000'></div><div style='left:40px;top:40px;width:120px;height:120px;backdrop-filter:drop-shadow(30px 0 6px blue) blur(2px)'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       100,
+       100
+      ],
+      [
+       120,
+       100
+      ],
+      [
+       140,
+       100
+      ],
+      [
+       150,
+       100
+      ],
+      [
+       154,
+       100
+      ],
+      [
+       156,
+       100
+      ],
+      [
+       158,
+       100
+      ],
+      [
+       159,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-drop-shadow-mirror-read",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:0;top:0;width:200px;height:200px;opacity:.99'><div style='left:150px;top:70px;width:10px;height:60px;background:#000'></div><div style='left:40px;top:40px;width:120px;height:120px;backdrop-filter:drop-shadow(-30px 0 0 blue)'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       110,
+       100
+      ],
+      [
+       114,
+       100
+      ],
+      [
+       118,
+       100
+      ],
+      [
+       122,
+       100
+      ],
+      [
+       126,
+       100
+      ],
+      [
+       130,
+       100
+      ],
+      [
+       134,
+       100
+      ],
+      [
+       138,
+       100
+      ],
+      [
+       142,
+       100
+      ],
+      [
+       146,
+       100
+      ],
+      [
+       150,
+       100
+      ],
+      [
+       154,
+       100
+      ],
+      [
+       158,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-fn-drop-shadow-edge-zero",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:0;top:0;width:200px;height:200px;opacity:.99'><div style='left:140px;top:70px;width:20px;height:60px;background:#000'></div><div style='left:40px;top:40px;width:120px;height:120px;backdrop-filter:drop-shadow(0 0 6px blue)'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       120,
+       100
+      ],
+      [
+       123,
+       100
+      ],
+      [
+       126,
+       100
+      ],
+      [
+       129,
+       100
+      ],
+      [
+       132,
+       100
+      ],
+      [
+       135,
+       100
+      ],
+      [
+       138,
+       100
+      ],
+      [
+       141,
+       100
+      ],
+      [
+       144,
+       100
+      ],
+      [
+       147,
+       100
+      ],
+      [
+       150,
+       100
+      ],
+      [
+       153,
+       100
+      ],
+      [
+       156,
+       100
+      ],
+      [
+       159,
+       100
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"will-change:auto;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"will-change:filter;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p2 style=\"will-change:backdrop-filter;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a2 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f2 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"will-change:opacity;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p4 style=\"will-change:clip-path;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a4 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f4 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p5 style=\"will-change:mask;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a5 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f5 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"will-change:mask-image;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p7 style=\"will-change:opacity, filter;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a7 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f7 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"will-change:top, filter;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"will-change:contents;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p10 style=\"will-change:scroll-position;margin:10px 0 10px 30px;width:100px;height:40px\"><div class=a id=a10 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f10 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [
+    500,
+    900
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-willchange-abs",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:2000px}</style></head><body><div class=p id=p0 style=\"will-change:auto;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a0 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f0 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p1 style=\"will-change:filter;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a1 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f1 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p2 style=\"will-change:backdrop-filter;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a2 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f2 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p3 style=\"will-change:opacity;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a3 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f3 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p4 style=\"will-change:clip-path;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a4 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f4 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p5 style=\"will-change:mask;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a5 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f5 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p6 style=\"will-change:mask-image;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a6 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f6 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p7 style=\"will-change:opacity, filter;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a7 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f7 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p8 style=\"will-change:top, filter;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a8 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f8 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p9 style=\"will-change:contents;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a9 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f9 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div><div class=p id=p10 style=\"will-change:scroll-position;position:absolute;left:300px;top:300px;width:100px;height:40px\"><div class=a id=a10 style=\"position:absolute;left:5px;top:6px;width:10px;height:10px;background:red\"></div><div class=f id=f10 style=\"position:fixed;left:7px;top:8px;width:10px;height:10px;background:blue\"></div></div></body></html>",
+   "viewport": [
+    500,
+    900
+   ],
+   "measure": [
+    {
+     "boxes": ".p"
+    },
+    {
+     "boxes": ".a"
+    },
+    {
+     "boxes": ".f"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.a')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    },
+    {
+     "js": "Array.from(document.querySelectorAll('.f')).map(e => e.offsetParent && (e.offsetParent.id || e.offsetParent.tagName)).join(',')"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "bf-cb-willchange-pixels-filter",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:filter'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-pixels-backdrop-filter",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:backdrop-filter'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-pixels-opacity",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:opacity'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-pixels-clip-path",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:clip-path'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-pixels-mask",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:mask'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bf-cb-willchange-pixels-transform",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0;background:#fff;height:200px}div{position:absolute}</style></head><body><div style='left:100px;top:100px;width:50px;height:50px;will-change:transform'><div style='position:fixed;left:0;top:0;width:20px;height:20px;background:red'></div></div></body></html>",
+   "viewport": [
+    200,
+    200
+   ],
+   "measure": [
+    {
+     "pixels": "body",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       105,
+       105
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}

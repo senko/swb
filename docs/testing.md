@@ -20,6 +20,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | SVG image tests        | `crates/engine/tests/svg_images.rs`     | no                                |
 | `clip-path` tests      | `crates/engine/tests/clip_path.rs` (M8 feature 12b: every case of `tools/probes/clip-path.json`: the grammar of `inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `rect()`, `xywh()` and the geometry boxes with `CSS.supports`, `element.style` and `getComputedStyle` (about 500 values); the ink and box of 14 pages of clipped boxes in a screenshot (shapes of all kinds, reference boxes, transforms, children, inline boxes, tables, flex items, replaced elements, SVG elements with the three reference boxes); the stacking context; `elementFromPoint` and the hit test) | no |
 | `filter` and gradient tests | `crates/engine/tests/filter.rs` (M8 feature 12c: every case of `tools/probes/filter.json` and `tools/probes/gradients.json` with Chromium's values: the grammar, `element.style` and `getComputedStyle` of about 400 filter values, the alias `-webkit-filter`, the cascade and `var()`, hit testing and the scroll size, the boxes and offset parents of the children of filtered boxes, and about 140 cases of colors at points in a screenshot: the color functions, blur profiles, drop shadows, stacking contexts, the order with `opacity`, `clip-path` and masks, root and body, inline boxes, transforms, overflow, images, and gradients with transparent stops, also repeating); unit tests in `crates/paint/src/filter/tests.rs` (the steps against Chromium's numbers) and `crates/paint/src/raster/tests/gradient.rs` (the stops) | no |
+| `backdrop-filter` tests | `crates/engine/tests/backdrop_filter.rs` (M9 feature 5, ADR 0033: every case of `tools/probes/backdrop-filter.json` (131 cases) against the Chromium output in `tests/data/web-backdrop-filter.json` (`uv run --project tools swbtools probe --json tools/probes/backdrop-filter.json > crates/engine/tests/data/web-backdrop-filter.json`; run it three times and check that the outputs are equal): the syntax and computed values of about 400 values (the probe sets the property name of the `filter` syntax cases), that `-webkit-backdrop-filter` is no property, the cascade, the containing block and offset parents (also of `will-change`), drop-shadow at the box edge, and colors at points: the edge of a blur (the box is the backdrop, mirrored at its edges), the functions, the backdrop root (19 kinds of ancestor), the box's own opacity, filter, clip path and mask, the area (rounded corners, the border, `overflow` clips), the paint order, nested backdrop filters, transforms, scrolled content, fixed and sticky boxes; `SWB_PIXELS` lists the eight rows where swb departs, with reasons); unit tests in `crates/paint/src/raster/tests/backdrop.rs` (the rasterizer: edges, roots, own layers, budgets, hostile boxes) and `crates/paint/src/filter/tests.rs` (the mirrored blur with Chromium's edge values); the pixels around the Ars Technica grid settings dialog in `ars_technica.rs` | no |
 | Inline SVG tests       | `crates/engine/tests/inline_svg.rs` (sizes, the box dump of the `<svg>` and its descendants, painting at other scales, page styles, `<style>` in the SVG, the content-box clip, the baseline, links, `clipPath`, `use`, `shape-rendering`, hit testing of shapes); `tests/layout/inline-svg-boxes.html` (the boxes of `g`, shapes and `use` against Chromium) | no |
 | Scrolling tests        | `crates/engine/tests/scrolling.rs` (scroll containers: wheel, keys, scroll into view, paint, hit testing) | no |
 | Positioning tests      | `crates/engine/tests/positioning.rs` (fixed and sticky boxes while scrolling, clips, z-index order, transforms, `clip`; hit testing and pixels) | no |
@@ -899,7 +900,7 @@ temporary directory, loaded by navigation.
   (by luminance, 1 for black), and `bbox`, the box of the pixels that are
   not white, relative to the element. It shows synthetic bold (more ink)
   and slanted glyphs where the geometry does not change.
-- `pixels`: the colors of a screenshot of the page at points: `{"pixels": "#a", "points": [[0, 0], [5, -3]]}` gives, for each element that matches, the RGB values at the points, in px from the top left of its border box (a point can lie outside the box, for a blur; one outside the screenshot is white). Output `pixels  #a[1]  10,20,30 255,255,255`. With `--with-swb`, swb's values follow, with `!` if a channel differs by more than 2. Set the page background (the screenshot has no alpha). All `pixels` queries of a case compare with swb's screenshot at the end of the case, so a case with scripts must not change what an earlier query saw. M8 feature 12c, for `filter` and gradients (`tools/probes/filter.json`, `gradients.json`; `crates/engine/tests/filter.rs` has their values).
+- `pixels`: the colors of a screenshot of the page at points: `{"pixels": "#a", "points": [[0, 0], [5, -3]]}` gives, for each element that matches, the RGB values at the points, in px from the top left of its border box (a point can lie outside the box, for a blur; one outside the screenshot is white). Output `pixels  #a[1]  10,20,30 255,255,255`. With `--with-swb`, swb's values follow, with `!` if a channel differs by more than 2. Set the page background (the screenshot has no alpha). All `pixels` queries of a case compare with swb's screenshot at the end of the case, so a case with scripts must not change what an earlier query saw. M8 feature 12c, for `filter` and gradients (`tools/probes/filter.json`, `gradients.json`; `crates/engine/tests/filter.rs` has their values). M9 feature 5, for `backdrop-filter` (`tools/probes/backdrop-filter.json`; `crates/engine/tests/backdrop_filter.rs` runs the file): a case can use `pixels` on `body` with points in document coordinates, and on a `position: fixed` element of size 0 at the top left for the viewport coordinates of fixed boxes (the screenshot is of the whole page, with fixed boxes where they are at the scroll offset).
 - `files` (case, optional): files to copy next to the page, as
   `{"published name": "source path"}`; a relative source path is relative
   to the repository root (for example the fonts of `@font-face` rules:
@@ -1132,7 +1133,10 @@ fonts), each sized
 just past the limit so that the limit acts, and some generic pages (deep
 nesting, very long words, `1e30px` lengths, thousands of `:has()` rules, long
 `var()` chains, huge lists), pages that make the parse in steps with
-JavaScript on pause many times (`parse-steps-*-js-on`), lazy images (M9
+JavaScript on pause many times (`parse-steps-*-js-on`), `backdrop-filter`
+(M9 feature 5, ADR 0033: `blur(100px)` on 1,000 nested boxes, viewport-size
+boxes with huge lengths and 64 blurs, 3,000 overlapping boxes in a
+30,000 px page in a full-page screenshot; `backdrop-filter-*`), lazy images (M9
 feature 4, ADR 0032: 100,000 lazy images and a script that scrolls
 down in 100 steps, 30,000 lazy images whose `loading` a script toggles 20
 times, and 200 nested scroll containers that a script scrolls
@@ -1465,7 +1469,11 @@ the A/B requests come after `jquery` and before the tracking script in all
 three of its runs (`performance.getEntriesByType('resource')` in `swbtools
 replay --record`). The record has the story times (`times`, `Intl`,
 feature 3); the blurred backdrop of the grid settings dialog
-(`backdrop-filter`, feature 5) is not in it yet. The command for the records and colors (three runs,
+(`backdrop-filter`, feature 5, ADR 0033) is in the pixel points of the group
+"grid settings" (the points whose names start with `blur`, 21 points around
+the dialog: the logo, the header bar, the thumbnails, the photo, the corners
+and edges of the viewport; swb is within 3 levels of Chromium there). The
+command for the records and colors (three runs,
 equal; the view switcher's click navigates away, so the record expression
 tolerates a page without the setup):
 

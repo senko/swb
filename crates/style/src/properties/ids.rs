@@ -273,6 +273,7 @@ longhands! {
     UserSelect "user-select" reset user_select: UserSelect;
     UnicodeBidi "unicode-bidi" reset unicode_bidi: UnicodeBidi;
     Filter "filter" reset filter: SpecifiedFilter;
+    BackdropFilter "backdrop-filter" reset backdrop_filter: SpecifiedFilter;
 
     // Not inherited, without effect on layout or paint (the scroll margin
     // and padding only on scrolling to an element): the computed values are

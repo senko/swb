@@ -53,7 +53,7 @@ pub(crate) fn box_clip(b: &BoxFragment, origin: Point) -> Option<BoxClip> {
             transform,
             bounds,
         } => BoxClip {
-            push: path_clip_item(path, rule, transform, bounds),
+            push: path_clip_item(path, rule, transform, bounds, true),
             pop: DisplayItem::PopSvgClip,
         },
     })

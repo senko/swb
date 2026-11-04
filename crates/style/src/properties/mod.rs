@@ -1688,7 +1688,9 @@ mod tests {
         assert!(check("(--x: anything)"));
         assert!(check("(mask-image: none)"));
         assert!(check("(-webkit-mask-image: none) or (mask-image: none)"));
-        assert!(check("not (backdrop-filter: blur(1px))"));
+        assert!(check("(backdrop-filter: blur(1px))"));
+        assert!(!check("(-webkit-backdrop-filter: blur(1px))"));
+        assert!(check("not (mix-blend-mode: multiply)"));
     }
 
     #[test]

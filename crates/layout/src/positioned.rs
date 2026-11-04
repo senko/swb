@@ -213,13 +213,16 @@ pub fn is_absolute_containing_block(fragment: &BoxFragment) -> bool {
 /// `none` (Filter Effects 1 §5; a `url()` and a function that changes
 /// nothing count too; an inline box is neither, as with transforms; the
 /// root element's `filter` is not one, measured in Chromium 148: it is
-/// applied to the canvas, and a transform on the root is one).
+/// applied to the canvas, and a transform on the root is one). A
+/// `will-change` of `filter` or `backdrop-filter` counts too (CSS Will
+/// Change 1 §3, measured in Chromium 148; `will-change: transform` does
+/// not in swb).
 /// Deviation: layout containment (hidden contents) does not count, so a
 /// fixed box in the hidden contents of a closed `details` is relative to
 /// the viewport.
 pub fn is_fixed_containing_block(fragment: &BoxFragment) -> bool {
     has_transform(fragment)
-        || (fragment.style.has_filter() && !fragment.is_inline && !fragment.is_root)
+        || (fragment.style.is_filter_containing_block() && !fragment.is_inline && !fragment.is_root)
 }
 
 /// The area of the `clip` property of an absolutely positioned box whose
@@ -257,7 +260,8 @@ pub fn forms_stacking_context(fragment: &BoxFragment) -> bool {
         || matches!(style.position, Position::Fixed | Position::Sticky)
         || (style.position != Position::Static && style.z_index != swb_style::ZIndex::Auto)
         || style.opacity < 1.0
-        || style.has_filter()
+        || style.has_filter_effect()
+        || style.will_change_makes_stacking_context()
         || style.has_mask()
         || style.clip_path.is_shape()
 }

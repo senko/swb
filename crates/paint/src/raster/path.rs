@@ -111,11 +111,13 @@ impl Rasterizer<'_> {
                 transform,
                 bounds,
                 rect_fallback,
+                backdrop_root,
             } => {
                 let kind = LayerKind::SvgClip(SvgClipLayer {
                     clip: Arc::clone(clip),
                     transform: *transform,
                     rect_fallback: *rect_fallback,
+                    backdrop_root: *backdrop_root,
                 });
                 self.push_layer(NewLayer::new(*bounds, kind));
             }

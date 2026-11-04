@@ -21,6 +21,10 @@
 //!   (in whole device pixels, rounded down), colors it and draws the
 //!   element over it. The `σ` is the blur argument as it is.
 //!
+//! `backdrop-filter` (Filter Effects 2 §2; ADR 0033) uses the same steps
+//! on the pixels of the backdrop, with the image mirrored at its edges
+//! ([`Edge::Mirror`]) instead of transparent pixels around it.
+//!
 //! A deviation: the standard deviation is limited to [`MAX_SIGMA`] device
 //! px (ADR 0028 section 16; Chromium has no limit).
 
@@ -389,22 +393,55 @@ pub(crate) fn work(ops: &[Op], pixels: u64) -> u64 {
 
 // ----- Applying -----
 
+/// What a blur reads beyond the edges of the pixels it works on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Edge {
+    /// Transparent pixels (`filter`).
+    Transparent,
+    /// The image mirrored at its edges, `abcd|dcba` (`backdrop-filter`,
+    /// measured in Chromium 148: the backdrop of a box is clipped to its
+    /// border box and a blur does not fade at the edges).
+    Mirror,
+}
+
 /// Applies the steps to `data`, `width` by `height` premultiplied RGBA8
 /// pixels. `scratch` is a buffer of the same size that the blur and shadow
 /// steps need; without it (shorter) they are skipped.
 pub(crate) fn apply(data: &mut [u8], scratch: &mut [u8], width: usize, height: usize, ops: &[Op]) {
+    apply_with(data, scratch, width, height, ops, Edge::Transparent);
+}
+
+/// [`apply`] for a backdrop: the blurs read the image mirrored at its
+/// edges ([`Edge::Mirror`]). The caller gives no scratch buffer: the
+/// mirrored blur makes the buffers it needs.
+pub(crate) fn apply_mirrored(data: &mut [u8], width: usize, height: usize, ops: &[Op]) {
+    apply_with(data, &mut [], width, height, ops, Edge::Mirror);
+}
+
+/// [`apply`] with the given edge mode for the blurs. The scratch buffer
+/// contract depends on the mode: [`Edge::Transparent`] needs `scratch` of
+/// the size of `data` (without it the blur and shadow steps are skipped);
+/// [`Edge::Mirror`] ignores `scratch` and allocates its own buffers.
+fn apply_with(
+    data: &mut [u8],
+    scratch: &mut [u8],
+    width: usize,
+    height: usize,
+    ops: &[Op],
+    edge: Edge,
+) {
     if data.len() != width * height * 4 {
         return;
     }
-    let has_scratch = scratch.len() >= data.len();
+    let has_scratch = edge == Edge::Mirror || scratch.len() >= data.len();
     for op in ops {
         match op {
             Op::Colors(steps) => color_pass(data, steps),
             Op::Blur(sigma) if has_scratch => {
-                box_blur::<4>(data, scratch, width, height, *sigma);
+                box_blur::<4>(data, scratch, width, height, *sigma, edge);
             }
             Op::Shadow(shadow) if has_scratch => {
-                drop_shadow(data, scratch, width, height, shadow);
+                drop_shadow(data, scratch, width, height, shadow, edge);
             }
             Op::Blur(_) | Op::Shadow(_) => {}
         }
@@ -495,9 +532,14 @@ fn box_blur<const N: usize>(
     width: usize,
     height: usize,
     sigma: f32,
+    edge: Edge,
 ) {
     let d = box_size(sigma.min(MAX_SIGMA));
     if d < 2 || width == 0 || height == 0 {
+        return;
+    }
+    if edge == Edge::Mirror {
+        box_blur_mirrored::<N>(data, width, height, sigma);
         return;
     }
     let passes = box_passes(d);
@@ -640,12 +682,241 @@ fn vertical<const N: usize>(
     }
 }
 
+/// The index in `0..n` that the position `i` stands for when the image
+/// repeats mirrored at its edges (`abcd|dcba|abcd`).
+fn mirror_index(i: i64, n: usize) -> usize {
+    let n = n.max(1) as i64;
+    let m = i.rem_euclid(2 * n);
+    (if m < n { m } else { 2 * n - 1 - m }) as usize
+}
+
+/// Blurs `N` interleaved channels of `data` with the standard deviation
+/// `sigma` like [`box_blur`], but with the image mirrored at its edges
+/// (see [`Edge::Mirror`]): each row and then each column is extended by
+/// the reach of the blur on both sides, blurred in the extended line, and
+/// cropped. (Mirroring the line before every one of the three box passes
+/// would not match Chromium: with an even window the intermediate lines are
+/// not symmetric about the edge. Measured: the extension is made once.)
+/// The rows go first, then the columns; the work buffers are two blocks of
+/// [`BLOCK`] lines, and the vertical passes of an image that fits
+/// [`MAX_PADDED_PIXELS`] use two images of their own.
+fn box_blur_mirrored<const N: usize>(data: &mut [u8], width: usize, height: usize, sigma: f32) {
+    let sigma = sigma.min(MAX_SIGMA);
+    let d = box_size(sigma);
+    if d < 2 || width == 0 || height == 0 || data.len() < width * height * N {
+        return;
+    }
+    let plan = MirrorPlan {
+        passes: box_passes(d),
+        reach: blur_reach(sigma) as usize,
+    };
+    let longest = width.max(height) + 2 * plan.reach;
+    let mut blocks = Blocks {
+        line: vec![0_u8; BLOCK * longest * N],
+        other: vec![0_u8; BLOCK * longest * N],
+    };
+    blur_rows_mirrored::<N>(data, width, &plan, &mut blocks);
+    blur_columns_mirrored::<N>(data, (width, height), &plan, &mut blocks);
+}
+
+/// The box passes of a mirrored blur and how far each line is extended.
+struct MirrorPlan {
+    passes: [BoxPass; 3],
+    /// The extension on each side of a line, in pixels.
+    reach: usize,
+}
+
+/// The two work buffers of [`BLOCK`] extended lines each that the passes
+/// of a block alternate between.
+struct Blocks {
+    line: Vec<u8>,
+    other: Vec<u8>,
+}
+
+impl Blocks {
+    /// The three box passes over `lines` lines of `len` pixels in `line`;
+    /// the result is in `other`.
+    fn blur<const N: usize>(&mut self, len: usize, lines: usize, plan: &MirrorPlan) {
+        blur_block::<N>(&mut self.line, &mut self.other, len, lines, &plan.passes);
+    }
+}
+
+/// The horizontal half of the mirrored blur: each row of `data` (`width`
+/// pixels) is extended mirrored, blurred and cropped.
+fn blur_rows_mirrored<const N: usize>(
+    data: &mut [u8],
+    width: usize,
+    plan: &MirrorPlan,
+    blocks: &mut Blocks,
+) {
+    let reach = plan.reach;
+    let len = width + 2 * reach;
+    let map = mirror_map(width, reach);
+    let row_bytes = width * N;
+    for rows in data.chunks_mut(BLOCK * row_bytes) {
+        let lines = rows.len() / row_bytes;
+        for (line, row) in blocks
+            .line
+            .chunks_exact_mut(len * N)
+            .zip(rows.chunks_exact(row_bytes))
+        {
+            for (out, &from) in line.as_chunks_mut::<N>().0.iter_mut().zip(&map) {
+                if let Some(src) = row.get(from * N..from * N + N) {
+                    out.copy_from_slice(src);
+                }
+            }
+        }
+        blocks.blur::<N>(len, lines, plan);
+        for (line, row) in blocks
+            .other
+            .chunks_exact(len * N)
+            .zip(rows.chunks_exact_mut(row_bytes))
+        {
+            if let Some(middle) = line.get(reach * N..(reach + width) * N) {
+                row.copy_from_slice(middle);
+            }
+        }
+    }
+}
+
+/// The vertical half of the mirrored blur of `data` (`width` by `height`
+/// pixels).
+fn blur_columns_mirrored<const N: usize>(
+    data: &mut [u8],
+    (width, height): (usize, usize),
+    plan: &MirrorPlan,
+    blocks: &mut Blocks,
+) {
+    let map = mirror_map(height, plan.reach);
+    if map.len() * width <= MAX_PADDED_PIXELS {
+        blur_columns_padded::<N>(data, (width, height), plan, &map);
+    } else {
+        blur_columns_blocked::<N>(data, (width, height), plan, &map, blocks);
+    }
+}
+
+/// The columns of an image that fits [`MAX_PADDED_PIXELS`] once extended:
+/// the rows are copied mirrored above and below the image (`map` says
+/// which), and the vertical passes (which work on whole rows) run over the
+/// extended image.
+fn blur_columns_padded<const N: usize>(
+    data: &mut [u8],
+    (width, height): (usize, usize),
+    plan: &MirrorPlan,
+    map: &[usize],
+) {
+    let row_bytes = width * N;
+    let mut padded = vec![0_u8; map.len() * row_bytes];
+    for (out, &y) in padded.chunks_exact_mut(row_bytes).zip(map) {
+        if let Some(src) = data.get(y * row_bytes..(y + 1) * row_bytes) {
+            out.copy_from_slice(src);
+        }
+    }
+    let mut result = vec![0_u8; padded.len()];
+    let mut sums = vec![0_u32; row_bytes];
+    let rows = map.len();
+    let [first, second, third] = plan.passes;
+    vertical::<N>(&padded, &mut result, width, rows, first, &mut sums);
+    vertical::<N>(&result, &mut padded, width, rows, second, &mut sums);
+    vertical::<N>(&padded, &mut result, width, rows, third, &mut sums);
+    if let (Some(middle), Some(image)) = (
+        result.get(plan.reach * row_bytes..(plan.reach + height) * row_bytes),
+        data.get_mut(..height * row_bytes),
+    ) {
+        image.copy_from_slice(middle);
+    }
+}
+
+/// The columns of an image that is too large to extend: a line is a
+/// column, and a block takes [`BLOCK`] neighbors (`map` says which pixel
+/// each position of the extended column mirrors).
+fn blur_columns_blocked<const N: usize>(
+    data: &mut [u8],
+    (width, height): (usize, usize),
+    plan: &MirrorPlan,
+    map: &[usize],
+    blocks: &mut Blocks,
+) {
+    let len = map.len();
+    for x0 in (0..width).step_by(BLOCK) {
+        let lines = BLOCK.min(width - x0);
+        for (i, &y) in map.iter().enumerate() {
+            let Some(row) = data.get((y * width + x0) * N..(y * width + x0 + lines) * N) else {
+                continue;
+            };
+            for (k, px) in row.as_chunks::<N>().0.iter().enumerate() {
+                if let Some(out) = blocks
+                    .line
+                    .get_mut((k * len + i) * N..(k * len + i + 1) * N)
+                {
+                    out.copy_from_slice(px);
+                }
+            }
+        }
+        blocks.blur::<N>(len, lines, plan);
+        for k in 0..lines {
+            for y in 0..height {
+                let from = (k * len + plan.reach + y) * N;
+                let to = (y * width + x0 + k) * N;
+                if let (Some(src), Some(dst)) =
+                    (blocks.other.get(from..from + N), data.get_mut(to..to + N))
+                {
+                    dst.copy_from_slice(src);
+                }
+            }
+        }
+    }
+}
+
+/// The lines that a block of the mirrored blur holds.
+const BLOCK: usize = 16;
+
+/// The most pixels of the extended image that the vertical passes of the
+/// mirrored blur work on (16 MiB for each of the two buffers); a larger
+/// image is blurred column by column in blocks, which is slower.
+const MAX_PADDED_PIXELS: usize = 4 * 1024 * 1024;
+
+/// For each position of a line of `n` pixels extended by `reach` on both
+/// sides, the pixel that it mirrors.
+fn mirror_map(n: usize, reach: usize) -> Vec<usize> {
+    (0..n + 2 * reach)
+        .map(|i| mirror_index(i as i64 - reach as i64, n))
+        .collect()
+}
+
+/// The three box passes over `lines` lines of `len` pixels each, one after
+/// the other in `line`; the result is in `other`.
+fn blur_block<const N: usize>(
+    line: &mut [u8],
+    other: &mut [u8],
+    len: usize,
+    lines: usize,
+    passes: &[BoxPass; 3],
+) {
+    horizontal::<N>(line, other, len, lines, passes[0]);
+    horizontal::<N>(other, line, len, lines, passes[1]);
+    horizontal::<N>(line, other, len, lines, passes[2]);
+}
+
 /// `drop-shadow()`: the layer over its own shadow.
-fn drop_shadow(data: &mut [u8], scratch: &mut [u8], width: usize, height: usize, shadow: &Shadow) {
+fn drop_shadow(
+    data: &mut [u8],
+    scratch: &mut [u8],
+    width: usize,
+    height: usize,
+    shadow: &Shadow,
+    edge: Edge,
+) {
     let pixels = width * height;
     let mut alpha: Vec<u8> = data.as_chunks::<4>().0.iter().map(|px| px[3]).collect();
-    if let Some(plane) = scratch.get_mut(..pixels) {
-        box_blur::<1>(&mut alpha, plane, width, height, shadow.sigma);
+    // The mirrored blur needs no scratch plane (see `apply_with`).
+    let mut no_plane: [u8; 0] = [];
+    let plane = match edge {
+        Edge::Mirror => Some(&mut no_plane[..]),
+        Edge::Transparent => scratch.get_mut(..pixels),
+    };
+    if let Some(plane) = plane {
+        box_blur::<1>(&mut alpha, plane, width, height, shadow.sigma, edge);
     }
     let [red, green, blue, color_alpha] = shadow.color;
     for y in 0..height {

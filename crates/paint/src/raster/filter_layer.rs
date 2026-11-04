@@ -112,7 +112,7 @@ impl Rasterizer<'_> {
     /// The layer of a group in `area` (target device px) and whether the
     /// budget holds a scratch buffer for it, if the steps fit into the
     /// budgets.
-    fn filter_layer(&mut self, ops: &[Op], area: Rect) -> Option<(Pixmap, bool)> {
+    pub(super) fn filter_layer(&mut self, ops: &[Op], area: Rect) -> Option<(Pixmap, bool)> {
         let pixels = (area.width as u64).saturating_mul(area.height as u64);
         let work = filter::work(ops, pixels);
         let needs_scratch = ops.iter().any(|op| !matches!(op, Op::Colors(_)));
@@ -239,7 +239,7 @@ fn hidden() -> Layer {
 }
 
 /// `r` grown by `m` px on each side.
-fn grow(r: Rect, m: Margins) -> Rect {
+pub(super) fn grow(r: Rect, m: Margins) -> Rect {
     Rect::new(
         r.x - m.left as f32,
         r.y - m.top as f32,

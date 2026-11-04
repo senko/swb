@@ -42,9 +42,12 @@
 //! calls of the page with `hour` and `minute`, or `year`, `month` and
 //! `day`; M9 feature 3, ADR 0027 section 10).
 //!
-//! Not in this test yet (the roadmap's feature 5 of M9 adds it): the blurred
-//! backdrop of the grid settings dialog (`backdrop-filter`, the pixels
-//! around the dialog).
+//! The blurred backdrop of the grid settings dialog (`backdrop-filter`, M9
+//! feature 5, ADR 0033) is in the pixel points of the group "grid settings"
+//! (the points whose names start with `blur`: the dimmed and blurred page
+//! around the dialog, at the logo, the header bar, the thumbnails and the
+//! photo, and at the corners and edges of the viewport). swb's values are
+//! within 3 levels of Chromium's there.
 //!
 //! Script errors: Chromium's replay has the errors of the ad scripts that
 //! the fixture lacks (not swb's: it does not load them) and no

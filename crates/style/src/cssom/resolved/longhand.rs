@@ -613,7 +613,8 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
             ClipPath::Url(u) => url(u),
             ClipPath::Shape(c) => super::shape::shape_clip(c),
         },
-        "filter" => filter(s),
+        "filter" => filter(s, &s.filter),
+        "backdrop-filter" => filter(s, &s.backdrop_filter),
         "width" => size(&s.width),
         "height" => size(&s.height),
         // `auto` is 0 except for flex and grid items (which have a box).
@@ -1072,14 +1073,13 @@ pub(super) fn image(i: &Image) -> String {
 
 /// The computed `filter`: the functions with their computed amounts, a
 /// `drop-shadow()` with its color (`currentcolor` resolved), offsets and
-/// blur in px.
-fn filter(s: &ComputedStyle) -> String {
+/// blur in px. `value` is the `filter` or the `backdrop-filter` of `s`.
+fn filter(s: &ComputedStyle, value: &crate::values::Filter) -> String {
     use crate::values::FilterFunction as F;
-    if s.filter.is_none() {
+    if value.is_none() {
         return "none".to_owned();
     }
-    let items: Vec<String> = s
-        .filter
+    let items: Vec<String> = value
         .functions()
         .iter()
         .map(|f| match f {

@@ -55,7 +55,7 @@
 //! boxes move (not the absolutely positioned boxes whose containing block
 //! is outside the scroll container).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -194,6 +194,32 @@ pub enum DisplayItem {
     },
     /// End the most recent filter group.
     PopFilter,
+    /// Draw the backdrop of a box through the `backdrop-filter` functions
+    /// (Filter Effects 2 §2,
+    /// <https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty>):
+    /// what is painted before this item in the backdrop root, inside
+    /// `rect` (and its rounded corners), goes through the functions and
+    /// is drawn over the same area. The box paints after it.
+    BackdropFilter {
+        /// The computed functions (`url()` is not painted).
+        filter: Arc<[swb_style::FilterFunction]>,
+        /// The `color` of the element, for `drop-shadow()` without a
+        /// color.
+        current_color: Rgba,
+        /// The border box.
+        rect: Rect,
+        /// The corner radii of the border box, if it is rounded.
+        radii: Option<Radii>,
+        /// The opacity that the filtered backdrop is drawn with (the
+        /// `opacity` of the box, which applies to the backdrop and to the
+        /// box separately).
+        alpha: f32,
+        /// The number of groups (opacity, mask, clip path and filter) that
+        /// the box started before this item: the backdrop is what lies
+        /// below them, because they apply to the box and its filtered
+        /// backdrop together.
+        layers: u8,
+    },
     /// Start a group that is masked by `layers` (CSS Masking 1 §7): its
     /// pixels are multiplied by the mask when it ends.
     PushMask {
@@ -224,6 +250,11 @@ pub enum DisplayItem {
         /// the coverage does not fit into the budgets, the group is
         /// clipped to `bounds` (a rectangle) instead of being hidden.
         rect_fallback: bool,
+        /// True if the group is a backdrop root (Filter Effects 2 §2): the
+        /// `backdrop-filter` of a box inside sees only the group's
+        /// content. False for the rounded overflow clip of a box, which is
+        /// no backdrop root, and for SVG content (no `backdrop-filter`).
+        backdrop_root: bool,
     },
     /// End the most recent SVG clip group.
     PopSvgClip,
@@ -319,7 +350,9 @@ impl DisplayItem {
     /// one or more font sizes around the pen positions.
     pub(crate) fn bounds(&self) -> Option<Rect> {
         match self {
-            DisplayItem::Rect { rect, .. } | DisplayItem::Border { rect, .. } => Some(*rect),
+            DisplayItem::Rect { rect, .. }
+            | DisplayItem::Border { rect, .. }
+            | DisplayItem::BackdropFilter { rect, .. } => Some(*rect),
             DisplayItem::Image { rect, clip, .. }
             | DisplayItem::LinearGradient { rect, clip, .. } => rect.intersection(clip),
             DisplayItem::Text {
@@ -654,6 +687,7 @@ pub fn build_display_list(
             .as_ref()
             .map(positioned_tree_order)
             .unwrap_or_default(),
+        backdrop_roots: tree.root.as_ref().map(backdrop_roots).unwrap_or_default(),
         clips: Vec::new(),
         absolute_clips: 0,
         fixed_clips: 0,
@@ -745,7 +779,8 @@ fn paint_kind(b: &BoxFragment) -> PaintKind {
         PaintKind::Inline
     } else if style.display.is_inline_level()
         || style.opacity < 1.0
-        || style.has_filter()
+        || style.has_filter_effect()
+        || style.will_change_makes_stacking_context()
         || style.has_mask()
         || style.clip_path.is_shape()
     {
@@ -792,6 +827,28 @@ fn positioned_tree_order(root: &BoxFragment) -> HashMap<*const BoxFragment, u32>
     order
 }
 
+/// The boxes that are backdrop roots (Filter Effects 2 §2) and have a
+/// descendant with a `backdrop-filter`, by address. The recursion depth is
+/// bounded by the box tree depth (see `swb_layout`'s `box_tree.rs`).
+fn backdrop_roots(root: &BoxFragment) -> HashSet<*const BoxFragment> {
+    /// Returns true if `b` or a box below it has a `backdrop-filter`.
+    fn visit(b: &BoxFragment, roots: &mut HashSet<*const BoxFragment>) -> bool {
+        let mut below = false;
+        for child in b.children.iter() {
+            if let Fragment::Box(cb) = child {
+                below |= visit(cb, roots);
+            }
+        }
+        if below && b.style.is_backdrop_root() {
+            roots.insert(std::ptr::from_ref(b));
+        }
+        below || b.style.has_backdrop_filter()
+    }
+    let mut roots = HashSet::new();
+    visit(root, &mut roots);
+    roots
+}
+
 /// An open clip (overflow or `clip` property).
 struct OpenClip {
     /// The clip rectangle (for overflow, the padding box).
@@ -820,6 +877,9 @@ struct Builder<'a> {
     /// The tree order of the positioned boxes (see
     /// [`positioned_tree_order`]).
     tree_order: HashMap<*const BoxFragment, u32>,
+    /// The backdrop roots with a `backdrop-filter` below them (see
+    /// [`backdrop_roots`]).
+    backdrop_roots: HashSet<*const BoxFragment>,
     /// The clips (overflow and `clip` property) of the boxes that are being
     /// painted, outermost first.
     clips: Vec<OpenClip>,
@@ -911,6 +971,12 @@ struct Group {
     clip_pop: Option<DisplayItem>,
     /// True if the box started a filter group.
     filter: bool,
+    /// The number of groups (opacity, mask, clip path, filter) that the box
+    /// started: each one is a layer in the rasterizer.
+    layers: u8,
+    /// True if [`Builder::open_group`] already pushed the backdrop item of
+    /// the box (before its opacity group).
+    backdrop_done: bool,
     /// True if the box opened a stacking context.
     context: bool,
     /// `contexts.len()` before the box's own context.
@@ -1025,6 +1091,7 @@ impl Builder<'_> {
         let clip_depth = self.contexts.len();
         let outer_clips = (self.absolute_clips, self.fixed_clips);
         let clip_property = self.push_clip_property(b, rect, clip_depth);
+        let backdrop_root = self.open_backdrop(b, origin, &group);
         self.paint_box(b, origin, is_root);
         let own = child_decorations(b, decorations);
         let negative_z_at = self.list.len();
@@ -1067,6 +1134,7 @@ impl Builder<'_> {
                 .extend(element_scroll_indicators(b, rect, self.offsets));
         }
         self.outline(b, origin);
+        self.close_backdrop(backdrop_root);
         if clip_property {
             self.pop_clip();
         }
@@ -1183,6 +1251,7 @@ impl Builder<'_> {
         ancestry: &Ancestry,
     ) {
         let group = self.open_group(b, origin, false);
+        let backdrop_root = self.open_backdrop(b, origin, &group);
         self.paint_box(b, origin, false);
         let negative_z_at = self.list.len();
         let own = child_decorations(b, decorations);
@@ -1195,6 +1264,7 @@ impl Builder<'_> {
             None
         };
         self.outline(b, origin);
+        self.close_backdrop(backdrop_root);
         self.close_group(&group, b, origin, positioned);
     }
 
@@ -1268,6 +1338,18 @@ impl Builder<'_> {
     fn open_group(&mut self, b: &BoxFragment, origin: Point, stacking_context: bool) -> Group {
         let opacity = b.style.opacity;
         let outer_depth = self.contexts.len();
+        // The opacity of a box with a `backdrop-filter` applies to the
+        // filtered backdrop and to the box separately (measured in Chromium
+        // 148: the backdrop is drawn with the opacity, then the box's group
+        // with it), so the backdrop item comes before the opacity group.
+        // With a mask, a clip path or a filter on the box, they apply to
+        // both, and the opacity group holds both (departure).
+        let backdrop_done = opacity < 1.0
+            && opacity > 0.0
+            && !b.style.has_mask()
+            && !b.style.clip_path.is_shape()
+            && !b.style.has_filter()
+            && self.backdrop_item(b, origin, (0, opacity), outer_depth == 0);
         let opacity_item = (opacity < 1.0).then(|| {
             self.list.push(DisplayItem::PushOpacity {
                 opacity: opacity.max(0.0),
@@ -1305,17 +1387,99 @@ impl Builder<'_> {
             || mask_item.is_some()
             || clip_pop.is_some()
             || filtered
+            || b.style.has_backdrop_filter()
+            || b.style.will_change_makes_stacking_context()
             || outer_depth == 0;
         if context {
             self.contexts.push(Vec::new());
         }
+        let layers = u8::from(opacity_item.is_some())
+            + u8::from(mask_item.is_some())
+            + u8::from(matches!(clip_pop, Some(DisplayItem::PopSvgClip)))
+            + u8::from(filter);
         Group {
             opacity_item,
             mask_item,
             clip_pop,
             filter,
+            layers,
+            backdrop_done,
             context,
             outer_depth,
+        }
+    }
+
+    /// Draws the filtered backdrop of a box (its `backdrop-filter`) and
+    /// starts the layer of a backdrop root with `backdrop-filter`
+    /// descendants that has none. Call it after [`Builder::open_group`],
+    /// before the box paints. Returns true if it started a layer, which
+    /// [`Builder::close_backdrop`] ends.
+    ///
+    /// The root layer starts after the box's own backdrop item: the
+    /// backdrop of a descendant holds what the box painted before it, not
+    /// the filtered backdrop of the box (measured in Chromium 148).
+    fn open_backdrop(&mut self, b: &BoxFragment, origin: Point, group: &Group) -> bool {
+        let style = &b.style;
+        if !group.backdrop_done {
+            self.backdrop_item(b, origin, (group.layers, 1.0), group.outer_depth == 0);
+        }
+        let root = self.backdrop_roots.contains(&std::ptr::from_ref(b))
+            && (group.layers == 0 || style.has_backdrop_filter());
+        if root {
+            self.list.push(DisplayItem::PushOpacity {
+                opacity: 1.0,
+                bounds: Rect::default(),
+                fixed_bounds: None,
+                escapes_clips: false,
+            });
+        }
+        root
+    }
+
+    /// Pushes the backdrop item of a box with a `backdrop-filter` that
+    /// paints: `layers` groups of the box are open, and `alpha` is the
+    /// opacity that the filtered backdrop is drawn with. Returns true if
+    /// it pushed the item. The root element has none: nothing is painted
+    /// before it but the canvas.
+    fn backdrop_item(
+        &mut self,
+        b: &BoxFragment,
+        origin: Point,
+        (layers, alpha): (u8, f32),
+        is_root: bool,
+    ) -> bool {
+        let style = &b.style;
+        let Some(list) = style.backdrop_filter.list() else {
+            return false;
+        };
+        if is_root
+            || !crate::filter::paints(list)
+            || style.visibility != Visibility::Visible
+            || b.content == BoxContent::GeometryOnly
+        {
+            return false;
+        }
+        let rect = b.border_rect.translate(origin);
+        if !(rect.width > 0.0 && rect.height > 0.0) {
+            return false;
+        }
+        let radii = resolve_radii(style, rect);
+        let rounded = radii.iter().any(|&(h, v)| h > 0.0 && v > 0.0);
+        self.list.push(DisplayItem::BackdropFilter {
+            filter: Arc::clone(list),
+            current_color: style.color,
+            rect,
+            radii: rounded.then_some(radii),
+            alpha,
+            layers,
+        });
+        true
+    }
+
+    /// Ends the layer that [`Builder::open_backdrop`] started.
+    fn close_backdrop(&mut self, started: bool) {
+        if started {
+            self.list.push(DisplayItem::PopOpacity);
         }
     }
 
@@ -1991,6 +2155,7 @@ fn rounded_clip(rect: Rect, radii: &Radii) -> Option<DisplayItem> {
         FillRule::NonZero,
         Matrix::IDENTITY,
         rect,
+        false,
     ))
 }
 
@@ -1998,12 +2163,14 @@ fn rounded_clip(rect: Rect, radii: &Radii) -> Option<DisplayItem> {
 /// `transform` maps to the list's) with `rule`; `bounds` is the extent of
 /// the path in the list's coordinates. If the layer or the coverage does
 /// not fit into the budgets, the group is clipped to `bounds` instead of
-/// being hidden.
+/// being hidden. `backdrop_root` says whether the group is a backdrop root
+/// (`clip-path`: yes, the rounded overflow clip: no).
 pub(crate) fn path_clip_item(
     path: SvgPath,
     rule: FillRule,
     transform: Matrix,
     bounds: Rect,
+    backdrop_root: bool,
 ) -> DisplayItem {
     use swb_layout::svg::ClipShape;
     let clip = ClipPath {
@@ -2020,6 +2187,7 @@ pub(crate) fn path_clip_item(
         transform,
         bounds,
         rect_fallback: true,
+        backdrop_root,
     }
 }
 
@@ -2190,6 +2358,7 @@ mod tests {
                 transform: Matrix::IDENTITY,
                 bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
                 rect_fallback: false,
+                backdrop_root: false,
             });
             items.push(DisplayItem::HitRegion {
                 rect: Rect::new(0.0, 0.0, 100.0, 100.0),

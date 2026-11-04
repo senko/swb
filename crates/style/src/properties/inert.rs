@@ -65,6 +65,9 @@ pub struct InertStyle {
     pub(crate) transition_behavior: Option<Arc<str>>,
     /// `will-change` (initial `auto`).
     pub(crate) will_change: Option<Arc<str>>,
+    /// What the properties in `will_change` do to stacking contexts and
+    /// containing blocks; made when the value is computed.
+    pub(crate) will_change_effects: WillChangeEffects,
     /// `touch-action` (initial `auto`).
     pub(crate) touch_action: Option<Arc<str>>,
     /// `perspective` in px (initial `none`).
@@ -86,12 +89,62 @@ static INITIAL: InertStyle = InertStyle {
     transition_timing_function: None,
     transition_behavior: None,
     will_change: None,
+    will_change_effects: WillChangeEffects::NONE,
     touch_action: None,
     perspective: None,
     perspective_origin: None,
     scroll_margin: [0.0; 4],
     scroll_padding: [None, None, None, None],
 };
+
+/// What the properties that `will-change` names do to the element (CSS
+/// Will Change 1 §3, <https://drafts.csswg.org/css-will-change/#will-change>:
+/// naming a property whose non-initial value makes a stacking context or a
+/// containing block does the same). Made once when the value is computed.
+/// Measured in Chromium 148 (ADR 0033).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct WillChangeEffects {
+    /// A stacking context and a backdrop root: `opacity`, `filter`,
+    /// `backdrop-filter`, a mask property or `clip-path`.
+    pub(crate) stacking_context: bool,
+    /// The containing block of absolutely positioned and fixed
+    /// descendants: `filter` and `backdrop-filter`. (Chromium also does so
+    /// for `transform`, `perspective` and, for absolute ones, `position`;
+    /// swb does not, because `will-change` is inert for them.)
+    pub(crate) containing_block: bool,
+}
+
+impl WillChangeEffects {
+    /// `will-change: auto`.
+    const NONE: WillChangeEffects = WillChangeEffects {
+        stacking_context: false,
+        containing_block: false,
+    };
+
+    /// The effects of the comma-separated `will-change` list `text`.
+    fn of(text: &str) -> WillChangeEffects {
+        const FILTERS: [&str; 3] = ["filter", "-webkit-filter", "backdrop-filter"];
+        const OTHERS: [&str; 7] = [
+            "opacity",
+            "mask",
+            "mask-image",
+            "-webkit-mask",
+            "-webkit-mask-image",
+            "clip-path",
+            "-webkit-clip-path",
+        ];
+        let names = |list: &[&str]| {
+            text.split(',')
+                .map(str::trim)
+                .any(|item| list.iter().any(|k| item.eq_ignore_ascii_case(k)))
+        };
+        let filter = names(&FILTERS);
+        WillChangeEffects {
+            stacking_context: filter || names(&OTHERS),
+            containing_block: filter,
+        }
+    }
+}
 
 /// The index of a side in `scroll_margin` and `scroll_padding`: top,
 /// right, bottom, left.
@@ -126,6 +179,16 @@ impl InertStyle {
             .clone()
     }
 
+    /// What the `will-change` list of the element does to its stacking
+    /// context and containing blocks.
+    pub(crate) fn will_change_effects(style: &ComputedStyle) -> WillChangeEffects {
+        style
+            .inert
+            .as_deref()
+            .unwrap_or(&INITIAL)
+            .will_change_effects
+    }
+
     /// The text of the text-valued longhand `id` (its initial value if
     /// unset); `None` for the other longhands.
     pub(crate) fn text(style: &ComputedStyle, id: LonghandId) -> Option<&str> {
@@ -157,7 +220,10 @@ impl InertStyle {
                     .clone_from(&s.transition_timing_function);
             }
             L::TransitionBehavior => self.transition_behavior.clone_from(&s.transition_behavior),
-            L::WillChange => self.will_change.clone_from(&s.will_change),
+            L::WillChange => {
+                self.will_change.clone_from(&s.will_change);
+                self.will_change_effects = s.will_change_effects;
+            }
             L::TouchAction => self.touch_action.clone_from(&s.touch_action),
             L::Perspective => self.perspective = s.perspective,
             L::PerspectiveOrigin => self.perspective_origin.clone_from(&s.perspective_origin),
@@ -209,7 +275,10 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
         V::TransitionDelay(v) => r.transition_delay = Some(Arc::clone(v)),
         V::TransitionTimingFunction(v) => r.transition_timing_function = Some(Arc::clone(v)),
         V::TransitionBehavior(v) => r.transition_behavior = Some(Arc::clone(v)),
-        V::WillChange(v) => r.will_change = Some(Arc::clone(v)),
+        V::WillChange(v) => {
+            r.will_change = Some(Arc::clone(v));
+            r.will_change_effects = WillChangeEffects::of(v);
+        }
         V::TouchAction(v) => r.touch_action = Some(Arc::clone(v)),
         V::Perspective(v) => r.perspective = v.as_ref().map(|lp| cx.px(lp).max(0.0)),
         V::PerspectiveOrigin([x, y]) => {
@@ -283,7 +352,6 @@ const OTHER_PROPERTIES: &[&str] = &[
     "box-shadow",
     "text-shadow",
     "filter",
-    "backdrop-filter",
     "scale",
     "rotate",
     "translate",
@@ -966,6 +1034,23 @@ mod tests {
         assert_eq!(text_of(id, "none, width"), None);
         assert_eq!(text_of(id, "width, default"), None);
         assert_eq!(text_of(id, "1s"), None);
+    }
+
+    #[test]
+    fn will_change_effects_are_computed_from_the_list() {
+        let effects = WillChangeEffects::of;
+        let context = |stacking_context, containing_block| WillChangeEffects {
+            stacking_context,
+            containing_block,
+        };
+        assert_eq!(effects("auto"), WillChangeEffects::NONE);
+        assert_eq!(effects("transform, contents"), WillChangeEffects::NONE);
+        assert_eq!(effects("Opacity"), context(true, false));
+        assert_eq!(effects("top, clip-path"), context(true, false));
+        assert_eq!(effects("mask-image"), context(true, false));
+        assert_eq!(effects("filter"), context(true, true));
+        assert_eq!(effects("left,BACKDROP-FILTER"), context(true, true));
+        assert_eq!(effects("opacity, -webkit-filter"), context(true, true));
     }
 
     #[test]

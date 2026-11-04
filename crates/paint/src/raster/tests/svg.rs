@@ -187,6 +187,7 @@ fn clipped(clip: swb_layout::svg::ClipPath, dx: f32, content: DisplayItem) -> Ve
             transform: Matrix::translate(dx, 0.0),
             bounds: Rect::new(0.0, 0.0, 100.0, 100.0),
             rect_fallback: false,
+            backdrop_root: false,
         },
         content,
         DisplayItem::PopSvgClip,

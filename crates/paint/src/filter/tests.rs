@@ -345,3 +345,67 @@ fn work_counts_the_passes() {
     assert_eq!(work(&ops, 100), (1 + 6) * 100);
     assert_eq!(work(&[], 100), 0);
 }
+
+/// One row of opaque gray pixels (premultiplied RGBA) with the values.
+fn gray_row(values: &[u8]) -> Vec<u8> {
+    values.iter().flat_map(|&v| [v, v, v, 255]).collect()
+}
+
+fn blur_mirrored(data: &mut [u8], width: usize, height: usize, sigma: f32) {
+    apply_mirrored(data, width, height, &[Op::Blur(sigma)]);
+}
+
+#[test]
+fn mirrored_blur_matches_chromium_at_the_edges() {
+    // Chromium 148 (`tools/probes/backdrop-filter.json`, `bf-edge-stripe-*`):
+    // the backdrop of a box 100 px wide whose first 4 px are black and the
+    // rest white, `blur(3px)`: the row from the left edge. The image is
+    // mirrored at its edges once, before the three box passes (an even
+    // window is not symmetric, so mirroring before every pass differs by
+    // 2 to 8 levels here).
+    let mut values = vec![0_u8; 4];
+    values.extend(vec![255_u8; 96]);
+    let want = [56, 67, 87, 113, 143, 172, 198, 220, 235, 245, 251, 254];
+    let mut data = gray_row(&values);
+    blur_mirrored(&mut data, 100, 1, 3.0);
+    let got: Vec<u8> = data.chunks(4).take(12).map(|px| px[0]).collect();
+    assert_close(&got, &want, 1, "left edge");
+    // The same picture at the right edge gives the same values inward.
+    values.reverse();
+    let mut data = gray_row(&values);
+    blur_mirrored(&mut data, 100, 1, 3.0);
+    let got: Vec<u8> = data.chunks(4).rev().take(12).map(|px| px[0]).collect();
+    assert_close(&got, &want, 1, "right edge");
+}
+
+#[test]
+fn mirrored_blur_keeps_a_flat_image_and_the_alpha() {
+    // No fade at the edges: a flat image stays flat, a half transparent one
+    // too (the transparent-edge blur of `filter` would fade the border).
+    let mut data: Vec<u8> = std::iter::repeat_n([100, 50, 0, 128], 20 * 10)
+        .flatten()
+        .collect();
+    blur_mirrored(&mut data, 20, 10, 4.0);
+    for px in data.chunks(4) {
+        assert_close(px, &[100, 50, 0, 128], 1, "flat");
+    }
+}
+
+#[test]
+fn mirrored_blur_works_with_a_radius_larger_than_the_image() {
+    // The extension repeats the mirrored image: 3 px wide, a blur that
+    // reaches 20 px. The result is between the extremes and symmetric.
+    let mut data = gray_row(&[0, 255, 0]);
+    blur_mirrored(&mut data, 3, 1, 5.0);
+    let got: Vec<u8> = data.chunks(4).map(|px| px[0]).collect();
+    assert!(got.iter().all(|&v| (60..200).contains(&v)), "{got:?}");
+    assert_eq!(got[0], got[2], "{got:?}");
+}
+
+#[test]
+fn mirrored_blur_ignores_an_empty_or_short_buffer() {
+    let mut data = vec![0_u8; 8];
+    blur_mirrored(&mut data, 0, 0, 3.0);
+    blur_mirrored(&mut data, 5, 5, 3.0);
+    assert_eq!(data, vec![0_u8; 8]);
+}

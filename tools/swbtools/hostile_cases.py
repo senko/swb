@@ -1007,6 +1007,64 @@ def filter_large_boxes() -> Page:
 
 
 @case(
+    "backdrop-filter: blur(100px) on 1,000 nested boxes (each one is a backdrop root with a "
+    "layer; the box depth limit 256, the layer and filter budgets act; ADR 0033)",
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def backdrop_filter_nested() -> Page:
+    nested = nest(
+        "<div style='backdrop-filter:blur(100px);padding:1px;background:rgba(0,0,255,.05)'>",
+        "</div>",
+        1000,
+        "text",
+    )
+    return Page(doc(nested))
+
+
+@case(
+    "backdrop-filter on boxes the size of the viewport with huge lengths: blur(1e9px), "
+    "blur(100000px), drop-shadow(1e9px 1e9px 1e9px), 64 blurs; over a gradient (the blur is "
+    "limited to 256 device px and the filter work budget acts; ADR 0033)",
+    time_limit_s=10,
+    expect_log="filters: the work budget",
+)
+def backdrop_filter_viewport_huge() -> Page:
+    blurs = " ".join(["blur(40px)"] * 64)
+    filters = [
+        "blur(1e9px)",
+        "blur(100000px)",
+        "drop-shadow(1e9px 1e9px 1e9px red)",
+        "blur(1e9px) drop-shadow(1e9px 1e9px 1e9px blue) blur(1e9px)",
+        blurs,
+    ]
+    boxes = "".join(
+        f"<div style='position:fixed;left:0;top:0;right:0;bottom:0;backdrop-filter:{f}'></div>"
+        for f in filters * 3
+    )
+    css = "body{height:3000px;background:linear-gradient(red,blue,green)}"
+    return Page(doc("<p>text</p>" + boxes, css))
+
+
+@case(
+    "backdrop-filter on 3,000 boxes of 300 by 100 px with blur(10px) in a page of 30,000 px "
+    "(full-page screenshot in strips), over text and gradients; each box is a backdrop root "
+    "of the next (ADR 0033)",
+    time_limit_s=15,
+    swb_args=("--full-page",),
+)
+def backdrop_filter_many_in_long_page() -> Page:
+    box = (
+        "<div style='position:relative;width:300px;height:100px;margin-bottom:-90px;"
+        "backdrop-filter:blur(10px);background:rgba(255,255,255,.3)'>"
+        "<span style='position:absolute;left:150px;top:0;width:3px;height:100px;"
+        "background:#000'></span></div>"
+    )
+    css = "body{background:repeating-linear-gradient(90deg,#fff,#00f 7px)}"
+    return Page(doc("<p>text</p>" + box * 3000, css))
+
+
+@case(
     "scroll containers nested 300 deep with large content, and 20,000 sibling scrollers (ADR 0019)"
 )
 def scroll_containers() -> Page:

@@ -764,7 +764,7 @@ fn ser_of(name: &str) -> Ser {
         "grid-template-areas" => Ser::GridAreas,
         "stroke-dasharray" => Ser::Dasharray,
         "clip-path" => Ser::ClipPath,
-        "filter" => Ser::Filter,
+        "filter" | "backdrop-filter" => Ser::Filter,
         "z-index" => Ser::Integer,
         "opacity" | "fill-opacity" | "stroke-opacity" => Ser::Opacity,
         "display" => Ser::Display,

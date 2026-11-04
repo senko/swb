@@ -1,9 +1,10 @@
 {
-  "groups": ["load", "privacy choices", "accept", "theme dark", "theme light", "theme dusk", "theme system"],
+  "groups": ["load", "privacy choices", "accept", "theme dark", "theme light", "theme dusk", "theme system", "grid settings"],
   "group_points": {
     "load": ["consent"],
     "privacy choices": ["consent"],
-    "accept": ["consent"]
+    "accept": ["consent"],
+    "grid settings": ["blur"]
   },
   "points": {
     "consent dim top left": [6, 6],
@@ -18,6 +19,27 @@
     "page content left": [326, 606],
     "page content": [486, 502],
     "theme menu item": [1022, 502],
-    "theme menu bottom": [1126, 502]
+    "theme menu bottom": [1126, 502],
+    "blur flat top": [150, 100],
+    "blur corner top left": [6, 6],
+    "blur corner bottom left": [6, 794],
+    "blur right edge": [1274, 300],
+    "blur logo center": [117, 330],
+    "blur logo left": [86, 330],
+    "blur logo top": [117, 300],
+    "blur header above": [290, 305],
+    "blur header top": [290, 312],
+    "blur header inside": [290, 320],
+    "blur header bottom": [290, 346],
+    "blur header below": [290, 354],
+    "blur content above": [200, 420],
+    "blur content edge": [200, 428],
+    "blur content below": [200, 436],
+    "blur thumbnail top": [100, 470],
+    "blur thumbnail": [100, 495],
+    "blur thumbnail middle": [100, 600],
+    "blur button": [1146, 402],
+    "blur badge": [1180, 485],
+    "blur photo": [1150, 650]
   }
 }

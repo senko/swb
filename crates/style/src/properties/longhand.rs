@@ -131,6 +131,7 @@ pub(crate) fn parse_longhand(
             L::ShapeRendering => V::ShapeRendering(keyword(p, ShapeRendering::from_ident)?),
             L::ClipPath => V::ClipPath(clip_path::parse_clip_path(p)?),
             L::Filter => V::Filter(filter::parse_filter(p, cx)?),
+            L::BackdropFilter => V::BackdropFilter(filter::parse_filter(p, cx)?),
             L::FillOpacity => V::FillOpacity(svg::parse_alpha(p)?),
             L::Stroke => V::Stroke(svg::parse_paint(p)?),
             L::StrokeWidth => V::StrokeWidth(svg::parse_stroke_width(p)?),

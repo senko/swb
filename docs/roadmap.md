@@ -4220,6 +4220,19 @@ Steps:
       backdrop of a box. Exit: the pixels of Ars Technica's grid
       settings dialog match Chromium's. With feature 5, Ars Technica
       meets its list (it needs no frame) and its load-time budget.
+      Done 2026-11-04: `backdrop-filter` shares the `filter` grammar
+      (no `-webkit-` alias: Chromium 148 has none), makes a stacking
+      context and a containing block, and paints the border box's
+      backdrop through the `filter` steps with a mirrored edge,
+      source-over. Probe `tools/probes/backdrop-filter.json` (131 cases,
+      three equal Chromium runs) runs in `backdrop_filter.rs`; 21 pixel
+      points of the blurred backdrop in `ars_technica.rs` are within 3
+      levels of Chromium; hostile cases `backdrop-filter-*` (3). Ars
+      Technica meets its list: load 0.66 s, frame with the dialog 36.5 ms.
+      JS-off snapshot identical; `compare --js` of the six fixtures
+      unchanged. ADR 0033. Departures: a backdrop inside a rotated or
+      scaled group is empty; the backdrop ends at the surface edge;
+      `mix-blend-mode` is absent.
    6. CSSOM sheets and rules (`implementer-hard`; ADR 0028 section
       10): `document.styleSheets`, `CSSStyleSheet` (`cssRules`,
       `insertRule`, `deleteRule`, `ownerNode`, `disabled`),
@@ -4292,7 +4305,10 @@ Steps:
   idle machine.
 - Load-sensitive tests: `craigslist_posting` hit its 5 s task limit
   once in `just check` under load; `test_probe_reads_pixels_in_chromium`
-  failed once next to a cargo build.
+  failed once next to a cargo build; `ars_technica_works_with_javascript_on`
+  failed once in `just check` with "grid settings: active element
+  differs" (feature 5 fix round; passed alone 4 of 4 times and in the
+  next full run).
 - `:focus-visible`: in Chromium a Shift key alone sets the keyboard
   modality, Control and Alt alone do not; swb sets it for every key.
   No input path sends a modifier key alone today.
@@ -4338,6 +4354,31 @@ Steps:
   in the next frame. A page with 100,000 images costs 12 s with
   JavaScript on before any scroll, with or without lazy loading (cause
   not known).
+- `backdrop-filter` (found in feature 5): a box inside a rotated, scaled
+  or skewed group gets an empty backdrop (the nested rasterizer has only
+  the layer; read the parent surface through the inverse matrix; also
+  a tiny ancestor rotation such as `rotate(0.01deg)` removes the blur);
+  the backdrop ends at the surface edge, while Chromium reads the content
+  beyond the viewport when the box reaches past it. In a viewport frame
+  (the GUI) a tall box shows a band of mirrored blur at the window edges
+  that changes while the page scrolls (review case: 30 px stripes, a
+  200×1500 box with `blur(8px)`, viewport 400×300, pixel (100, 295):
+  viewport frame 255, full page 183). Fix: paint the backdrop root
+  beyond the visible area for the reach of the blur. Full-page
+  screenshots mirror at the strip boundaries; multi-line inline boxes are not
+  measured; `drop-shadow()` at the box edge (Chromium mirrors the
+  backdrop once and runs the whole function list on the extended image;
+  swb mirrors per blur and crops after each function: 94 against 105 in
+  the probe; fix: extend once by the reach of the list, which costs the
+  corners and a second budget check); `will-change: transform`,
+  `perspective` and (for absolute boxes) `position` make a containing
+  block in Chromium 148, inert in swb; `will-change: filter` on an inline
+  box or the root element is not measured; `mix-blend-mode` (also as a
+  backdrop root); opacity together
+  with a mask, `clip-path` or `filter` on the same box uses one group;
+  `will-change: transform` is inert; no pixel points for Ars Technica's
+  sign-in overlay. The blur costs 3 ns per pixel and pass (scalar code):
+  18.7 ms of the 36.5 ms frame with Ars Technica's dialog.
 
 ## Backlog from M8
 

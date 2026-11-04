@@ -341,9 +341,9 @@ impl DocumentState {
         let root = self.dom.document_element();
         self.dom.ancestors(node).find(|&ancestor| {
             // The `filter` of the root element is not one (Chromium 148).
-            styles
-                .get(ancestor)
-                .is_some_and(|s| s.has_transform() || (s.has_filter() && Some(ancestor) != root))
+            styles.get(ancestor).is_some_and(|s| {
+                s.has_transform() || (s.is_filter_containing_block() && Some(ancestor) != root)
+            })
         })
     }
 
@@ -369,7 +369,7 @@ impl DocumentState {
             if styles.get(ancestor).is_some_and(|s| {
                 s.position != Position::Static
                     || s.has_transform()
-                    || (s.has_filter() && Some(ancestor) != root)
+                    || (s.is_filter_containing_block() && Some(ancestor) != root)
             }) {
                 return Some(ancestor);
             }
@@ -639,7 +639,7 @@ impl DocumentState {
                 Position::Static => ObservedPosition::Static,
                 _ => ObservedPosition::Relative,
             },
-            transformed: style.has_transform() || style.has_filter(),
+            transformed: style.has_transform() || style.is_filter_containing_block(),
             clips: style.overflow_x.clips() || style.overflow_y.clips(),
         })
     }

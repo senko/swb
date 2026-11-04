@@ -72,6 +72,7 @@ use crate::mask::{self, MaskLayer, MaskLayerImage};
 use crate::reduce::Reductions;
 use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
+mod backdrop;
 mod filter_layer;
 mod gradient;
 mod path;
@@ -476,6 +477,9 @@ struct SvgClipLayer {
     /// The matrix from the clip path's coordinates to the display list's.
     transform: Matrix,
     rect_fallback: bool,
+    /// True if the group is a backdrop root (see
+    /// [`DisplayItem::PushSvgClip`]).
+    backdrop_root: bool,
 }
 
 /// A group that [`Rasterizer::push_layer`] starts.
@@ -889,6 +893,7 @@ impl Rasterizer<'_> {
                 let kind = LayerKind::Mask(Arc::clone(layers));
                 self.push_layer(NewLayer::new(*bounds, kind));
             }
+            DisplayItem::BackdropFilter { .. } => self.backdrop_item(item),
             DisplayItem::PopOpacity
             | DisplayItem::PopFilter
             | DisplayItem::PopMask
@@ -3641,6 +3646,7 @@ mod tests {
         assert_eq!(rgb(&p, 40, 40), (255, 0, 0));
     }
 
+    mod backdrop;
     mod gradient;
     mod svg;
 }

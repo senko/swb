@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-04: M9 feature 5: `backdrop-filter`
+
+- `backdrop-filter` uses the grammar, computed value and serialization
+  of `filter`. A value other than `none` makes a stacking context and a
+  containing block for absolute and fixed descendants. Chromium 148 has
+  no `-webkit-backdrop-filter`, so swb has no alias either.
+- Paint: a new display item before the box's own painting. The raster
+  takes what the backdrop root painted before the box, clips it to the
+  border box with its rounded corners, runs the `filter` steps on it and
+  draws the result source-over. The `filter` budgets apply.
+- Chromium measurements (131 probe cases, three equal runs): the edge
+  of the blur mirrors the backdrop (`abcd|dcba`), and the mirror is made
+  once before the three box-blur passes. Backdrop roots are the root
+  element, `opacity` < 1, any `filter` (also an identity filter), masks,
+  `clip-path`, `backdrop-filter` and `will-change` of these; transforms,
+  `overflow`, fixed position, `isolation` and `contain: paint` are not.
+  The box's own opacity applies to the backdrop and the box separately.
+- `will-change: opacity|filter|backdrop-filter|mask|clip-path` now makes
+  a stacking context, and `will-change: filter|backdrop-filter` also a
+  containing block (review fix; measured). The JS-off snapshot does not
+  change.
+- Ars Technica's grid settings dialog: 21 pixel points of the blurred
+  backdrop are within 3 levels of Chromium. Ars Technica meets its list
+  in roadmap M9. Load 0.66 s (budget 1.74 s); the frame with the
+  full-viewport `blur(8px)` takes 36.5 ms (release), 6.5 ms without it.
+- Departures (ADR 0033): a backdrop inside a rotated, scaled or skewed
+  group is empty; the backdrop ends at the edge of the surface (the
+  review showed that a box taller than the window gets a wrong band at
+  the window edges in the GUI; backlog); `drop-shadow()` at the box edge
+  reads transparent pixels where Chromium reads the mirrored image;
+  `mix-blend-mode` does not exist in swb.
+- Next: M9 feature 6 (CSSOM sheets and rules).
+
 ## 2026-11-01: M9 feature 4: lazy images
 
 - `img loading=lazy` waits until its box comes within 3000 px of the

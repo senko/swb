@@ -64,6 +64,111 @@
    2,
    1,
    0
+  ],
+  "blur flat top": [
+   130,
+   131,
+   132
+  ],
+  "blur corner top left": [
+   130,
+   131,
+   132
+  ],
+  "blur corner bottom left": [
+   19,
+   20,
+   22
+  ],
+  "blur right edge": [
+   130,
+   131,
+   132
+  ],
+  "blur logo center": [
+   143,
+   43,
+   0
+  ],
+  "blur logo left": [
+   143,
+   43,
+   0
+  ],
+  "blur logo top": [
+   143,
+   43,
+   0
+  ],
+  "blur header above": [
+   255,
+   255,
+   255
+  ],
+  "blur header top": [
+   255,
+   255,
+   255
+  ],
+  "blur header inside": [
+   255,
+   255,
+   255
+  ],
+  "blur header bottom": [
+   255,
+   255,
+   255
+  ],
+  "blur header below": [
+   255,
+   255,
+   255
+  ],
+  "blur content above": [
+   130,
+   131,
+   132
+  ],
+  "blur content edge": [
+   19,
+   20,
+   22
+  ],
+  "blur content below": [
+   19,
+   20,
+   22
+  ],
+  "blur thumbnail top": [
+   27,
+   8,
+   13
+  ],
+  "blur thumbnail": [
+   22,
+   9,
+   21
+  ],
+  "blur thumbnail middle": [
+   78,
+   51,
+   45
+  ],
+  "blur button": [
+   57,
+   58,
+   65
+  ],
+  "blur badge": [
+   17,
+   30,
+   27
+  ],
+  "blur photo": [
+   2,
+   1,
+   0
   ]
  },
  "privacy choices": {
@@ -128,6 +233,111 @@
    252
   ],
   "theme menu bottom": [
+   2,
+   1,
+   0
+  ],
+  "blur flat top": [
+   130,
+   131,
+   132
+  ],
+  "blur corner top left": [
+   130,
+   131,
+   132
+  ],
+  "blur corner bottom left": [
+   19,
+   20,
+   22
+  ],
+  "blur right edge": [
+   130,
+   131,
+   132
+  ],
+  "blur logo center": [
+   143,
+   43,
+   0
+  ],
+  "blur logo left": [
+   143,
+   43,
+   0
+  ],
+  "blur logo top": [
+   143,
+   43,
+   0
+  ],
+  "blur header above": [
+   247,
+   250,
+   252
+  ],
+  "blur header top": [
+   247,
+   250,
+   252
+  ],
+  "blur header inside": [
+   247,
+   250,
+   252
+  ],
+  "blur header bottom": [
+   247,
+   250,
+   252
+  ],
+  "blur header below": [
+   247,
+   250,
+   252
+  ],
+  "blur content above": [
+   130,
+   131,
+   132
+  ],
+  "blur content edge": [
+   19,
+   20,
+   22
+  ],
+  "blur content below": [
+   19,
+   20,
+   22
+  ],
+  "blur thumbnail top": [
+   27,
+   8,
+   13
+  ],
+  "blur thumbnail": [
+   22,
+   9,
+   21
+  ],
+  "blur thumbnail middle": [
+   78,
+   51,
+   45
+  ],
+  "blur button": [
+   57,
+   58,
+   65
+  ],
+  "blur badge": [
+   17,
+   30,
+   27
+  ],
+  "blur photo": [
    2,
    1,
    0
@@ -198,6 +408,111 @@
    4,
    3,
    1
+  ],
+  "blur flat top": [
+   233,
+   234,
+   237
+  ],
+  "blur corner top left": [
+   233,
+   234,
+   237
+  ],
+  "blur corner bottom left": [
+   35,
+   36,
+   40
+  ],
+  "blur right edge": [
+   233,
+   234,
+   237
+  ],
+  "blur logo center": [
+   255,
+   78,
+   0
+  ],
+  "blur logo left": [
+   255,
+   78,
+   0
+  ],
+  "blur logo top": [
+   255,
+   78,
+   0
+  ],
+  "blur header above": [
+   233,
+   234,
+   237
+  ],
+  "blur header top": [
+   35,
+   36,
+   40
+  ],
+  "blur header inside": [
+   35,
+   36,
+   40
+  ],
+  "blur header bottom": [
+   35,
+   36,
+   40
+  ],
+  "blur header below": [
+   233,
+   234,
+   237
+  ],
+  "blur content above": [
+   233,
+   234,
+   237
+  ],
+  "blur content edge": [
+   35,
+   36,
+   40
+  ],
+  "blur content below": [
+   35,
+   36,
+   40
+  ],
+  "blur thumbnail top": [
+   49,
+   15,
+   25
+  ],
+  "blur thumbnail": [
+   41,
+   18,
+   38
+  ],
+  "blur thumbnail middle": [
+   139,
+   91,
+   80
+  ],
+  "blur button": [
+   102,
+   105,
+   116
+  ],
+  "blur badge": [
+   31,
+   55,
+   48
+  ],
+  "blur photo": [
+   4,
+   3,
+   1
   ]
  },
  "theme dark": {
@@ -265,6 +580,111 @@
    59,
    60,
    67
+  ],
+  "blur flat top": [
+   17,
+   18,
+   20
+  ],
+  "blur corner top left": [
+   17,
+   18,
+   20
+  ],
+  "blur corner bottom left": [
+   35,
+   36,
+   40
+  ],
+  "blur right edge": [
+   17,
+   18,
+   20
+  ],
+  "blur logo center": [
+   255,
+   78,
+   0
+  ],
+  "blur logo left": [
+   255,
+   78,
+   0
+  ],
+  "blur logo top": [
+   255,
+   78,
+   0
+  ],
+  "blur header above": [
+   17,
+   18,
+   20
+  ],
+  "blur header top": [
+   0,
+   0,
+   0
+  ],
+  "blur header inside": [
+   0,
+   0,
+   0
+  ],
+  "blur header bottom": [
+   0,
+   0,
+   0
+  ],
+  "blur header below": [
+   17,
+   18,
+   20
+  ],
+  "blur content above": [
+   17,
+   18,
+   20
+  ],
+  "blur content edge": [
+   35,
+   36,
+   40
+  ],
+  "blur content below": [
+   35,
+   36,
+   40
+  ],
+  "blur thumbnail top": [
+   49,
+   15,
+   25
+  ],
+  "blur thumbnail": [
+   41,
+   18,
+   38
+  ],
+  "blur thumbnail middle": [
+   139,
+   91,
+   80
+  ],
+  "blur button": [
+   59,
+   60,
+   67
+  ],
+  "blur badge": [
+   59,
+   60,
+   67
+  ],
+  "blur photo": [
+   4,
+   3,
+   1
   ]
  },
  "theme light": {
@@ -332,6 +752,111 @@
    59,
    60,
    67
+  ],
+  "blur flat top": [
+   255,
+   255,
+   255
+  ],
+  "blur corner top left": [
+   255,
+   255,
+   255
+  ],
+  "blur corner bottom left": [
+   233,
+   234,
+   237
+  ],
+  "blur right edge": [
+   255,
+   255,
+   255
+  ],
+  "blur logo center": [
+   255,
+   78,
+   0
+  ],
+  "blur logo left": [
+   255,
+   78,
+   0
+  ],
+  "blur logo top": [
+   255,
+   78,
+   0
+  ],
+  "blur header above": [
+   255,
+   255,
+   255
+  ],
+  "blur header top": [
+   35,
+   36,
+   40
+  ],
+  "blur header inside": [
+   35,
+   36,
+   40
+  ],
+  "blur header bottom": [
+   35,
+   36,
+   40
+  ],
+  "blur header below": [
+   255,
+   255,
+   255
+  ],
+  "blur content above": [
+   255,
+   255,
+   255
+  ],
+  "blur content edge": [
+   233,
+   234,
+   237
+  ],
+  "blur content below": [
+   233,
+   234,
+   237
+  ],
+  "blur thumbnail top": [
+   49,
+   15,
+   25
+  ],
+  "blur thumbnail": [
+   41,
+   18,
+   38
+  ],
+  "blur thumbnail middle": [
+   139,
+   91,
+   80
+  ],
+  "blur button": [
+   35,
+   36,
+   40
+  ],
+  "blur badge": [
+   59,
+   60,
+   67
+  ],
+  "blur photo": [
+   4,
+   3,
+   1
   ]
  },
  "theme dusk": {
@@ -399,6 +924,111 @@
    59,
    60,
    67
+  ],
+  "blur flat top": [
+   233,
+   234,
+   237
+  ],
+  "blur corner top left": [
+   233,
+   234,
+   237
+  ],
+  "blur corner bottom left": [
+   35,
+   36,
+   40
+  ],
+  "blur right edge": [
+   233,
+   234,
+   237
+  ],
+  "blur logo center": [
+   255,
+   78,
+   0
+  ],
+  "blur logo left": [
+   255,
+   78,
+   0
+  ],
+  "blur logo top": [
+   255,
+   78,
+   0
+  ],
+  "blur header above": [
+   233,
+   234,
+   237
+  ],
+  "blur header top": [
+   35,
+   36,
+   40
+  ],
+  "blur header inside": [
+   35,
+   36,
+   40
+  ],
+  "blur header bottom": [
+   35,
+   36,
+   40
+  ],
+  "blur header below": [
+   233,
+   234,
+   237
+  ],
+  "blur content above": [
+   233,
+   234,
+   237
+  ],
+  "blur content edge": [
+   35,
+   36,
+   40
+  ],
+  "blur content below": [
+   35,
+   36,
+   40
+  ],
+  "blur thumbnail top": [
+   49,
+   15,
+   25
+  ],
+  "blur thumbnail": [
+   41,
+   18,
+   38
+  ],
+  "blur thumbnail middle": [
+   139,
+   91,
+   80
+  ],
+  "blur button": [
+   59,
+   60,
+   67
+  ],
+  "blur badge": [
+   59,
+   60,
+   67
+  ],
+  "blur photo": [
+   4,
+   3,
+   1
   ]
  },
  "theme system": {
@@ -466,6 +1096,283 @@
    35,
    36,
    40
+  ],
+  "blur flat top": [
+   233,
+   234,
+   237
+  ],
+  "blur corner top left": [
+   233,
+   234,
+   237
+  ],
+  "blur corner bottom left": [
+   35,
+   36,
+   40
+  ],
+  "blur right edge": [
+   233,
+   234,
+   237
+  ],
+  "blur logo center": [
+   255,
+   78,
+   0
+  ],
+  "blur logo left": [
+   255,
+   78,
+   0
+  ],
+  "blur logo top": [
+   255,
+   78,
+   0
+  ],
+  "blur header above": [
+   233,
+   234,
+   237
+  ],
+  "blur header top": [
+   35,
+   36,
+   40
+  ],
+  "blur header inside": [
+   35,
+   36,
+   40
+  ],
+  "blur header bottom": [
+   35,
+   36,
+   40
+  ],
+  "blur header below": [
+   233,
+   234,
+   237
+  ],
+  "blur content above": [
+   233,
+   234,
+   237
+  ],
+  "blur content edge": [
+   35,
+   36,
+   40
+  ],
+  "blur content below": [
+   35,
+   36,
+   40
+  ],
+  "blur thumbnail top": [
+   49,
+   15,
+   25
+  ],
+  "blur thumbnail": [
+   41,
+   18,
+   38
+  ],
+  "blur thumbnail middle": [
+   139,
+   91,
+   80
+  ],
+  "blur button": [
+   59,
+   60,
+   67
+  ],
+  "blur badge": [
+   35,
+   36,
+   40
+  ],
+  "blur photo": [
+   4,
+   3,
+   1
+  ]
+ },
+ "grid settings": {
+  "consent dim top left": [
+   59,
+   65,
+   82
+  ],
+  "consent dim right": [
+   52,
+   58,
+   75
+  ],
+  "consent dim bottom": [
+   22,
+   29,
+   46
+  ],
+  "consent box": [
+   35,
+   36,
+   40
+  ],
+  "consent box lower": [
+   35,
+   36,
+   40
+  ],
+  "page top": [
+   35,
+   36,
+   40
+  ],
+  "page left": [
+   59,
+   65,
+   82
+  ],
+  "page right": [
+   59,
+   65,
+   82
+  ],
+  "page below header": [
+   19,
+   25,
+   42
+  ],
+  "page content left": [
+   35,
+   36,
+   40
+  ],
+  "page content": [
+   35,
+   36,
+   40
+  ],
+  "theme menu item": [
+   12,
+   18,
+   34
+  ],
+  "theme menu bottom": [
+   12,
+   19,
+   34
+  ],
+  "blur flat top": [
+   59,
+   65,
+   82
+  ],
+  "blur corner top left": [
+   59,
+   65,
+   82
+  ],
+  "blur corner bottom left": [
+   19,
+   25,
+   42
+  ],
+  "blur right edge": [
+   59,
+   65,
+   82
+  ],
+  "blur logo center": [
+   63,
+   44,
+   49
+  ],
+  "blur logo left": [
+   44,
+   33,
+   42
+  ],
+  "blur logo top": [
+   61,
+   47,
+   54
+  ],
+  "blur header above": [
+   47,
+   54,
+   70
+  ],
+  "blur header top": [
+   34,
+   40,
+   57
+  ],
+  "blur header inside": [
+   22,
+   29,
+   45
+  ],
+  "blur header bottom": [
+   32,
+   38,
+   55
+  ],
+  "blur header below": [
+   47,
+   54,
+   70
+  ],
+  "blur content above": [
+   46,
+   57,
+   71
+  ],
+  "blur content edge": [
+   36,
+   44,
+   60
+  ],
+  "blur content below": [
+   24,
+   30,
+   47
+  ],
+  "blur thumbnail top": [
+   24,
+   28,
+   44
+  ],
+  "blur thumbnail": [
+   24,
+   25,
+   44
+  ],
+  "blur thumbnail middle": [
+   33,
+   30,
+   45
+  ],
+  "blur button": [
+   54,
+   60,
+   77
+  ],
+  "blur badge": [
+   13,
+   51,
+   53
+  ],
+  "blur photo": [
+   12,
+   18,
+   34
   ]
  }
 }

@@ -93,6 +93,7 @@ pub(crate) fn paint(
                     clip,
                     transform: origin,
                     rect_fallback: false,
+                    backdrop_root: false,
                 }
             }
             SvgDrawItem::PopClip => match clips.pop() {
