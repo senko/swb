@@ -6,13 +6,16 @@
 //! ([`Images::reselect`]).
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::rc::Rc;
 use std::sync::Arc;
 
+use swb_css::MediaQueryList;
 use swb_dom::NodeId;
 use swb_layout::NaturalSize;
 use swb_net::{NetError, RequestId, Response, Url};
 use swb_paint::{CountBudget, DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
 use swb_style::Length;
+use swb_style::cssom::sheet::{SheetRef, StyleMemory, StyleSheet};
 
 use crate::image_source::SelectedImage;
 
@@ -42,7 +45,10 @@ pub(crate) enum SheetSource {
 
 /// An author stylesheet: inline `<style>` text or a `<link>` load. The
 /// parsed sheet is kept, so that a rebuild of the stylist after a change
-/// does not parse the CSS again (ADR 0028 section 9).
+/// does not parse the CSS again (ADR 0028 section 9); it is also the
+/// script's `CSSStyleSheet` (section 10), shared with the bindings. When
+/// the slot loses its sheet (a new text, the element left the document or
+/// loads another URL), the sheet loses its owner.
 #[derive(Debug)]
 pub(crate) struct SheetSlot {
     /// The `style` or `link` element.
@@ -52,18 +58,27 @@ pub(crate) struct SheetSlot {
     pub(crate) serial: u64,
     /// The CSS text, once available. `None` while loading or after an
     /// error (`failed` tells which).
-    pub(crate) css: Option<String>,
-    /// The parsed `css`, after the first stylist build that used it.
-    pub(crate) parsed: Option<swb_css::Stylesheet>,
+    css: Option<String>,
+    /// The CSSOM sheet of `css` (an empty one after a failed load), made at
+    /// its first use: a stylist build or a script.
+    sheet: Option<SheetRef>,
     /// The URL relative `url()` values resolve against.
     pub(crate) base_url: Url,
     /// The `media` attribute.
     pub(crate) media: Option<String>,
+    /// The `title` attribute.
+    pub(crate) title: Option<String>,
     /// True if the load failed, was not allowed, or was stopped.
     pub(crate) failed: bool,
     /// True if the parser inserted the element: until the sheet loads, it
     /// blocks scripts (HTML "a style sheet that is blocking scripts").
     pub(crate) blocks_scripts: bool,
+    /// True if the next use parses the text again ([`SheetSlot::parse_again`]).
+    parse_pending: bool,
+    /// True if a script made the text (or changed it): its parsed form counts
+    /// against the style data that scripts may make
+    /// (`swb_style::cssom::sheet::MAX_SCRIPT_STYLE_BYTES`).
+    pub(crate) script_made: bool,
 }
 
 impl SheetSlot {
@@ -74,11 +89,14 @@ impl SheetSlot {
             source: SheetSource::Inline,
             serial: 0,
             css: Some(css),
-            parsed: None,
+            sheet: None,
             base_url,
             media,
+            title: None,
             failed: false,
             blocks_scripts: false,
+            parse_pending: false,
+            script_made: false,
         }
     }
 
@@ -89,11 +107,14 @@ impl SheetSlot {
             source: SheetSource::Link(url.clone()),
             serial,
             css: None,
-            parsed: None,
+            sheet: None,
             base_url: url,
             media,
+            title: None,
             failed: false,
             blocks_scripts: false,
+            parse_pending: false,
+            script_made: false,
         }
     }
 
@@ -103,14 +124,127 @@ impl SheetSlot {
         self.css.is_some() || self.failed
     }
 
-    /// The parsed sheet, parsed now if it was not yet. `None` without
-    /// text.
-    pub(crate) fn parsed(&mut self) -> Option<&swb_css::Stylesheet> {
-        let css = self.css.as_deref()?;
-        Some(
-            self.parsed
-                .get_or_insert_with(|| swb_css::parse_stylesheet(css)),
-        )
+    /// The CSS text, once available.
+    pub(crate) fn css(&self) -> Option<&str> {
+        self.css.as_deref()
+    }
+
+    /// Sets the CSS text. The CSSOM sheet of the old text (if any) loses its
+    /// owner; a new one is made from the text at its next use. `script` is
+    /// true if a script made the text.
+    pub(crate) fn set_css(&mut self, css: Option<String>, script: bool) {
+        self.detach();
+        self.css = css;
+        self.script_made = script;
+    }
+
+    /// True if the CSSOM sheet was made.
+    pub(crate) fn has_sheet(&self) -> bool {
+        self.sheet.is_some()
+    }
+
+    /// The CSSOM sheet, made now if it was not yet: from the text, or empty
+    /// after a failed load (Chromium gives a `link` whose response is an
+    /// error an empty sheet). `None` while a `link` loads. `quirks` is the
+    /// quirks mode of the document, `origin_clean` whether scripts may read
+    /// the rules (a sheet of the document's origin), `memory` the style data
+    /// that the document's scripts made.
+    pub(crate) fn sheet(
+        &mut self,
+        quirks: bool,
+        origin_clean: bool,
+        memory: &StyleMemory,
+    ) -> Option<SheetRef> {
+        if let Some(sheet) = &self.sheet {
+            if std::mem::take(&mut self.parse_pending)
+                && !StyleSheet::reparse(sheet, self.css.as_deref().unwrap_or(""))
+            {
+                sheet.borrow().clear_cascade_blocks();
+            }
+            return Some(Rc::clone(sheet));
+        }
+        let css = match (&self.css, self.failed) {
+            (Some(css), _) => css.as_str(),
+            (None, true) => "",
+            (None, false) => return None,
+        };
+        let sheet = StyleSheet::parse_in(css, quirks, memory, self.script_made);
+        {
+            let mut s = sheet.borrow_mut();
+            s.owner = Some(self.owner);
+            s.media = self
+                .media
+                .as_deref()
+                .map(MediaQueryList::parse_str)
+                .unwrap_or_default();
+            s.title = self.title.clone().filter(|t| !t.is_empty());
+            if let SheetSource::Link(url) = &self.source {
+                s.href = Some(url.to_string());
+                s.origin_clean = origin_clean;
+            }
+        }
+        self.sheet = Some(Rc::clone(&sheet));
+        Some(sheet)
+    }
+
+    /// The CSSOM sheet if it was made.
+    #[cfg(test)]
+    pub(crate) fn existing_sheet(&self) -> Option<&SheetRef> {
+        self.sheet.as_ref()
+    }
+
+    /// Benchmarks only (`DocumentState::restart_pipeline`). Makes the next
+    /// use parse the text again: the rules of a sheet that no script changed
+    /// are parsed again (in the same sheet object); a changed sheet keeps
+    /// its rules and parses their declaration blocks again. The slot keeps
+    /// the `parse_pending` flag for this, because the timed stylist build
+    /// must include the parse, and the sheet cannot be made again instead:
+    /// it may hold rules that scripts inserted.
+    pub(crate) fn parse_again(&mut self) {
+        self.parse_pending = self.sheet.is_some();
+    }
+
+    /// Sets the `media` attribute; the sheet takes its media from it.
+    pub(crate) fn set_media(&mut self, media: Option<String>) {
+        if let Some(sheet) = &self.sheet {
+            // No script runs while the engine holds a borrow of a sheet, and
+            // the engine's own borrows end before it calls here.
+            debug_assert!(sheet.try_borrow_mut().is_ok(), "the sheet is borrowed");
+            if let Ok(mut sheet) = sheet.try_borrow_mut() {
+                sheet.media = media
+                    .as_deref()
+                    .map(MediaQueryList::parse_str)
+                    .unwrap_or_default();
+            }
+        }
+        self.media = media;
+    }
+
+    /// Sets the `title` attribute; the sheet takes its title from it.
+    pub(crate) fn set_title(&mut self, title: Option<String>) {
+        if let Some(sheet) = &self.sheet {
+            debug_assert!(sheet.try_borrow_mut().is_ok(), "the sheet is borrowed");
+            if let Ok(mut sheet) = sheet.try_borrow_mut() {
+                sheet.title = title.clone().filter(|t| !t.is_empty());
+            }
+        }
+        self.title = title;
+    }
+
+    /// The sheet loses its owner (CSSOM "remove a CSS style sheet").
+    fn detach(&mut self) {
+        if let Some(sheet) = self.sheet.take() {
+            debug_assert!(sheet.try_borrow_mut().is_ok(), "the sheet is borrowed");
+            if let Ok(mut sheet) = sheet.try_borrow_mut() {
+                sheet.owner = None;
+            }
+        }
+    }
+}
+
+impl Drop for SheetSlot {
+    fn drop(&mut self) {
+        self.detach();
     }
 }
 
@@ -122,6 +256,11 @@ impl SheetSlot {
 pub(crate) struct Sheets {
     list: Vec<SheetSlot>,
     owners: HashSet<NodeId>,
+    /// The indexes of the settled slots (those that have a CSSOM sheet), for
+    /// `document.styleSheets`; `None` after any change through `&mut self`
+    /// other than [`Sheets::cssom_slot`]. A script that reads every sheet of
+    /// the list builds it once.
+    settled: Option<Vec<usize>>,
 }
 
 impl Sheets {
@@ -134,11 +273,30 @@ impl Sheets {
     }
 
     pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<'_, SheetSlot> {
+        self.settled = None;
         self.list.iter_mut()
     }
 
     pub(crate) fn get(&self, index: usize) -> Option<&SheetSlot> {
         self.list.get(index)
+    }
+
+    /// The slot at `index`, to make its CSSOM sheet ([`SheetSlot::sheet`]),
+    /// which changes neither the order nor the settled state.
+    pub(crate) fn cssom_slot(&mut self, index: usize) -> Option<&mut SheetSlot> {
+        self.list.get_mut(index)
+    }
+
+    /// The indexes of the settled slots, in tree order.
+    pub(crate) fn settled(&mut self) -> &[usize] {
+        let list = &self.list;
+        self.settled.get_or_insert_with(|| {
+            list.iter()
+                .enumerate()
+                .filter(|(_, s)| s.is_settled())
+                .map(|(i, _)| i)
+                .collect()
+        })
     }
 
     /// The index of the sheet of `owner`. Sheets added last are found
@@ -153,21 +311,25 @@ impl Sheets {
     /// The sheet of `owner`.
     pub(crate) fn of(&mut self, owner: NodeId) -> Option<&mut SheetSlot> {
         let index = self.position(owner)?;
+        self.settled = None;
         self.list.get_mut(index)
     }
 
     /// Inserts `slot` at `index` (at most the length).
     pub(crate) fn insert(&mut self, index: usize, slot: SheetSlot) {
+        self.settled = None;
         self.owners.insert(slot.owner);
         self.list.insert(index.min(self.list.len()), slot);
     }
 
     pub(crate) fn push(&mut self, slot: SheetSlot) {
+        self.settled = None;
         self.owners.insert(slot.owner);
         self.list.push(slot);
     }
 
     pub(crate) fn remove(&mut self, index: usize) -> SheetSlot {
+        self.settled = None;
         let slot = self.list.remove(index);
         self.owners.remove(&slot.owner);
         slot
@@ -175,6 +337,7 @@ impl Sheets {
 
     /// Keeps the sheets for which `keep` is true.
     pub(crate) fn retain(&mut self, mut keep: impl FnMut(&SheetSlot) -> bool) {
+        self.settled = None;
         let owners = &mut self.owners;
         self.list.retain(|s| {
             let kept = keep(s);
@@ -187,6 +350,7 @@ impl Sheets {
 
     /// Takes all sheets out.
     pub(crate) fn take(&mut self) -> Vec<SheetSlot> {
+        self.settled = None;
         self.owners.clear();
         std::mem::take(&mut self.list)
     }
@@ -195,6 +359,7 @@ impl Sheets {
         &mut self,
         compare: impl FnMut(&SheetSlot, &SheetSlot) -> std::cmp::Ordering,
     ) {
+        self.settled = None;
         self.list.sort_by(compare);
     }
 }

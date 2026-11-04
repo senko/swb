@@ -9,9 +9,36 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `HTMLStyleElement`.
 pub trait HTMLStyleElementImpl: b::Host {
+    /// `attribute boolean disabled`.
+    fn disabled(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<bool>;
+
+    /// The setter of `attribute boolean disabled`.
+    fn set_disabled(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
+
     /// `readonly attribute DOMTokenList blocking`.
     fn blocking(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `readonly attribute CSSStyleSheet? sheet`.
+    fn sheet(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
+}
+
+fn get_disabled<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLStyleElement", "disabled"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_STYLE_ELEMENT)?;
+        let result = <H as HTMLStyleElementImpl>::disabled(&mut b::Cx::new(rt, call, super::HTML_STYLE_ELEMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn set_disabled<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLStyleElement", "disabled"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_STYLE_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::boolean(rt, v).map_err(b::Exception::nested)?;
+        <H as HTMLStyleElementImpl>::set_disabled(&mut b::Cx::new(rt, call, super::HTML_STYLE_ELEMENT), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
 }
 
 fn get_media<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -49,6 +76,32 @@ fn set_blocking<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js
     })
 }
 
+fn get_type<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLStyleElement", "type"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_STYLE_ELEMENT)?;
+        let result = b::reflect::get_string::<H>(&mut b::Cx::new(rt, call, super::HTML_STYLE_ELEMENT), this, "type")?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_type<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("HTMLStyleElement", "type"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_STYLE_ELEMENT)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        b::reflect::set_string::<H>(&mut b::Cx::new(rt, call, super::HTML_STYLE_ELEMENT), this, "type", &value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_sheet<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLStyleElement", "sheet"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_STYLE_ELEMENT)?;
+        let result = <H as HTMLStyleElementImpl>::sheet(&mut b::Cx::new(rt, call, super::HTML_STYLE_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
 pub(super) fn construct<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLStyleElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
 }
@@ -59,8 +112,11 @@ pub fn define<H: HTMLStyleElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> 
     let interface = rt.begin_interface(realm, super::HTML_STYLE_ELEMENT)?;
     let target = interface.prototype;
     let _ = target;
+    rt.define_accessor(realm, target, "disabled", (Some(get_disabled::<H> as swb_js::NativeFn), Some(set_disabled::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "media", (Some(get_media::<H> as swb_js::NativeFn), Some(set_media::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "blocking", (Some(get_blocking::<H> as swb_js::NativeFn), Some(set_blocking::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "type", (Some(get_type::<H> as swb_js::NativeFn), Some(set_type::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "sheet", (Some(get_sheet::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

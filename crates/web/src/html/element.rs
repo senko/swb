@@ -399,11 +399,27 @@ impl g::html_link_element::HTMLLinkElementImpl for WebState {
     fn blocking(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
         super::token_list(cx, this, "blocking")
     }
+
+    fn sheet(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        crate::cssom_sheets::sheet(cx, this)
+    }
 }
 
 impl g::html_style_element::HTMLStyleElementImpl for WebState {
+    fn disabled(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        crate::cssom_sheets::style_disabled(cx, this)
+    }
+
+    fn set_disabled(cx: &mut Cx<'_>, this: NodeId, value: bool) -> b::Result<()> {
+        crate::cssom_sheets::set_style_disabled(cx, this, value)
+    }
+
     fn blocking(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
         super::token_list(cx, this, "blocking")
+    }
+
+    fn sheet(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        crate::cssom_sheets::sheet(cx, this)
     }
 }
 

@@ -92,6 +92,8 @@ fn flushes_json(c: &FlushCounters) -> serde_json::Value {
         "forced_style": runs(c.forced_style_runs, c.forced_style_time),
         "forced_layout": runs(c.forced_layout_runs, c.forced_layout_time),
         "element_style": runs(c.element_style_runs, c.element_style_time),
+        "stylist": runs(c.stylist_runs, c.stylist_time),
+        "sheet_changes": c.sheet_changes,
     })
 }
 

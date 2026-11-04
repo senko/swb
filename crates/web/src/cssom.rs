@@ -20,6 +20,10 @@
 //! exactly when swb parses the property, so feature tests such as
 //! `'transform' in el.style` see what swb supports.
 //!
+//! `CSSStyleRule.style` is a declaration of the same interface over the
+//! rule's block (`swb_style::cssom::sheet`, M9 feature 6): a change makes
+//! the block's declarations the rule's and marks the stylist dirty.
+//!
 //! `getComputedStyle(element, pseudoElt)` (CSSOM §9,
 //! <https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle>) returns a
 //! new, live, read-only declaration of the same interface at each call (as
@@ -39,7 +43,8 @@ use swb_js::{
 };
 use swb_style::PseudoKind;
 use swb_style::cssom::resolved::PseudoElement;
-use swb_style::cssom::{self, StyleDeclarations, resolved};
+use swb_style::cssom::sheet::RuleRef;
+use swb_style::cssom::{self, StyleDeclarations, WriteBudget, resolved};
 
 use crate::bindings::{self as b, Context, Cx, Platform};
 use crate::dom::set_attribute;
@@ -100,16 +105,33 @@ enum Target {
     /// The computed style of a pseudo-element that does not exist: no
     /// values (Chromium's answer for `::foo`).
     Empty,
+    /// The declarations of a style rule (`CSSStyleRule.style`; the rule's
+    /// wrapper is in [`StyleData::rule`]).
+    Rule,
 }
 
-/// The data of a `CSSStyleDeclaration`: its element and what it shows.
+impl Target {
+    /// True for a declaration block that scripts read and change (the
+    /// `style` attribute or a rule), false for a computed style.
+    fn is_block(self) -> bool {
+        matches!(self, Target::Inline | Target::Rule)
+    }
+}
+
+/// The data of a `CSSStyleDeclaration`: its element and what it shows, or
+/// the wrapper of its style rule.
 struct StyleData {
     element: NodeId,
     target: Target,
+    rule: Option<Gc<Object>>,
 }
 
 impl GenericData for StyleData {
-    fn trace(&self, _tracer: &mut Tracer<'_>) {}
+    fn trace(&self, tracer: &mut Tracer<'_>) {
+        if let Some(rule) = self.rule {
+            tracer.object(rule);
+        }
+    }
 
     fn heap_size(&self) -> usize {
         0
@@ -123,9 +145,24 @@ pub(crate) fn style(cx: &mut Cx<'_>, element: NodeId) -> b::Result<Gc<Object>> {
         let data = rt.alloc_host_data(StyleData {
             element,
             target: Target::Inline,
+            rule: None,
         })?;
         rt.new_host_object(realm, g::CSS_STYLE_DECLARATION, data)
     })?)
+}
+
+/// A new `CSSStyleDeclaration` of the declarations of the style rule whose
+/// wrapper is `rule` (`CSSStyleRule.style`; the rule keeps it).
+pub(crate) fn rule_style(cx: &mut Cx<'_>, rule: Gc<Object>) -> b::Result<Gc<Object>> {
+    let realm = cx.realm();
+    let data = cx.rt.alloc_host_data(StyleData {
+        element: NodeId::DOCUMENT,
+        target: Target::Rule,
+        rule: Some(rule),
+    })?;
+    Ok(cx
+        .rt
+        .new_host_object(realm, g::CSS_STYLE_DECLARATION, data)?)
 }
 
 /// `getComputedStyle(elt, pseudoElt)`: a new declaration of the computed
@@ -137,7 +174,11 @@ pub(crate) fn computed_style(
 ) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
     let target = pseudo.map_or(Target::Computed(None), pseudo_target);
-    let data = cx.rt.alloc_host_data(StyleData { element, target })?;
+    let data = cx.rt.alloc_host_data(StyleData {
+        element,
+        target,
+        rule: None,
+    })?;
     Ok(cx
         .rt
         .new_host_object(realm, g::CSS_STYLE_DECLARATION, data)?)
@@ -235,8 +276,16 @@ fn data_of(rt: &Runtime, this: Platform) -> b::Result<(NodeId, Target)> {
     }
 }
 
-fn element_of(rt: &Runtime, this: Platform) -> b::Result<NodeId> {
-    data_of(rt, this).map(|(element, _)| element)
+/// The wrapper of the style rule of a rule's declaration block.
+fn rule_object_of(rt: &Runtime, this: Platform) -> b::Result<Option<Gc<Object>>> {
+    match this.data {
+        HostData::Generic(handle) => Ok(rt
+            .heap()
+            .generic::<StyleData>(handle)
+            .map_err(VmError::from)?
+            .rule),
+        HostData::Word(_) => Err(VmError::type_error("Illegal invocation").into()),
+    }
 }
 
 /// The error of a write to a computed style declaration (Chromium's
@@ -254,7 +303,7 @@ fn read_only(property: Option<&str>) -> b::Exception {
 /// Fails with [`read_only`] if `this` is a computed style declaration.
 fn writable(rt: &Runtime, this: Platform, property: Option<&str>) -> b::Result<()> {
     match data_of(rt, this)?.1 {
-        Target::Inline => Ok(()),
+        Target::Inline | Target::Rule => Ok(()),
         Target::Computed(_) | Target::Empty => Err(read_only(property)),
     }
 }
@@ -268,7 +317,7 @@ fn resolved_value(
 ) -> b::Result<String> {
     let value = match target {
         Target::Computed(pseudo) => engine_mut(rt)?.resolved_value(element, pseudo, property),
-        Target::Inline | Target::Empty => return Ok(String::new()),
+        Target::Inline | Target::Empty | Target::Rule => return Ok(String::new()),
     };
     // A flush can take long; the countdown of the time limit does not see
     // it (a loop of style writes and layout reads would run far past the
@@ -349,18 +398,60 @@ fn write_attribute(rt: &mut Runtime, element: NodeId) -> b::Result<()> {
     Ok(())
 }
 
+/// The block of the declarations of the style rule that `this` stands for,
+/// with the rule.
+fn rule_of_declarations(cx: &mut Cx<'_>, this: Platform) -> b::Result<RuleRef> {
+    let object = rule_object_of(cx.rt, this)?.ok_or(VmError::type_error(
+        "the rule of the declarations is missing",
+    ))?;
+    crate::cssom_sheets::rule_of_object(cx.rt, object)
+}
+
+/// Runs `f` on the block of `this` (the `style` attribute's or a style
+/// rule's); `f` returns its result and whether it changed the block. A
+/// change writes the attribute, or makes the rule's declarations those of
+/// the block (the stylist is dirty then) and the rule's charge that of the
+/// block. The block of a rule gets a budget for the growth of its entries
+/// (ADR 0028 section 16): a write that exceeds it changes nothing.
+fn block_op<R>(
+    cx: &mut Cx<'_>,
+    this: Platform,
+    f: impl FnOnce(&mut StyleDeclarations, &WriteBudget) -> (R, bool),
+) -> b::Result<R> {
+    let (element, target) = data_of(cx.rt, this)?;
+    if target == Target::Rule {
+        let rule = rule_of_declarations(cx, this)?;
+        let quirks = cssom::sheet::rule_quirks(&rule);
+        let mut guard = rule.borrow_mut();
+        let budget = guard.write_budget(quirks);
+        let (result, changed) = match &mut guard.kind {
+            cssom::sheet::RuleKind::Style(style) => f(style.declarations_block(quirks), &budget),
+            _ => f(&mut StyleDeclarations::default(), &budget),
+        };
+        if changed {
+            guard.declarations_written();
+        }
+        drop(guard);
+        if changed {
+            crate::cssom_sheets::rule_changed(cx.rt, &rule)?;
+        }
+        return Ok(result);
+    }
+    let (result, changed) = with_block(cx.rt, element, |b| f(b, &WriteBudget::unlimited()))?;
+    if changed {
+        write_attribute(cx.rt, element)?;
+    }
+    Ok(result)
+}
+
 /// Changes the block of `this` with `f` (which returns whether it changed)
 /// and writes the attribute if it did.
 fn change(
     cx: &mut Cx<'_>,
     this: Platform,
-    f: impl FnOnce(&mut StyleDeclarations) -> bool,
+    f: impl FnOnce(&mut StyleDeclarations, &WriteBudget) -> bool,
 ) -> b::Result<()> {
-    let element = element_of(cx.rt, this)?;
-    if with_block(cx.rt, element, f)? {
-        write_attribute(cx.rt, element)?;
-    }
-    Ok(())
+    block_op(cx, this, |b, budget| ((), f(b, budget)))
 }
 
 /// Reads from the block of `this`.
@@ -369,15 +460,14 @@ fn read<R>(
     this: Platform,
     f: impl FnOnce(&mut StyleDeclarations) -> R,
 ) -> b::Result<R> {
-    let element = element_of(cx.rt, this)?;
-    with_block(cx.rt, element, f)
+    block_op(cx, this, |b, _| (f(b), false))
 }
 
 /// The value of `property` of `this`: from the block of the `style`
-/// attribute, or the resolved value of a computed style.
+/// attribute or of a rule, or the resolved value of a computed style.
 fn property_value(cx: &mut Cx<'_>, this: Platform, property: &str) -> b::Result<String> {
     match data_of(cx.rt, this)? {
-        (element, Target::Inline) => with_block(cx.rt, element, |b| b.property_value(property)),
+        (_, target) if target.is_block() => read(cx, this, |b| b.property_value(property)),
         (element, target) => resolved_value(cx.rt, element, target, property),
     }
 }
@@ -388,7 +478,7 @@ fn property_value(cx: &mut Cx<'_>, this: Platform, property: &str) -> b::Result<
 /// (its block answers).
 fn listed(cx: &mut Cx<'_>, this: Platform, index: usize) -> b::Result<Option<(usize, String)>> {
     let (element, target) = data_of(cx.rt, this)?;
-    if target == Target::Inline {
+    if target.is_block() {
         return Ok(None);
     }
     let Some(custom) = custom_names(cx.rt, element, target)? else {
@@ -405,7 +495,7 @@ fn listed(cx: &mut Cx<'_>, this: Platform, index: usize) -> b::Result<Option<(us
 impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
     /// The empty string for a computed style (Chromium).
     fn css_text(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
-        if data_of(cx.rt, this)?.1 != Target::Inline {
+        if !data_of(cx.rt, this)?.1.is_block() {
             return Ok(String::new());
         }
         read(cx, this, |b| b.css_text())
@@ -414,7 +504,18 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
     /// The `cssText` setter always writes the attribute (also `""`).
     fn set_css_text(cx: &mut Cx<'_>, this: Platform, value: String) -> b::Result<()> {
         writable(cx.rt, this, None)?;
-        change(cx, this, |b| {
+        if data_of(cx.rt, this)?.1 == Target::Rule {
+            // The declarations of a rule count against the style data that
+            // scripts may make (ADR 0028 section 16): a text that does not
+            // fit changes nothing.
+            let rule = rule_of_declarations(cx, this)?;
+            let quirks = cssom::sheet::rule_quirks(&rule);
+            if cssom::sheet::set_declarations_text(&rule, &value, quirks) {
+                crate::cssom_sheets::rule_changed(cx.rt, &rule)?;
+            }
+            return Ok(());
+        }
+        change(cx, this, |b, _| {
             b.set_css_text(&value);
             true
         })
@@ -427,10 +528,10 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
         read(cx, this, |b| u32::try_from(b.len()).unwrap_or(u32::MAX))
     }
 
-    /// Always null: the declarations of a `style` attribute and of a
-    /// computed style have no rule.
-    fn parent_rule(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(None)
+    /// The style rule of a rule's declarations; null for those of a `style`
+    /// attribute and of a computed style.
+    fn parent_rule(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        rule_object_of(cx.rt, this)
     }
 
     fn css_float(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
@@ -439,7 +540,9 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
 
     fn set_css_float(cx: &mut Cx<'_>, this: Platform, value: String) -> b::Result<()> {
         writable(cx.rt, this, Some("float"))?;
-        change(cx, this, |b| b.set_property("float", &value, ""))
+        change(cx, this, |b, budget| {
+            b.set_property_within("float", &value, "", budget)
+        })
     }
 
     fn item(cx: &mut Cx<'_>, this: Platform, index: u32) -> b::Result<String> {
@@ -459,7 +562,7 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
         this: Platform,
         property: String,
     ) -> b::Result<String> {
-        if data_of(cx.rt, this)?.1 != Target::Inline {
+        if !data_of(cx.rt, this)?.1.is_block() {
             return Ok(String::new());
         }
         read(cx, this, |b| b.property_priority(&property).to_owned())
@@ -473,17 +576,14 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
         priority: String,
     ) -> b::Result<()> {
         writable(cx.rt, this, Some(&property))?;
-        change(cx, this, |b| b.set_property(&property, &value, &priority))
+        change(cx, this, |b, budget| {
+            b.set_property_within(&property, &value, &priority, budget)
+        })
     }
 
     fn remove_property(cx: &mut Cx<'_>, this: Platform, property: String) -> b::Result<String> {
         writable(cx.rt, this, Some(&property))?;
-        let element = element_of(cx.rt, this)?;
-        let (old, changed) = with_block(cx.rt, element, |b| b.remove_property(&property))?;
-        if changed {
-            write_attribute(cx.rt, element)?;
-        }
-        Ok(old)
+        block_op(cx, this, |b, _| b.remove_property(&property))
     }
 
     fn index_count(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
@@ -512,7 +612,9 @@ impl g::css_style_declaration::CSSStyleDeclarationImpl for WebState {
             return Ok(());
         };
         writable(cx.rt, this, Some(&property))?;
-        change(cx, this, |b| b.set_property(&property, &value, ""))
+        change(cx, this, |b, budget| {
+            b.set_property_within(&property, &value, "", budget)
+        })
     }
 }
 

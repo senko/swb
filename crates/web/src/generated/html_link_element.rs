@@ -18,6 +18,9 @@ pub trait HTMLLinkElementImpl: b::Host {
     /// `readonly attribute DOMTokenList blocking`.
     fn blocking(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `readonly attribute CSSStyleSheet? sheet`.
+    fn sheet(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
 }
 
 fn get_href<H: HTMLLinkElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -305,6 +308,14 @@ fn set_fetch_priority<H: HTMLLinkElementImpl>(rt: &mut swb_js::Runtime, call: &s
     })
 }
 
+fn get_sheet<H: HTMLLinkElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("HTMLLinkElement", "sheet"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::HTML_LINK_ELEMENT)?;
+        let result = <H as HTMLLinkElementImpl>::sheet(&mut b::Cx::new(rt, call, super::HTML_LINK_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
 pub(super) fn construct<H: HTMLLinkElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("HTMLLinkElement"), super::DOM_EXCEPTION, |_| Err(b::Exception::type_error("Illegal constructor")))
 }
@@ -331,6 +342,7 @@ pub fn define<H: HTMLLinkElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> s
     rt.define_accessor(realm, target, "blocking", (Some(get_blocking::<H> as swb_js::NativeFn), Some(set_blocking::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "disabled", (Some(get_disabled::<H> as swb_js::NativeFn), Some(set_disabled::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "fetchPriority", (Some(get_fetch_priority::<H> as swb_js::NativeFn), Some(set_fetch_priority::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "sheet", (Some(get_sheet::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition, WrittenStep};
 use swb_style::cssom::resolved::PseudoElement;
+use swb_style::cssom::sheet::SheetRef;
 use swb_style::{ComputedStyle, ElementStates};
 
 use crate::storage::SharedStorage;
@@ -799,6 +800,42 @@ pub trait EngineHost: Any {
         let _ = (element, pseudo, property);
         String::new()
     }
+
+    // ----- Style sheets (CSSOM, M9 feature 6) -----
+    //
+    // Each of these processes the DOM changes first, so that a `style`
+    // element that a script just inserted has its sheet.
+
+    /// The number of the document's style sheets (`document.styleSheets`):
+    /// the sheets of the `style` and `link` elements of the document that
+    /// have one (a `link` has one once its load ended), in tree order.
+    fn style_sheet_count(&mut self) -> usize {
+        0
+    }
+
+    /// The style sheet at `index` of the list of
+    /// [`EngineHost::style_sheet_count`].
+    fn style_sheet(&mut self, index: usize) -> Option<SheetRef> {
+        let _ = index;
+        None
+    }
+
+    /// The style sheet of the `style` or `link` element `owner` (`sheet`):
+    /// `None` if it has none (not in the document, a `link` that loads, a
+    /// `style` of another type).
+    fn style_sheet_of(&mut self, owner: NodeId) -> Option<SheetRef> {
+        let _ = owner;
+        None
+    }
+
+    /// Processes the DOM changes, so that a sheet whose `style` element a
+    /// script just removed or rewrote has lost its owner (`ownerNode`).
+    fn settle_style_sheets(&mut self) {}
+
+    /// A script changed a style sheet of the document (its rules, a rule,
+    /// its media or its disabled flag): the rule index is built again at the
+    /// next style flush.
+    fn style_sheets_changed(&mut self) {}
 
     // ----- Geometry and scrolling (CSSOM View, feature 7b) -----
     //

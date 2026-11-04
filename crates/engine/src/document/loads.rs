@@ -71,8 +71,7 @@ impl DocumentState {
         match result {
             Ok(response) if response.is_success() => {
                 let charset = response.content_type().and_then(|c| c.charset);
-                sheet.css = Some(decode_css(&response.body, charset.as_deref()));
-                sheet.parsed = None;
+                sheet.set_css(Some(decode_css(&response.body, charset.as_deref())), false);
                 sheet.base_url = response.url;
                 self.sheet_event(owner, true);
             }

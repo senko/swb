@@ -80,6 +80,7 @@ mod clock;
 mod cookie;
 mod crypto;
 mod cssom;
+mod cssom_sheets;
 mod cssom_view;
 mod dialogs;
 mod document_load;

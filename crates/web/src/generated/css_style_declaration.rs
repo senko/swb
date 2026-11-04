@@ -18,7 +18,7 @@ pub trait CSSStyleDeclarationImpl: b::Host {
     /// `readonly attribute unsigned long length`.
     fn length(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<u32>;
 
-    /// `readonly attribute object? parentRule`.
+    /// `readonly attribute CSSRule? parentRule`.
     fn parent_rule(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `attribute DOMString cssFloat`.

@@ -122,6 +122,15 @@ pub struct FlushCounters {
     pub element_style_runs: u32,
     /// Their time.
     pub element_style_time: Duration,
+    /// Builds of the stylist (the rule index of all sheets), the first
+    /// one and those after a change of a sheet.
+    pub stylist_runs: u32,
+    /// Their time.
+    pub stylist_time: Duration,
+    /// Changes of style sheets by scripts (CSSOM: `insertRule`,
+    /// `deleteRule`, `selectorText`, the declarations of a rule, `disabled`,
+    /// `media`), each of which makes the stylist dirty.
+    pub sheet_changes: u32,
 }
 
 impl FlushCounters {
@@ -149,6 +158,12 @@ impl FlushCounters {
     pub(crate) fn element_style(&mut self, time: Duration) {
         self.element_style_runs = self.element_style_runs.saturating_add(1);
         self.element_style_time += time;
+    }
+
+    /// Records a build of the stylist of `time`.
+    pub(crate) fn stylist(&mut self, time: Duration) {
+        self.stylist_runs = self.stylist_runs.saturating_add(1);
+        self.stylist_time += time;
     }
 }
 

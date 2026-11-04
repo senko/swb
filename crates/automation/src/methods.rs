@@ -303,6 +303,9 @@ fn flushes_json(c: FlushCounters) -> Value {
         "forcedLayoutMs": ms(c.forced_layout_time),
         "elementStyle": c.element_style_runs,
         "elementStyleMs": ms(c.element_style_time),
+        "stylist": c.stylist_runs,
+        "stylistMs": ms(c.stylist_time),
+        "sheetChanges": c.sheet_changes,
     })
 }
 

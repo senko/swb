@@ -241,13 +241,26 @@ The license text is in the section of W3C High Resolution Time below.
 `crates/web/idl/cssom.idl` contains the `CSSStyleDeclaration` interface,
 the `ElementCSSInlineStyle` mixin and the typedef `CSSOMString` from CSS
 Object Model (CSSOM) (W3C Editor's Draft, https://drafts.csswg.org/cssom/,
-copied on 2026-10-28); swb cut the file to these, made `parentRule` an
-`object?` and added two special operations of its own (the header of the
-file says why). The license text is in the section of W3C High Resolution
-Time below.
+copied on 2026-10-28), and the style sheet and rule interfaces of CSSOM
+§6.1 to §6.4 (`MediaList`, `StyleSheet`, `CSSStyleSheet`,
+`StyleSheetList`, `LinkStyle`, `CSSRuleList`, `CSSRule`, `CSSStyleRule`,
+`CSSImportRule`, `CSSGroupingRule`), copied on 2026-11-04 with rule
+interfaces from CSS Conditional Rules Module Level 3 (W3C Editor's Draft,
+https://drafts.csswg.org/css-conditional-3/: `CSSConditionRule`,
+`CSSMediaRule`, `CSSSupportsRule`), CSS Fonts Module Level 4 (W3C
+Editor's Draft, https://drafts.csswg.org/css-fonts-4/: `CSSFontFaceRule`)
+and CSS Animations Level 1 (W3C Editor's Draft,
+https://drafts.csswg.org/css-animations-1/: `CSSKeyframesRule`). swb cut
+the file to these, changed some members and added two special operations
+of its own (the header of the file lists the changes and says why). The
+license text is in the section of W3C High Resolution Time below.
 
 > This software or document includes material copied from or derived
-> from CSS Object Model (CSSOM), https://drafts.csswg.org/cssom/.
+> from CSS Object Model (CSSOM), https://drafts.csswg.org/cssom/; CSS
+> Conditional Rules Module Level 3,
+> https://drafts.csswg.org/css-conditional-3/; CSS Fonts Module Level 4,
+> https://drafts.csswg.org/css-fonts-4/; and CSS Animations Level 1,
+> https://drafts.csswg.org/css-animations-1/.
 > Copyright © 2026 World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 

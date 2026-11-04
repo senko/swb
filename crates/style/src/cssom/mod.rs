@@ -27,8 +27,10 @@
 mod clip_path;
 mod filter;
 mod longhand;
+mod memory;
 mod props;
 pub mod resolved;
+pub mod sheet;
 mod shorthand;
 mod value;
 
@@ -45,6 +47,7 @@ use props::{Property, TABLE};
 
 pub(crate) use value::format_number;
 
+pub use memory::WriteBudget;
 pub use props::{attribute_names, property_of_attribute};
 
 /// The value of a longhand in a block.
@@ -90,6 +93,9 @@ struct Entry {
     /// The shorthand that set the value (Chromium serializes
     /// `font-variant` only where it set the longhand).
     via: Option<usize>,
+    /// The estimated bytes of the entry and its share of the declaration
+    /// that set it, in the parsed form of a rule (`memory.rs`).
+    cost: usize,
 }
 
 /// A CSS declaration block of a `style` attribute (CSSOM §6.6). See the
@@ -99,6 +105,8 @@ pub struct StyleDeclarations {
     entries: Vec<Entry>,
     /// True in a quirks mode document (the unitless length quirk).
     quirks: bool,
+    /// The sum of the costs of the entries.
+    bytes: usize,
 }
 
 /// The CSS-wide keyword of a value.
@@ -137,9 +145,47 @@ impl StyleDeclarations {
         let mut block = StyleDeclarations {
             entries: Vec::new(),
             quirks,
+            bytes: 0,
         };
         block.set_css_text(text);
         block
+    }
+
+    /// The estimated bytes that the block takes in the parsed form of a
+    /// rule (the entries, and the declarations and cascade block that
+    /// follow them). The bound of script-made style data counts them
+    /// (ADR 0028 section 16).
+    pub fn retained_bytes(&self) -> usize {
+        self.bytes
+    }
+
+    /// The entries that `expand` made for a declaration, with their costs:
+    /// each entry costs its own bytes and an equal share of the
+    /// declaration's (`value_bytes`: the bytes of its component values).
+    fn entries_of(
+        name: &str,
+        value_bytes: usize,
+        values: Vec<(Name, Value)>,
+        important: bool,
+        via: Option<usize>,
+    ) -> Vec<Entry> {
+        let share = memory::declaration_bytes_without_entries(name.len(), value_bytes)
+            / values.len().max(1);
+        values
+            .into_iter()
+            .map(|(name, value)| Entry {
+                name,
+                value,
+                important,
+                via,
+                cost: memory::ENTRY_BYTES + share,
+            })
+            .collect()
+    }
+
+    /// Adds up the costs of the entries again.
+    fn recount(&mut self) {
+        self.bytes = self.entries.iter().map(|e| e.cost).sum();
     }
 
     /// The parser context of the block's values.
@@ -147,25 +193,43 @@ impl StyleDeclarations {
         ParserContext::author(None, self.quirks)
     }
 
+    /// The block of the declarations of a style rule (`CSSStyleRule.style`).
+    pub fn from_declarations(declarations: &[Declaration], quirks: bool) -> Self {
+        let mut block = StyleDeclarations {
+            entries: Vec::new(),
+            quirks,
+            bytes: 0,
+        };
+        block.set_declarations(declarations);
+        block
+    }
+
     /// Replaces the declarations with those of `text` (the `cssText`
     /// setter, CSSOM §6.7.2). As Chromium: a property declared twice keeps
     /// its last declaration, an `!important` one wins over the others, and
     /// the important declarations come after the others.
     pub fn set_css_text(&mut self, text: &str) {
+        self.set_declarations(&swb_css::parse_style_attribute(text));
+    }
+
+    /// Replaces the declarations with `declarations`, as
+    /// [`StyleDeclarations::set_css_text`] does with those of a text.
+    fn set_declarations(&mut self, declarations: &[Declaration]) {
         let mut parsed: Vec<(Entry, usize)> = Vec::new();
         // The index in `parsed` of each property (a block of many custom
         // properties stays linear).
         let mut index: HashMap<Name, usize> = HashMap::new();
-        for (position, declaration) in swb_css::parse_style_attribute(text).into_iter().enumerate()
-        {
+        for (position, declaration) in declarations.iter().enumerate() {
             let (values, via) = self.expand(&declaration.name, &declaration.value);
-            for (name, value) in values {
-                let entry = Entry {
-                    name,
-                    value,
-                    important: declaration.important,
-                    via,
-                };
+            let value_bytes = memory::values_bytes(&declaration.value);
+            let entries = Self::entries_of(
+                &declaration.name,
+                value_bytes,
+                values,
+                declaration.important,
+                via,
+            );
+            for entry in entries {
                 match index.get(&entry.name).and_then(|&i| parsed.get_mut(i)) {
                     Some((old, _)) if old.important && !entry.important => {}
                     Some(old) => *old = (entry, position),
@@ -187,6 +251,7 @@ impl StyleDeclarations {
             .chain(important)
             .map(|(e, _)| e)
             .collect();
+        self.recount();
     }
 
     /// The longhands and values of the declaration `name: tokens` (none if
@@ -261,6 +326,19 @@ impl StyleDeclarations {
     /// `setProperty(property, value, priority)` (CSSOM §6.7.2). Returns
     /// true if the block changed (the attribute must be written).
     pub fn set_property(&mut self, property: &str, value: &str, priority: &str) -> bool {
+        self.set_property_within(property, value, priority, &WriteBudget::unlimited())
+    }
+
+    /// [`StyleDeclarations::set_property`] for a block whose growth is
+    /// limited: a write whose new entries `budget` does not allow changes
+    /// nothing.
+    pub fn set_property_within(
+        &mut self,
+        property: &str,
+        value: &str,
+        priority: &str,
+        budget: &WriteBudget,
+    ) -> bool {
         let property = Self::normalize(property);
         if !is_custom_property_name(&property) && TABLE.lookup(&property).is_none() {
             return false;
@@ -277,14 +355,21 @@ impl StyleDeclarations {
         };
         let tokens = parse_component_values(value);
         let (values, via) = self.expand(&property, &tokens);
+        let entries = Self::entries_of(
+            &property,
+            memory::values_bytes(&tokens),
+            values,
+            important,
+            via,
+        );
+        // An upper bound of the growth: the entries that replace others
+        // add less.
+        if !budget.allows(entries.iter().map(|e| e.cost).sum()) {
+            return false;
+        }
         let mut changed = false;
-        for (name, value) in values {
-            changed |= self.set_declaration(Entry {
-                name,
-                value,
-                important,
-                via,
-            });
+        for entry in entries {
+            changed |= self.set_declaration(entry);
         }
         changed
     }
@@ -296,9 +381,11 @@ impl StyleDeclarations {
             if *entry == new {
                 return false;
             }
+            self.bytes = self.bytes.saturating_sub(entry.cost) + new.cost;
             *entry = new;
             return true;
         }
+        self.bytes += new.cost;
         self.entries.push(new);
         true
     }
@@ -316,7 +403,11 @@ impl StyleDeclarations {
         let names = Self::names_of(&property);
         let before = self.entries.len();
         self.entries.retain(|e| !names.contains(&e.name));
-        (old, self.entries.len() != before)
+        let changed = self.entries.len() != before;
+        if changed {
+            self.recount();
+        }
+        (old, changed)
     }
 
     /// The longhands (or the custom property) of a property name.

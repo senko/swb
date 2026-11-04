@@ -328,6 +328,27 @@ fn lookup_property(name: &str) -> Option<(PropertyId, bool)> {
     ShorthandId::from_alias(name).map(|s| (PropertyId::Shorthand(s), false))
 }
 
+/// The number of entries that a declaration of `name` (lower case, or a
+/// custom property) adds to a [`DeclarationBlock`]: one per longhand that
+/// it sets (`all`: every longhand but two), 0 for a property that swb does
+/// not store. The memory estimate of script-made rules counts them
+/// (ADR 0028 section 16).
+pub(crate) fn declaration_entries(name: &str) -> usize {
+    if is_custom_property_name(name) {
+        return 1;
+    }
+    match lookup_property(name) {
+        Some((PropertyId::Longhand(_), _)) => 1,
+        Some((PropertyId::Shorthand(s), _)) => s.longhands().len(),
+        Some((PropertyId::All, _)) => LonghandId::COUNT.saturating_sub(2),
+        None => 0,
+    }
+}
+
+/// The size of one entry of a [`DeclarationBlock`] in bytes, without the
+/// data that its value points to.
+pub(crate) const DECLARATION_ENTRY_BYTES: usize = size_of::<PropertyDeclaration>();
+
 /// True if swb parses declarations of the property `name` (lower case;
 /// not custom properties): its own, aliases and the accepted but ignored
 /// ones.

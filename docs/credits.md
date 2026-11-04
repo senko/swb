@@ -75,12 +75,20 @@ Format: source, license (for code), what it influenced.
   — the `DOMParser` interface in `crates/web/idl/dom-parsing.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
 - W3C CSS Object Model (CSSOM) — https://drafts.csswg.org/cssom/ — the
-  IDL of `CSSStyleDeclaration` and `ElementCSSInlineStyle` in
-  `crates/web/idl/cssom.idl` (W3C Software and Document License 2023; see
-  THIRD_PARTY_NOTICES.md); the declaration block algorithms (set, remove,
-  serialize a declaration block, the camel-cased attributes) and
-  `CSS.escape` of `swb_style::cssom`. CSS Conditional Rules 3 §8.1 —
-  https://drafts.csswg.org/css-conditional-3/ — `CSS.supports`. CSS
+  IDL of `CSSStyleDeclaration`, `ElementCSSInlineStyle` and the style
+  sheet and rule interfaces in `crates/web/idl/cssom.idl` (W3C Software
+  and Document License 2023; see THIRD_PARTY_NOTICES.md); the declaration
+  block algorithms (set, remove, serialize a declaration block, the
+  camel-cased attributes) and `CSS.escape` of `swb_style::cssom`; the
+  style sheet algorithms of `swb_style::cssom::sheet` (insert and remove
+  a CSS rule, serialize a CSS rule, the sheet list, the
+  `selectorText` setter; M9 feature 6). CSS Conditional Rules 3, CSS
+  Fonts 4 and CSS Animations 1 — https://drafts.csswg.org/css-conditional-3/,
+  https://drafts.csswg.org/css-fonts-4/,
+  https://drafts.csswg.org/css-animations-1/ — the IDL of
+  `CSSConditionRule`, `CSSMediaRule`, `CSSSupportsRule`,
+  `CSSFontFaceRule` and `CSSKeyframesRule` in the same file (same
+  license). CSS Conditional Rules 3 §8.1 — `CSS.supports`. CSS
   Values 4 §10.12 — https://drafts.csswg.org/css-values-4/ — the
   simplification of `calc()` sums in the serialization.
 - W3C CSSOM View Module, Screen Orientation and Geometry Interfaces

@@ -42,6 +42,9 @@ pub trait DocumentImpl: b::Host {
     /// `readonly attribute Element? scrollingElement`.
     fn scrolling_element(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
+    /// `readonly attribute StyleSheetList styleSheets`.
+    fn style_sheets(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `attribute DOMString domain`.
     fn domain(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<String>;
 
@@ -297,6 +300,14 @@ fn get_scrolling_element<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_j
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let result = <H as DocumentImpl>::scrolling_element(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
         Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
+fn get_style_sheets<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Document", "styleSheets"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        let result = <H as DocumentImpl>::style_sheets(&mut b::Cx::new(rt, call, super::DOCUMENT), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -2562,6 +2573,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_accessor(realm, target, "documentElement", (Some(get_document_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "implementation", (Some(get_implementation::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "scrollingElement", (Some(get_scrolling_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "styleSheets", (Some(get_style_sheets::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "domain", (Some(get_domain::<H> as swb_js::NativeFn), Some(set_domain::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "readyState", (Some(get_ready_state::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "title", (Some(get_title::<H> as swb_js::NativeFn), Some(set_title::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;

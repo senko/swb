@@ -2337,7 +2337,8 @@ page would spend up to 3 s in style alone. The plan:
   of section 9 are the rule lists; a change marks the stylist as dirty.
   Rule insertion at a rate of hundreds per task (CSS-in-JS libraries)
   must not parse the other rules again. No M8 target uses these (BBC
-  does); they come with the first target that needs them.
+  does); they come with the first target that needs them. (M9 feature 6
+  implemented them; see "M9 feature notes".)
 - `CSS.supports`: through the `@supports` parser of `css`.
 
 Feature 7a notes (7a1: invalidation, counters, `element.style`,
@@ -4639,6 +4640,131 @@ Per document, all settings with these defaults:
 | Standard deviation of a `blur()` and of the blur of a `drop-shadow()` (feature 12c) | 256 device px (`MAX_SIGMA`; at most 2^25 px computed) | the blur is as large as 256 px (Chromium has no limit) |
 | Work of the filter steps of one strip (feature 12c): one unit per pixel of a color pass, six for a blur, eight for a drop shadow, over the layer of the group | 128 Mpx, or eight times the pixels of the strip if that is more | a group that does not fit, or whose layer does not fit the layer budget (it holds the layer and a scratch buffer), draws its content without the filter; one warning per frame |
 | Stops that the cut for premultiplied interpolation adds to a gradient (feature 12c) | 1,024 (at most 32 sections per pair of stops); the result has at most 2(n-1) + 1,024 stops for n input stops (the number of stops is not limited by the parser) | fewer sections per pair |
+| Estimated bytes of the parsed style data that scripts make, per document (M9 feature 6, review fix and second fix round): the rules of `insertRule` and `addRule`, the text of `style` elements that scripts made or changed, the declarations that scripts write through `rule.style` (`cssText`, `setProperty`, `removeProperty`, the property setters, `cssFloat`), and the selectors that scripts set through `selectorText` | 128 MiB (`MAX_SCRIPT_STYLE_BYTES`). Before the parse, a check of the text (2 bytes per byte plus 448 bytes for each `;`, `{` and `,`); after it, the estimate of the parsed form kept: the rule, its selectors, each declaration with its value tokens, and an entry per longhand (a shorthand has one per longhand, `all` about 150). The charge of a rule's declarations is that of the block after the last write, not the sum of the writes; held until the rule or sheet is freed | `insertRule` throws `QuotaExceededError`; a write of declarations changes nothing; a script-made sheet gets no rules; one warning per document |
+
+The style data that scripts make (M9 feature 6, review fix). The parsed
+form of CSS takes about 54 times the size of its text when the declarations
+are short: a rule of 300,000 declarations `--v:1;` (1.8 MB) takes 96 MB, 320
+bytes per declaration of 6 bytes of text (the declaration with its name and
+its value list, two allocations, and an entry in the declaration block of the
+cascade; the split between them was not measured, and the parser's data is
+not changed here). The JavaScript heap did not see it, because the rules live
+in Rust values: 300 `insertRule` calls of that rule reached 29 GB in 25 s
+(release build). The same growth came from three script paths, measured with
+20 repetitions (peak resident memory; an empty page is 67 MiB): `insertRule`
+2,057 MiB, `insertRule` and a style query 2,060 MiB, 20 new `style` elements
+with `textContent` of that rule 2,117 MiB; `rule.style.cssText` of 20 rules
+with 300,000 equal names 190 MiB (the block merges equal names; 100,000
+different names take about 30 MB each). A page with JavaScript off and one
+such `<style>` takes 210 MiB, ten of them 1,114 MiB; the build before the
+feature (b2746cc) took 210 and 1,130 MiB, so the page's own text is a cost
+that exists without scripts, bounded by the size of the document only, and
+this round does not change it.
+
+The bound is a limit on the estimated bytes of parsed style data that
+scripts make (`swb_style::cssom::sheet::StyleMemory`, one per document),
+not a charge to the JavaScript heap: the text of a `style` element is parsed
+by the engine's style flush, which a script can force inside one task (a
+loop that adds a `style` element and queries a style makes a 100 MB sheet in
+each pass), and no call of the bindings runs at that point to charge the heap
+(`Heap::generic_resized` needs the runtime), so a charge would reach the heap
+only at the next collection. The limit sits where the data is made. A `Hold` gives the bytes back when
+the rule or sheet that owns it is freed (a removed rule that a script no
+longer holds, a sheet whose `style` element left the document or got new
+text). The page's own sheets (the parser's text and the `link` responses) are
+free. At 128 MiB: `insertRule` throws `QuotaExceededError` (Chromium has no
+limit), a write of declarations changes nothing, a script-made sheet gets no
+rules (its text stays in the DOM), and one warning per document says so
+(with the bytes used).
+
+The estimate, second fix round. The first version of the bound estimated the
+parsed size from the text (2 bytes per character, 320 per `;`, `{` and `,`).
+The parsed form keeps one entry per longhand, so a shorthand costs several
+entries per `;`, and `all` (swb parses it) about 150: `.aN{all:initial}`,
+20 bytes of text, takes 13 KB, and the text estimate said 360 bytes. And
+`rule.style.setProperty`, the property setters and `cssFloat` changed a rule's
+declarations without a charge. The bound has two steps now.
+
+1. A check before the parse, from the text: 2 bytes per byte plus 448 bytes
+   for each `;`, `{` and `,` (what the shortest declaration takes parsed:
+   the declaration, one cascade entry, one entry of the `rule.style` block
+   and three tokens). It costs one pass and no parse, it bounds the transient
+   memory of one call, and a text that cannot fit is refused before the
+   parse (300 inserts of the 1.8 MB rule cost 2 s, not 10 s).
+2. The charge after the parse, from the data that is kept
+   (`swb_style::cssom::memory`): for a rule, 256 bytes, 128 per selector and 96
+   per simple selector or combinator in it; for each declaration, 96 bytes,
+   its name, three times the bytes of its component values (48 bytes per
+   value: the declaration as parsed, the copy of the cascade block and the
+   text of the `rule.style` block), and per entry that it sets (`all`: 150,
+   a shorthand: its longhands, an unknown property: none) 96 bytes in the
+   cascade block and 112 in the block of `rule.style` (`all` has none there).
+   The cascade block is made at a style flush, outside any call of the
+   bindings, so the charge is made at the insertion, from the parsed rule
+   (as if the stylist had built the block); it does not wait for the flush.
+   Declarations that the cascade drops later (duplicates, which the block
+   merges) stay counted, so the charge is an upper bound.
+
+The charge of a style rule is split: the rule holds its structure (and the
+rules inside it), and each style rule holds its declarations in a hold of
+its own. A write of declarations replaces that hold with the size of the
+block after the write: a page that sets `rule.style.transform` in every
+animation frame stays at the size of one entry. `StyleDeclarations` keeps
+the sum of its entries (each entry costs its own bytes and an equal share of
+the declaration that set it), so a write costs O(1) for the charge.
+What counts, and the refusal of each:
+
+| path | before the parse | charge | refusal |
+|---|---|---|---|
+| `insertRule`, `addRule` (sheet and grouping rule) | text | the parsed rule | `QuotaExceededError` |
+| text of a script-made or script-changed `style` sheet | text | the parsed rules | sheet without rules |
+| `rule.style.cssText` | text | the new block, replacing the old one | no change |
+| `setProperty`, property setters, `cssFloat` | none (the value is a string of the JavaScript heap) | the block after the write; the write must not add more than what fits | no change |
+| `removeProperty` | none | the block after the write (smaller) | none |
+
+A rule of the page's own sheets has no charge until a script writes its
+block; then the whole block counts. A write of declarations no longer parses
+the block into the cascade's declarations: `StyleRule::declarations_changed`
+(a parse of the whole block per write, quadratic in a loop of `setProperty`)
+is lazy. The rule drops its declarations at the write and the stylist makes
+them from the block at its next use. `selectorText` is charged the same
+way (orchestrator fix after the second round): the text passes the check
+before the parse, and the rule holds the estimate of the selector list as
+it is after the last write (128 bytes per selector and 96 per simple
+selector or combinator); a list that does not fit changes nothing (hostile
+case `cssom-selector-text-loop-js-on`: 300 rules, each set to a list of
+20,000 classes, 0.20 s, 135 MiB). Not covered: the `style` attribute of
+elements (the attribute text is in the DOM and `write_attribute` costs a
+pass over the block per write; backlog).
+
+Measured, release build, 8 GB memory limit, `timeout`; the script ends at its
+time limit of 5 s where the table says so. "Real" is the peak resident
+memory less the 70 to 100 MiB of an empty page, per rule or entry.
+
+| page | before (T1) | after |
+|---|---|---|
+| (a) 200,000 `insertRule('.aN{all:initial}')`, flush every 1,000 | 117,800 inserts in 5 s (time limit), 1,633 MiB, charged 360 bytes per rule (42 MB), real 13.3 KB per rule | 7,608 inserts, then refused: 0.30 s, 204 MiB, estimated 17.6 KB per rule, 128 MiB |
+| (b) `rule.style.setProperty('--v' + i, 'x'.repeat(1000))`, up to 1,000,000 | no charge; fewer than 5,000 writes in 5 s (each write parsed the whole block again), 16.6 s wall, 100 MiB | 36,000 entries (3.4 KB estimated each; real 4.5 KB with a flush), then refused: 5.1 s (time limit, writes of a full block cost 5 µs), 300 MiB |
+| (c) 100,000 `insertRule('.cN { }')`, each then `cssText = 'all: initial'` | 0.30 s, 170 MiB, 36 MB charged | 0.25 s, 169 MiB, 46 MB (480 bytes per rule; `rule.style` keeps no `all`) |
+| (d) as (a) with `margin;padding;border;font;background;grid` | 64,975 inserts, then refused: 1.4 s, 622 MiB, charged 2 KB per rule, real 8 KB | 11,745 inserts, then refused: 0.55 s, 206 MiB, estimated 11.4 KB per rule |
+
+The estimate is 1.3 to 1.4 times the real size per rule for (a) and (d), and
+0.7 times for (b) with a flush (the 36 MB text of the block that the flush
+serializes is a transient that the charge does not count).
+Hostile cases (all within the limits): `cssom-insert-all-loop-js-on` 0.30 s
+210 MiB, `cssom-insert-shorthands-loop-js-on` 0.50 s 207 MiB,
+`cssom-set-property-loop-js-on` 5.12 s 300 MiB,
+`cssom-rule-style-all-loop-js-on` 0.25 s 173 MiB; the earlier ones:
+`cssom-insert-large-rule-loop-js-on` (300 inserts of the 1.8 MB rule, every
+one refused by the check of the text, which is the check that costs no parse:
+1.96 s, 73 MiB), `cssom-large-style-elements-js-on` (1.10 s, 652 MiB, of which
+the texts in the DOM), `cssom-rule-style-text-loop-js-on` (2.11 s, 224 MiB;
+one text takes about 46 MB estimated, so two fit) and
+`cssom-append-medium-loop-js-on` (1.86 s). A rule of four declarations of 25
+bytes each (one longhand each) is estimated at about 3.5 KB for 100 bytes of
+text, so the limit allows about 3.7 MB of such script-made CSS. BBC's 786
+inserted rules are estimated at no more than 3 MB (786 times 3.5 KB), and its
+load time stays 0.30 s (median of 7: 0.299 s at T1, 0.297 s after).
 
 The budget of long tasks (feature 5b): the time limit of a task and the
 stop after three terminations do not bound a page of many scripts that
@@ -4876,6 +5002,160 @@ script_processing.rs` (`document_write_probe_cases`, with the departures in
   (geometry 0.9077 as before; the other JavaScript fixtures unchanged).
   The A/B scripts load a script from a URL whose query has the random
   `uid`, the time and the group.
+
+**Feature 6: CSSOM style sheets and rules (BBC's styled-components).**
+Section 10's sheets and rules. Chromium 148 values from
+`tools/probes/web-cssom-sheets.json` (14 cases, 90 queries, three
+byte-identical runs); `crates/engine/tests/cssom_sheets.rs` runs them in
+swb with the departures in `SWB_VALUES`.
+
+- **What BBC calls.** A copy of the fixture with a script that wraps the
+  CSSOM members before the page's scripts, in Chromium's replay (three
+  equal runs) and in swb: only styled-components v6 (`13ad5orspgznk.js`)
+  touches sheets during the load: `HTMLStyleElement.sheet` twice (its
+  `CSSOMTag` reads `sheet` of the `style` element it just inserted, with
+  `document.styleSheets` and `ownerNode` as a fallback),
+  `insertRule(rule, index)` 786 times (401 style rules, 382 `@media`, 2
+  `@supports`, 1 `@keyframes`; the index always given) and `deleteRule`
+  18 times. No `cssRules` read during the load. Two inserts throw in
+  Chromium (`::after *`), four in swb (also `::-webkit-scrollbar`, which
+  swb's selector parser rejects; styled-components counts only the
+  inserts that succeed, so its indexes stay right). The media player
+  `bump-4.js` (not loaded at start) also uses `cssRules.length`, `cssText`,
+  `@keyframes` inserts and `addRule` as a fallback.
+- **Object model.** `swb_style::cssom::sheet`: a `StyleSheet` (rules,
+  `media`, `disabled`, owner, `href`, `title`, origin-clean flag) and its
+  rules are `Rc<RefCell<…>>` values, shared by the engine's slot of the
+  `style` or `link` element (`SheetSlot::sheet`, made from the text at the
+  first stylist build or script access) and by the wrappers. A rule points
+  to its parent rule, and a top-level rule to its sheet, with weak
+  references, so the structure owns downwards only and a removed rule or a
+  sheet that lost its owner keeps its data for a script that holds it
+  (CSSOM). The model keeps the rules of the stylesheet parser (style rules,
+  `@media`, `@supports`, `@import`, `@font-face`, and now `@keyframes`,
+  which the parser keeps for the CSSOM only). `insertRule` parses only the
+  new rule (`swb_css::parse_rule`: CSS Syntax "parse a rule", one rule and
+  whitespace) and checks the CSSOM hierarchy (`@import` only before other
+  rules, none inside grouping rules). A style rule keeps its parsed
+  declaration block for the cascade with the base URL it was parsed for,
+  and the block of `CSSStyleRule.style` (the `StyleDeclarations` of 7a1)
+  is built at its first use; a change through `rule.style` makes the
+  block's text the rule's declarations again.
+- **Sheet lifetime (measured).** A `style` element gets a new sheet when
+  its text changes (the old one loses its owner and keeps its rules,
+  inserted rules included) and when it is removed and inserted again, also
+  within one task; a change of `media` or `title` keeps the sheet and
+  updates it; a `type` that is not CSS removes it. Any write of the
+  children or the data of the element gives a new sheet, also with the
+  text it had (`innerHTML`, `innerText`, `replaceChildren`, `appendChild` or
+  `append` of an empty text node or a comment, `data`, `nodeValue`,
+  `appendData`, `replaceData`, `splitText`, `textContent = ''`); only
+  `textContent` set to the text of its one text child, `normalize()` and
+  attribute writes keep the sheet (measured, case `style-text-writes`, 25
+  queries). The sheet loses its owner at once: `sheet.ownerNode` is `null`
+  right after `remove()` or a write of the text, and a removed and appended
+  element has a new sheet (case `owner-settles`); swb processes the DOM
+  changes first in the `ownerNode` getter. A `link` has no sheet until its load ended; an error
+  response gives an empty sheet (Chromium shows one for a 404). A sheet of
+  another origin throws `SecurityError` for `cssRules`, `rules`,
+  `insertRule`, `deleteRule` and `addRule`.
+- **Identity.** One wrapper per sheet and per rule: maps in the binding
+  state keyed by the address of the shared value; each wrapper's host data
+  holds the one strong reference of the wrappers, and the `[SameObject]`
+  members (`cssRules`, `media`, `style`) refer to the wrapper, not to the
+  value. A value whose strong count is one is held by its wrapper alone,
+  so no list can give it out again; such entries go when the maps reach
+  4,096 entries (then twice the entries that stay). `document.styleSheets`
+  is the document's side-table object; its length and items come from the
+  engine's settled slots, cached until the slot list changes.
+- **Invalidation and costs.** A change (`insertRule`, `deleteRule`,
+  `selectorText`, `rule.style`, `disabled`, a `MediaList` change) of a
+  sheet that belongs to the document calls `EngineHost::
+  style_sheets_changed`: the stylist is dirty, and the next style flush
+  builds the rule index once (`Stylist::add_cssom_sheet`) from the kept
+  rules and blocks, without a parse. `FlushCounters` count the stylist
+  builds and the sheet changes (`--bench`, `page.info`). Measured
+  (release, a page of 2,700 elements, five runs): 1,000 `insertRule` calls
+  cost 1.6 ms; 100 inserts each followed by a style query of one element
+  48 ms (0.5 ms per flush: the rule index of 2,100 author rules and the
+  element's cascade); 1,000 inserts with a `getComputedStyle` of a value
+  that layout resolves after each 10 cost 730 ms (7.3 ms per flush: a full
+  restyle and layout of the page, the work that feature 8's incremental
+  restyle cuts). BBC (replay, to `load`, 0.30 s): 728 sheet changes, 1
+  stylist build of 1.3 ms, no forced flush; with 1.5 s of page time after
+  the load (2.64 s, most of it scripts) 800 changes, 4 builds of 2.5 ms in
+  all, 4 forced style runs (18 ms) and 5 forced layouts (43 ms). The
+  runtime: senko.net heap 470,174 → 471,248 bytes, creation within noise
+  (1.33 → 1.35 ms median of seven interleaved runs).
+- **Chromium behaviour found.** `insertRule` returns the index, its index
+  defaults to 0 and is converted as `unsigned long` (`-1` is 4294967295);
+  `IndexSizeError` "The index provided (2) is larger than the maximum index
+  (1).", for `deleteRule` on an empty sheet "Style sheet is empty (length
+  0)."; `SyntaxError` "Failed to parse the rule '…'." for empty text, two
+  rules, a trailing `;` or text, `<!--`, `@charset` and unknown at-rules
+  (an unclosed block is fine); `HierarchyRequestError` "Failed to insert
+  the rule."; the grouping rules have their own messages ("the index 9 must
+  be less than or equal to the length of the rule list.", "the index 5 is
+  greated than the length of the rule list.", "'@import' rules cannot be
+  inserted inside a group rule."). `cssText`: `sel { decl; decl; }` with
+  the 7a1 serialization of the block and `{ }` when empty; type and
+  attribute names in lower case; `@media q {\n  rule\n}` with each rule on
+  its own line (the lines of a nested rule keep their indentation);
+  `@supports` with the condition as written; `@keyframes n { \n  0% { … }\n}`;
+  `@font-face { desc: value; }` with quoted `url()`; `@import url("x")
+  media;` with `href` as written. `CSSRule.cssText` writes do nothing;
+  `rules === cssRules`; `addRule(sel, style, index)` inserts `sel { style }`
+  at the end by default and returns -1; the lists are iterable; `disabled`
+  takes the sheet out of the cascade but not out of `document.styleSheets`;
+  a `MediaList` change of a sheet applies and leaves the `media` attribute
+  alone. `HTMLStyleElement.disabled` and `type` (obsolete, reflected) came
+  with this feature.
+- **Departures.** The rules that swb's parser drops are not in the lists
+  and are a `SyntaxError` for `insertRule` (`@page`, `@layer`,
+  `@container`, `@counter-style`, `@namespace`, selectors that swb does not
+  parse such as `::-webkit-scrollbar`), and `@layer` blocks are flattened;
+  no `CSSKeyframeRule` (`CSSKeyframesRule` has `name` only) and no
+  `CSSFontFaceRule.style`; `@import` sheets and alternate style sheets are
+  not loaded (`styleSheet` is null, the alternate sheets are not in
+  `document.styleSheets`); no constructable sheets and no
+  `adoptedStyleSheets`; sheets only for the elements of the window's
+  document (a `createHTMLDocument` document has none); a `link` whose
+  `href` changed has no sheet until the new one loads; a `link` moved in
+  the tree keeps its sheet object; swb accepts the `s` flag of attribute
+  selectors; grouping rules nest at most 64 levels through `insertRule`
+  (`HierarchyRequestError`; the parser's limit is 64 blocks too). After a
+  sweep of the wrapper maps (4,096 entries), a rule of a removed rule's
+  subtree can give a new wrapper for its removed parent, and a removed
+  sheet that a script still holds can give a new wrapper through
+  `rule.parentStyleSheet` of a rule it holds (identity of rules and of
+  sheets). `style.textContent = <the same text>`: Chromium keeps the sheet
+  of the element (inserted rules stay), replaces the text node and queues a
+  `childList` record. swb's `textContent` follows the DOM rules, as for any
+  element (the node is kept without a change when no mutation observer is
+  installed, and replaced with a record when one is; measured in feature 9a),
+  and a `style` element gets a new sheet after any write of its children. So
+  with no observer the result is Chromium's (the sheet stays), and with an
+  observer swb gives a new sheet and loses the inserted rules (departure;
+  `text_content_of_the_same_text_with_an_observer` in
+  `crates/engine/tests/cssom_sheets.rs`). The round before had a special
+  case in `textContent` that kept the node in the observed case too; it is
+  removed, because a DOM write keeps its DOM semantics. A script cannot
+  insert more than 128 MiB of estimated parsed style data (section 16;
+  Chromium has no limit).
+- **Review fixes.** Sheets that do not apply stay unparsed: a `style` or
+  `link` sheet whose `media` attribute does not match is not made for the
+  stylist (it is made when a script reads it), as before the CSSOM. A page
+  with six `<style media=print>` of 1.9 MB loaded in 64 ms before the
+  feature, 314 ms with it, 64 ms after the fix; six `media=screen` sheets of
+  the same size (180,000 rules) 465 ms, 515 ms, 515 ms (the CSSOM objects of
+  the sheets that apply cost 50 ms, 0.28 µs a rule). `insertRule` checks
+  only the rule at the index for the `@import` prefix. `appendMedium`,
+  `deleteMedium`, `length` and `item()` of a `MediaList` work on the parsed
+  queries (`MediaQueryList::append`, `remove`, `item`) without parsing the
+  list. The benchmark-only state (`parse_pending`, `StyleSheet::reparse`,
+  `clear_cascade_blocks`) stays in the types, marked: the timed stylist
+  build must include the parse, and re-creating the sheet would lose the
+  rules that scripts inserted.
 
 ## Consequences
 

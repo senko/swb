@@ -4,6 +4,48 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-04: M9 feature 6: CSSOM style sheets and rules
+
+- `document.styleSheets`, `sheet` of `style` and `link`, `CSSStyleSheet`
+  (`cssRules`, `insertRule`, `deleteRule`, the legacy `rules`, `addRule`
+  and `removeRule`), `CSSRuleList`, `CSSRule` and its subclasses (style,
+  `@media`, `@supports`, `@import`, `@font-face`, `@keyframes`),
+  `MediaList`, `HTMLStyleElement.disabled`.
+- The parsed sheet is the CSSOM object: `swb_style::cssom::sheet` holds
+  shared sheets and rules. The engine builds the stylist from them, and
+  the bindings change them. `insertRule` parses only the new rule; a
+  change makes the stylist dirty, and the next flush builds the rule
+  index once from the kept declaration blocks.
+- BBC's scripts use the CSSOM through styled-components only: 786
+  `insertRule` and 18 `deleteRule` calls during the load, the same in
+  Chromium and swb. Chromium behaviour: 12 probe cases, 59 queries,
+  three equal runs (exception messages, `cssText` forms, sheet lifetimes,
+  `SecurityError` for the rules of a sheet from another origin).
+- BBC hydrates: Register and Sign In, the carousel arrows, and 122 images
+  with 51 placeholders, as in Chromium. The only script error left is
+  the module script (feature 7). `compare --js bbc`: geometry
+  0.1087 → 0.9915; pixels 0.3720 → 0.2471, because the consent frame
+  and the cookie banner cover Chromium's viewport and swb shows the
+  page under them. Load 0.30 s (budget 4.60 s); with 1.5 s of page time
+  the run takes 2.64 s, most of it in scripts after `load`.
+- Review fixes, in two rounds:
+  - The style data that scripts make is limited to 128 MiB per
+    document (estimated). Before, 300 inserts of a 1.8 MB rule took
+    29 GB. The estimate follows the parsed form: a text check before the
+    parse, then a charge per kept entry (`all:initial` is about 150
+    longhand entries, about 13 KB for 16 bytes of text). It covers
+    `insertRule`, script-made sheet text, every `rule.style` write and
+    `selectorText`. A rule's charge for its declarations follows the
+    block after the last write, so a per-frame write does not add up.
+  - Sheets that do not apply (`media=print`) stay unparsed. The JS-off
+    load of a page with large print sheets is back to 64 ms (314 ms
+    before the fix).
+  - `ownerNode` processes pending DOM changes first. A write of a
+    `style` element's children or text gives a new sheet, as in
+    Chromium (90 probe queries now).
+- JS-off snapshot identical; the other JS fixtures unchanged.
+- Next: M9 feature 7 (module scripts).
+
 ## 2026-11-04: M9 feature 5: `backdrop-filter`
 
 - `backdrop-filter` uses the grammar, computed value and serialization

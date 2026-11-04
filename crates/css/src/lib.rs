@@ -37,7 +37,7 @@ mod values;
 
 pub use cursor::{ParseError, Parser};
 pub use media::{ColorScheme, MediaEnvironment, MediaQueryList, MediaType};
-pub use parser::{parse_component_values, parse_style_attribute, parse_stylesheet};
+pub use parser::{parse_component_values, parse_rule, parse_style_attribute, parse_stylesheet};
 pub use selector::{
     AnB, BucketKey, CaseSensitivity, Element, ElementState, MATCH_BUDGET, MatchingContext,
     PseudoElement, QuirksMode, Selector, SelectorList, Specificity, matches, matches_any,
@@ -46,7 +46,8 @@ pub use selector::{
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
 pub use sizes::{allows_auto, source_size};
 pub use stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
+    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, MediaRule, StyleRule,
+    Stylesheet, SupportsRule,
 };
 pub use supports::SupportsCondition;
 pub use tokenizer::{Number, Token, tokenize};

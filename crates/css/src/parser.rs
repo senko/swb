@@ -23,15 +23,19 @@
 
 use log::{debug, warn};
 
+use crate::cursor::ParseError;
 use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
-use crate::serialize::DisplayValues;
+use crate::serialize::{DisplayValues, serialize_component_values};
 use crate::stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
+    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, MediaRule, StyleRule,
+    Stylesheet, SupportsRule,
 };
 use crate::supports::SupportsCondition;
 use crate::tokenizer::{Token, Tokenizer, preprocess};
-use crate::values::{BlockKind, ComponentValue, Function, SimpleBlock};
+use crate::values::{
+    BlockKind, ComponentValue, Function, SimpleBlock, split_on_commas, trim_whitespace,
+};
 
 /// The maximum nesting depth of blocks and functions. Deeper blocks are
 /// skipped and replaced with empty ones.
@@ -335,7 +339,12 @@ impl<'a> RuleParser<'a> {
             ("supports", true) if holds_rules => {
                 if let Ok(condition) = SupportsCondition::parse(prelude) {
                     let rules = self.consume_rule_block();
-                    out.push(CssRule::Supports(SupportsRule { condition, rules }));
+                    let text = serialize_component_values(trim_whitespace(prelude));
+                    out.push(CssRule::Supports(SupportsRule {
+                        condition,
+                        text,
+                        rules,
+                    }));
                 } else {
                     debug!(
                         "dropped @supports with invalid condition `{}`",
@@ -354,6 +363,15 @@ impl<'a> RuleParser<'a> {
             ("font-face", true) if holds_rules => {
                 let declarations = self.consume_declaration_block(Context::Descriptors);
                 out.push(CssRule::FontFace(FontFaceRule { declarations }));
+            }
+            ("keyframes", true) if holds_rules => {
+                if let Some(name) = keyframes_name(prelude) {
+                    let keyframes = self.consume_keyframe_list();
+                    out.push(CssRule::Keyframes(KeyframesRule { name, keyframes }));
+                } else {
+                    debug!("dropped @keyframes with invalid name");
+                    self.skip_block(BlockKind::Curly);
+                }
             }
             ("import", false) if context == Context::TopLevel && self.allow_import => {
                 match ImportRule::parse(prelude) {
@@ -451,6 +469,60 @@ impl<'a> RuleParser<'a> {
         self.consume_block_contents(context, &mut declarations, &mut Vec::new());
         self.leave_block();
         declarations
+    }
+
+    /// Consumes the `{}` block of an `@keyframes` rule (the `{` is already
+    /// consumed): keyframe rules, each a list of keyframe selectors and a
+    /// declaration block. A keyframe with an invalid selector and nested
+    /// at-rules are dropped.
+    /// <https://drafts.csswg.org/css-animations-1/#keyframes>
+    fn consume_keyframe_list(&mut self) -> Vec<Keyframe> {
+        let mut keyframes = Vec::new();
+        if !self.enter_block(BlockKind::Curly) {
+            return keyframes;
+        }
+        loop {
+            match self.input.peek() {
+                None | Some(Token::CloseCurly) => break,
+                Some(Token::Whitespace | Token::Semicolon) => {
+                    self.input.next();
+                }
+                Some(Token::AtKeyword(_)) => {
+                    self.consume_at_rule(true, Context::Descriptors, &mut Vec::new());
+                }
+                Some(_) => {
+                    let mut prelude = Vec::new();
+                    let has_block = loop {
+                        match self.input.peek() {
+                            None | Some(Token::CloseCurly) => break false,
+                            Some(Token::Semicolon) => {
+                                self.input.next();
+                                break false;
+                            }
+                            Some(Token::OpenCurly) => {
+                                self.input.next();
+                                break true;
+                            }
+                            Some(_) => {
+                                if let Some(value) = self.consume_component_value() {
+                                    prelude.push(value);
+                                }
+                            }
+                        }
+                    };
+                    if !has_block {
+                        continue;
+                    }
+                    let declarations = self.consume_declaration_block(Context::Descriptors);
+                    match keyframe_selectors(&prelude) {
+                        Some(keys) => keyframes.push(Keyframe { keys, declarations }),
+                        None => debug!("dropped keyframe `{}`", DisplayValues(&prelude)),
+                    }
+                }
+            }
+        }
+        self.leave_block();
+        keyframes
     }
 
     /// Increments the nesting depth for a block or function of `kind` whose
@@ -621,6 +693,77 @@ impl<'a> RuleParser<'a> {
             }
         }
     }
+}
+
+/// The name of an `@keyframes` rule: one identifier (not a CSS-wide
+/// keyword or `none`) or one string.
+/// <https://drafts.csswg.org/css-animations-1/#typedef-keyframes-name>
+fn keyframes_name(prelude: &[ComponentValue]) -> Option<String> {
+    match trim_whitespace(prelude) {
+        [ComponentValue::Ident(name)] => {
+            let reserved = [
+                "initial",
+                "inherit",
+                "unset",
+                "revert",
+                "revert-layer",
+                "default",
+                "none",
+            ];
+            (!reserved.iter().any(|r| name.eq_ignore_ascii_case(r))).then(|| name.to_string())
+        }
+        [ComponentValue::String(name)] => Some(name.to_string()),
+        _ => None,
+    }
+}
+
+/// The keyframe selectors of a keyframe rule's prelude: a comma-separated
+/// list of `from`, `to` and percentages from 0% to 100%.
+/// <https://drafts.csswg.org/css-animations-1/#typedef-keyframe-selector>
+fn keyframe_selectors(prelude: &[ComponentValue]) -> Option<Vec<f32>> {
+    split_on_commas(prelude)
+        .map(|part| match trim_whitespace(part) {
+            [ComponentValue::Ident(word)] if word.eq_ignore_ascii_case("from") => Some(0.0),
+            [ComponentValue::Ident(word)] if word.eq_ignore_ascii_case("to") => Some(100.0),
+            [ComponentValue::Percentage(n)] if (0.0..=100.0).contains(&n.value) => Some(n.value),
+            _ => None,
+        })
+        .collect()
+}
+
+/// At-rules that [`parse_rule`] accepts: those that the stylesheet model
+/// keeps as rules.
+const RULE_AT_RULES: &[&str] = &["media", "supports", "import", "font-face", "keyframes"];
+
+/// Parses exactly one rule (CSS Syntax "parse a rule", for CSSOM
+/// `insertRule`): optional whitespace, a style rule or a supported
+/// at-rule, optional whitespace. A rule that the stylesheet parser would
+/// drop (an invalid selector or prelude, an at-rule that the model does not
+/// keep, a rule without a block) is an error, and so is any other content
+/// before the end.
+/// <https://drafts.csswg.org/css-syntax/#parse-rule>
+pub fn parse_rule(css: &str) -> Result<CssRule, ParseError> {
+    let input = preprocess(css);
+    let mut parser = RuleParser::new(&input);
+    parser.skip_whitespace();
+    let mut out = Vec::new();
+    let at_rule = match parser.input.peek() {
+        None => return Err(ParseError::EndOfInput),
+        Some(Token::AtKeyword(name)) => Some(name.to_ascii_lowercase()),
+        Some(_) => None,
+    };
+    match at_rule {
+        Some(name) if !RULE_AT_RULES.contains(&name.as_str()) => {
+            return Err(ParseError::Unexpected);
+        }
+        Some(_) => parser.consume_at_rule(false, Context::TopLevel, &mut out),
+        None => parser.consume_qualified_rule(false, false, Context::TopLevel, &mut out),
+    }
+    parser.skip_whitespace();
+    if parser.input.peek().is_some() || out.len() != 1 {
+        return Err(ParseError::Unexpected);
+    }
+    out.pop().ok_or(ParseError::Unexpected)
 }
 
 /// True if a valid top-level at-rule with this (lowercase) name ends the
@@ -909,6 +1052,7 @@ mod tests {
                 CssRule::Import(_) => "import",
                 CssRule::FontFace(_) => "font-face",
                 CssRule::Supports(_) => "supports",
+                CssRule::Keyframes(_) => "keyframes",
             })
             .collect();
         assert_eq!(
@@ -916,12 +1060,19 @@ mod tests {
             vec![
                 "import",
                 "import",
+                "keyframes",
                 "font-face",
                 "style",
                 "supports",
                 "style"
             ]
         );
+        let CssRule::Keyframes(spin) = &sheet.rules[2] else {
+            panic!("expected @keyframes");
+        };
+        assert_eq!(spin.name, "spin");
+        assert_eq!(spin.keyframes.len(), 2);
+        assert_eq!(spin.keyframes[1].keys, vec![100.0]);
         let CssRule::Import(import) = &sheet.rules[0] else {
             panic!("expected @import");
         };
@@ -932,7 +1083,7 @@ mod tests {
         };
         assert_eq!(import.url, "b.css");
         assert!(import.media.is_empty());
-        let CssRule::FontFace(font_face) = &sheet.rules[2] else {
+        let CssRule::FontFace(font_face) = &sheet.rules[3] else {
             panic!("expected @font-face");
         };
         let range = &font_face.declarations[2];
@@ -959,7 +1110,7 @@ mod tests {
         assert_eq!(sheet.rules.len(), 1);
         // Dropped but valid rules close the @import window too.
         let sheet = parse_stylesheet("@keyframes k {} @import url(late.css);");
-        assert_eq!(sheet.rules.len(), 0);
+        assert!(matches!(&sheet.rules[..], [CssRule::Keyframes(_)]));
         let sheet = parse_stylesheet("@namespace x url(y); @import url(late.css);");
         assert_eq!(sheet.rules.len(), 0);
         let sheet = parse_stylesheet("@layer a, b; @import url(ok.css);");
@@ -1074,5 +1225,69 @@ mod tests {
     fn crlf_in_stylesheet() {
         let rules = style_rules("a {\r\n  color: red;\r\n}\r\nb { x: y }");
         assert_eq!(rules.len(), 2);
+    }
+
+    /// The texts that Chromium 148 accepts and rejects in `insertRule`
+    /// (`tools/probes/web-cssom-sheets.json`, case `insert-rule`), for the
+    /// rules that the model keeps.
+    #[test]
+    fn parse_rule_accepts_exactly_one_rule() {
+        for ok in [
+            "#b {",
+            "  #b { color: red }  ",
+            "/* c */ #b {} /* d */",
+            "#b { color: red",
+            "@media screen { #b { color: red }",
+            "@media print {}",
+            "@import url(x.css);",
+            "@supports (display: grid) { #a { color: red } }",
+            "@keyframes pulse { 0% { opacity: 1 } 60% { opacity: 0.3 } 100% { opacity: 1 } }",
+            "@font-face { font-family: X; src: url(x.woff2) }",
+            "@MEDIA screen {}",
+        ] {
+            assert!(parse_rule(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            "",
+            "   ",
+            "#b {} #c {}",
+            "garbage",
+            "@media screen",
+            "#b {};",
+            "a::after * {}",
+            "<!-- #b {} -->",
+            "#b {} garbage",
+            "@charset \"utf-8\";",
+            "@unknown {}",
+            "@unknown x;",
+            "@layer base { #a { color: red } }",
+            "@layer base;",
+            "@page { margin: 1cm }",
+            "@keyframes none {}",
+            "@supports (( {}",
+        ] {
+            assert!(parse_rule(bad).is_err(), "{bad}");
+        }
+        let Ok(CssRule::Supports(s)) = parse_rule("@supports  (a:b)  { }") else {
+            panic!("expected @supports");
+        };
+        assert_eq!(s.text, "(a:b)");
+    }
+
+    #[test]
+    fn keyframes() {
+        let sheet = parse_stylesheet(
+            "@keyframes 'q' { from, 50% { top: 0 } bad { top: 1px } 120% { x: y } to { top: 2px; } @media x {} }",
+        );
+        let CssRule::Keyframes(k) = &sheet.rules[0] else {
+            panic!("expected @keyframes");
+        };
+        assert_eq!(k.name, "q");
+        let keys: Vec<&[f32]> = k.keyframes.iter().map(|f| &f.keys[..]).collect();
+        assert_eq!(keys, vec![&[0.0, 50.0][..], &[100.0][..]]);
+        assert_eq!(
+            decl_summary(&k.keyframes[1].declarations),
+            vec![s("top", "2px", false)]
+        );
     }
 }

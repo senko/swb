@@ -98,6 +98,12 @@ impl g::document::DocumentImpl for WebState {
         crate::html::focus::active_element(cx, this)
     }
 
+    /// `styleSheets`; the list of a document other than the window's is
+    /// empty (departure: swb styles only the window's document).
+    fn style_sheets(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::cssom_sheets::style_sheets(cx, this)
+    }
+
     fn has_focus(_cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
         Ok(crate::html::focus::has_focus(this))
     }

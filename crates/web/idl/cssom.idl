@@ -10,11 +10,30 @@
 // THIRD_PARTY_NOTICES.md).
 //
 // swb cut this file to `CSSStyleDeclaration`, `ElementCSSInlineStyle`
-// (M8 feature 7a1) and `getComputedStyle` (§9 "Extensions to the Window
-// Interface", feature 7a2). Changes:
+// (M8 feature 7a1), `getComputedStyle` (§9 "Extensions to the Window
+// Interface", feature 7a2), and the style sheets and rules of §6.1 to §6.4
+// (`MediaList`, `StyleSheet`, `CSSStyleSheet`, `StyleSheetList`,
+// `LinkStyle`, `styleSheets` of `DocumentOrShadowRoot`, `CSSRuleList`,
+// `CSSRule`, `CSSStyleRule`, `CSSImportRule`, `CSSGroupingRule`; M9
+// feature 6, copied on 2026-11-04), with rule interfaces of other
+// specifications at the end, copied on the same day: CSS Conditional
+// Rules 3 (https://drafts.csswg.org/css-conditional-3/), CSS Fonts 4
+// (https://drafts.csswg.org/css-fonts-4/) and CSS Animations 1
+// (https://drafts.csswg.org/css-animations-1/), W3C Editor's Drafts under
+// the same license as CSSOM.
+// Changes:
 //
-// - `parentRule` is `object?` (no `CSSRule` yet; it is always null for the
-//   declarations of a `style` attribute).
+// - The order of some members follows Chromium's prototypes (measured,
+//   `tools/probes/web-cssom-sheets.json`): `MediaList` has `length` before
+//   `mediaText`, `CSSRule` has `type` first.
+// - Not included: the `CSSStyleSheet` constructor, `replace` and
+//   `replaceSync` (constructable style sheets), `adoptedStyleSheets`,
+//   `CSSStyleRule.styleMap` and the nesting members of `CSSStyleRule`,
+//   `CSSPageRule`, `CSSMarginRule`, `CSSNamespaceRule`,
+//   `CSSFontFaceRule.style` and the members of `CSSKeyframesRule` but
+//   `name` (swb runs no animations).
+// - `StyleSheet.ownerNode` is `Node?` (the generator has no union return
+//   type here; the value is always an element or null).
 // - The camel-cased, webkit-cased and dashed attributes of each supported
 //   property (CSSOM §6.7.1) are not attributes here: the two special
 //   operations at the end are swb's own, and `[SwbPropertyNames]` makes
@@ -43,7 +62,7 @@ interface CSSStyleDeclaration {
   CSSOMString getPropertyPriority(CSSOMString property);
   [CEReactions] undefined setProperty(CSSOMString property, [LegacyNullToEmptyString] CSSOMString value, optional [LegacyNullToEmptyString] CSSOMString priority = "");
   [CEReactions] CSSOMString removeProperty(CSSOMString property);
-  readonly attribute object? parentRule;
+  readonly attribute CSSRule? parentRule;
   [CEReactions] attribute [LegacyNullToEmptyString] CSSOMString cssFloat;
 
   getter CSSOMString (DOMString name);
@@ -59,4 +78,141 @@ SVGElement includes ElementCSSInlineStyle;
 
 partial interface Window {
   [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+};
+
+[Exposed=Window]
+interface MediaList {
+  readonly attribute unsigned long length;
+  stringifier attribute [LegacyNullToEmptyString] CSSOMString mediaText;
+  getter CSSOMString? item(unsigned long index);
+  undefined appendMedium(CSSOMString medium);
+  undefined deleteMedium(CSSOMString medium);
+};
+
+[Exposed=Window]
+interface StyleSheet {
+  readonly attribute CSSOMString type;
+  readonly attribute USVString? href;
+  readonly attribute Node? ownerNode;
+  readonly attribute CSSStyleSheet? parentStyleSheet;
+  readonly attribute DOMString? title;
+  [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+  attribute boolean disabled;
+};
+
+[Exposed=Window]
+interface CSSStyleSheet : StyleSheet {
+  readonly attribute CSSRule? ownerRule;
+  [SameObject] readonly attribute CSSRuleList cssRules;
+  unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+  undefined deleteRule(unsigned long index);
+};
+
+partial interface CSSStyleSheet {
+  [SameObject] readonly attribute CSSRuleList rules;
+  long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
+  undefined removeRule(optional unsigned long index = 0);
+};
+
+[Exposed=Window]
+interface StyleSheetList {
+  getter CSSStyleSheet? item(unsigned long index);
+  readonly attribute unsigned long length;
+};
+
+partial interface Document {
+  [SameObject] readonly attribute StyleSheetList styleSheets;
+};
+
+interface mixin LinkStyle {
+  readonly attribute CSSStyleSheet? sheet;
+};
+
+HTMLLinkElement includes LinkStyle;
+HTMLStyleElement includes LinkStyle;
+SVGStyleElement includes LinkStyle;
+
+[Exposed=Window]
+interface CSSRuleList {
+  getter CSSRule? item(unsigned long index);
+  readonly attribute unsigned long length;
+};
+
+[Exposed=Window]
+interface CSSRule {
+  readonly attribute unsigned short type;
+  attribute CSSOMString cssText;
+  readonly attribute CSSRule? parentRule;
+  readonly attribute CSSStyleSheet? parentStyleSheet;
+
+  const unsigned short STYLE_RULE = 1;
+  const unsigned short CHARSET_RULE = 2;
+  const unsigned short IMPORT_RULE = 3;
+  const unsigned short MEDIA_RULE = 4;
+  const unsigned short FONT_FACE_RULE = 5;
+  const unsigned short PAGE_RULE = 6;
+  const unsigned short MARGIN_RULE = 9;
+  const unsigned short NAMESPACE_RULE = 10;
+  // CSS Animations 1, CSS Counter Styles 3, CSS Fonts 4 and CSS
+  // Conditional 3 add these to `CSSRule`.
+  const unsigned short KEYFRAMES_RULE = 7;
+  const unsigned short KEYFRAME_RULE = 8;
+  const unsigned short COUNTER_STYLE_RULE = 11;
+  const unsigned short FONT_FEATURE_VALUES_RULE = 14;
+  const unsigned short SUPPORTS_RULE = 12;
+};
+
+[Exposed=Window]
+interface CSSStyleRule : CSSRule {
+  attribute CSSOMString selectorText;
+  [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+};
+
+[Exposed=Window]
+interface CSSImportRule : CSSRule {
+  readonly attribute USVString href;
+  [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+  [SameObject] readonly attribute CSSStyleSheet? styleSheet;
+  readonly attribute CSSOMString? layerName;
+  readonly attribute CSSOMString? supportsText;
+};
+
+[Exposed=Window]
+interface CSSGroupingRule : CSSRule {
+  [SameObject] readonly attribute CSSRuleList cssRules;
+  unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
+  undefined deleteRule(unsigned long index);
+};
+
+// CSS Conditional Rules 3 (https://drafts.csswg.org/css-conditional-3/,
+// §7 "APIs"): `matches` of the newer drafts is not included (Chromium 148
+// has none).
+
+[Exposed=Window]
+interface CSSConditionRule : CSSGroupingRule {
+  readonly attribute CSSOMString conditionText;
+};
+
+[Exposed=Window]
+interface CSSMediaRule : CSSConditionRule {
+  [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+};
+
+[Exposed=Window]
+interface CSSSupportsRule : CSSConditionRule {
+};
+
+// CSS Fonts 4 (https://drafts.csswg.org/css-fonts-4/, §16.1): without
+// `style`.
+
+[Exposed=Window]
+interface CSSFontFaceRule : CSSRule {
+};
+
+// CSS Animations 1 (https://drafts.csswg.org/css-animations-1/, §6.2): only
+// `name`.
+
+[Exposed=Window]
+interface CSSKeyframesRule : CSSRule {
+  attribute CSSOMString name;
 };

@@ -21,14 +21,15 @@ use std::sync::{Arc, LazyLock};
 
 use log::trace;
 use swb_css::{
-    BucketKey, CssRule, ElementState, MatchingContext, MediaEnvironment, MediaQueryList,
-    PseudoElement, Selector, StyleRule, Stylesheet, matches, parse_stylesheet,
+    BucketKey, CssRule, ElementState, FontFaceRule, MatchingContext, MediaEnvironment,
+    MediaQueryList, PseudoElement, Selector, SelectorList, Stylesheet, matches, parse_stylesheet,
 };
 use url::Url;
 
 use smallvec::SmallVec;
 
 use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
+use crate::cssom::sheet::{RuleKind, RuleRef, StyleSheet};
 use crate::element::DomElement;
 use crate::font_face::FontFace;
 use crate::parse::ParserContext;
@@ -276,49 +277,94 @@ impl Stylist {
     ) {
         for rule in rules {
             match rule {
-                CssRule::Style(style) => self.add_style_rule(style, cx, origin, media),
+                CssRule::Style(style) => {
+                    let block = DeclarationBlock::parse(&style.declarations, cx);
+                    self.add_style_rule(&style.selectors, &Arc::new(block), origin, media);
+                }
                 CssRule::Media(m) => {
-                    let list_index = self.media_lists.len() as u32;
-                    self.media_lists.push(m.media.clone());
-                    let mut chain = media
-                        .map(|c| self.media_chains[c as usize].clone())
-                        .unwrap_or_default();
-                    chain.push(list_index);
-                    let chain_index = self.media_chains.len() as u32;
-                    self.media_chains.push(chain);
-                    self.add_rules(&m.rules, cx, origin, Some(chain_index));
+                    let chain = self.push_media(&m.media, media);
+                    self.add_rules(&m.rules, cx, origin, Some(chain));
                 }
                 CssRule::Supports(s) => {
                     if s.condition.evaluate(&is_supported) {
                         self.add_rules(&s.rules, cx, origin, media);
                     }
                 }
-                CssRule::FontFace(rule) => {
-                    let Some(face) = FontFace::parse(rule, cx) else {
-                        continue;
-                    };
-                    if self.font_faces.len() < MAX_FONT_FACES {
-                        self.font_faces.push((face, media));
-                    } else if !self.font_faces_truncated {
-                        log::warn!(
-                            "more than {MAX_FONT_FACES} @font-face rules; ignoring the rest"
-                        );
-                        self.font_faces_truncated = true;
+                CssRule::FontFace(rule) => self.add_font_face(rule, cx, media),
+                CssRule::Import(_) | CssRule::Keyframes(_) => {}
+            }
+        }
+    }
+
+    /// Adds an author stylesheet from its CSSOM rules (ADR 0028 section
+    /// 10): the declaration blocks that an earlier build parsed are reused,
+    /// so a rebuild after a change of the rules parses nothing again but
+    /// the changed rules. Relative `url()` values resolve against
+    /// `base_url`. Sheets must be added in document order.
+    pub fn add_cssom_sheet(&mut self, sheet: &StyleSheet, base_url: &Url) {
+        let cx = ParserContext::author(Some(Arc::new(base_url.clone())), self.quirks);
+        self.add_cssom_rules(sheet.rules(), &cx, None);
+    }
+
+    fn add_cssom_rules(&mut self, rules: &[RuleRef], cx: &ParserContext, media: Option<u32>) {
+        for rule in rules {
+            let mut rule = rule.borrow_mut();
+            match &mut rule.kind {
+                RuleKind::Style(style) => {
+                    let block = style.cascade_block(cx);
+                    self.add_style_rule(style.selectors(), &block, CascadeOrigin::Author, media);
+                }
+                RuleKind::Media { media: list, rules } => {
+                    let chain = self.push_media(list, media);
+                    self.add_cssom_rules(rules, cx, Some(chain));
+                }
+                RuleKind::Supports {
+                    condition, rules, ..
+                } => {
+                    if condition.evaluate(&is_supported) {
+                        self.add_cssom_rules(rules, cx, media);
                     }
                 }
-                CssRule::Import(_) => {}
+                RuleKind::FontFace(face) => self.add_font_face(face, cx, media),
+                RuleKind::Import(_) | RuleKind::Keyframes(_) => {}
             }
+        }
+    }
+
+    /// Adds the media query list of an `@media` rule inside the chain
+    /// `parent`; returns the index of the new chain.
+    fn push_media(&mut self, list: &MediaQueryList, parent: Option<u32>) -> u32 {
+        let list_index = self.media_lists.len() as u32;
+        self.media_lists.push(list.clone());
+        let mut chain = parent
+            .map(|c| self.media_chains[c as usize].clone())
+            .unwrap_or_default();
+        chain.push(list_index);
+        let chain_index = self.media_chains.len() as u32;
+        self.media_chains.push(chain);
+        chain_index
+    }
+
+    /// Adds a valid `@font-face` rule, up to [`MAX_FONT_FACES`].
+    fn add_font_face(&mut self, rule: &FontFaceRule, cx: &ParserContext, media: Option<u32>) {
+        let Some(face) = FontFace::parse(rule, cx) else {
+            return;
+        };
+        if self.font_faces.len() < MAX_FONT_FACES {
+            self.font_faces.push((face, media));
+        } else if !self.font_faces_truncated {
+            log::warn!("more than {MAX_FONT_FACES} @font-face rules; ignoring the rest");
+            self.font_faces_truncated = true;
         }
     }
 
     fn add_style_rule(
         &mut self,
-        rule: &StyleRule,
-        cx: &ParserContext,
+        selectors: &SelectorList,
+        block: &Arc<DeclarationBlock>,
         origin: CascadeOrigin,
         media: Option<u32>,
     ) {
-        let block = DeclarationBlock::parse(&rule.declarations, cx);
         if block.is_empty() {
             return;
         }
@@ -327,8 +373,7 @@ impl Stylist {
             .iter()
             .chain(&block.important)
             .any(|d| d.longhand() == Some(crate::properties::LonghandId::Content));
-        let block = Arc::new(block);
-        for selector in &rule.selectors {
+        for selector in selectors {
             let map = match selector.pseudo_element() {
                 None => &mut self.element_rules,
                 Some(PseudoElement::Before) => &mut self.before_rules,
@@ -353,7 +398,7 @@ impl Stylist {
             self.state_dependencies |= selector.state_dependencies();
             self.rules.push(Rule {
                 selector: selector.clone(),
-                block: Arc::clone(&block),
+                block: Arc::clone(block),
                 origin,
                 sort_key: (u64::from(specificity) << 32) | u64::from(self.next_order),
                 media,
@@ -451,6 +496,7 @@ impl Stylist {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use swb_css::StyleRule;
 
     #[test]
     fn font_faces_follow_media_and_supports() {

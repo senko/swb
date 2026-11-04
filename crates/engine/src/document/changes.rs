@@ -165,6 +165,14 @@ impl DocumentState {
         }
     }
 
+    /// True if the changes that the drain processes come from scripts: the
+    /// document runs scripts, and the parser did not make them. The text of
+    /// a style sheet that a script made counts against the style data that
+    /// scripts may make (ADR 0028 section 16); the parser's does not.
+    fn script_change(&self) -> bool {
+        self.dom.scripting() && !self.parser_drain
+    }
+
     /// Reconciles every element of the document (an incomplete journal).
     fn rediscover(&mut self) {
         #[cfg(test)]
@@ -366,11 +374,29 @@ impl DocumentState {
         // The owners of the sheets that were placed in the list (new, or
         // reconciled because they were inserted or changed).
         let mut placed = Vec::new();
+        // A `style` element that left the document and came back in this
+        // drain gets a new sheet object, as in Chromium (measured: the
+        // rules that a script inserted are gone); a `link` keeps its sheet
+        // and loads nothing again.
+        let moved: HashSet<NodeId> = if batch.removed.is_empty() {
+            HashSet::new()
+        } else {
+            batch.removed.iter().copied().collect()
+        };
         for &node in &batch.candidates {
             match self.dom.element(node).and_then(Kind::of) {
-                Some(Kind::Style | Kind::Link) => {
+                Some(kind @ (Kind::Style | Kind::Link)) => {
                     let index = self.sheets.position(node);
-                    let old = index.map(|i| self.sheets.remove(i));
+                    let mut old = index.map(|i| self.sheets.remove(i));
+                    // A `style` element whose children or text were written
+                    // (also with the text it had) gets a new sheet, as in
+                    // Chromium (measured, `style-text-writes`).
+                    if kind == Kind::Style
+                        && (moved.contains(&node) || batch.sheet_text.contains(&node))
+                        && let Some(slot) = &mut old
+                    {
+                        slot.set_css(None, false);
+                    }
                     let had = old.is_some();
                     let (slot, changed) = self.wanted_sheet(node, old, &mut plan);
                     stylist_dirty |= changed || (had && slot.is_none());
@@ -488,10 +514,12 @@ impl DocumentState {
         old: Option<SheetSlot>,
         plan: &mut LoadPlan,
     ) -> (Option<SheetSlot>, bool) {
+        let script = self.script_change();
         let Some(element) = self.dom.element(owner) else {
             return (None, old.is_some());
         };
         let media = element.attr("media").map(str::to_owned);
+        let title = element.attr("title").map(str::to_owned);
         match Kind::of(element) {
             Some(Kind::Style) => {
                 // Chromium (measured, `tools/probes/inline-svg.json`, case
@@ -505,16 +533,27 @@ impl DocumentState {
                 match old {
                     Some(mut slot) if slot.source == SheetSource::Inline => {
                         let mut changed = slot.media != media;
-                        if slot.css.as_deref() != Some(css.as_str()) {
-                            slot.css = Some(css);
-                            slot.parsed = None;
+                        if slot.css() != Some(css.as_str()) {
+                            slot.set_css(Some(css), script);
                             changed = true;
                         }
-                        slot.media = media;
+                        // A changed `media` or `title` keeps the sheet
+                        // object (Chromium, measured).
+                        if slot.media != media {
+                            slot.set_media(media);
+                        }
+                        if slot.title != title {
+                            slot.set_title(title);
+                        }
                         slot.base_url = base_url;
                         (Some(slot), changed)
                     }
-                    _ => (Some(SheetSlot::inline(owner, css, base_url, media)), true),
+                    _ => {
+                        let mut slot = SheetSlot::inline(owner, css, base_url, media);
+                        slot.script_made = script;
+                        slot.title = title;
+                        (Some(slot), true)
+                    }
                 }
             }
             Some(Kind::Link) => {
@@ -530,13 +569,19 @@ impl DocumentState {
                     && slot.source == SheetSource::Link(url.clone())
                 {
                     let changed = slot.media != media;
-                    slot.media = media;
+                    if changed {
+                        slot.set_media(media);
+                    }
+                    if slot.title != title {
+                        slot.set_title(title);
+                    }
                     return (Some(slot), changed);
                 }
                 self.sheet_serial += 1;
                 let serial = self.sheet_serial;
                 plan.sheets.push((owner, serial, url.clone()));
                 let mut slot = SheetSlot::link(owner, url, serial, media);
+                slot.title = title;
                 slot.blocks_scripts = self.parser_drain;
                 (Some(slot), true)
             }
@@ -544,9 +589,11 @@ impl DocumentState {
         }
     }
 
-    /// Reads the text of the inline sheet of `owner` again. Returns true
-    /// if it changed.
+    /// Reads the text of the inline sheet of `owner` again after a write of
+    /// its children or text: the sheet is a new one, also when the text is
+    /// the same (Chromium, measured). Returns true if there is a sheet.
     fn refresh_sheet_text(&mut self, owner: NodeId) -> bool {
+        let script = self.script_change();
         let Some(slot) = self
             .sheets
             .of(owner)
@@ -555,11 +602,7 @@ impl DocumentState {
             return false;
         };
         let css = self.dom.text_content(owner);
-        if slot.css.as_deref() == Some(css.as_str()) {
-            return false;
-        }
-        slot.css = Some(css);
-        slot.parsed = None;
+        slot.set_css(Some(css), script);
         true
     }
 

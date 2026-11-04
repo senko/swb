@@ -56,6 +56,8 @@ pub(crate) enum Slot {
     Collection(crate::dom::DocCollection),
     /// `validity` of a form control (`ValidityState`).
     Validity,
+    /// `document.styleSheets` (`StyleSheetList`).
+    StyleSheets,
 }
 
 /// The parsed tokens of token lists by element and attribute name.
@@ -175,6 +177,9 @@ pub(crate) struct WebState {
     /// The declaration blocks of the `style` attributes that scripts read
     /// or changed (`element.style`).
     pub(crate) style_blocks: crate::cssom::StyleBlocks,
+    /// The wrappers of the style sheets and rules that scripts have seen
+    /// (`cssom_sheets.rs`).
+    pub(crate) cssom: crate::cssom_sheets::CssomObjects,
     /// The window's map of animation frame callbacks.
     pub(crate) animation_frames: crate::animation_frames::AnimationFrames,
     /// The `MediaQueryList` objects with listeners by their order of
@@ -283,6 +288,7 @@ impl HostState for WebState {
             tracer.object(*signal);
         }
         self.fetches.trace(tracer);
+        self.cssom.trace(tracer);
         for reader in self.readers.values() {
             tracer.object(*reader);
         }

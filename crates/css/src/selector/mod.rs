@@ -69,6 +69,12 @@ impl SelectorList {
     pub fn is_empty(&self) -> bool {
         self.selectors.is_empty()
     }
+
+    /// The number of simple selectors and combinators of all selectors
+    /// (the size of the parsed list, for memory estimates).
+    pub fn component_count(&self) -> usize {
+        self.selectors.iter().map(|s| s.components.len()).sum()
+    }
 }
 
 impl<'a> IntoIterator for &'a SelectorList {

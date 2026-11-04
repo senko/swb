@@ -4242,6 +4242,23 @@ Steps:
       without a parse of the others. Exit: BBC hydrates without an
       error: Register and Sign In, carousel arrows, Save buttons,
       images in place of the placeholders.
+      Done 2026-11-04: `document.styleSheets`, `sheet`, `CSSStyleSheet`,
+      `CSSRuleList`, `CSSStyleRule` (`selectorText`, `style`),
+      `CSSMediaRule`, `CSSSupportsRule`, `CSSImportRule`,
+      `CSSFontFaceRule`, `CSSKeyframesRule` (`name`), `MediaList`. The
+      parsed sheets are the CSSOM objects (`swb_style::cssom::sheet`);
+      `insertRule` parses one rule, and the stylist is built once per
+      flush from the kept declaration blocks. Script-made style data is
+      limited to 128 MiB per document (estimated from the parsed form;
+      ADR 0028 section 16). Probe cases: 90 queries in
+      `web-cssom-sheets.json` (three equal Chromium runs), run in
+      `cssom_sheets.rs`. BBC hydrates (Register, Sign In, carousel
+      arrows, 122 images and 51 placeholders as in Chromium); no script
+      error but the module script. `compare --js bbc`: geometry
+      0.1087 → 0.9915, pixels 0.3720 → 0.2471 (consent frame and cookie
+      banner). Load 0.30 s. Hostile cases `cssom-*` (6). JS off:
+      snapshot identical; the other JS fixtures unchanged. ADR 0028
+      "Feature 6".
    7. Module scripts without imports (`implementer`; ADR 0028
       section 6): inline and external `type=module` scripts (deferred,
       strict), `nomodule` not run; an `import` reports an error. Exit:
@@ -4379,6 +4396,41 @@ Steps:
   `will-change: transform` is inert; no pixel points for Ars Technica's
   sign-in overlay. The blur costs 3 ns per pixel and pass (scalar code):
   18.7 ms of the 36.5 ms frame with Ars Technica's dialog.
+- CSSOM (found in feature 6): constructable style sheets
+  (`new CSSStyleSheet()`, `replace`, `replaceSync`) and
+  `adoptedStyleSheets` (no target uses them); rule objects for the rules
+  that the parser drops (`@page`, `@layer` blocks and statements, which
+  the parser flattens, `@namespace`, `@container`, `@counter-style`,
+  `@property`, nesting): they are a `SyntaxError` in `insertRule` and
+  missing from `cssRules` (Chromium: `@namespace` after rules is an
+  `InvalidStateError`); `CSSKeyframeRule` and the members of
+  `CSSKeyframesRule` but `name`; `CSSFontFaceRule.style`; `@import`
+  loading (`CSSImportRule.styleSheet`, `ownerRule`) and alternate style
+  sheets; sheets of documents other than the window's (Ars Technica's
+  GPT inserts a rule into a `createHTMLDocument` document to check CSS
+  and gets `null`); `::-webkit-scrollbar` and other prefixed
+  pseudo-elements in the selector parser (BBC inserts two such rules;
+  Chromium accepts them); `text-size-adjust` (BBC's `@supports` rule is
+  empty in swb); a `link` whose `href` changes keeps its old sheet until
+  the new one loads in Chromium (swb: no sheet); the attribute selector
+  flag `s` is accepted. `style.textContent = <the same text>` with a
+  mutation observer: swb replaces the text node and makes a new sheet
+  (inserted rules are lost); Chromium replaces the node but keeps the
+  sheet (needs a journal marker). Memory: one large `<style>` costs
+  about 100 MiB per 1.8 MB of text with JavaScript off too (320 bytes
+  per short declaration; bounded only by the document size; a compact
+  declaration store would cut it); `element.style.setProperty` in a loop
+  is quadratic (the attribute is written per call);
+  `StyleDeclarations::set_declaration` searches linearly; the charge of
+  script style data counts declarations that the cascade merges (an
+  upper bound).
+- Tools (found in feature 6): `swbtools replay` has no option for a
+  script that runs before the page's scripts (the inventory of BBC's
+  CSSOM calls needed a patched fixture copy).
+- Feature 8 input (from feature 6): a forced flush after `insertRule`
+  restyles and lays out the whole page (7.3 ms on a page of 2,700
+  elements); BBC spends about 2.3 s in scripts after `load` within
+  1.5 s of page time.
 
 ## Backlog from M8
 
@@ -4439,8 +4491,8 @@ Steps:
   phase. CSS paints it with the z-index 0/auto layer in tree order, so a
   positioned sibling earlier in the tree paints below it in Chromium and
   above it in swb.
-- `web` (found in feature 12b): `HTMLStyleElement.sheet` is missing
-  (`style.sheet.cssRules`); `-webkit-user-modify` in `getComputedStyle`.
+- `web` (found in feature 12b): `-webkit-user-modify` in
+  `getComputedStyle`. (`HTMLStyleElement.sheet`: done in M9 feature 6.)
 - Tests (found in feature 12b): `craigslist_posting.rs` failed once in a
   full parallel workspace run (timing) and passed alone.
 - Engine (found in feature 12a): a click on Wikipedia costs 5 full
@@ -5021,9 +5073,9 @@ Steps:
   replacement thread also when the request is about to end; the
   same-origin credentials redirect (A → B → A with credentials in the
   URL) has a unit test but no Chromium probe.
-- `web`/`engine` (found in feature 10b): `HTMLLinkElement.sheet` is
-  `null` for loaded style sheets (and `document.styleSheets` lacks
-  external sheets); `blob:` URLs for `img`, `link` and the page's loader
+- `web`/`engine` (found in feature 10b): (`HTMLLinkElement.sheet` and
+  external sheets in `document.styleSheets`: done in M9 feature 6.)
+  `blob:` URLs for `img`, `link` and the page's loader
   (`img.src = URL.createObjectURL(blob)` fires `error`; upload previews
   use it: feature 11 checks whether the Craigslist page does); the Blob
   URL store is per runtime, so a same-origin frame cannot read its

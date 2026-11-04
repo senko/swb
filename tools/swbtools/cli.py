@@ -9,6 +9,7 @@ from pathlib import Path
 from swbtools import paths, swb
 from swbtools.capture import capture, capture_missing, directory_size
 from swbtools.compare import Options, compare_fixture, update_scores
+from swbtools.cssom_cases import write_cssom_cases
 from swbtools.hostile import hostile
 from swbtools.js_intl_data import write_data as write_js_intl_data
 from swbtools.js_survey import js_survey
@@ -145,6 +146,10 @@ def cmd_linebreak_tables(args: argparse.Namespace) -> int:
 
 def cmd_lazy_cases(args: argparse.Namespace) -> int:
     return write_lazy_cases(args.chromium)
+
+
+def cmd_cssom_cases(args: argparse.Namespace) -> int:
+    return write_cssom_cases(args.chromium)
 
 
 def cmd_js_unicode_tables(args: argparse.Namespace) -> int:
@@ -401,6 +406,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="the output of `probe --json tools/probes/web-lazy-loading.json`",
     )
     p.set_defaults(func=cmd_lazy_cases)
+
+    p = commands.add_parser(
+        "cssom-cases",
+        help="write crates/engine/tests/cssom_sheets/cases.rs from web-cssom-sheets.json",
+    )
+    p.add_argument(
+        "chromium",
+        type=Path,
+        help="the output of `probe --json tools/probes/web-cssom-sheets.json`",
+    )
+    p.set_defaults(func=cmd_cssom_cases)
 
     p = commands.add_parser(
         "linebreaks", help="measure Chromium's line break opportunities (text crate test data)"

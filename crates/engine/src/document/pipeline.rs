@@ -335,19 +335,34 @@ impl DocumentState {
         }
         let started = Instant::now();
         let mut stylist = Stylist::new(self.dom.quirks_mode);
-        for sheet in self.sheets.iter_mut() {
-            if let Some(media) = &sheet.media
-                && !MediaQueryList::parse_str(media).matches(env)
+        for index in 0..self.sheets.len() {
+            // A sheet that was not made and does not apply (its `media`
+            // attribute does not match) stays unparsed, as before the CSSOM
+            // (a script that reads it makes it). A disabled sheet exists
+            // already: `disabled` is a property of the sheet object.
+            if let Some(slot) = self.sheets.get(index)
+                && !slot.has_sheet()
+                && slot
+                    .media
+                    .as_deref()
+                    .is_some_and(|m| !MediaQueryList::parse_str(m).matches(env))
             {
                 continue;
             }
-            let base_url = sheet.base_url.clone();
-            if let Some(parsed) = sheet.parsed() {
-                stylist.add_author_sheet(parsed, &base_url);
+            let Some(sheet) = self.cssom_sheet(index) else {
+                continue;
+            };
+            let sheet = sheet.borrow();
+            if sheet.disabled || !sheet.media.matches(env) {
+                continue;
+            }
+            if let Some(slot) = self.sheets.get(index) {
+                stylist.add_cssom_sheet(&sheet, &slot.base_url);
             }
         }
         self.stylist = Some(stylist);
         self.timings.stylesheets = started.elapsed();
+        self.flushes.stylist(self.timings.stylesheets);
     }
 
     /// Computes the styles, after the stylist if it is dirty.
@@ -387,8 +402,8 @@ impl DocumentState {
     /// layout and the display list, so that the next render runs all
     /// stages again. For benchmarks.
     pub fn restart_pipeline(&mut self) {
-        for sheet in self.sheets.iter_mut() {
-            sheet.parsed = None;
+        for slot in self.sheets.iter_mut() {
+            slot.parse_again();
         }
         self.invalidate_style();
     }

@@ -32,11 +32,13 @@
 // 6d; `innerText` and `outerText` since 7b2; `contentEditable` and
 // `isContentEditable` since 12b, without editing behavior); it lacks
 // `popover`, `attachInternals` and the popover members. No element
-// interface has the obsolete members, `files`, `valueAsNumber`,
+// interface has the obsolete members (except `HTMLStyleElement.type`, which
+// scripts set to stop a sheet; M9 feature 6, with `HTMLStyleElement.disabled`;
+// `sheet` is `LinkStyle` of `cssom.idl`), `files`, `valueAsNumber`,
 // `valueAsDate`, `stepUp()`, `stepDown()`, `showPicker()`,
 // `iframe.contentWindow` and
 // `contentDocument`, `canvas.getContext`, the media playback members,
-// `dialog.show*`, `meter` and `progress` values, `sheet` and the
+// `dialog.show*`, `meter` and `progress` values, and the
 // factory function `Audio`. The form methods `submit()`, `reset()` and
 // `requestSubmit()` came with feature 6d; the selection members of
 // `input` and `textarea` (`select()`, `selectionStart`, `selectionEnd`,
@@ -330,8 +332,13 @@ interface HTMLMetaElement : HTMLElement {
 [Exposed=Window]
 interface HTMLStyleElement : HTMLElement {
   [HTMLConstructor] constructor();
+  attribute boolean disabled;
   [CEReactions, Reflect] attribute DOMString media;
   [SameObject, PutForwards=value] readonly attribute DOMTokenList blocking;
+};
+
+partial interface HTMLStyleElement {
+  [CEReactions, Reflect] attribute DOMString type;
 };
 
 [Exposed=Window]

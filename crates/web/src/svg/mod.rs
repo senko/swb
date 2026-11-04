@@ -229,6 +229,10 @@ impl g::svg_style_element::SVGStyleElementImpl for WebState {
         let _ = (cx, this, value);
         Ok(())
     }
+
+    fn sheet(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Option<Gc<Object>>> {
+        crate::cssom_sheets::sheet(cx, this)
+    }
 }
 
 impl g::svga_element::SVGAElementImpl for WebState {

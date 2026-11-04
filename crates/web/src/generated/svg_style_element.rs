@@ -21,6 +21,9 @@ pub trait SVGStyleElementImpl: b::Host {
     /// The setter of `attribute boolean disabled`.
     fn set_disabled(cx: &mut b::Cx<'_>, this: b::NodeId, value: bool) -> b::Result<()>;
 
+    /// `readonly attribute CSSStyleSheet? sheet`.
+    fn sheet(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
 }
 
 fn get_type<H: SVGStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
@@ -95,6 +98,14 @@ fn set_disabled<H: SVGStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
     })
 }
 
+fn get_sheet<H: SVGStyleElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("SVGStyleElement", "sheet"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::SVG_STYLE_ELEMENT)?;
+        let result = <H as SVGStyleElementImpl>::sheet(&mut b::Cx::new(rt, call, super::SVG_STYLE_ELEMENT), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+    })
+}
+
 /// Creates the interface object and the prototype of `SVGStyleElement` in `realm`
 /// with their members (the parent's interface must exist).
 pub fn define<H: SVGStyleElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Interface> {
@@ -105,6 +116,7 @@ pub fn define<H: SVGStyleElementImpl>(rt: &mut swb_js::Runtime, realm: u32) -> s
     rt.define_accessor(realm, target, "media", (Some(get_media::<H> as swb_js::NativeFn), Some(set_media::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "title", (Some(get_title::<H> as swb_js::NativeFn), Some(set_title::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "disabled", (Some(get_disabled::<H> as swb_js::NativeFn), Some(set_disabled::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "sheet", (Some(get_sheet::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
 }

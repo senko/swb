@@ -91,7 +91,7 @@ fn discovered(doc: &DocumentState) -> String {
     let sheets: Vec<_> = doc
         .sheets
         .iter()
-        .map(|s| (s.owner, &s.source, &s.css, &s.media, s.base_url.as_str()))
+        .map(|s| (s.owner, &s.source, s.css(), &s.media, s.base_url.as_str()))
         .collect();
     let mut images: Vec<_> = doc
         .images
@@ -253,24 +253,108 @@ fn style_text_changes_reparse_only_that_sheet() {
         doc.sheets
             .get(i)
             .unwrap()
-            .parsed
-            .as_ref()
-            .map(|s| s.rules.as_ptr())
+            .existing_sheet()
+            .map(|s| Rc::as_ptr(&s.borrow().rules()[0]))
     };
     let (a, b) = (rules(&doc, 0), rules(&doc, 1));
     assert!(a.is_some() && b.is_some());
+    let old = doc
+        .sheets
+        .get(1)
+        .unwrap()
+        .existing_sheet()
+        .cloned()
+        .unwrap();
     let text = doc.dom().children(element(&doc, "b")).next().unwrap();
     doc.change_dom(|dom| dom.set_data(text, "p{margin:1px}"))
         .unwrap();
     assert!(doc.stylist.is_none());
-    assert_eq!(
-        doc.sheets.get(1).unwrap().css.as_deref(),
-        Some("p{margin:1px}")
-    );
+    assert_eq!(doc.sheets.get(1).unwrap().css(), Some("p{margin:1px}"));
+    // The old sheet left its owner (a script that holds it sees that).
+    assert_eq!(old.borrow().owner, None);
     doc.update_style();
     // The stylist was built again from the kept parse of the first sheet.
     assert_eq!(rules(&doc, 0), a);
-    assert!(rules(&doc, 1).is_some());
+    assert!(rules(&doc, 1).is_some_and(|r| Some(r) != b));
+}
+
+#[test]
+fn a_write_of_the_same_text_gives_a_new_sheet() {
+    // Chromium (measured, `style-text-writes`): a write of the children or
+    // the data of a `style` element gives a new sheet, also with the same
+    // text; a change of another attribute keeps it.
+    let mut doc = walked("<style id=a>p{color:red}</style><p id=p>x</p>", &url());
+    doc.update_style();
+    let style = element(&doc, "a");
+    let sheet = |doc: &DocumentState| doc.sheets.get(0).unwrap().existing_sheet().cloned();
+    let first = sheet(&doc).unwrap();
+    doc.change_dom(|dom| dom.set_attr(style, "title", "t"))
+        .unwrap();
+    doc.update_style();
+    assert!(Rc::ptr_eq(&first, &sheet(&doc).unwrap()));
+    let text = doc.dom().children(style).next().unwrap();
+    doc.change_dom(|dom| dom.set_data(text, "p{color:red}"))
+        .unwrap();
+    doc.update_style();
+    let second = sheet(&doc).unwrap();
+    assert!(!Rc::ptr_eq(&first, &second));
+    assert_eq!(first.borrow().owner, None);
+    assert_eq!(second.borrow().owner, Some(style));
+    // An empty text node appended to the element: a new sheet again.
+    doc.change_dom(|dom| {
+        let empty = dom.create_text("")?;
+        dom.append_child(style, empty)
+    })
+    .unwrap();
+    doc.update_style();
+    assert!(!Rc::ptr_eq(&second, &sheet(&doc).unwrap()));
+}
+
+#[test]
+fn only_the_text_that_scripts_make_counts_as_script_style_data() {
+    let mut dom = Document::new();
+    dom.set_scripting(true);
+    let parser = HtmlParser::new(
+        &mut dom,
+        "<head><style id=a>p{color:red;top:1px}</style></head><body><p>x",
+        true,
+    );
+    let mut doc = state(dom, Some(parser), &url());
+    doc.update_style();
+    // The parser's text is free.
+    assert_eq!(doc.style_memory.used(), 0);
+    let head = doc.dom().head().unwrap();
+    let text = "p{color:blue;left:2px}";
+    doc.change_dom(|dom| {
+        let style = dom.create_element(html_name(local_name!("style")), Vec::new())?;
+        let node = dom.create_text(text)?;
+        dom.append_child(style, node)?;
+        dom.append_child(head, style)
+    })
+    .unwrap();
+    doc.update_style();
+    // The estimate of the parsed rule: two declarations, their entries.
+    assert!(doc.style_memory.used() > swb_style::cssom::sheet::estimate_style_bytes(text));
+    // The sheet that leaves the document gives its bytes back.
+    let added = doc.dom().children(head).last().unwrap();
+    doc.change_dom(|dom| dom.remove(added));
+    assert_eq!(doc.style_memory.used(), 0);
+}
+
+#[test]
+fn sheets_that_do_not_apply_stay_unparsed() {
+    let mut doc = walked(
+        "<style id=a media=print>p{color:red}</style><style id=b>p{margin:0}</style>\
+         <style id=c media=screen>p{top:0}</style><p>x</p>",
+        &url(),
+    );
+    doc.update_style();
+    let made = |doc: &DocumentState, i: usize| doc.sheets.get(i).unwrap().has_sheet();
+    assert!(!made(&doc, 0), "media=print is not parsed for the stylist");
+    assert!(made(&doc, 1) && made(&doc, 2));
+    // A script that reads the sheet makes it (document.styleSheets).
+    assert!(doc.script_sheet(0).is_some());
+    assert!(made(&doc, 0));
 }
 
 #[test]

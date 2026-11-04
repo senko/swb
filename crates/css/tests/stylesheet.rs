@@ -134,6 +134,7 @@ fn rule_counts() {
             CssRule::Import(_) => "import",
             CssRule::FontFace(_) => "font-face",
             CssRule::Supports(_) => "supports",
+            CssRule::Keyframes(_) => "keyframes",
         })
         .collect();
     assert_eq!(
@@ -159,7 +160,8 @@ fn rule_counts() {
             "supports",
             "supports",
             "font-face",
-            // @keyframes is dropped; the @layer block is flattened
+            "keyframes",
+            // the @layer block is flattened
             "style", // @page and @namespace are dropped
             "style",
             "style",

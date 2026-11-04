@@ -1242,7 +1242,23 @@ itself (nesting stops at level 22), one that writes two copies of itself
 (the bound of 100,000 written scripts ends the doubling), 3,000,000 small
 writes and five of 16 MiB behind a pending script (the waiting text is
 bounded at 64 MiB), and 600,000 `writeln` calls (the node limit stops the
-parser). The cases with
+parser). Cases for M9 feature 6 (`cssom-*`, ADR 0028 section 10): 100,000
+`insertRule` calls with a style query after each (the task time limit ends
+the loop), `deleteRule(0)` over 60,000 rules and `insertRule(…, 0)` of
+60,000, a selector list of 200,000 classes and 100,000 declarations in one
+rule, `@media` text nested 100,000 deep (the parser's limit of 64), grouping
+rules nested by `insertRule` in a loop (refused at 64 levels), and the
+`cssRules` of 10,000 sheets read through `document.styleSheets` in five
+rounds; review fixes: one rule of 1.8 MB inserted 300 times, 300 `style`
+elements of that size and 300 `rule.style.cssText` of 100,000 declarations
+(the limit of 128 MiB of estimated style data that scripts make, ADR 0028
+section 16; the first one took 29 GB before), and 20,000 `appendMedium`
+calls; second fix round (the bound follows the parsed form and every
+`rule.style` write): 200,000 `insertRule('.aN{all:initial}')` and the same with
+six shorthands (a rule takes 13 KB and 8 KB parsed for 20 and 80 bytes of
+text; 1.6 GB before for the first), 1,000,000 `setProperty` calls of 1 KB
+values on one rule, and 100,000 rules set to `cssText = 'all: initial'`;
+then 300 rules set to a `selectorText` of 20,000 classes. The cases with
 timers pass `--settle-ms`, so that the timers run after the load.
 
 ```
@@ -2960,6 +2976,35 @@ code for them (a unit test of the generator checks the glue).
   the backlog). Also: the flush counters of a style value and of a value
   that layout resolves, and the font context that a task lends. The rules
   that need no document are tested in `swb_style::cssom::resolved`.
+- `crates/engine/tests/cssom_sheets.rs`: the style sheets and rules of
+  scripts (M9 feature 6, ADR 0028 section 10): every case of
+  `tools/probes/web-cssom-sheets.json` (14 cases, 90 queries: the owner
+  of a sheet after `remove()` and text writes, 25 writes of a `style`
+  element's children and data and whether the sheet stays;
+  `document.styleSheets`, `sheet`, the sheet attributes and `MediaList`,
+  `insertRule` and `deleteRule` with their exceptions, the legacy
+  `addRule` and `removeRule`, `CSSRuleList`, `cssText` of each rule kind,
+  `selectorText` and `rule.style` with their effect on the computed style,
+  grouping rules, `disabled`, the cascade order of inserted rules, the
+  interface objects, quirks mode, and the sheets of `link` elements of the
+  page's and another origin) with Chromium's values
+  (`tests/cssom_sheets/cases.rs`, generated from the probe's `--json`
+  output; three equal Chromium runs; after a change of the probe file run
+  `uv run --project tools swbtools probe --json tools/probes/web-cssom-sheets.json > chromium.json`
+  three times, check that the outputs are equal, then
+  `uv run --project tools swbtools cssom-cases chromium.json` and
+  `just fmt`; the generator is `tools/swbtools/cssom_cases.py`, tested by
+  `tools/tests/test_cssom_cases.py`). The pages and resources come from a
+  fake fetcher that serves them as the probe's server does
+  (`http://127.0.0.1:8000/case-N/`, the second origin on port 8001).
+  `SWB_VALUES` lists the departures with their reasons (the rules that
+  swb's parser drops, `@import` and alternate sheets not loaded, the
+  members that swb leaves out). Also: a page in the pattern of CSS-in-JS
+  libraries (rules inserted into an empty `style` element's sheet at
+  computed indexes, before and after the elements exist, groups deleted)
+  and the flush counters of rule changes (one stylist build per flush).
+  The model is tested in `swb_style::cssom::sheet` (`sheet/tests.rs`) and
+  `swb_css` (`parse_rule`, `@keyframes`, `cssom_text`).
 - `crates/engine/tests/style_inert.rs`: the properties without effect on
   layout and paint (feature 11c1, ADR 0028 section 10): every case of
   `tools/probes/web-style-inert.json` (6 cases, 48 queries: `transition`

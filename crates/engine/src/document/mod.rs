@@ -24,10 +24,12 @@
 //! scripts), `pipeline.rs` (style, layout, display list, raster),
 //! `queries.rs` (geometry, scrolling, hit testing, rendered text),
 //! `resolved.rs` (`getComputedStyle` and the layout flush of a script
-//! task).
+//! task), `cssom.rs` (the style sheets of scripts: `document.styleSheets`,
+//! `sheet`).
 
 mod api_fetches;
 mod changes;
+mod cssom;
 mod derived;
 mod element_events;
 mod geometry;
@@ -172,6 +174,9 @@ pub struct DocumentState {
     tree_order: Derived<TreeOrder>,
     /// The author stylesheets, in tree order of their owner elements.
     pub(crate) sheets: Sheets,
+    /// The estimated size of the style data that scripts made (the sheets of
+    /// their `style` elements, their rules); bounded (ADR 0028 section 16).
+    pub(crate) style_memory: swb_style::cssom::sheet::StyleMemory,
     /// The number of the last stylesheet load (each load has its own, so
     /// that a stale response is ignored).
     pub(crate) sheet_serial: u64,
@@ -294,6 +299,7 @@ impl DocumentState {
             indeterminate: std::collections::HashSet::new(),
             tree_order: Derived::new(TreeOrder::default()),
             sheets: Sheets::default(),
+            style_memory: swb_style::cssom::sheet::StyleMemory::default(),
             sheet_serial: 0,
             images: init.images,
             lazy: lazy::LazyImages::default(),
@@ -622,6 +628,27 @@ impl swb_web::EngineHost for DocumentState {
         pseudo: Option<swb_style::cssom::resolved::PseudoElement>,
     ) -> Option<Arc<swb_style::ComputedStyle>> {
         self.query_computed_style(element, pseudo)
+    }
+
+    fn style_sheet_count(&mut self) -> usize {
+        self.script_sheet_count()
+    }
+
+    fn style_sheet(&mut self, index: usize) -> Option<swb_style::cssom::sheet::SheetRef> {
+        self.script_sheet(index)
+    }
+
+    fn style_sheet_of(&mut self, owner: NodeId) -> Option<swb_style::cssom::sheet::SheetRef> {
+        self.script_sheet_of(owner)
+    }
+
+    fn settle_style_sheets(&mut self) {
+        self.process_changes();
+    }
+
+    fn style_sheets_changed(&mut self) {
+        self.flushes.sheet_changes = self.flushes.sheet_changes.saturating_add(1);
+        self.invalidate_style();
     }
 
     fn resolved_value(

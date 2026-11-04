@@ -131,6 +131,48 @@ impl MediaQueryList {
     pub fn matches(&self, env: &MediaEnvironment) -> bool {
         self.queries.is_empty() || self.queries.iter().any(|q| q.evaluate(env))
     }
+
+    /// The number of queries.
+    pub fn len(&self) -> usize {
+        self.queries.len()
+    }
+
+    /// The query at `index`, serialized (`MediaList.item()`).
+    pub fn item(&self, index: usize) -> Option<String> {
+        let mut out = String::new();
+        write_query(self.queries.get(index)?, &mut out);
+        Some(out)
+    }
+
+    /// CSSOM "append a medium" (`appendMedium`): adds the one query of
+    /// `medium` unless the list has an equal one. Returns true if it added
+    /// the query. Nothing changes if `medium` is not exactly one query.
+    ///
+    /// <https://drafts.csswg.org/cssom/#dom-medialist-appendmedium>
+    pub fn append(&mut self, medium: &MediaQueryList) -> bool {
+        let [query] = medium.queries.as_slice() else {
+            return false;
+        };
+        if self.queries.contains(query) {
+            return false;
+        }
+        self.queries.push(query.clone());
+        true
+    }
+
+    /// CSSOM "delete a medium" (`deleteMedium`): removes the queries that
+    /// equal the one query of `medium`. Returns true if it removed one.
+    /// Nothing changes if `medium` is not exactly one query.
+    ///
+    /// <https://drafts.csswg.org/cssom/#dom-medialist-deletemedium>
+    pub fn remove(&mut self, medium: &MediaQueryList) -> bool {
+        let [query] = medium.queries.as_slice() else {
+            return false;
+        };
+        let before = self.queries.len();
+        self.queries.retain(|q| q != query);
+        self.queries.len() != before
+    }
 }
 
 /// A `<media-condition>`: a media query without a media type, as in the
@@ -1211,6 +1253,25 @@ mod tests {
 
     fn eval(query: &str) -> bool {
         MediaQueryList::parse_str(query).matches(&env())
+    }
+
+    #[test]
+    fn media_list_items_append_and_remove() {
+        let parse = MediaQueryList::parse_str;
+        let mut list = parse("screen, (min-width: 10px)");
+        assert_eq!(list.len(), 2);
+        assert_eq!(list.item(1).as_deref(), Some("(min-width: 10px)"));
+        assert_eq!(list.item(2), None);
+        // A query that the list has, and text that is not one query, add nothing.
+        assert!(!list.append(&parse("SCREEN")));
+        assert!(!list.append(&parse("print, tv")));
+        assert!(!list.append(&parse("")));
+        assert!(list.append(&parse("print")));
+        assert_eq!(list.to_string(), "screen, (min-width: 10px), print");
+        assert!(!list.remove(&parse("tv")));
+        assert!(!list.remove(&parse("print, tv")));
+        assert!(list.remove(&parse("screen")));
+        assert_eq!(list.to_string(), "(min-width: 10px), print");
     }
 
     /// Queries and their results in [`env`].

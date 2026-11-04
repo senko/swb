@@ -3,11 +3,12 @@
 //! The parser ([`crate::parse_stylesheet`]) builds these types. Property
 //! values stay as component values; the style crate parses them.
 //!
-//! Supported rules: style rules, `@media`, `@supports`, `@import` and
-//! `@font-face`. The rules of `@layer` blocks join the parent rule list
+//! Supported rules: style rules, `@media`, `@supports`, `@import`,
+//! `@font-face` and `@keyframes` (kept for the CSSOM; swb runs no
+//! animations). The rules of `@layer` blocks join the parent rule list
 //! (layer order is ignored). `@charset` and `@layer` statements are
-//! ignored. All other at-rules (`@keyframes`, `@page`, `@namespace`,
-//! `@counter-style`, `@property`, `@container` and unknown ones) are
+//! ignored. All other at-rules (`@page`, `@namespace`, `@counter-style`,
+//! `@property`, `@container`, `@-webkit-keyframes` and unknown ones) are
 //! dropped.
 
 use crate::cursor::Parser;
@@ -36,6 +37,8 @@ pub enum CssRule {
     FontFace(FontFaceRule),
     /// `@supports`.
     Supports(SupportsRule),
+    /// `@keyframes`.
+    Keyframes(KeyframesRule),
 }
 
 /// A style rule.
@@ -121,8 +124,31 @@ pub struct FontFaceRule {
 pub struct SupportsRule {
     /// The condition.
     pub condition: SupportsCondition,
+    /// The condition as written, serialized from its component values
+    /// without the surrounding whitespace (CSSOM `conditionText`: Chromium
+    /// keeps the text, `(a:b)` stays without a space).
+    pub text: String,
     /// The rules inside the block.
     pub rules: Vec<CssRule>,
+}
+
+/// An `@keyframes` rule (CSS Animations 1 §4). swb runs no animations; the
+/// rule exists for the CSSOM (`CSSKeyframesRule`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct KeyframesRule {
+    /// The name: an identifier or a string.
+    pub name: String,
+    /// The keyframes that have valid selectors, in source order.
+    pub keyframes: Vec<Keyframe>,
+}
+
+/// One keyframe of an `@keyframes` rule.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Keyframe {
+    /// The offsets in percent (`from` is 0, `to` 100), in source order.
+    pub keys: Vec<f32>,
+    /// The declarations.
+    pub declarations: Vec<Declaration>,
 }
 
 #[cfg(test)]

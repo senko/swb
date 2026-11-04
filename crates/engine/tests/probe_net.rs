@@ -375,36 +375,6 @@ const IMAGE_DEPARTURES: &[Departure] = &[
     ),
     (
         "stylesheets",
-        0,
-        r#"["appended:false","l.load:,,,:Event:false:false:true","sheet:false"]"#,
-        "`link.sheet` is `null` in swb for a loaded style sheet (backlog)",
-    ),
-    (
-        "stylesheets",
-        1,
-        r#"["l.error:,,,:Event:false:false:true","sheet:false"]"#,
-        "`link.sheet` is `null` in swb for a loaded style sheet (backlog)",
-    ),
-    (
-        "stylesheets",
-        2,
-        r#"["l.load:,,,:Event:false:false:true","sheet:false"]"#,
-        "`link.sheet` is `null` in swb for a loaded style sheet (backlog)",
-    ),
-    (
-        "stylesheets",
-        3,
-        r#"["l.load:,,,:Event:false:false:true","sheet:undefined"]"#,
-        "`link.sheet` is `null` in swb for a loaded style sheet (backlog)",
-    ),
-    (
-        "stylesheets",
-        5,
-        r#"["no-rel","l.load:,,,:Event:false:false:true","sheet:false"]"#,
-        "`link.sheet` is `null` in swb for a loaded style sheet (backlog)",
-    ),
-    (
-        "stylesheets",
         7,
         r#"["x"]"#,
         "swb does not support `rel=preload`: no `load` event",
