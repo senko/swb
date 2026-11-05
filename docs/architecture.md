@@ -342,11 +342,32 @@ Layout uses `f32` CSS pixels. Paint multiplies by the device pixel ratio
 
 ## Page and document state
 
-`Page` (`engine/src/page/`) is one browsing context: the session history,
-the pending navigation, the loader (shared through an `Rc`), the font
-context, the viewport and the state of the pointer and the press. The
-current document is a boxed `DocumentState` (`engine/src/document/`, ADR
-0028 section 2): the DOM and its parser, the stylesheets and the stylist,
+`Page` (`engine/src/page/`) is one top-level browsing context: the
+session history, the pending navigation, the loader (shared through an
+`Rc`), the font context, the viewport, the state of the pointer and the
+press, and the frame tree (`engine/src/frames/`, ADR 0031 section 2, M9
+feature 10a). The frame tree is an arena of `Frame` records by `FrameId`;
+`FrameId::TOP` stands for the page's document, and each other frame is the
+content of an `iframe` element and owns its own boxed `DocumentState`
+(its own DOM arena, style, layout and requests). The page makes, navigates
+and destroys frames after each drain of a document's journal
+(`Page::update_frames`), lays out the frame documents after its own layout
+in the viewports that the `iframe` content boxes give
+(`Page::layout_frames`), and counts their loads in its load state (a frame
+delays its parent's `load`; `Page::check_frame_loads` fires the
+container's `load`). One loader serves all documents: each document has a
+loader *client* number, its requests carry it, and the page hands each
+completion to the document of its client (`Completion::client`,
+`Loader::cancel_client`); the request of a frame document has the
+destination `iframe` and the site for cookies of its parent
+(`Request::site_for_cookies`). Frame documents run no scripts and do not
+paint yet (features 10b and 12). The frame documents of a page share
+budgets (`engine/src/frames/budget.rs`, ADR 0031 section 11): the source
+bytes and DOM nodes of the documents that are alive together, and, through
+`swb_net::ByteBudget`, the response bodies that wait for the page, the
+decoded raster images and the external style sheets of frame documents. The current document is a boxed
+`DocumentState` (`engine/src/document/`, ADR 0028 section 2): the DOM and
+its parser, the stylesheets and the stylist,
 the styles, the fragments and the display list, the images and web fonts
 with their requests, the form controls, the scroll offsets, the selection
 and the element states. Style, layout, display list, raster and the
@@ -725,6 +746,22 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   during the task (feature 6d1: a navigation from `a.click()` or
   `form.submit()`, a scroll into view after `focus()`), which the page
   carries out when the task ends.
+- `frames/` (M9 feature 10a, ADR 0031): the frame tree of the page: an
+  arena of `Frame` records addressed by `FrameId` (index and generation;
+  a stale id finds nothing), the limits (1,000 frames, depth 32, 64
+  navigations per frame in 10 s of page time) and the `sandbox` flags.
+- `page/frames.rs`: the life of frames: an `iframe` that the journal
+  drain reports inserted gets a frame with an `about:blank` document,
+  then its `srcdoc` or `src` navigates it; removal destroys it with its
+  descendants and their requests. The documents of frames (requests,
+  commits, `about:srcdoc`, the declarative refresh), the load state (a
+  frame delays its parent's `load`; the container's `load` event), and the
+  viewports (the content boxes of the containers after the parent's
+  layout).
+- `document/frames.rs`: what a document tells the page about its frames:
+  the `iframe` changes of the drain, the content boxes of the `iframe`
+  boxes, the declarative refresh, and the subresource requests with the
+  document's loader client and site for cookies.
 - `document/mod.rs`: `DocumentState`, its construction and the parse in
   steps, element states and the selection.
 - `document/script_actions.rs`: what scripts ask for focus, links and

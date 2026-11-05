@@ -40,7 +40,7 @@ pub use display_list::{
 };
 pub use image::{
     DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_in_document, decode_with_type,
-    is_supported_image_type,
+    is_supported_image_type, raster_size,
 };
 pub use mask::{MaskLayer, MaskLayerImage};
 pub use raster::{ImageSource, RasterParams, rasterize, rasterize_in_strips};

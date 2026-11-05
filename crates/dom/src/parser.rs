@@ -59,7 +59,7 @@ pub use write::WrittenStep;
 
 use crate::encoding::decode_html;
 use crate::mutation::DomError;
-use crate::tree::{Document, NodeId};
+use crate::tree::{Document, Limits, MAX_NODES, NodeId};
 
 /// The maximum depth of a node below the root of its tree (the document,
 /// or a template's content fragment). Blink uses the same limit
@@ -284,7 +284,17 @@ pub fn parse_html(text: &str) -> Document {
 /// changed), and it records the changes after the parse. With
 /// [`HtmlParser`], the parse is journaled.
 pub fn parse_html_with(text: &str, scripting: bool) -> Document {
-    let mut doc = Document::new();
+    parse_html_limited(text, scripting, MAX_NODES)
+}
+
+/// [`parse_html_with`] for a document that may hold at most `max_nodes`
+/// nodes: the parser stops there (a caller that shares a node budget uses
+/// it to stop early and see that the document does not fit).
+pub fn parse_html_limited(text: &str, scripting: bool, max_nodes: usize) -> Document {
+    let mut doc = Document::with_limits(Limits {
+        max_nodes,
+        ..Limits::default()
+    });
     doc.set_journaling(false);
     let mut parser = HtmlParser::new(&mut doc, text, scripting);
     while let Ok(ParseStep::Script(_)) = parser.resume(&mut doc) {}
@@ -306,8 +316,22 @@ pub fn parse_html_bytes_with(
     transport_charset: Option<&str>,
     scripting: bool,
 ) -> (Document, &'static str) {
+    parse_html_bytes_limited(bytes, transport_charset, scripting, MAX_NODES)
+}
+
+/// [`parse_html_bytes_with`] for a document of at most `max_nodes` nodes
+/// (see [`parse_html_limited`]).
+pub fn parse_html_bytes_limited(
+    bytes: &[u8],
+    transport_charset: Option<&str>,
+    scripting: bool,
+    max_nodes: usize,
+) -> (Document, &'static str) {
     let (text, encoding) = decode_html(bytes, transport_charset);
-    (parse_html_with(&text, scripting), encoding.name())
+    (
+        parse_html_limited(&text, scripting, max_nodes),
+        encoding.name(),
+    )
 }
 
 /// Decodes HTML bytes as [`parse_html_bytes`] does, for a parse with

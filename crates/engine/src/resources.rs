@@ -12,7 +12,7 @@ use std::sync::Arc;
 use swb_css::MediaQueryList;
 use swb_dom::NodeId;
 use swb_layout::NaturalSize;
-use swb_net::{NetError, RequestId, Response, Url};
+use swb_net::{ByteBudget, NetError, RequestId, Reservation, Response, Url};
 use swb_paint::{CountBudget, DecodedImage, ImageRef, ImageSizes, ImageSource, VectorCache};
 use swb_style::Length;
 use swb_style::cssom::sheet::{SheetRef, StyleMemory, StyleSheet};
@@ -82,6 +82,9 @@ pub(crate) struct SheetSlot {
     /// against the style data that scripts may make
     /// (`swb_style::cssom::sheet::MAX_SCRIPT_STYLE_BYTES`).
     pub(crate) script_made: bool,
+    /// What the loaded text holds of the page's budget for the style sheets
+    /// of frame documents (ADR 0031 section 11); returns with the slot.
+    pub(crate) held: Option<Arc<Reservation>>,
 }
 
 impl SheetSlot {
@@ -100,6 +103,7 @@ impl SheetSlot {
             blocks_scripts: false,
             parse_pending: false,
             script_made: false,
+            held: None,
         }
     }
 
@@ -118,6 +122,7 @@ impl SheetSlot {
             blocks_scripts: false,
             parse_pending: false,
             script_made: false,
+            held: None,
         }
     }
 
@@ -506,9 +511,74 @@ pub(crate) struct Images {
     vector_cache: VectorCache,
     /// What counting spans may still take for the page's SVG images.
     pub(crate) counting: CountBudget,
+    /// The page-wide budget for the decoded pixels of frame documents'
+    /// images (ADR 0031 section 11); `None` for the top-level document.
+    budget: Option<Arc<ByteBudget>>,
+    /// What the loaded raster images hold of `budget`; the bytes return
+    /// when the images go with the document.
+    held: Vec<Arc<Reservation>>,
 }
 
 impl Images {
+    /// Puts the images under the page's `budget` for the decoded pixels of
+    /// frame documents; the images that are loaded already take their
+    /// share (those that do not fit fail).
+    pub(crate) fn attach_budget(&mut self, budget: Arc<ByteBudget>) {
+        self.budget = Some(budget);
+        let loaded: Vec<Url> = self
+            .by_url
+            .iter()
+            .filter(|(_, state)| matches!(state, ImageState::Loaded(_)))
+            .map(|(url, _)| url.clone())
+            .collect();
+        for url in loaded {
+            self.admit(&url);
+        }
+    }
+
+    /// True if the page's budget for the images of frame documents cannot
+    /// take the raster image that `data` declares (by its header), so that
+    /// the decode can be skipped.
+    pub(crate) fn exceeds_budget(&self, data: &[u8]) -> bool {
+        let Some(budget) = &self.budget else {
+            return false;
+        };
+        let Some((width, height)) = swb_paint::raster_size(data) else {
+            return false;
+        };
+        let bytes = u64::from(width) * u64::from(height) * 4;
+        let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+        budget.used().saturating_add(bytes) > budget.limit()
+    }
+
+    /// Charges the raster image of `url`, which was just inserted, to the
+    /// page's budget; an image that does not fit fails. Returns true if the
+    /// image is loaded.
+    pub(crate) fn admit(&mut self, url: &Url) -> bool {
+        let Some(ImageState::Loaded(image)) = self.by_url.get(url) else {
+            return false;
+        };
+        let Some(budget) = &self.budget else {
+            return true;
+        };
+        let Some(pixels) = image.raster() else {
+            return true;
+        };
+        let bytes = u64::from(pixels.width()) * u64::from(pixels.height()) * 4;
+        let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+        if let Some(reservation) = Reservation::new(budget, bytes) {
+            self.held.push(reservation);
+            return true;
+        }
+        log::warn!(
+            "image {url}: the images of frame documents hold {} of {} bytes, an image of {bytes} bytes does not fit",
+            budget.used(),
+            budget.limit()
+        );
+        self.by_url.insert(url.clone(), ImageState::Failed);
+        false
+    }
+
     /// Uses `image` for `node` after a selection: at once if it is loaded
     /// or the element has no image yet, else when its load succeeds
     /// ([`Images::load_ended`]). If the load failed before, the element
@@ -853,5 +923,47 @@ mod tests {
         let other = NodeId::from_index(6).unwrap();
         assert!(images.reselect(other, image("d", 1.0)));
         assert_eq!(current(&images, other), Some("/d"));
+    }
+
+    /// A raster image of 2 x 3 px (24 bytes decoded) in the state of a
+    /// finished load.
+    fn raster() -> (Vec<u8>, ImageState) {
+        let png = swb_paint::Pixmap::new(2, 3).unwrap().encode_png().unwrap();
+        let decoded = swb_paint::decode(&png).unwrap();
+        (png, ImageState::Loaded(Arc::new(decoded)))
+    }
+
+    #[test]
+    fn raster_images_of_frame_documents_share_a_budget() {
+        let (png, _) = raster();
+        let budget = ByteBudget::new(60);
+        let mut first = Images::default();
+        let mut second = Images::default();
+        first.attach_budget(Arc::clone(&budget));
+        second.attach_budget(Arc::clone(&budget));
+        let urls: Vec<Url> = ["a", "b", "c"]
+            .iter()
+            .map(|n| Url::parse(&format!("https://example.com/{n}.png")).unwrap())
+            .collect();
+        // Two images of 24 bytes fit in 60 bytes, a third does not (the
+        // header check says so before the decode).
+        assert!(!first.exceeds_budget(&png));
+        first.by_url.insert(urls[0].clone(), raster().1);
+        assert!(first.admit(&urls[0]));
+        second.by_url.insert(urls[1].clone(), raster().1);
+        assert!(second.admit(&urls[1]));
+        assert_eq!(budget.used(), 48);
+        assert!(second.exceeds_budget(&png));
+        second.by_url.insert(urls[2].clone(), raster().1);
+        assert!(!second.admit(&urls[2]));
+        assert!(matches!(second.by_url[&urls[2]], ImageState::Failed));
+        // The bytes return with the document's images.
+        drop(first);
+        assert_eq!(budget.used(), 24);
+        assert!(!second.exceeds_budget(&png));
+        // A document without a budget (the top-level one) is not limited.
+        let mut top = Images::default();
+        top.by_url.insert(urls[2].clone(), raster().1);
+        assert!(top.admit(&urls[2]) && !top.exceeds_budget(&png));
     }
 }

@@ -487,6 +487,48 @@ fn same_site_context() {
     );
 }
 
+/// The site for cookies of frames (ADR 0031 section 3, probe case
+/// `cookies-frames`): the request of a frame document and the requests of
+/// a frame are same-site only with the site that the page gives them, not
+/// with their initiator's.
+#[test]
+fn same_site_context_of_frames() {
+    let context = |request: &Request| SameSiteContext::of(request);
+    let top = url("http://127.0.0.1:8000/").origin();
+    // A cross-site frame document: its initiator (the parent) is same-site
+    // with the top level, but the URL is not.
+    let frame = Request::get(url("http://localhost:8001/tp.html"), Destination::IFrame)
+        .with_initiator(Some(top.clone()))
+        .with_site_for_cookies(Some(top.clone()));
+    assert_eq!(context(&frame), SameSiteContext::CrossSite);
+    let same = Request::get(url("http://127.0.0.1:8001/tp.html"), Destination::IFrame)
+        .with_initiator(Some(top.clone()))
+        .with_site_for_cookies(Some(top.clone()));
+    assert_eq!(context(&same), SameSiteContext::SameSite);
+    // A subresource of the cross-site frame from its own site: the
+    // initiator is same-site with the URL, the site for cookies (opaque,
+    // the frame is cross-site with the top level) is not.
+    let sub = Request::get(url("http://localhost:8001/x1.txt"), Destination::Other)
+        .with_initiator(Some(url("http://localhost:8001/").origin()))
+        .with_site_for_cookies(Some(url::Origin::new_opaque()));
+    assert_eq!(context(&sub), SameSiteContext::CrossSite);
+    // The jar: from a cross-site frame document only `SameSite=None;
+    // Secure` cookies are set (localhost is a secure host).
+    let jar = CookieJar::new();
+    let lines = ["tpa=1; SameSite=None; Secure; Path=/", "tpb=1; Path=/"];
+    set(&jar, &frame, &lines);
+    assert_eq!(names(&jar), ["tpa"]);
+    set(&jar, &same, &lines);
+    let mut all = names(&jar);
+    all.sort_unstable();
+    assert_eq!(all, ["tpa", "tpa", "tpb"]);
+    assert_eq!(jar.cookie_header_at(&frame, NOW).as_deref(), Some("tpa=1"));
+    assert_eq!(
+        jar.cookie_header_at(&same, NOW).as_deref(),
+        Some("tpa=1; tpb=1")
+    );
+}
+
 /// Sets one cookie of each `SameSite` value on `https://example.com/`.
 fn jar_with_same_site_cookies() -> CookieJar {
     let jar = CookieJar::new();

@@ -12,7 +12,8 @@
 use swb_dom::{ElementData, local_name, ns, parse_integer};
 
 /// True for the replaced elements that swb lays out as replaced boxes:
-/// `img`, `video`, `audio`, `canvas` (only if `scripting` is true: with
+/// `img`, `video`, `audio`, `iframe` (its content is the frame's document,
+/// ADR 0031 section 4), `canvas` (only if `scripting` is true: with
 /// scripting disabled, a canvas shows its fallback content) and `svg` in
 /// the SVG namespace (an `svg` element that layout reaches is always the
 /// outermost one: the content of a replaced box gets no boxes).
@@ -21,7 +22,10 @@ use swb_dom::{ElementData, local_name, ns, parse_integer};
 pub fn is_replaced_element(element: &ElementData, scripting: bool) -> bool {
     element.is_html()
         && match element.local_name() {
-            &local_name!("img") | &local_name!("video") | &local_name!("audio") => true,
+            &local_name!("img")
+            | &local_name!("video")
+            | &local_name!("audio")
+            | &local_name!("iframe") => true,
             &local_name!("canvas") => scripting,
             _ => false,
         }
@@ -72,7 +76,7 @@ fn is_list_box(select: &ElementData) -> bool {
 
 /// True for elements that are not list items with `display: list-item`,
 /// as measured in Chromium 148: the replaced elements, form controls
-/// (`input`, `select`, `textarea`, `button`), `iframe`, `embed`, `svg`,
+/// (`input`, `select`, `textarea`, `button`), `embed`, `svg`,
 /// `fieldset`, `progress`, `meter`, `br` and `wbr`. `object` is a list
 /// item, because it shows its fallback content (swb loads no plugins);
 /// so is `canvas` with scripting disabled (its fallback content shows).
@@ -88,7 +92,6 @@ pub(crate) fn cannot_be_list_item(element: &ElementData, scripting: bool) -> boo
                     | &local_name!("select")
                     | &local_name!("textarea")
                     | &local_name!("button")
-                    | &local_name!("iframe")
                     | &local_name!("embed")
                     | &local_name!("fieldset")
                     | &local_name!("progress")
@@ -167,7 +170,7 @@ mod tests {
             ("progress", false, false, true),
             ("meter", false, false, true),
             ("button", false, true, true),
-            ("iframe", false, true, true),
+            ("iframe", true, false, true),
             ("embed", false, true, true),
             ("svg", true, true, true),
             ("fieldset", false, true, true),

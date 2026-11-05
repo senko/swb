@@ -27,20 +27,20 @@ use crate::document::{DocumentInit, DocumentState, indicated};
 use crate::resources::{ImageState, Images, Pending};
 
 /// A parsed or new document and its parser.
-struct Parsed {
-    dom: Document,
-    parser: Option<HtmlParser>,
-    encoding: &'static Encoding,
+pub(super) struct Parsed {
+    pub(super) dom: Document,
+    pub(super) parser: Option<HtmlParser>,
+    pub(super) encoding: &'static Encoding,
     /// The content type of the document.
-    content_type: String,
+    pub(super) content_type: String,
     /// The time of a parse to the end (a parse in steps measures itself).
-    parse: Duration,
+    pub(super) parse: Duration,
 }
 
 impl Parsed {
     /// A generated document (text, an image, an error message) of
     /// `content_type`, parsed to the end, in UTF-8.
-    fn complete(dom: Document, content_type: &str) -> Parsed {
+    pub(super) fn complete(dom: Document, content_type: &str) -> Parsed {
         Parsed {
             dom,
             parser: None,
@@ -55,7 +55,9 @@ impl Page {
     /// Processes completed network requests without blocking. Returns true
     /// if anything changed that needs a repaint.
     pub fn process_network(&mut self) -> bool {
-        let mut changed = false;
+        // The documents of frames without a request (`about:srcdoc`,
+        // `about:blank`) commit as if they arrived first.
+        let mut changed = self.run_frame_navigations();
         // While a script runtime holds the state, the completions wait in
         // the loader.
         while !self.lent
@@ -82,7 +84,13 @@ impl Page {
             return false;
         }
         self.update_layout();
-        !self.is_loading()
+        if self.is_loading() {
+            return false;
+        }
+        // Frames that start loading later do not make the page load again.
+        self.check_frame_loads();
+        self.frames.top_mut().load_fired = true;
+        true
     }
 
     /// True if the load that [`Page::wait_until_loaded`] waits for is over,
@@ -106,7 +114,15 @@ impl Page {
         }
         // A timeout too large to represent means "no deadline".
         let deadline = Instant::now().checked_add(timeout);
-        while !self.load_done() {
+        loop {
+            // A removed frame no longer delays the `load` event.
+            self.check_load_after_frame_removal();
+            if self.load_done() {
+                break;
+            }
+            if self.run_frame_navigations() {
+                continue;
+            }
             let now = Instant::now();
             let mut remaining = match deadline {
                 Some(d) if now >= d => return false,
@@ -138,6 +154,17 @@ impl Page {
             self.document_request = None;
             self.document_loaded(completion.result);
             return true;
+        }
+        if let Some(frame) = self.frames.take_request(completion.id) {
+            self.frame_document_arrived(frame, completion.result);
+            // The frame may be the last load that the page waits for.
+            self.check_load_event();
+            return true;
+        }
+        if let Some(frame) = self.frames.by_client(completion.client) {
+            let handled = self.frame_completion(frame, completion);
+            self.check_load_event();
+            return handled;
         }
         let Some((doc, fonts)) = self.parts() else {
             return false;
@@ -182,6 +209,23 @@ impl Page {
             self.set_redirected();
         }
         self.set_response(response.status, response.body.len() as u64);
+        match self.parse_response(&response, self.javascript, swb_dom::MAX_NODES) {
+            Ok((parsed, images)) => self.set_document(parsed, response.url, images),
+            Err(essence) => self.show_error(&format!("Cannot display content of type {essence}")),
+        }
+    }
+
+    /// The document of `response`: HTML (parsed in steps if `steps`, the
+    /// parse of a document with a script runtime), text in a `pre`, or an
+    /// image in an `img`, with the page's scripting flag. An image is
+    /// already in the returned images. The error is the MIME type essence
+    /// of a type that swb cannot show.
+    pub(super) fn parse_response(
+        &self,
+        response: &Response,
+        steps: bool,
+        max_nodes: usize,
+    ) -> Result<(Parsed, Images), String> {
         let content_type = response.content_type();
         let essence = content_type
             .as_ref()
@@ -189,7 +233,7 @@ impl Page {
         let mut images = Images::default();
         let parsed = if essence == "text/html" || essence == "application/xhtml+xml" {
             let charset = content_type.as_ref().and_then(|c| c.charset.as_deref());
-            let mut parsed = self.parse_document(&response.body, charset);
+            let mut parsed = self.parse_document(&response.body, charset, steps, max_nodes);
             essence.clone_into(&mut parsed.content_type);
             parsed
         } else if essence.starts_with("text/") || essence == "application/json" {
@@ -204,7 +248,7 @@ impl Page {
         } else if essence.starts_with("image/") {
             // The image is already here; the generated <img> uses it
             // without fetching it again.
-            let state = ImageState::decode(&response.url, &response, &images.counting);
+            let state = ImageState::decode(&response.url, response, &images.counting);
             images.by_url.insert(response.url.clone(), state);
             Parsed::complete(
                 swb_dom::parse_html_with(
@@ -217,16 +261,23 @@ impl Page {
                 essence,
             )
         } else {
-            self.show_error(&format!("Cannot display content of type {essence}"));
-            return;
+            return Err(essence.to_owned());
         };
-        self.set_document(parsed, response.url, images);
+        Ok((parsed, images))
     }
 
-    /// Parses an HTML document from its bytes: to the end at once with
-    /// JavaScript off, in steps with JavaScript on.
-    fn parse_document(&self, bytes: &[u8], charset: Option<&str>) -> Parsed {
-        if self.javascript {
+    /// Parses an HTML document from its bytes with the page's scripting
+    /// flag: in steps if `steps` (a document with a script runtime), else
+    /// to the end at once, with at most `max_nodes` nodes (a parse in steps
+    /// has the default limit).
+    fn parse_document(
+        &self,
+        bytes: &[u8],
+        charset: Option<&str>,
+        steps: bool,
+        max_nodes: usize,
+    ) -> Parsed {
+        if steps {
             let (text, name) = swb_dom::decode_html_bytes(bytes, charset);
             let mut dom = Document::new();
             let parser = HtmlParser::new(&mut dom, &text, true);
@@ -239,7 +290,8 @@ impl Page {
             };
         }
         let started = Instant::now();
-        let (dom, name) = swb_dom::parse_html_bytes_with(bytes, charset, false);
+        let (dom, name) =
+            swb_dom::parse_html_bytes_limited(bytes, charset, self.javascript, max_nodes);
         Parsed {
             dom,
             parser: None,
@@ -288,10 +340,11 @@ impl Page {
         // (for example images that a restyle of it started).
         self.loader.cancel_all();
         self.document_request = None;
-        // The old document goes first, with its script runtime: its web
-        // fonts leave the font context.
+        // The old document goes first, with its script runtime and its
+        // frames: its web fonts leave the font context.
         self.script = None;
         self.doc = None;
+        self.reset_frames();
         self.lent = false;
         self.fonts.reset_web_fonts();
         self.url = Some(url.clone());
@@ -311,6 +364,13 @@ impl Page {
             view: self.view,
             scroll_target,
             parse: parsed.parse,
+            client: self.loader.new_client(),
+            origin: None,
+            site_for_cookies: None,
+            frame: false,
+            fallback_base: None,
+            style_budget: None,
+            body_budget: None,
         });
         // Set without a restyle: the styles of the new document are not
         // computed yet.
@@ -325,6 +385,7 @@ impl Page {
         }
         self.doc = Some(Box::new(doc));
         self.start_scripts();
+        self.update_frames(super::FrameId::TOP);
     }
 }
 

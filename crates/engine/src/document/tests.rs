@@ -60,6 +60,13 @@ fn state_with(
         },
         scroll_target: None,
         parse: Duration::ZERO,
+        client: swb_net::NO_CLIENT,
+        origin: None,
+        site_for_cookies: None,
+        frame: false,
+        fallback_base: None,
+        style_budget: None,
+        body_budget: None,
     });
     doc.run_parser();
     doc

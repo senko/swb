@@ -480,6 +480,54 @@
    ]
   },
   {
+   "name": "sandbox-nested",
+   "html": "<!DOCTYPE html><html><head><script>\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\naddEventListener('message', e => log.push(String(e.data).split(location.origin).join('O')));</script></head><body><iframe id=f1 sandbox='allow-scripts' src=outer1.html></iframe><iframe id=f2 sandbox='allow-scripts allow-same-origin' src=outer2.html></iframe><iframe id=f3 sandbox='allow-scripts' srcdoc=\"<iframe name=c1 src=inner.html></iframe>\"></iframe></body></html>",
+   "resources": {
+    "outer1.html": {
+     "text": "<!DOCTYPE html><iframe name=a1 src=inner.html></iframe>"
+    },
+    "outer2.html": {
+     "text": "<!DOCTYPE html><iframe name=b1 sandbox='allow-scripts' src=inner.html></iframe><iframe name=b2 sandbox='allow-same-origin allow-scripts' src=inner.html></iframe><iframe name=b3 src=inner.html></iframe>"
+    },
+    "inner.html": {
+     "text": "<!DOCTYPE html><script>top.postMessage(name + ' ' + self.origin, '*')</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(600).then(() => log.slice().sort())"
+    }
+   ]
+  },
+  {
+   "name": "srcdoc-base",
+   "html": "<!DOCTYPE html><html><head><base href='/$FOLDER/sub/'><script>const W = ms => new Promise(r => setTimeout(r, ms));</script></head><body><iframe id=a srcdoc=\"<link rel=stylesheet href=y.css><img src=x.png>\"></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(async () => { const d = a.contentDocument; const log = (await (await fetch('/' + location.pathname.split('/')[1] + '/__log')).json()).map(e => e.path.replace(/^\\/case-\\d+\\//, '')).filter(p => /\\.(png|css)$/.test(p)).sort(); return [d.baseURI.replace(location.origin, 'O'), d.querySelector('img').src.replace(location.origin, 'O'), log]; })"
+    }
+   ]
+  },
+  {
+   "name": "srcdoc-no-base",
+   "html": "<!DOCTYPE html><html><head><script>const W = ms => new Promise(r => setTimeout(r, ms));</script></head><body><iframe id=a srcdoc=\"<link rel=stylesheet href=y.css><img src=x.png>\"></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(async () => { const d = a.contentDocument; const log = (await (await fetch('/' + location.pathname.split('/')[1] + '/__log')).json()).map(e => e.path.replace(/^\\/case-\\d+\\//, '')).filter(p => /\\.(png|css)$/.test(p)).sort(); return [d.baseURI.replace(location.origin, 'O'), d.querySelector('img').src.replace(location.origin, 'O'), log]; })"
+    }
+   ]
+  },
+  {
    "name": "referrer",
    "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst LH = '$OTHER'.replace('127.0.0.1', 'localhost');\nconst L3 = f => LH + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X').split(LH).join('L');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\naddEventListener('message', e => log.push(n(e.data.url) + ' <- ' + n(e.data.ref)));</script></head><body><iframe id=a src=ref.html></iframe><iframe id=b></iframe><iframe id=c srcdoc='<p>c'></iframe><iframe id=d></iframe><script>b.src = X('ref.html')</script></body></html>",
    "resources": {

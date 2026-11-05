@@ -31,6 +31,7 @@ use swb_net::Url;
 
 use super::DocumentState;
 use super::derived::{base_url, document_title};
+use super::frames::FrameChanges;
 use crate::image_source::SelectedImage;
 use crate::resources::{SheetSlot, SheetSource};
 
@@ -55,6 +56,8 @@ enum Kind {
     Base,
     /// An HTML `title`.
     Title,
+    /// An HTML `iframe`: the page makes, navigates or destroys its frame.
+    IFrame,
 }
 
 impl Kind {
@@ -77,6 +80,7 @@ impl Kind {
             local_name!("source") => Kind::Source,
             local_name!("base") => Kind::Base,
             local_name!("title") => Kind::Title,
+            local_name!("iframe") => Kind::IFrame,
             _ => return None,
         })
     }
@@ -121,6 +125,8 @@ struct Batch {
     /// The `img` elements whose `loading` changed: a deferred lazy load of
     /// one that is not lazy any more starts.
     loading_images: HashSet<NodeId>,
+    /// The `iframe` elements that were inserted, removed or changed.
+    frames: FrameChanges,
 }
 
 impl Batch {
@@ -134,6 +140,16 @@ impl Batch {
         match kind {
             Kind::Base => self.base = true,
             Kind::Title => self.title = true,
+            Kind::IFrame => {
+                // The frames are the page's: it gets the lists, not the
+                // candidates.
+                if removed {
+                    self.frames.removed.push(node);
+                } else {
+                    self.frames.inserted.push(node);
+                }
+                return;
+            }
             _ => {}
         }
         if removed {
@@ -180,9 +196,10 @@ impl DocumentState {
             self.walks += 1;
         }
         let generation = self.dom.generation();
-        let (dom, url) = (&self.dom, &self.url);
+        let (dom, url) = (&self.dom, &self.base_fallback);
         self.base_url.rebuild(generation, |_| base_url(dom, url));
         self.title.rebuild(generation, |_| document_title(dom));
+        self.frame_changes.rescan = true;
         let mut owners = Vec::new();
         let mut videos = Vec::new();
         let mut images = Vec::new();
@@ -256,6 +273,20 @@ impl DocumentState {
                 }
                 Change::Attribute { element, name, .. } => {
                     if let Some(kind) = self.dom.element(element).and_then(Kind::of) {
+                        if kind == Kind::IFrame {
+                            // Each set of `src` or `srcdoc` navigates, also
+                            // to the same value (HTML "process the iframe
+                            // attributes").
+                            let list = match &*name.local {
+                                "src" | "srcdoc" => Some(&mut batch.frames.attributes),
+                                "name" => Some(&mut batch.frames.names),
+                                _ => None,
+                            };
+                            if let Some(list) = list {
+                                list.push(element);
+                            }
+                            continue;
+                        }
                         if kind == Kind::Source {
                             self.picture_images(element, &mut batch);
                         }
@@ -360,6 +391,11 @@ impl DocumentState {
     /// Reconciles the elements that a drain touched, in tree order, then
     /// starts their loads and invalidates.
     fn finish_batch(&mut self, mut batch: Batch) {
+        let frames = std::mem::take(&mut batch.frames);
+        self.frame_changes.inserted.extend(frames.inserted);
+        self.frame_changes.removed.extend(frames.removed);
+        self.frame_changes.attributes.extend(frames.attributes);
+        self.frame_changes.names.extend(frames.names);
         let mut stylist_dirty = self.refresh_base_and_title(&batch);
         // Images have events also outside the document (`new Image()`).
         let images: Vec<NodeId> = batch
@@ -482,7 +518,7 @@ impl DocumentState {
         let mut changed = false;
         if batch.base || self.base_url.is_unbuilt() {
             let old = self.base_url.value().clone();
-            let url = &self.url;
+            let url = &self.base_fallback;
             self.base_url.rebuild(generation, |_| base_url(dom, url));
             if *self.base_url.value() != old {
                 let base = self.base_url.value();

@@ -408,6 +408,18 @@ fn the_parser_stops_at_the_node_limit() {
 }
 
 #[test]
+fn a_limited_parse_stops_at_the_node_limit() {
+    let html = "<p>".repeat(100_000);
+    let doc = parse_html_limited(&html, false, 50);
+    assert!((50..60).contains(&doc.len()), "{}", doc.len());
+    let (doc, _) = parse_html_bytes_limited(html.as_bytes(), None, false, 50);
+    assert!((50..60).contains(&doc.len()), "{}", doc.len());
+    // A document that fits is parsed whole.
+    let doc = parse_html_limited("<p>a<p>b", false, 50);
+    assert!(doc.len() < 50);
+}
+
+#[test]
 fn the_parser_stops_at_the_byte_limit() {
     // Each paragraph clones the formatting element with its 1,000-byte
     // attribute (the reconstruction of the active formatting elements).

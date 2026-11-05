@@ -53,8 +53,7 @@ impl DocumentState {
     fn start_script_fetch(&mut self, node: NodeId, url: Url, mode: ScriptFetchMode) {
         #[cfg(test)]
         self.load_log.push(format!("script {url}"));
-        let mut request =
-            Request::get(url, Destination::Script).with_initiator(Some(self.origin()));
+        let mut request = Request::get(url, Destination::Script);
         if let ScriptFetchMode::Module { credentials } = mode {
             request.mode = RequestMode::Cors;
             request.credentials = if credentials {
@@ -63,7 +62,7 @@ impl DocumentState {
                 CredentialsMode::SameOrigin
             };
         }
-        let id = self.loader.start(request);
+        let id = self.start_subresource(request);
         self.requests
             .pending
             .insert(id, Pending::Script { node, mode });

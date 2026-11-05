@@ -321,7 +321,7 @@ fn request_headers(request: &Request, cookie: Option<String>) -> Headers {
 
 fn accept(destination: Destination) -> &'static str {
     match destination {
-        Destination::Document => ACCEPT_DOCUMENT,
+        Destination::Document | Destination::IFrame => ACCEPT_DOCUMENT,
         Destination::Style => ACCEPT_STYLE,
         Destination::Image => ACCEPT_IMAGE,
         Destination::Font | Destination::Script | Destination::Other => ACCEPT_OTHER,

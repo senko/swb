@@ -4,6 +4,48 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 10a: frame tree and loading
+
+- Feature 10 is split: 10a loads and lays out frames, 10b paints them.
+- Each `iframe` in a document of the page gets a frame with its own
+  `DocumentState` (`engine/src/frames/`, ADR 0031 section 2): first an
+  `about:blank` document, then its `srcdoc` or `src`. A change of `src`
+  or `srcdoc` and the frame's own `meta refresh` navigate it. Removal
+  destroys the frame with its child frames and requests.
+- The loader has clients: the requests of a document carry its client,
+  and their completions go to that document. A frame document's request
+  has the destination `iframe` and its own site for cookies, so a
+  cross-site frame sets and sends only `SameSite=None; Secure` cookies.
+  `sandbox` without `allow-same-origin` gives an opaque origin.
+- A frame delays its parent's `load`, and the `iframe` gets its `load`
+  event first (Chromium's order). `iframe` is a replaced element with the
+  default size 300×150 (Chromium's boxes within 1 px). A frame document
+  lays out in its container's content box.
+- Limits: 1,000 frames, depth 32, 64 navigations per frame in 10 s,
+  recursion refused when two ancestors have the URL.
+- Frame documents run no scripts yet (feature 12), and their content
+  does not paint yet (10b).
+- Review fixes, in two rounds:
+  - With JavaScript on, the removal of the last frame that delayed `load`
+    left the page without a `load` event.
+  - `srcdoc` and `about:blank` documents use the parent's base URL
+    (before: `about:srcdoc`, so relative images made no request).
+  - Frames inherit the sandbox flags of their parent frame.
+  - `meta refresh` accepts white space alone after the delay.
+  - Page-wide budgets for frame documents: 64 MiB of source, 1 Mi nodes,
+    64 MiB of unread bodies, 512 MiB of decoded images, 8 MiB of style
+    sheets. Before, 200 frames with a 700 KB `srcdoc` took 3.4 GB, and
+    1,000 frames loading a 10 MiB file were killed at 4.4 GiB.
+  - After a document did not fit, the parse of the next ones stops at
+    16 Ki nodes until 64 Ki nodes have gone. A document that reaches this
+    limit shows the error document, not its first nodes.
+  - The fixtures are about four orders of magnitude below the budgets.
+- JS off: snapshot identical; three more requests, all from the fixtures
+  (Ars Technica's two tag-manager frames, Craigslist's storage frame).
+  JS on: `compare --js` unchanged except Ars Technica (extra elements
+  1 → 0). Load times unchanged within the 50 ms resolution of the runs.
+- Next: M9 feature 10b (frame rendering).
+
 ## 2026-11-05: M9 feature 9: `MessageChannel` and `MessagePort`
 
 - `MessageChannel` and `MessagePort` in one document (ADR 0031 section

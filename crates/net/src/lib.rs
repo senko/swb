@@ -54,11 +54,11 @@ pub use escape::escape_html;
 pub use fetch::{Fetcher, fetch_following_redirects};
 pub use fixture::{ExtendingFetcher, RecordingFetcher, ReplayFetcher};
 pub use headers::{Headers, is_token};
-pub use loader::{API_WORKERS, Completion, Loader, RequestId};
+pub use loader::{API_WORKERS, ClientId, Completion, Loader, NO_CLIENT, RequestId};
 pub use network::{NetworkFetcher, USER_AGENT};
 pub use request::{
     CredentialsMode, Destination, Method, RedirectMode, Request, RequestMode, Tainting,
 };
 pub use response::{ContentType, Response};
-pub use site::is_top_level_domain;
+pub use site::{is_top_level_domain, same_site};
 pub use url::{Origin, Url};

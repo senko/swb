@@ -4324,7 +4324,34 @@ Steps:
    10. Frame tree, loading and rendering (`implementer-hard`; ADR 0031
        feature 2): frames render with JavaScript off; with JavaScript
        on, frame documents parse without scripts. Reports the three
-       JS-off fixture frames.
+       JS-off fixture frames. Split (2026-11-05), because the scope is
+       too large for one session:
+       - 10a. Frame tree and loading: `Frames`, loader clients, frame
+         documents (`src`, `srcdoc`, `about:blank`), navigation of a
+         frame by its attributes and its `meta refresh`, the load events
+         and the load state, the `iframe` replaced box and the frame
+         viewport, frame layout, sandbox origins, limits. Frame documents
+         never run scripts (JavaScript on or off). The frame content is
+         not painted yet.
+         Done 2026-11-05: the frame tree (`engine/src/frames/`), frame
+         documents (`about:blank`, `srcdoc`, `src`, `meta refresh`),
+         loader clients, `Destination::IFrame`, the site for cookies of
+         frames, `sandbox` origins, the load state and the `iframe`'s
+         `load`, the `iframe` box and frame viewports, the limits. Page-wide
+         budgets for frame documents (review): 64 MiB of source, 1 Mi
+         nodes, 64 MiB of unread bodies, 512 MiB of decoded images, 8 MiB
+         of style sheets. 29 engine tests with Chromium's values of 11
+         cases of `web-frames.json`; hostile cases `frame-*`, `frames-*`
+         (14). JS off: snapshot identical, three more requests from the
+         fixtures (Ars Technica's two tag-manager frames, Craigslist's
+         storage frame). JS on: `compare --js` unchanged except Ars
+         Technica (extra elements 1 → 0). Load times unchanged. Departures
+         in ADR 0031: the depth limit is 32 (Chromium 300); the budgets;
+         frames that a script makes exist after its task; `srcdoc`
+         documents commit in the next event-loop turn; frame documents use
+         no web fonts yet.
+       - 10b. Frame rendering: the nested display list, transparency and
+         color scheme, screenshots, the JS-off fixture report.
    11. Input in frames, automation and tools for frames (`implementer`;
        ADR 0031 feature 3).
    12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
@@ -4510,6 +4537,26 @@ Steps:
   at 725 to 845 ms). swb compiles three `_next/static/chunks` scripts
   after `load`. Check whether scripts that a page inserts (webpack chunk
   loading) delay the `load` event as the HTML spec says.
+- Frames (found in feature 10a): `meta refresh` of top-level documents
+  (swb has it for frame documents only); memory per frame document is
+  about 0.3 MiB for an `about:blank` frame (1,000 frames about 300 MiB,
+  cause not measured; a shared UA rule index may help). On Ars Technica
+  with JavaScript on, the script `7808f320344b6831.js` creates the
+  safeframe `#admrl-sf__test`, whose `container.html` is not in the
+  fixture, and listens for its `load`: it removes the frame and runs
+  again. The four more requests outside the fixture fit its other path
+  (up to 8 tries, then a report to succeedscene.com when the safeframe
+  never posts its token); not traced further. No fixture test depends on
+  them. Find out why Chromium's capture has no such request. The top
+  document has no page-wide budget for images and style sheets (50 PNGs
+  of 16 Mpx take 3.2 GiB). Feature 10b must put the vector cache of SVG
+  images (128 MiB per document) and the display lists and rasters of
+  frames under a page-wide budget. Sandbox flags apply when the document
+  arrives; Chromium's behaviour for a `sandbox` change during a slow load
+  is not measured.
+- Measurement (found in feature 10a): the wall times of swb runs fall on
+  a grid of about 50 ms (cause not known), so the load-time runs cannot
+  show a smaller change.
 - Message ports (found in feature 9): no `BroadcastChannel` and no
   `MessageEvent.userActivation`; the port registry is per runtime (the
   frames work makes it page-level, with `Task::PortMessage` going to the

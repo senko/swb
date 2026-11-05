@@ -1,0 +1,444 @@
+{
+ "cases": [
+  {
+   "name": "geometry",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[1]",
+     "tag": "div",
+     "index": 5,
+     "rect": [
+      0.0,
+      0.0,
+      800.0,
+      158.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[2]",
+     "tag": "iframe",
+     "index": 6,
+     "rect": [
+      8.91,
+      0.0,
+      304.0,
+      154.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[3]",
+     "tag": "iframe",
+     "index": 8,
+     "rect": [
+      0.0,
+      158.0,
+      300.0,
+      150.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[4]",
+     "tag": "iframe",
+     "index": 10,
+     "rect": [
+      0.0,
+      312.0,
+      216.0,
+      116.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[5]",
+     "tag": "iframe",
+     "index": 12,
+     "rect": [
+      0.0,
+      432.0,
+      124.0,
+      64.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[6]",
+     "tag": "iframe",
+     "index": 14,
+     "rect": [
+      0.0,
+      500.0,
+      404.0,
+      154.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[7]",
+     "tag": "iframe",
+     "index": 16,
+     "rect": [
+      0.0,
+      764.0,
+      304.0,
+      44.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "(iframe, #r1)[8]",
+     "tag": "iframe",
+     "index": 17,
+     "rect": [
+      304.0,
+      654.0,
+      404.0,
+      154.0
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[...document.querySelectorAll('iframe')].map(f => { const w = f.contentWindow, d = f.contentDocument, s = getComputedStyle(f); return [f.id, w.innerWidth, w.innerHeight, d.documentElement.clientWidth, d.documentElement.clientHeight, d.compatMode, s.display, s.borderTopStyle, s.borderTopWidth, s.borderTopColor, s.overflow, s.verticalAlign, d.body ? getComputedStyle(d.body).margin : 'nobody', d.documentElement.scrollHeight, d.URL].join(' '); })",
+     "value": [
+      "a 300 150 300 150 BackCompat inline inset 2px rgb(0, 0, 0) clip baseline 8px 150 about:blank",
+      "b 300 150 300 150 BackCompat inline inset 0px rgb(0, 0, 0) clip baseline 8px 150 about:blank",
+      "c 200 100 200 100 BackCompat inline solid 5px rgb(255, 0, 0) clip baseline 8px 100 about:blank",
+      "d 120 60 120 60 CSS1Compat inline inset 2px rgb(0, 0, 0) clip baseline 8px 60 about:srcdoc",
+      "e 400 150 400 150 BackCompat block inset 2px rgb(0, 0, 0) clip baseline 8px 150 about:blank",
+      "f 300 40 300 40 BackCompat inline inset 2px rgb(0, 0, 0) clip baseline 8px 40 about:blank",
+      "g 400 150 400 150 BackCompat inline inset 2px rgb(0, 0, 0) clip baseline 8px 150 about:blank"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "about-blank",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.slice()",
+     "value": [
+      "before:null",
+      "load:about:blank",
+      "after:true:about:blank:complete:about:blank:<html><head></head><body></body></html>:O:UTF-8:BackCompat:text/html",
+      "realm:true:true:false:false:false:true",
+      "foo:1",
+      "gload:about:blank",
+      "g appended",
+      "g src set:about:blank",
+      "opened:loading:O/case-2/case-2.html:null",
+      "inner:object:loading",
+      "written:function:true:true:<p>x</p>",
+      "gload:http://127.0.0.1:42551/case-2/case-2.html",
+      "closed:complete",
+      "t0:O/case-2/case-2.html:function:complete"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(300).then(() => log)",
+     "value": [
+      "before:null",
+      "load:about:blank",
+      "after:true:about:blank:complete:about:blank:<html><head></head><body></body></html>:O:UTF-8:BackCompat:text/html",
+      "realm:true:true:false:false:false:true",
+      "foo:1",
+      "gload:about:blank",
+      "g appended",
+      "g src set:about:blank",
+      "opened:loading:O/case-2/case-2.html:null",
+      "inner:object:loading",
+      "written:function:true:true:<p>x</p>",
+      "gload:http://127.0.0.1:42551/case-2/case-2.html",
+      "closed:complete",
+      "t0:O/case-2/case-2.html:function:complete"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "load-order",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log",
+     "value": [
+      "parent script after iframes about:blank about:blank complete complete",
+      "parent dcl",
+      "srcdoc script",
+      "srcdoc iframe load",
+      "child script loading",
+      "child dcl",
+      "child load",
+      "iframe load complete",
+      "parent load"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cookies-frames",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const res = {}; await Promise.race([W(3000), new Promise(r => { const h = e => { if (e.data && 'cookie' in e.data) { res[e.data.host] = e.data; if (Object.keys(res).length === 2) { removeEventListener('message', h); r(); } } }; addEventListener('message', h); f1.src = L3('tp.html'); f2.src = X('tp.html'); })]); const log = (await (await fetch('__log')).json()).filter(e => /x[12]\\.txt|tp\\.html/.test(e.path)).map(e => [e.path.split('/').pop(), e.server, e.cookie].join(' ')).sort(); return [JSON.stringify(res), log, document.cookie]; })()",
+     "value": [
+      "{\"localhost\":{\"host\":\"localhost\",\"cookie\":\"tpa=1; tpc=1\",\"ls\":\"v\",\"hsa\":\"function\"},\"127.0.0.1\":{\"host\":\"127.0.0.1\",\"cookie\":\"tpa=1; tpb=1; tpc=1; tpd=1\",\"ls\":\"v\",\"hsa\":\"function\"}}",
+      [
+       "x1.txt other tpa=1; tpc=1",
+       "x2.txt other tpa=1; tpb=1; tpc=1; tpd=1"
+      ],
+      "tpa=1; tpb=1; tpc=1; tpd=1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "javascript-off",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "boxes",
+     "label": "iframe[1]",
+     "tag": "iframe",
+     "index": 4,
+     "rect": [
+      0.0,
+      0.0,
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "kind": "boxes",
+     "label": "iframe[2]",
+     "tag": "iframe",
+     "index": 5,
+     "rect": [
+      100.0,
+      0.0,
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "kind": "pixels",
+     "label": "iframe[1]",
+     "pixels": [
+      [
+       0,
+       255,
+       0
+      ],
+      [
+       0,
+       0,
+       255
+      ]
+     ],
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       70,
+       70
+      ]
+     ],
+     "area": [
+      0.0,
+      0.0,
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "kind": "pixels",
+     "label": "iframe[2]",
+     "pixels": [
+      [
+       0,
+       255,
+       0
+      ],
+      [
+       0,
+       0,
+       255
+      ]
+     ],
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       70,
+       70
+      ]
+     ],
+     "area": [
+      100.0,
+      0.0,
+      100.0,
+      100.0
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[frames.length, ...[...document.querySelectorAll('iframe')].map(f => f.contentDocument ? f.contentDocument.body.innerHTML.length : -1)]",
+     "value": [
+      2,
+      128,
+      128
+     ]
+    }
+   ]
+  },
+  {
+   "name": "limits",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const out = []; const fs = []; for (let i = 0; i < 1100; i++) { const f = document.createElement('iframe'); document.body.appendChild(f); fs.push(f); } out.push(frames.length, fs.filter(f => f.contentWindow === null).length, fs.findIndex(f => f.contentWindow === null)); fs.forEach(f => f.remove()); out.push(frames.length); let doc = document, depth = 0; for (let i = 0; i < 300; i++) { const f = doc.createElement('iframe'); doc.body.appendChild(f); if (!f.contentWindow) break; doc = f.contentDocument; depth++; } out.push(depth); return out; })()",
+     "value": [
+      1000,
+      100,
+      1000,
+      0,
+      300
+     ]
+    }
+   ]
+  },
+  {
+   "name": "self-embed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { f.src = location.href; return W(1500).then(() => { let w = window, d = 0; const s = []; while (w.frames.length && d < 50) { w = w.frames[0]; d++; s.push(n(w.location.href) + ' ' + w.document.readyState); } return [d, ...s]; }); })()",
+     "value": [
+      2,
+      "O/case-7/case-7.html complete",
+      "about:blank complete"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sandbox",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => [log.join('; '), String(a.contentDocument), String(b.contentDocument), c.contentDocument && c.contentDocument.body.textContent, String(a.sandbox), b.sandbox.supports('allow-scripts'), E(() => b.contentWindow.document)])",
+     "value": [
+      "b null SecurityError SecurityError SecurityError from null true",
+      "null",
+      "null",
+      "cdocument.body.append('ran')",
+      "",
+      true,
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sandbox-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(600).then(() => log.slice().sort())",
+     "value": [
+      "a1 null",
+      "b1 null",
+      "b2 O",
+      "b3 O",
+      "c1 null"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "srcdoc-base",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(async () => { const d = a.contentDocument; const log = (await (await fetch('/' + location.pathname.split('/')[1] + '/__log')).json()).map(e => e.path.replace(/^\\/case-\\d+\\//, '')).filter(p => /\\.(png|css)$/.test(p)).sort(); return [d.baseURI.replace(location.origin, 'O'), d.querySelector('img').src.replace(location.origin, 'O'), log]; })",
+     "value": [
+      "O/case-2/sub/",
+      "O/case-2/sub/x.png",
+      [
+       "sub/x.png",
+       "sub/y.css"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "srcdoc-no-base",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(async () => { const d = a.contentDocument; const log = (await (await fetch('/' + location.pathname.split('/')[1] + '/__log')).json()).map(e => e.path.replace(/^\\/case-\\d+\\//, '')).filter(p => /\\.(png|css)$/.test(p)).sort(); return [d.baseURI.replace(location.origin, 'O'), d.querySelector('img').src.replace(location.origin, 'O'), log]; })",
+     "value": [
+      "O/case-3/case-3.html",
+      "O/case-3/x.png",
+      [
+       "x.png",
+       "y.css"
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -331,6 +331,7 @@ pub(crate) fn preflight_request(request: &Request) -> Request {
         body: None,
         destination: request.destination,
         initiator: request.initiator.clone(),
+        site_for_cookies: request.site_for_cookies.clone(),
         mode: RequestMode::Cors,
         credentials: CredentialsMode::Omit,
         redirect: RedirectMode::Manual,

@@ -199,6 +199,77 @@ no target navigates a frame after its first document; the joint history
 needs a tree of entries per navigable and traversals that move several
 navigables at once. It is a backlog item with the measured behaviour.
 
+**Done (feature 10a, `engine/src/frames/`, `page/frames.rs`,
+`document/frames.rs`).** The arena and the life of frames as above, with
+these decisions and departures:
+
+- The top-level frame's record has the tree data only; its document stays
+  in `Page::doc`, which script tasks borrow (the lending code is
+  unchanged). A new top-level document destroys the child frames but keeps
+  the arena, so the ids of old frames stay stale.
+- The journal drain reports the `iframe` elements that were inserted,
+  removed, and whose `src`, `srcdoc` or `name` was set
+  (`FrameChanges`); a walk of the whole document (an incomplete journal)
+  makes the page compare its frames with the document's `iframe` elements.
+  The page acts after each drain point: the return of a lent document, a
+  change through `change_dom`, the commit of a document, the end of a
+  parse. So a frame that a script task creates exists after the task, not
+  inside it (feature 12 makes it synchronous). A move of an `iframe`
+  destroys its frame and makes a new one (it is removed and inserted).
+- Every set of `src` or `srcdoc` navigates, also to the same value.
+  `about:blank` and `about:srcdoc` documents commit in the next turn of the
+  event loop (`Page::run_frame_navigations`), not inside the insertion;
+  the initial `about:blank` is made at once. With no `src` and no
+  `srcdoc`, or `src` `about:blank`, at the insertion the frame keeps its
+  initial document and counts as loaded at once.
+- The container's `load` event fires as a task of the parent's runtime
+  when the frame's document and its own frames have loaded
+  (`Page::check_frame_loads`, children first); only containers in the
+  top-level document can have listeners in 10a. The order in swb is parent
+  `DOMContentLoaded`, `srcdoc` `iframe` `load`, `iframe` `load`, parent
+  `load`, as in Chromium's case `load-order` without the entries of the
+  frames' scripts. The test uses its own page with the same frames, because
+  the probe's handler reads `contentDocument` (feature 12). Departure until
+  feature 12: the initial
+  `about:blank` `load` does not fire inside `appendChild`.
+- The frame's own declarative refresh (`<meta http-equiv=refresh>`, HTML
+  "shared declarative refresh steps") navigates the frame at its time of
+  page time; the top-level document still has none (backlog). Frame
+  documents parse to the end at once (no parser in steps) with the page's
+  scripting flag, and run no scripts.
+- A frame document's `@font-face` rules are not used in 10a: the page's
+  font context holds the web fonts of one document (backlog for 10b).
+- A `javascript:` URL in `src` is ignored (no navigation, an info log)
+  until scripts run in frames; `src = "javascript:"` therefore does
+  nothing, as in Chromium.
+- The fallback base URL of an `about:srcdoc` or `about:blank` frame
+  document is its parent's base URL (HTML "fallback base URL"), so a
+  relative image or style sheet in a `srcdoc` frame requests the URL that
+  Chromium requests (cases `srcdoc-base`, `srcdoc-no-base`). `document.URL`
+  stays `about:srcdoc`.
+- The sandboxing flags of a frame are the container's `sandbox` attribute
+  joined with the parent frame's flags (HTML "determining the creation
+  sandboxing flags"); a token allows only if every sandboxed level allows
+  it (case `sandbox-nested`: a frame without `sandbox` inside
+  `sandbox=allow-scripts` has an opaque origin).
+- A frame that is removed no longer delays the parent's `load`: the
+  removal re-checks the load state (`Page::change_dom`, the next `pump`
+  and `wait_until_loaded`), so `load` fires at once when the removed frame
+  was the last one that the page waited for. A `load` that fires for a
+  container reaches it only if the container still has the frame that
+  loaded (an earlier listener may have removed it and inserted it again).
+- The refresh delay and URL may be separated by white space alone
+  (`0 s2.html`, `0 url=s2.html`; HTML "shared declarative refresh steps"
+  step 11, measured). The `0;"s2.html" x` form differs from Chromium and is
+  left.
+- Limits (section 11): 1,000 frames, depth 32, 64 navigations per frame
+  in 10 s of page time, one warning each (per top-level document, per
+  frame); the page-wide budgets for frame documents (source bytes, nodes,
+  response bodies, images, style sheets) in the table of section 11.
+  Chromium nests 300 deep (case `limits`); swb stops at 32.
+- Recursion: as Chromium, a navigation to a URL (without fragment) that
+  two or more ancestors' documents have is refused (case `self-embed`).
+
 ### 3. Network, loading and the loader
 
 - **Routing of completions.** The page has one `Loader` (its worker
@@ -251,6 +322,30 @@ navigables at once. It is a backlog item with the measured behaviour.
   activation; swb has no activation tracking for it.
 - **CORS** of a frame's own requests uses the frame document's origin as
   the request's origin; nothing else changes.
+
+**Done (feature 10a).** `swb_net::Loader::new_client`, `start_for`,
+`start_api_for` and `cancel_client`; `Completion::client`. The page routes
+a completion to the document request of a frame (a table of request ids),
+else to the document of its client, else to the top-level document as
+before. `cancel_client` cancels the queued requests of a client; requests
+that run end and are ignored. The request of a frame document:
+`Destination::IFrame` (`Accept` as for documents), mode `navigate`,
+credentials `include`, initiator the parent document's origin, and the new
+`Request::site_for_cookies`: the top-level origin if the parent and its
+ancestors are same-site with it, else an opaque origin. A frame document
+gives its subresource requests its own site for cookies (the top-level
+origin if it and its ancestors are same-site with it) and its loader client
+(`DocumentState::start_subresource`). `SameSiteContext::of` compares the
+site for cookies, when there is one, with the request URL, so a cross-site
+frame document and its requests set and send only `SameSite=None` cookies
+(case `cookies-frames`, the response part; `document.cookie` in frames
+comes with scripts in frames). `sandbox` is parsed (`Sandbox`): without
+`allow-same-origin` the document's origin is opaque; `allow-scripts` waits
+for feature 12 (frame documents run no scripts). The flags are read at
+each navigation. The origin of `about:blank` and `about:srcdoc` documents
+is the parent document's; a frame document whose request failed shows an
+error document with an opaque origin. `document.referrer` and storage keys
+of frames come with feature 14.
 
 ### 4. Rendering
 
@@ -319,6 +414,27 @@ across all frames.
 **Frames outside the viewport** lay out and paint as others when they are
 dirty; no throttling in M9 (Chromium throttles the rendering of hidden
 cross-origin frames; a backlog item).
+
+**Done (feature 10a: the box and the viewport; paint is feature 10b).**
+`iframe` is a replaced element (`swb_style::is_replaced_element`, so its
+children render nothing and it is never a list item); its natural size is
+`NaturalSize::default()` (no width, height or ratio), so the default object
+size of 300×150 applies; box construction gives `BoxContent::Frame(node)`,
+which paints nothing in its content box yet (the `iframe`'s background and
+border paint). Case `geometry` matches Chromium within 1 px for the eight
+boxes (304×154, `frameborder=0`, `width`/`height`, `width: auto`, a block
+with `width: 50%`, `min-width`). After the page's layout
+(`Page::update_layout`, and after `Page::render`) the page lays out the
+frame documents parents first (`Page::layout_frames`): a frame's viewport
+is its container's content box in the parent's latest layout (one walk of
+the parent's fragments per parent and layout), clamped to 0 ..
+`MAX_VIEWPORT_SIDE`; without a box it keeps the last one (initially
+300×150). A changed viewport, scale or color scheme reaches the frame
+document through `DocumentState::set_view`, which restyles it. The frame
+document lays out as a top-level document (case `geometry`: the frame
+viewports and root widths equal Chromium's `innerWidth`,
+`clientWidth`; quirks mode for `about:blank`, no-quirks for
+`about:srcdoc`). No `resize` events (frame documents run no scripts).
 
 ### 5. Scripts: agents, runtimes and realms
 
@@ -827,7 +943,34 @@ document. The feature that turns rendering on reports the scores.
 | One message | the structured clone limits of ADR 0028 section 16 | `DataCloneError` or `RangeError` as now |
 | Message ports per page | 65,536 | `new MessageChannel()` throws `RangeError`, a warning |
 | Frame viewport | the viewport limits (`MAX_VIEWPORT_SIDE`) | clamped |
+| Source text of frame documents that are alive together, per page | 64 MiB (`MAX_SOURCE_BYTES`): the `srcdoc` text and the bodies of network documents. A document that replaces another pays the difference; a destroyed or navigated frame returns its bytes | checked before the parse; the document becomes an error document (it costs nothing), one warning per top-level document. The frame still exists and loads, so the load state ends |
+| DOM nodes of frame documents that are alive together, per page | 1 Mi (`MAX_NODES`, as many as the parser accepts for one document) | the parse of a frame document stops one node past the room that is left; a document that does not fit becomes an error document. After a rejection the parse of the next documents stops at 16 Ki nodes until 64 Ki nodes have gone since the last rejection, so that 1,000 documents that are just too big do not cost 1,000 parses. A document that reaches this limit also shows the error document, never its first nodes; so on a page that has passed the budget, a frame document of more than 16 Ki nodes fails even if it would fit |
+| Response bodies of frame documents (documents and their subresources) that the workers have read and the page has not taken, per page | 64 MiB (a `Reservation` of the request in a `ByteBudget`, as for `fetch()`) | the request fails (`OverBudget`): an error document, a failed image or style sheet. Without it the workers outrun the page: 1,000 frames of 10 MiB filled 4.4 GiB in 0.8 s |
+| Decoded raster images of frame documents, per page | 512 MiB (`MAX_IMAGE_BYTES`, 4 bytes per pixel, charged from the header before the decode) | the image fails with a warning. One frame with 50 PNGs of 16 Mpx took 3.2 GiB |
+| External style sheets of frame documents, per page | 8 MiB of CSS text (`MAX_STYLE_BYTES`) | the sheet fails with a warning. A sheet of 13 MB (1,000,000 rules) took 1.46 GiB parsed |
 | Hit testing | the 40 ms budget per call covers all frames | as now |
+
+Chromium has none of the budgets for frame documents. They are departures
+that a large page can see: about 10 photos of 4000×3000 px across the frames
+of a page fill the 512 MiB of decoded images, and later images fail. The
+frame documents of the Ars Technica and BBC fixtures are about four orders
+of magnitude below the budgets (largest document 5,399 bytes, all CSS
+148 KB).
+
+**What multiplies by the frame count** (review of feature 10a). Measured
+worst cases for one frame, which the 1,000 frames of a page would multiply:
+a document of 1 Mi nodes (500,000 `p` elements with text) 1.5 GiB of DOM,
+style and layout; 50 PNGs of 4000 x 4000 px 3.2 GiB; a style sheet of
+1,000,000 rules (13 MB) 1.46 GiB. The node, image and style sheet budgets
+above are page-wide for these. Not multiplied, because frame documents run
+no scripts and use no web fonts in feature 10a: the script heap, the
+`fetch()` budget of 256 MiB per document, web fonts, the font context.
+Feature 10b must put two things under a page-wide budget when frame
+documents paint: the vector cache of SVG images (128 MiB per document,
+`paint/src/svg/cache.rs`) and the display lists and rasters of frames. The
+top-level document keeps the per-document limits: it has no page-wide
+budget for images and style sheets, so a top-level document with 50 such
+PNGs takes the same 3.2 GiB (backlog).
 
 Hostile pages to add (`just hostile`): 1,100 frames created in a loop; a
 frame nested 100 deep through `srcdoc`; a page that embeds itself with a
@@ -838,6 +981,11 @@ transfer of 10,000 ports; 40 frames of 40 origins; a frame that creates
 and removes `about:blank` frames in a loop (realm budget); a cross-origin
 frame that allocates to its heap limit (the top document keeps running).
 Each case ends within the set's limits and logs the limit that acted.
+Feature 10a's review added `frames-1000-big-srcdoc-js-on`,
+`frames-1000-dense-srcdoc-js-on`, `frames-1000-big-documents`,
+`frames-100-big-images`, `frames-200-big-style-sheets` and
+`frames-replaced-in-a-loop-js-on` (the budgets; the last one checks that
+replaced and destroyed documents return their bytes).
 
 ### 12. Tests
 

@@ -1615,6 +1615,7 @@ impl Builder<'_> {
             | BoxContent::Control(_)
             | BoxContent::Media(_)
             | BoxContent::Svg(_)
+            | BoxContent::Frame(_)
             | BoxContent::Placeholder(_) => {}
         }
         let radii = resolve_radii(style, border_rect);

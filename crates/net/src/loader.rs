@@ -22,6 +22,13 @@
 //! worker has not finished it (`JobState`); the entry is removed when the
 //! worker takes the job and drops it, or sends the completion, so the table
 //! is as large as the number of requests in progress.
+//!
+//! *Clients* (ADR 0031 section 3): the page has one loader for all its
+//! documents. Each document gets a client number ([`Loader::new_client`]);
+//! a request started with [`Loader::start_for`] carries it, and so does its
+//! [`Completion`], so that the page hands the completion to the document of
+//! the client. [`Loader::cancel_client`] cancels the queued requests of one
+//! client (a frame that is removed or navigates).
 
 use std::collections::HashMap;
 use std::panic::{self, AssertUnwindSafe};
@@ -46,6 +53,14 @@ use crate::response::Response;
 /// are unique for one loader.
 pub type RequestId = u64;
 
+/// Identifies a client of a loader: a document whose requests the loader
+/// runs ([`Loader::new_client`]). [`NO_CLIENT`] is the client of the
+/// requests started with [`Loader::start`].
+pub type ClientId = u64;
+
+/// The client of requests that name none.
+pub const NO_CLIENT: ClientId = 0;
+
 /// The number of worker threads for the requests of [`Loader::start_api`].
 pub const API_WORKERS: usize = 8;
 
@@ -59,6 +74,9 @@ const MAX_DETACHED_WORKERS: usize = 16;
 pub struct Completion {
     /// The id that [`Loader::start`] returned.
     pub id: RequestId,
+    /// The client that started the request ([`NO_CLIENT`] for
+    /// [`Loader::start`]).
+    pub client: ClientId,
     /// The final response after redirects, or the error. For a request with
     /// [`Request::exposed_to_script`] it is the filtered response of
     /// `kind`.
@@ -73,9 +91,10 @@ pub struct Completion {
 }
 
 impl Completion {
-    fn failed(id: RequestId, error: NetError) -> Self {
+    fn failed(id: RequestId, client: ClientId, error: NetError) -> Self {
         Completion {
             id,
+            client,
             result: Err(error),
             kind: ResponseKind::Basic,
             reservation: None,
@@ -95,6 +114,7 @@ enum PoolKind {
 
 struct Job {
     id: RequestId,
+    client: ClientId,
     /// The value of [`Shared::generation`] when the job was queued.
     generation: u64,
     request: Request,
@@ -124,6 +144,9 @@ struct Shared {
     generation: AtomicU64,
     shutdown: AtomicBool,
     states: Mutex<HashMap<RequestId, JobState>>,
+    /// The client of each request in `states` that has one (not
+    /// [`NO_CLIENT`]); removed with the state.
+    clients: Mutex<HashMap<RequestId, ClientId>>,
     preflights: PreflightCache,
     /// The workers in state [`JobState::Detached`].
     detached: AtomicUsize,
@@ -134,8 +157,13 @@ impl Shared {
         self.states.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    fn clients(&self) -> MutexGuard<'_, HashMap<RequestId, ClientId>> {
+        self.clients.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
     /// Removes the entry of `id`; true if its worker was detached.
     fn finish(&self, id: RequestId) -> bool {
+        self.clients().remove(&id);
         self.states().remove(&id) == Some(JobState::Detached)
     }
 
@@ -212,6 +240,7 @@ pub struct Loader {
     api_started: AtomicBool,
     completions: Receiver<Completion>,
     next_id: AtomicU64,
+    next_client: AtomicU64,
     /// The numbers of the threads that were started after the first ones.
     spawned: AtomicUsize,
 }
@@ -234,6 +263,7 @@ impl Loader {
             generation: AtomicU64::new(0),
             shutdown: AtomicBool::new(false),
             states: Mutex::new(HashMap::new()),
+            clients: Mutex::new(HashMap::new()),
             preflights: PreflightCache::new(),
             detached: AtomicUsize::new(0),
         });
@@ -248,35 +278,57 @@ impl Loader {
             api_started: AtomicBool::new(false),
             completions,
             next_id: AtomicU64::new(1),
+            next_client: AtomicU64::new(NO_CLIENT + 1),
             spawned: AtomicUsize::new(0),
         }
+    }
+
+    /// A new client number; never [`NO_CLIENT`] and never one returned
+    /// before.
+    pub fn new_client(&self) -> ClientId {
+        self.next_client.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Queues `request` and returns its id. A worker fetches it and follows
     /// redirects. The result arrives as a [`Completion`] with this id.
     pub fn start(&self, request: Request) -> RequestId {
-        self.enqueue(&self.page, request)
+        self.start_for(NO_CLIENT, request)
+    }
+
+    /// [`Loader::start`] for `client`: the completion carries it, and
+    /// [`Loader::cancel_client`] cancels the request.
+    pub fn start_for(&self, client: ClientId, request: Request) -> RequestId {
+        self.enqueue(&self.page, client, request)
     }
 
     /// Like [`Loader::start`], on the pool of the script's API calls
     /// ([`API_WORKERS`] threads, apart from the page's loads).
     pub fn start_api(&self, request: Request) -> RequestId {
+        self.start_api_for(NO_CLIENT, request)
+    }
+
+    /// [`Loader::start_api`] for `client` (see [`Loader::start_for`]).
+    pub fn start_api_for(&self, client: ClientId, request: Request) -> RequestId {
         if !self.api_started.swap(true, Ordering::Relaxed) {
             for index in 0..API_WORKERS {
                 self.api.spawn_worker(&self.shared, index);
             }
         }
-        self.enqueue(&self.api, request)
+        self.enqueue(&self.api, client, request)
     }
 
-    fn enqueue(&self, pool: &Pool, request: Request) -> RequestId {
+    fn enqueue(&self, pool: &Pool, client: ClientId, request: Request) -> RequestId {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let job = Job {
             id,
+            client,
             generation: self.shared.generation.load(Ordering::Relaxed),
             request,
         };
         self.shared.states().insert(id, JobState::Queued);
+        if client != NO_CLIENT {
+            self.shared.clients().insert(id, client);
+        }
         let sent = pool.started.load(Ordering::Relaxed) > 0
             && pool
                 .jobs
@@ -288,10 +340,39 @@ impl Loader {
             self.shared.finish(id);
             self.shared.complete(Completion::failed(
                 id,
+                client,
                 NetError::Internal("no network worker thread is running".to_string()),
             ));
         }
         id
+    }
+
+    /// Cancels the requests of `client` that no worker has started: they
+    /// complete with [`NetError::Aborted`] without a fetch. Requests in
+    /// progress run to the end; their completions carry the client, and
+    /// the caller ignores them. Returns the number of requests cancelled.
+    pub fn cancel_client(&self, client: ClientId) -> usize {
+        if client == NO_CLIENT {
+            return 0;
+        }
+        let ids: Vec<RequestId> = self
+            .shared
+            .clients()
+            .iter()
+            .filter(|&(_, &c)| c == client)
+            .map(|(&id, _)| id)
+            .collect();
+        let mut states = self.shared.states();
+        let mut cancelled = 0;
+        for id in ids {
+            if let Some(state) = states.get_mut(&id)
+                && *state == JobState::Queued
+            {
+                *state = JobState::Cancelled;
+                cancelled += 1;
+            }
+        }
+        cancelled
     }
 
     /// Cancels all requests started so far. Requests that no worker has
@@ -399,7 +480,7 @@ impl Worker {
     }
 
     /// Fetches `request`; the response keeps its [`Reservation`].
-    fn fetch(&self, id: RequestId, request: Request) -> Completion {
+    fn fetch(&self, id: RequestId, client: ClientId, request: Request) -> Completion {
         let reservation = request.reservation.clone();
         // A panic in a fetcher is a bug, but it must not leave the request
         // without a completion or kill the worker.
@@ -428,11 +509,12 @@ impl Worker {
         match fetched {
             Ok(fetched) => Completion {
                 id,
+                client,
                 result: Ok(fetched.response),
                 kind: fetched.kind,
                 reservation,
             },
-            Err(error) => Completion::failed(id, error),
+            Err(error) => Completion::failed(id, client, error),
         }
     }
 
@@ -445,6 +527,7 @@ impl Worker {
                 .recv();
             let Ok(Job {
                 id,
+                client,
                 generation,
                 request,
             }) = job
@@ -460,10 +543,11 @@ impl Worker {
                 continue;
             }
             let completion = if self.begin(id) {
-                self.fetch(id, request)
+                self.fetch(id, client, request)
             } else {
-                // Cancelled by `Loader::cancel` before it started.
-                Completion::failed(id, NetError::Aborted)
+                // Cancelled by `Loader::cancel` or `Loader::cancel_client`
+                // before it started.
+                Completion::failed(id, client, NetError::Aborted)
             };
             let detached = self.shared.finish(id);
             if !self.shared.complete(completion) {
@@ -802,6 +886,35 @@ mod tests {
     }
 
     #[test]
+    fn completions_carry_their_client_and_cancel_client_cancels_queued_ones() {
+        let (fetcher, release) = echo();
+        let loader = Loader::new(fetcher, 1, no_notify());
+        let (a, b) = (loader.new_client(), loader.new_client());
+        assert!(a != NO_CLIENT && b != NO_CLIENT && a != b);
+        // The only worker blocks on the first request of `a`; the others
+        // wait in the queue.
+        let running = loader.start_for(a, request("/block"));
+        wait_for("running", || self::running(&loader, running));
+        let queued_a = loader.start_for(a, request("/a"));
+        let queued_b = loader.start_for(b, request("/b"));
+        assert_eq!(loader.cancel_client(a), 1);
+        assert_eq!(loader.cancel_client(NO_CLIENT), 0);
+        release.send(()).unwrap();
+        let mut seen = HashMap::new();
+        for _ in 0..3 {
+            let c = loader.recv_timeout(Duration::from_secs(10)).unwrap();
+            seen.insert(c.id, (c.client, c.result.is_ok()));
+        }
+        // The running request ends normally, the queued one of `a` is
+        // aborted, the one of `b` runs.
+        assert_eq!(seen[&running], (a, true));
+        assert_eq!(seen[&queued_a], (a, false));
+        assert_eq!(seen[&queued_b], (b, true));
+        wait_for("the table is empty", || loader.tracked_requests() == 0);
+        assert!(loader.shared.clients().is_empty());
+    }
+
+    #[test]
     fn zero_workers_means_one() {
         let (fetcher, _release) = echo();
         let loader = Loader::new(fetcher, 0, no_notify());
@@ -815,7 +928,7 @@ mod tests {
         let (fetcher, _release) = echo();
         let loader = Loader::new(fetcher, 1, no_notify());
         let empty = Pool::new(PoolKind::Api);
-        let id = loader.enqueue(&empty, request("/x"));
+        let id = loader.enqueue(&empty, NO_CLIENT, request("/x"));
         let completion = loader.try_recv().expect("the failure is queued at once");
         assert_eq!(completion.id, id);
         assert!(matches!(completion.result, Err(NetError::Internal(_))));

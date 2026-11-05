@@ -349,6 +349,10 @@ pub enum BoxContent {
     /// An inline `<svg>` element: its content, painted into the content
     /// box.
     Svg(Arc<crate::svg::SvgContent>),
+    /// An `<iframe>` element: the document of its frame shows in the
+    /// content box (ADR 0031 section 4). The engine finds the frame by the
+    /// element.
+    Frame(NodeId),
 }
 
 /// What a table paints besides its children.

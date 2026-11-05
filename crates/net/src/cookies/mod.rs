@@ -113,10 +113,14 @@ pub struct Cookie {
 
 /// How a request relates to the site of the document that started it.
 ///
-/// swb has no frames, so the "site for cookies" of a subresource request
-/// is the site of its initiator (the top-level document), and that of a
-/// top-level navigation is the site of the request URL. This gives
-/// Chromium's three contexts:
+/// The "site for cookies" of a request of the top-level document is the
+/// site of its initiator, and that of a top-level navigation is the site of
+/// the request URL. A request of a frame document, or one that loads a
+/// frame document, carries its site for cookies
+/// ([`Request::site_for_cookies`]): the top-level origin while the frames
+/// on the way are same-site with it, else an opaque origin, which is
+/// same-site with nothing (ADR 0031 section 3). This gives Chromium's three
+/// contexts:
 ///
 /// <https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis#section-5.2>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +142,26 @@ impl SameSiteContext {
     /// Returns the context of `request`, from the sites of its initiator
     /// and its URL, and from its destination.
     pub(crate) fn of(request: &Request) -> Self {
-        let same_site = match &request.initiator {
+        let same_site = match (&request.site_for_cookies, &request.initiator) {
+            (Some(site), _) => match (Site::of_origin(site), Site::of_url(&request.url)) {
+                (Some(a), Some(b)) => a == b,
+                _ => false,
+            },
+            (None, initiator) => Self::initiator_same_site(request, initiator.as_ref()),
+        };
+        if same_site {
+            SameSiteContext::SameSite
+        } else if request.is_top_level_navigation() {
+            SameSiteContext::CrossSiteNavigation
+        } else {
+            SameSiteContext::CrossSite
+        }
+    }
+
+    /// True if the initiator of a request of the top-level document is
+    /// same-site with the request URL.
+    fn initiator_same_site(request: &Request, initiator: Option<&url::Origin>) -> bool {
+        match initiator {
             // Only the user starts requests without an initiator, and the
             // user starts only navigations. A subresource request without
             // one is a bug in the caller; it gets the fewest cookies.
@@ -147,13 +170,6 @@ impl SameSiteContext {
                 (Some(a), Some(b)) => a == b,
                 _ => false,
             },
-        };
-        if same_site {
-            SameSiteContext::SameSite
-        } else if request.is_top_level_navigation() {
-            SameSiteContext::CrossSiteNavigation
-        } else {
-            SameSiteContext::CrossSite
         }
     }
 }

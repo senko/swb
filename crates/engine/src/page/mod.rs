@@ -26,12 +26,15 @@
 //! of a navigation), `pipeline.rs` (rendering, the viewport and its
 //! accepted limits, screenshots), `scroll.rs` (scrolling by the user and
 //! the scroll queries), `input.rs` (pointer, keyboard, focus, selection),
-//! `forms.rs` (form controls: editing, activation, submission) and
-//! `script.rs` (the script runtime of the document).
+//! `forms.rs` (form controls: editing, activation, submission),
+//! `script.rs` (the script runtime of the document) and `frames.rs` (the
+//! frames of `iframe` elements, their documents, load state and viewports;
+//! ADR 0031).
 
 mod events;
 mod forms;
 mod frame;
+mod frames;
 mod history_api;
 mod idle;
 mod input;
@@ -51,6 +54,7 @@ use swb_style::StyleMap;
 use swb_text::FontContext;
 
 use crate::document::{DocumentState, ScrollTarget, View};
+use crate::frames::{FrameId, Frames};
 use crate::history::{Commit, Entry, History, PostData};
 
 pub use crate::document::ElementScroll;
@@ -284,6 +288,28 @@ pub struct Page {
     /// that are due (`pump`). The deltas are relative to the entry that is
     /// current when the traversal runs.
     traversals: std::collections::VecDeque<isize>,
+    /// The frame tree (ADR 0031 section 2): the frames of the `iframe`
+    /// elements, each with its document. The top-level frame's document is
+    /// `doc`.
+    frames: Frames,
+    /// Frames whose navigation commits without a request (`about:blank`,
+    /// `about:srcdoc`), in the order of the navigations; stale ids are
+    /// skipped.
+    frame_navigations: Vec<FrameId>,
+    /// True after a frame was destroyed: it may have been the last one that
+    /// delayed the `load` event, which the next turn then checks.
+    frame_destroyed: bool,
+    /// The bodies of frame documents that the workers have read and the page
+    /// has not taken yet (ADR 0031 section 11): requests of frame documents
+    /// hold a reservation, so that 1,000 frames cannot make the workers
+    /// outrun the page by gigabytes.
+    frame_bodies: Arc<swb_net::ByteBudget>,
+    /// The decoded pixels of the raster images of frame documents (ADR 0031
+    /// section 11).
+    frame_images: Arc<swb_net::ByteBudget>,
+    /// The bytes of the external style sheets of frame documents (ADR 0031
+    /// section 11).
+    frame_styles: Arc<swb_net::ByteBudget>,
 }
 
 impl Page {
@@ -319,6 +345,12 @@ impl Page {
             },
             input: input::InputState::default(),
             traversals: std::collections::VecDeque::new(),
+            frames: Frames::new(),
+            frame_navigations: Vec::new(),
+            frame_destroyed: false,
+            frame_bodies: swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES),
+            frame_images: swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES),
+            frame_styles: swb_net::ByteBudget::new(crate::frames::MAX_STYLE_BYTES),
         }
     }
 
@@ -392,15 +424,20 @@ impl Page {
         }
         state.sync();
         self.doc = Some(state);
+        // The task may have inserted, changed or removed `iframe` elements.
+        self.update_frames(FrameId::TOP);
     }
 
     /// Changes the DOM of the current document with `change` (through the
     /// change functions of `swb_dom`), then processes the changes: loads
-    /// of inserted elements start, removed stylesheets go away, and the
+    /// of inserted elements start, removed stylesheets go away, the frames
+    /// of `iframe` elements are made, navigated or destroyed, and the
     /// styles and the layout are computed again when needed. Returns
     /// `None` without a document.
     pub fn change_dom<R>(&mut self, change: impl FnOnce(&mut Document) -> R) -> Option<R> {
         let result = self.doc.as_deref_mut()?.change_dom(change);
+        self.update_frames(FrameId::TOP);
+        self.check_load_after_frame_removal();
         Some(result)
     }
 
@@ -544,6 +581,7 @@ impl Page {
         if let Some((doc, fonts)) = self.parts() {
             doc.stop_loading(fonts);
         }
+        self.stop_frames();
         self.state = if self.doc.is_some() {
             LoadState::Complete
         } else {
@@ -591,6 +629,7 @@ impl Page {
     /// sends it.
     fn traverse_to_post(&mut self, target: usize, commit: Commit) {
         self.loader.cancel_all();
+        self.abandon_frame_loads();
         self.document_request = None;
         self.pending = Some(PendingNavigation {
             handling: HistoryHandling::Traverse(target),
@@ -684,6 +723,8 @@ impl Page {
         if let Some(doc) = self.doc.as_deref_mut() {
             doc.requests = crate::resources::Requests::default();
         }
+        // The requests of the frames were cancelled too.
+        self.abandon_frame_loads();
         self.pending = Some(PendingNavigation {
             handling,
             restore_scroll,
@@ -843,7 +884,8 @@ impl Page {
         match self.state {
             LoadState::Complete | LoadState::LoadingResources
                 if self.doc.as_ref().is_some_and(|d| d.is_loading())
-                    || self.load_event_pending() =>
+                    || self.load_event_pending()
+                    || self.frames_loading() =>
             {
                 LoadState::LoadingResources
             }

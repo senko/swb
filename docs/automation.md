@@ -137,6 +137,7 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   "cursor": "default",
   "javascript": false,
   "documentJavascript": false,
+  "frames": 0,
   "flushes": {
     "style": 1, "styleMs": 0.08, "layout": 1, "layoutMs": 0.41,
     "forcedStyle": 0, "forcedStyleMs": 0.0,
@@ -154,6 +155,10 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 - `javascript`: the JavaScript setting (what the next document gets).
 - `documentJavascript`: the value that the current document was created
   with (its scripting flag).
+- `frames`: the number of frames of the page besides the top-level one
+  (the `iframe` elements that have a frame, at any depth; ADR 0031). The
+  load state counts their loads: `loadingResources` lasts until the frames
+  that the document had before its `load` have loaded.
 - `flushes`: the style and layout runs of the current document, as
   counts and milliseconds (ADR 0028 section 9). `style` and `layout`
   count all full runs; `forcedStyle` and `forcedLayout` count the runs

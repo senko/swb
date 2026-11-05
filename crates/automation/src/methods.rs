@@ -284,6 +284,7 @@ fn info(page: &mut Page) -> Value {
         "cursor": page.cursor().as_str(),
         "javascript": page.javascript(),
         "documentJavascript": page.document_has_scripting(),
+        "frames": page.frame_count(),
         "flushes": flushes_json(page.flush_counters()),
     })
 }

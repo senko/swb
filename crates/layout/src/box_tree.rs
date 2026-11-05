@@ -170,6 +170,8 @@ pub(crate) struct Replaced {
     pub(crate) svg: Option<Arc<SvgContent>>,
     /// True for a `<canvas>` (it paints nothing yet).
     pub(crate) canvas: bool,
+    /// True for an `<iframe>`: its content box shows the frame's document.
+    pub(crate) frame: bool,
 }
 
 /// A list item marker.
@@ -511,6 +513,24 @@ fn replaced(
             media: None,
             svg: Some(Arc::new(content)),
             canvas: false,
+            frame: false,
+        });
+    }
+    if element.is_html_named(&local_name!("iframe")) {
+        // No natural width, height or aspect ratio: the default object
+        // size of 300×150 applies (CSS 2.2 §10.3.2, §10.6.2; ADR 0031
+        // section 4).
+        return Some(Replaced {
+            node,
+            natural_size: Some(if style.contain.size {
+                contained_natural_size(style)
+            } else {
+                NaturalSize::default()
+            }),
+            media: None,
+            svg: None,
+            canvas: false,
+            frame: true,
         });
     }
     if element.is_html_named(&local_name!("canvas")) {
@@ -531,6 +551,7 @@ fn replaced(
             media: None,
             svg: None,
             canvas: true,
+            frame: false,
         });
     }
     let media = if element.is_html_named(&local_name!("img")) {
@@ -556,6 +577,7 @@ fn replaced(
         media,
         svg: None,
         canvas: false,
+        frame: false,
     })
 }
 

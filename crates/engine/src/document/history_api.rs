@@ -60,10 +60,13 @@ impl DocumentState {
     /// against it.
     pub(crate) fn set_url(&mut self, url: Url) {
         self.process_changes();
+        if url.scheme() != "about" {
+            self.base_fallback = url.clone();
+        }
         self.url = url;
         let generation = self.dom.generation();
         let dom = &self.dom;
-        let url = &self.url;
+        let url = &self.base_fallback;
         let old = self.base_url.value().clone();
         self.base_url
             .rebuild(generation, |_| super::derived::base_url(dom, url));

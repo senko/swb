@@ -118,6 +118,7 @@ impl Page {
             && doc.is_parsing()
         {
             doc.run_parser();
+            self.update_frames(super::FrameId::TOP);
         }
     }
 
@@ -217,7 +218,28 @@ impl Page {
         if self.doc.as_ref().is_none_or(|d| d.is_loading()) {
             return;
         }
+        // The frames delay the load event (ADR 0031 section 2): each
+        // fires its container's `load` first.
+        self.check_frame_loads();
+        if self.lent || self.frames_delay_load() {
+            return;
+        }
+        if !self
+            .script
+            .as_ref()
+            .is_some_and(ScriptRuntime::load_event_due)
+        {
+            // A listener of a container's `load` navigated or stopped.
+            return;
+        }
         self.run_task(ScriptRuntime::fire_load_event);
+        if self
+            .script
+            .as_ref()
+            .is_some_and(ScriptRuntime::document_loaded)
+        {
+            self.frames.top_mut().load_fired = true;
+        }
         if let Some(runtime) = &self.script {
             log::debug!(
                 "load event fired (script heap {} bytes)",
@@ -363,6 +385,14 @@ impl Page {
         }
         changed |= tasks > 0;
         changed |= self.deliver_element_events();
+        changed |= self.run_frame_refreshes();
+        changed |= self.check_frame_loads();
+        // The removal of a frame may leave nothing that delays the load.
+        let removed = std::mem::take(&mut self.frame_destroyed);
+        if changed || removed {
+            // A frame's load may be the last that the load event waits for.
+            self.check_load_event();
+        }
         changed |= self.run_traversal();
         changed |= self.run_frame();
         changed |= self.release_lazy_without_frames();
@@ -416,11 +446,17 @@ impl Page {
 
     /// The page time of the next task of the document.
     fn next_task_time(&self) -> Option<f64> {
-        if !self.traversals.is_empty() {
+        if !self.traversals.is_empty() || !self.frame_navigations.is_empty() {
             return Some(self.clock.now());
         }
-        let tasks = self.script.as_ref()?.next_task_time();
-        [self.frame_time(), self.idle_time()]
+        // The declarative refreshes of frame documents (also with
+        // JavaScript off).
+        let refresh = self.next_frame_refresh();
+        let Some(script) = self.script.as_ref() else {
+            return refresh;
+        };
+        let tasks = script.next_task_time();
+        [self.frame_time(), self.idle_time(), refresh]
             .into_iter()
             .flatten()
             .chain(tasks)
@@ -455,7 +491,7 @@ impl Page {
     /// time. A frame that only runs animation frame callbacks does not
     /// count: a page with a `requestAnimationFrame` loop can be idle.
     pub fn is_idle(&mut self, quiet: Duration) -> bool {
-        if self.is_loading() || !self.traversals.is_empty() {
+        if self.is_loading() || !self.traversals.is_empty() || self.frames_busy() {
             return false;
         }
         let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;
@@ -463,6 +499,7 @@ impl Page {
         if tasks
             .into_iter()
             .chain(self.frame_work_due())
+            .chain(self.next_frame_refresh())
             .any(|time| time <= horizon)
             || self.idle_work_before(horizon)
         {
@@ -499,7 +536,7 @@ impl Page {
                 continue;
             }
             let next = self.next_task_time();
-            let loading = self.is_loading() || self.has_pending_api_fetches();
+            let loading = self.is_loading() || self.has_pending_api_fetches() || self.frames_busy();
             if self.clock.is_virtual() && !loading {
                 // Nothing runs and nothing is pending: time jumps.
                 let Some(target) = next.into_iter().chain(end).reduce(f64::min) else {

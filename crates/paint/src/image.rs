@@ -170,6 +170,13 @@ pub fn decode(data: &[u8]) -> Result<DecodedImage, ImageError> {
     Ok(DecodedImage::new(ImageKind::Raster(pixmap)))
 }
 
+/// The width and height that the header of raster image data declares, if
+/// they are acceptable; nothing is decoded. A caller can charge the
+/// decoded size to a budget before it decodes.
+pub fn raster_size(data: &[u8]) -> Option<(u32, u32)> {
+    check_raster(data).ok().map(|(_, w, h)| (w, h))
+}
+
 /// The format, width and height of raster image data whose header declares
 /// an acceptable size. Nothing is decoded beyond the header.
 pub(crate) fn check_raster(data: &[u8]) -> Result<(image::ImageFormat, u32, u32), ImageError> {

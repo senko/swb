@@ -119,6 +119,16 @@ impl Site {
     }
 }
 
+/// True if two origins are same-site (schemeful; HTML "same site"). An
+/// opaque origin is same-site with nothing here, not even with itself: the
+/// site for cookies of frames uses this (ADR 0031 section 3).
+pub fn same_site(a: &Origin, b: &Origin) -> bool {
+    match (Site::of_origin(a), Site::of_origin(b)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
 /// True if a request to `url` counts as secure for cookies: `https:`, or
 /// `http:` to `localhost`, `127.0.0.0/8` or `::1`. Chromium treats such
 /// "potentially trustworthy" URLs as secure for `Secure` cookies since

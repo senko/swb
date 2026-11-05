@@ -9,21 +9,26 @@ use super::{FlushCounters, Page, StageTimings};
 use crate::document::Rendering;
 
 impl Page {
-    /// Brings styles and layout up to date. Rendering waits for
-    /// stylesheets: until they are loaded, there is no layout. After the
-    /// first layout of a document, scrolls to the fragment or to the
-    /// restored position.
+    /// Brings styles and layout up to date: of the document, then of the
+    /// frame documents, each in the viewport that its parent's layout
+    /// gives it (ADR 0031 section 4). Rendering waits for stylesheets:
+    /// until they are loaded, there is no layout. After the first layout
+    /// of a document, scrolls to the fragment or to the restored position.
     pub fn update_layout(&mut self) {
         if let Some((doc, fonts)) = self.parts() {
             doc.update_layout(fonts);
         }
+        self.layout_frames();
     }
 
     /// Renders the viewport into `target` (device pixels). The target size
-    /// should be the viewport size times the scale factor.
+    /// should be the viewport size times the scale factor. The frame
+    /// documents lay out (their loads start) but do not paint yet (M9
+    /// feature 10a).
     pub fn render(&mut self, target: &mut Pixmap) {
         let rows = target.height();
         self.render_in_strips(target, rows, Rendering::Viewport);
+        self.layout_frames();
     }
 
     /// Renders `what` into `target` in strips of `strip_rows` device rows

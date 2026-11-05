@@ -26,7 +26,7 @@ use std::sync::Arc;
 use encoding_rs::Encoding;
 use swb_dom::NodeId;
 use swb_layout::{FragmentRef, FragmentTree};
-use swb_net::{Destination, NetError, Request, Response, Url};
+use swb_net::{Destination, NetError, Request, Reservation, Response, Url};
 use swb_text::{FontContext, WebFaceId};
 
 use super::DocumentState;
@@ -48,9 +48,15 @@ impl DocumentState {
             Pending::Font { url } => self.font_file_arrived(&url, result, fonts),
             Pending::Script { node, mode } => self.script_arrived(node, mode, result),
             Pending::Image { url } => {
-                let state = ImageState::from_fetch(&url, result, &self.images.counting);
-                let ok = matches!(state, ImageState::Loaded(_));
+                let too_big = matches!(&result, Ok(r) if self.images.exceeds_budget(&r.body));
+                let state = if too_big {
+                    log::warn!("image {url}: the images of frame documents have no room left");
+                    ImageState::Failed
+                } else {
+                    ImageState::from_fetch(&url, result, &self.images.counting)
+                };
                 self.images.by_url.insert(url.clone(), state);
+                let ok = self.images.admit(&url);
                 self.images.load_ended(&url);
                 self.image_done(&url, ok);
                 self.invalidate_layout();
@@ -70,6 +76,24 @@ impl DocumentState {
         };
         match result {
             Ok(response) if response.is_success() => {
+                if let Some(budget) = self.style_budget.clone() {
+                    // The style sheets of frame documents share a budget.
+                    if let Some(held) = Reservation::new(&budget, response.body.len()) {
+                        sheet.held = Some(held);
+                    } else {
+                        log::warn!(
+                            "stylesheet {}: the style sheets of frame documents hold {} of {} bytes, one of {} bytes does not fit",
+                            response.url,
+                            budget.used(),
+                            budget.limit(),
+                            response.body.len()
+                        );
+                        sheet.failed = true;
+                        self.sheet_event(owner, false);
+                        self.invalidate_style();
+                        return;
+                    }
+                }
                 let charset = response.content_type().and_then(|c| c.charset);
                 sheet.set_css(Some(decode_css(&response.body, charset.as_deref())), false);
                 sheet.base_url = response.url;
@@ -122,10 +146,7 @@ impl DocumentState {
             }
             #[cfg(test)]
             self.load_log.push(format!("style {url}"));
-            let request = Request::get(url, Destination::Style);
-            let id = self
-                .loader
-                .start(request.with_initiator(Some(self.origin())));
+            let id = self.start_subresource(Request::get(url, Destination::Style));
             self.requests
                 .pending
                 .insert(id, Pending::Stylesheet { owner, serial });
@@ -269,10 +290,7 @@ impl DocumentState {
         #[cfg(test)]
         self.load_log.push(format!("image {url}"));
         self.images.by_url.insert(url.clone(), ImageState::Loading);
-        let request = Request::get(url.clone(), Destination::Image);
-        let id = self
-            .loader
-            .start(request.with_initiator(Some(self.origin())));
+        let id = self.start_subresource(Request::get(url.clone(), Destination::Image));
         self.requests.pending.insert(id, Pending::Image { url });
     }
 
@@ -303,7 +321,11 @@ impl DocumentState {
         if sheets_dropped {
             self.invalidate_style();
         }
-        self.cancel_font_loads(fonts);
+        if !self.frame {
+            // A frame document has no web fonts; the requests in the font
+            // context are the top-level document's.
+            self.cancel_font_loads(fonts);
+        }
         self.invalidate_layout();
     }
 
@@ -362,6 +384,11 @@ impl DocumentState {
     /// apply in the current media environment, when the stylist or the
     /// environment changed.
     pub(super) fn update_web_font_faces(&mut self, fonts: &mut FontContext) {
+        if self.frame {
+            // The font context holds the faces of the top-level document
+            // (M9 feature 10a: frame documents use no web fonts).
+            return;
+        }
         let env = self.media_environment();
         if self.web_fonts.env.as_ref() == Some(&env) {
             return;
@@ -381,6 +408,10 @@ impl DocumentState {
 
     /// Starts loading the faces that the last layout requested.
     pub(super) fn start_font_loads(&mut self, fonts: &mut FontContext) {
+        if self.frame {
+            // The requests are the top-level document's.
+            return;
+        }
         for id in fonts.take_web_font_requests() {
             self.load_font_source(id, 0, fonts);
         }
@@ -444,10 +475,7 @@ impl DocumentState {
         self.web_fonts
             .files
             .insert(url.clone(), FontFile::Loading(vec![(id, index)]));
-        let request = Request::get(url.clone(), Destination::Font);
-        let request_id = self
-            .loader
-            .start(request.with_initiator(Some(self.origin())));
+        let request_id = self.start_subresource(Request::get(url.clone(), Destination::Font));
         self.requests
             .pending
             .insert(request_id, Pending::Font { url });

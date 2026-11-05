@@ -198,6 +198,7 @@ impl DocumentState {
             return None;
         }
         request.initiator = Some(self.origin());
+        request.site_for_cookies.clone_from(&self.site_for_cookies);
         let bytes = request_bytes(&request);
         let fetches = &mut self.api_fetches;
         let Some(reservation) = Reservation::new(&fetches.budget, bytes) else {
@@ -237,7 +238,7 @@ impl DocumentState {
         #[cfg(test)]
         self.load_log.push(format!("fetch {}", request.url));
         log::debug!("fetch() {} {}", request.method, request.url);
-        let loader_id = self.loader.start_api(request);
+        let loader_id = self.loader.start_api_for(self.client, request);
         let fetches = &mut self.api_fetches;
         fetches.take_place(&host);
         fetches.running.insert(

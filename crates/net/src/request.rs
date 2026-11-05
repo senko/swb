@@ -219,9 +219,11 @@ pub enum Tainting {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Destination {
     /// A top-level navigation: a page for the top-level browsing context.
-    /// Frames, when swb supports them, need a destination of their own
-    /// (Fetch's `iframe`), because cookies treat them as subresources.
     Document,
+    /// The document of a frame (Fetch's `iframe`): a navigation, but
+    /// cookies treat it as a subresource of the frame's parent (ADR 0031
+    /// section 3).
+    IFrame,
     /// A style sheet.
     Style,
     /// An image.
@@ -239,6 +241,7 @@ impl Destination {
     pub fn as_str(self) -> &'static str {
         match self {
             Destination::Document => "document",
+            Destination::IFrame => "iframe",
             Destination::Style => "style",
             Destination::Image => "image",
             Destination::Font => "font",
@@ -286,8 +289,17 @@ pub struct Request {
     ///
     /// <https://fetch.spec.whatwg.org/#concept-request-origin>
     pub initiator: Option<Origin>,
+    /// The "site for cookies" of a request that a frame document makes or
+    /// that loads a frame document (RFC 6265bis §5.2.1): the origin of the
+    /// top-level document if the frame (for a frame document: its parent)
+    /// and all its ancestors are same-site with it, else an opaque origin.
+    /// The request is same-site for cookies if this origin is same-site
+    /// with the request URL. `None` for the requests of the top-level
+    /// document: the site of [`Request::initiator`] decides.
+    pub site_for_cookies: Option<Origin>,
     /// The request mode. [`Request::get`] and [`Request::post`] set
-    /// `Navigate` for [`Destination::Document`] and `NoCors` otherwise.
+    /// `Navigate` for [`Destination::Document`] and
+    /// [`Destination::IFrame`], and `NoCors` otherwise.
     pub mode: RequestMode,
     /// The credentials mode. The constructors set `Include`: the cookie
     /// jar decides by its `SameSite` rules.
@@ -323,7 +335,7 @@ pub struct Request {
 }
 
 fn default_mode(destination: Destination) -> RequestMode {
-    if destination == Destination::Document {
+    if matches!(destination, Destination::Document | Destination::IFrame) {
         RequestMode::Navigate
     } else {
         RequestMode::NoCors
@@ -341,6 +353,7 @@ impl Request {
             body: None,
             destination,
             initiator: None,
+            site_for_cookies: None,
             mode: default_mode(destination),
             credentials: CredentialsMode::Include,
             redirect: RedirectMode::Follow,
@@ -370,6 +383,13 @@ impl Request {
     #[must_use]
     pub fn with_initiator(mut self, initiator: Option<Origin>) -> Self {
         self.initiator = initiator;
+        self
+    }
+
+    /// Sets [`Request::site_for_cookies`].
+    #[must_use]
+    pub fn with_site_for_cookies(mut self, site: Option<Origin>) -> Self {
+        self.site_for_cookies = site;
         self
     }
 

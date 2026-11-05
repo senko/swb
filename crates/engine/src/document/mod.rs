@@ -25,13 +25,16 @@
 //! `queries.rs` (geometry, scrolling, hit testing, rendered text),
 //! `resolved.rs` (`getComputedStyle` and the layout flush of a script
 //! task), `cssom.rs` (the style sheets of scripts: `document.styleSheets`,
-//! `sheet`).
+//! `sheet`), `frames.rs` (the `iframe` changes for the page's frame tree,
+//! the frame viewports, the declarative refresh, the requests of
+//! subresources with the document's loader client).
 
 mod api_fetches;
 mod changes;
 mod cssom;
 mod derived;
 mod element_events;
+pub(crate) mod frames;
 mod geometry;
 mod history_api;
 mod inner_text;
@@ -54,7 +57,7 @@ use std::time::Instant;
 use encoding_rs::Encoding;
 use swb_dom::{Document, HtmlParser, NodeId, ParseStep, TextPosition, WrittenStep};
 use swb_layout::{FragmentTree, Point, Size};
-use swb_net::{Loader, Origin, Url};
+use swb_net::{ByteBudget, ClientId, Loader, Origin, Url};
 use swb_paint::DisplayList;
 use swb_style::{ElementStates, StyleMap, Stylist};
 
@@ -121,6 +124,27 @@ pub(crate) struct DocumentInit {
     /// The time of the parse of a complete DOM (a parse in steps measures
     /// itself).
     pub(crate) parse: std::time::Duration,
+    /// The loader client of the document (ADR 0031 section 3).
+    pub(crate) client: ClientId,
+    /// The origin when it is not the URL's: the parent's for `about:blank`
+    /// and `about:srcdoc` frame documents, an opaque one in a sandbox.
+    pub(crate) origin: Option<Origin>,
+    /// The site for cookies of a frame document's requests; `None` for the
+    /// top-level document.
+    pub(crate) site_for_cookies: Option<Origin>,
+    /// True for a frame document (not the top-level document).
+    pub(crate) frame: bool,
+    /// The fallback base URL of an `about:blank` or `about:srcdoc` frame
+    /// document: the base URL of its creator (HTML "fallback base URL").
+    /// `None`: the document URL.
+    pub(crate) fallback_base: Option<Url>,
+    /// The page's budget for the style sheets of frame documents; `None`
+    /// for the top-level document.
+    pub(crate) style_budget: Option<Arc<ByteBudget>>,
+    /// The page's budget for the response bodies that the workers read for
+    /// frame documents and the page has not taken yet; `None` for the
+    /// top-level document.
+    pub(crate) body_budget: Option<Arc<ByteBudget>>,
 }
 
 /// The state of one document. See the module documentation.
@@ -129,6 +153,20 @@ pub struct DocumentState {
     /// The parser while a parse in steps goes on.
     pub(crate) parser: Option<HtmlParser>,
     pub(crate) loader: Rc<Loader>,
+    /// The loader client of the document: its requests carry it, and the
+    /// page hands their completions to this document.
+    pub(crate) client: ClientId,
+    /// The origin of the document if it is not the origin of its URL
+    /// ([`DocumentInit::origin`]).
+    origin_override: Option<Origin>,
+    /// The site for cookies of the document's requests (frames).
+    pub(crate) site_for_cookies: Option<Origin>,
+    /// True for a frame document. Its `@font-face` rules are not used in
+    /// M9 feature 10a: the page's font context holds the web fonts of one
+    /// document, the top-level one.
+    pub(crate) frame: bool,
+    /// The `iframe` elements that the drain saw change, for the page.
+    pub(crate) frame_changes: frames::FrameChanges,
     /// The page's Web Storage (`localStorage`, `sessionStorage`).
     storage: swb_web::SharedStorage,
     /// The running requests of the document's subresources.
@@ -146,6 +184,13 @@ pub struct DocumentState {
     parser_drain: bool,
     /// The document URL.
     pub(crate) url: Url,
+    /// The URL that a `base` element and the base URL resolve against: the
+    /// document URL, or the creator's base URL for `about:` documents.
+    pub(crate) base_fallback: Url,
+    /// See [`DocumentInit::style_budget`].
+    pub(crate) style_budget: Option<Arc<ByteBudget>>,
+    /// See [`DocumentInit::body_budget`].
+    pub(crate) body_budget: Option<Arc<ByteBudget>>,
     pub(crate) encoding: &'static Encoding,
     /// The content type of the response (`document.contentType`).
     content_type: String,
@@ -276,17 +321,26 @@ impl DocumentState {
     /// subresources start to load.
     pub(crate) fn new(init: DocumentInit) -> DocumentState {
         let url = init.url;
+        let base_fallback = init.fallback_base.unwrap_or_else(|| url.clone());
         let mut doc = DocumentState {
             dom: init.dom,
             parser: init.parser,
             loader: init.loader,
+            client: init.client,
+            origin_override: init.origin,
+            site_for_cookies: init.site_for_cookies,
+            frame: init.frame,
+            frame_changes: frames::FrameChanges::default(),
             storage: init.storage,
             requests: Requests::default(),
             script_fetches: ScriptFetches::default(),
             api_fetches: ApiFetches::default(),
             element_events: element_events::ElementEvents::default(),
             parser_drain: false,
-            base_url: Derived::new(url.clone()),
+            base_url: Derived::new(base_fallback.clone()),
+            base_fallback,
+            style_budget: init.style_budget,
+            body_budget: init.body_budget,
             url,
             encoding: init.encoding,
             content_type: init.content_type,
@@ -998,7 +1052,20 @@ impl DocumentState {
     /// The origin of the document: the initiator of its subresource
     /// requests and of the navigations it starts.
     pub(crate) fn origin(&self) -> Origin {
-        self.url.origin()
+        match &self.origin_override {
+            Some(origin) => origin.clone(),
+            None => self.url.origin(),
+        }
+    }
+
+    /// True for the document of a frame (not the top-level document).
+    pub fn is_frame_document(&self) -> bool {
+        self.frame
+    }
+
+    /// The serialized origin of the document (`"null"` for an opaque one).
+    pub fn origin_string(&self) -> String {
+        self.origin().ascii_serialization()
     }
 
     /// True if the document may load `url`: only `file:` documents may
