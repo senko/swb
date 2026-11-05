@@ -522,7 +522,48 @@ fn hooks() -> WindowProxyHooks {
         set: |_, _, _, _, _| Err(refuse()),
         delete: |_, _, _| Err(refuse()),
         own_keys: |_, _| Err(refuse()),
+        child_count: |_, _| Ok(0),
+        child_frame: |_, _, _| Ok(None),
     }
+}
+
+/// The index keys of a proxy with a target name the child frames of the host
+/// (HTML §7.2.3.3 and §7.2.3.8): two children here, each the proxy itself.
+#[test]
+fn index_keys_ask_the_host_for_child_frames() {
+    let (mut rt, _) = with_proxy(RuntimeConfig::default());
+    rt.set_window_proxy_hooks(WindowProxyHooks {
+        child_count: |_, _| Ok(2),
+        child_frame: |_, proxy, index| Ok((index < 2).then_some(proxy)),
+        ..hooks()
+    });
+    assert_eq!(
+        eval(
+            &mut rt,
+            "var d = Object.getOwnPropertyDescriptor(window, '1');
+             Object.prototype[7] = 'inherited';
+             [window[0] === window, window[1] === window, String(window[2]), 0 in window, 2 in window,
+              7 in window, window[7], Object.keys(window).slice(0, 3).join(),
+              d.writable, d.enumerable, d.configurable,
+              String(Object.getOwnPropertyDescriptor(window, '2'))].join()"
+        ),
+        "true,true,undefined,true,false,true,inherited,0,1,window,false,true,true,undefined"
+    );
+}
+
+/// `Runtime::caller_realm`: a function of another realm that the host reaches
+/// from a realm sees the realm of its caller.
+#[test]
+fn a_native_of_another_realm_knows_its_caller() {
+    let (mut rt, _) = with_proxy(RuntimeConfig::default());
+    let other = rt.create_realm().unwrap();
+    install_proxy(&mut rt, other, 2);
+    assert_eq!(rt.caller_realm(), 0);
+    let f = rt
+        .eval_named_at(other, "var f = Array.isArray; f", "", (0, 0))
+        .unwrap();
+    assert!(matches!(f, Value::Object(_)));
+    assert_eq!(rt.caller_realm(), 0);
 }
 
 fn get_hook(rt: &mut Runtime, _: Gc<Object>, key: PropertyKey, _: Value) -> VmResult<Value> {

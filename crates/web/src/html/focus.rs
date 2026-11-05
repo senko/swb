@@ -235,6 +235,7 @@ pub(crate) fn fixup(rt: &mut Runtime) -> VmResult<()> {
 /// still in the document, so that the `blur` and `focusout` events reach
 /// the listeners above it (measured in Chromium 148).
 pub(crate) fn before_removal(rt: &mut Runtime, node: NodeId, inclusive: bool) -> VmResult<()> {
+    crate::frames::before_removal(rt, node, inclusive)?;
     let Some(focus) = focused(rt)? else {
         return Ok(());
     };

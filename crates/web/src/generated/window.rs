@@ -39,6 +39,27 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute WindowProxy? parent`.
     fn parent(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
+    /// `attribute any opener`.
+    fn opener(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Value>;
+
+    /// The setter of `attribute any opener`.
+    fn set_opener(cx: &mut b::Cx<'_>, this: b::Platform, value: swb_js::Value) -> b::Result<()>;
+
+    /// `attribute DOMString name`.
+    fn name(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<String>;
+
+    /// The setter of `attribute DOMString name`.
+    fn set_name(cx: &mut b::Cx<'_>, this: b::Platform, value: String) -> b::Result<()>;
+
+    /// `readonly attribute boolean closed`.
+    fn closed(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<bool>;
+
+    /// `readonly attribute USVString origin`.
+    fn origin(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<String>;
+
+    /// `readonly attribute object? frameElement`.
+    fn frame_element(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
+
     /// `readonly attribute Screen screen`.
     fn screen(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -120,8 +141,8 @@ pub trait WindowImpl: b::Host {
     /// `undefined scrollBy(unrestricted double x, unrestricted double y)`.
     fn scroll_by_2(cx: &mut b::Cx<'_>, this: b::Platform, x: f64, y: f64) -> b::Result<()>;
 
-    /// `CSSStyleDeclaration getComputedStyle(Element elt, optional DOMString? pseudoElt)`.
-    fn get_computed_style(cx: &mut b::Cx<'_>, this: b::Platform, elt: b::NodeId, pseudo_elt: Option<Option<String>>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+    /// `CSSStyleDeclaration getComputedStyle(any elt, optional DOMString? pseudoElt)`.
+    fn get_computed_style(cx: &mut b::Cx<'_>, this: b::Platform, elt: swb_js::Value, pseudo_elt: Option<Option<String>>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `Promise<Response> fetch(any input, optional RequestInit init)`.
     fn fetch(cx: &mut b::Cx<'_>, this: b::Platform, input: swb_js::Value, init: super::types::RequestInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
@@ -310,6 +331,75 @@ fn set_parent<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
         let _ = this;
         let this = rt.this_or_global(call)?;
         b::glue::replace(rt, call, this, "parent")
+    })
+}
+
+fn get_opener<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "opener"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::opener(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::VmResult::Ok(result)?)
+    })
+}
+
+fn set_opener<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Window", "opener"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let v = rt.arg(call, 0);
+        let value = b::Result::Ok(v).map_err(b::Exception::nested)?;
+        <H as WindowImpl>::set_opener(&mut b::Cx::new(rt, call, super::WINDOW), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_name<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "name"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::name(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_name<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Window", "name"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let v = rt.arg(call, 0);
+        let value = b::convert::dom_string(rt, v).map_err(b::Exception::nested)?;
+        <H as WindowImpl>::set_name(&mut b::Cx::new(rt, call, super::WINDOW), this, value)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn get_closed<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "closed"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::closed(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
+    })
+}
+
+fn get_origin<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "origin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::origin(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(b::to_js::string(rt, &result)?)
+    })
+}
+
+fn set_origin<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Setter("Window", "origin"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let _ = this;
+        let this = rt.this_or_global(call)?;
+        b::glue::replace(rt, call, this, "origin")
+    })
+}
+
+fn get_frame_element<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Getter("Window", "frameElement"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let result = <H as WindowImpl>::frame_element(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
@@ -2509,7 +2599,7 @@ fn op_get_computed_style<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::ELEMENT, "Element").map_err(|e| e.argument(0))?;
+        let a0 = b::Result::Ok(v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { None } else { Some((if v.is_nullish() { Ok(None) } else { b::convert::dom_string(rt, v).map(Some) }).map_err(|e| e.argument(1))?) };
         let result = <H as WindowImpl>::get_computed_style(&mut b::Cx::new(rt, call, super::WINDOW), this, a0, a1)?;
@@ -2804,6 +2894,11 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "length", (Some(get_length::<H> as swb_js::NativeFn), Some(set_length::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "top", (Some(get_top::<H> as swb_js::NativeFn), None), swb_js::Attributes { writable: false, enumerable: true, configurable: false })?;
     rt.define_accessor(realm, target, "parent", (Some(get_parent::<H> as swb_js::NativeFn), Some(set_parent::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "opener", (Some(get_opener::<H> as swb_js::NativeFn), Some(set_opener::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "name", (Some(get_name::<H> as swb_js::NativeFn), Some(set_name::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "closed", (Some(get_closed::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "origin", (Some(get_origin::<H> as swb_js::NativeFn), Some(set_origin::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
+    rt.define_accessor(realm, target, "frameElement", (Some(get_frame_element::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "screen", (Some(get_screen::<H> as swb_js::NativeFn), Some(set_screen::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "innerWidth", (Some(get_inner_width::<H> as swb_js::NativeFn), Some(set_inner_width::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;
     rt.define_accessor(realm, target, "innerHeight", (Some(get_inner_height::<H> as swb_js::NativeFn), Some(set_inner_height::<H> as swb_js::NativeFn)), swb_js::Attributes::MEMBER)?;

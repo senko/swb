@@ -153,6 +153,33 @@ pub(crate) struct Handlers {
 }
 
 impl Handlers {
+    /// True if the window has a handler with the event type `kind` (a
+    /// handler `onresize` has the listener of its first set).
+    pub(crate) fn has_window_handler(&self, kind: &'static str) -> bool {
+        self.entries.contains_key(&(Key::Window, kind))
+    }
+
+    /// Takes the handlers of the window for a new document of the same
+    /// `Window`; those of nodes stay.
+    pub(crate) fn take_window_part(&mut self) -> Handlers {
+        let keys: Vec<(Key, &'static str)> = self
+            .entries
+            .keys()
+            .filter(|(key, _)| matches!(key, Key::Window))
+            .copied()
+            .collect();
+        let mut part = Handlers {
+            marker: self.marker,
+            ..Handlers::default()
+        };
+        for key in keys {
+            if let Some(entry) = self.entries.remove(&key) {
+                part.entries.insert(key, entry);
+            }
+        }
+        part
+    }
+
     /// Reports the functions and the marker to the collector.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for entry in self.entries.values() {
@@ -554,6 +581,12 @@ fn compile(
     name: &'static Name,
     text: &str,
 ) -> VmResult<Option<Gc<Object>>> {
+    // HTML "getting the current value of the event handler": "If scripting is
+    // disabled for document, then return null" (measured, case
+    // `scripted-sandbox-scripts`).
+    if state(rt)?.doc.scripts_off {
+        return Ok(None);
+    }
     let (document, element, form, params) = {
         let dom = dom(rt)?;
         let element = match key {

@@ -8,12 +8,13 @@
 //!   `DOMParser`, `new Document()`, template contents) returns the empty
 //!   string and ignores writes (measured in Chromium).
 //! - A cookie-averse document, one whose URL is not `http:` or `https:`
-//!   (`file:`, `about:`), does the same.
+//!   (`file:`, `about:`), does the same. An `about:blank` or `about:srcdoc`
+//!   frame document with its creator's origin has its creator's cookies
+//!   (measured, case `scripted-about-frame-state`).
 //! - A `data:` document throws `SecurityError` ("Cookies are disabled
 //!   inside 'data:' URLs."), as Chromium does for the opaque origin of a
-//!   `data:` URL. The spec lets every opaque origin throw; swb's other
-//!   documents with a non-HTTP URL are cookie-averse and cannot have
-//!   another opaque origin (no sandbox, no frames).
+//!   `data:` URL. The spec lets every opaque origin throw; a sandboxed frame
+//!   document has no realm until feature 13, which writes its rule.
 
 use crate::bindings::{self as b, Cx, Exception};
 use crate::state::{engine, engine_mut};
@@ -45,7 +46,7 @@ pub(crate) fn read(cx: &mut Cx<'_>, is_main: bool) -> b::Result<String> {
         return Ok(String::new());
     }
     let host = engine(cx.rt)?;
-    match access(&host.url()) {
+    match access(&host.storage_url()) {
         Access::Jar => Ok(host.cookie_string()),
         Access::Averse => Ok(String::new()),
         Access::Denied(message) => Err(Exception::dom("SecurityError", message)),
@@ -58,7 +59,7 @@ pub(crate) fn write(cx: &mut Cx<'_>, is_main: bool, value: &str) -> b::Result<()
         return Ok(());
     }
     let host = engine_mut(cx.rt)?;
-    match access(&host.url()) {
+    match access(&host.storage_url()) {
         Access::Jar => {
             host.set_cookie(value);
             Ok(())

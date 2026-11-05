@@ -59,7 +59,7 @@ impl MediaQueryState {
 /// `matchMedia(query)`: a new `MediaQueryList`.
 pub(crate) fn match_media(cx: &mut Cx<'_>, query: &str) -> b::Result<Gc<Object>> {
     let list = swb_css::MediaQueryList::parse_str(query);
-    let matches = list.matches(&engine(cx.rt)?.media_environment());
+    let matches = list.matches(&crate::state::engine_laid_out(cx.rt)?.media_environment());
     let state = state_mut(cx.rt)?;
     state.doc.media_query_count += 1;
     let media = MediaQueryState {
@@ -94,7 +94,7 @@ impl g::media_query_list::MediaQueryListImpl for WebState {
     }
 
     fn matches(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
-        let env = engine(cx.rt)?.media_environment();
+        let env = crate::state::engine_laid_out(cx.rt)?.media_environment();
         Ok(this_state(cx, this)?.list.matches(&env))
     }
 

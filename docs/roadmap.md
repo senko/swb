@@ -4385,7 +4385,7 @@ Steps:
        `compare --js` unchanged. `mouse_move` on pages without frames: no
        change in instructions. Departures in ADR 0031 section 8.
    12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
-       ADR 0031 feature 4). Two parts:
+       ADR 0031 feature 4). Three parts:
        - 12a. Done 2026-11-05: the plumbing, with one document per runtime.
          `js`: public realms, the global this value, `ObjectKind::WindowProxy`
          and an inline cache entry that names its target, natives run in
@@ -4396,14 +4396,26 @@ Steps:
          `window.x` reads and writes are now cached (0.48 and 0.32 of the
          old time). test262 unchanged. JS off: snapshot identical. JS on:
          `compare --js` unchanged.
-       - 12b. Scripts in same-origin frame documents, `contentWindow`,
-         `contentDocument`, `frames`, index and named access, `parent`,
-         `top`, `frameElement`, `opener`, `name`, synchronous `about:blank`,
-         adoption across arenas, events in frames.
+       - 12b1. Done 2026-11-05: scripts in same-origin frame documents in
+         realms of the page's runtime, `contentWindow`, `contentDocument`,
+         `frames`, index and named access, `parent`, `top`, `frameElement`,
+         `opener`, `name`, `location` of a frame, synchronous `about:blank`,
+         timers, animation frames and observers per document. 18 Chromium
+         cases. JS off: snapshot identical. JS on: `compare --js` unchanged.
+       - 12b2. Adoption across arenas, `Attr` arguments of another document,
+         the incumbent document, the window that gets an error or an
+         `unhandledrejection`, `javascript:` links with a `target`, input
+         events to frame listeners.
    13. Runtimes per origin and cross-origin objects
        (`implementer-hard`; ADR 0031 feature 5).
    14. Messaging and storage across documents (`implementer`; ADR 0031
-       feature 6). Exit: the Craigslist favorites work.
+       feature 6), and `document.referrer` of frame documents (empty since
+       12b1; measured in Chromium: the parent's URL for `src` and `about:blank`
+       frames, the parent's origin for `about:srcdoc` frames). `postMessage`
+       (`messaging.rs`) and `document.domain` (`domain.rs`) read the document's
+       URL, so a same-origin `about:` frame document counts as opaque there; the
+       origin (`EngineHost::origin_text`) is right; measure first. Exit: the
+       Craigslist favorites work.
    15. `document.open`, `write` and `close` on frame documents
        (`implementer`; ADR 0031 feature 7). Exit: BBC's consent dialog
        renders in its frame and its buttons close it; the BBC test
@@ -4425,9 +4437,41 @@ Steps:
 - Joint session history of frames (ADR 0031 section 2; measured in
   Chromium: a frame navigation after the first document adds an entry,
   and `history.back()` in the parent traverses the frame).
-- Realm collection in `js`: realms of removed frame documents stay
-  until their runtime ends (ADR 0031 section 11 bounds their number).
+- Realm collection in `js`, priority: realms of removed frame documents
+  stay until their runtime ends, and the budget of 256 counts them (ADR 0031
+  "Budget of realms"). Since feature 12b1 a page reaches this: a long-lived
+  page that replaces same-origin frames with scripts stops running scripts in
+  new frames after 255 of them (measured in the 12b1 review: 600 frames made,
+  read and removed one after the other, 255 scripts ran). Do it after feature 13,
+  which changes who owns a realm; feature 13 also gives each origin a runtime
+  and so a budget. Needs: a realm that is reachable only from live objects
+  instead of a root, reuse of its index in `HostSlot`, and the release of its
+  `DocState`.
+- `web` (found in feature 12b1): `<svg onload>`: swb fires no `load` at an `svg`
+  element; `rejectionhandled` never fires; `window.visualViewport` is `null`; a
+  `MediaQueryList` made after a style change that has no layout yet gets no first
+  `change` (Chromium compares with the last laid-out size).
+- Frames (found in feature 12b1): after `display: none` on an `iframe`, the
+  frame's `getBoundingClientRect`, `offsetWidth` and `elementFromPoint` keep the
+  old layout (Chromium: 0, 0, not the element). `has_pending_api_fetches` and
+  `deliver_frame_element_events` walk all frames each turn once the runtime has a
+  second document: about 240 instructions per frame per turn (1,000 frames: +29 %
+  per timer task). A list of the frames with a realm removes the walks.
 - Rendering throttling of hidden frames; `loading="lazy"` frames.
+- Scripts in frames (feature 12b1; rows in
+  `crates/engine/tests/frames/scripted.rs`): `location.ancestorOrigins`
+  does not exist; `documentElement.clientWidth` of a `display: none` frame
+  (0 in Chromium); the interfaces of a retired window stay (`w.Event` is gone
+  in Chromium); the parent's `load` inside `remove()` of the last loading frame
+  (needs the page's check inside a native); order of the global's own names
+  (`undefined` before `Object`); the declaration of `getComputedStyle` of another
+  document's element belongs to that document's realm (Chromium: the caller's);
+  a frame's scroll has no `ScrollSeen` logic; script-created nodes in a frame
+  document count against the page's node budget at the end of a task, while
+  the document's own limit holds at once.
+- Tools: with `--bench 3` the callgrind counts of Ars Technica and Craigslist
+  spread widely from run to run at the same commit (Craigslist 2.2 to 3.8 G,
+  feature 12b1). Cause not found. Hacker News repeats within 0.1 %.
 - CSP `frame-ancestors` and `frame-src`, `X-Frame-Options` (they protect
   a framed site from clickjacking; swb has no CSP).
 - Top-level navigation from a cross-origin frame after a user

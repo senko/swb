@@ -356,7 +356,7 @@ pub(crate) fn storage_object(cx: &mut Cx<'_>, kind: StorageKind) -> b::Result<Gc
     {
         return Ok(object);
     }
-    let url = engine(cx.rt)?.url();
+    let url = engine(cx.rt)?.storage_url();
     let origin = origin_of(&url).map_err(|message| Exception::dom("SecurityError", message))?;
     let data = cx.rt.alloc_host_data(StorageData {
         kind,

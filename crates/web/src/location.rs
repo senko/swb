@@ -121,6 +121,15 @@ fn parse_against_base(cx: &mut Cx<'_>, value: &str) -> b::Result<Option<Url>> {
 /// a task, as Chromium does (measured). A `javascript:` URL queues its
 /// script as a task.
 fn navigate(cx: &mut Cx<'_>, url: &Url, replace: bool) -> b::Result<()> {
+    if !crate::frames::caller_may_navigate(cx.rt)? {
+        // Measured, cases `scripted-nav-*`.
+        return Err(Exception::dom(
+            "SecurityError",
+            format!(
+                "The current window does not have permission to navigate the target frame to '{url}'."
+            ),
+        ));
+    }
     if let Some(source) = crate::html::activation::javascript_source(url.as_str()) {
         crate::html::activation::queue_javascript_url(cx.rt, source)?;
         return Ok(());

@@ -138,6 +138,10 @@ pub(crate) struct DocumentInit {
     /// document: the base URL of its creator (HTML "fallback base URL").
     /// `None`: the document URL.
     pub(crate) fallback_base: Option<Url>,
+    /// The URL of the cookies and the storage of an `about:blank` or
+    /// `about:srcdoc` frame document with its creator's origin: its creator's
+    /// (measured, case `scripted-about-frame-state`). `None`: the document URL.
+    pub(crate) creator_url: Option<Url>,
     /// The page's budget for the style sheets of frame documents; `None`
     /// for the top-level document.
     pub(crate) style_budget: Option<Arc<ByteBudget>>,
@@ -148,6 +152,11 @@ pub(crate) struct DocumentInit {
     /// The page's budget for the fonts of frame documents; `None` for the
     /// top-level document.
     pub(crate) font_budget: Option<Arc<ByteBudget>>,
+    /// The page's font context while a task runs.
+    pub(crate) fonts: Rc<crate::frames::registry::LentFonts>,
+    /// The nodes that the budget for frame documents has room for; `None`
+    /// for the top-level document.
+    pub(crate) node_room: Option<Rc<std::cell::Cell<usize>>>,
 }
 
 /// The state of one document. See the module documentation.
@@ -162,12 +171,24 @@ pub struct DocumentState {
     /// The origin of the document if it is not the origin of its URL
     /// ([`DocumentInit::origin`]).
     origin_override: Option<Origin>,
+    /// [`DocumentInit::creator_url`].
+    creator_url: Option<Url>,
     /// The site for cookies of the document's requests (frames).
     pub(crate) site_for_cookies: Option<Origin>,
-    /// True for a frame document. Its `@font-face` rules are not used in
-    /// M9 feature 10a: the page's font context holds the web fonts of one
-    /// document, the top-level one.
+    /// True for a frame document. Its `@font-face` faces are its own
+    /// ([`DocumentState::with_own_fonts`]).
     pub(crate) frame: bool,
+    /// The frame of the document ([`crate::FrameId::TOP`] for the top-level
+    /// document).
+    pub(crate) frame_id: crate::frames::FrameId,
+    /// True when the document left its frame and stays only for the scripts
+    /// that hold its nodes (ADR 0031 section 5): it starts nothing and has no
+    /// layout.
+    pub(crate) retired: bool,
+    /// See [`DocumentInit::node_room`].
+    node_room: Option<Rc<std::cell::Cell<usize>>>,
+    /// The content box of each `iframe` element at a layout serial.
+    frame_box_cache: Option<(u64, std::collections::HashMap<NodeId, Size>)>,
     /// The `iframe` elements that the drain saw change, for the page.
     pub(crate) frame_changes: frames::FrameChanges,
     /// The page's Web Storage (`localStorage`, `sessionStorage`).
@@ -315,9 +336,10 @@ pub struct DocumentState {
     /// The elements (the document for the viewport) that scrolled since
     /// the page last fired `scroll` events, in the order they scrolled.
     pub(crate) scrolled: Vec<NodeId>,
-    /// The page's font context while the state is lent to a script task
-    /// (ADR 0028 section 2): the layout flushes of queries use it.
-    pub(crate) lent_fonts: Option<swb_text::FontContext>,
+    /// The page's font context while a script task runs (ADR 0028 section 2):
+    /// the layout flushes of queries use it. All documents of the page share
+    /// this cell.
+    pub(crate) lent_fonts: Rc<crate::frames::registry::LentFonts>,
     /// The DOM generation at the last drain of the journal.
     drained: Option<u64>,
     /// The loads that the document started, for the tests of resource
@@ -345,8 +367,13 @@ impl DocumentState {
             loader: init.loader,
             client: init.client,
             origin_override: init.origin,
+            creator_url: init.creator_url,
             site_for_cookies: init.site_for_cookies,
             frame: init.frame,
+            frame_id: crate::frames::FrameId::TOP,
+            retired: false,
+            node_room: init.node_room,
+            frame_box_cache: None,
             frame_changes: frames::FrameChanges::default(),
             storage: init.storage,
             requests: Requests::default(),
@@ -409,7 +436,7 @@ impl DocumentState {
             client_rects: None,
             svg_geometry: None,
             scrolled: Vec::new(),
-            lent_fonts: None,
+            lent_fonts: init.fonts,
             drained: None,
             #[cfg(test)]
             load_log: Vec::new(),
@@ -434,6 +461,10 @@ impl swb_web::EngineHost for DocumentState {
 
     fn url(&self) -> String {
         self.url.to_string()
+    }
+
+    fn origin_text(&self) -> String {
+        self.origin_string()
     }
 
     fn base_url(&mut self) -> String {
@@ -465,14 +496,18 @@ impl swb_web::EngineHost for DocumentState {
     fn cookie_string(&self) -> String {
         self.loader
             .cookie_jar()
-            .map(|jar| jar.script_cookie_string(&self.url))
+            .map(|jar| jar.script_cookie_string(self.cookie_url()))
             .unwrap_or_default()
     }
 
     fn set_cookie(&mut self, line: &str) {
         if let Some(jar) = self.loader.cookie_jar() {
-            jar.set_script_cookie(&self.url, line);
+            jar.set_script_cookie(self.cookie_url(), line);
         }
+    }
+
+    fn storage_url(&self) -> String {
+        self.cookie_url().to_string()
     }
 
     fn storage(&self) -> Option<swb_web::SharedStorage> {
@@ -639,7 +674,7 @@ impl swb_web::EngineHost for DocumentState {
     }
 
     fn window_has_focus(&self) -> bool {
-        !self.window_blurred
+        !self.window_blurred && !self.retired
     }
 
     fn can_focus(&mut self, node: NodeId) -> bool {
@@ -710,6 +745,9 @@ impl swb_web::EngineHost for DocumentState {
         element: NodeId,
         pseudo: Option<swb_style::cssom::resolved::PseudoElement>,
     ) -> Option<Arc<swb_style::ComputedStyle>> {
+        if self.retired {
+            return None;
+        }
         self.query_computed_style(element, pseudo)
     }
 
@@ -740,6 +778,9 @@ impl swb_web::EngineHost for DocumentState {
         pseudo: Option<swb_style::cssom::resolved::PseudoElement>,
         property: &str,
     ) -> String {
+        if self.retired {
+            return String::new();
+        }
         self.resolved_value(element, pseudo, property)
     }
 
@@ -785,6 +826,14 @@ impl swb_web::EngineHost for DocumentState {
     }
 
     fn viewport(&self) -> swb_web::Viewport {
+        if self.retired {
+            // Measured, case `scripted-retired`.
+            return swb_web::Viewport {
+                width: 0.0,
+                height: 0.0,
+                scale: f64::from(self.view.scale),
+            };
+        }
         swb_web::Viewport {
             width: f64::from(self.view.viewport.width),
             height: f64::from(self.view.viewport.height),
@@ -817,7 +866,12 @@ impl swb_web::EngineHost for DocumentState {
     }
 
     fn media_environment(&self) -> swb_css::MediaEnvironment {
-        DocumentState::media_environment(self)
+        let mut environment = DocumentState::media_environment(self);
+        if self.retired {
+            environment.viewport_width = 0.0;
+            environment.viewport_height = 0.0;
+        }
+        environment
     }
 
     fn history_length(&self) -> usize {
@@ -841,11 +895,16 @@ impl swb_web::EngineHost for DocumentState {
     }
 
     fn request_navigation(&mut self, url: &str, replace: bool) -> bool {
+        if self.retired {
+            return false;
+        }
         self.script_request_navigation(url, replace)
     }
 
     fn request_reload(&mut self) {
-        self.script_requests.navigation = Some(ScriptNavigation::Reload);
+        if !self.retired {
+            self.script_requests.navigation = Some(ScriptNavigation::Reload);
+        }
     }
 
     fn request_traversal(&mut self, delta: i32) {
@@ -864,6 +923,17 @@ impl swb_web::EngineHost for DocumentState {
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
+
+    fn take_inserted_frames(&mut self) -> Vec<NodeId> {
+        if self.frame_changes.rescan {
+            return frames::iframes_in(&self.dom);
+        }
+        std::mem::take(&mut self.frame_changes.inserted)
+    }
+
+    fn retire(&mut self) {
+        self.retire_document();
+    }
 }
 
 impl DocumentState {
@@ -872,6 +942,72 @@ impl DocumentState {
     pub(crate) fn run_parser(&mut self) {
         while let Some((ParseStep::Script(_), _)) = self.parse_step() {}
         self.sync();
+    }
+
+    /// The document stays as it is and runs no scripts: the rest of its parse
+    /// goes to the end at once.
+    pub(crate) fn finish_parse_without_scripts(&mut self) {
+        if self.is_parsing() {
+            self.run_parser();
+        }
+    }
+
+    /// See [`swb_web::EngineHost::retire`].
+    fn retire_document(&mut self) {
+        self.retired = true;
+        self.parser = None;
+        self.loader.cancel_client(self.client);
+        self.requests = Requests::default();
+        self.script_fetches = ScriptFetches::default();
+        self.api_fetches = ApiFetches::default();
+        self.element_events = element_events::ElementEvents::default();
+        self.release_fonts_in_task();
+        self.stylist = None;
+        self.styles = None;
+        self.fragments = None;
+        self.display_list = None;
+        self.list_ends = Vec::new();
+        self.used_boxes = None;
+        self.geometry = None;
+        self.client_rects = None;
+        self.svg_geometry = None;
+        self.element_styles.clear();
+        self.pseudo_styles.clear();
+        self.images = Images::default();
+        self.lazy = lazy::LazyImages::default();
+        self.frame_changes = frames::FrameChanges::default();
+        self.script_requests = ScriptRequests::default();
+        self.scrolled = Vec::new();
+    }
+
+    /// Unloads the document's web font faces, while the page's font context
+    /// is lent to a task. Outside a task the page does it with its context.
+    pub(crate) fn release_fonts_in_task(&mut self) {
+        let fonts = Rc::clone(&self.lent_fonts);
+        if let Ok(mut fonts) = fonts.try_borrow_mut()
+            && let Some(fonts) = fonts.as_mut()
+        {
+            self.release_own_fonts(fonts);
+        }
+    }
+
+    /// The content box of the `iframe` element `node` in the current layout.
+    pub(crate) fn frame_box(&mut self, node: NodeId) -> Option<Size> {
+        let serial = self.layout_serial;
+        if self
+            .frame_box_cache
+            .as_ref()
+            .is_none_or(|(at, _)| *at != serial)
+        {
+            self.frame_box_cache = Some((serial, self.frame_boxes()));
+        }
+        self.frame_box_cache.as_ref()?.1.get(&node).copied()
+    }
+
+    /// The source of a retired document costs nothing more: the nodes that it
+    /// holds, for the page's budget.
+    pub(crate) fn node_count(&self) -> usize {
+        self.dom.len()
     }
 
     /// One step of the parser (the script runtime calls it through
@@ -883,9 +1019,25 @@ impl DocumentState {
     pub(crate) fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {
         let mut parser = self.parser.take()?;
         self.process_changes();
+        // A frame document's parser stops at the room that the page's budget
+        // has left (ADR 0031 section 11).
+        let nodes_before = self.dom.len();
+        if let Some(room) = &self.node_room {
+            self.dom
+                .set_max_nodes(nodes_before.saturating_add(room.get()));
+        }
         let started = Instant::now();
         let step = parser.resume(&mut self.dom);
         self.timings.parse += started.elapsed();
+        if let Some(room) = &self.node_room {
+            let added = self.dom.len().saturating_sub(nodes_before);
+            room.set(room.get().saturating_sub(added));
+            // An iframe srcdoc document is never in quirks mode (HTML "the
+            // initial insertion mode").
+            if self.url.as_str() == "about:srcdoc" {
+                self.dom.quirks_mode = swb_dom::QuirksMode::NoQuirks;
+            }
+        }
         self.parser_drain = true;
         self.process_changes();
         self.parser_drain = false;
@@ -1085,6 +1237,12 @@ impl DocumentState {
             Some(origin) => origin.clone(),
             None => self.url.origin(),
         }
+    }
+
+    /// The URL of the document's cookies and storage (see
+    /// [`DocumentInit::creator_url`]).
+    pub(crate) fn cookie_url(&self) -> &Url {
+        self.creator_url.as_ref().unwrap_or(&self.url)
     }
 
     /// True for the document of a frame (not the top-level document).

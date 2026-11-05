@@ -346,6 +346,22 @@ pub trait EngineHost: Any {
     /// The document URL, serialized (`document.URL`).
     fn url(&self) -> String;
 
+    /// The serialized origin of the document (`self.origin`): not the URL's
+    /// for `about:blank`, `about:srcdoc` and sandboxed documents.
+    fn origin_text(&self) -> String {
+        swb_net::Url::parse(&self.url()).map_or_else(
+            |_| "null".to_owned(),
+            |url| url.origin().ascii_serialization(),
+        )
+    }
+
+    /// The URL that gives the document its cookies and storage, serialized:
+    /// the creator's for `about:blank` and `about:srcdoc` documents with their
+    /// creator's origin, else the document's own.
+    fn storage_url(&self) -> String {
+        self.url()
+    }
+
     /// The document base URL, serialized (`baseURI`). It reflects the
     /// `base` elements of the DOM as it is now, also after changes of this
     /// task.
@@ -1039,4 +1055,132 @@ pub trait EngineHost: Any {
 
     /// The box as `Any`, so that the engine gets its own type back.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
+
+    /// The `iframe` elements that the changes processed so far inserted and
+    /// that the bindings have not met through a node insertion (the parser's):
+    /// the runtime makes their frames. The list goes.
+    fn take_inserted_frames(&mut self) -> Vec<NodeId> {
+        Vec::new()
+    }
+
+    /// The document's frame was destroyed or got another document (ADR 0031
+    /// section 5): its requests and its parser end, its derived data goes,
+    /// and from now on it starts nothing. The nodes stay readable.
+    fn retire(&mut self) {}
+}
+
+/// A frame that [`FrameHost::connect`] made.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NewFrame {
+    /// The number of the frame.
+    pub frame: u32,
+    /// True if the frame keeps its initial `about:blank` document: its
+    /// container's `load` fires inside the insertion (measured).
+    pub loaded_at_once: bool,
+}
+
+/// A frame that [`FrameHost::disconnect`] destroyed.
+pub struct RetiredFrame {
+    /// The number of the frame.
+    pub frame: u32,
+    /// The document's key in the runtime, if it has a realm.
+    pub key: Option<crate::runtime::DocumentKey>,
+    /// The document if it has a realm and the registry held it; the runtime
+    /// keeps it while the realm lives. `None` for a lent document.
+    pub doc: Option<Box<dyn EngineHost>>,
+}
+
+/// The documents that the runtime holds, for [`FrameHost::update_viewports`].
+pub trait LentDocuments {
+    /// The document `key` if the runtime holds it.
+    fn lent_host(&mut self, key: crate::runtime::DocumentKey) -> Option<&mut dyn EngineHost>;
+}
+
+/// The frame tree of the page as natives see it (ADR 0031 section 5). The page
+/// shares its registry with the runtime; a native borrows it for one call and
+/// never across a call into script. A frame has a number below 2^31; the top
+/// level has 0. A number of a destroyed frame finds nothing.
+pub trait FrameHost {
+    /// True if the frame exists.
+    fn is_alive(&self, frame: u32) -> bool;
+
+    /// The parent of the frame; `None` for the top level and a stale number.
+    fn parent(&self, frame: u32) -> Option<u32>;
+
+    /// The number of child frames.
+    fn child_count(&self, frame: u32) -> u32;
+
+    /// The child frame at `index`, in the tree order of the containers.
+    fn child_at(&self, frame: u32, index: u32) -> Option<u32>;
+
+    /// The first child frame with the name `name`.
+    fn child_named(&self, frame: u32, name: &str) -> Option<u32>;
+
+    /// The child frame of the `iframe` element `container` of the document of
+    /// `parent`.
+    fn child_of_container(&self, parent: u32, container: NodeId) -> Option<u32>;
+
+    /// The child frames with their containers.
+    fn child_containers(&self, frame: u32) -> Vec<(u32, NodeId)>;
+
+    /// The `iframe` element of the frame, in its parent's document.
+    fn container(&self, frame: u32) -> Option<NodeId>;
+
+    /// The name of the frame (`window.name`).
+    fn name(&self, frame: u32) -> String;
+
+    /// Sets the name of the frame.
+    fn set_name(&mut self, frame: u32, name: &str);
+
+    /// True if the document of the frame can have a realm in this runtime: it
+    /// has the origin of the runtime. Feature 13 gives other origins runtimes
+    /// of their own.
+    fn in_this_agent(&self, frame: u32) -> bool;
+
+    /// True if the document of the frame may run scripts (its sandbox).
+    fn scripts_allowed(&self, frame: u32) -> bool;
+
+    /// The key of the frame's document in the runtime, if it has a realm.
+    fn document_key(&self, frame: u32) -> Option<crate::runtime::DocumentKey>;
+
+    /// Records the key of the frame's document.
+    fn set_document_key(&mut self, frame: u32, key: Option<crate::runtime::DocumentKey>);
+
+    /// True if the frame's document still loads subresources (its `load` event
+    /// is to come).
+    fn document_loading(&self, frame: u32) -> bool;
+
+    /// Takes the frame's document out of the registry for the rest of the
+    /// task; the page takes it back after the task.
+    fn take_document(&mut self, frame: u32) -> Option<Box<dyn EngineHost>>;
+
+    /// An `iframe` element of the document of `parent` (`parent_doc`) was
+    /// connected (HTML "the iframe post-connection steps"): makes the frame
+    /// with its initial `about:blank` document. Its attributes navigate it
+    /// after the task. `None` past the limits of frames and depth.
+    fn connect(
+        &mut self,
+        parent: u32,
+        container: NodeId,
+        parent_doc: &mut dyn EngineHost,
+    ) -> Option<NewFrame>;
+
+    /// The frame and its descendants, children first.
+    fn subtree(&self, frame: u32) -> Vec<u32>;
+
+    /// Destroys the frame and its descendants (HTML "destroy a child
+    /// navigable"). The page acts on the rest after the task.
+    fn disconnect(&mut self, frame: u32) -> Vec<RetiredFrame>;
+
+    /// The frame's document and its frames have loaded, and its container's
+    /// `load` event fires: the frame no longer delays its parent's.
+    fn frame_loaded(&mut self, frame: u32);
+
+    /// True if the document of frame `source` may navigate frame `target`.
+    fn may_navigate(&self, source: u32, target: u32) -> bool;
+
+    /// Brings the viewport of the frame up to date: the layout of the
+    /// documents above it, top first, then each frame's viewport from its
+    /// container's box.
+    fn update_viewports(&mut self, frame: u32, docs: &mut dyn LentDocuments);
 }

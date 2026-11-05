@@ -32,33 +32,32 @@
 //!   before a rendering; the rasterizer draws them in place of the `iframe`
 //!   contents (`crate::frames::paint`, `swb_paint`).
 //!
-//! Frame documents run no scripts yet (with JavaScript on they parse with
-//! the scripting flag set).
+//! A frame document of the page's origin that has a script gets a realm when
+//! it commits, and the runtime drives its parse as for the top-level document;
+//! one that no script touches costs no realm. With a script runtime, a task
+//! makes and destroys frames itself (`crate::frames::registry`); the page does
+//! what is left after the task ([`Page::run_task_in`]).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use swb_css::ColorScheme;
 use swb_dom::{NodeId, QuirksMode};
 use swb_layout::Size;
-use swb_net::{Destination, NetError, Origin, Request, Response, Url, escape_html, same_site};
-use swb_web::{DispatchTarget, TrustedEvent};
+use swb_net::{Destination, NetError, Origin, Request, Response, Url, escape_html};
+use swb_web::{DispatchTarget, DocumentKey, ScriptRuntime, TrustedEvent};
 
 use super::loading::Parsed;
 use super::{MAX_VIEWPORT_SIDE, Page, about_blank, is_loadable, strip_fragment};
+use crate::document::DocumentState;
 use crate::document::frames::iframes_in;
-use crate::document::{DocumentInit, DocumentState, ScrollTarget, View};
+use crate::frames::registry::{BLANK, ChildInit, FrameDocument, FrameSettings, attribute_target};
 use crate::frames::{
-    Charge, FrameId, FrameTarget, MAX_DEPTH, MAX_FRAMES, MAX_NAVIGATIONS, MAX_NODES,
-    MAX_SOURCE_BYTES, PendingNavigation, Sandbox,
+    Charge, FrameId, FrameTarget, MAX_NAVIGATIONS, MAX_NODES, MAX_SOURCE_BYTES, PendingNavigation,
+    Sandbox,
 };
 use crate::history::PostData;
-use crate::resources::Images;
-
-/// The markup of an initial `about:blank` document (measured:
-/// `<html><head></head><body></body></html>`, quirks mode).
-const BLANK: &str = "";
+use crate::resources::{Images, Pending};
 
 impl Page {
     // ----- The frame tree for tests and tools -----
@@ -135,6 +134,11 @@ impl Page {
         Some(self.frames.get(id)?.sandbox)
     }
 
+    /// True if the document of frame `id` has a realm in the page's runtime.
+    pub fn frame_has_realm(&self, id: FrameId) -> bool {
+        self.script.is_some() && self.frames.get(id).is_some_and(|f| f.script.is_some())
+    }
+
     /// True while frame `id` has a navigation whose document has not
     /// arrived, or its document loads.
     pub fn frame_is_loading(&self, id: FrameId) -> bool {
@@ -160,7 +164,7 @@ impl Page {
         self.frames.get(id)?.doc.as_deref()
     }
 
-    fn doc_of_mut(&mut self, id: FrameId) -> Option<&mut DocumentState> {
+    pub(super) fn doc_of_mut(&mut self, id: FrameId) -> Option<&mut DocumentState> {
         if id == FrameId::TOP {
             return self.doc.as_deref_mut();
         }
@@ -200,8 +204,14 @@ impl Page {
         if changes.rescan {
             self.rescan_frames(frame);
         }
+        // With a runtime the natives destroyed and made the frames of what
+        // the task moved; the frame of an element that is in the document
+        // again is the new one.
+        let scripted = self.script.is_some();
         for node in changes.removed {
-            if let Some(child) = self.frames.by_container(frame, node) {
+            if let Some(child) = self.frames.by_container(frame, node)
+                && !(scripted && self.in_frame_tree(frame, node))
+            {
                 self.destroy_frame(child);
             }
         }
@@ -214,19 +224,26 @@ impl Page {
                 made.insert(child);
             }
         }
-        for node in changes.names {
-            if let Some(child) = self.frames.by_container(frame, node) {
-                self.update_frame_name(child);
-            }
-        }
-        for node in changes.attributes {
-            let Some(child) = self.frames.by_container(frame, node) else {
+        for set in changes.attributes {
+            let Some(child) = self.frames.by_container(frame, set.node) else {
                 continue;
             };
-            if made.contains(&child) || !self.in_frame_tree(frame, node) {
+            if made.contains(&child)
+                || self.made_in_task.contains(&child)
+                || !self.in_frame_tree(frame, set.node)
+            {
                 continue;
             }
-            self.process_frame_attributes(child, false);
+            if self.process_frame_attributes(child, false) {
+                let parent_flags = self
+                    .frames
+                    .get(frame)
+                    .map(|f| f.sandbox)
+                    .unwrap_or_default();
+                if let Some(record) = self.frames.get_mut(child) {
+                    record.pending_sandbox = set.sandbox.inherit(parent_flags);
+                }
+            }
         }
     }
 
@@ -275,56 +292,28 @@ impl Page {
     /// its attributes. `None` past the limits of frames and depth
     /// (ADR 0031 section 11; a warning per top-level document).
     fn create_frame(&mut self, parent: FrameId, container: NodeId) -> Option<FrameId> {
-        if self.frames.count() >= MAX_FRAMES {
-            if !std::mem::replace(&mut self.frames.count_warned, true) {
-                log::warn!(
-                    "the page has {MAX_FRAMES} frames, the limit; further iframe elements get no frame"
-                );
-            }
-            return None;
-        }
-        let depth = self.frames.get(parent)?.depth + 1;
-        if depth > MAX_DEPTH {
-            if !std::mem::replace(&mut self.frames.depth_warned, true) {
-                log::warn!(
-                    "frames are nested {MAX_DEPTH} deep, the limit; a deeper iframe gets no frame"
-                );
-            }
-            return None;
-        }
-        let parent_doc = self.doc_of(parent)?;
-        let element = parent_doc.dom().element(container)?;
-        let name = element.attr("name").unwrap_or_default().to_owned();
-        let sandbox = self.container_sandbox(parent, element.attr("sandbox"));
-        let origin = self.inherited_origin(parent, sandbox)?;
-        let site = Some(self.site_for_cookies(parent, Some(&origin)));
-        let view = self.frame_view(crate::frames::DEFAULT_FRAME_VIEWPORT);
-        let parsed = Parsed::complete(
-            swb_dom::parse_html_with(BLANK, self.javascript),
-            "text/html",
-        );
-        let doc = self.new_frame_document(
-            parent,
-            parsed,
-            about_blank(),
-            origin,
-            site,
-            view,
-            Images::default(),
-        );
+        let doc = self.doc_of(parent)?;
+        let init = ChildInit::of(doc, container)?;
         let at = {
-            let dom = self.doc_of(parent)?.dom();
+            let dom = doc.dom();
             self.frames
                 .child_position(parent, container, |a, b| dom.precedes(a, b))
         };
-        let id = self.frames.insert(parent, container, doc, at)?;
-        if let Some(frame) = self.frames.get_mut(id) {
-            frame.name = name;
-            frame.sandbox = sandbox;
-        }
-        log::debug!("{id}: made for an iframe of {parent}");
+        let settings = self.frame_settings();
+        let maker = Rc::clone(&self.maker);
+        let id = self
+            .frames
+            .create_child(&maker, settings, parent, init, at)?;
         self.process_frame_attributes(id, true);
         Some(id)
+    }
+
+    /// The settings of the page that a new frame document takes.
+    pub(super) fn frame_settings(&self) -> FrameSettings {
+        FrameSettings {
+            javascript: self.javascript,
+            view: self.view,
+        }
     }
 
     /// The origin of an `about:blank` or `about:srcdoc` document in a
@@ -334,42 +323,7 @@ impl Page {
         if sandbox.opaque_origin() {
             return Some(Origin::new_opaque());
         }
-        Some(self.doc_of(parent)?.origin())
-    }
-
-    /// The site for cookies of the requests of a document of origin
-    /// `own` in a child of `parent` (RFC 6265bis §5.2.1; ADR 0031 section
-    /// 3), or of the request of a frame document of `parent` (`own` is
-    /// `None`): the top-level origin if `own` and the documents of
-    /// `parent` and its ancestors are same-site with it, else an opaque
-    /// origin.
-    fn site_for_cookies(&self, parent: FrameId, own: Option<&Origin>) -> Origin {
-        let Some(top) = self.doc.as_ref().map(|d| d.origin()) else {
-            return Origin::new_opaque();
-        };
-        let mut same = own.is_none_or(|o| same_site(o, &top));
-        let mut frame = Some(parent);
-        while same && let Some(id) = frame {
-            if id == FrameId::TOP {
-                break;
-            }
-            same = self
-                .doc_of(id)
-                .is_some_and(|d| same_site(&d.origin(), &top));
-            frame = self.frames.get(id).and_then(|f| f.parent);
-        }
-        if same { top } else { Origin::new_opaque() }
-    }
-
-    /// The view of a frame document with `viewport`: the page's scale and
-    /// color scheme, no scroll indicators.
-    fn frame_view(&self, viewport: Size) -> View {
-        View {
-            viewport,
-            scale: self.view.scale,
-            indicators: false,
-            color_scheme: self.view.color_scheme,
-        }
+        self.frames.get(parent)?.origin.clone()
     }
 
     /// The sandboxing flags of a child of `parent` whose container has the
@@ -384,121 +338,54 @@ impl Page {
         Sandbox::parse(attr).inherit(parent_flags)
     }
 
-    /// A new frame document of a child of `parent` (the parse is complete:
-    /// frame documents run no scripts in feature 10a). An `about:` document
-    /// resolves relative URLs against the parent's base URL (HTML
-    /// "fallback base URL"; `about:srcdoc`: the container document's, which
-    /// is the parent's).
-    #[allow(clippy::too_many_arguments)]
-    fn new_frame_document(
-        &self,
-        parent: FrameId,
-        parsed: Parsed,
-        url: Url,
-        origin: Origin,
-        site_for_cookies: Option<Origin>,
-        view: View,
-        images: Images,
-    ) -> Box<DocumentState> {
-        let scroll_target = url.fragment().map(|f| ScrollTarget::Fragment(f.to_owned()));
-        let mut images = images;
-        images.attach_budget(
-            Arc::clone(&self.frame_images),
-            Arc::clone(&self.frame_vectors),
-        );
-        let fallback_base = (url.scheme() == "about")
-            .then(|| self.doc_of(parent).map(|d| d.base_url().clone()))
-            .flatten();
-        Box::new(DocumentState::new(DocumentInit {
-            dom: parsed.dom,
-            parser: None,
-            url,
-            encoding: parsed.encoding,
-            content_type: parsed.content_type,
-            images,
-            loader: Rc::clone(&self.loader),
-            storage: Rc::clone(&self.storage),
-            view,
-            scroll_target,
-            parse: parsed.parse,
-            client: self.loader.new_client(),
-            origin: Some(origin),
-            site_for_cookies,
-            frame: true,
-            fallback_base,
-            style_budget: Some(Arc::clone(&self.frame_styles)),
-            body_budget: Some(Arc::clone(&self.frame_bodies)),
-            font_budget: Some(Arc::clone(&self.frame_fonts)),
-        }))
+    /// The attributes of a frame that a task made.
+    pub(super) fn process_new_frame(&mut self, id: FrameId) {
+        self.process_frame_attributes(id, true);
     }
 
     /// HTML "process the iframe attributes" for frame `id`; `initial` at
-    /// its insertion.
-    fn process_frame_attributes(&mut self, id: FrameId, initial: bool) {
+    /// its insertion. True if a navigation started.
+    fn process_frame_attributes(&mut self, id: FrameId, initial: bool) -> bool {
         let Some(target) = self.attribute_target(id) else {
-            return;
+            return false;
         };
         match target {
             // HTML: `about:blank` at the insertion runs the iframe load
             // event steps; the initial document stays.
-            FrameTarget::Blank if initial => {}
-            target => self.navigate_frame(id, target),
-        }
-    }
-
-    /// Copies the `name` of frame `id`'s container to the frame.
-    fn update_frame_name(&mut self, id: FrameId) {
-        let element = self
-            .frames
-            .get(id)
-            .and_then(|f| Some((f.parent?, f.container?)))
-            .and_then(|(p, c)| self.doc_of(p)?.dom().element(c));
-        let name = element
-            .and_then(|e| e.attr("name"))
-            .unwrap_or_default()
-            .to_owned();
-        if let Some(frame) = self.frames.get_mut(id) {
-            frame.name = name;
-        }
-    }
-
-    /// What the attributes of frame `id`'s container ask for: `srcdoc`,
-    /// else the URL of `src` (resolved against the parent's base URL),
-    /// else `about:blank`. `None` if `src` does not parse (nothing
-    /// happens).
-    fn attribute_target(&self, id: FrameId) -> Option<FrameTarget> {
-        let frame = self.frames.get(id)?;
-        let (parent, container) = (frame.parent?, frame.container?);
-        let doc = self.doc_of(parent)?;
-        let element = doc.dom().element(container)?;
-        if element.has_attr("srcdoc") {
-            return Some(FrameTarget::Srcdoc);
-        }
-        let src = element
-            .attr("src")
-            .map(|s| s.trim_matches(swb_dom::is_html_whitespace))
-            .filter(|s| !s.is_empty());
-        let Some(src) = src else {
-            return Some(FrameTarget::Blank);
-        };
-        match doc.base_url().join(src) {
-            Ok(url) if url.as_str() == "about:blank" => Some(FrameTarget::Blank),
-            Ok(url) => Some(FrameTarget::Url(url)),
-            Err(_) => {
-                log::debug!("{id}: the src {src:?} does not parse");
-                None
+            FrameTarget::Blank if initial => false,
+            target => {
+                let started = self.navigate_frame(id, target);
+                // The page reads the attributes after the task that inserted
+                // the frame. If they already asked for a document at the
+                // insertion, the navigation started then, and a later `sandbox`
+                // does not count (measured).
+                if started
+                    && initial
+                    && let Some(frame) = self.frames.get_mut(id)
+                    && frame.reuse_window
+                {
+                    frame.pending_sandbox = frame.sandbox;
+                }
+                started
             }
         }
     }
 
+    /// What the attributes of frame `id`'s container ask for (see
+    /// [`attribute_target`]).
+    fn attribute_target(&self, id: FrameId) -> Option<FrameTarget> {
+        let frame = self.frames.get(id)?;
+        let (parent, container) = (frame.parent?, frame.container?);
+        attribute_target(self.doc_of(parent)?, container)
+    }
+
     /// Navigates frame `id` to `target` (ADR 0031 section 2). Dropped past
     /// [`MAX_NAVIGATIONS`] in the window of page time (one warning per
-    /// frame), for URLs that cannot be loaded (`javascript:` comes with
-    /// scripts in frames), for `file:` URLs from a document that is not a
+    /// frame), for URLs that cannot be loaded, for `file:` URLs from a document that is not a
     /// `file:` one, and when two or more ancestors' documents have the URL
-    /// (Chromium's rule, case `self-embed`).
-    fn navigate_frame(&mut self, id: FrameId, target: FrameTarget) {
-        self.navigate_frame_with(id, target, None, None);
+    /// (Chromium's rule, case `self-embed`). True if a navigation started.
+    pub(super) fn navigate_frame(&mut self, id: FrameId, target: FrameTarget) -> bool {
+        self.navigate_frame_with(id, target, None, None)
     }
 
     /// [`Page::navigate_frame`] with a `POST` body, and the origin of the
@@ -509,10 +396,10 @@ impl Page {
         target: FrameTarget,
         post: Option<PostData>,
         initiator: Option<Origin>,
-    ) {
+    ) -> bool {
         let now = self.clock.now();
         let Some(frame) = self.frames.get_mut(id) else {
-            return;
+            return false;
         };
         if !frame.note_navigation(now) {
             if !std::mem::replace(&mut frame.navigation_warned, true) {
@@ -520,15 +407,22 @@ impl Page {
                     "{id} navigated {MAX_NAVIGATIONS} times in 10 s; its later navigations are dropped"
                 );
             }
-            return;
+            return false;
         }
         let Some(parent) = frame.parent else {
-            return;
+            return false;
         };
+        if let FrameTarget::Url(url) = &target
+            && url.scheme() == "javascript"
+        {
+            let url = url.to_string();
+            self.run_frame_javascript_url(id, &url);
+            return false;
+        }
         let target = match target {
             FrameTarget::Url(url) => match self.check_frame_url(id, parent, url) {
                 Some(target) => target,
-                None => return,
+                None => return false,
             },
             target => target,
         };
@@ -537,7 +431,7 @@ impl Page {
             FrameTarget::Url(url) => {
                 let initiator =
                     initiator.or_else(|| self.doc_of(parent).map(DocumentState::origin));
-                let site = Some(self.site_for_cookies(parent, None));
+                let site = Some(self.frames.site_for_cookies(parent, None));
                 let request = match post {
                     Some(post) => Request::post(
                         url.clone(),
@@ -563,10 +457,36 @@ impl Page {
                 PendingNavigation::Local(local)
             }
         };
+        let sandbox = self.container_flags(id);
         if let Some(frame) = self.frames.get_mut(id) {
             frame.pending = Some(pending);
+            frame.pending_sandbox = sandbox;
             frame.load_fired = false;
             frame.refresh = None;
+        }
+        true
+    }
+
+    /// A `javascript:` URL in a frame runs as a task in the frame's realm; a
+    /// string result does not replace the document (ADR 0031 section 2). An
+    /// empty one does nothing and needs no realm (measured, core-js's
+    /// `src = "javascript:"`). A frame of another origin runs nothing until
+    /// feature 13.
+    fn run_frame_javascript_url(&mut self, id: FrameId, url: &str) {
+        if url.len() <= "javascript:".len()
+            || !self
+                .frames
+                .get(id)
+                .is_some_and(|f| f.sandbox.scripts_allowed())
+        {
+            return;
+        }
+        let number = id.number();
+        if self.frames.get(id).is_some_and(|f| f.script.is_none()) {
+            self.with_registry(|script| script.ensure_frame_window(number));
+        }
+        if self.frames.in_agent(id) {
+            self.run_task_in(id, |script| script.queue_javascript_url(url));
         }
     }
 
@@ -582,7 +502,7 @@ impl Page {
             log::info!("{id}: not navigating to a {}: URL", url.scheme());
             return None;
         }
-        if !self.doc_of(parent).is_some_and(|d| d.may_load(&url)) {
+        if !self.doc_of(parent).is_none_or(|d| d.may_load(&url)) {
             log::warn!("{id}: not allowed to load local resource {url}");
             return None;
         }
@@ -637,10 +557,15 @@ impl Page {
     }
 
     /// Removes one frame record (its children are gone) and cancels its
-    /// requests.
+    /// requests. A document with a realm unloads and stays in the runtime
+    /// (ADR 0031 section 5).
     fn drop_frame(&mut self, id: FrameId) {
+        if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
+            self.run_task_in(id, ScriptRuntime::unload_document);
+        }
         self.frame_destroyed = true;
-        self.forget_frame_input(id);
+        let parent = self.frames.get(id).and_then(|f| f.parent);
+        self.forget_frame_input(id, parent);
         if let Some(PendingNavigation::Request { request, .. }) =
             self.frames.get(id).and_then(|f| f.pending.clone())
         {
@@ -650,6 +575,18 @@ impl Page {
             if let Some(doc) = frame.doc.as_deref_mut() {
                 self.loader.cancel_client(doc.client);
                 doc.release_own_fonts(&mut self.fonts);
+            }
+            if let Some(script) = self.script.as_mut() {
+                script.forget_frame(id.number());
+                if let Some(key) = frame.script {
+                    let nodes = frame.doc.as_ref().map_or(0, |d| d.node_count());
+                    self.frames.charge_retired(nodes);
+                    let doc: Option<Box<dyn swb_web::EngineHost>> = match frame.doc.take() {
+                        Some(doc) => Some(doc),
+                        None => None,
+                    };
+                    script.retire_document(key, doc);
+                }
             }
             log::debug!("{id}: destroyed");
         }
@@ -708,12 +645,13 @@ impl Page {
             let Some(parent) = frame.parent else {
                 continue;
             };
-            let sandbox = self.current_sandbox(id);
+            let sandbox = frame.pending_sandbox;
             let Some(origin) = self.inherited_origin(parent, sandbox) else {
                 continue;
             };
+            self.commit_sandbox(id);
             let (parsed, url, charge) = if target == FrameTarget::Srcdoc {
-                let (parsed, charge) = self.parse_srcdoc(id);
+                let (parsed, charge) = self.parse_srcdoc(id, &origin);
                 (parsed, srcdoc_url(), charge)
             } else {
                 let dom = swb_dom::parse_html_with(BLANK, self.javascript);
@@ -735,7 +673,7 @@ impl Page {
 
     /// Parses the `srcdoc` attribute of frame `id`'s container, within the
     /// budget for frame documents (an error document otherwise).
-    fn parse_srcdoc(&mut self, id: FrameId) -> (Parsed, Charge) {
+    fn parse_srcdoc(&mut self, id: FrameId, origin: &Origin) -> (Parsed, Charge) {
         let markup = self.srcdoc_of(id).map(str::to_owned);
         let markup = markup.as_deref().unwrap_or_default();
         if !self.admit_bytes(id, markup.len()) {
@@ -743,6 +681,17 @@ impl Page {
         }
         // The parse stops one node past the room that the budget has left.
         let max_nodes = self.frames.nodes_left(id).saturating_add(1);
+        if self.frame_runs_scripts(id, origin) && may_have_script(markup.as_bytes(), None) {
+            let mut dom = swb_dom::Document::new();
+            dom.set_max_nodes(max_nodes);
+            let parser = swb_dom::HtmlParser::new(&mut dom, markup, true);
+            let mut parsed = Parsed::complete(dom, "text/html");
+            parsed.parser = Some(parser);
+            return (
+                parsed,
+                crate::frames::registry::scripted_charge(markup.len()),
+            );
+        }
         let mut dom = swb_dom::parse_html_limited(markup, self.javascript, max_nodes);
         // An iframe srcdoc document is never in quirks mode (HTML "the
         // initial insertion mode").
@@ -758,22 +707,27 @@ impl Page {
         doc.dom().element(frame.container?)?.attr("srcdoc")
     }
 
-    /// The sandboxing flags of frame `id`'s container now (they apply to
-    /// the document that the navigation makes).
-    fn current_sandbox(&mut self, id: FrameId) -> Sandbox {
+    /// The sandboxing flags of frame `id`'s container now.
+    fn container_flags(&self, id: FrameId) -> Sandbox {
         let frame = self.frames.get(id);
         let parent = frame.and_then(|f| f.parent);
         let element = frame
             .and_then(|f| Some((f.parent?, f.container?)))
             .and_then(|(p, c)| self.doc_of(p)?.dom().element(c));
-        let sandbox = match parent {
+        match parent {
             Some(parent) => self.container_sandbox(parent, element.and_then(|e| e.attr("sandbox"))),
             None => Sandbox::default(),
-        };
-        if let Some(frame) = self.frames.get_mut(id) {
-            frame.sandbox = sandbox;
         }
-        sandbox
+    }
+
+    /// The document of frame `id`'s navigation is here: it has the flags of
+    /// the navigation.
+    fn commit_sandbox(&mut self, id: FrameId) -> Sandbox {
+        let Some(frame) = self.frames.get_mut(id) else {
+            return Sandbox::default();
+        };
+        frame.sandbox = frame.pending_sandbox;
+        frame.sandbox
     }
 
     /// The document of frame `id`'s navigation arrived (or failed).
@@ -792,7 +746,7 @@ impl Page {
                 return;
             }
         };
-        let sandbox = self.current_sandbox(id);
+        let sandbox = self.commit_sandbox(id);
         let opaque = |o: Origin| {
             if sandbox.opaque_origin() {
                 Origin::new_opaque()
@@ -831,7 +785,14 @@ impl Page {
         // The parse stops one node past the room that the budget has left,
         // so that a document that does not fit costs little.
         let max_nodes = self.frames.nodes_left(id).saturating_add(1);
-        match self.parse_response(&response, false, max_nodes) {
+        let charset = response.content_type().and_then(|c| c.charset);
+        let steps = self.frame_runs_scripts(id, &origin)
+            && may_have_script(&response.body, charset.as_deref());
+        match self.parse_response(&response, steps, max_nodes) {
+            Ok((parsed, images)) if parsed.parser.is_some() => {
+                let charge = crate::frames::registry::scripted_charge(size);
+                self.commit_frame_document(id, parsed, response.url, origin, images, charge);
+            }
             Ok((parsed, images)) => {
                 let (parsed, charge) = self.admit_parsed(id, parsed, size, max_nodes);
                 // An over-budget document has no images either.
@@ -906,9 +867,22 @@ impl Page {
         error_document("Too many frame documents on this page", self.javascript)
     }
 
+    /// True if a document of origin `origin` in frame `id` may run scripts:
+    /// the page has a runtime, the document has the runtime's origin, and
+    /// its sandbox has `allow-scripts`.
+    fn frame_runs_scripts(&self, id: FrameId, origin: &Origin) -> bool {
+        self.javascript
+            && self.script.is_some()
+            && self.frames.top_origin() == Some(origin)
+            && self
+                .frames
+                .get(id)
+                .is_some_and(|f| f.sandbox.scripts_allowed())
+    }
+
     /// Replaces the document of frame `id` with a new one: the old one
-    /// goes with its frames and requests. `charge` is what the document
-    /// costs the page's budget for frame documents.
+    /// unloads and goes with its frames and requests. `charge` is what the
+    /// document costs the page's budget for frame documents.
     fn commit_frame_document(
         &mut self,
         id: FrameId,
@@ -918,6 +892,9 @@ impl Page {
         images: Images,
         charge: Charge,
     ) {
+        if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
+            self.run_task_in(id, ScriptRuntime::unload_document);
+        }
         let Some(frame) = self.frames.get(id) else {
             return;
         };
@@ -928,9 +905,39 @@ impl Page {
         for child in frame.children.clone() {
             self.destroy_frame(child);
         }
-        let site = Some(self.site_for_cookies(parent, Some(&origin)));
-        let view = self.frame_view(viewport);
-        let doc = self.new_frame_document(parent, parsed, url, origin, site, view, images);
+        let creator = (url.scheme() == "about")
+            .then(|| self.doc_of(parent))
+            .flatten();
+        let fallback_base = creator.map(|d| d.base_url().clone());
+        let same_origin = self
+            .frames
+            .get(parent)
+            .is_some_and(|p| p.origin.as_ref() == Some(&origin));
+        let creator_url = creator
+            .filter(|_| same_origin)
+            .map(|d| d.cookie_url().clone());
+        let history = self
+            .doc
+            .as_deref()
+            .map(|d| d.history.clone())
+            .unwrap_or_default();
+        let mut doc = self.maker.make(FrameDocument {
+            dom: parsed.dom,
+            parser: parsed.parser,
+            encoding: parsed.encoding,
+            content_type: parsed.content_type,
+            parse: parsed.parse,
+            url,
+            origin: origin.clone(),
+            site_for_cookies: Some(self.frames.site_for_cookies(parent, Some(&origin))),
+            view: self.frame_settings().view(viewport),
+            images,
+            fallback_base,
+            creator_url,
+            history,
+            node_room: Rc::clone(&self.frames.node_room),
+        });
+        doc.frame_id = id;
         let refresh = doc
             .declarative_refresh()
             .map(|r| (self.clock.now() + r.delay_s * 1000.0, r.url));
@@ -939,6 +946,10 @@ impl Page {
             return;
         };
         let mut old = frame.doc.replace(doc);
+        let old_key = frame.script.take();
+        let reuse = frame.reuse_window && frame.origin.as_ref() == Some(&origin);
+        frame.reuse_window = false;
+        frame.origin = Some(origin);
         // The new document has its own pointer and keyboard state; the
         // focus stays with the frame (measured: a navigated frame that
         // held the focus keeps it, with no focused element in it).
@@ -966,14 +977,129 @@ impl Page {
         }
         self.frames.set_client(id, old_client, client);
         self.frames.set_charge(id, charge);
+        let kept = self.retire_old_document(old, old_key, reuse);
         log::debug!(
             "{id}: committed {}",
             self.doc_of(id).map_or("", |d| d.url().as_str())
         );
+        self.start_frame_document(id, kept);
         self.update_frames(id);
     }
 
-    /// Hands a completion of a request of frame `id`'s document to it.
+    /// The document that a commit replaced: with a realm it stays in the
+    /// runtime (ADR 0031 section 5). With `reuse`, the new document takes over
+    /// its `Window` (HTML "initial about:blank"; measured, case
+    /// `scripted-initial-reuse`); returns its key.
+    fn retire_old_document(
+        &mut self,
+        old: Option<Box<DocumentState>>,
+        key: Option<DocumentKey>,
+        reuse: bool,
+    ) -> Option<DocumentKey> {
+        let (Some(key), Some(script)) = (key, self.script.as_mut()) else {
+            return None;
+        };
+        let kept = if reuse {
+            script.reuse_window(key)
+        } else {
+            None
+        };
+        let nodes = old.as_ref().map_or(0, |d| d.node_count());
+        let old: Option<Box<dyn swb_web::EngineHost>> = match old {
+            Some(old) => Some(old),
+            None => None,
+        };
+        script.retire_document(key, old);
+        self.frames.charge_retired(nodes);
+        kept
+    }
+
+    /// A new document of frame `id` starts. With a script to run it gets a
+    /// realm, and the runtime drives its parse. A script may hold the frame's
+    /// proxy, so the proxy needs a new target: a realm for a document of the
+    /// agent, none for another (ADR 0031 section 5). Else the document needs
+    /// no realm yet.
+    fn start_frame_document(&mut self, id: FrameId, kept: Option<DocumentKey>) {
+        let number = id.number();
+        let parsing = self.doc_of(id).is_some_and(DocumentState::is_parsing);
+        let Some(script) = self.script.as_ref() else {
+            self.finish_frame_parse(id);
+            return;
+        };
+        let known = script.knows_frame(number);
+        let agent = self.frames.in_agent(id);
+        let key = if kept.is_some() {
+            kept
+        } else if parsing || (known && agent) {
+            self.with_registry(|s| s.add_frame_document(number))
+                .flatten()
+        } else {
+            None
+        };
+        let scripts_off = !self
+            .frames
+            .get(id)
+            .is_some_and(|f| f.sandbox.scripts_allowed());
+        if let Some(frame) = self.frames.get_mut(id) {
+            frame.script = key;
+        }
+        if let (Some(key), Some(script)) = (key, self.script.as_mut()) {
+            script.set_scripts_off(key, scripts_off);
+        }
+        match key {
+            Some(_) if parsing => {
+                self.run_task_in(id, ScriptRuntime::start_document);
+            }
+            Some(key) => {
+                // Its `load` is to come: the window that a script holds gets
+                // it (measured, case `scripted-initial-reuse`).
+                if let Some(script) = self.script.as_mut() {
+                    script.adopt_complete_document(key, true);
+                }
+            }
+            None => {
+                self.finish_frame_parse(id);
+                if known && let Some(script) = self.script.as_mut() {
+                    script.clear_frame_target(number);
+                }
+            }
+        }
+    }
+
+    /// A parse in steps of frame `id`'s document goes to its end without
+    /// scripts; the document is charged for its nodes.
+    fn finish_frame_parse(&mut self, id: FrameId) {
+        let Some(doc) = self.doc_of_mut(id) else {
+            return;
+        };
+        if !doc.is_parsing() {
+            return;
+        }
+        doc.finish_parse_without_scripts();
+        self.update_frame_charge(id);
+        self.update_frames(id);
+    }
+
+    /// Charges the nodes that frame `id`'s document has now (a document that
+    /// a script or a parse in steps grew).
+    pub(super) fn update_frame_charge(&mut self, id: FrameId) {
+        let Some(frame) = self.frames.get(id) else {
+            return;
+        };
+        let Some(doc) = frame.doc.as_deref() else {
+            return;
+        };
+        let charge = Charge {
+            bytes: frame.charge.bytes,
+            nodes: doc.node_count(),
+        };
+        if charge != frame.charge {
+            self.frames.set_charge(id, charge);
+        }
+    }
+
+    /// Hands a completion of a request of frame `id`'s document to it. Its
+    /// scripts and events follow, as for the top-level document.
     pub(super) fn frame_completion(
         &mut self,
         id: FrameId,
@@ -985,15 +1111,25 @@ impl Page {
         let Some(doc) = frame.doc.as_deref_mut() else {
             return false;
         };
+        if doc.is_api_fetch(completion.id) {
+            doc.api_fetch_completed(
+                completion.id,
+                completion.result,
+                completion.kind,
+                completion.reservation,
+            );
+            self.deliver_api_fetches_in(id);
+            return true;
+        }
         let Some(pending) = doc.requests.pending.remove(&completion.id) else {
             return false;
         };
+        let sheet = matches!(pending, Pending::Stylesheet { .. });
         doc.with_own_fonts(&mut self.fonts, |doc, fonts| {
             doc.handle_completion(pending, completion.result, fonts);
         });
-        // Without scripts in the frame nothing listens to its element
-        // events.
-        doc.take_element_events();
+        self.deliver_element_events_in(id);
+        self.deliver_scripts_in(id, sheet);
         true
     }
 
@@ -1084,14 +1220,13 @@ impl Page {
 
     /// Marks the frames whose document and frames loaded, children first,
     /// and fires the `load` event at their containers (HTML "iframe load
-    /// event steps"): as a task of the page's runtime for a container in
-    /// the page's document (frame documents run no scripts yet). True if
-    /// any frame loaded.
+    /// event steps"): as a task of the parent's document when it has a
+    /// realm. A document that the runtime drives fires its own `load` first;
+    /// that task also fires the container's. True if any frame loaded.
     pub(super) fn check_frame_loads(&mut self) -> bool {
         if self.lent || self.frames.count() == 0 {
             return false;
         }
-        let mut containers = Vec::new();
         let mut any = false;
         for id in self.frames.descendants_post_order(FrameId::TOP) {
             let Some(frame) = self.frames.get(id) else {
@@ -1107,31 +1242,77 @@ impl Page {
             {
                 continue;
             }
-            let (parent, container) = (frame.parent, frame.container);
-            if let Some(frame) = self.frames.get_mut(id) {
-                frame.load_fired = true;
-            }
-            any = true;
-            if parent == Some(FrameId::TOP)
-                && let Some(container) = container
-            {
-                containers.push((id, container));
-            }
-        }
-        if self.script.is_some() {
-            for (id, container) in containers {
-                // A listener of an earlier `load` may have removed the
-                // container, or removed and inserted it again (a new frame,
-                // which has not loaded).
-                if self.frames.by_container(FrameId::TOP, container) == Some(id) {
-                    self.dispatch_event(
-                        DispatchTarget::Node(container),
-                        &TrustedEvent::new("load"),
-                    );
+            if let (Some(key), Some(script)) = (frame.script, self.script.as_ref()) {
+                if script.load_event_due_in(key) {
+                    // Layout can find more resources (ADR 0031 section 2).
+                    self.layout_frame_alone(id);
+                    if self.doc_of(id).is_none_or(DocumentState::is_loading) {
+                        continue;
+                    }
+                    self.run_task_in(id, ScriptRuntime::fire_load_event);
+                    any = true;
+                    self.finish_load_after_limit(id, key);
+                    continue;
+                }
+                if !script.document_loaded_in(key) {
+                    continue;
                 }
             }
+            any = true;
+            self.mark_frame_loaded(id);
         }
         any
+    }
+
+    /// A limit can end the task of the `load` event of frame `id`'s document
+    /// before the container's `load`, which marks the frame. No later event has
+    /// to come, and the page's `load` waits for the frame, so the frame is done
+    /// here. A listener that navigated the frame left a pending navigation or
+    /// another document.
+    fn finish_load_after_limit(&mut self, id: FrameId, key: DocumentKey) {
+        let waiting = self
+            .frames
+            .get(id)
+            .is_some_and(|f| !f.load_fired && f.pending.is_none() && f.script == Some(key));
+        if waiting
+            && self
+                .script
+                .as_ref()
+                .is_some_and(|s| s.document_loaded_in(key))
+        {
+            self.mark_frame_loaded(id);
+        }
+    }
+
+    /// Frame `id` has loaded: its container gets `load`.
+    fn mark_frame_loaded(&mut self, id: FrameId) {
+        let Some(frame) = self.frames.get_mut(id) else {
+            return;
+        };
+        frame.load_fired = true;
+        frame.reuse_window = false;
+        let (parent, container) = (frame.parent, frame.container);
+        if let (Some(parent), Some(container)) = (parent, container) {
+            self.fire_container_load(id, parent, container);
+        }
+    }
+
+    /// Fires `load` at the container of frame `id`, if its parent's document
+    /// has a realm. A listener of an earlier `load` may have removed the
+    /// container, or removed and inserted it again (a new frame, which has
+    /// not loaded).
+    fn fire_container_load(&mut self, id: FrameId, parent: FrameId, container: NodeId) {
+        if self.frames.by_container(parent, container) != Some(id) {
+            return;
+        }
+        let has_realm =
+            parent == FrameId::TOP || self.frames.get(parent).is_some_and(|f| f.script.is_some());
+        if self.script.is_some() && has_realm {
+            let event = TrustedEvent::new("load");
+            self.run_task_in(parent, |script| {
+                script.dispatch_event(DispatchTarget::Node(container), &event)
+            });
+        }
     }
 
     // ----- Viewports and layout -----
@@ -1161,7 +1342,11 @@ impl Page {
 
     /// Lays out frame `id` in its viewport (see [`Page::layout_frames`]);
     /// `boxes` caches the frame boxes of the parents.
-    fn layout_frame(&mut self, id: FrameId, boxes: &mut HashMap<FrameId, HashMap<NodeId, Size>>) {
+    pub(super) fn layout_frame(
+        &mut self,
+        id: FrameId,
+        boxes: &mut HashMap<FrameId, HashMap<NodeId, Size>>,
+    ) {
         let Some(frame) = self.frames.get(id) else {
             return;
         };
@@ -1188,10 +1373,14 @@ impl Page {
             }
             viewport_serial = serial;
         }
-        let view = self.frame_view(viewport);
+        let view = self.frame_settings().view(viewport);
         let Some(frame) = self.frames.get_mut(id) else {
             return;
         };
+        // The first size that a layout gives is no resize (measured).
+        if frame.viewport != viewport && frame.viewport_serial.is_some() {
+            frame.resized = true;
+        }
         frame.viewport = viewport;
         frame.viewport_serial = viewport_serial;
         frame.has_box = has_box;
@@ -1243,8 +1432,46 @@ impl Page {
 /// case `transparency`).
 const DARK_CANVAS: swb_style::Rgba = swb_style::Rgba::rgb(18, 18, 18);
 
+/// True if the source of a document can have a script to run: a `script`
+/// element, or an attribute `on...` with a value. A false positive costs a realm.
+/// A document counts as a positive where the bytes do not tell: a byte order
+/// mark or a `charset` (of the HTTP header) that names an encoding that is not
+/// compatible with ASCII, and an escape byte, which can hide markup in
+/// ISO-2022-JP (a `meta` can name that encoding; measured).
+fn may_have_script(bytes: &[u8], charset: Option<&str>) -> bool {
+    let wide = charset
+        .and_then(|c| encoding_rs::Encoding::for_label(c.as_bytes()))
+        .is_some_and(|encoding| !encoding.is_ascii_compatible());
+    if wide
+        || bytes.starts_with(&[0xFF, 0xFE])
+        || bytes.starts_with(&[0xFE, 0xFF])
+        || bytes.contains(&0x1B)
+    {
+        return true;
+    }
+    let lower = |b: &u8| b.to_ascii_lowercase();
+    bytes
+        .windows(7)
+        .any(|w| w[0] == b'<' && w[1..].iter().map(lower).eq(b"script".iter().copied()))
+        || bytes.iter().enumerate().any(|(index, &byte)| {
+            if byte != b'=' {
+                return false;
+            }
+            let head = bytes[..index].trim_ascii_end();
+            let letters = head
+                .iter()
+                .rev()
+                .take_while(|b| b.is_ascii_alphabetic())
+                .count();
+            letters >= 3 && {
+                let name = &head[head.len() - letters..];
+                name[..2].eq_ignore_ascii_case(b"on")
+            }
+        })
+}
+
 /// Clamps a frame's viewport to the accepted viewport sizes.
-fn clamp_viewport(size: Size) -> Size {
+pub(crate) fn clamp_viewport(size: Size) -> Size {
     // NaN (not possible from layout) becomes 0.
     let side = |v: f32| {
         if v.is_nan() {
@@ -1268,4 +1495,37 @@ fn error_document(message: &str, scripting: bool) -> Parsed {
         escape_html(message)
     );
     Parsed::complete(swb_dom::parse_html_with(&html, scripting), "text/html")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::may_have_script;
+
+    #[test]
+    fn the_source_scan_finds_each_form_of_a_script() {
+        for source in [
+            "<script>",
+            "<SCRIPT src=a>",
+            "<svg><script>",
+            "<body onload=a>",
+            "<body\nONLOAD\n=\na>",
+            "<img/onerror=a>",
+        ] {
+            assert!(may_have_script(source.as_bytes(), None), "{source}");
+        }
+        for source in ["", "<p>on</p>", "<a href=b>", "<a on=b>", "<scrip>"] {
+            assert!(!may_have_script(source.as_bytes(), None), "{source}");
+        }
+    }
+
+    #[test]
+    fn the_source_scan_cannot_read_a_wide_encoding() {
+        let wide: Vec<u8> = "<script>".bytes().flat_map(|b| [b, 0]).collect();
+        assert!(!may_have_script(&wide, None));
+        assert!(!may_have_script(&wide, Some("utf-8")));
+        assert!(may_have_script(&wide, Some("utf-16le")));
+        assert!(may_have_script(&[0xFF, 0xFE, b'x', 0], None));
+        assert!(may_have_script(&[0xFE, 0xFF, 0, b'x'], None));
+        assert!(may_have_script(b"<scr\x1b(Bipt>", None));
+    }
 }

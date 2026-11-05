@@ -31,9 +31,9 @@ fn two_documents(stress: bool) -> (ScriptRuntime, DocumentKey) {
         rt.run_due_tasks(Duration::from_secs(5));
     })
     .unwrap();
-    rt.expose_window(DocumentKey::FIRST, "other", second)
+    rt.expose_window_for_tests(DocumentKey::FIRST, "other", second)
         .unwrap();
-    rt.expose_window(second, "other", DocumentKey::FIRST)
+    rt.expose_window_for_tests(second, "other", DocumentKey::FIRST)
         .unwrap();
     (rt, second)
 }
@@ -433,8 +433,9 @@ fn hooks_of_platform_objects_read_their_own_document() {
 fn a_node_of_another_document_fails_as_an_argument() {
     both_modes(|stress| {
         let (mut rt, key) = two_documents(stress);
-        // Feature 12b adopts the node. Here the conversion refuses it, and
-        // no arena sees a `NodeId` of another one.
+        // Feature 12b2 adopts the node. Here the conversion refuses it, and
+        // no arena sees a `NodeId` of another one. `getComputedStyle` works
+        // in the element's document.
         assert_eq!(
             first(
                 &mut rt,
@@ -443,14 +444,14 @@ fn a_node_of_another_document_fails_as_an_argument() {
                   E(() => document.body.contains(other.document.body)),
                   E(() => other.document.body.contains(document.body)),
                   E(() => document.body.insertBefore(other.document.createElement('p'), null)),
-                  E(() => getComputedStyle(other.document.body)),
+                  E(() => typeof getComputedStyle(other.document.body)),
                   other.document.body.parentNode === other.document.documentElement,
                   document.body.childNodes.length, other.document.body.childNodes.length]"
             ),
             expected(
                 r#"["TypeError: a node of another document", "TypeError: a node of another document",
                     "TypeError: a node of another document", "TypeError: a node of another document",
-                    "TypeError: a node of another document", true, 2, 2]"#
+                    "object", true, 2, 2]"#
             )
         );
         assert_eq!(
@@ -524,6 +525,85 @@ fn events_of_the_engine_go_to_the_document() {
         );
         assert_eq!(first(&mut rt, "window.seen"), expected("[]"));
     });
+}
+
+#[test]
+fn a_retired_document_stays_readable_and_starts_nothing() {
+    both_modes(|stress| {
+        let (mut rt, key) = two_documents(stress);
+        first(
+            &mut rt,
+            "window.ran = [];
+             window.d = other.document;
+             window.p = other.document.getElementById('b');
+             other.setTimeout(() => ran.push('old timer'), 0);
+             0",
+        );
+        rt.retire_document(key, None);
+        assert_eq!(
+            first(
+                &mut rt,
+                "other.setTimeout(() => ran.push('timer'), 0);
+                 other.requestAnimationFrame(() => ran.push('raf'));
+                 other.queueMicrotask(() => ran.push('microtask'));
+                 const made = d.createElement('i');
+                 d.body.appendChild(made);
+                 [typeof other.setInterval(() => ran.push('interval'), 0), p.id,
+                  d.body.lastChild === made, String(d.defaultView), d.readyState,
+                  d.visibilityState, other.closed]"
+            ),
+            expected(r#"["number", "b", true, "null", "complete", "hidden", true]"#)
+        );
+        collect_then_run(&mut rt);
+        assert_eq!(first(&mut rt, "ran"), expected(r#"["microtask"]"#));
+    });
+}
+
+#[test]
+fn a_new_document_can_keep_the_window() {
+    both_modes(|stress| {
+        let (mut rt, key) = two_documents(stress);
+        first(
+            &mut rt,
+            "window.ran = [];
+             window.w = other;
+             window.oldDoc = other.document;
+             window.oldBody = other.document.body;
+             other.mark = 1;
+             other.addEventListener('x', () => ran.push('listener'));
+             other.setTimeout(() => ran.push('timer'), 0);
+             0",
+        );
+        // The first navigation from the initial `about:blank` document.
+        let next = rt.reuse_window(key).unwrap();
+        rt.retire_document(key, None);
+        rt.lend_document(next, Box::new(TestDocument::parsing(SECOND)));
+        rt.with_document(next, |rt| {
+            rt.start_document();
+            rt.fire_load_event();
+        })
+        .unwrap();
+        assert_eq!(
+            first(
+                &mut rt,
+                "w.dispatchEvent(new w.Event('x'));
+                 [w === other, w.mark, w.document !== oldDoc, oldBody.id, String(oldDoc.defaultView),
+                  w.document.defaultView === w, ran.join()]"
+            ),
+            expected(r#"[true, 1, true, "body-b", "null", true, "listener"]"#)
+        );
+        collect_then_run(&mut rt);
+        assert_eq!(
+            first(&mut rt, "ran.join()"),
+            expected(r#""listener,timer""#)
+        );
+    });
+}
+
+/// A collection, then the due tasks.
+fn collect_then_run(rt: &mut ScriptRuntime) {
+    rt.collect();
+    rt.run_due_tasks(Duration::from_secs(5));
 }
 
 #[test]

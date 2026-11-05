@@ -168,6 +168,7 @@ impl Page {
         }
         if let Some(frame) = self.frames.by_client(completion.client) {
             let handled = self.frame_completion(frame, completion);
+            self.check_frame_loads();
             self.check_load_event();
             return handled;
         }
@@ -273,8 +274,7 @@ impl Page {
 
     /// Parses an HTML document from its bytes with the page's scripting
     /// flag: in steps if `steps` (a document with a script runtime), else
-    /// to the end at once, with at most `max_nodes` nodes (a parse in steps
-    /// has the default limit).
+    /// to the end at once, with at most `max_nodes` nodes.
     fn parse_document(
         &self,
         bytes: &[u8],
@@ -285,6 +285,7 @@ impl Page {
         if steps {
             let (text, name) = swb_dom::decode_html_bytes(bytes, charset);
             let mut dom = Document::new();
+            dom.set_max_nodes(max_nodes);
             let parser = HtmlParser::new(&mut dom, &text, true);
             return Parsed {
                 dom,
@@ -334,7 +335,8 @@ impl Page {
     fn set_document(&mut self, parsed: Parsed, url: Url, images: Images) {
         let navigation = self.navigation_info();
         let scroll_target = self.commit_navigation(&url);
-        // The old document sees `pagehide` and `unload` first.
+        // The old document and its frames see `pagehide` and `unload` first.
+        self.unload_frames();
         self.unload_document();
         // Its `fetch()` calls end with it: a request that still runs gives
         // its place to the requests of the new document.
@@ -374,9 +376,12 @@ impl Page {
             site_for_cookies: None,
             frame: false,
             fallback_base: None,
+            creator_url: None,
             style_budget: None,
             body_budget: None,
             font_budget: None,
+            fonts: Rc::clone(&self.lent_fonts),
+            node_room: None,
         });
         // Set without a restyle: the styles of the new document are not
         // computed yet.
@@ -389,6 +394,7 @@ impl Page {
         if !doc.is_loading() {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
+        self.frames.top_mut().origin = Some(doc.origin());
         self.doc = Some(Box::new(doc));
         self.start_scripts();
         self.update_frames(super::FrameId::TOP);

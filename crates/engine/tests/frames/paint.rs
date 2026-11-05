@@ -59,7 +59,7 @@ fn case_resources(case: &serde_json::Value) -> Vec<(String, Res)> {
         for (path, resource) in resources {
             let mut res = Res::html(resource["text"].as_str().unwrap());
             if resource["content_type"] == "image/svg+xml" {
-                res.content_type = "image/svg+xml";
+                "image/svg+xml".clone_into(&mut res.content_type);
             }
             all.push((format!("/case/{path}"), res));
         }
@@ -69,7 +69,7 @@ fn case_resources(case: &serde_json::Value) -> Vec<(String, Res)> {
             let bytes = std::fs::read(repo_root().join(source.as_str().unwrap())).unwrap();
             let res = Res {
                 body: bytes,
-                content_type: "font/ttf",
+                content_type: "font/ttf".to_owned(),
                 headers: Vec::new(),
                 delay_ms: 0,
             };
@@ -332,7 +332,7 @@ fn an_image_that_loads_in_a_frame_repaints_only_the_frame() {
         let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect \
                    width='40' height='40' fill='rgb(0,255,0)'/></svg>";
         let mut image = Res::html(svg);
-        image.content_type = "image/svg+xml";
+        "image/svg+xml".clone_into(&mut image.content_type);
         image.delay_ms = 300;
         let frame_html = Res::html("<!doctype html><style>body{margin:0}</style><img src=i.svg>");
         let all = [
@@ -393,7 +393,7 @@ fn a_style_sheet_that_loads_in_a_frame_repaints() {
         let html = "<!doctype html><style>body{margin:0} iframe{border:0;display:block;\
                     width:100px;height:100px}</style><iframe src=f.html></iframe>";
         let mut sheet = Res::html("html{background:rgb(0,255,0)}");
-        sheet.content_type = "text/css";
+        "text/css".clone_into(&mut sheet.content_type);
         let (mut page, _) = open_with(
             html,
             &[

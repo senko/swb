@@ -465,6 +465,13 @@ impl Document {
         self.limits
     }
 
+    /// Sets the most nodes that the arena may hold: the host of a document
+    /// that shares a budget with other documents (the frames of a page) moves
+    /// it before each step of the parser.
+    pub fn set_max_nodes(&mut self, max_nodes: usize) {
+        self.limits.max_nodes = max_nodes;
+    }
+
     /// The bytes of character data, names and attributes in the arena
     /// (see [`Limits::max_text_bytes`]).
     pub fn text_bytes(&self) -> usize {

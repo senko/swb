@@ -48,7 +48,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 pub use crate::vm::window_proxy::{
-    GetPrototypeHook, SetPrototypeHook, WindowDefineHook, WindowOwnPropertyHook, WindowProxyHooks,
+    ChildFrameHook, GetPrototypeHook, SetPrototypeHook, WindowDefineHook, WindowOwnPropertyHook,
+    WindowProxyHooks,
 };
 pub use handler::EventHandler;
 pub use hooks::{

@@ -259,6 +259,7 @@ impl Runtime {
             jobs: crate::vm::jobs::JobQueue::default(),
             host: crate::host::Host::default(),
             base_realm: 0,
+            native_caller: None,
             terminating: None,
         };
         let mut runtime = Runtime {

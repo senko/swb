@@ -1380,6 +1380,62 @@ The BBC page (median of 7, alternating, the command of "BBC with hydration"):
 Peak RSS, JavaScript on, 500 ms after `load`, median of 3: Hacker News 67.1 →
 67.0 MiB, Ars Technica 273.9 → 273.9 MiB, BBC 382.6 → 384.8 MiB.
 
+### Scripts in frames (M9 feature 12b1)
+
+Same-origin frame documents as documents of the page's runtime (ADR 0031 "Done
+(feature 12b1)"). Release, callgrind, base 398c388.
+
+The pages, `--bench 3`, JavaScript on, total instructions:
+
+| Page | Base | New | Change |
+|---|---|---|---|
+| Hacker News | 396.75 M | 397.00 M | +0.06 % |
+| senko.net | 142.64 M | 142.74 M | +0.07 % |
+| Wikipedia | 2,009.1 M | 2,007.9 M | -0.06 % |
+| BBC | 4,912.0 M | 4,909.4 M | -0.05 % |
+| Ars Technica | 7,791 M | 7,612 M | -2.3 % |
+| Craigslist posting | 2,909 M | 2,876 M | -1.1 % |
+
+The last two vary from run to run under callgrind in both binaries, more than
+any change here: an earlier run of Ars Technica gave +1.8 %, and four runs of
+Craigslist with other jobs on the machine gave 2,910 to 3,821 M with the base
+binary and 2,203 to 3,848 M with the new one. I did not find the cause of the
+spread; so these two rows do not show a cost or a gain of the frames, and the
+other four rows are the test of "one document pays what it paid". A native of a
+runtime with several documents pays `switch_for_call` (about 45 instructions,
+feature 12a), and a switch between documents two boxes. Its share of a run:
+nothing on BBC and Ars Technica, whose scripts do not read a frame's window in
+this run (no call of `switch_for_call`), 6,149 instructions on Craigslist, where
+the storage frame has a realm.
+
+A page of 1,000 `about:blank` frames (10×10 px) that no script touches, with a
+10 ms interval; instructions per timer task and per `mouse_move` outside the
+frames (differences of runs with 300 and 100 ticks, and with 300 and 0 moves):
+
+| Page | Timer task, base → new | `mouse_move`, base → new |
+|---|---|---|
+| No frame | 8,824 → 8,266 (the difference of two totals: other runs gave 8,641 and 9,996, the noise of the method) | 50,865 → 51,645 |
+| 1 frame | 12,082 → 13,668 | 47,987 → 46,792 |
+| 1,000 frames | 854,364 → 859,347 | 921,410 → 925,537 |
+| 1,000 frames after a script read every `contentWindow` (256 realms, 744 windows without a target) | 854,182 → 1,098,671 | 922,173 → 1,081,840 |
+
+The walks of the frame tree in a turn of the event loop were there at base (lazy
+images, refreshes, loads: about 850 instructions per frame). What grows with
+realms is new and small: with a realm in the runtime, a turn looks for element
+events and `fetch()` results of the frame documents (`has_pending_api_fetches`,
+`deliver_frame_element_events`), about 240 instructions per frame. The task itself
+costs what it touches: `run_task_in` lends the top-level document, and other
+documents only at a switch.
+
+The read of 1,000 `contentWindow`: 179 ms for 256 realms (0.7 ms each), and RSS
+284 → 398 MiB (440 KiB per realm). 200 frames that each run a small script (`srcdoc`):
+load 0.117 s → 0.316 s, RSS 88.6 → 198.1 MiB, all 200 ran.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration"):
+`load` 0.354 → 0.363 s, hydrated 2.869 → 2.842 s, 62 % of the budget of 4.60 s.
+RSS 383.0 → 382.9 MiB. Peak RSS 500 ms after `load`, median of 3: Hacker News
+65.5 → 65.9 MiB, Ars Technica 275.5 → 275.8 MiB.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

@@ -4022,6 +4022,431 @@
      "js": "log.join(' / ')"
     }
    ]
+  },
+  {
+   "name": "scripted-parent-layout",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><style>body{margin:0}</style><iframe id=f style='width:100px;height:50px;border:0'></iframe></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const w = f.contentWindow, d = f.contentDocument, o = [w.innerWidth, d.documentElement.clientWidth]; f.style.width = '222px'; o.push(w.innerWidth, d.documentElement.clientWidth); f.style.width = '230px'; o.push(d.documentElement.clientWidth, d.body.offsetWidth); f.style.width = '240px'; o.push(w.getComputedStyle(d.body).width); f.style.width = '250px'; o.push(d.body.getBoundingClientRect().width); f.style.width = '260px'; o.push(w.matchMedia('(min-width: 255px)').matches); f.style.display = 'none'; o.push(w.innerWidth, d.documentElement.clientWidth); f.style.display = ''; f.style.height = '70px'; o.push(w.innerHeight, w.matchMedia('(height: 70px)').matches); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-initial-reuse",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=a></iframe><iframe id=b src=c.html></iframe><iframe id=s srcdoc='<p>s'></iframe><iframe id=x></iframe><iframe id=bl></iframe><script>const wb = b.contentWindow; wb.x = 1; wb.addEventListener('load', () => log.push('old load b'));wb.setTimeout(() => log.push('old timer b'), 400); const db = b.contentDocument; const Ab = wb.Array;const ws = s.contentWindow; ws.x = 2; const ds = s.contentDocument;</script></body></html>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c",
+     "delay_ms": 100
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => [wb === b.contentWindow, String(wb.x), db === b.contentDocument, Ab === wb.Array, String(db.defaultView === wb), n(db.URL), ws === s.contentWindow, String(ws.x), ds === s.contentDocument, n(ds.URL)])"
+    },
+    {
+     "js": "(async () => { const w = a.contentWindow, d = a.contentDocument; w.y = 1; const p = new Promise(r => a.onload = r); a.src = 'c.html'; await p; const one = [w === a.contentWindow, String(w.y), d === a.contentDocument, String(d.defaultView === w)]; w.z = 1; const q = new Promise(r => a.onload = r); a.src = 'c.html?2'; await q; return [...one, w === a.contentWindow, String(w.y), String(w.z)]; })()"
+    },
+    {
+     "js": "(async () => { const w = bl.contentWindow, d = bl.contentDocument; w.y = 1; const p = new Promise(r => bl.onload = r); bl.src = 'about:blank'; await p; return [w === bl.contentWindow, String(w.y), d === bl.contentDocument]; })()"
+    },
+    {
+     "js": "W(500).then(() => log.join())"
+    }
+   ]
+  },
+  {
+   "name": "scripted-retired",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f></iframe><script>const w = f.contentWindow, d = f.contentDocument; w.Sum = w.Function('a,b', 'return a+b');w.addEventListener('x', () => log.push('listener')); w.addEventListener('message', () => log.push('message'));w.setTimeout(() => log.push('timer before removal'), 0);const iv = w.setInterval(() => log.push('interval before'), 1);d.body.innerHTML = '<p id=p style=\"width:50px\">text</p>'; const p = d.getElementById('p');const L = w.location; const F = f; f.remove();</script></body></html>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c"
+    }
+   },
+   "measure": [
+    {
+     "js": "[String(F.contentWindow), w.closed, w.length, String(w.parent), String(w.top), String(w.frameElement), w.name, typeof w.opener, w.document === d, w.frames === w, w.self === w, w.Sum(1, 2), new w.Array(3).length, E(() => w.eval('1 + 1')), E(() => new w.Function('return 3')())]"
+    },
+    {
+     "js": "[p.tagName, p.textContent, d.body.children.length, d.getElementById('p') === p, d.readyState, d.URL, d.visibilityState, String(d.defaultView), d.documentElement.isConnected, E(() => d.createElement('i').tagName), E(() => { d.body.appendChild(d.createElement('p')); return d.body.children.length; }), E(() => { p.setAttribute('a', 'b'); return p.getAttribute('a'); }), d.querySelectorAll('p').length]"
+    },
+    {
+     "js": "[E(() => L.href), E(() => w.location === L), E(() => L.pathname), E(() => { L.href = 'c.html'; return 'set'; }), E(() => { L.reload(); return 'reloaded'; }), E(() => L.href)]"
+    },
+    {
+     "js": "[E(() => w.innerWidth), E(() => w.innerHeight), E(() => p.offsetWidth), E(() => w.getComputedStyle(p).width), E(() => w.getComputedStyle(p).display), E(() => p.getBoundingClientRect().width), E(() => w.matchMedia('(min-width: 1px)').matches), E(() => w.scrollY), E(() => d.body.innerText), E(() => d.hasFocus()), E(() => d.activeElement && d.activeElement.tagName)]"
+    },
+    {
+     "js": "(async () => { const o = []; let t = 'none'; o.push(E(() => typeof w.setTimeout(() => { log.push('timer after'); }, 0))); o.push(E(() => typeof w.setInterval(() => log.push('interval after'), 5))); o.push(E(() => typeof w.requestAnimationFrame(() => log.push('raf after')))); o.push(E(() => { w.queueMicrotask(() => log.push('microtask after')); return 'queued'; })); o.push(E(() => { w.Promise.resolve().then(() => log.push('promise after')); return 'then'; })); o.push(E(() => { w.postMessage('m', '*'); return 'posted'; })); o.push(E(() => w.dispatchEvent(new w.Event('x')))); o.push(E(() => typeof w.fetch('c.html').then(() => log.push('fetch ok'), e => log.push('fetch ' + e.name)))); o.push(E(() => { const r = new w.XMLHttpRequest(); r.open('GET', 'c.html'); r.onload = () => log.push('xhr ok'); r.onerror = () => log.push('xhr error'); r.send(); return r.readyState; })); await W(150); o.push(log.join()); return o; })()"
+    },
+    {
+     "js": "[E(() => { d.open(); return 'opened ' + d.readyState; }), E(() => { d.write('<p>w'); return d.body ? d.body.innerHTML : 'no body'; }), E(() => { d.close(); return d.readyState; }), E(() => { const s = d.createElement('script'); s.textContent = 'window.ran = 1'; d.documentElement.appendChild(s); return String(w.ran); }), E(() => { const i = d.createElement('iframe'); d.documentElement.appendChild(i); return String(i.contentWindow); }), E(() => w.frames.length), E(() => { const i = new w.Image(); i.src = 'c.html'; return i.src.length > 0; })]"
+    }
+   ]
+  },
+  {
+   "name": "scripted-self-remove",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script><script>addEventListener('load', () => log.push('parent load'));</script></head><body><iframe id=f src=s.html></iframe></body></html>",
+   "resources": {
+    "s.html": {
+     "text": "<!DOCTYPE html><title>S</title><script>const P = parent; const fe = frameElement; P.log.push('before ' + (parent === P)); fe.remove(); P.log.push('after ' + [window.closed, String(parent), String(frameElement), document.readyState, typeof document.body, document.title, typeof setTimeout(() => P.log.push('own timer'), 0), self.length].join(' ')); document.addEventListener('DOMContentLoaded', () => P.log.push('own dcl')); addEventListener('load', () => P.log.push('own load'));</script><p id=rest>rest</p><script>P.log.push('second script ' + !!document.getElementById('rest'));</script><script src=e.js></script><script>P.log.push('third script');</script><p id=end></p>"
+    },
+    "e.js": {
+     "text": "parent && 0; window.P && P.log.push('external');"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(() => [log.join(' / '), document.querySelectorAll('iframe').length, frames.length])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-load-recursion",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><div id=host></div></body></html>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const o = []; let depth = 0; const add = () => { const f = document.createElement('iframe'); f.onload = () => { o.push('load ' + depth + ' ' + (f.contentWindow !== null)); if (++depth < 4) add(); o.push('end ' + depth); }; o.push('append ' + depth); host.appendChild(f); o.push('appended ' + frames.length); }; add(); return o; })()"
+    },
+    {
+     "js": "(() => { const o = []; host.textContent = ''; const f = document.createElement('iframe'); f.onload = () => { o.push('load ' + (f.contentWindow !== null)); f.remove(); o.push('removed ' + String(f.contentWindow)); }; host.appendChild(f); o.push('after ' + String(f.contentWindow) + ' ' + frames.length); return o; })()"
+    },
+    {
+     "js": "(() => { const o = []; host.textContent = ''; const f = document.createElement('iframe'); let n1 = 0; f.onload = () => { n1++; o.push('load ' + n1); if (n1 === 1) { o.push('move'); document.body.appendChild(f); o.push('moved'); } }; host.appendChild(f); return [...o, frames.length, n1]; })()"
+    },
+    {
+     "js": "(() => { const o = []; host.textContent = ''; const d = document.createElement('div'); const f = document.createElement('iframe'); f.onload = () => o.push('load'); d.appendChild(f); o.push('detached ' + String(f.contentWindow)); host.appendChild(d); o.push('connected ' + (f.contentWindow !== null)); const w = f.contentWindow; w.mark = 1; document.body.appendChild(f); o.push('same window ' + (f.contentWindow === w), String(f.contentWindow.mark), String(w.closed), String(w.mark)); d.remove(); f.remove(); return o; })()"
+    },
+    {
+     "js": "(() => { const o = []; host.textContent = ''; host.innerHTML = \"<iframe id=i1 onload=\\\"log.push('i1 load')\\\"></iframe>\"; const i1 = document.getElementById('i1'); o.push('innerHTML ' + (i1.contentWindow !== null), log.join()); log.length = 0; const c = i1.cloneNode(); o.push('clone ' + String(c.contentWindow)); host.append(c); o.push('clone appended ' + (c.contentWindow !== null), log.join()); log.length = 0; const fr = document.createDocumentFragment(); const k = document.createElement('iframe'); k.onload = () => log.push('k load'); fr.append(k); host.prepend(fr); o.push('fragment ' + (k.contentWindow !== null), log.join()); log.length = 0; host.insertAdjacentHTML('beforeend', \"<div><iframe id=i2 onload=\\\"log.push('i2 load')\\\"></iframe></div>\"); o.push('adjacent ' + (document.getElementById('i2').contentWindow !== null), log.join()); log.length = 0; host.textContent = ''; o.push('emptied ' + frames.length + ' ' + String(i1.contentWindow)); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-parser-frames",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script><script>document.addEventListener('DOMContentLoaded', () => log.push('dcl')); addEventListener('load', () => log.push('load'));</script></head><body><iframe id=a onload=\"log.push('a load ' + document.readyState)\"></iframe><script>log.push('script 1 ' + (a.contentWindow !== null) + ' ' + a.contentDocument.readyState);</script><iframe id=b src='about:blank' onload=\"log.push('b load')\"></iframe><script>log.push('script 2'); document.write(\"<iframe id=w onload=\\\"log.push('w load')\\\"></iframe>\"); log.push('written ' + (w.contentWindow !== null));</script><iframe id=c src=c.html onload=\"log.push('c load')\"></iframe><script>log.push('script 3 ' + c.contentDocument.URL);</script></body></html>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => log)"
+    }
+   ]
+  },
+  {
+   "name": "scripted-frame-document",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script><script>addEventListener('load', () => log.push('parent load'));</script></head><body><iframe id=f src=child.html onload=\"log.push('iframe load ' + this.contentDocument.readyState)\"></iframe></body></html>",
+   "resources": {
+    "child.html": {
+     "text": "<!DOCTYPE html><title>C</title><script>const P = parent; P.log.push('inline ' + document.readyState + ' ' + document.title);document.addEventListener('readystatechange', () => P.log.push('rs ' + document.readyState));document.addEventListener('DOMContentLoaded', () => P.log.push('dcl'));addEventListener('load', () => P.log.push('load'));window.onload = () => P.log.push('onload');addEventListener('pageshow', () => P.log.push('pageshow'));addEventListener('pagehide', () => P.log.push('pagehide'));addEventListener('unload', () => P.log.push('unload'));document.write('<p id=written>w</p><script>P.log.push(\"written script\")<\\/script>');P.log.push('after write ' + !!document.getElementById('written'));</script><script defer src=d.js></script><script async src=as.js></script><script src=b.js></script><script type=module>P.log.push('inline module')</script><script type=module src=m.js></script><link rel=stylesheet href=s.css><script>P.log.push('after sheet ' + getComputedStyle(document.body).marginTop);</script><img src=c.svg onload=\"P.log.push('img load')\"><p>end"
+    },
+    "d.js": {
+     "text": "P.log.push('defer ' + document.readyState);"
+    },
+    "as.js": {
+     "text": "P.log.push('async');"
+    },
+    "b.js": {
+     "text": "P.log.push('blocking ' + document.readyState);"
+    },
+    "m.js": {
+     "text": "P.log.push('module ' + document.readyState);",
+     "headers": {
+      "content-type": "text/javascript"
+     }
+    },
+    "s.css": {
+     "text": "body{margin-top:7px}",
+     "headers": {
+      "content-type": "text/css"
+     },
+     "delay_ms": 30
+    },
+    "c.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>",
+     "headers": {
+      "content-type": "image/svg+xml"
+     }
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(() => log.filter(s => !s.startsWith('async')))"
+    },
+    {
+     "js": "(async () => { log.length = 0; const p = new Promise(r => f.onload = r); f.contentWindow.location.href = 'c.html'; await p; return log.slice(); })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-location",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f src=l.html></iframe></body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><title>L</title><script>parent.log.push('child ' + location.search)</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "(async () => { const o = []; const w = f.contentWindow; const go = a => new Promise(r => { f.onload = r; a(); }); await W(100); await go(() => w.location.href = 'l.html?1'); o.push(w.location.search); await go(() => w.location.assign('l.html?2')); o.push(w.location.search); await go(() => w.location.replace('l.html?3')); o.push(w.location.search); await go(() => w.location.reload()); o.push(w.location.search); await go(() => w.location = 'l.html?4'); o.push(w.location.search); w.location.hash = 'h'; o.push(w.location.href.split('/').pop(), f.contentDocument.URL.split('/').pop()); await W(50); return [...o, log.join()]; })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-none",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f srcdoc=\"<script>try { top.location = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin' srcdoc=\"<script>try { top.location = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb-activation",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' srcdoc=\"<script>try { top.location = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb-allowed",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation' srcdoc=\"<script>try { top.location = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-parent-sb",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin' srcdoc=\"<script>try { parent.location.href = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-replace-sb",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin' srcdoc=\"<script>try { top.location.replace(new URL('t.html?a', parent.location.href).href); parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-self-sb",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f sandbox='allow-scripts allow-same-origin' srcdoc=\"<script>try { location.href = new URL('t.html?a', parent.location.href).href; parent.log.push('no throw'); } catch (e) { parent.log.push(e.name + ': ' + e.message.replace(location.origin, 'O')); }</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><script>window.log = ['landed'];</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-submit",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=a sandbox='allow-scripts allow-same-origin' srcdoc=\"<form action=t.html><input name=q value=1></form><script>document.forms[0].submit(); parent.log.push('a submitted')</script>\"></iframe><iframe id=b sandbox='allow-scripts allow-same-origin allow-forms' srcdoc=\"<form action=t.html><input name=q value=2></form><script>document.forms[0].submit(); parent.log.push('b submitted')</script>\"></iframe></body></html>",
+   "resources": {
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => [a.contentWindow.location.search, n(a.contentDocument.URL), b.contentWindow.location.search, log.join()])"
+    }
+   ]
+  },
+  {
+   "name": "scripted-window-members",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=a name=n1 src=c.html></iframe><iframe id=b></iframe><iframe name=shadow></iframe><div id=shadow></div><iframe id=e style='display:none' name=hidden></iframe><script>var kept = 1;</script><iframe name=kept></iframe></body></html>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><title>C</title><p>c"
+    }
+   },
+   "measure": [
+    {
+     "js": "[frames.length, length, a.contentWindow.name, b.contentWindow.name, window.n1 === a.contentWindow, frames.n1 === a.contentWindow, String(window.b === b), window.shadow === frames[2], frames.hidden === e.contentWindow, kept, typeof frames[6], String(opener), String(a.contentWindow.opener), closed, a.contentWindow.closed, a.contentWindow.length, a.contentWindow.frameElement === a, String(frameElement), window.top === top, a.contentWindow.top === window, Object.keys(window).slice(0, 7).join(), Object.getOwnPropertyNames(window).slice(0, 6).join()]"
+    },
+    {
+     "js": "['name', 'opener', 'frameElement', 'parent', 'length', 'top', 'closed', 'frames'].map(k => { const d = Object.getOwnPropertyDescriptor(window, k); return k + ':' + (d ? [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.value === undefined ? '' : String(d.value)].join(' ') : 'none'); })"
+    },
+    {
+     "js": "(() => { const w = a.contentWindow, o = []; w.name = 'n2'; o.push(w.name, window.n2 === w, String(window.n1), a.name, a.getAttribute('name')); a.name = 'n3'; o.push(w.name, String(window.n3), window.n2 === w); w.name = 5; o.push(typeof w.name, w.name); w.name = 'n2'; return o; })()"
+    },
+    {
+     "js": "(async () => { const w = a.contentWindow; const p = new Promise(r => a.onload = r); a.src = 'c.html?2'; await p; return [w.name, window.n2 === w]; })()"
+    },
+    {
+     "js": "(() => { const o = []; window.opener = 7; o.push(opener); window.length = 9; o.push(length); window.parent = 8; o.push(parent); window.frames = 5; o.push(frames); return [...o, E(() => { 'use strict'; top = 1; return String(top === window); }), E(() => { window.frameElement = 3; return String(frameElement); }), E(() => { window.closed = 3; return String(closed); })]; })()"
+    },
+    {
+     "js": "(() => { const w = b.contentWindow; b.name = 'late'; return [w.name, String(window.late === w), String(window.late)]; })()"
+    },
+    {
+     "js": "(() => { const w = b.contentWindow, o = []; w.length = 9; o.push(w.length); o.push(Object.getOwnPropertyDescriptor(w, 'length').value); o.push(E(() => { window.name = 'top name'; return window.name; })); o.push(b.contentWindow.parent.name); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-event-loop",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nwindow.log = [];\n</script></head><body><iframe id=f src=loop.html style='width:300px;height:100px'></iframe><script>setTimeout(() => log.push('parent timer'), 0); requestAnimationFrame(() => log.push('parent raf'));</script></body></html>",
+   "resources": {
+    "loop.html": {
+     "text": "<!DOCTYPE html><style>#t{width:10px;height:10px}</style><div id=t></div><script>const P = parent;setTimeout(() => P.log.push('frame timer'), 0); requestAnimationFrame(() => P.log.push('frame raf'));new IntersectionObserver(e => P.log.push('frame io ' + e[0].isIntersecting)).observe(document.getElementById('t'));new ResizeObserver(e => P.log.push('frame ro ' + e[0].contentRect.width)).observe(document.getElementById('t'));const m = matchMedia('(min-width: 200px)'); P.log.push('frame mq ' + m.matches); m.onchange = e => P.log.push('frame mq change ' + e.matches);addEventListener('resize', () => P.log.push('frame resize ' + innerWidth));addEventListener('message', e => P.log.push('frame message ' + e.data));window.rafTime = () => new Promise(r => requestAnimationFrame(r));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(300).then(() => log.slice().sort())"
+    },
+    {
+     "js": "(async () => { log.length = 0; f.style.width = '150px'; await W(200); return log.slice(); })()"
+    },
+    {
+     "js": "(async () => { log.length = 0; const w = f.contentWindow; w.postMessage('m1', '*'); setTimeout(() => log.push('parent t0'), 0); w.setTimeout(() => log.push('w t0'), 0); await W(100); return log.slice(); })()"
+    },
+    {
+     "js": "(async () => { log.length = 0; const w = f.contentWindow; requestAnimationFrame(() => log.push('p1')); w.requestAnimationFrame(() => log.push('c1')); requestAnimationFrame(() => log.push('p2')); await W(100); return log.slice(); })()"
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-scripts",
+   "html": "<!DOCTYPE html><body><script>var A = {}, B = {}, C = {}, D = {}, E = {};</script><iframe id=a sandbox='allow-same-origin allow-forms' srcdoc=\"<img src=x onerror='parent.A.imgError=1'><svg onload='parent.A.svgLoad=1'></svg><iframe srcdoc='<script>parent.parent.A.nestedScript=1</script>'></iframe><iframe src='javascript:parent.parent.A.nestedJsUrl=1'></iframe><a id=l href='javascript:parent.A.linkJsUrl=1'>l</a><form id=f action='javascript:parent.A.formJsUrl=1'></form><div id=m></div><script>parent.A.script=1</script>\"></iframe><iframe id=b sandbox='allow-same-origin allow-forms allow-scripts' srcdoc=\"<img src=x onerror='parent.B.imgError=1'><svg onload='parent.B.svgLoad=1'></svg><iframe srcdoc='<script>parent.parent.B.nestedScript=1</script>'></iframe><iframe src='javascript:parent.parent.B.nestedJsUrl=1'></iframe><a id=l href='javascript:parent.B.linkJsUrl=1'>l</a><form id=f action='javascript:parent.B.formJsUrl=1'></form><div id=m></div><script>parent.B.script=1</script>\"></iframe><iframe id=c sandbox='allow-same-origin allow-forms'></iframe><script>\nfunction run(f, name) {\n  var h = window[name], w = f.contentWindow, d = w.document, m = d.getElementById('m');\n  if (!m) { m = d.createElement('div'); d.body.appendChild(m); }\n  function mark(n) { return function () { h[n] = 1; }; }\n  function own(n) { return w.eval(\"(function(){parent.\" + name + \".\" + n + \"=1})\"); }\n  function act(label, body) { try { body(); } catch (e) { h['threw ' + label] = e.name; } }\n  act('eval', function () { h.eval = w.eval('1+1'); });\n  act('ctor', function () { w.Function('parent.' + name + '.functionCtor=1')(); });\n  act('direct', function () { own('directCall')(); });\n  act('stringTimer', function () { w.setTimeout('parent.' + name + '.stringTimer=1', 0); });\n  act('timerParentFn', function () { h.timerId = typeof w.setTimeout(mark('timerParentFn'), 0); });\n  act('intervalParentFn', function () {\n    var i = w.setInterval(function () { h.intervalParentFn = 1; w.clearInterval(i); }, 0);\n  });\n  act('timerOwnFn', function () { w.setTimeout(own('timerOwnFn'), 0); });\n  act('parentTimerOwnFn', function () { setTimeout(own('parentTimerOwnFn'), 0); });\n  act('rafParentFn', function () { w.requestAnimationFrame(mark('rafParentFn')); });\n  act('rafOwnFn', function () { w.requestAnimationFrame(own('rafOwnFn')); });\n  act('idleParentFn', function () { w.requestIdleCallback(mark('idleParentFn')); });\n  act('idleOwnFn', function () { w.requestIdleCallback(own('idleOwnFn')); });\n  act('microtaskParentFn', function () { w.queueMicrotask(mark('microtaskParentFn')); });\n  act('microtaskOwnFn', function () { w.queueMicrotask(own('microtaskOwnFn')); });\n  act('promiseParentFn', function () { w.Promise.resolve().then(mark('promiseParentFn')); });\n  act('promiseOwnFn', function () { w.Promise.resolve().then(own('promiseOwnFn')); });\n  act('attrHandler', function () {\n    var b = d.createElement('button');\n    b.setAttribute('onclick', 'parent.' + name + '.attrHandler=1');\n    h.attrHandlerValue = typeof b.onclick;\n    m.appendChild(b); b.click();\n  });\n  act('idlHandlerParentFn', function () {\n    var b = d.createElement('button'); b.onclick = mark('idlHandlerParentFn');\n    m.appendChild(b); b.click();\n  });\n  act('idlHandlerOwnFn', function () {\n    var b = d.createElement('button'); b.onclick = own('idlHandlerOwnFn');\n    m.appendChild(b); b.click();\n  });\n  act('listenerParentFn', function () {\n    var b = d.createElement('button'); b.addEventListener('click', mark('listenerParentFn'));\n    m.appendChild(b); b.click();\n  });\n  act('listenerOwnFn', function () {\n    var b = d.createElement('button'); b.addEventListener('click', own('listenerOwnFn'));\n    m.appendChild(b); b.click();\n  });\n  act('windowListenerParentFn', function () {\n    w.addEventListener('foo', mark('windowListenerParentFn'));\n    w.dispatchEvent(new w.Event('foo'));\n  });\n  act('windowListenerOwnFn', function () {\n    w.addEventListener('bar', own('windowListenerOwnFn'));\n    w.dispatchEvent(new w.Event('bar'));\n  });\n  act('mutationParentFn', function () {\n    new w.MutationObserver(mark('mutationParentFn')).observe(m, {childList: true});\n    new w.MutationObserver(own('mutationOwnFn')).observe(m, {childList: true});\n    m.appendChild(d.createElement('p'));\n  });\n  act('resizeParentFn', function () {\n    new w.ResizeObserver(mark('resizeParentFn')).observe(m);\n    new w.ResizeObserver(own('resizeOwnFn')).observe(m);\n  });\n  act('intersectionParentFn', function () {\n    new w.IntersectionObserver(mark('intersectionParentFn')).observe(m);\n    new w.IntersectionObserver(own('intersectionOwnFn')).observe(m);\n  });\n  act('messageParentFn', function () {\n    w.onmessage = mark('messageParentFn');\n    w.addEventListener('message', own('messageOwnFn'));\n    w.postMessage('x', '*');\n  });\n  act('scriptElement', function () {\n    var s = d.createElement('script');\n    s.textContent = 'parent.' + name + '.scriptElement=1';\n    d.body.appendChild(s);\n  });\n  act('insertedMarkup', function () {\n    d.body.insertAdjacentHTML('beforeend',\n      \"<img src=x onerror='parent.\" + name + \".insertedImgError=1'>\");\n  });\n  act('jsLink', function () { var l = d.getElementById('l'); if (l) l.click(); });\n  act('jsForm', function () { var g = d.getElementById('f'); if (g) g.submit(); });\n  act('jsSrc', function () {\n    var g = d.createElement('iframe');\n    d.body.appendChild(g);\n    g.src = 'javascript:parent.parent.' + name + '.srcJsUrl=1';\n  });\n  act('jsLocation', function () {\n    w.location.href = 'javascript:parent.' + name + '.locationJsUrl=1';\n  });\n}\nvar fc = document.getElementById('c');fc.contentWindow;var fd = document.createElement('iframe');document.body.appendChild(fd);fd.contentWindow;fd.sandbox = 'allow-same-origin';fd.srcdoc = \"<body onload='parent.D.bodyLoad=1'><img src=x onerror='parent.D.imgError=1'><script>parent.D.script=1<\\/script>\";var fe = document.createElement('iframe');fe.srcdoc = \"<body onload='parent.E.bodyLoad=1'><script>parent.E.script=1<\\/script>\";document.body.appendChild(fe);fe.contentWindow;fe.sandbox = 'allow-same-origin';window.onload = function () {  run(document.getElementById('a'), 'A');  run(document.getElementById('b'), 'B');  run(document.getElementById('c'), 'C');};</script></body>",
+   "resources": {},
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(Object.keys(A).sort().map(function (k) { return k + '=' + A[k]; })); }, 500); })"
+    },
+    {
+     "js": "Object.keys(B).sort().map(function (k) { return k + '=' + B[k]; })"
+    },
+    {
+     "js": "Object.keys(C).sort().map(function (k) { return k + '=' + C[k]; })"
+    },
+    {
+     "js": "Object.keys(D).sort().map(function (k) { return k + '=' + D[k]; })"
+    },
+    {
+     "js": "Object.keys(E).sort().map(function (k) { return k + '=' + E[k]; })"
+    }
+   ]
+  },
+  {
+   "name": "scripted-window-delete-index",
+   "html": "<!DOCTYPE html><body><iframe></iframe><script>function strict(k) { 'use strict'; try { return delete window[k]; } catch (e) { return e.name + ': ' + e.message; } }</script></body>",
+   "resources": {},
+   "measure": [
+    {
+     "js": "[delete window[0], delete window['0'], delete window[1], Reflect.deleteProperty(window, 0), Reflect.deleteProperty(window, 1), typeof window[0], Object.keys(window).includes('0'), strict(0), strict(1)]"
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-timing",
+   "html": "<!DOCTYPE html><body><iframe id=f1 sandbox='allow-same-origin'></iframe><iframe id=f2 sandbox='allow-same-origin'></iframe><iframe id=f3 sandbox='allow-same-origin'></iframe><iframe id=f4 sandbox='allow-same-origin allow-scripts'></iframe><iframe id=f5 sandbox='allow-same-origin'></iframe><iframe id=f6 sandbox='allow-same-origin'></iframe><iframe id=f7 sandbox='allow-same-origin'></iframe><script>\nvar H = {};\nwindow.onload = function () {\n  var f = function (i) { return document.getElementById('f' + i); };\n  f(1).src = 'c1.html'; f(1).removeAttribute('sandbox');\n  f(2).removeAttribute('sandbox'); f(2).src = 'c2.html';\n  f(3).srcdoc = '<script>parent.H.c3=1<\\/script>'; f(3).removeAttribute('sandbox');\n  f(4).src = 'c4.html'; f(4).setAttribute('sandbox', 'allow-same-origin');\n  f(5).removeAttribute('sandbox'); f(5).srcdoc = '<script>parent.H.c5=1<\\/script>';\n  f(6).src = 'c6.html'; f(6).sandbox = 'allow-same-origin allow-scripts';\n  f(7).src = 'c7.html'; f(7).offsetWidth; f(7).removeAttribute('sandbox');\n};\n</script></body>",
+   "resources": {
+    "c1.html": {
+     "text": "<!DOCTYPE html><script>parent.H.c1=1</script>"
+    },
+    "c2.html": {
+     "text": "<!DOCTYPE html><script>parent.H.c2=1</script>"
+    },
+    "c4.html": {
+     "text": "<!DOCTYPE html><script>parent.H.c4=1</script>"
+    },
+    "c6.html": {
+     "text": "<!DOCTYPE html><script>parent.H.c6=1</script>"
+    },
+    "c7.html": {
+     "text": "<!DOCTYPE html><script>parent.H.c7=1</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(Object.keys(H).sort()); }, 800); })"
+    }
+   ]
+  },
+  {
+   "name": "scripted-about-frame-state",
+   "html": "<!DOCTYPE html><body><script>\nvar R = {};\ndocument.cookie = 'tk=1; path=/';\ndocument.cookie = 'pth=1; path=' + location.pathname;\nlocalStorage.clear();\nsessionStorage.clear();\n</script><iframe id=s srcdoc=\"<script>\nparent.R.srcdocRead = document.cookie;\ndocument.cookie = 'fsd=1; path=/';\nparent.R.srcdocAfter = document.cookie;\nlocalStorage.setItem('a', 'srcdoc');\nsessionStorage.setItem('b', 'srcdoc');\n</script><iframe srcdoc='<script>parent.parent.R.nested = document.cookie</script>'></iframe>\"></iframe><iframe id=b></iframe><script>\nwindow.onload = function () {\n  var b = document.getElementById('b');\n  R.blankRead = b.contentDocument.cookie;\n  b.contentDocument.cookie = 'fbl=1; path=/';\n  R.blankAfter = b.contentDocument.cookie;\n  R.topAfter = document.cookie;\n  R.local = localStorage.getItem('a');\n  R.session = sessionStorage.getItem('b');\n  b.contentWindow.localStorage.setItem('c', 'blank');\n  b.contentWindow.sessionStorage.setItem('d', 'blank');\n  R.localBlank = localStorage.getItem('c');\n  R.sessionBlank = sessionStorage.getItem('d');\n  R.urls = [document.getElementById('s').contentDocument.URL, b.contentDocument.URL];\n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r([R.srcdocRead, R.srcdocAfter, R.nested, R.blankRead, R.blankAfter, R.topAfter, R.local, R.session, R.localBlank, R.sessionBlank, R.urls]); }, 400); })"
+    }
+   ]
   }
  ]
 }

@@ -193,6 +193,10 @@ impl DocumentState {
     /// document may not load the URL, the queue is full or the request does
     /// not fit in the memory budget.
     pub(crate) fn start_api_fetch(&mut self, mut request: Request) -> Option<u64> {
+        if self.retired {
+            // Measured: a `TypeError`, as a request that cannot start.
+            return None;
+        }
         if !self.may_load(&request.url) {
             log::warn!("not allowed to load {} from a script", request.url);
             return None;

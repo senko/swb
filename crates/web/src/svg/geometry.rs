@@ -24,7 +24,7 @@ use swb_js::{Gc, GenericData, HostData, Object, Tracer, VmError};
 use crate::bindings::{self as b, Cx, Platform};
 use crate::generated as g;
 use crate::generated::types::SVGBoundingBoxOptions;
-use crate::state::{WebState, engine_mut};
+use crate::state::WebState;
 
 /// The data of an `SVGRect`: x, y, width, height.
 struct SvgRectData([f32; 4]);
@@ -47,7 +47,7 @@ fn new_rect(cx: &mut Cx<'_>, values: [f32; 4]) -> b::Result<Gc<Object>> {
 /// The box and the length of `element` from the engine (zeros if it is
 /// not drawn).
 fn geometry(cx: &mut Cx<'_>, element: NodeId) -> b::Result<([f32; 4], f32)> {
-    let found = engine_mut(cx.rt)?.svg_geometry(element);
+    let found = crate::state::engine_laid_out(cx.rt)?.svg_geometry(element);
     cx.rt.check_time()?;
     Ok(found.map_or(([0.0; 4], 0.0), |(r, length)| {
         // `as` saturates; the values come from `f32` layout values.

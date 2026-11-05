@@ -27,6 +27,7 @@ use swb_web::{DispatchTarget, ScriptRuntime, TrustedEvent};
 
 use super::Page;
 use crate::document::DocumentState;
+use crate::frames::FrameId;
 
 /// The length of a frame in milliseconds of page time (60 Hz).
 const FRAME_MS: f64 = 1000.0 / 60.0;
@@ -49,6 +50,7 @@ pub(super) struct ObservedState {
     document_scroll: Point,
     scrollers: HashMap<NodeId, Point>,
     viewport: swb_layout::Size,
+    frames: u64,
 }
 
 /// The first time of the frame grid at or after `time` (the grid starts at
@@ -102,7 +104,27 @@ impl Page {
             document_scroll: doc.scroll,
             scrollers: doc.scrollers.offsets().clone(),
             viewport: self.view.viewport,
+            frames: self.frames_observed_state(),
         })
+    }
+
+    /// What can change an observation in the frame documents with a realm: a
+    /// sum, which is enough to see that something changed.
+    fn frames_observed_state(&self) -> u64 {
+        if self.frames.count() == 0 {
+            return 0;
+        }
+        let mut sum = 0u64;
+        for id in self.frames_with_realms() {
+            if let Some(doc) = self.doc_of(id) {
+                sum = sum
+                    .wrapping_add(doc.dom.generation())
+                    .wrapping_add(u64::from(doc.flushes.layout_runs))
+                    .wrapping_add(u64::from(doc.flushes.style_runs))
+                    .wrapping_add(f64::from(doc.scroll.x + doc.scroll.y).to_bits());
+            }
+        }
+        sum
     }
 
     /// True if the observers need a frame: an observation was added, or
@@ -183,6 +205,13 @@ impl Page {
         self.input.frame_due = None;
         // The time the frame was due, so that a late pump keeps the grid.
         self.input.last_frame = Some(due);
+        let documents = self.frames_with_realms();
+        // A frame's viewport comes from its parent's layout: a size that a
+        // change in the parent gave it shows in this update, if the frame's
+        // window reacts to it.
+        if self.frames_watch_viewports(&documents) {
+            self.update_layout();
+        }
         let mut ran = false;
         if std::mem::take(&mut self.input.resized) {
             self.dispatch_event(DispatchTarget::Window, &TrustedEvent::new("resize"));
@@ -192,13 +221,14 @@ impl Page {
         ran |= self
             .run_task(ScriptRuntime::evaluate_media_queries)
             .unwrap_or(false);
-        if self
-            .script
-            .as_ref()
-            .is_some_and(ScriptRuntime::has_animation_frame_callbacks)
-        {
+        if self.has_animation_frames_in(FrameId::TOP) {
             self.run_task(|s| s.run_animation_frame_callbacks(due));
             ran = true;
+        }
+        // The documents in tree order, top first (measured order of the
+        // animation frame callbacks: parent, parent, child).
+        for &id in &documents {
+            ran |= self.frame_rendering_steps(id, due);
         }
         ran |= self.run_lazy_check();
         // Style and layout, then the observers (HTML "update the
@@ -208,15 +238,122 @@ impl Page {
             .as_ref()
             .is_some_and(ScriptRuntime::has_observations)
         {
-            ran |= self
-                .run_task(ScriptRuntime::run_resize_observers)
-                .unwrap_or(false);
-            ran |= self
-                .run_task(|s| s.update_intersection_observers(due))
-                .unwrap_or(false);
+            if !documents.is_empty() {
+                self.update_layout();
+            }
+            ran |= self.run_observers_in(FrameId::TOP, due);
+            for &id in &documents {
+                ran |= self.run_observers_in(id, due);
+            }
             self.input.observed = self.observed_state();
         }
         ran
+    }
+
+    /// The frames whose documents have a realm, in tree order, without the
+    /// top level.
+    fn frames_with_realms(&self) -> Vec<FrameId> {
+        if !self.frames_may_have_realms() {
+            return Vec::new();
+        }
+        self.frames
+            .tree_order()
+            .into_iter()
+            .skip(1)
+            .filter(|&id| self.frames.get(id).is_some_and(|f| f.script.is_some()))
+            .collect()
+    }
+
+    /// True if a frame document among `documents` reacts to a new size of its
+    /// viewport.
+    fn frames_watch_viewports(&self, documents: &[FrameId]) -> bool {
+        let Some(script) = self.script.as_ref() else {
+            return false;
+        };
+        documents.iter().any(|&id| {
+            self.frames
+                .get(id)
+                .and_then(|f| f.script)
+                .is_some_and(|key| script.watches_viewport_in(key))
+        })
+    }
+
+    /// True if the document of `frame` has animation frame callbacks.
+    fn has_animation_frames_in(&self, frame: FrameId) -> bool {
+        let Some(script) = self.script.as_ref() else {
+            return false;
+        };
+        self.frames
+            .get(frame)
+            .and_then(|f| f.script)
+            .is_some_and(|key| script.has_animation_frames_in(key))
+    }
+
+    /// The steps of the rendering update for a frame document before layout:
+    /// `resize`, `scroll`, media queries, animation frame callbacks. True if
+    /// a step ran something.
+    fn frame_rendering_steps(&mut self, id: FrameId, due: f64) -> bool {
+        let mut ran = false;
+        let resized = self
+            .frames
+            .get_mut(id)
+            .is_some_and(|f| std::mem::take(&mut f.resized));
+        if resized {
+            let event = TrustedEvent::new("resize");
+            self.run_task_in(id, |s| s.dispatch_event(DispatchTarget::Window, &event));
+            ran = true;
+        }
+        let scrolled = self
+            .doc_of_mut(id)
+            .map(|d| std::mem::take(&mut d.scrolled))
+            .unwrap_or_default();
+        for node in scrolled {
+            let mut event = TrustedEvent::new("scroll");
+            event.bubbles = node == NodeId::DOCUMENT;
+            self.run_task_in(id, |s| s.dispatch_event(DispatchTarget::Node(node), &event));
+            ran = true;
+        }
+        ran |= self
+            .run_task_in(id, ScriptRuntime::evaluate_media_queries)
+            .unwrap_or(false);
+        if self.has_animation_frames_in(id) {
+            self.run_task_in(id, |s| s.run_animation_frame_callbacks(due));
+            ran = true;
+        }
+        ran
+    }
+
+    /// The observers of the document of `frame`, after layout. True if one
+    /// ran.
+    fn run_observers_in(&mut self, frame: FrameId, due: f64) -> bool {
+        let observing = self.script.as_ref().is_some_and(|script| {
+            self.frames
+                .get(frame)
+                .and_then(|f| f.script)
+                .is_some_and(|key| script.has_observations_in(key))
+        });
+        if !observing {
+            return false;
+        }
+        let resize = self
+            .run_task_in(frame, ScriptRuntime::run_resize_observers)
+            .unwrap_or(false);
+        let intersection = self
+            .run_task_in(frame, |s| s.update_intersection_observers(due))
+            .unwrap_or(false);
+        resize || intersection
+    }
+
+    /// A task changed the DOM of the top-level document, or of a frame
+    /// document: a frame's viewport may have a new size, which the next
+    /// rendering update finds if a frame's window reacts to it.
+    pub(super) fn note_frame_viewports_may_change(&mut self) {
+        if self.frames.count() > 0 {
+            let documents = self.frames_with_realms();
+            if self.frames_watch_viewports(&documents) {
+                self.request_frame();
+            }
+        }
     }
 
     /// True if a deferred lazy image can be in range now: some are

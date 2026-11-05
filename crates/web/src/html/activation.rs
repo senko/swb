@@ -442,9 +442,14 @@ fn javascript_form_action(
 
 /// Queues the script of a `javascript:` URL as a task (HTML "navigate to
 /// a javascript: URL", step "queue a global object task"): it does not
-/// run inside the dispatch of the click or the submission.
+/// run inside the dispatch of the click or the submission. A sandbox without
+/// `allow-scripts` runs nothing (HTML "check if we can run script"; measured,
+/// case `scripted-sandbox-scripts`).
 /// <https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url>
 pub(crate) fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult<()> {
+    if state(rt)?.doc.scripts_off {
+        return Ok(());
+    }
     crate::event_loop::queue_task(rt, Task::JavascriptUrl(source))
 }
 

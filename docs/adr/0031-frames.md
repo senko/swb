@@ -213,8 +213,8 @@ these decisions and departures:
   makes the page compare its frames with the document's `iframe` elements.
   The page acts after each drain point: the return of a lent document, a
   change through `change_dom`, the commit of a document, the end of a
-  parse. So a frame that a script task creates exists after the task, not
-  inside it (feature 12 makes it synchronous). A move of an `iframe`
+  parse. With a script runtime the natives make and destroy the frames inside
+  the task (feature 12b1, section 5). A move of an `iframe`
   destroys its frame and makes a new one (it is removed and inserted).
 - Every set of `src` or `srcdoc` navigates, also to the same value.
   `about:blank` and `about:srcdoc` documents commit in the next turn of the
@@ -228,20 +228,17 @@ these decisions and departures:
   top-level document can have listeners in 10a. The order in swb is parent
   `DOMContentLoaded`, `srcdoc` `iframe` `load`, `iframe` `load`, parent
   `load`, as in Chromium's case `load-order` without the entries of the
-  frames' scripts. The test uses its own page with the same frames, because
-  the probe's handler reads `contentDocument` (feature 12). Departure until
-  feature 12: the initial
-  `about:blank` `load` does not fire inside `appendChild`.
+  frames' scripts (feature 12b1 adds them, and the `load` of the initial
+  `about:blank` inside `appendChild`).
 - The frame's own declarative refresh (`<meta http-equiv=refresh>`, HTML
   "shared declarative refresh steps") navigates the frame at its time of
-  page time; the top-level document still has none (backlog). Frame
-  documents parse to the end at once (no parser in steps) with the page's
-  scripting flag, and run no scripts.
+  page time; the top-level document still has none (backlog). A frame
+  document without a script parses to the end at once (no parser in steps)
+  with the page's scripting flag.
 - A frame document's `@font-face` rules are not used in 10a: the page's
   font context holds the web fonts of one document (backlog for 10b).
-- A `javascript:` URL in `src` is ignored (no navigation, an info log)
-  until scripts run in frames; `src = "javascript:"` therefore does
-  nothing, as in Chromium.
+- A `javascript:` URL in `src` makes no navigation; `src = "javascript:"`
+  does nothing, as in Chromium (feature 12b1 runs a script in it).
 - The fallback base URL of an `about:srcdoc` or `about:blank` frame
   document is its parent's base URL (HTML "fallback base URL"), so a
   relative image or style sheet in a `srcdoc` frame requests the URL that
@@ -343,8 +340,8 @@ site for cookies, when there is one, with the request URL, so a cross-site
 frame document and its requests set and send only `SameSite=None` cookies
 (case `cookies-frames`, the response part; `document.cookie` in frames
 comes with scripts in frames). `sandbox` is parsed (`Sandbox`): without
-`allow-same-origin` the document's origin is opaque; `allow-scripts` waits
-for feature 12 (frame documents run no scripts). The flags are read at
+`allow-same-origin` the document's origin is opaque; `allow-scripts` gates
+the scripts of the document (feature 12b1). The flags are read at
 each navigation. The origin of `about:blank` and `about:srcdoc` documents
 is the parent document's; a frame document whose request failed shows an
 error document with an opaque origin. `document.referrer` and storage keys
@@ -642,9 +639,10 @@ its own arena (section 2), so a node is (document, `NodeId`):
   per document. A native runs with the document of its `this` as the
   current document of the binding state, so the bindings' calls of
   `EngineHost` need no document argument (feature 12a, below).
-- The runtime lends every document of its agent for a task (a set of
-  boxed `EngineHost`s keyed by document), not one. The page takes them
-  all back after the task.
+- The runtime can reach every document of its agent in a task: the page
+  lends the top-level document, and a native borrows another one from the
+  registry at its first switch to it (feature 12b1, below). The page takes
+  them all back after the task.
 - A frame that a task creates (`appendChild` of an `iframe`) needs its
   `about:blank` document inside the task. The page shares its frame
   registry with its runtimes (`Rc<RefCell<...>>`, borrowed only inside a
@@ -745,21 +743,206 @@ each page's runtime; no page changes its behaviour.
   function's realm only with one document. The mutation observer microtask is
   per document, not per agent: the order between two documents' observers
   in one checkpoint follows the order in which their microtasks were queued.
-- **Known gaps that only several documents reach (feature 12b).** A native
+- **Known gaps that only several documents reach (feature 12b2).** A native
   switches to the document of its `this` and forgets the caller's, so
   `other.postMessage()` takes `source` and `origin` from the receiver (Chromium:
   the sender), and relative URLs of `location.href`, `open` and `fetch` have the
   same problem (HTML "incumbent" and "entry" settings objects). `setAttributeNode`,
   `removeAttributeNode` and `setNamedItem` read the owner's `NodeId` from an
   `Attr` without the document check; no panic, and `eB.setAttributeNode(aOfA)`
-  does nothing (Chromium: `InUseAttributeError`). Nothing frees a `DocState` or an
-  entry of `window_proxies` yet, and `run_due_tasks` drops a task of an unknown
-  document and counts it as run.
+  does nothing (Chromium: `InUseAttributeError`).
   An `AbortSignal` of one document cannot remove a listener from a node of
   another (`remove_listener` ignores it). `WebState::blob_urls` is per agent
   but a document's unload does not revoke yet.
 - Costs: docs/performance.md, "`WindowProxy` and the split of the binding
   state".
+
+**Done (feature 12b1).** Real frames on the plumbing of 12a: same-origin frame
+documents run their scripts in realms of the page's runtime. Measured in
+Chromium 148 with the cases `scripted-*` of `tools/probes/web-frames.json` (18
+cases, three equal runs); every value is compared in
+`crates/engine/tests/frames/scripted.rs`, and a departure has a row there.
+
+- *The registry.* `crates/engine/src/frames/registry.rs`, `swb_web::FrameHost`.
+  For the length of a task the page swaps its `Box<Frames>` with an empty one
+  in an `Rc<RefCell<FrameRegistry>>` that the runtime holds, so no field of
+  `Page` is shared and the page's code keeps `self.frames`. A native borrows the
+  registry for one call, never across a call into script; a registry in use is
+  an internal error (`VmError::invariant`), not a panic. What needs the page
+  waits in `AfterTask`: the attributes of frames that the task made (which start
+  navigations) and the input state of those that it destroyed.
+- *The lent set is lazy.* `Page::run_task_in` lends the top-level document and
+  no other. When a native switches to a document that has no host
+  (`state::switch_to`), the document comes from the registry
+  (`FrameHost::take_document`) and goes on the list `WebState::lent`; the page
+  takes back that list after the task (`take_back_documents`), files each
+  document by its `frame_id`, processes its changes and acts on its requests. So
+  the cost of a task follows the documents that it touches, not the realms. The
+  alternative, lending every document with a realm for each task, costs a loop
+  over up to 256 documents per task.
+- *The font context.* One cell (`LentFonts`), which all documents of the page
+  share while a task runs; a frame document swaps its own web font faces in for
+  a query (`with_lent_fonts`).
+- *Frame numbers.* `FrameId::number` is `(generation << 10) | index`, below 2^31:
+  at most 1,000 live frames, a free slot before a new one, and a slot whose
+  generation reaches 2^21 is not used again. So the number needs no table and
+  is unique over the life of the arena.
+- *First need.* A frame document gets a realm when it commits if its source can
+  have a script (`may_have_script`: a `<script`, or an attribute `on...=`; a false
+  positive costs a realm, and the parse in steps is the only other change), or
+  at the first access from a script (`frames::window_of_frame`), or at commit if
+  the runtime has seen the frame's proxy, which a script may hold. A document
+  with no script keeps the full parse and the admission of section 11. A
+  document with a script parses in steps, and its parser stops at the room that
+  the page's node budget has left (`Frames::node_room`; it shows what it parsed,
+  a departure from the error document of section 11).
+- *Budget of realms.* 256 per runtime, with one warning. Past it the document
+  runs without scripts, and its proxy has no target (`SecurityError` from the
+  hooks; `contentDocument` is `null`). Consequence: Chromium's `limits` query
+  reads 1,100 windows and then nests 300 frames; swb runs out of realms in the
+  first part, so the test runs the parts on two pages. A realm stays until the
+  runtime ends, so the budget counts every document that ever had a realm, not
+  the live ones: a long-lived page that replaces a same-origin frame with scripts
+  (an ad slot, a widget that reloads) stops running scripts in new frames after
+  255 of them, until the next top-level document. Chromium has no such limit.
+  Realm collection in `js` removes the limit (roadmap, backlog from M9).
+- *Window members.* `length`, `top`, `parent`, `frameElement`, `opener`, `name`,
+  `closed`, `origin`, the index keys of a proxy (`WindowProxyHooks::child_count`,
+  `child_frame`: not writable, enumerable, configurable; first in the key
+  order) and named access (a child frame's name before elements), as measured.
+  `name` is the `name` attribute at the creation of the frame; a later change of
+  the attribute does not rename the frame (measured, case
+  `scripted-window-members`), so `FrameChanges::names` went. `frameElement` and
+  `contentDocument` have the IDL type `object?` and `getComputedStyle` takes
+  `any`, because a generated node conversion looks in the current document.
+  `getComputedStyle` of an element of another document works (measured); its
+  declaration belongs to the element's realm (departure: Chromium's to the
+  caller's; `instanceof` shows it).
+- *Geometry across documents.* `state::engine_laid_out` is the path of each
+  geometry query in `web`: with several documents, `FrameHost::update_viewports`
+  lays out the documents above the frame, top first, and gives each frame its
+  viewport from its container's box. Measured: a change of the `iframe`'s style
+  shows at once in `innerWidth`, `clientWidth`, `getComputedStyle`,
+  `getBoundingClientRect` and `matchMedia`. A runtime with one document pays one
+  comparison. Departure: a `display: none` frame keeps its last layout
+  (Chromium: `clientWidth` 0, `innerWidth` the last).
+- *Synchronous `about:blank`.* `scripts::after_insertion` also finds `iframe`
+  elements (one walk with the script elements), and `frames::connected` makes the
+  frame inside the native; with no document to load, `load` fires there
+  (measured, cases `about-blank`, `scripted-load-recursion`). A listener can add
+  and remove frames again: the limits of frames and depth end it (hostile cases
+  `scripted-frame-append-in-load-js-on`, `scripted-frame-nest-in-load-js-on`).
+  `html::focus::before_removal`, which every removal calls, destroys the frames
+  in the subtree, so a move makes a new frame inside the call (measured: `load`
+  fires again, a new window). The parser's frames come after its step and before
+  the next script (`EngineHost::take_inserted_frames`): `load` of a parser's
+  `about:blank` frame comes before the next inline script (measured; Chromium
+  fires it at the insertion, so a capture listener on the document sees an order
+  that swb cannot give). With a runtime the journal's `removed` skips an element
+  that is back in the tree. Without a runtime (JavaScript off) nothing changes.
+- *Initial `about:blank` reuse* (HTML "initial about:blank"; measured, case
+  `scripted-initial-reuse`): a navigation that the insertion started (`src` or
+  `srcdoc` at the insertion) to a document of the same origin keeps the `Window`:
+  the expando, the listeners, the timers and the interfaces stay, and the window
+  gets `load`. A frame without such an attribute at the insertion had its `load`
+  already, and a later navigation makes a new `Window` (measured, also for
+  `src = 'about:blank'`). `state::reuse_window`: a new record of the same realm
+  takes what belongs to the window; the old record keeps the wrappers of the old
+  nodes, retires, and forwards queued tasks.
+- *Retired documents* (`state::retire_document`, `DocumentState::retire_document`).
+  When a frame is destroyed or its document replaced, a document with a realm
+  stays in the runtime: its record holds the host for the rest of the runtime's
+  life, because script can hold its nodes, and realms are roots. Decided from the
+  measurements (case `scripted-retired`): nodes read and write; `closed` true;
+  `parent`, `top`, `frameElement` `null`; `length` 0; `name` empty; `defaultView`
+  `null`; `readyState` `complete`, `visibilityState` `hidden`; `setTimeout`,
+  `setInterval`, `requestAnimationFrame` return a number and never run
+  (`initialize` adds nothing, so a loop costs no memory); microtasks run; messages
+  are dropped; `fetch` rejects with a `TypeError`; geometry reads give 0 and `""`;
+  `location` writes do nothing without an error; no script element runs; no frame
+  starts. A queued task of a retired document is dropped and does not count as
+  run. What is freed at once: requests, parser, stylist, styles, layout, display
+  list, images, timers, callbacks, observers. What stays: the DOM, the wrappers,
+  the listeners, and the charge of its nodes in the page's budget until the next
+  top-level document (the memory is real). The entry of the frame in
+  `window_proxies` goes when the frame is destroyed: nothing can ask for that
+  proxy again, and scripts that hold it keep it alive. Realm indexes stay in
+  `HostSlot` and `realm_docs`, so a realm is never reused. Departures: the
+  interfaces of a retired window stay (`w.Event`, `w.XMLHttpRequest`, `w.Image` are
+  constructors; Chromium has no such property once the frame is gone), and
+  `document.open` on a retired document does nothing (feature 15).
+- *A frame that removes its own `iframe`* (case `scripted-self-remove`). The
+  running script goes on; the parse ends there (no later script, no
+  `DOMContentLoaded`, no `load`); its timer does not run. Departure: Chromium fires
+  the parent's `load` inside `remove()` when that frame was the last that delayed
+  it; swb fires it after the task, because the check of the load needs the page.
+- *The load path.* A frame document with a script goes through the top-level
+  code: `start_document`, `parse_steps`, `script_fetched`, the parser tasks,
+  `fire_load_event`, under `Page::run_task_in`; `deliver_scripts_in`,
+  `deliver_api_fetches_in` and `deliver_element_events_in` are the page's paths
+  with a frame argument. `load` of the window comes first, then the container's
+  `load` in the same task, then `pageshow` (measured, case
+  `scripted-frame-document`). `Page::check_frame_loads` fires `load` for a document
+  that the runtime drives, and the container's for one that it does not.
+  `pagehide` and `unload` fire at a commit and at a destruction, children first.
+  A limit that ends the task of a frame's `load` leaves the container's `load` to
+  come; `check_frame_loads` does it at once, because nothing else may wake the page
+  (`finish_load_after_limit`).
+- *Navigations by script.* `location` writes check `FrameHost::may_navigate` with
+  the caller's frame (`Runtime::caller_realm`, which is only for this; the
+  incumbent settings object is 12b2) and throw Chromium's `SecurityError`. A
+  sandboxed frame needs `allow-top-navigation` (`Sandbox::script_top_navigation_allowed`);
+  `allow-top-navigation-by-user-activation` refuses a script (measured, without an
+  activation). `form.submit()` in a sandbox needs `allow-forms`. A `javascript:`
+  URL in `src` runs as a task in the frame's realm; an empty one does nothing.
+  The session history stays at the top level: a frame's `pushState` changes its
+  document's URL and no entry.
+- *Rendering update.* `Page::run_frame` runs the documents with a realm in tree
+  order: `resize` (a viewport that changed after the first layout; measured),
+  `scroll`, media queries, animation frame callbacks, then the observers after
+  layout. A task that changed the DOM asks for a frame if a frame's window reacts
+  to its viewport (`watches_viewport_in`: a `resize` listener or handler, a
+  `MediaQueryList` with a listener).
+- *Automation.* `page.evaluate` with a `frameId` and `--eval-frame` run in the
+  frame; a console message has the number of its frame's document.
+- *Sandbox.* Without `allow-scripts` the document parses to its end and gets a
+  realm only at an access from a parent of the same origin. Then
+  `DocState::scripts_off` stops what the document's own markup can start, as
+  measured (case `scripted-sandbox-scripts`, a control frame with `allow-scripts`
+  beside it): script elements, also appended ones (`scripts::prepare`); handler
+  attributes (`b.onclick` reads `null`; `events::handlers::compile`); `javascript:`
+  URLs in `src`, links, forms and `location`; `setTimeout` and `setInterval` of that
+  window, also with a function of the parent (a number, and no run). What the parent
+  calls through the window still runs in Chromium, and so here: `eval`, `Function`,
+  a function of the frame's realm called directly, `onclick = f`, listeners,
+  `requestAnimationFrame`, idle callbacks, observers, microtasks and messages. A
+  child frame inherits the flags. A navigation has the flags of its start
+  (`Frame::pending_sandbox`, HTML "snapshot target snapshot params"), not of its
+  commit, in both directions (measured, case `scripted-sandbox-timing`): the page
+  acts on a set of `src` or `srcdoc` after the task, so the journal drain gives it
+  the flags of `sandbox` at the set (`FrameAttributeSet`, from the old value of a
+  later change). A `sandbox` set after an insertion that started a navigation does
+  not count for that navigation either. Departure: a frame without `src` or `srcdoc`
+  at its insertion that gets `src` and then a new `sandbox` in that same task has
+  the flags at the end of the task. Without `allow-same-origin` the origin is
+  opaque: no realm until feature 13.
+- *Cookies and storage of `about:` documents.* An `about:blank` or `about:srcdoc`
+  frame document with its creator's origin has its creator's cookies and storage,
+  also a nested one; a cookie with the `path` of the creator's URL shows, so the key
+  is that URL, not the origin (measured, case `scripted-about-frame-state`;
+  `DocumentState::cookie_url`, `EngineHost::storage_url`). A document with an opaque
+  origin keeps its own URL, so it has neither.
+- *Not in 12b1.* `appendChild` and other node arguments across documents (12b2), the
+  incumbent document (`postMessage`'s `source` and `origin`, relative URLs through
+  another window), the window that gets an error (12b2: an exception of a function
+  of another window goes to the current document's window, Chromium's goes to the
+  window of the function; `unhandledrejection` goes to one window per task), a
+  `javascript:` link or form with a `target` that names another frame (12b2: it runs
+  nothing, Chromium runs it in the target), input events to frame listeners
+  (`Page::in_frame` still takes the runtime out), `document.referrer` of a frame
+  document (feature 14: it is empty), `document.open` on a frame document (feature
+  15), cross-origin frames (feature 13).
+- Costs: docs/performance.md, "Scripts in frames".
 
 ### 6. The event loop with several runtimes
 
@@ -1237,14 +1420,14 @@ call runs in the frame's context (`Page::with_frame`, the same exchange as
 the input code of section 8), node IDs, boxes and coordinates are the
 frame's, and input is sent to the page at the point in the page's viewport
 (`Page::frame_origin`, which does not follow transforms). `dom.boxes` dumps
-the frame's document. `page.evaluate` with a `frameId` is an error until
-feature 12, `page.consoleMessages` has no frame messages, and every
-message has a `frameId`. A `frameId` on another method is an invalid
+the frame's document. `page.evaluate` with a `frameId` runs in the frame
+(feature 12b1), and every message of `page.consoleMessages` has the `frameId`
+of its document. A `frameId` on another method is an invalid
 parameter. `swb --eval-frame=PATH` (in order with the `--eval` arguments
 after it; an empty PATH goes back to the top; the path is `SEL >> SEL`, the
 first match of each selector must be an `iframe` with a frame) gives an
-error line `FrameError: ...` for a path that finds no frame and for a frame
-(no scripts yet). The probe tool takes `"frame": "SEL >> SEL"` in a `js`
+error line `FrameError: ...` for a path that finds no frame and for a frame of
+another origin (feature 12b1 evaluates in a frame of the page's origin). The probe tool takes `"frame": "SEL >> SEL"` in a `js`
 query (Chromium: the frame of `frame_locator`; swb: `--eval-frame`) and in a
 point step with a selector (`click`, `dblclick`, `rightclick`, `middleclick`,
 `hover`: the selector is looked up in the frame, the click goes to the

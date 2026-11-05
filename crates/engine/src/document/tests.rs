@@ -65,9 +65,12 @@ fn state_with(
         site_for_cookies: None,
         frame: false,
         fallback_base: None,
+        creator_url: None,
         style_budget: None,
         body_budget: None,
         font_budget: None,
+        fonts: Rc::default(),
+        node_room: None,
     });
     doc.run_parser();
     doc

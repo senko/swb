@@ -216,9 +216,10 @@ fn frames(page: &mut Page) -> Value {
 
 /// Executes a method of a frame (`frameId` in the parameters): the `dom.*`
 /// methods and the input that takes a node act on the frame's document
-/// (node IDs, boxes and coordinates are the frame's). Scripts do not run in
-/// frames yet (ADR 0031 section 14, features 12 and 13), so
-/// `page.evaluate` is an error and `page.consoleMessages` has no messages.
+/// (node IDs, boxes and coordinates are the frame's). `page.evaluate` runs in
+/// the frame's document: an error for a frame of another origin, which has no
+/// scripts until feature 13 (ADR 0031 section 14). `page.consoleMessages` gives
+/// the messages of the frame.
 fn execute_in_frame(page: &mut Page, frame: FrameId, method: &str, params: Value) -> Outcome {
     let mut params = params;
     if let Some(object) = params.as_object_mut() {
@@ -228,10 +229,8 @@ fn execute_in_frame(page: &mut Page, frame: FrameId, method: &str, params: Value
         _ if page.frame_document(frame).is_none() => {
             Err(RpcError::failed(format!("no frame {}", frame.to_u64())))
         }
-        "page.evaluate" => Err(RpcError::failed(
-            "the frame has no script runtime (scripts in frames are not supported yet)",
-        )),
-        "page.consoleMessages" => Ok(json!({ "messages": [] })),
+        "page.evaluate" => evaluate_in_frame(page, frame, params),
+        "page.consoleMessages" => Ok(console_messages_of(page, Some(frame))),
         "dom.boxes" => page
             .with_frame(frame, |page| {
                 page.update_layout();
@@ -487,13 +486,33 @@ fn evaluation_result(evaluation: Option<Evaluation>) -> MethodResult {
     }
 }
 
-/// `page.consoleMessages`: the console lines of the current document.
+/// `page.evaluate` with a `frameId`: as [`evaluate`], and a promise is awaited
+/// here for at most [`MAX_BLOCKING_MS`].
+fn evaluate_in_frame(page: &mut Page, frame: FrameId, params: Value) -> MethodResult {
+    let params: EvaluateParams = parse(params)?;
+    let timeout = Duration::from_millis(params.timeout_ms.min(MAX_BLOCKING_MS));
+    match page.evaluate_in_frame(frame, &params.expression, JsonForm::Strict, timeout) {
+        Some(evaluation) => evaluation_result(Some(evaluation)),
+        None => Err(RpcError::failed(
+            "the frame has no script runtime (a document of another origin)",
+        )),
+    }
+}
+
+/// `page.consoleMessages`: the console lines of the page's documents.
 fn console_messages(page: &Page) -> Value {
+    console_messages_of(page, None)
+}
+
+/// The console lines of `frame`, or of all documents, each with its frame.
+fn console_messages_of(page: &Page, frame: Option<FrameId>) -> Value {
     let messages: Vec<Value> = page
         .console_messages()
         .into_iter()
+        .filter(|m| frame.is_none_or(|f| FrameId::from_number(m.frame) == f))
         .map(|m| {
-            json!({ "level": m.level.name(), "text": m.text, "frameId": FrameId::TOP.to_u64() })
+            let id = FrameId::from_number(m.frame).to_u64();
+            json!({ "level": m.level.name(), "text": m.text, "frameId": id })
         })
         .collect();
     json!({ "messages": messages })

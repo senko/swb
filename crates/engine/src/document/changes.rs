@@ -31,7 +31,8 @@ use swb_net::Url;
 
 use super::DocumentState;
 use super::derived::{base_url, document_title};
-use super::frames::FrameChanges;
+use super::frames::{FrameAttributeSet, FrameChanges};
+use crate::frames::Sandbox;
 use crate::image_source::SelectedImage;
 use crate::resources::{SheetSlot, SheetSource};
 
@@ -127,9 +128,40 @@ struct Batch {
     loading_images: HashSet<NodeId>,
     /// The `iframe` elements that were inserted, removed or changed.
     frames: FrameChanges,
+    /// The sets of `src` or `srcdoc` of each `iframe` whose flags are not known
+    /// yet: their indexes in `frames.attributes`. Any of them can be the one
+    /// that commits, because the page can drop the later ones.
+    open_frame_sets: HashMap<NodeId, Vec<usize>>,
 }
 
 impl Batch {
+    /// A set of `src` or `srcdoc` of `node`.
+    fn note_frame_set(&mut self, node: NodeId) {
+        self.open_frame_sets
+            .entry(node)
+            .or_default()
+            .push(self.frames.attributes.len());
+        self.frames.attributes.push(FrameAttributeSet {
+            node,
+            sandbox: Sandbox::default(),
+        });
+    }
+
+    /// The open sets of `node` had `sandbox` with this value: the old value of
+    /// a later change, or the value at the end of the drain. One parse for all
+    /// of them, so the cost follows the changes of the attribute.
+    fn close_frame_sets(&mut self, node: NodeId, value: Option<&str>) {
+        let Some(sets) = self.open_frame_sets.remove(&node) else {
+            return;
+        };
+        let flags = Sandbox::parse(value);
+        for index in sets {
+            if let Some(set) = self.frames.attributes.get_mut(index) {
+                set.sandbox = flags;
+            }
+        }
+    }
+
     fn add(&mut self, node: NodeId) {
         if self.seen.insert(node) {
             self.candidates.push(node);
@@ -174,6 +206,10 @@ impl DocumentState {
         }
         let journal = self.dom.take_journal();
         self.drained = Some(generation);
+        if self.retired {
+            // A document that left its frame starts nothing.
+            return;
+        }
         if journal.incomplete() {
             self.rediscover();
         } else if !journal.is_empty() {
@@ -271,19 +307,20 @@ impl DocumentState {
                     }
                     self.children_changed(parent, &mut batch);
                 }
-                Change::Attribute { element, name, .. } => {
+                Change::Attribute {
+                    element,
+                    name,
+                    old_value,
+                } => {
                     if let Some(kind) = self.dom.element(element).and_then(Kind::of) {
                         if kind == Kind::IFrame {
                             // Each set of `src` or `srcdoc` navigates, also
                             // to the same value (HTML "process the iframe
                             // attributes").
-                            let list = match &*name.local {
-                                "src" | "srcdoc" => Some(&mut batch.frames.attributes),
-                                "name" => Some(&mut batch.frames.names),
-                                _ => None,
-                            };
-                            if let Some(list) = list {
-                                list.push(element);
+                            match &*name.local {
+                                "src" | "srcdoc" => batch.note_frame_set(element),
+                                "sandbox" => batch.close_frame_sets(element, old_value),
+                                _ => {}
                             }
                             continue;
                         }
@@ -391,11 +428,15 @@ impl DocumentState {
     /// Reconciles the elements that a drain touched, in tree order, then
     /// starts their loads and invalidates.
     fn finish_batch(&mut self, mut batch: Batch) {
+        let open: Vec<NodeId> = batch.open_frame_sets.keys().copied().collect();
+        for node in open {
+            let value = self.dom.element(node).and_then(|e| e.attr("sandbox"));
+            batch.close_frame_sets(node, value);
+        }
         let frames = std::mem::take(&mut batch.frames);
         self.frame_changes.inserted.extend(frames.inserted);
         self.frame_changes.removed.extend(frames.removed);
         self.frame_changes.attributes.extend(frames.attributes);
-        self.frame_changes.names.extend(frames.names);
         let mut stylist_dirty = self.refresh_base_and_title(&batch);
         // Images have events also outside the document (`new Image()`).
         let images: Vec<NodeId> = batch

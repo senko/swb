@@ -7,8 +7,9 @@
 //! with the frame's document in that place: [`Page::in_frame`] exchanges
 //! the document, the pointer and keyboard state, the viewport and the font
 //! faces of the frame with the page's, runs the code, and exchanges them
-//! back. Frame documents run no scripts, so the code of the frame takes the
-//! paths of a page without JavaScript. What changes the page itself (a
+//! back. The exchange takes the runtime out, so the code of the frame takes
+//! the paths of a page without JavaScript, also when the frame's document has
+//! scripts (feature 12b2 gives the input events to them). What changes the page itself (a
 //! navigation) waits until the exchange is undone ([`Page::in_frame`] runs
 //! the deferred navigations). The page's own document then acts as the
 //! parent: its events and states see the `iframe` element where the frame
@@ -321,17 +322,7 @@ impl Page {
 
     /// The frames from the page's document down to `frame`.
     pub(super) fn frame_chain(&self, frame: FrameId) -> Vec<FrameId> {
-        let mut chain = vec![frame];
-        let mut at = frame;
-        while let Some(parent) = self.frames.get(at).and_then(|f| f.parent) {
-            chain.push(parent);
-            at = parent;
-            if chain.len() > MAX_DEPTH as usize + 2 {
-                break;
-            }
-        }
-        chain.reverse();
-        chain
+        self.frames.chain(frame)
     }
 
     /// True if the user can scroll the viewport of frame `id`: not for a
@@ -467,7 +458,7 @@ impl Page {
     /// Drops what the page keeps for frame `id`, which is destroyed: its
     /// input state, its hover and press, and the focus that it held (the
     /// focus falls to its parent).
-    pub(super) fn forget_frame_input(&mut self, id: FrameId) {
+    pub(super) fn forget_frame_input(&mut self, id: FrameId, parent: Option<FrameId>) {
         self.frame_inputs.remove(&id);
         self.input.hover_frames.retain(|&f| f != id);
         if self
@@ -481,7 +472,6 @@ impl Page {
         if self.input.focus_frame != Some(id) {
             return;
         }
-        let parent = self.frames.get(id).and_then(|f| f.parent);
         self.input.focus_frame = parent.filter(|&p| p != FrameId::TOP);
         self.sync_window_focus();
         match parent {

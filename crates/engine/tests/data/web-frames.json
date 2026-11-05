@@ -5824,6 +5824,981 @@
      ]
     }
    ]
+  },
+  {
+   "name": "scripted-parent-layout",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, d = f.contentDocument, o = [w.innerWidth, d.documentElement.clientWidth]; f.style.width = '222px'; o.push(w.innerWidth, d.documentElement.clientWidth); f.style.width = '230px'; o.push(d.documentElement.clientWidth, d.body.offsetWidth); f.style.width = '240px'; o.push(w.getComputedStyle(d.body).width); f.style.width = '250px'; o.push(d.body.getBoundingClientRect().width); f.style.width = '260px'; o.push(w.matchMedia('(min-width: 255px)').matches); f.style.display = 'none'; o.push(w.innerWidth, d.documentElement.clientWidth); f.style.display = ''; f.style.height = '70px'; o.push(w.innerHeight, w.matchMedia('(height: 70px)').matches); return o; })()",
+     "value": [
+      100,
+      100,
+      222,
+      222,
+      230,
+      214,
+      "224px",
+      234,
+      true,
+      260,
+      0,
+      70,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-initial-reuse",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => [wb === b.contentWindow, String(wb.x), db === b.contentDocument, Ab === wb.Array, String(db.defaultView === wb), n(db.URL), ws === s.contentWindow, String(ws.x), ds === s.contentDocument, n(ds.URL)])",
+     "value": [
+      true,
+      "1",
+      false,
+      true,
+      "false",
+      "about:blank",
+      true,
+      "2",
+      false,
+      "about:blank"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = a.contentWindow, d = a.contentDocument; w.y = 1; const p = new Promise(r => a.onload = r); a.src = 'c.html'; await p; const one = [w === a.contentWindow, String(w.y), d === a.contentDocument, String(d.defaultView === w)]; w.z = 1; const q = new Promise(r => a.onload = r); a.src = 'c.html?2'; await q; return [...one, w === a.contentWindow, String(w.y), String(w.z)]; })()",
+     "value": [
+      true,
+      "undefined",
+      false,
+      "false",
+      true,
+      "undefined",
+      "undefined"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = bl.contentWindow, d = bl.contentDocument; w.y = 1; const p = new Promise(r => bl.onload = r); bl.src = 'about:blank'; await p; return [w === bl.contentWindow, String(w.y), d === bl.contentDocument]; })()",
+     "value": [
+      true,
+      "undefined",
+      false
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(500).then(() => log.join())",
+     "value": "old load b,old timer b"
+    }
+   ]
+  },
+  {
+   "name": "scripted-retired",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[String(F.contentWindow), w.closed, w.length, String(w.parent), String(w.top), String(w.frameElement), w.name, typeof w.opener, w.document === d, w.frames === w, w.self === w, w.Sum(1, 2), new w.Array(3).length, E(() => w.eval('1 + 1')), E(() => new w.Function('return 3')())]",
+     "value": [
+      "null",
+      true,
+      0,
+      "null",
+      "null",
+      "null",
+      "",
+      "object",
+      true,
+      true,
+      true,
+      3,
+      3,
+      "2",
+      "3"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[p.tagName, p.textContent, d.body.children.length, d.getElementById('p') === p, d.readyState, d.URL, d.visibilityState, String(d.defaultView), d.documentElement.isConnected, E(() => d.createElement('i').tagName), E(() => { d.body.appendChild(d.createElement('p')); return d.body.children.length; }), E(() => { p.setAttribute('a', 'b'); return p.getAttribute('a'); }), d.querySelectorAll('p').length]",
+     "value": [
+      "P",
+      "text",
+      1,
+      true,
+      "complete",
+      "about:blank",
+      "hidden",
+      "null",
+      true,
+      "I",
+      "2",
+      "b",
+      2
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => L.href), E(() => w.location === L), E(() => L.pathname), E(() => { L.href = 'c.html'; return 'set'; }), E(() => { L.reload(); return 'reloaded'; }), E(() => L.href)]",
+     "value": [
+      "about:blank",
+      "true",
+      "blank",
+      "set",
+      "reloaded",
+      "about:blank"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => w.innerWidth), E(() => w.innerHeight), E(() => p.offsetWidth), E(() => w.getComputedStyle(p).width), E(() => w.getComputedStyle(p).display), E(() => p.getBoundingClientRect().width), E(() => w.matchMedia('(min-width: 1px)').matches), E(() => w.scrollY), E(() => d.body.innerText), E(() => d.hasFocus()), E(() => d.activeElement && d.activeElement.tagName)]",
+     "value": [
+      "0",
+      "0",
+      "0",
+      "",
+      "",
+      "0",
+      "false",
+      "0",
+      "text",
+      "false",
+      "BODY"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const o = []; let t = 'none'; o.push(E(() => typeof w.setTimeout(() => { log.push('timer after'); }, 0))); o.push(E(() => typeof w.setInterval(() => log.push('interval after'), 5))); o.push(E(() => typeof w.requestAnimationFrame(() => log.push('raf after')))); o.push(E(() => { w.queueMicrotask(() => log.push('microtask after')); return 'queued'; })); o.push(E(() => { w.Promise.resolve().then(() => log.push('promise after')); return 'then'; })); o.push(E(() => { w.postMessage('m', '*'); return 'posted'; })); o.push(E(() => w.dispatchEvent(new w.Event('x')))); o.push(E(() => typeof w.fetch('c.html').then(() => log.push('fetch ok'), e => log.push('fetch ' + e.name)))); o.push(E(() => { const r = new w.XMLHttpRequest(); r.open('GET', 'c.html'); r.onload = () => log.push('xhr ok'); r.onerror = () => log.push('xhr error'); r.send(); return r.readyState; })); await W(150); o.push(log.join()); return o; })()",
+     "value": [
+      "number",
+      "number",
+      "number",
+      "queued",
+      "then",
+      "posted",
+      "TypeError: w.Event is not a constructor",
+      "object",
+      "TypeError: w.XMLHttpRequest is not a constructor",
+      "microtask after,promise after,fetch TypeError"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => { d.open(); return 'opened ' + d.readyState; }), E(() => { d.write('<p>w'); return d.body ? d.body.innerHTML : 'no body'; }), E(() => { d.close(); return d.readyState; }), E(() => { const s = d.createElement('script'); s.textContent = 'window.ran = 1'; d.documentElement.appendChild(s); return String(w.ran); }), E(() => { const i = d.createElement('iframe'); d.documentElement.appendChild(i); return String(i.contentWindow); }), E(() => w.frames.length), E(() => { const i = new w.Image(); i.src = 'c.html'; return i.src.length > 0; })]",
+     "value": [
+      "opened loading",
+      "<p>w</p>",
+      "complete",
+      "undefined",
+      "null",
+      "0",
+      "TypeError: w.Image is not a constructor"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-self-remove",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => [log.join(' / '), document.querySelectorAll('iframe').length, frames.length])",
+     "value": [
+      "before true / parent load / after true null null complete object S number 0",
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-load-recursion",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; let depth = 0; const add = () => { const f = document.createElement('iframe'); f.onload = () => { o.push('load ' + depth + ' ' + (f.contentWindow !== null)); if (++depth < 4) add(); o.push('end ' + depth); }; o.push('append ' + depth); host.appendChild(f); o.push('appended ' + frames.length); }; add(); return o; })()",
+     "value": [
+      "append 0",
+      "load 0 true",
+      "append 1",
+      "load 1 true",
+      "append 2",
+      "load 2 true",
+      "append 3",
+      "load 3 true",
+      "end 4",
+      "appended 4",
+      "end 4",
+      "appended 4",
+      "end 4",
+      "appended 4",
+      "end 4",
+      "appended 4"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; host.textContent = ''; const f = document.createElement('iframe'); f.onload = () => { o.push('load ' + (f.contentWindow !== null)); f.remove(); o.push('removed ' + String(f.contentWindow)); }; host.appendChild(f); o.push('after ' + String(f.contentWindow) + ' ' + frames.length); return o; })()",
+     "value": [
+      "load true",
+      "removed null",
+      "after null 0"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; host.textContent = ''; const f = document.createElement('iframe'); let n1 = 0; f.onload = () => { n1++; o.push('load ' + n1); if (n1 === 1) { o.push('move'); document.body.appendChild(f); o.push('moved'); } }; host.appendChild(f); return [...o, frames.length, n1]; })()",
+     "value": [
+      "load 1",
+      "move",
+      "load 2",
+      "moved",
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; host.textContent = ''; const d = document.createElement('div'); const f = document.createElement('iframe'); f.onload = () => o.push('load'); d.appendChild(f); o.push('detached ' + String(f.contentWindow)); host.appendChild(d); o.push('connected ' + (f.contentWindow !== null)); const w = f.contentWindow; w.mark = 1; document.body.appendChild(f); o.push('same window ' + (f.contentWindow === w), String(f.contentWindow.mark), String(w.closed), String(w.mark)); d.remove(); f.remove(); return o; })()",
+     "value": [
+      "detached null",
+      "load",
+      "connected true",
+      "load",
+      "same window false",
+      "undefined",
+      "true",
+      "1"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; host.textContent = ''; host.innerHTML = \"<iframe id=i1 onload=\\\"log.push('i1 load')\\\"></iframe>\"; const i1 = document.getElementById('i1'); o.push('innerHTML ' + (i1.contentWindow !== null), log.join()); log.length = 0; const c = i1.cloneNode(); o.push('clone ' + String(c.contentWindow)); host.append(c); o.push('clone appended ' + (c.contentWindow !== null), log.join()); log.length = 0; const fr = document.createDocumentFragment(); const k = document.createElement('iframe'); k.onload = () => log.push('k load'); fr.append(k); host.prepend(fr); o.push('fragment ' + (k.contentWindow !== null), log.join()); log.length = 0; host.insertAdjacentHTML('beforeend', \"<div><iframe id=i2 onload=\\\"log.push('i2 load')\\\"></iframe></div>\"); o.push('adjacent ' + (document.getElementById('i2').contentWindow !== null), log.join()); log.length = 0; host.textContent = ''; o.push('emptied ' + frames.length + ' ' + String(i1.contentWindow)); return o; })()",
+     "value": [
+      "innerHTML true",
+      "i1 load",
+      "clone null",
+      "clone appended true",
+      "i1 load",
+      "fragment true",
+      "k load",
+      "adjacent true",
+      "i2 load",
+      "emptied 1 null"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-parser-frames",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => log)",
+     "value": [
+      "a load loading",
+      "script 1 true complete",
+      "b load",
+      "script 2",
+      "w load",
+      "written true",
+      "script 3 about:blank",
+      "dcl",
+      "c load",
+      "load"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-frame-document",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(500).then(() => log.filter(s => !s.startsWith('async')))",
+     "value": [
+      "inline loading C",
+      "written script",
+      "after write true",
+      "blocking loading",
+      "after sheet 7px",
+      "img load",
+      "rs interactive",
+      "defer interactive",
+      "inline module",
+      "module interactive",
+      "dcl",
+      "rs complete",
+      "load",
+      "onload",
+      "iframe load complete",
+      "pageshow",
+      "parent load"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { log.length = 0; const p = new Promise(r => f.onload = r); f.contentWindow.location.href = 'c.html'; await p; return log.slice(); })()",
+     "value": [
+      "pagehide",
+      "unload"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-location",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const o = []; const w = f.contentWindow; const go = a => new Promise(r => { f.onload = r; a(); }); await W(100); await go(() => w.location.href = 'l.html?1'); o.push(w.location.search); await go(() => w.location.assign('l.html?2')); o.push(w.location.search); await go(() => w.location.replace('l.html?3')); o.push(w.location.search); await go(() => w.location.reload()); o.push(w.location.search); await go(() => w.location = 'l.html?4'); o.push(w.location.search); w.location.hash = 'h'; o.push(w.location.href.split('/').pop(), f.contentDocument.URL.split('/').pop()); await W(50); return [...o, log.join()]; })()",
+     "value": [
+      "?1",
+      "?2",
+      "?3",
+      "?3",
+      "?4",
+      "l.html?4#h",
+      "l.html?4#h",
+      "child ,child ?1,child ?2,child ?3,child ?3,child ?4"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-none",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "?a",
+      "landed"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "",
+      "SecurityError: Failed to set the 'href' property on 'Location': The current window does not have permission to navigate the target frame to 'O/case/t.html?a'."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb-activation",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "",
+      "SecurityError: Failed to set the 'href' property on 'Location': The current window does not have permission to navigate the target frame to 'O/case/t.html?a'."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-top-sb-allowed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "?a",
+      "landed"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-parent-sb",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "",
+      "SecurityError: Failed to set the 'href' property on 'Location': The current window does not have permission to navigate the target frame to 'O/case/t.html?a'."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-replace-sb",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "",
+      "SecurityError: Failed to execute 'replace' on 'Location': The current window does not have permission to navigate the target frame to 'O/case/t.html?a'."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-nav-self-sb",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(r, 300)).then(() => [location.search, log.join().split(location.origin).join('O').replace(/case-\\d+/, 'case')])",
+     "value": [
+      "",
+      "no throw"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-submit",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => [a.contentWindow.location.search, n(a.contentDocument.URL), b.contentWindow.location.search, log.join()])",
+     "value": [
+      "",
+      "about:srcdoc",
+      "?q=2",
+      "a submitted,b submitted"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-window-members",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[frames.length, length, a.contentWindow.name, b.contentWindow.name, window.n1 === a.contentWindow, frames.n1 === a.contentWindow, String(window.b === b), window.shadow === frames[2], frames.hidden === e.contentWindow, kept, typeof frames[6], String(opener), String(a.contentWindow.opener), closed, a.contentWindow.closed, a.contentWindow.length, a.contentWindow.frameElement === a, String(frameElement), window.top === top, a.contentWindow.top === window, Object.keys(window).slice(0, 7).join(), Object.getOwnPropertyNames(window).slice(0, 6).join()]",
+     "value": [
+      5,
+      5,
+      "n1",
+      "",
+      true,
+      true,
+      "true",
+      true,
+      true,
+      1,
+      "undefined",
+      "null",
+      "null",
+      false,
+      false,
+      0,
+      true,
+      "null",
+      true,
+      true,
+      "0,1,2,3,4,window,self",
+      "0,1,2,3,4,Object"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "['name', 'opener', 'frameElement', 'parent', 'length', 'top', 'closed', 'frames'].map(k => { const d = Object.getOwnPropertyDescriptor(window, k); return k + ':' + (d ? [typeof d.get, typeof d.set, d.enumerable, d.configurable, d.value === undefined ? '' : String(d.value)].join(' ') : 'none'); })",
+     "value": [
+      "name:function function true true ",
+      "opener:function function true true ",
+      "frameElement:function undefined true true ",
+      "parent:function function true true ",
+      "length:function function true true ",
+      "top:function undefined true false ",
+      "closed:function undefined true true ",
+      "frames:function function true true "
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = a.contentWindow, o = []; w.name = 'n2'; o.push(w.name, window.n2 === w, String(window.n1), a.name, a.getAttribute('name')); a.name = 'n3'; o.push(w.name, String(window.n3), window.n2 === w); w.name = 5; o.push(typeof w.name, w.name); w.name = 'n2'; return o; })()",
+     "value": [
+      "n2",
+      true,
+      "undefined",
+      "n1",
+      "n1",
+      "n2",
+      "undefined",
+      true,
+      "string",
+      "5"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = a.contentWindow; const p = new Promise(r => a.onload = r); a.src = 'c.html?2'; await p; return [w.name, window.n2 === w]; })()",
+     "value": [
+      "n2",
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const o = []; window.opener = 7; o.push(opener); window.length = 9; o.push(length); window.parent = 8; o.push(parent); window.frames = 5; o.push(frames); return [...o, E(() => { 'use strict'; top = 1; return String(top === window); }), E(() => { window.frameElement = 3; return String(frameElement); }), E(() => { window.closed = 3; return String(closed); })]; })()",
+     "value": [
+      7,
+      9,
+      8,
+      5,
+      "TypeError: Cannot set property top of #<Window> which has only a getter",
+      "null",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = b.contentWindow; b.name = 'late'; return [w.name, String(window.late === w), String(window.late)]; })()",
+     "value": [
+      "",
+      "false",
+      "undefined"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = b.contentWindow, o = []; w.length = 9; o.push(w.length); o.push(Object.getOwnPropertyDescriptor(w, 'length').value); o.push(E(() => { window.name = 'top name'; return window.name; })); o.push(b.contentWindow.parent.name); return o; })()",
+     "value": [
+      9,
+      9,
+      "top name",
+      "top name"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-event-loop",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => log.slice().sort())",
+     "value": [
+      "frame io true",
+      "frame mq true",
+      "frame raf",
+      "frame ro 10",
+      "frame timer",
+      "parent raf",
+      "parent timer"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { log.length = 0; f.style.width = '150px'; await W(200); return log.slice(); })()",
+     "value": [
+      "frame resize 150",
+      "frame mq change false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { log.length = 0; const w = f.contentWindow; w.postMessage('m1', '*'); setTimeout(() => log.push('parent t0'), 0); w.setTimeout(() => log.push('w t0'), 0); await W(100); return log.slice(); })()",
+     "value": [
+      "frame message m1",
+      "parent t0",
+      "w t0"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { log.length = 0; const w = f.contentWindow; requestAnimationFrame(() => log.push('p1')); w.requestAnimationFrame(() => log.push('c1')); requestAnimationFrame(() => log.push('p2')); await W(100); return log.slice(); })()",
+     "value": [
+      "p1",
+      "p2",
+      "c1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "windowproxy",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[frames.length, window.frames === window, frames[0] === a.contentWindow, window.n1 === a.contentWindow, a.contentWindow.frameElement === a, a.contentWindow.parent === window, a.contentWindow.top === window, window.top === window, window.parent === window, String(window.frameElement), self === window, globalThis === window, a.contentWindow.window === a.contentWindow, a.contentDocument.defaultView === a.contentWindow, typeof frames[3], frames['n1'] === a.contentWindow, Object.keys(window).slice(0, 4).join(), JSON.stringify(Object.getOwnPropertyDescriptor(window, '0'), (k, v) => k === 'value' ? String(v === a.contentWindow) : v), '0' in window, '3' in window, frames[2] === z.contentWindow, String(a.contentWindow), Object.prototype.toString.call(a.contentWindow), a.contentWindow.name, b.contentWindow.name, history.length, E(() => { frames[0] = 1; return frames[0] === a.contentWindow; }), E(() => Object.defineProperty(window, '0', {value: 1}))]",
+     "value": [
+      3,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      "null",
+      true,
+      true,
+      true,
+      true,
+      "undefined",
+      true,
+      "0,1,2,window",
+      "{\"value\":\"true\",\"writable\":false,\"enumerable\":true,\"configurable\":true}",
+      true,
+      false,
+      true,
+      "[object Window]",
+      "[object Window]",
+      "n1",
+      "",
+      2,
+      "true",
+      "TypeError: Failed to set an indexed property [0] on 'Window': Index property setter is not supported."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = b.contentWindow; w.x = 1; const d0 = b.contentDocument; const p = new Promise(r => b.onload = r); b.src = 'c.html?2'; await p; return [w === b.contentWindow, String(w.x), w.document.URL.endsWith('?2'), d0 === b.contentDocument, String(d0.defaultView), history.length]; })()",
+     "value": [
+      true,
+      "undefined",
+      true,
+      false,
+      "null",
+      3
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const a = document.getElementById('a'); const w = a.contentWindow, d = a.contentDocument, A = w.Array; a.remove(); return [String(a.contentWindow), String(a.contentDocument), w.closed, String(w.parent), String(w.top), String(w.frameElement), w.document === d, typeof w.Array, frames.length, w.length, String(d.defaultView), Array.isArray(new A(2)), new A(1, 2).length, String(w.location.href), w.name, E(() => w.document.body.textContent)]; })()",
+     "value": [
+      "null",
+      "null",
+      true,
+      "null",
+      "null",
+      "null",
+      true,
+      "function",
+      2,
+      0,
+      "null",
+      true,
+      2,
+      "about:srcdoc",
+      "",
+      "a"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const p = new Promise(r => b.onload = r); b.contentWindow.location.href = 'c.html?3'; await p; const l1 = history.length; const q = new Promise(r => b.onload = r); b.contentWindow.location.replace('c.html?4'); await q; return [l1, history.length, b.contentWindow.location.search]; })()",
+     "value": [
+      4,
+      4,
+      "?4"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const p = new Promise(r => b.onload = r); history.back(); const t = await Promise.race([p.then(() => 'loaded'), W(1000).then(() => 'timeout')]); return [t, history.length, b.contentWindow.location.search, n(location.href)]; })()",
+     "value": [
+      "loaded",
+      4,
+      "?2",
+      "O/case-1/case-1.html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-scripts",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(Object.keys(A).sort().map(function (k) { return k + '=' + A[k]; })); }, 500); })",
+     "value": [
+      "attrHandlerValue=object",
+      "directCall=1",
+      "eval=2",
+      "functionCtor=1",
+      "idlHandlerOwnFn=1",
+      "idlHandlerParentFn=1",
+      "idleOwnFn=1",
+      "idleParentFn=1",
+      "intersectionOwnFn=1",
+      "intersectionParentFn=1",
+      "listenerOwnFn=1",
+      "listenerParentFn=1",
+      "messageOwnFn=1",
+      "messageParentFn=1",
+      "microtaskOwnFn=1",
+      "microtaskParentFn=1",
+      "mutationOwnFn=1",
+      "mutationParentFn=1",
+      "parentTimerOwnFn=1",
+      "promiseOwnFn=1",
+      "promiseParentFn=1",
+      "rafOwnFn=1",
+      "rafParentFn=1",
+      "resizeOwnFn=1",
+      "resizeParentFn=1",
+      "timerId=number",
+      "windowListenerOwnFn=1",
+      "windowListenerParentFn=1"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "Object.keys(B).sort().map(function (k) { return k + '=' + B[k]; })",
+     "value": [
+      "attrHandler=1",
+      "attrHandlerValue=function",
+      "directCall=1",
+      "eval=2",
+      "formJsUrl=1",
+      "functionCtor=1",
+      "idlHandlerOwnFn=1",
+      "idlHandlerParentFn=1",
+      "idleOwnFn=1",
+      "idleParentFn=1",
+      "imgError=1",
+      "insertedImgError=1",
+      "intersectionOwnFn=1",
+      "intersectionParentFn=1",
+      "intervalParentFn=1",
+      "linkJsUrl=1",
+      "listenerOwnFn=1",
+      "listenerParentFn=1",
+      "locationJsUrl=1",
+      "messageOwnFn=1",
+      "messageParentFn=1",
+      "microtaskOwnFn=1",
+      "microtaskParentFn=1",
+      "mutationOwnFn=1",
+      "mutationParentFn=1",
+      "nestedJsUrl=1",
+      "nestedScript=1",
+      "parentTimerOwnFn=1",
+      "promiseOwnFn=1",
+      "promiseParentFn=1",
+      "rafOwnFn=1",
+      "rafParentFn=1",
+      "resizeOwnFn=1",
+      "resizeParentFn=1",
+      "script=1",
+      "scriptElement=1",
+      "srcJsUrl=1",
+      "stringTimer=1",
+      "svgLoad=1",
+      "timerId=number",
+      "timerOwnFn=1",
+      "timerParentFn=1",
+      "windowListenerOwnFn=1",
+      "windowListenerParentFn=1"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "Object.keys(C).sort().map(function (k) { return k + '=' + C[k]; })",
+     "value": [
+      "attrHandlerValue=object",
+      "directCall=1",
+      "eval=2",
+      "functionCtor=1",
+      "idlHandlerOwnFn=1",
+      "idlHandlerParentFn=1",
+      "idleOwnFn=1",
+      "idleParentFn=1",
+      "intersectionOwnFn=1",
+      "intersectionParentFn=1",
+      "listenerOwnFn=1",
+      "listenerParentFn=1",
+      "messageOwnFn=1",
+      "messageParentFn=1",
+      "microtaskOwnFn=1",
+      "microtaskParentFn=1",
+      "mutationOwnFn=1",
+      "mutationParentFn=1",
+      "parentTimerOwnFn=1",
+      "promiseOwnFn=1",
+      "promiseParentFn=1",
+      "rafOwnFn=1",
+      "rafParentFn=1",
+      "resizeOwnFn=1",
+      "resizeParentFn=1",
+      "timerId=number",
+      "windowListenerOwnFn=1",
+      "windowListenerParentFn=1"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "Object.keys(D).sort().map(function (k) { return k + '=' + D[k]; })",
+     "value": []
+    },
+    {
+     "kind": "js",
+     "label": "Object.keys(E).sort().map(function (k) { return k + '=' + E[k]; })",
+     "value": [
+      "bodyLoad=1",
+      "script=1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-window-delete-index",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[delete window[0], delete window['0'], delete window[1], Reflect.deleteProperty(window, 0), Reflect.deleteProperty(window, 1), typeof window[0], Object.keys(window).includes('0'), strict(0), strict(1)]",
+     "value": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      "object",
+      true,
+      "TypeError: Failed to delete an indexed property [0] from 'Window': Index property deleter is not supported.",
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-sandbox-timing",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(Object.keys(H).sort()); }, 800); })",
+     "value": [
+      "c2",
+      "c4",
+      "c5"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "scripted-about-frame-state",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r([R.srcdocRead, R.srcdocAfter, R.nested, R.blankRead, R.blankAfter, R.topAfter, R.local, R.session, R.localBlank, R.sessionBlank, R.urls]); }, 400); })",
+     "value": [
+      "pth=1; tk=1",
+      "pth=1; tk=1; fsd=1",
+      "pth=1; tk=1; fsd=1",
+      "pth=1; tk=1; fsd=1",
+      "pth=1; tk=1; fsd=1; fbl=1",
+      "pth=1; tk=1; fsd=1; fbl=1",
+      "srcdoc",
+      "srcdoc",
+      "blank",
+      "blank",
+      [
+       "about:srcdoc",
+       "about:blank"
+      ]
+     ]
+    }
+   ]
   }
  ]
 }

@@ -339,6 +339,32 @@ impl Default for Scripts {
 }
 
 impl Scripts {
+    /// The document's parse ended without the runtime (it had no script when
+    /// it got its realm): `loading` if its `load` event is to come.
+    pub(crate) fn adopt_complete(&mut self, loading: bool) {
+        if loading {
+            self.phase = Phase::AfterContentLoaded;
+            self.readiness = DocumentReadyState::Interactive;
+        } else {
+            self.phase = Phase::Loaded;
+            self.readiness = DocumentReadyState::Complete;
+        }
+    }
+
+    /// The document left its frame (ADR 0031 section 5): nothing of its load
+    /// goes on, and its readiness is "complete" (measured).
+    pub(crate) fn retire(&mut self) {
+        self.phase = Phase::Unloaded;
+        self.readiness = DocumentReadyState::Complete;
+        self.page_showing = false;
+        self.pending_parsing_blocking = None;
+        self.deferred.clear();
+        self.in_order.clear();
+        self.asap.clear();
+        self.module_ready_queue.clear();
+        self.release_all();
+    }
+
     /// True if the document is "completely loaded" (HTML "completely
     /// finished loading"): its `load` event has fired and finished, or the
     /// runtime never started a load. A navigation through `location`
@@ -481,6 +507,7 @@ pub(crate) fn prepare(
     node: NodeId,
     parser: Option<ParserScript>,
 ) -> VmResult<Prepared> {
+    let scripting_disabled = state(rt)?.doc.scripts_off;
     let dom = dom(rt)?;
     let Some(element) = dom.element(node) else {
         return Ok(Prepared::Nothing);
@@ -544,8 +571,8 @@ pub(crate) fn prepare(
     el.already_started = true;
     el.prepared_in_document = found.in_document;
     // Scripting is disabled for an element of another document (the inert
-    // documents of template contents).
-    if !found.in_document || nomodule || !event_for {
+    // documents of template contents) and in a sandbox without `allow-scripts`.
+    if scripting_disabled || !found.in_document || nomodule || !event_for {
         return Ok(Prepared::Nothing);
     }
     let module = (!classic).then_some(ScriptFetchMode::Module { credentials });
@@ -1122,8 +1149,8 @@ pub(crate) fn fire(
     result
 }
 
-/// The HTML script elements that an insertion of `nodes` connected, in
-/// tree order (their inclusive descendants).
+/// The HTML `script` and `iframe` elements that an insertion of `nodes`
+/// connected, in tree order (their inclusive descendants).
 ///
 /// The search for scripts and the test of the connection (a walk up the
 /// parent chain) advance in turns, and stop as soon as one of them decides:
@@ -1131,7 +1158,7 @@ pub(crate) fn fire(
 /// O(min(depth of the parent, size of the subtree)), so a chain built in
 /// either direction stays linear. The search finishes only for a connected
 /// node.
-fn inserted_scripts(dom: &Document, nodes: &[NodeId]) -> Vec<NodeId> {
+fn inserted_with_steps(dom: &Document, nodes: &[NodeId]) -> Vec<NodeId> {
     let mut found = Vec::new();
     for &node in nodes {
         let mut subtree = dom.descendants(node);
@@ -1142,7 +1169,7 @@ fn inserted_scripts(dom: &Document, nodes: &[NodeId]) -> Vec<NodeId> {
         while searching || connected.is_none() {
             if searching {
                 match subtree.next() {
-                    Some(n) if is_script(dom, n) => scripts.push(n),
+                    Some(n) if has_steps(dom, n) => scripts.push(n),
                     Some(_) => {}
                     None => searching = false,
                 }
@@ -1161,7 +1188,7 @@ fn inserted_scripts(dom: &Document, nodes: &[NodeId]) -> Vec<NodeId> {
             }
         }
         if connected == Some(true) {
-            scripts.extend(subtree.filter(|&n| is_script(dom, n)));
+            scripts.extend(subtree.filter(|&n| has_steps(dom, n)));
             found.extend(scripts);
         }
     }
@@ -1173,6 +1200,14 @@ fn is_script(dom: &Document, node: NodeId) -> bool {
     dom.is_html_element(node, &local_name!("script"))
 }
 
+/// True for an HTML element with post-connection steps: `script`, `iframe`.
+fn has_steps(dom: &Document, node: NodeId) -> bool {
+    dom.element(node).is_some_and(|e| {
+        e.name.ns == swb_dom::ns!(html)
+            && (e.name.local == local_name!("script") || e.name.local == local_name!("iframe"))
+    })
+}
+
 /// The steps after `nodes` were inserted into `parent` by a script (DOM
 /// "insert", the children changed steps of a `script` parent, then the
 /// post-connection steps of the inserted script elements, HTML §4.12.1.1).
@@ -1182,13 +1217,17 @@ pub(crate) fn after_insertion(rt: &mut Runtime, parent: NodeId, nodes: &[NodeId]
     if is_script(dom(rt)?, parent) {
         children_changed(rt, parent)?;
     }
-    let found = inserted_scripts(dom(rt)?, nodes);
-    for script in found {
+    let found = inserted_with_steps(dom(rt)?, nodes);
+    for element in found {
         // An earlier script may have removed a later one.
-        if !dom(rt)?.is_connected(script) {
+        if !dom(rt)?.is_connected(element) {
             continue;
         }
-        post_connection(rt, script)?;
+        if is_script(dom(rt)?, element) {
+            post_connection(rt, element)?;
+        } else {
+            crate::frames::connected(rt, element)?;
+        }
     }
     Ok(())
 }

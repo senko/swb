@@ -77,7 +77,9 @@ HTMLElement includes ElementCSSInlineStyle;
 SVGElement includes ElementCSSInlineStyle;
 
 partial interface Window {
-  [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+  // swb's type for `elt`: `Element` in the standard. An element of another
+  // document works (measured); a node conversion looks in the current one.
+  [NewObject] CSSStyleDeclaration getComputedStyle(any elt, optional CSSOMString? pseudoElt);
 };
 
 [Exposed=Window]

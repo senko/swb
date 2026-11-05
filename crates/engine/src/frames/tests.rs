@@ -11,6 +11,15 @@ fn frame_ids_round_trip_and_stale_ids_find_nothing() {
     };
     assert_eq!(FrameId::from_u64(id.to_u64()), id);
     assert_eq!(FrameId::from_u64(0), FrameId::TOP);
+    // The number in the script runtime: below 2^31, the top level is 0.
+    assert_eq!(FrameId::from_number(id.number()), id);
+    assert_eq!(FrameId::TOP.number(), 0);
+    let last = FrameId {
+        index: 1023,
+        generation: MAX_GENERATION - 1,
+    };
+    assert_eq!(FrameId::from_number(last.number()), last);
+    assert!(last.number() < 1 << 31);
     let frames = Frames::new();
     assert!(frames.get(FrameId::TOP).is_some());
     assert!(

@@ -39,6 +39,9 @@ pub type WindowOwnPropertyHook =
 pub type WindowDefineHook =
     fn(&mut Runtime, Gc<Object>, PropertyKey, &PropertyDescriptor) -> VmResult<bool>;
 
+/// `child_frame` of a [`WindowProxyHooks`]: the object and the index.
+pub type ChildFrameHook = fn(&mut Runtime, Gc<Object>, u32) -> VmResult<Option<Gc<Object>>>;
+
 /// The internal methods of a `WindowProxy` without a target. Each hook
 /// follows the steps of HTML §7.2.3 for a cross-origin `Window`; it may
 /// throw. `[[IsExtensible]]` is not a hook: it is always true.
@@ -64,6 +67,12 @@ pub struct WindowProxyHooks {
     pub delete: fn(&mut Runtime, Gc<Object>, PropertyKey) -> VmResult<bool>,
     /// `[[OwnPropertyKeys]]`.
     pub own_keys: fn(&mut Runtime, Gc<Object>) -> VmResult<Vec<PropertyKey>>,
+    /// The number of child frames of the frame of a proxy (HTML "document-tree
+    /// child navigables"). A proxy with a target asks it too: the index keys
+    /// of a `WindowProxy` are the child frames, not properties of the target.
+    pub child_count: fn(&mut Runtime, Gc<Object>) -> VmResult<u32>,
+    /// The `WindowProxy` of the child frame at an index, in tree order.
+    pub child_frame: ChildFrameHook,
 }
 
 impl Runtime {
@@ -148,6 +157,20 @@ impl Runtime {
         ))
     }
 
+    /// The child frame of `proxy` at `index` (HTML §7.2.3.3 step 2.2), through
+    /// the hooks; a runtime without hooks has no frames.
+    fn window_child(&mut self, proxy: Gc<Object>, index: u32) -> VmResult<Option<Gc<Object>>> {
+        let Some(hooks) = self.vm.host.window_proxy else {
+            return Ok(None);
+        };
+        self.heap.record(proxy);
+        let child = self.hook_level(|rt| (hooks.child_frame)(rt, proxy, index))?;
+        if let Some(child) = child {
+            self.heap.record(child);
+        }
+        Ok(child)
+    }
+
     // --- The internal methods ---
 
     /// `[[GetPrototypeOf]]`.
@@ -215,6 +238,18 @@ impl Runtime {
         // The key may be an atom that only the caller's Rust code holds.
         self.heap.record(key);
         if let Some(target) = slot.target() {
+            // HTML §7.2.3.3: an array index names a child frame (measured:
+            // not writable, enumerable, configurable), and nothing else.
+            if let PropertyKey::Index(index) = key {
+                return Ok(self
+                    .window_child(proxy, index)?
+                    .map(|child| Property::Data {
+                        value: child.into(),
+                        writable: false,
+                        enumerable: true,
+                        configurable: true,
+                    }));
+            }
             return self.own_property(target, key);
         }
         let hooks = self.window_hooks()?;
@@ -275,6 +310,11 @@ impl Runtime {
     ) -> VmResult<bool> {
         self.heap.record(key);
         if let Some(target) = slot.target() {
+            if let PropertyKey::Index(index) = key
+                && self.window_child(proxy, index)?.is_some()
+            {
+                return Ok(true);
+            }
             return self.has_property(target, key);
         }
         let hooks = self.window_hooks()?;
@@ -292,6 +332,11 @@ impl Runtime {
     ) -> VmResult<Lookup> {
         self.heap.record(key);
         if let Some(target) = slot.target() {
+            if let PropertyKey::Index(index) = key
+                && let Some(child) = self.window_child(proxy, index)?
+            {
+                return Ok(Lookup::Value(child.into()));
+            }
             return self.get_with_receiver(target, key, receiver);
         }
         let hooks = self.window_hooks()?;
@@ -356,6 +401,17 @@ impl Runtime {
     ) -> VmResult<bool> {
         self.heap.record(key);
         if let Some(target) = slot.target() {
+            // HTML §7.2.3.6: an array index of a child frame stays; any other
+            // has no property (measured, case `scripted-window-delete-index`).
+            if let PropertyKey::Index(index) = key {
+                let child = self.window_child(proxy, index)?;
+                if child.is_some() && throw {
+                    return Err(VmError::type_error(format!(
+                        "Failed to delete an indexed property [{index}] from 'Window': Index property deleter is not supported."
+                    )));
+                }
+                return Ok(child.is_none());
+            }
             return self.delete_generic(target, key, throw);
         }
         let hooks = self.window_hooks()?;
@@ -378,7 +434,21 @@ impl Runtime {
         slot: WindowProxySlot,
     ) -> VmResult<Vec<PropertyKey>> {
         if let Some(target) = slot.target() {
-            return self.own_keys(target);
+            let keys = self.own_keys(target)?;
+            // HTML §7.2.3.8: the indices of the child frames come first.
+            let count = match self.vm.host.window_proxy {
+                Some(hooks) => {
+                    self.heap.record(proxy);
+                    self.hook_level(|rt| (hooks.child_count)(rt, proxy))?
+                }
+                None => 0,
+            };
+            if count == 0 {
+                return Ok(keys);
+            }
+            let mut all: Vec<PropertyKey> = (0..count).map(PropertyKey::Index).collect();
+            all.extend(keys);
+            return Ok(all);
         }
         let hooks = self.window_hooks()?;
         self.heap.record(proxy);

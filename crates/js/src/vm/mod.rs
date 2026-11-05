@@ -254,7 +254,7 @@ impl VmError {
     }
 
     /// A broken internal invariant.
-    pub(crate) fn invariant(message: &'static str) -> Self {
+    pub fn invariant(message: &'static str) -> Self {
         VmError::Internal(InternalError::Invariant(message))
     }
 }
@@ -447,6 +447,10 @@ pub(crate) struct Vm {
     /// The realm of the running code when no frame exists: 0, or the realm
     /// of a native function that the host called.
     pub(crate) base_realm: u32,
+    /// While a native function of another realm than its caller runs: the
+    /// number of frames at the call and the caller's realm
+    /// ([`Runtime::caller_realm`]).
+    pub(crate) native_caller: Option<(usize, u32)>,
     /// A termination that a native function requested
     /// ([`Runtime::terminate`]): every time check repeats it until the
     /// host's outermost run ends, so that no handler that dropped the error

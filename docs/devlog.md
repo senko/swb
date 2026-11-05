@@ -4,6 +4,46 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 12b1: scripts in same-origin frames
+
+- A frame document of the top-level document's origin runs its scripts in a
+  realm of the page's runtime (ADR 0031 "Done (feature 12b1)"): classic and
+  module scripts, `defer`, `async`, `document.write`, the load events in
+  Chromium's order, timers, animation frames, observers and media queries per
+  document.
+- Window members: `contentWindow`, `contentDocument`, `frames`, `length`, index
+  and named access, `parent`, `top`, `frameElement`, `opener`, `name`, `closed`,
+  `origin`, and `location` of a frame with the sandbox rules. `--eval-frame` and
+  the automation `page.evaluate` now run in frames.
+- `appendChild` of an `iframe` makes the frame inside the call, with `load` for
+  `about:blank`; a removal destroys it inside the call. A navigation started at
+  insertion keeps the `Window` of the initial document. A kept window of a removed
+  frame works as measured.
+- Design: the page shares a frame registry with its runtime for the length of a
+  task, and a document is lent at the first switch to it, so a task costs the
+  documents it touches. A frame that no script touches has no realm. 256 realms
+  per runtime.
+- Chromium 148: 22 cases `scripted-*`, three equal runs.
+- Found in two reviews, then fixed:
+  - A sandbox without `allow-scripts` ran scripts once a parent had read
+    `contentWindow`, because `scripts_off` only stopped script elements. It now also
+    stops handler attributes, `javascript:` URLs and that window's timers. The
+    reviewer proposed to stop animation frames too; the measurement said no:
+    they run in Chromium, as do observers and listeners that the parent adds.
+  - A navigation read its sandbox flags at the commit. It now has those of its
+    start, also for a change of `sandbox` later in the same task.
+  - `document.cookie` and `localStorage` did not work in `about:blank` and
+    `about:srcdoc` frames; they now use the creator's URL.
+  - A time limit in a frame's `load` listener held the page's load until the
+    timeout. `delete window[0]` returned `true`. A script that only an
+    ISO-2022-JP escape hides, or that only the HTTP `charset` can show, lost its
+    realm.
+- Known limit: the budget of 256 realms counts every document that ever had a
+  realm, so a long-lived page that replaces same-origin frames with scripts stops
+  running scripts in new frames after 255 (roadmap, backlog from M9).
+- Next: 12b2, adoption across arenas, the incumbent document, the window that gets
+  an error, input events to frame listeners.
+
 ## 2026-11-05: M9 feature 12a: `WindowProxy` and per-document binding state
 
 - Plumbing for scripts in frames (ADR 0031 section 5, ADR 0026 section 17,

@@ -71,7 +71,11 @@
 //! - Other services (feature 11): `clipboard` (`navigator.clipboard`) and
 //!   `dialogs` (`alert`, `confirm`, `prompt`, `print`); `mime` (the essence
 //!   of a MIME type string).
-//! - `host`: the [`EngineHost`] trait and the data types that cross it.
+//! - `host`: the [`EngineHost`] and [`FrameHost`] traits and the data types
+//!   that cross them.
+//! - `frames`: frames for scripts (ADR 0031 section 5): the realm of a frame
+//!   document at its first need, the members of `Window` and `iframe` that name
+//!   frames, making and destroying frames inside a task.
 
 mod abort;
 mod animation_frames;
@@ -97,6 +101,7 @@ mod fetch;
 mod file_api;
 #[rustfmt::skip]
 pub mod generated;
+mod frames;
 mod host;
 mod html;
 mod idle_callbacks;
@@ -131,9 +136,9 @@ pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
     ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins, FormDataEntry, FormDataValue,
-    ImageInfo, NavigationInfo, NavigationKind, ObservedBox, ObservedPosition, OffsetMetrics,
-    RangeTextMode, ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange,
-    Viewport,
+    FrameHost, ImageInfo, LentDocuments, NavigationInfo, NavigationKind, NewFrame, ObservedBox,
+    ObservedPosition, OffsetMetrics, RangeTextMode, RetiredFrame, ScrollAlign, ScrollMetrics,
+    ScrollRequest, SelectionKey, SelectionRange, Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{

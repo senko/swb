@@ -49,7 +49,7 @@ use swb_style::cssom::{self, StyleDeclarations, WriteBudget, resolved};
 use crate::bindings::{self as b, Context, Cx, Platform};
 use crate::dom::set_attribute;
 use crate::generated as g;
-use crate::state::{Slot, WebState, dom, engine_mut, same_object, state, state_mut};
+use crate::state::{Slot, WebState, dom, same_object, state, state_mut};
 
 /// The block of an element's `style` attribute, with what it was built
 /// from.
@@ -316,7 +316,9 @@ fn resolved_value(
     property: &str,
 ) -> b::Result<String> {
     let value = match target {
-        Target::Computed(pseudo) => engine_mut(rt)?.resolved_value(element, pseudo, property),
+        Target::Computed(pseudo) => {
+            crate::state::engine_laid_out(rt)?.resolved_value(element, pseudo, property)
+        }
         Target::Inline | Target::Empty | Target::Rule => return Ok(String::new()),
     };
     // A flush can take long; the countdown of the time limit does not see
@@ -337,7 +339,7 @@ fn custom_names(
     let Target::Computed(pseudo) = target else {
         return Ok(None);
     };
-    Ok(engine_mut(rt)?
+    Ok(crate::state::engine_laid_out(rt)?
         .computed_style(element, pseudo)
         .map(|style| resolved::custom_property_names(&style)))
 }

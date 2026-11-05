@@ -164,7 +164,7 @@ fn evaluate(page: &mut Page, requests: &[EvalRequest], timeout: Duration) -> Res
                 JsonForm::Probe,
                 timeout,
             )),
-            Some(path) => frame_answer_line(page, path),
+            Some(path) => frame_answer_line(page, path, &request.expression, timeout),
         };
         writeln!(out, "{line}").context("cannot write to standard output")?;
         // The tasks that are due now run between two expressions, as they
@@ -176,15 +176,15 @@ fn evaluate(page: &mut Page, requests: &[EvalRequest], timeout: Duration) -> Res
 }
 
 /// The answer line for an expression in the frame of `path`: an error line
-/// for a path that finds no frame, and for a frame (frame documents run no
-/// scripts yet: ADR 0031 section 14, features 12 and 13).
-fn frame_answer_line(page: &mut Page, path: &str) -> String {
+/// for a path that finds no frame, and for a frame without scripts in this
+/// runtime (another origin: ADR 0031 section 14, feature 13).
+fn frame_answer_line(page: &mut Page, path: &str, expression: &str, timeout: Duration) -> String {
     let message = match swb_automation::resolve_frame(page, path) {
         Err(error) => format!("FrameError: {error}"),
-        Ok(_) => {
-            "FrameError: the frame has no script runtime (scripts in frames are not supported yet)"
-                .to_owned()
-        }
+        Ok(frame) => match page.evaluate_in_frame(frame, expression, JsonForm::Probe, timeout) {
+            Some(evaluation) => return answer_line(Some(evaluation)),
+            None => "FrameError: the frame has no script runtime".to_owned(),
+        },
     };
     serde_json::json!({ "error": message }).to_string()
 }

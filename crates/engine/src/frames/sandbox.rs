@@ -4,12 +4,12 @@
 //!
 //! swb uses these flags: without `allow-same-origin` the frame's document
 //! has an opaque origin; without `allow-scripts` its scripts do not run
-//! (frame documents run no scripts before M9 feature 12, so this flag
-//! waits for it); without `allow-forms` its forms do not submit; without
+//! (the frame's document parses to its end with no realm; a parent of the same
+//! origin can still reach its nodes); without `allow-forms` its forms do not submit; without
 //! `allow-popups` it opens no new browsing context; the
 //! `allow-top-navigation` tokens let it navigate the top level, and a
 //! sandboxed frame navigates only itself and its descendants otherwise
-//! (`Page::may_navigate`, measured, cases `input-target-sb-*`). The other
+//! (`Frames::may_navigate`, measured, cases `input-target-sb-*`). The other
 //! tokens are parsed and ignored: they gate modals and downloads, which
 //! swb lacks in frames.
 
@@ -106,11 +106,17 @@ impl Sandbox {
         !self.sandboxed || self.allow_popups
     }
 
-    /// True if a sandbox lets the frame navigate the top level. Every
-    /// navigation that reaches this check comes from the user's input
-    /// while frame documents run no scripts, so the
-    /// `allow-top-navigation-by-user-activation` token counts; scripts in
-    /// frames (feature 12) need the activation.
+    /// True if a sandbox lets a script of the frame navigate the top level:
+    /// swb has no activation tracking, so the `by-user-activation` token
+    /// refuses (measured with no activation, case
+    /// `scripted-nav-top-sb-activation`).
+    pub fn script_top_navigation_allowed(self) -> bool {
+        !self.sandboxed || self.allow_top_navigation
+    }
+
+    /// True if a sandbox lets the user's input in the frame navigate the top
+    /// level: the input is the activation, so the
+    /// `allow-top-navigation-by-user-activation` token counts.
     pub fn top_navigation_allowed(self) -> bool {
         !self.sandboxed || self.allow_top_navigation || self.allow_top_navigation_by_user_activation
     }

@@ -747,8 +747,11 @@ impl Runtime {
         site: CallSite,
     ) -> VmResult<NativeReturn> {
         let caller = self.current_realm();
+        let depth = self.vm.frames.len();
+        let outer = self.vm.native_caller.replace((depth, caller));
         self.set_running_realm(realm);
         let result = self.run_native_here(function, func, realm, site);
+        self.vm.native_caller = outer;
         // The error object of a `Raise` is made in the function's realm.
         let result = match result {
             Err(VmError::Raise { kind, message }) => match self.error_object(kind, &message) {

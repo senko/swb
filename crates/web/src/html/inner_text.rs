@@ -24,11 +24,11 @@ use swb_js::Runtime;
 use crate::bindings::{self as b, Cx};
 use crate::dom::dom_result;
 use crate::dom::tree_ops::{pre_remove, replace, replace_all};
-use crate::state::{dom, dom_mut, engine_mut};
+use crate::state::{dom, dom_mut};
 
 /// The `innerText` and `outerText` getters.
 pub(crate) fn get(rt: &mut Runtime, element: NodeId) -> b::Result<String> {
-    let text = engine_mut(rt)?.inner_text(element);
+    let text = crate::state::engine_laid_out(rt)?.inner_text(element);
     rt.check_time()?;
     match text {
         Some(text) => Ok(text),

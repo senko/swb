@@ -197,6 +197,9 @@ impl ScriptRuntime {
             let fired = crate::scripts::fire(rt, DispatchTarget::Window, &load);
             crate::performance::record(rt, Milestone::LoadEnd);
             fired.map_err(task_error)?;
+            // The `load` event of the `iframe` element comes before
+            // `pageshow` (measured).
+            crate::frames::container_load(rt).map_err(task_error)?;
             scripts_mut(rt).map_err(task_error)?.page_showing = true;
             let pageshow = page_transition("pageshow");
             crate::scripts::fire(rt, DispatchTarget::Window, &pageshow).map_err(task_error)?;
@@ -225,26 +228,10 @@ impl ScriptRuntime {
     /// the page was shown) and `unload` at the window. No script runs after
     /// it.
     pub fn unload_document(&mut self) {
-        let Ok(scripts) = scripts_mut(&mut self.rt) else {
-            return;
-        };
-        if scripts.phase == Phase::Unloaded {
+        if !scripts(&self.rt).is_ok_and(|s| s.phase != Phase::Unloaded) {
             return;
         }
-        scripts.phase = Phase::Unloaded;
-        let showing = std::mem::replace(&mut scripts.page_showing, false);
-        let _ = self.task("the unload", |rt| {
-            if showing {
-                let pagehide = page_transition("pagehide");
-                crate::scripts::fire(rt, DispatchTarget::Window, &pagehide).map_err(task_error)?;
-            }
-            let unload = TrustedEvent {
-                legacy_target_override: true,
-                ..TrustedEvent::new("unload")
-            };
-            crate::scripts::fire(rt, DispatchTarget::Window, &unload).map_err(task_error)?;
-            Ok(())
-        });
+        let _ = self.task("the unload", |rt| unload_steps(rt).map_err(task_error));
     }
 
     /// The load stopped (the user stopped it): the parse and the waiting
@@ -337,14 +324,19 @@ impl ScriptRuntime {
     fn parse_steps(&mut self) {
         loop {
             // A script that `document.write` put into the document holds
-            // the parser (HTML "pending parsing-blocking script").
-            if scripts(&self.rt).is_ok_and(|s| s.pending_parsing_blocking.is_some()) {
+            // the parser (HTML "pending parsing-blocking script"). A script
+            // may have removed the document's own `iframe` (measured: the
+            // parse ends there, case `scripted-self-remove`).
+            if scripts(&self.rt)
+                .is_ok_and(|s| s.pending_parsing_blocking.is_some() || s.phase != Phase::Parsing)
+            {
                 return;
             }
             let step = match engine_mut(&mut self.rt) {
                 Ok(host) => host.parse_step(),
                 Err(_) => return,
             };
+            self.connect_parser_frames();
             let Some((ParseStep::Script(node), position)) = step else {
                 if self.defer_parse_end() {
                     self.queue_resume();
@@ -368,6 +360,21 @@ impl ScriptRuntime {
                 Ok(Prepared::Nothing) => {}
                 Err(error) => log::warn!("a script element was not prepared: {error:?}"),
             }
+        }
+    }
+
+    /// The `iframe` elements of the parser's last step get their frames, in a
+    /// task, because the `load` of a frame without a document to load runs
+    /// listeners.
+    fn connect_parser_frames(&mut self) {
+        let inserted = match engine_mut(&mut self.rt) {
+            Ok(host) => host.take_inserted_frames(),
+            Err(_) => return,
+        };
+        if !inserted.is_empty() {
+            let _ = self.task("an iframe element", |rt| {
+                crate::frames::parser_inserted(rt, inserted).map_err(task_error)
+            });
         }
     }
 
@@ -444,6 +451,9 @@ impl ScriptRuntime {
             fired.map_err(task_error)?;
             Ok(())
         });
+        if let Ok(state) = crate::state::state_mut(&mut self.rt) {
+            state.frame_load_due = state.doc.key != 0;
+        }
     }
 
     /// Runs the ready scripts at the front of the in-order list.
@@ -525,6 +535,27 @@ impl ScriptRuntime {
             log::warn!("the parser task was not queued: {error:?}");
         }
     }
+}
+
+/// HTML "unload a document" in the current document: `pagehide` (if the page
+/// was shown) and `unload` at the window. Nothing the second time.
+pub(crate) fn unload_steps(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {
+    let scripts = scripts_mut(rt)?;
+    if scripts.phase == Phase::Unloaded {
+        return Ok(());
+    }
+    scripts.phase = Phase::Unloaded;
+    let showing = std::mem::replace(&mut scripts.page_showing, false);
+    if showing {
+        let pagehide = page_transition("pagehide");
+        crate::scripts::fire(rt, DispatchTarget::Window, &pagehide)?;
+    }
+    let unload = TrustedEvent {
+        legacy_target_override: true,
+        ..TrustedEvent::new("unload")
+    };
+    crate::scripts::fire(rt, DispatchTarget::Window, &unload)?;
+    Ok(())
 }
 
 /// HTML "update the current document readiness": sets it and fires

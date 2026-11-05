@@ -11,29 +11,12 @@ use crate::common::on_page_thread;
 /// The rows where swb departs on purpose: (query, row of the array, why).
 /// Each is a difference in what the window has, not in how the proxy
 /// forwards.
-const DEPARTURES: &[(usize, usize, &str)] = &[
-    (
-        0,
-        25,
-        "window.opener is missing (null in Chromium): a member of feature 12b",
-    ),
-    (
-        0,
-        27,
-        "window.frameElement is missing (null in Chromium): a member of feature 12b",
-    ),
-    (
-        2,
-        17,
-        "window.name is missing (an accessor in Chromium): a member of feature 12b",
-    ),
-    (
-        6,
-        17,
-        "eval of a function whose global property is not configurable: swb has the TypeError of \
+const DEPARTURES: &[(usize, usize, &str)] = &[(
+    6,
+    17,
+    "eval of a function whose global property is not configurable: swb has the TypeError of \
          ECMA-262 §19.2.1.3, V8 a SyntaxError; not a matter of the proxy",
-    ),
-];
+)];
 
 /// The differences of two values, by path.
 fn differences(path: &str, swb: &Json, chromium: &Json, out: &mut Vec<String>) {

@@ -14,6 +14,7 @@ use swb_layout::{BoxContent, FragmentRef, Size};
 use swb_net::{Request, RequestId, Reservation, Url};
 
 use super::DocumentState;
+use crate::frames::Sandbox;
 
 /// The changes of `iframe` elements since the page last took them, in the
 /// order of the journal. A moved `iframe` is in both lists: its frame is
@@ -24,16 +25,23 @@ pub(crate) struct FrameChanges {
     pub(crate) inserted: Vec<NodeId>,
     /// `iframe` elements in removed subtrees.
     pub(crate) removed: Vec<NodeId>,
-    /// `iframe` elements whose `src` or `srcdoc` was set (HTML "process
-    /// the iframe attributes"), once per set. (`sandbox` applies at the
-    /// next navigation; the page reads it then.)
-    pub(crate) attributes: Vec<NodeId>,
-    /// `iframe` elements whose `name` changed.
-    pub(crate) names: Vec<NodeId>,
+    /// The sets of `src` or `srcdoc` of `iframe` elements (HTML "process the
+    /// iframe attributes").
+    pub(crate) attributes: Vec<FrameAttributeSet>,
     /// True after a walk of the whole document (an incomplete journal):
     /// the page compares its frames with the `iframe` elements of the
     /// document.
     pub(crate) rescan: bool,
+}
+
+/// One set of `src` or `srcdoc` of an `iframe`. The page acts on it after the
+/// task, and the navigation has the sandboxing flags of the set (measured, case
+/// `scripted-sandbox-timing`), so it comes with the flags of that moment.
+#[derive(Debug)]
+pub(crate) struct FrameAttributeSet {
+    pub(crate) node: NodeId,
+    /// The flags of the `sandbox` attribute at the set, without the parent's.
+    pub(crate) sandbox: Sandbox,
 }
 
 impl FrameChanges {
@@ -43,7 +51,6 @@ impl FrameChanges {
             && self.inserted.is_empty()
             && self.removed.is_empty()
             && self.attributes.is_empty()
-            && self.names.is_empty()
     }
 }
 

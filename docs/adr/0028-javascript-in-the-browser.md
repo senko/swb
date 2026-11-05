@@ -5301,7 +5301,10 @@ measurements and the decisions.
   end in 0.1 to 0.2 s.
 
 **Feature 12a: per-document binding state (ADR 0031 section 5).** A runtime
-holds several documents, and the page still has one in each runtime.
+holds several documents. (Since feature 12b1 a page's same-origin frame
+documents are documents of its runtime; `DocState` also has the frame number,
+`retired`, the takeover of a window by the next document, `scripts_off`, and
+`WebState` the frame registry and the list of documents that a task borrowed.)
 
 - **The split** (`state.rs`). `DocState`: the lent `EngineHost`, wrappers, the
   side table, attribute objects, list and token caches, parsed documents, form

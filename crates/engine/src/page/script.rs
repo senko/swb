@@ -1,8 +1,10 @@
 //! The scripts of the page (ADR 0028 sections 2 and 7): one script runtime
-//! per document with JavaScript on, created when the document commits and
-//! dropped with it (a navigation, a reload, or a heap-limit stop). The page
-//! lends the document state to the runtime for each task and takes it back
-//! afterwards, which processes the DOM changes of the task.
+//! per top-level document with JavaScript on, created when the document
+//! commits and dropped with it (a navigation, a reload, or a heap-limit stop).
+//! The page lends the document state to the runtime for each task and takes it
+//! back afterwards, which processes the DOM changes of the task. The frame
+//! documents of the page's origin are documents of the same runtime (ADR 0031
+//! section 5, [`Page::run_task_in`]).
 //!
 //! The runtime drives the parse of its document ([`Page::start_scripts`],
 //! feature 5c): the parser stops at each script, inline scripts run at
@@ -26,6 +28,8 @@
 //! them follow the page clock: in virtual time the clock jumps to the next
 //! task when nothing runs and no request is pending.
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use swb_text::FontContext;
@@ -35,7 +39,8 @@ use swb_web::{
 };
 
 use super::Page;
-use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation};
+use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
+use crate::frames::{FrameId, FrameTarget};
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
 /// 60 Hz), so that the embedder's loop stays responsive.
@@ -87,6 +92,7 @@ impl Page {
             self.create_runtime();
         }
         if self.script.is_some() {
+            self.frames.top_mut().script = Some(swb_web::DocumentKey::FIRST);
             self.run_task(ScriptRuntime::start_document);
             self.check_load_event();
         }
@@ -95,13 +101,15 @@ impl Page {
 
     fn create_runtime(&mut self) {
         let started = Instant::now();
-        let runtime = match ScriptRuntime::new(self.clock.clone()) {
+        let mut runtime = match ScriptRuntime::new(self.clock.clone()) {
             Ok(runtime) => runtime,
             Err(error) => {
                 log::warn!("cannot create the script runtime: {error}");
                 return;
             }
         };
+        let registry: Rc<RefCell<dyn swb_web::FrameHost>> = self.registry.clone();
+        runtime.set_frame_host(registry, Rc::clone(&self.frames.count_cell));
         log::debug!(
             "script runtime created in {:?} (heap {} bytes)",
             started.elapsed(),
@@ -118,7 +126,7 @@ impl Page {
             && doc.is_parsing()
         {
             doc.run_parser();
-            self.update_frames(super::FrameId::TOP);
+            self.update_frames(FrameId::TOP);
         }
     }
 
@@ -126,39 +134,57 @@ impl Page {
     /// order of arrival, and tells it when style sheets arrived (a script
     /// may wait for them); then fires `load` if it is due.
     pub(super) fn deliver_scripts(&mut self, sheets_changed: bool) {
-        let arrived = match self.doc.as_deref_mut() {
+        self.deliver_scripts_in(FrameId::TOP, sheets_changed);
+    }
+
+    /// [`Page::deliver_scripts`] for the document of `frame`.
+    pub(super) fn deliver_scripts_in(&mut self, frame: FrameId, sheets_changed: bool) {
+        let arrived = match self.doc_of_mut(frame) {
             Some(doc) => doc.take_arrived_scripts(),
             None => return,
         };
-        if self.script.is_none() {
+        let Some(key) = self.script_key(frame) else {
             return;
-        }
+        };
         for (node, script) in arrived {
-            self.run_task(|runtime| runtime.script_fetched(node, script));
+            self.run_task_in(frame, |runtime| runtime.script_fetched(node, script));
         }
         if sheets_changed
             && self
                 .script
                 .as_ref()
-                .is_some_and(ScriptRuntime::waits_for_style_sheets)
+                .is_some_and(|s| s.waits_for_style_sheets_in(key))
         {
-            self.run_task(ScriptRuntime::style_sheets_changed);
+            self.run_task_in(frame, ScriptRuntime::style_sheets_changed);
         }
         self.check_load_event();
+    }
+
+    /// The key of the document of `frame` in the runtime, if it has a realm.
+    fn script_key(&self, frame: FrameId) -> Option<swb_web::DocumentKey> {
+        self.script.as_ref()?;
+        self.frames.get(frame)?.script
     }
 
     /// Hands the results of the `fetch()` calls that arrived to the
     /// runtime, in order of arrival: each settles its promise in a task.
     pub(super) fn deliver_api_fetches(&mut self) {
-        let arrived = match self.doc.as_deref_mut() {
+        self.deliver_api_fetches_in(FrameId::TOP);
+    }
+
+    /// [`Page::deliver_api_fetches`] for the document of `frame`.
+    pub(super) fn deliver_api_fetches_in(&mut self, frame: FrameId) {
+        let arrived = match self.doc_of_mut(frame) {
             Some(doc) => doc.take_arrived_api_fetches(),
             None => return,
         };
-        if self.script.is_none() {
+        if self.script_key(frame).is_none() {
             return;
         }
         for (id, result, kind, reservation) in arrived {
-            self.run_task(|runtime| runtime.api_fetch_completed(id, result, kind));
+            self.run_task_in(frame, |runtime| {
+                runtime.api_fetch_completed(id, result, kind);
+            });
             // The body is in the script heap now (or was dropped): its bytes
             // leave the document's budget.
             drop(reservation);
@@ -170,30 +196,66 @@ impl Page {
     /// delivery. The loops that wait for the page's activity wait for it
     /// too; the `load` event does not.
     pub(super) fn has_pending_api_fetches(&self) -> bool {
-        self.doc
-            .as_deref()
-            .is_some_and(|d| d.has_pending_api_fetches() || d.has_element_events())
+        let pending = |d: &DocumentState| d.has_pending_api_fetches() || d.has_element_events();
+        if self.doc.as_deref().is_some_and(pending) {
+            return true;
+        }
+        self.frames_may_have_realms()
+            && self
+                .frames
+                .tree_order()
+                .into_iter()
+                .skip(1)
+                .filter_map(|id| self.frames.get(id)?.doc.as_deref())
+                .any(pending)
+    }
+
+    /// True if a frame document can have a realm: a page whose frames no
+    /// script touched does not walk them for what only a realm gives.
+    pub(super) fn frames_may_have_realms(&self) -> bool {
+        self.frames.count() > 0
+            && self
+                .script
+                .as_ref()
+                .is_some_and(ScriptRuntime::has_several_documents)
     }
 
     /// Hands the `load` and `error` events of images and style sheets that
     /// the document queued to the runtime (feature 10b), one slice at a
     /// time. Returns true if it delivered any.
     pub(super) fn deliver_element_events(&mut self) -> bool {
-        if self.script.is_none() {
-            // Without a runtime nothing listens; drop the events.
-            if let Some(doc) = self.doc.as_deref_mut() {
-                doc.take_element_events();
-            }
+        self.deliver_element_events_in(FrameId::TOP)
+    }
+
+    /// The element events of the frame documents that wait for delivery.
+    /// Returns true if it delivered any.
+    fn deliver_frame_element_events(&mut self) -> bool {
+        if self.lent || !self.frames_may_have_realms() {
             return false;
         }
-        let events = match self.doc.as_deref_mut() {
+        let mut delivered = false;
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            if self
+                .doc_of(id)
+                .is_some_and(DocumentState::has_element_events)
+            {
+                delivered |= self.deliver_element_events_in(id);
+            }
+        }
+        delivered
+    }
+
+    /// [`Page::deliver_element_events`] for the document of `frame`.
+    pub(super) fn deliver_element_events_in(&mut self, frame: FrameId) -> bool {
+        let events = match self.doc_of_mut(frame) {
             Some(doc) => doc.take_element_events(),
             None => return false,
         };
-        if events.is_empty() {
+        // Without a realm nothing listens; the events go.
+        if self.script_key(frame).is_none() || events.is_empty() {
             return false;
         }
-        self.run_task(|runtime| runtime.element_events(events));
+        self.run_task_in(frame, |runtime| runtime.element_events(events));
         self.check_load_event();
         true
     }
@@ -254,6 +316,33 @@ impl Page {
         self.script.as_ref().is_some_and(|s| !s.document_loaded())
     }
 
+    /// The load of the frame documents with a realm stops
+    /// ([`Page::stop`]).
+    pub(super) fn abort_frame_documents(&mut self) {
+        if self.frames.count() == 0 {
+            return;
+        }
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
+                self.run_task_in(id, ScriptRuntime::abort_document);
+            }
+        }
+    }
+
+    /// Fires `pagehide` and `unload` at the windows of the frame documents
+    /// with a realm, children first (HTML "unload a document and its
+    /// descendants").
+    pub(super) fn unload_frames(&mut self) {
+        if self.frames.count() == 0 {
+            return;
+        }
+        for id in self.frames.descendants_post_order(FrameId::TOP) {
+            if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
+                self.run_task_in(id, ScriptRuntime::unload_document);
+            }
+        }
+    }
+
     /// Fires `pagehide` and `unload` at the window of the current document
     /// (HTML "unload a document"); a navigation calls it before it
     /// replaces the document.
@@ -268,12 +357,40 @@ impl Page {
     /// that reached the heap limit is dropped afterwards (ADR 0028 section
     /// 7). `None` without a runtime or a document.
     pub(crate) fn run_task<R>(&mut self, task: impl FnOnce(&mut ScriptRuntime) -> R) -> Option<R> {
+        self.run_task_in(FrameId::TOP, task)
+    }
+
+    /// [`Page::run_task`] with the document of `frame` as the current one.
+    ///
+    /// The runtime gets the top-level document and, in the registry, the
+    /// frame tree (ADR 0031 section 5). A native that reaches another document
+    /// borrows it from the registry; the page takes back what the task
+    /// borrowed. So a task costs what it touches, not the number of documents
+    /// with a realm. `None` if the document has no realm.
+    pub(crate) fn run_task_in<R>(
+        &mut self,
+        frame: FrameId,
+        task: impl FnOnce(&mut ScriptRuntime) -> R,
+    ) -> Option<R> {
         self.script.as_ref()?;
+        let key = if frame == FrameId::TOP {
+            None
+        } else {
+            Some(self.frames.get(frame)?.script?)
+        };
         let state = self.take_document_state()?;
-        let script = self.script.as_mut()?;
+        self.enter_registry();
+        let script = self.script.as_mut().expect("the runtime was checked above");
         script.lend(state);
-        let result = task(script);
+        let result = match key {
+            None => Some(task(script)),
+            Some(key) => script.with_document(key, task),
+        };
         let state = script.take_back();
+        let borrowed = script.take_back_documents();
+        let after_task = self.leave_registry();
+        let returned = self.file_borrowed_documents(borrowed);
+        self.made_in_task.extend(after_task.created.iter().copied());
         if let Some(state) = state.and_then(|s| s.into_any().downcast::<DocumentState>().ok()) {
             self.return_document_state(state);
         } else {
@@ -285,6 +402,11 @@ impl Page {
             self.lent = false;
             self.fonts = FontContext::system();
         }
+        for &id in &returned {
+            self.update_frames(id);
+            self.update_frame_charge(id);
+        }
+        self.after_frame_changes(after_task);
         if self.script.as_ref().is_some_and(ScriptRuntime::failed) {
             log::warn!(
                 "the script runtime of the document reached the heap limit and is dropped; the page stays as it is"
@@ -292,10 +414,178 @@ impl Page {
             self.script = None;
             self.scripts_dropped = true;
             self.finish_parse_without_scripts();
+            self.frames_lose_runtime();
         }
         self.finish_stopped_scripts();
         self.act_on_script_requests();
-        Some(result)
+        for id in returned {
+            self.act_on_frame_requests(id);
+        }
+        result
+    }
+
+    /// Moves the frame tree into the registry, for the natives of a task.
+    fn enter_registry(&mut self) {
+        let settings = self.frame_settings();
+        let mut registry = self.registry.borrow_mut();
+        registry.settings = settings;
+        std::mem::swap(&mut self.frames, &mut registry.frames);
+    }
+
+    /// Moves the frame tree back; what the task left for the page.
+    fn leave_registry(&mut self) -> crate::frames::registry::AfterTask {
+        let mut registry = self.registry.borrow_mut();
+        std::mem::swap(&mut self.frames, &mut registry.frames);
+        std::mem::take(&mut registry.after_task)
+    }
+
+    /// Calls `f` with the runtime and the frame tree in the registry, without
+    /// a task and without a lent document: an operation of the runtime that
+    /// reads or changes the tree.
+    pub(super) fn with_registry<R>(
+        &mut self,
+        f: impl FnOnce(&mut ScriptRuntime) -> R,
+    ) -> Option<R> {
+        self.script.as_ref()?;
+        self.enter_registry();
+        let result = self.script.as_mut().map(f);
+        let after_task = self.leave_registry();
+        self.after_frame_changes(after_task);
+        result
+    }
+
+    /// Puts the documents that a task borrowed back into their frames.
+    /// Returns the frames.
+    fn file_borrowed_documents(
+        &mut self,
+        borrowed: Vec<Box<dyn swb_web::EngineHost>>,
+    ) -> Vec<FrameId> {
+        let mut returned = Vec::with_capacity(borrowed.len());
+        for host in borrowed {
+            let Ok(mut doc) = host.into_any().downcast::<DocumentState>() else {
+                continue;
+            };
+            doc.sync();
+            let id = doc.frame_id;
+            if let Some(frame) = self.frames.get_mut(id) {
+                frame.doc = Some(doc);
+                returned.push(id);
+            }
+        }
+        returned
+    }
+
+    /// What a task left for the page: the input state of the frames that it
+    /// destroyed, and the attributes of those that it made.
+    fn after_frame_changes(&mut self, after_task: crate::frames::registry::AfterTask) {
+        for (id, parent) in after_task.destroyed {
+            self.frame_destroyed = true;
+            self.forget_frame_input(id, parent);
+        }
+        for id in after_task.created {
+            if self.frames.get(id).is_some() {
+                self.process_new_frame(id);
+            }
+        }
+        self.made_in_task.clear();
+    }
+
+    /// The runtime went away: the frame documents go on without scripts.
+    fn frames_lose_runtime(&mut self) {
+        for id in self.frames.tree_order() {
+            if let Some(frame) = self.frames.get_mut(id) {
+                frame.script = None;
+                if let Some(doc) = frame.doc.as_deref_mut() {
+                    doc.abandon_scripts();
+                    doc.finish_parse_without_scripts();
+                }
+            }
+            self.update_frames(id);
+        }
+    }
+
+    /// Does what the scripts of a frame document asked for in the task (see
+    /// [`Page::act_on_script_requests`]). A frame has no session history of its
+    /// own (ADR 0031 section 2): a change of its URL is in the document, and
+    /// the page only scrolls for a fragment.
+    fn act_on_frame_requests(&mut self, id: FrameId) {
+        let Some(doc) = self.doc_of_mut(id) else {
+            return;
+        };
+        let ScriptRequests {
+            navigation,
+            scroll_into_view,
+            state_changes,
+            traversals,
+        } = doc.take_script_requests();
+        if let Some(node) = scroll_into_view {
+            self.in_frame(id, |p| p.scroll_into_view(node));
+        }
+        for change in state_changes {
+            if change.fragment_from.is_some()
+                && let Some(fragment) = change.url.as_ref().and_then(|u| u.fragment())
+            {
+                let fragment = fragment.to_owned();
+                self.in_frame(id, |p| {
+                    let target = p.set_target(Some(&fragment));
+                    p.scroll_to_fragment(&fragment);
+                    p.focus_fragment_target(target);
+                });
+            }
+        }
+        match navigation {
+            Some(ScriptNavigation::Link(url, target)) => {
+                self.navigate_as_asked(super::frame_navigate::FrameNavigation {
+                    source: id,
+                    url,
+                    post: None,
+                    target,
+                    by_script: true,
+                });
+            }
+            Some(ScriptNavigation::Form(request)) => {
+                if self.sandbox_of(id).forms_allowed() {
+                    log::info!("a script of {id} submits a form: {}", request.url);
+                    self.navigate_as_asked(super::frame_navigate::FrameNavigation {
+                        source: id,
+                        url: request.url,
+                        post: request.post,
+                        target: request.target,
+                        by_script: true,
+                    });
+                } else {
+                    log::info!("{id}: the sandbox has no `allow-forms`: not submitting");
+                }
+            }
+            Some(ScriptNavigation::Location { url, .. }) => {
+                let initiator = self.doc_of(id).map(DocumentState::origin);
+                self.navigate_frame_with(id, FrameTarget::Url(url), None, initiator);
+            }
+            Some(ScriptNavigation::Reload) => self.reload_frame(id),
+            None => {}
+        }
+        for delta in traversals {
+            match delta {
+                0 => self.reload_frame(id),
+                delta if self.traversals.len() < MAX_PENDING_TRAVERSALS => {
+                    self.traversals.push_back(delta as isize);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// `location.reload()` of a frame document: the same document again.
+    fn reload_frame(&mut self, id: FrameId) {
+        let Some(doc) = self.doc_of(id) else {
+            return;
+        };
+        let target = match doc.url().as_str() {
+            "about:blank" => FrameTarget::Blank,
+            "about:srcdoc" => FrameTarget::Srcdoc,
+            _ => FrameTarget::Url(doc.url().clone()),
+        };
+        self.navigate_frame(id, target);
     }
 
     /// Does what the scripts of the task asked for: the scroll into view of
@@ -308,6 +598,10 @@ impl Page {
             return;
         };
         let requests = doc.take_script_requests();
+        let generation = doc.dom.generation();
+        if std::mem::replace(&mut self.input.frames_seen_generation, generation) != generation {
+            self.note_frame_viewports_may_change();
+        }
         self.apply_state_changes(requests.state_changes);
         if let Some(node) = requests.scroll_into_view {
             self.scroll_into_view(node);
@@ -346,19 +640,40 @@ impl Page {
     /// style sheet would never go on (ADR 0028 section 8). The document
     /// parses on without scripts: the runtime ends its load without
     /// events, the fetches of scripts are abandoned and the engine runs
-    /// the parser to the end.
+    /// the parser to the end. The same for each frame document with a realm.
     fn finish_stopped_scripts(&mut self) {
         let Some(script) = self.script.as_mut() else {
             return;
         };
-        if !script.stopped() || script.document_loaded() {
+        if !script.stopped() {
             return;
         }
-        script.abort_document();
-        if let Some(doc) = self.doc.as_deref_mut() {
-            doc.abandon_scripts();
-            if doc.is_parsing() {
-                doc.run_parser();
+        if !script.document_loaded() {
+            script.abort_document();
+            if let Some(doc) = self.doc.as_deref_mut() {
+                doc.abandon_scripts();
+                if doc.is_parsing() {
+                    doc.run_parser();
+                }
+            }
+        }
+        if self.frames.count() == 0 {
+            return;
+        }
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            let Some(key) = self.frames.get(id).and_then(|f| f.script) else {
+                continue;
+            };
+            let Some(script) = self.script.as_mut() else {
+                return;
+            };
+            if script.document_loaded_in(key) {
+                continue;
+            }
+            script.with_document(key, ScriptRuntime::abort_document);
+            if let Some(doc) = self.doc_of_mut(id) {
+                doc.abandon_scripts();
+                doc.finish_parse_without_scripts();
             }
         }
     }
@@ -378,6 +693,7 @@ impl Page {
         }
         changed |= tasks > 0;
         changed |= self.deliver_element_events();
+        changed |= self.deliver_frame_element_events();
         changed |= self.run_frame_refreshes();
         changed |= self.check_frame_loads();
         // The removal of a frame may leave nothing that delays the load.
@@ -576,6 +892,43 @@ impl Page {
         timeout: Duration,
     ) -> Option<Evaluation> {
         let id = match self.start_evaluation(source, form)? {
+            EvaluationStart::Done(evaluation) => return Some(evaluation),
+            EvaluationStart::Pending(id) => id,
+        };
+        let mut result = None;
+        self.run_until(None, timeout, |page| {
+            result = page.poll_evaluation(id, form);
+            result.is_some()
+        });
+        Some(result.unwrap_or_else(|| {
+            if let Some(script) = self.script.as_mut() {
+                script.cancel_evaluation(id);
+            }
+            Evaluation::Error("Error: the promise did not settle in time".to_owned())
+        }))
+    }
+
+    /// [`Page::evaluate_with_timeout`] in the document of frame `id`
+    /// (`page.evaluate` with a `frameId`, `--eval-frame`). `None` if the frame
+    /// is gone or its document cannot have a realm in the page's runtime.
+    pub fn evaluate_in_frame(
+        &mut self,
+        id: FrameId,
+        source: &str,
+        form: JsonForm,
+        timeout: Duration,
+    ) -> Option<Evaluation> {
+        if id == FrameId::TOP {
+            return self.evaluate_with_timeout(source, form, timeout);
+        }
+        self.frames.get(id)?;
+        let number = id.number();
+        if self.frames.get(id)?.script.is_none() {
+            self.with_registry(|script| script.ensure_frame_window(number));
+        }
+        self.frames.get(id)?.script?;
+        let start = self.run_task_in(id, |script| script.start_evaluation(source, form))?;
+        let id = match start {
             EvaluationStart::Done(evaluation) => return Some(evaluation),
             EvaluationStart::Pending(id) => id,
         };

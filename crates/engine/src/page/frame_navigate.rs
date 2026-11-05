@@ -12,7 +12,7 @@
 //! and leaves the frame as it is), and a sandboxed frame without
 //! `allow-popups` does nothing (measured). A name is compared exactly; the
 //! keywords without ASCII case (measured). The rule that a document may
-//! navigate a frame is in [`Page::may_navigate`]. Chromium lets a cross-origin
+//! navigate a frame is in [`crate::frames::Frames::may_navigate`]. Chromium lets a cross-origin
 //! frame navigate the top level after a user activation (measured, case
 //! `input-link-cross-origin-top`); swb does not track activation and refuses,
 //! with a log entry (ADR 0031 section 3). A navigation of a frame replaces its
@@ -36,6 +36,9 @@ pub(super) struct FrameNavigation {
     pub(super) post: Option<PostData>,
     /// The `target` that the link or form asks for.
     pub(super) target: Option<String>,
+    /// True for the request of a script (`a.click()`, `form.submit()`): the
+    /// `by-user-activation` token of a sandbox does not count.
+    pub(super) by_script: bool,
 }
 
 /// The browsing context that a navigation goes to.
@@ -65,6 +68,7 @@ impl Page {
             url,
             post,
             target,
+            by_script: false,
         };
         if self.active_frame == FrameId::TOP {
             return self.navigate_as_asked(navigation);
@@ -84,14 +88,20 @@ impl Page {
     }
 
     /// Navigates as the link or form asks (see the module documentation).
-    fn navigate_as_asked(&mut self, navigation: FrameNavigation) -> bool {
+    pub(super) fn navigate_as_asked(&mut self, navigation: FrameNavigation) -> bool {
         let FrameNavigation {
             source,
             url,
             post,
             target,
+            by_script,
         } = navigation;
-        let Chosen::Frame(chosen) = self.choose_navigable(source, target.as_deref()) else {
+        let allows = if by_script {
+            Sandbox::script_top_navigation_allowed
+        } else {
+            Sandbox::top_navigation_allowed
+        };
+        let Chosen::Frame(chosen) = self.choose_navigable(source, target.as_deref(), allows) else {
             return false;
         };
         let initiator = self.doc_of(source).map(DocumentState::origin);
@@ -171,7 +181,12 @@ impl Page {
 
     /// The browsing context that a navigation of `source` with the `target`
     /// name goes to.
-    fn choose_navigable(&self, source: FrameId, target: Option<&str>) -> Chosen {
+    fn choose_navigable(
+        &self,
+        source: FrameId,
+        target: Option<&str>,
+        allows: fn(Sandbox) -> bool,
+    ) -> Chosen {
         let name = target.map_or("", str::trim);
         let parent = self.frames.get(source).and_then(|f| f.parent);
         let chosen = if name.is_empty() || name.eq_ignore_ascii_case("_self") {
@@ -183,9 +198,9 @@ impl Page {
         } else if name.eq_ignore_ascii_case("_blank") {
             return self.new_context_for(source);
         } else {
-            return self.frame_named(source, name);
+            return self.frame_named(source, name, allows);
         };
-        if self.may_navigate(source, chosen) {
+        if self.frames.may_navigate(source, chosen, allows) {
             Chosen::Frame(chosen)
         } else {
             log::info!("{source}: not allowed to navigate {chosen} (target {name:?})");
@@ -196,7 +211,7 @@ impl Page {
     /// The first frame, in tree order, that has the `name` and that `source`
     /// may navigate (measured, case `input-target-name-first-refused`); if
     /// no frame has the name, as for a new browsing context.
-    fn frame_named(&self, source: FrameId, name: &str) -> Chosen {
+    fn frame_named(&self, source: FrameId, name: &str, allows: fn(Sandbox) -> bool) -> Chosen {
         let named: Vec<FrameId> = self
             .frames
             .tree_order()
@@ -207,7 +222,10 @@ impl Page {
         if named.is_empty() {
             return self.new_context_for(source);
         }
-        if let Some(&id) = named.iter().find(|&&id| self.may_navigate(source, id)) {
+        if let Some(&id) = named
+            .iter()
+            .find(|&&id| self.frames.may_navigate(source, id, allows))
+        {
             Chosen::Frame(id)
         } else {
             log::info!("{source}: not allowed to navigate the frame named {name:?}");
@@ -230,34 +248,5 @@ impl Page {
     /// The sandboxing flags of frame `id` (none for the page's own document).
     pub(super) fn sandbox_of(&self, id: FrameId) -> Sandbox {
         self.frames.get(id).map(|f| f.sandbox).unwrap_or_default()
-    }
-
-    /// True if the document of `source` may navigate frame `target` (HTML
-    /// "allowed by sandboxing to navigate", and the origin rule of Chromium;
-    /// measured, cases `input-target-*`):
-    ///
-    /// - itself and its descendants, always;
-    /// - a sandboxed frame: else only the top level, with an
-    ///   `allow-top-navigation` token (also from a nested frame, and the
-    ///   flags go down to frames without `sandbox`);
-    /// - else a frame whose document, or the document of one of whose
-    ///   ancestors, has the origin of `source`. So a frame with the top
-    ///   level's origin may navigate any frame, and a cross-origin frame may
-    ///   not navigate its parent.
-    fn may_navigate(&self, source: FrameId, target: FrameId) -> bool {
-        let chain = self.frame_chain(target);
-        if chain.contains(&source) {
-            return true;
-        }
-        let sandbox = self.sandbox_of(source);
-        if sandbox.sandboxed {
-            return target == FrameId::TOP && sandbox.top_navigation_allowed();
-        }
-        let Some(origin) = self.doc_of(source).map(DocumentState::origin) else {
-            return false;
-        };
-        chain
-            .iter()
-            .any(|&id| self.doc_of(id).is_some_and(|d| d.origin() == origin))
     }
 }

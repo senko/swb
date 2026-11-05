@@ -108,6 +108,9 @@ pub(super) struct InputState {
     pub(super) hover_frames: Vec<FrameId>,
     /// The press of the primary button that started in a frame.
     pub(super) press_frame: Option<FramePress>,
+    /// The DOM generation that the last task left: a task that changed it may
+    /// have changed the viewport of a frame.
+    pub(super) frames_seen_generation: u64,
 }
 
 impl InputState {

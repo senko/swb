@@ -110,6 +110,13 @@ pub(crate) struct Timers {
 }
 
 impl Timers {
+    /// The window lost its document for good: no timer runs any more.
+    pub(crate) fn retire(&mut self) {
+        self.active.clear();
+        self.units = 0;
+        self.code_bytes = 0;
+    }
+
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for timer in self.active.values() {
             if let Handler::Function(f) = &timer.handler {
@@ -169,6 +176,12 @@ fn initialize(
 ) -> VmResult<i32> {
     let now = crate::event_loop::page_now(rt);
     let state = state_mut(rt)?;
+    if state.doc.retired || state.doc.scripts_off {
+        // The call gives a number, and the callback never runs, also a function
+        // of another window (measured, cases `scripted-retired` and
+        // `scripted-sandbox-scripts`).
+        return Ok(state.doc.timers.new_id());
+    }
     let units = 1 + arguments.len();
     let code_bytes = handler.code_bytes();
     let timers = &mut state.doc.timers;

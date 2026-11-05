@@ -377,8 +377,14 @@ routing runs in the page's own context). A pointer point goes down the
 frames by hit tests that share one budget (`Page::route_at`:
 `DisplayList::hit_test_with` reports `Hit::Frame`, the engine maps the
 point into the frame's viewport); the keyboard focus is a chain of frames
-(`InputState::focus_frame`, `DocumentState::frame_focus`). Frame documents
-run no scripts yet (feature 12). The frame documents of a page share
+(`InputState::focus_frame`, `DocumentState::frame_focus`). A frame document
+of the top-level document's origin that has a script gets a realm in the
+page's runtime when it commits, and any frame document at its first access
+from a script (feature 12b1; other origins: feature 13). During a script task
+the page moves its frame tree into a registry that it shares with the runtime
+(`engine/src/frames/registry.rs`, `swb_web::FrameHost`), so that natives make
+and destroy frames and borrow documents; the page acts on the rest after the
+task (`Page::run_task_in`). The frame documents of a page share
 budgets (`engine/src/frames/budget.rs`, ADR 0031 section 11): the source
 bytes and DOM nodes of the documents that are alive together, and, through
 `swb_net::ByteBudget`, the response bodies that wait for the page, the
@@ -405,8 +411,13 @@ drains the journal of the task. M9 feature 12a (ADR 0031 section 5): a
 runtime is an agent that can hold several documents, each with a realm, a
 `Window` behind a `WindowProxy` and a `DocState` in the binding state
 (`crates/web/src/state.rs`; `WebState` keeps what the agent shares, and a
-native switches to the document of its `this`). A page still has one document
-per runtime until feature 12b. Feature 5c (ADR 0028 section 8): the
+native switches to the document of its `this`). M9 feature 12b1
+(`crates/web/src/frames.rs`): the same-origin frame documents of a page are
+documents of its runtime. A task gets the top-level document; a switch to
+another document borrows it from the registry, and the page takes it back
+after the task, so that a task costs what it touches. A document that leaves
+its frame retires: it stays in the runtime, readable, and starts nothing.
+Feature 5c (ADR 0028 section 8): the
 runtime drives the parse of its document (`EngineHost::parse_step`, one
 step per `script` end tag), runs inline scripts at their place, waits for
 parser-blocking scripts and for the style sheets that block scripts, and

@@ -8,10 +8,10 @@
 //! --json tools/probes/web-frames.json` with the cases `geometry`,
 //! `about-blank`, `load-order`, `cookies-frames`, `javascript-off`,
 //! `limits`, `self-embed` and `sandbox`; three equal runs apart from the
-//! server ports). Frame documents run no scripts yet, so the tests read
-//! them through the engine API (`Page::frame_document`) where the probe
-//! reads them with scripts; `QUERIES_LATER` lists what waits for features
-//! 12 to 15.
+//! server ports). The tests here read frame documents through the engine API
+//! (`Page::frame_document`) where JavaScript is off; `frames/scripted.rs` runs
+//! the queries of the probe with scripts in frames (feature 12b1), and
+//! `QUERIES_LATER` lists what waits for later features.
 //!
 //! `Sim` serves the cases as the probe server does: the case page and its
 //! resources under `/case/`, on the main origin (`127.0.0.1:8000`), a
@@ -36,6 +36,8 @@ mod common;
 mod input;
 #[path = "frames/paint.rs"]
 mod paint;
+#[path = "frames/scripted.rs"]
+mod scripted;
 #[path = "frames/window_proxy.rs"]
 mod window_proxy;
 use common::{finish_loading, new_page, on_page_thread, value};
@@ -50,89 +52,72 @@ const LOCAL: &str = "http://localhost:8001";
 /// queries that read the log of the frame's own scripts.
 const QUERIES_LATER: &[(&str, &str)] = &[
     (
-        "geometry",
-        "contentWindow and contentDocument (the style of the iframe element itself runs now)",
-    ),
-    (
-        "about-blank",
-        "synchronous about:blank and load inside appendChild, realms: feature 12",
-    ),
-    (
         "about-blank",
         "document.open, write and close on a frame document: feature 15",
-    ),
-    (
-        "load-order",
-        "scripts of frame documents (child script, child dcl, child load): feature 12",
     ),
     (
         "cookies-frames",
         "document.cookie, fetch() and postMessage in frames: features 13 and 14",
     ),
     (
-        "limits",
-        "frames made by script in one task (contentWindow at once): feature 12",
-    ),
-    ("self-embed", "frames[0] and location of frames: feature 12"),
-    (
         "input-pointer-events",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-press-in-frame",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-press-in-parent",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-click-in-frame",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-wheel-events",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-pointer-events-none",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-visibility-hidden",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-covered",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-opacity-0",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-transform",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-hit-border",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-tab-forward",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "input-tab-backward",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
+        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "focus",
-        "the frame window's and the frame element's focus and blur events in the log (`c:` entries): feature 12; the page's side runs in `crates/automation/tests/frame_input.rs`",
+        "the frame window's and the frame element's focus and blur events in the log (`c:` entries): feature 12b2; the page's side runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "sandbox",
-        "the scripts of sandboxed frames, contentDocument, SecurityError: features 12, 13",
+        "the script of a frame with an opaque origin, postMessage, the message of a SecurityError: feature 13",
     ),
 ];
 
@@ -142,7 +127,7 @@ const QUERIES_LATER: &[(&str, &str)] = &[
 #[derive(Clone)]
 struct Res {
     body: Vec<u8>,
-    content_type: &'static str,
+    content_type: String,
     headers: Vec<(String, String)>,
     delay_ms: u64,
 }
@@ -151,7 +136,7 @@ impl Res {
     fn html(body: &str) -> Res {
         Res {
             body: body.as_bytes().to_vec(),
-            content_type: "text/html; charset=utf-8",
+            content_type: "text/html; charset=utf-8".to_owned(),
             headers: Vec::new(),
             delay_ms: 0,
         }
@@ -217,7 +202,9 @@ impl Fetcher for Sim {
         if res.delay_ms > 0 {
             std::thread::sleep(Duration::from_millis(res.delay_ms));
         }
-        let mut headers: Headers = [("content-type", res.content_type)].into_iter().collect();
+        let mut headers: Headers = [("content-type", res.content_type.as_str())]
+            .into_iter()
+            .collect();
         for (name, value) in &res.headers {
             headers.append(name, value);
         }
@@ -281,7 +268,7 @@ fn case_resource(name: &str, path: &str) -> Res {
             };
             for v in values {
                 if name.eq_ignore_ascii_case("content-type") {
-                    res.content_type = "text/html";
+                    res.content_type = v;
                 } else {
                     res.headers.push((name.clone(), v));
                 }
@@ -506,8 +493,8 @@ fn load_events_in_chromium_order() {
                 "parent load"
             ]
         );
-        // The probe's page reads `contentDocument` in the handler (feature
-        // 12); this one logs the same events without it.
+        // The events without the entries of the frame's own script, which
+        // `frames/scripted.rs` compares with the probe's page.
         let html = "<!DOCTYPE html><script>window.log = []; \
             addEventListener('DOMContentLoaded', () => log.push('parent dcl')); \
             addEventListener('load', () => log.push('parent load'));</script>\
@@ -521,7 +508,10 @@ fn load_events_in_chromium_order() {
             )],
             true,
         );
-        let log = value(&mut page, "log.join(',')");
+        let log = value(
+            &mut page,
+            "log.filter(e => !e.startsWith('child')).join(',')",
+        );
         assert_eq!(log, format!("\"{}\"", chromium.join(",")));
         assert!(page.frame_load_fired(frame(&page, "a")));
     });
@@ -1022,8 +1012,10 @@ fn stale_frame_ids_find_nothing() {
     assert_eq!(page.frame_parent(a), Some(FrameId::TOP));
     assert_eq!(FrameId::from_u64(a.to_u64()), a);
     let node = common::node(&page, "a");
+    // A later change of the attribute does not rename the browsing context
+    // (measured, case `scripted-window-members`).
     page.change_dom(|dom| dom.set_attr(node, "name", "n2").unwrap());
-    assert_eq!(page.frame_name(a), Some("n2"));
+    assert_eq!(page.frame_name(a), Some("n1"));
     page.navigate(url(&format!("{MAIN}/case/case.html")));
     finish_loading(&mut page, Duration::from_secs(20));
     let b = frame(&page, "a");

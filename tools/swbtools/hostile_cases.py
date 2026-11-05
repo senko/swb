@@ -6079,3 +6079,211 @@ def window_proxy_own_names_loop_js_on() -> Page:
         "document.title = String(n);</script>"
     )
     return Page(doc(script))
+
+
+@case(
+    "A frame's script makes and removes about:blank frames in a loop, with contentWindow read for "
+    "each (M9 feature 12b1): each read makes a realm until the budget of 256 realms of the "
+    "runtime; later frames have a window without a target (ADR 0031 section 11)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=700,
+    expect_log="realms, the limit",
+)
+def scripted_frames_blank_loop_js_on() -> Page:
+    inner = (
+        "<script>let n = 0; for (let i = 0; i < 20000; i++) { "
+        "const f = document.createElement('iframe'); document.documentElement.appendChild(f); "
+        "if (f.contentWindow) n++; f.remove(); } parent.document.title = String(n);</script>"
+    )
+    return Page(doc(f'<iframe srcdoc="{inner}"></iframe>'))
+
+
+@case(
+    "location.reload() in the load event of a frame (M9 feature 12b1): the limit of 64 "
+    "navigations of a frame in 10 s of page time stops it (ADR 0031 section 11)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=5,
+    rss_limit_mib=340,
+    expect_log="navigated 64 times",
+)
+def scripted_frame_reload_in_load_js_on() -> Page:
+    inner = "<script>addEventListener('load', () => location.reload());</script><p>x"
+    return Page(doc(f'<iframe srcdoc="{inner}"></iframe>'))
+
+
+@case(
+    "The load listener of an about:blank frame appends another frame, without end (M9 feature "
+    "12b1): a recursion through appendChild, on a stack of natives and scripts; the limit of "
+    "1,000 frames ends it (ADR 0031 section 11)",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=500,
+)
+def scripted_frame_append_in_load_js_on() -> Page:
+    script = (
+        "<script>let n = 0; function add() { const f = document.createElement('iframe'); "
+        "f.onload = () => { n++; add(); }; document.body.appendChild(f); } "
+        "try { add(); } catch (e) { console.log(e.name); } document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "The load listener of an about:blank frame appends a frame inside the frame's own document, "
+    "without end (M9 feature 12b1): the limit of 32 levels ends it (ADR 0031 section 11)",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=320,
+)
+def scripted_frame_nest_in_load_js_on() -> Page:
+    script = (
+        "<script>let n = 0; function add(d) { const f = d.createElement('iframe'); "
+        "f.onload = () => { n++; if (f.contentDocument) add(f.contentDocument); }; "
+        "d.documentElement.appendChild(f); } add(document); document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "1,000 frames made in one task with contentWindow read for each (M9 feature 12b1): 256 "
+    "realms, then windows without a target (ADR 0031 section 11)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=1240,
+    expect_log="realms, the limit",
+)
+def scripted_frames_1000_content_window_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 1000; i++) { "
+        "const f = document.createElement('iframe'); document.body.appendChild(f); "
+        "if (f.contentWindow) n++; } document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "300 navigations of one frame by script, each document with a script (M9 feature 12b1): "
+    "each document makes a realm until the budget of 256 realms; the frame's later documents "
+    "run without scripts (ADR 0031 section 11)",
+    swb_args=("--js", "--settle-ms", "3000"),
+    time_limit_s=10,
+    rss_limit_mib=260,
+)
+def scripted_frame_300_navigations_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const f = document.querySelector('iframe'); "
+        "function step() { if (n++ < 300) { f.srcdoc = '<script>parent.count = (parent.count | 0) "
+        "+ 1<' + '/script>' + n; setTimeout(step, 200); } } step();</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "One task sets src of an iframe 300,000 times with a sandbox value of about 900 KB, then "
+    "changes sandbox (M9 feature 12b1): one parse gives the flags of all the sets, with no copy "
+    "of the value per set",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=340,
+)
+def scripted_frame_sets_big_sandbox_js_on() -> Page:
+    script = (
+        "<script>const f = document.querySelector('iframe'); "
+        "f.setAttribute('sandbox', 'allow-scripts '.repeat(64000)); "
+        "for (let i = 0; i < 300000; i++) f.src = 'about:blank'; "
+        "f.removeAttribute('sandbox');</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "A frame's script removes its own iframe and goes on using document and window, with timers "
+    "and a loop of DOM changes (M9 feature 12b1): the document retires, its parse ends, its "
+    "timers do not run",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=2,
+    rss_limit_mib=230,
+)
+def scripted_frame_removes_itself_js_on() -> Page:
+    inner = (
+        "<script>const P = parent; frameElement.remove(); "
+        "for (let i = 0; i < 20000; i++) { document.body.appendChild(document.createElement('p')); "
+        "setTimeout(() => {}, 0); window.x = document.body.children.length; "
+        "getComputedStyle(document.body).width; document.body.offsetWidth; } "
+        "P.document.title = String(window.x);</script><p>rest</p><script>never()</script>"
+    )
+    return Page(doc(f'<iframe srcdoc="{inner}"></iframe>'))
+
+
+@case(
+    "A kept contentWindow of a removed frame used in a loop: natives, setTimeout, setInterval, "
+    "requestAnimationFrame, postMessage, location and appendChild (M9 feature 12b1): nothing "
+    "waits in queues, and the nodes are within the node limit of a document",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=17,
+    rss_limit_mib=310,
+)
+def scripted_retired_window_in_a_loop_js_on() -> Page:
+    script = (
+        "<script>const f = document.querySelector('iframe'); const w = f.contentWindow; "
+        "f.remove(); "
+        "for (let i = 0; i < 100000; i++) { w.setTimeout(() => {}, 0); w.setInterval(() => {}, 0); "
+        "w.requestAnimationFrame(() => {}); w.postMessage(i, '*'); w.location.href = 'x.html'; "
+        "w.document.body.appendChild(w.document.createElement('p')); w.innerWidth; w.length; "
+        "w.frames[0]; w.parent; w.top; w.name; } "
+        "document.title = String(w.document.body.children.length);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "Reads of the viewport of a frame after a change of its iframe's style, in a loop (M9 feature "
+    "12b1): each read lays out the parent and the frame",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=220,
+)
+def scripted_frame_viewport_reads_js_on() -> Page:
+    script = (
+        "<script>const f = document.querySelector('iframe'); const w = f.contentWindow; let s = 0; "
+        "for (let i = 0; i < 3000; i++) { f.style.width = (100 + i % 100) + 'px'; "
+        "s += w.innerWidth; s += w.document.documentElement.clientWidth; } "
+        "document.title = String(s);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "Window index keys and names of 1,000 frames in a loop (M9 feature 12b1): each read asks the "
+    "frame registry; frames past the budget of realms have a window without a target",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=1240,
+)
+def scripted_window_index_keys_js_on() -> Page:
+    frames = "".join(f"<iframe name=n{i}></iframe>" for i in range(1000))
+    script = (
+        "<script>let s = 0; for (let k = 0; k < 20; k++) { for (let i = 0; i < 1000; i++) { "
+        "if (window[i] !== undefined) s++; if (window['n' + i] !== undefined) s++; } "
+        "s += Object.keys(window).length; } document.title = String(s);</script>"
+    )
+    return Page(doc(frames + script))
+
+
+@case(
+    "A same-origin frame's script allocates to the heap limit of the runtime, with another frame "
+    "and a frame below it to come (M9 feature 12b1): the runtime goes with its realms, and the "
+    "frame documents parse to their ends without scripts",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=1070,
+    expect_log="reached the heap limit",
+)
+def scripted_frame_heap_limit_js_on() -> Page:
+    inner = (
+        "<p>a</p><script>const big = []; for (;;) big.push(new Array(1000).fill(0));</script>"
+        "<p>after</p><iframe srcdoc='<p>inner'></iframe>"
+    )
+    other = "<script src=nothing.js></script><p>b</p>"
+    return Page(doc(f'<iframe srcdoc="{inner}"></iframe><iframe srcdoc="{other}"></iframe>'))

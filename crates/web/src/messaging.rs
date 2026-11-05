@@ -52,7 +52,7 @@ use crate::event_loop::{Task, queue_task};
 use crate::events::{Extra, fire_at_object, misc::Other};
 use crate::generated as g;
 use crate::message_port;
-use crate::state::{engine, state_mut};
+use crate::state::{engine, state, state_mut};
 use crate::structured::{
     Serialized, deserialize_with_ports, detach_transfer, serialize_for_transfer,
 };
@@ -119,6 +119,11 @@ pub(crate) fn post(
     transfer: &[Gc<Object>],
 ) -> b::Result<()> {
     let target = parse_target(target_origin)?;
+    if state(cx.rt)?.doc.retired {
+        // A window without its document gets no message (measured, case
+        // `scripted-retired`).
+        return Ok(());
+    }
     let record = serialize_for_transfer(cx.rt, message, transfer, None)?;
     let origin = document_origin(cx.rt)?.ascii_serialization();
     let bytes = record.byte_size();

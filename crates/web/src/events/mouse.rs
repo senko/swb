@@ -170,7 +170,7 @@ pub(crate) fn place_at_target(
     let Some(node) = node else {
         return Ok(());
     };
-    let Ok(host) = crate::state::engine_mut(rt) else {
+    let Ok(host) = crate::state::engine_laid_out(rt) else {
         return Ok(());
     };
     let origins = host.event_origins(node);

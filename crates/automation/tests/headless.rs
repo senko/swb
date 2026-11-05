@@ -859,6 +859,54 @@ fn page_frames_lists_the_frame_tree() {
     stop(client, thread);
 }
 
+/// `page.evaluate` and `page.consoleMessages` with a `frameId` and scripts in
+/// the frame (M9 feature 12b1). A frame of another origin has no scripts until
+/// feature 13.
+#[test]
+fn evaluate_and_console_take_a_frame_id() {
+    let dir = std::env::temp_dir().join(format!(
+        "swb-automation-frame-scripts-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("parent.html"),
+        "<!DOCTYPE html><script>console.log('from the top')</script>\
+         <iframe id=s srcdoc=\"<script>console.log('from s'); window.v = 41</script>\"></iframe>\
+         <iframe id=x src=other.html></iframe>",
+    )
+    .unwrap();
+    std::fs::write(dir.join("other.html"), "<!DOCTYPE html><p>other").unwrap();
+    let url = swb_net::Url::from_file_path(dir.join("parent.html")).unwrap();
+    let (thread, port) = spawn_with(Arc::new(NetworkFetcher::new()), true);
+    let mut client = Client::connect(port).unwrap();
+    client.navigate(url.as_str()).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    let frames = client.call("page.frames", Value::Null).unwrap()["frames"].clone();
+    let (s, x) = (frames[1]["frameId"].clone(), frames[2]["frameId"].clone());
+    let value = client
+        .call(
+            "page.evaluate",
+            json!({ "expression": "[window.v + 1, location.href]", "frameId": s }),
+        )
+        .unwrap();
+    assert_eq!(value, json!({ "value": [42, "about:srcdoc"] }));
+    let console = client
+        .call("page.consoleMessages", json!({ "frameId": s }))
+        .unwrap();
+    assert_eq!(console["messages"][0]["text"], "from s");
+    assert_eq!(console["messages"].as_array().unwrap().len(), 1);
+    assert_eq!(console["messages"][0]["frameId"], s);
+    let all = client.call("page.consoleMessages", Value::Null).unwrap();
+    assert_eq!(all["messages"].as_array().unwrap().len(), 2);
+    let evaluate = json!({ "expression": "1", "frameId": x });
+    assert_eq!(
+        rpc_code(client.call("page.evaluate", evaluate)),
+        RpcError::FAILED
+    );
+    stop(client, thread);
+}
+
 /// `frameId` for `dom.*`, the input that takes a node, `page.evaluate` and
 /// `page.consoleMessages`.
 #[test]
@@ -906,8 +954,9 @@ fn methods_take_a_frame_id() {
         .unwrap();
     assert_eq!(text["text"], "deep");
 
-    // Scripts do not run in frames yet, and their console is empty; the
-    // other methods take no frame; an invented or malformed ID is an error.
+    // JavaScript is off here, so an evaluation fails and the console is
+    // empty; the other methods take no frame; an invented or malformed ID is
+    // an error.
     let evaluate = json!({ "expression": "1", "frameId": f });
     let code = rpc_code(client.call("page.evaluate", evaluate));
     assert_eq!(code, RpcError::FAILED);

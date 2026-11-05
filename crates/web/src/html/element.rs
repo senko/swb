@@ -325,7 +325,7 @@ const MAX_RENDERED_IMAGE_SIZE: f64 = 33_554_428.0;
 /// content box of a rendered image in whole px (a layout flush), at most
 /// Chromium's limit, else the content attribute.
 fn image_size(cx: &mut Cx<'_>, this: NodeId, name: &str, horizontal: bool) -> b::Result<u32> {
-    let size = engine_mut(cx.rt)?.content_size(this);
+    let size = crate::state::engine_laid_out(cx.rt)?.content_size(this);
     cx.rt.check_time()?;
     if let Some((width, height)) = size {
         let value = if horizontal { width } else { height };
@@ -426,6 +426,20 @@ impl g::html_style_element::HTMLStyleElementImpl for WebState {
 impl g::htmli_frame_element::HTMLIFrameElementImpl for WebState {
     fn sandbox(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {
         super::token_list(cx, this, "sandbox")
+    }
+
+    fn content_window(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        Ok(crate::frames::content_window(cx.rt, this)?)
+    }
+
+    fn content_document(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+    ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
+        Ok(crate::frames::content_document(cx.rt, this)?)
     }
 }
 

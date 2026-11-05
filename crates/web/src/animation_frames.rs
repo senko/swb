@@ -54,6 +54,12 @@ impl AnimationFrames {
 
 /// `requestAnimationFrame(callback)`: the handle of the new entry.
 pub(crate) fn request(rt: &mut Runtime, callback: Gc<Object>) -> b::Result<u32> {
+    if state(rt)?.doc.retired {
+        // A number, and the callback never runs (measured).
+        let frames = &mut state_mut(rt)?.doc.animation_frames;
+        frames.last = frames.last.wrapping_add(1).max(1);
+        return Ok(frames.last);
+    }
     if state(rt)?.doc.animation_frames.callbacks.len() >= MAX_CALLBACKS {
         log::warn!("a document has more than {MAX_CALLBACKS} animation frame callbacks");
         return Err(rt.terminate("too many animation frame callbacks").into());

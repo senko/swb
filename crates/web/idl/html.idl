@@ -36,8 +36,7 @@
 // scripts set to stop a sheet; M9 feature 6, with `HTMLStyleElement.disabled`;
 // `sheet` is `LinkStyle` of `cssom.idl`), `files`, `valueAsNumber`,
 // `valueAsDate`, `stepUp()`, `stepDown()`, `showPicker()`,
-// `iframe.contentWindow` and
-// `contentDocument`, `canvas.getContext`, the media playback members,
+// `canvas.getContext`, the media playback members,
 // `dialog.show*`, `meter` and `progress` values, and the
 // factory function `Audio`. The form methods `submit()`, `reset()` and
 // `requestSubmit()` came with feature 6d; the selection members of
@@ -97,6 +96,14 @@ interface Window : EventTarget {
   [Replaceable] readonly attribute unsigned long length;
   [LegacyUnforgeable] readonly attribute WindowProxy? top;
   [Replaceable] readonly attribute WindowProxy? parent;
+  attribute any opener;
+  attribute DOMString name;
+  readonly attribute boolean closed;
+  // From `WindowOrWorkerGlobalScope`.
+  [Replaceable] readonly attribute USVString origin;
+  // swb's type: `Element?` in the standard. The element is a node of another
+  // document, and a node conversion looks in the current one.
+  readonly attribute object? frameElement;
 };
 
 // Cross-document messaging and the agent cluster (M9 feature 1, ADR 0031
@@ -523,6 +530,11 @@ interface HTMLIFrameElement : HTMLElement {
   [CEReactions, Reflect] attribute DOMString height;
   [CEReactions, Reflect, SwbKeywords="no-referrer no-referrer-when-downgrade same-origin origin strict-origin origin-when-cross-origin strict-origin-when-cross-origin unsafe-url"] attribute DOMString referrerPolicy;
   [CEReactions, Reflect, SwbKeywords="lazy eager", SwbMissing="auto", SwbInvalid="auto"] attribute DOMString loading;
+  // swb's type for `contentDocument`: `Document?` in the standard. The
+  // document is a node of another arena, and a node conversion looks in the
+  // current one.
+  readonly attribute object? contentDocument;
+  readonly attribute WindowProxy? contentWindow;
 };
 
 [Exposed=Window]

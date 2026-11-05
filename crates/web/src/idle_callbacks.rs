@@ -103,6 +103,12 @@ pub(crate) fn request(
     callback: Gc<Object>,
     options: &IdleRequestOptions,
 ) -> b::Result<u32> {
+    if state(cx.rt)?.doc.retired {
+        // A number, and the callback never runs.
+        let idle = &mut state_mut(cx.rt)?.doc.idle;
+        idle.last = idle.last.wrapping_add(1).max(1);
+        return Ok(idle.last);
+    }
     if state(cx.rt)?.doc.idle.waiting.len() >= MAX_CALLBACKS {
         log::warn!("a document has more than {MAX_CALLBACKS} idle callbacks");
         return Err(cx.rt.terminate("too many idle callbacks").into());

@@ -44,12 +44,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         r#""function|function|function onclick(event) {\n\n}|function""#,
         "the handler of an empty attribute is an ordinary function whose source is the compiled text; Chromium's `toString` shows `{ [native code] }`",
     ),
-    (
-        "handler-attrs",
-        8,
-        r#""undefined,undefined,undefined,undefined""#,
-        "swb has no `window.name`, which the handler sees as `name`",
-    ),
 ];
 
 /// A page with JavaScript on that shows `html`.

@@ -262,16 +262,16 @@ impl g::document::DocumentImpl for WebState {
     /// visible; a document without a browsing context is hidden. The
     /// engine never fires `visibilitychange` (the GUI does not tell the
     /// engine about minimizing yet).
-    fn hidden(_cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
-        Ok(!is_main(this))
+    fn hidden(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        Ok(!is_main(this) || state(cx.rt)?.doc.retired)
     }
 
     fn visibility_state(
-        _cx: &mut Cx<'_>,
+        cx: &mut Cx<'_>,
         this: NodeId,
     ) -> b::Result<crate::generated::types::VisibilityState> {
         use crate::generated::types::VisibilityState;
-        Ok(if is_main(this) {
+        Ok(if is_main(this) && !state(cx.rt)?.doc.retired {
             VisibilityState::Visible
         } else {
             VisibilityState::Hidden
@@ -472,7 +472,8 @@ impl g::document::DocumentImpl for WebState {
         cx: &mut Cx<'_>,
         this: NodeId,
     ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
-        if !is_main(this) {
+        // A document that left its frame has no window (measured).
+        if !is_main(this) || state(cx.rt)?.doc.retired {
             return Ok(None);
         }
         Ok(Some(crate::state::window_proxy(cx.rt)?))

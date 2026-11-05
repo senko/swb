@@ -412,6 +412,17 @@ impl Runtime {
             .ok_or(VmError::invariant("a realm index without a realm"))
     }
 
+    /// The realm of the code that called the running native function: a
+    /// native runs in the realm of its function, so `current_realm` does not
+    /// tell. The host uses it where the rules name the caller (who may
+    /// navigate a frame).
+    pub fn caller_realm(&self) -> u32 {
+        match self.vm.native_caller {
+            Some((depth, realm)) if depth == self.vm.frames.len() => realm,
+            _ => self.current_realm(),
+        }
+    }
+
     /// `[[GlobalThisValue]]` of a realm.
     pub fn global_this(&self, realm: u32) -> VmResult<Gc<Object>> {
         self.vm

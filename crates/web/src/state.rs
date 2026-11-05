@@ -96,12 +96,31 @@ pub(crate) struct WebState {
     pub(crate) doc: Box<DocState>,
     /// The other documents of the runtime by key; the entry of the current
     /// document is empty.
-    docs: Vec<Option<Box<DocState>>>,
+    pub(crate) docs: Vec<Option<Box<DocState>>>,
     /// The key of the document of each realm, by realm.
     realm_docs: Vec<DocKey>,
-    /// The `WindowProxy` of each frame that the runtime has seen (HTML gives
-    /// a browsing context one `WindowProxy`; ADR 0031 section 5).
-    window_proxies: HashMap<u32, Gc<Object>>,
+    /// The `WindowProxy` of each live frame that the runtime has seen (HTML
+    /// gives a browsing context one `WindowProxy`; ADR 0031 section 5). The
+    /// entry of a destroyed frame goes: nothing can ask for its proxy again,
+    /// and scripts that hold it keep it alive.
+    pub(crate) window_proxies: HashMap<u32, Gc<Object>>,
+    /// The frame registry of the page (`frames.rs`); `None` in a runtime
+    /// without a page.
+    pub(crate) frame_host: Option<Rc<RefCell<dyn crate::host::FrameHost>>>,
+    /// The number of frames of the page besides the top-level one, which
+    /// the page keeps current: the paths of a page without frames read one
+    /// number.
+    pub(crate) frame_count: Rc<Cell<usize>>,
+    /// The documents besides the first that the task borrowed so far: the
+    /// page takes them back after the task.
+    pub(crate) lent: Vec<DocKey>,
+    /// The frame of the current document, for the console's messages.
+    pub(crate) console_frame: Rc<Cell<u32>>,
+    /// True after a warning about the budget of realms (ADR 0031 section 11).
+    pub(crate) realm_budget_warned: bool,
+    /// True when a document besides the first reached its load event: the
+    /// runtime stops running tasks, and the page fires the event.
+    pub(crate) frame_load_due: bool,
     /// Values that the host holds across runs (the result of an
     /// evaluation while it is serialized, the serializer).
     pub(crate) pinned: Vec<Value>,
@@ -142,7 +161,23 @@ pub(crate) struct DocState {
     pub(crate) key: DocKey,
     /// The realm of the document's `Window`.
     pub(crate) realm: u32,
-    /// The document while the engine lends it for a task.
+    /// The number of the document's frame in the page's frame registry.
+    pub(crate) frame: u32,
+    /// True when the document's frame was destroyed or has another document
+    /// (ADR 0031 section 5): the runtime keeps the document, so that its
+    /// nodes stay readable; its tasks do not run and no script starts in it.
+    pub(crate) retired: bool,
+    /// The document that took over this document's `Window` (HTML "initial
+    /// about:blank" reuse): the tasks of the window run there.
+    pub(crate) forward: Option<DocKey>,
+    /// True when a sandbox without `allow-scripts` stops the document's
+    /// scripts; other documents can still reach its nodes.
+    pub(crate) scripts_off: bool,
+    /// `window.name` in a runtime without a page; the page's frame registry
+    /// keeps the name otherwise.
+    pub(crate) own_name: String,
+    /// The document while the engine lends it for a task; for a retired
+    /// document, for the rest of the runtime's life.
     pub(crate) host: Option<Box<dyn EngineHost>>,
     /// The wrapper of each node that a script has seen, by node index.
     wrappers: Vec<Option<Gc<Object>>>,
@@ -273,6 +308,13 @@ pub(crate) struct DocState {
     pub(crate) decodes: HashMap<NodeId, Vec<Gc<Object>>>,
 }
 
+impl WebState {
+    /// The documents of the runtime besides the current one.
+    pub(crate) fn docs_iter(&self) -> impl Iterator<Item = &DocState> {
+        self.docs.iter().flatten().map(|doc| &**doc)
+    }
+}
+
 impl HostState for WebState {
     fn trace(&self, tracer: &mut Tracer<'_>) {
         self.glue.trace(tracer);
@@ -374,15 +416,36 @@ fn switch_to(state: &mut WebState, key: DocKey) -> VmResult<DocKey> {
     if old == key {
         return Ok(old);
     }
-    let Some(next) = state.docs.get_mut(key as usize).and_then(Option::take) else {
+    let Some(mut next) = state.docs.get_mut(key as usize).and_then(Option::take) else {
         return Err(VmError::type_error("a document key without a document"));
     };
+    if next.host.is_none() && !next.retired {
+        borrow_document(state, &mut next);
+    }
+    state.console_frame.set(next.frame);
     let previous = std::mem::replace(&mut state.doc, next);
     if let Some(slot) = state.docs.get_mut(old as usize) {
         *slot = Some(previous);
     }
     state.event_loop.tasks.set_document(key);
     Ok(old)
+}
+
+/// A document that a task reaches for the first time comes from the page's
+/// frame registry, and goes back at the end of the task. So a task costs only
+/// what it touches, whatever the number of documents with a realm.
+fn borrow_document(state: &mut WebState, record: &mut DocState) {
+    let Some(frames) = &state.frame_host else {
+        return;
+    };
+    let Ok(mut frames) = frames.try_borrow_mut() else {
+        log::warn!("the frame registry is in use: a document is not available");
+        return;
+    };
+    if let Some(host) = frames.take_document(record.frame) {
+        record.host = Some(host);
+        state.lent.push(record.key);
+    }
 }
 
 /// The document of a realm.
@@ -570,6 +633,7 @@ pub(crate) fn add_document(
     let record = Box::new(DocState {
         key,
         realm,
+        frame,
         clock,
         mutation: crate::mutation_observer::MutationState::new(signal),
         ..DocState::default()
@@ -590,6 +654,174 @@ pub(crate) fn add_document(
     rt.set_host_flag(several);
     rt.set_global_this(realm, proxy)?;
     Ok(key)
+}
+
+/// The number of realms that the runtime has made.
+pub(crate) fn realm_count(state: &WebState) -> usize {
+    state.realm_docs.len()
+}
+
+/// HTML "initial about:blank" reuse: the document of frame `frame` is
+/// replaced, and the new one keeps the `Window` of the old one (measured:
+/// the expando, the timers and the listeners of the window stay). The old
+/// document's nodes stay in the old record with the old key, so their wrappers
+/// stay valid; what belongs to the window moves to a new record.
+pub(crate) fn reuse_window(rt: &mut Runtime, old_key: DocKey) -> VmResult<DocKey> {
+    let signal = rt.host_signal_cell();
+    let state = state_mut(rt)?;
+    let key = DocKey::try_from(state.docs.len())
+        .map_err(|_| VmError::type_error("too many documents"))?;
+    let Some(old) = document_mut(state, old_key) else {
+        return Err(VmError::type_error("a document key without a document"));
+    };
+    let realm = old.realm;
+    let record = Box::new(DocState {
+        key,
+        realm,
+        frame: old.frame,
+        clock: old.clock.clone(),
+        mutation: crate::mutation_observer::MutationState::new(signal),
+        scripts_off: old.scripts_off,
+        handlers: old.handlers.take_window_part(),
+        window_listeners: std::mem::take(&mut old.window_listeners),
+        listener_count: old.listener_count,
+        timers: std::mem::take(&mut old.timers),
+        performance: old.performance.take(),
+        perf: std::mem::take(&mut old.perf),
+        idle: std::mem::take(&mut old.idle),
+        navigator: old.navigator.take(),
+        crypto: old.crypto.take(),
+        clipboard: old.clipboard.take(),
+        location: old.location.take(),
+        history: old.history.take(),
+        history_state: old.history_state.take(),
+        screen: old.screen.take(),
+        screen_orientation: old.screen_orientation.take(),
+        storage_objects: std::mem::take(&mut old.storage_objects),
+        animation_frames: std::mem::take(&mut old.animation_frames),
+        media_queries: std::mem::take(&mut old.media_queries),
+        media_query_count: old.media_query_count,
+        signal_timeouts: std::mem::take(&mut old.signal_timeouts),
+        next_timeout_signal: old.next_timeout_signal,
+        fetches: std::mem::take(&mut old.fetches),
+        readers: std::mem::take(&mut old.readers),
+        next_reader: old.next_reader,
+        messages: std::mem::take(&mut old.messages),
+        plugins: old.plugins.take(),
+        mime_types: old.mime_types.take(),
+        ..DocState::default()
+    });
+    old.forward = Some(key);
+    state.docs.push(Some(record));
+    if let Some(slot) = state.realm_docs.get_mut(realm as usize) {
+        *slot = key;
+    }
+    Ok(key)
+}
+
+/// Retires the document `key` (ADR 0031 section 5): its frame is gone or has
+/// another document. With `doc`, the engine hands over the document, which it
+/// no longer holds; else the document is lent and stays here. What waits to
+/// run goes: its tasks are dropped when their time comes, its timers and
+/// callbacks here. The document stays readable while the realm lives.
+pub(crate) fn retire_document(
+    rt: &mut Runtime,
+    key: DocKey,
+    doc: Option<Box<dyn EngineHost>>,
+) -> VmResult<()> {
+    let state = state_mut(rt)?;
+    state.lent.retain(|&k| k != key);
+    let Some(record) = document_mut(state, key) else {
+        return Ok(());
+    };
+    if let Some(doc) = doc {
+        record.host = Some(doc);
+    }
+    record.retired = true;
+    record.timers.retire();
+    record.idle = crate::idle_callbacks::IdleCallbacks::default();
+    record.animation_frames = crate::animation_frames::AnimationFrames::default();
+    record.media_queries.clear();
+    record.io = crate::intersection_observer::IoState::default();
+    record.ro = crate::resize_observer::RoState::default();
+    record.scripts.retire();
+    if let Some(host) = record.host.as_deref_mut() {
+        host.retire();
+    }
+    Ok(())
+}
+
+/// The document that a task of the document `key` runs in: the one that
+/// took over its window, and `None` for a retired document.
+pub(crate) fn task_document(state: &WebState, key: DocKey) -> Option<DocKey> {
+    let mut at = key;
+    // A chain of takeovers is at most a few long; the bound keeps a bug from
+    // spinning.
+    for _ in 0..8 {
+        let record = document_ref(state, at)?;
+        match record.forward {
+            Some(next) => at = next,
+            None if record.retired => return None,
+            None => return Some(at),
+        }
+    }
+    None
+}
+
+/// The record of a document.
+pub(crate) fn document_ref(state: &WebState, key: DocKey) -> Option<&DocState> {
+    if state.doc.key == key {
+        return Some(&state.doc);
+    }
+    state.docs.get(key as usize)?.as_deref()
+}
+
+/// The document of the realm of the code that called the running native.
+pub(crate) fn caller_document(rt: &Runtime) -> VmResult<&DocState> {
+    let state = state(rt)?;
+    let key = document_of_realm(state, rt.caller_realm());
+    document_ref(state, key).ok_or(VmError::type_error("a document key without a document"))
+}
+
+/// The documents of the binding state, for [`crate::host::FrameHost::update_viewports`].
+pub(crate) struct Hosts<'a>(pub(crate) &'a mut WebState);
+
+impl crate::host::LentDocuments for Hosts<'_> {
+    fn lent_host(&mut self, key: crate::runtime::DocumentKey) -> Option<&mut dyn EngineHost> {
+        document_mut(self.0, key.raw())?.host.as_deref_mut()
+    }
+}
+
+/// The current document's host, with its viewport current: a read of the
+/// geometry of a frame document needs the layout of the documents above it,
+/// because the frame's viewport comes from its parent (ADR 0031 section 4;
+/// measured: a change of the `iframe`'s style shows at once in the frame).
+/// Each geometry query of the bindings goes through here. A runtime with one
+/// document pays one comparison.
+#[inline]
+pub(crate) fn engine_laid_out(rt: &mut Runtime) -> VmResult<&mut dyn EngineHost> {
+    if rt.host_flag() {
+        update_frame_viewports(rt)?;
+    }
+    engine_mut(rt)
+}
+
+/// See [`engine_laid_out`].
+#[cold]
+fn update_frame_viewports(rt: &mut Runtime) -> VmResult<()> {
+    let state = state_mut(rt)?;
+    if state.doc.frame == 0 || state.doc.retired {
+        return Ok(());
+    }
+    let Some(frames) = state.frame_host.clone() else {
+        return Ok(());
+    };
+    let frame = state.doc.frame;
+    let mut frames = frames
+        .try_borrow_mut()
+        .map_err(|_| VmError::type_error("the frame registry is in use"))?;
+    frames.update_viewports(frame, &mut Hosts(state));
+    Ok(())
 }
 
 /// All documents of the runtime, the current one first.

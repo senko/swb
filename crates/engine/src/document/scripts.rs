@@ -35,6 +35,9 @@ impl DocumentState {
     /// Starts the fetch of the script at `url` for the script element
     /// `node`, or queues it. False if the document may not load it.
     pub(crate) fn fetch_script(&mut self, node: NodeId, url: &str, mode: ScriptFetchMode) -> bool {
+        if self.retired {
+            return false;
+        }
         let Ok(url) = Url::parse(url) else {
             return false;
         };

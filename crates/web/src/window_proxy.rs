@@ -24,6 +24,8 @@ pub(crate) fn install_hooks(rt: &mut Runtime) {
         set,
         delete,
         own_keys,
+        child_count,
+        child_frame,
     });
 }
 
@@ -85,6 +87,14 @@ fn delete(rt: &mut Runtime, _: Gc<Object>, _: PropertyKey) -> VmResult<bool> {
 
 fn own_keys(rt: &mut Runtime, _: Gc<Object>) -> VmResult<Vec<PropertyKey>> {
     Err(blocked(rt))
+}
+
+fn child_count(rt: &mut Runtime, proxy: Gc<Object>) -> VmResult<u32> {
+    crate::frames::child_count_of_proxy(rt, proxy)
+}
+
+fn child_frame(rt: &mut Runtime, proxy: Gc<Object>, index: u32) -> VmResult<Option<Gc<Object>>> {
+    crate::frames::child_of_proxy(rt, proxy, index)
 }
 
 #[cfg(test)]

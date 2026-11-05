@@ -31,7 +31,7 @@ use crate::generated::types::{
     BooleanOrScrollIntoViewOptions, DOMRectInit, ScrollLogicalPosition, ScrollToOptions,
 };
 use crate::host::{DomRect, ScrollAlign, ScrollRequest};
-use crate::state::{WebState, engine, engine_mut};
+use crate::state::WebState;
 
 // ----- DOMRect -----
 
@@ -294,7 +294,7 @@ impl g::dom_rect_list::DOMRectListImpl for WebState {
 /// The client rectangles of `element` from the engine (a layout flush),
 /// with the deadline checked after it.
 fn client_rects(rt: &mut Runtime, element: NodeId) -> b::Result<Vec<DomRect>> {
-    let rects = engine_mut(rt)?.client_rects(element);
+    let rects = crate::state::engine_laid_out(rt)?.client_rects(element);
     rt.check_time()?;
     Ok(rects)
 }
@@ -364,21 +364,21 @@ fn bounding_rect(rects: &[DomRect]) -> DomRect {
 
 /// `offsetParent` and the `offset*` values of `element`.
 pub(crate) fn offset_metrics(rt: &mut Runtime, element: NodeId) -> b::Result<crate::OffsetMetrics> {
-    let metrics = engine_mut(rt)?.offset_metrics(element);
+    let metrics = crate::state::engine_laid_out(rt)?.offset_metrics(element);
     rt.check_time()?;
     Ok(metrics)
 }
 
 /// `client*` of `element` (left, top, width, height).
 pub(crate) fn client_metrics(rt: &mut Runtime, element: NodeId) -> b::Result<[i32; 4]> {
-    let metrics = engine_mut(rt)?.client_metrics(element);
+    let metrics = crate::state::engine_laid_out(rt)?.client_metrics(element);
     rt.check_time()?;
     Ok(metrics)
 }
 
 /// `scroll*` of `element`.
 pub(crate) fn scroll_metrics(rt: &mut Runtime, element: NodeId) -> b::Result<crate::ScrollMetrics> {
-    let metrics = engine_mut(rt)?.scroll_metrics(element);
+    let metrics = crate::state::engine_laid_out(rt)?.scroll_metrics(element);
     rt.check_time()?;
     Ok(metrics)
 }
@@ -389,7 +389,7 @@ pub(crate) fn scroll(
     element: Option<NodeId>,
     request: ScrollRequest,
 ) -> b::Result<()> {
-    let engine = engine_mut(rt)?;
+    let engine = crate::state::engine_laid_out(rt)?;
     match element {
         Some(element) => engine.scroll_element(element, request),
         None => engine.scroll_viewport(request),
@@ -439,7 +439,7 @@ pub(crate) fn scroll_into_view(
             (scroll_align(options.block), scroll_align(options.inline))
         }
     };
-    engine_mut(rt)?.scroll_into_view(element, block, inline);
+    crate::state::engine_laid_out(rt)?.scroll_into_view(element, block, inline);
     rt.check_time()?;
     Ok(())
 }
@@ -458,7 +458,7 @@ pub(crate) fn elements_from_point(
     if document != NodeId::DOCUMENT {
         return Ok(Vec::new());
     }
-    let elements = engine_mut(rt)?.elements_from_point(x, y, all);
+    let elements = crate::state::engine_laid_out(rt)?.elements_from_point(x, y, all);
     rt.check_time()?;
     Ok(elements)
 }
@@ -468,7 +468,7 @@ pub(crate) fn scrolling_element(rt: &mut Runtime, document: NodeId) -> b::Result
     if document != NodeId::DOCUMENT {
         return Ok(None);
     }
-    let element = engine_mut(rt)?.scrolling_element();
+    let element = crate::state::engine_laid_out(rt)?.scrolling_element();
     rt.check_time()?;
     Ok(element)
 }
@@ -476,8 +476,8 @@ pub(crate) fn scrolling_element(rt: &mut Runtime, document: NodeId) -> b::Result
 // ----- Window -----
 
 /// The viewport of the document (no flush).
-fn viewport(rt: &Runtime) -> b::Result<crate::Viewport> {
-    Ok(engine(rt)?.viewport())
+fn viewport(rt: &mut Runtime) -> b::Result<crate::Viewport> {
+    Ok(crate::state::engine_laid_out(rt)?.viewport())
 }
 
 /// A length of the viewport as a `long`.
@@ -488,20 +488,20 @@ fn long(value: f64) -> i32 {
 
 /// `innerWidth` and `innerHeight` (also `outerWidth` and `outerHeight` and
 /// the size of `screen`, as headless Chromium gives them).
-pub(crate) fn viewport_size(rt: &Runtime) -> b::Result<(i32, i32)> {
+pub(crate) fn viewport_size(rt: &mut Runtime) -> b::Result<(i32, i32)> {
     let v = viewport(rt)?;
     Ok((long(v.width), long(v.height)))
 }
 
 /// `devicePixelRatio`.
-pub(crate) fn device_pixel_ratio(rt: &Runtime) -> b::Result<f64> {
+pub(crate) fn device_pixel_ratio(rt: &mut Runtime) -> b::Result<f64> {
     Ok(viewport(rt)?.scale)
 }
 
 /// `scrollX` and `scrollY` (with the scroll of a `focus()` that waits,
 /// which can lay out).
 pub(crate) fn scroll_position(rt: &mut Runtime) -> b::Result<(f64, f64)> {
-    let position = engine_mut(rt)?.scroll_position();
+    let position = crate::state::engine_laid_out(rt)?.scroll_position();
     rt.check_time()?;
     Ok(position)
 }

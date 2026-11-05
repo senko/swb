@@ -12,13 +12,17 @@
 
 mod budget;
 pub(crate) mod paint;
+pub(crate) mod registry;
 mod sandbox;
 
+use std::cell::Cell;
 use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
 
 use swb_dom::NodeId;
 use swb_layout::Size;
-use swb_net::{ClientId, RequestId, Url};
+use swb_net::{ClientId, Origin, RequestId, Url, same_site};
+use swb_web::DocumentKey;
 
 use crate::document::DocumentState;
 
@@ -80,7 +84,30 @@ impl FrameId {
             generation: (value >> 32) as u32,
         }
     }
+
+    /// The number of the frame in the script runtime ([`swb_web::FrameHost`]):
+    /// below 2^31, and unique over the life of the arena, because a slot whose
+    /// generation reaches [`MAX_GENERATION`] is not used again.
+    pub fn number(self) -> u32 {
+        (self.generation << INDEX_BITS) | self.index
+    }
+
+    /// The id of [`FrameId::number`].
+    pub fn from_number(number: u32) -> FrameId {
+        FrameId {
+            index: number & ((1 << INDEX_BITS) - 1),
+            generation: number >> INDEX_BITS,
+        }
+    }
 }
+
+/// The bits of the index in [`FrameId::number`]: an arena has at most
+/// [`MAX_FRAMES`] live frames besides the top level, and a free slot is used
+/// before a new one.
+const INDEX_BITS: u32 = 10;
+
+/// The first generation that a slot does not get; see [`FrameId::number`].
+const MAX_GENERATION: u32 = 1 << (31 - INDEX_BITS);
 
 impl std::fmt::Display for FrameId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -121,12 +148,29 @@ pub(crate) struct Frame {
     pub(crate) container: Option<NodeId>,
     /// The child frames, in the tree order of their containers.
     pub(crate) children: Vec<FrameId>,
-    /// The `name` attribute of the container (`window.name` comes with
-    /// scripts in frames).
+    /// The name of the browsing context: the `name` attribute of the container
+    /// when the frame was made, then what scripts write to `window.name`
+    /// (measured: a later change of the attribute does not count).
     pub(crate) name: String,
+    /// The origin of the current document.
+    pub(crate) origin: Option<Origin>,
+    /// The key of the current document in the script runtime, once it has a
+    /// realm (ADR 0031 section 5).
+    pub(crate) script: Option<DocumentKey>,
+    /// True while a navigation that the insertion started can reuse the
+    /// `Window` of the initial `about:blank` document (measured, case
+    /// `scripted-initial-reuse`; HTML "initial about:blank").
+    pub(crate) reuse_window: bool,
+    /// True if the viewport changed since the last rendering update: the
+    /// document's window gets `resize`.
+    pub(crate) resized: bool,
     /// The sandboxing flags of the container's `sandbox` attribute when
     /// the current document was made (HTML takes them at navigation).
     pub(crate) sandbox: Sandbox,
+    /// The sandboxing flags of the navigation that waits for its document,
+    /// from when it started (HTML "snapshot target snapshot params"; measured,
+    /// case `scripted-sandbox-scripts`).
+    pub(crate) pending_sandbox: Sandbox,
     /// The document; `None` for the top-level frame (the page holds it).
     pub(crate) doc: Option<Box<DocumentState>>,
     /// A navigation whose document has not arrived.
@@ -169,7 +213,12 @@ impl Frame {
             container,
             children: Vec::new(),
             name: String::new(),
+            origin: None,
+            script: None,
+            reuse_window: false,
+            resized: false,
             sandbox: Sandbox::default(),
+            pending_sandbox: Sandbox::default(),
             doc: None,
             pending: None,
             viewport: DEFAULT_FRAME_VIEWPORT,
@@ -230,6 +279,12 @@ pub(crate) struct Frames {
     pub(crate) depth_warned: bool,
     /// The budget for the documents of frames.
     pub(crate) budget: Budget,
+    /// The number of frames besides the top-level one, for the runtime: the
+    /// paths of a page without frames read this one number.
+    pub(crate) count_cell: Rc<Cell<usize>>,
+    /// The nodes that the budget has room for, for the parser of a document
+    /// that parses in steps.
+    pub(crate) node_room: Rc<Cell<usize>>,
 }
 
 impl Frames {
@@ -248,6 +303,8 @@ impl Frames {
             count_warned: false,
             depth_warned: false,
             budget: Budget::default(),
+            count_cell: Rc::default(),
+            node_room: Rc::new(Cell::new(MAX_NODES)),
         }
     }
 
@@ -257,9 +314,12 @@ impl Frames {
         let top = self.top_mut();
         top.children.clear();
         top.load_fired = false;
+        top.script = None;
         self.count_warned = false;
         self.depth_warned = false;
         self.budget.reset();
+        self.node_room
+            .set(self.budget.nodes_left(Charge::default()));
     }
 
     /// What frame `id`'s current document costs the budget.
@@ -291,7 +351,19 @@ impl Frames {
         if let Some(frame) = self.get_mut(id) {
             frame.charge = charge;
             self.budget.replace(old, charge);
+            self.node_room
+                .set(self.budget.nodes_left(Charge::default()));
         }
+    }
+
+    /// A retired document (ADR 0031 section 5) stays in memory while the
+    /// runtime lives, so its nodes stay in the budget until the next top-level
+    /// document. Its source text is gone.
+    pub(crate) fn charge_retired(&mut self, nodes: usize) {
+        let charge = Charge { bytes: 0, nodes };
+        self.budget.replace(Charge::default(), charge);
+        self.node_room
+            .set(self.budget.nodes_left(Charge::default()));
     }
 
     /// What the live frame documents cost together.
@@ -358,6 +430,12 @@ impl Frames {
             }
         } else {
             let index = u32::try_from(self.slots.len()).ok()?;
+            if index >= 1 << INDEX_BITS {
+                // Each slot reached the last generation: about 2 million
+                // frames per slot in one arena.
+                log::warn!("the page has made too many frames; a further iframe gets no frame");
+                return None;
+            }
             self.slots.push(Slot {
                 generation: 0,
                 frame: Some(frame),
@@ -368,8 +446,13 @@ impl Frames {
             }
         };
         self.count += 1;
+        self.count_cell.set(self.count);
         self.clients.insert(client, id);
         self.containers.insert((parent, container), id);
+        let record = self.get_mut(id)?;
+        if let Some(doc) = record.doc.as_deref_mut() {
+            doc.frame_id = id;
+        }
         let children = &mut self.get_mut(parent)?.children;
         children.insert(at.min(children.len()), id);
         Some(id)
@@ -410,10 +493,15 @@ impl Frames {
             return None;
         }
         let frame = slot.frame.take()?;
-        slot.generation = slot.generation.wrapping_add(1);
-        self.free.push(id.index);
+        slot.generation += 1;
+        if slot.generation < MAX_GENERATION {
+            self.free.push(id.index);
+        }
         self.count -= 1;
+        self.count_cell.set(self.count);
         self.budget.release(frame.charge);
+        self.node_room
+            .set(self.budget.nodes_left(Charge::default()));
         if let Some(doc) = &frame.doc {
             self.clients.remove(&doc.client);
         }
@@ -482,6 +570,97 @@ impl Frames {
             }
         }
         out
+    }
+
+    /// The top-level frame's origin, which is the origin of the runtime
+    /// until feature 13 gives other origins runtimes of their own.
+    pub(crate) fn top_origin(&self) -> Option<&Origin> {
+        self.top().origin.as_ref()
+    }
+
+    /// True if frame `id`'s document has the origin of the runtime.
+    pub(crate) fn in_agent(&self, id: FrameId) -> bool {
+        let (Some(frame), Some(top)) = (self.get(id), self.top_origin()) else {
+            return false;
+        };
+        frame.origin.as_ref() == Some(top)
+    }
+
+    /// The frames from the top level down to `frame`.
+    pub(crate) fn chain(&self, frame: FrameId) -> Vec<FrameId> {
+        let mut chain = vec![frame];
+        let mut at = frame;
+        while let Some(parent) = self.get(at).and_then(|f| f.parent) {
+            chain.push(parent);
+            at = parent;
+            if chain.len() > MAX_DEPTH as usize + 2 {
+                break;
+            }
+        }
+        chain.reverse();
+        chain
+    }
+
+    /// The site for cookies of the requests of a document of origin `own` in
+    /// a child of `parent` (RFC 6265bis §5.2.1; ADR 0031 section 3), or of
+    /// the request of a frame document of `parent` (`own` is `None`): the
+    /// top-level origin if `own` and the documents of `parent` and its
+    /// ancestors are same-site with it, else an opaque origin.
+    pub(crate) fn site_for_cookies(&self, parent: FrameId, own: Option<&Origin>) -> Origin {
+        let Some(top) = self.top_origin() else {
+            return Origin::new_opaque();
+        };
+        let mut same = own.is_none_or(|o| same_site(o, top));
+        let mut frame = Some(parent);
+        while same && let Some(id) = frame {
+            if id == FrameId::TOP {
+                break;
+            }
+            same = self
+                .get(id)
+                .and_then(|f| f.origin.as_ref())
+                .is_some_and(|o| same_site(o, top));
+            frame = self.get(id).and_then(|f| f.parent);
+        }
+        if same {
+            top.clone()
+        } else {
+            Origin::new_opaque()
+        }
+    }
+
+    /// True if the document of `source` may navigate frame `target` (HTML
+    /// "allowed by sandboxing to navigate", and the origin rule of Chromium;
+    /// measured, cases `input-target-*`):
+    ///
+    /// - itself and its descendants, always;
+    /// - a sandboxed frame: else only the top level, with a token that
+    ///   `sandbox_allows` accepts (also from a nested frame, and the flags go
+    ///   down to frames without `sandbox`);
+    /// - else a frame whose document, or the document of one of whose
+    ///   ancestors, has the origin of `source`. So a frame with the top
+    ///   level's origin may navigate any frame, and a cross-origin frame may
+    ///   not navigate its parent.
+    pub(crate) fn may_navigate(
+        &self,
+        source: FrameId,
+        target: FrameId,
+        sandbox_allows: fn(Sandbox) -> bool,
+    ) -> bool {
+        let chain = self.chain(target);
+        if chain.contains(&source) {
+            return true;
+        }
+        let sandbox = self.get(source).map(|f| f.sandbox).unwrap_or_default();
+        if sandbox.sandboxed {
+            return target == FrameId::TOP && sandbox_allows(sandbox);
+        }
+        let Some(origin) = self.get(source).and_then(|f| f.origin.as_ref()) else {
+            return false;
+        };
+        chain
+            .iter()
+            .any(|&id| self.get(id).and_then(|f| f.origin.as_ref()) == Some(origin))
     }
 
     /// All frames in tree order (pre-order, top first).

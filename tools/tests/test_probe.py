@@ -836,7 +836,7 @@ def test_probe_evaluates_in_a_frame_and_clicks_in_it():
 
 
 @pytest.mark.usefixtures("chromium")
-def test_swb_answers_a_frame_query_with_an_error_until_frames_run_scripts(capsys, tmp_path):
+def test_swb_answers_a_frame_query(capsys, tmp_path):
     binary = swb.find_swb()
     if binary is None:
         pytest.skip("the swb binary does not exist")
@@ -862,12 +862,11 @@ def test_swb_answers_a_frame_query_with_an_error_until_frames_run_scripts(capsys
     )
     status = probe([path], ["q"], binary, 1.0, False)
     out = capsys.readouterr().out
-    # The top-level document answers; the frame has no script runtime in swb
-    # yet (Chromium answers 1); a path that finds no frame is an error.
+    # The top-level document and the frame answer; a path that finds no frame
+    # is an error.
     assert status == 1, out
-    assert "FrameError: the frame has no script runtime" in out
     assert 'FrameError: no iframe matches "#nope"' in out
-    assert out.count("  swb    1  1\n") == 1
+    assert out.count("  swb    1  1\n") == 2
     assert out.count("  swb    2  2\n") == 1
 
 

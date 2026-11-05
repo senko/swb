@@ -5,8 +5,8 @@
 //!
 //! Script sees the `WindowProxy` of the window (ADR 0031 section 5): `this`
 //! of a member is the proxy, also for a call with `undefined` as `this`, and
-//! `window`, `self`, `frames`, `top` and `parent` return it. Without frames
-//! in scripts (feature 12b), `length` is 0.
+//! `window`, `self` and `frames` return it. `top`, `parent`, `frameElement`,
+//! `length`, `name` and `closed` ask the frame registry (`frames.rs`).
 //!
 //! `WindowProperties` sits between `Window.prototype` and
 //! `EventTarget.prototype` and answers `window[name]` for the ids of
@@ -14,9 +14,9 @@
 //! `object` elements (HTML §7.2.2.3, "named access on the Window object").
 //! A name with one element gives the element; a name with several gives a
 //! live `HTMLCollection` of them (`lists.rs`, as Chromium; measured in
-//! `tools/probes/web-dom-query.json`). Child navigables (frames) do not
-//! exist. Ids come from the DOM's id index; the `name` attributes are
-//! cached by DOM generation.
+//! `tools/probes/web-dom-query.json`). The name of a child frame comes before
+//! the elements (measured). Ids come from the DOM's id index; the `name`
+//! attributes are cached by DOM generation.
 
 use std::collections::HashMap;
 
@@ -132,16 +132,57 @@ impl g::window::WindowImpl for WebState {
         Ok(this.object)
     }
 
-    fn length(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
-        Ok(0)
+    fn length(cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+        Ok(crate::frames::length(cx.rt)?)
     }
 
-    fn top(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(Some(this.object))
+    fn top(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        Ok(crate::frames::top(cx.rt, this.object)?)
     }
 
-    fn parent(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
-        Ok(Some(this.object))
+    fn parent(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        Ok(crate::frames::parent(cx.rt, this.object)?)
+    }
+
+    /// `window.frameElement`.
+    fn frame_element(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<Gc<Object>>> {
+        Ok(crate::frames::frame_element(cx.rt)?)
+    }
+
+    /// `window.opener`: swb has no auxiliary browsing contexts (ADR 0031
+    /// section 13).
+    fn opener(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Value> {
+        Ok(crate::frames::opener())
+    }
+
+    /// HTML: `null` disowns; another value becomes a data property of the
+    /// window (measured: `window.opener = 7` reads 7).
+    fn set_opener(cx: &mut Cx<'_>, _this: Platform, value: Value) -> b::Result<()> {
+        if matches!(value, Value::Null) {
+            return Ok(());
+        }
+        let global = crate::state::window_global(cx.rt)?;
+        let key = cx.rt.key_from_str("opener")?;
+        let desc = PropertyDescriptor::data(value, true, true, true);
+        Ok(cx.rt.define_property(global, key, desc)?)
+    }
+
+    fn name(cx: &mut Cx<'_>, _this: Platform) -> b::Result<String> {
+        Ok(crate::frames::name(cx.rt)?)
+    }
+
+    fn set_name(cx: &mut Cx<'_>, _this: Platform, value: String) -> b::Result<()> {
+        Ok(crate::frames::set_name(cx.rt, &value)?)
+    }
+
+    fn closed(cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
+        Ok(crate::frames::closed(cx.rt)?)
+    }
+
+    /// `self.origin`: the serialized origin of the document (`"null"` for an
+    /// opaque one).
+    fn origin(cx: &mut Cx<'_>, _this: Platform) -> b::Result<String> {
+        Ok(crate::state::engine(cx.rt)?.origin_text())
     }
 
     /// `window.event` (DOM §2.3): the window's current event, or
@@ -209,13 +250,36 @@ impl g::window::WindowImpl for WebState {
         crate::idle_callbacks::cancel(cx.rt, handle)
     }
 
+    /// `getComputedStyle`: the element can belong to another document of the
+    /// agent (the document's layout answers; measured, case `geometry`).
     fn get_computed_style(
         cx: &mut Cx<'_>,
         _this: Platform,
-        elt: NodeId,
+        elt: Value,
         pseudo_elt: Option<Option<String>>,
     ) -> b::Result<Gc<Object>> {
-        crate::cssom::computed_style(cx, elt, pseudo_elt.flatten().as_deref())
+        let data = cx
+            .rt
+            .host_object(elt)
+            .filter(|_| cx.rt.implements(elt, g::ELEMENT))
+            .map(|(_, data)| data);
+        let Some(swb_js::HostData::Word(word)) = data else {
+            return Err(b::Exception::type_error(
+                "parameter 1 is not of type 'Element'.",
+            ));
+        };
+        let data = swb_js::HostData::Word(word);
+        let entered = crate::state::switch_if_other(cx.rt, b::node_document(word))?;
+        let result = match b::node_here(cx.rt, data) {
+            Some(element) => {
+                crate::cssom::computed_style(cx, element, pseudo_elt.flatten().as_deref())
+            }
+            None => Err(b::Exception::type_error(
+                "parameter 1 is not of type 'Element'.",
+            )),
+        };
+        crate::state::leave(cx.rt, entered);
+        result
     }
 
     // ----- CSSOM View (`cssom_view.rs`) -----
@@ -444,6 +508,8 @@ fn build_names(dom: &Document) -> HashMap<String, (NodeId, u8)> {
 /// What a name of the window's named properties stands for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Named {
+    /// A child frame, by its number.
+    Frame(u32),
     /// One element.
     One(NodeId),
     /// Several elements: a collection.
@@ -456,13 +522,16 @@ enum Named {
 /// that `name` (cached by generation). One element of each kind gives the
 /// one with the id.
 fn named(rt: &mut Runtime, name: &str) -> VmResult<Option<Named>> {
+    if name.is_empty() {
+        return Ok(None);
+    }
+    if let Some(frame) = crate::frames::child_named(rt, name)? {
+        return Ok(Some(Named::Frame(frame)));
+    }
     let state = state(rt)?;
     let Some(host) = state.doc.host.as_deref() else {
         return Ok(None);
     };
-    if name.is_empty() {
-        return Ok(None);
-    }
     let dom = host.dom();
     let by_id = dom.count_elements_by_id(NodeId::DOCUMENT, name, 2);
     let first_id = if by_id > 0 {
@@ -553,6 +622,10 @@ fn get_own_property(
     };
     let realm = crate::state::doc_realm(rt)?;
     let value = match found {
+        Named::Frame(frame) => match crate::frames::window_of_frame(rt, frame)? {
+            Some(window) => window,
+            None => return Ok(None),
+        },
         Named::One(element) => <WebState as b::Host>::wrap_node(rt, realm, element)?,
         Named::Many => lists::window_name(rt, realm, &name)?,
     };

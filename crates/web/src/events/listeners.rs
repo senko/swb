@@ -116,6 +116,11 @@ pub(crate) struct Listeners {
 }
 
 impl Listeners {
+    /// True if a listener of `kind` is in the list.
+    pub(crate) fn has_kind(&self, kind: &str) -> bool {
+        self.by_type.contains_key(kind)
+    }
+
     /// Appends `listener` for `kind` unless the list has a listener with
     /// the same type, callback and capture flag (DOM "add an event
     /// listener", step 5). Returns true if it was appended.

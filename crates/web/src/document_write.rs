@@ -221,7 +221,10 @@ fn document_write_steps(rt: &mut swb_js::Runtime, document: NodeId, input: &str)
 /// script holds the parser.
 fn read_written_text(rt: &mut swb_js::Runtime) -> VmResult<()> {
     loop {
-        let Some(WrittenStep::Script(node)) = engine_mut(rt)?.parse_written_step() else {
+        let step = engine_mut(rt)?.parse_written_step();
+        let inserted = engine_mut(rt)?.take_inserted_frames();
+        crate::frames::parser_inserted(rt, inserted)?;
+        let Some(WrittenStep::Script(node)) = step else {
             return Ok(());
         };
         run_written_script(rt, node)?;

@@ -48,6 +48,7 @@ mod pipeline;
 mod script;
 mod scroll;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -63,6 +64,7 @@ use crate::frames::{FrameId, Frames};
 use crate::history::{Commit, Entry, History, PostData};
 
 pub use crate::document::ElementScroll;
+pub(crate) use frames::clamp_viewport;
 pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
     check_scale, check_viewport_size, device_size,
@@ -297,8 +299,19 @@ pub struct Page {
     traversals: std::collections::VecDeque<isize>,
     /// The frame tree (ADR 0031 section 2): the frames of the `iframe`
     /// elements, each with its document. The top-level frame's document is
-    /// `doc`.
-    frames: Frames,
+    /// `doc`. During a script task the registry holds it, and this is an empty
+    /// tree.
+    frames: Box<Frames>,
+    /// The registry that the page shares with its script runtime
+    /// (`crate::frames::registry`).
+    registry: Rc<RefCell<crate::frames::registry::FrameRegistry>>,
+    /// What a new frame document needs from the page.
+    maker: Rc<crate::frames::registry::DocumentMaker>,
+    /// The page's font context while a task runs.
+    lent_fonts: Rc<crate::frames::registry::LentFonts>,
+    /// The frames that the last task made, until the page has processed
+    /// their attributes.
+    made_in_task: std::collections::HashSet<FrameId>,
     /// Frames whose navigation commits without a request (`about:blank`,
     /// `about:srcdoc`), in the order of the navigations; stale ids are
     /// skipped.
@@ -321,29 +334,53 @@ pub struct Page {
     /// hold a reservation, so that 1,000 frames cannot make the workers
     /// outrun the page by gigabytes.
     frame_bodies: Arc<swb_net::ByteBudget>,
-    /// The decoded pixels of the raster images of frame documents (ADR 0031
-    /// section 11).
-    frame_images: Arc<swb_net::ByteBudget>,
-    /// The bytes of the external style sheets of frame documents (ADR 0031
-    /// section 11).
-    frame_styles: Arc<swb_net::ByteBudget>,
     /// The decoded fonts of frame documents (ADR 0031 section 11).
     frame_fonts: Arc<swb_net::ByteBudget>,
-    /// The renderings of the SVG images of all frame documents (ADR 0031
-    /// section 11): one budget for the page, not one per document.
-    frame_vectors: Arc<swb_paint::VectorCache>,
 }
 
 impl Page {
     /// Creates an empty page.
     pub fn new(config: PageConfig, fonts: FontContext, viewport: Size, scale: f32) -> Self {
+        let loader = Rc::new(Loader::new(
+            config.fetcher,
+            config.network_threads,
+            config.notify,
+        ));
+        let storage = swb_web::StorageStore::shared();
+        let frame_bodies = swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES);
+        let frame_images = swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES);
+        let frame_styles = swb_net::ByteBudget::new(crate::frames::MAX_STYLE_BYTES);
+        let frame_fonts = swb_net::ByteBudget::new(crate::frames::MAX_FONT_BYTES);
+        let frame_vectors: Arc<swb_paint::VectorCache> = Arc::default();
+        let lent_fonts: Rc<crate::frames::registry::LentFonts> = Rc::default();
+        let maker = Rc::new(crate::frames::registry::DocumentMaker {
+            loader: Rc::clone(&loader),
+            storage: Rc::clone(&storage),
+            fonts: Rc::clone(&lent_fonts),
+            images: Arc::clone(&frame_images),
+            vectors: Arc::clone(&frame_vectors),
+            styles: Arc::clone(&frame_styles),
+            bodies: Arc::clone(&frame_bodies),
+            font_files: Arc::clone(&frame_fonts),
+        });
+        let view = View {
+            viewport,
+            scale,
+            indicators: false,
+            color_scheme: swb_css::ColorScheme::Light,
+        };
+        let registry = Rc::new(RefCell::new(crate::frames::registry::FrameRegistry {
+            frames: Box::new(Frames::new()),
+            maker: Rc::clone(&maker),
+            settings: crate::frames::registry::FrameSettings {
+                javascript: false,
+                view,
+            },
+            after_task: crate::frames::registry::AfterTask::default(),
+        }));
         Page {
-            loader: Rc::new(Loader::new(
-                config.fetcher,
-                config.network_threads,
-                config.notify,
-            )),
-            storage: swb_web::StorageStore::shared(),
+            loader,
+            storage,
             fonts,
             history: History::default(),
             pending: None,
@@ -359,25 +396,21 @@ impl Page {
             lent: false,
             javascript: false,
             document_number: 0,
-            view: View {
-                viewport,
-                scale,
-                indicators: false,
-                color_scheme: swb_css::ColorScheme::Light,
-            },
+            view,
             input: input::InputState::default(),
             traversals: std::collections::VecDeque::new(),
-            frames: Frames::new(),
+            frames: Box::new(Frames::new()),
+            registry,
+            maker,
+            lent_fonts,
+            made_in_task: std::collections::HashSet::new(),
             frame_navigations: Vec::new(),
             frame_destroyed: false,
             active_frame: FrameId::TOP,
             frame_inputs: std::collections::HashMap::new(),
             deferred_navigations: Vec::new(),
-            frame_bodies: swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES),
-            frame_images: swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES),
-            frame_styles: swb_net::ByteBudget::new(crate::frames::MAX_STYLE_BYTES),
-            frame_fonts: swb_net::ByteBudget::new(crate::frames::MAX_FONT_BYTES),
-            frame_vectors: Arc::default(),
+            frame_bodies,
+            frame_fonts,
         }
     }
 
@@ -431,9 +464,10 @@ impl Page {
     /// task use it, [`DocumentState::query_layout`]); the page keeps an
     /// empty one until the return.
     pub fn take_document_state(&mut self) -> Option<Box<DocumentState>> {
-        let mut state = self.doc.take()?;
+        let state = self.doc.take()?;
         self.lent = true;
-        state.lent_fonts = Some(std::mem::replace(&mut self.fonts, FontContext::empty()));
+        let fonts = std::mem::replace(&mut self.fonts, FontContext::empty());
+        *self.lent_fonts.borrow_mut() = Some(fonts);
         Some(state)
     }
 
@@ -442,7 +476,7 @@ impl Page {
     /// current document's (the page navigated meanwhile) is dropped.
     pub fn return_document_state(&mut self, mut state: Box<DocumentState>) {
         self.lent = false;
-        if let Some(fonts) = state.lent_fonts.take() {
+        if let Some(fonts) = self.lent_fonts.borrow_mut().take() {
             self.fonts = fonts;
         }
         if self.doc.is_some() {
@@ -600,6 +634,7 @@ impl Page {
         }
         if self.script.is_some() {
             self.run_task(swb_web::ScriptRuntime::abort_document);
+            self.abort_frame_documents();
         }
         self.loader.cancel_all();
         self.document_request = None;
@@ -1025,7 +1060,7 @@ pub(crate) fn is_loadable(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https" | "file" | "data" | "about")
 }
 
-fn about_blank() -> Url {
+pub(crate) fn about_blank() -> Url {
     Url::parse("about:blank").expect("about:blank is a valid URL")
 }
 

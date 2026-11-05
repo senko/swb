@@ -2,7 +2,7 @@
 //! `getComputedStyle` (the computed style of an element or of its
 //! pseudo-element, the resolved value of a property) and the layout flush
 //! of a script task, which needs the page's font context: the page lends
-//! it with the document state for each task ([`crate::Page`]'s
+//! it to its documents for each task ([`crate::Page`]'s
 //! `take_document_state`), and [`DocumentState::with_lent_fonts`] gives it
 //! to a query. The geometry of 7b (`getBoundingClientRect`, `offset*`,
 //! `scroll*`, `elementFromPoint`) uses the same path.
@@ -13,6 +13,7 @@
 //! element costs one walk of the fragment tree.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use swb_dom::NodeId;
@@ -34,9 +35,19 @@ impl DocumentState {
         &mut self,
         f: impl FnOnce(&mut Self, &mut FontContext) -> R,
     ) -> Option<R> {
-        let mut fonts = self.lent_fonts.take()?;
-        let result = f(self, &mut fonts);
-        self.lent_fonts = Some(fonts);
+        if self.retired {
+            return None;
+        }
+        let cell = Rc::clone(&self.lent_fonts);
+        let mut fonts = cell.try_borrow_mut().ok()?.take()?;
+        let result = if self.frame {
+            self.with_own_fonts(&mut fonts, f)
+        } else {
+            f(self, &mut fonts)
+        };
+        if let Ok(mut slot) = cell.try_borrow_mut() {
+            *slot = Some(fonts);
+        }
         Some(result)
     }
 

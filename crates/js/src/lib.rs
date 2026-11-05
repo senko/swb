@@ -35,9 +35,9 @@ pub use heap::{
     Tracer,
 };
 pub use host::{
-    Attributes, ClassId, ClassSpec, DefineOwnPropertyHook, DeleteHook, EventHandler, GetHook,
-    GetOwnPropertyHook, GetPrototypeHook, GlobalHook, HostHooks, HostState, Interface,
-    InterfaceHook, LazyHooks, OwnKeysHook, PreventExtensionsHook, Refusal, RefusalHook,
+    Attributes, ChildFrameHook, ClassId, ClassSpec, DefineOwnPropertyHook, DeleteHook,
+    EventHandler, GetHook, GetOwnPropertyHook, GetPrototypeHook, GlobalHook, HostHooks, HostState,
+    Interface, InterfaceHook, LazyHooks, OwnKeysHook, PreventExtensionsHook, Refusal, RefusalHook,
     ScriptIterator, SetAnswer, SetHook, SetPrototypeHook, Slots, WindowDefineHook,
     WindowOwnPropertyHook, WindowProxyHooks,
 };

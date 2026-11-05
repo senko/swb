@@ -127,6 +127,11 @@ frames:aec
 length:aec
 top:ae
 parent:aec
+opener:aec
+name:aec
+closed:aec
+origin:aec
+frameElement:aec
 screen:aec
 innerWidth:aec
 innerHeight:aec
