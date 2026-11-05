@@ -1551,7 +1551,7 @@ pub struct MessageEventInit {
     /// `origin`.
     pub origin: String,
     /// `ports`.
-    pub ports: Vec<swb_js::Gc<swb_js::Object>>,
+    pub ports: Vec<b::Platform>,
     /// `source`.
     pub source: Option<b::Platform>,
 }
@@ -1573,7 +1573,7 @@ impl MessageEventInit {
         let v = b::convert::member(rt, object, "origin")?;
         let origin = if v.is_undefined() { String::new() } else { b::convert::usv_string(rt, v).map_err(|e| e.member("origin", "MessageEventInit"))? };
         let v = b::convert::member(rt, object, "ports")?;
-        let ports = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::object(item0)).map_err(|e| e.member("ports", "MessageEventInit"))? };
+        let ports = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::platform(rt, item0, super::MESSAGE_PORT, "MessagePort")).map_err(|e| e.member("ports", "MessageEventInit"))? };
         let v = b::convert::member(rt, object, "source")?;
         let source = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::platform(rt, v, super::EVENT_TARGET, "EventTarget").map(Some) }).map_err(|e| e.member("source", "MessageEventInit"))? };
         Ok(MessageEventInit { bubbles, cancelable, composed, data, last_event_id, origin, ports, source })
@@ -1594,7 +1594,7 @@ impl MessageEventInit {
         b::to_js::dictionary_member(rt, object, "lastEventId", value)?;
         let value = b::to_js::string(rt, &self.origin.clone())?;
         b::to_js::dictionary_member(rt, object, "origin", value)?;
-        let value = b::to_js::sequence(rt, realm, &self.ports.clone(), |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?;
+        let value = b::to_js::sequence(rt, realm, &self.ports.clone(), |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object((*item0).object)))?;
         b::to_js::dictionary_member(rt, object, "ports", value)?;
         let value = (match self.source { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0.object)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
         b::to_js::dictionary_member(rt, object, "source", value)?;

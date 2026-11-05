@@ -216,6 +216,9 @@ pub(crate) struct WebState {
     /// The messages of `window.postMessage()` that wait for their task
     /// (`messaging.rs`).
     pub(crate) messages: crate::messaging::Messages,
+    /// The registry of the message ports and the budget of the waiting
+    /// messages (`message_port.rs`).
+    pub(crate) ports: Rc<crate::message_port::Shared>,
     /// The objects of `navigator.plugins` and `navigator.mimeTypes`, made
     /// at the first access (`navigator.rs`).
     pub(crate) plugins: Option<Gc<Object>>,
@@ -295,6 +298,7 @@ impl HostState for WebState {
         for promise in self.decodes.values().flatten() {
             tracer.object(*promise);
         }
+        self.ports.trace(tracer);
     }
 }
 

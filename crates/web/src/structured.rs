@@ -41,6 +41,7 @@ use swb_js::{Value, VmError};
 use crate::bindings::{self as b, Cx, Exception, dom_exception};
 use crate::generated as g;
 use crate::generated::types::StructuredSerializeOptions;
+use crate::message_port;
 
 /// The deepest nesting of objects that a clone follows.
 pub(crate) const MAX_DEPTH: usize = 4096;
@@ -114,6 +115,9 @@ enum Item {
         name: String,
         message: String,
     },
+    /// A `MessagePort` that the transfer list holds: its index in
+    /// [`Serialized::ports`].
+    Port(u32),
 }
 
 /// The error constructors whose prototype a cloned error gets.
@@ -165,6 +169,10 @@ pub struct Serialized {
     root: Val,
     /// The bytes of strings and buffers that the items hold.
     bytes: usize,
+    /// The ids of the `MessagePort`s of the transfer list, in its order
+    /// (HTML "transferred ports"; `message_port.rs`). The record owns them
+    /// until a realm adopts them.
+    ports: Vec<u64>,
 }
 
 impl Serialized {
@@ -174,12 +182,25 @@ impl Serialized {
             items: Vec::new(),
             root: Val::Null,
             bytes: 0,
+            ports: Vec::new(),
         }
+    }
+
+    /// The ids of the ports that the record transfers.
+    pub(crate) fn ports(&self) -> &[u64] {
+        &self.ports
+    }
+
+    /// A record of `null` that carries the ports `ids` (tests).
+    #[cfg(test)]
+    pub(crate) fn with_ports(mut self, ids: Vec<u64>) -> Serialized {
+        self.ports = ids;
+        self
     }
 
     /// An estimate of the bytes that the record holds.
     pub fn byte_size(&self) -> usize {
-        self.items.len() * size_of::<Item>() + self.bytes
+        self.items.len() * size_of::<Item>() + self.bytes + self.ports.len() * size_of::<u64>()
     }
 }
 
@@ -217,6 +238,8 @@ struct Serializer {
     memory: HashMap<Gc<Object>, u32>,
     stack: Vec<Frame>,
     bytes: usize,
+    /// The ports of the transfer list: the object and the id.
+    ports: Vec<(Gc<Object>, u64)>,
 }
 
 /// The error of a value that cannot be cloned (HTML step: throw a
@@ -309,7 +332,7 @@ impl Serializer {
         self.items.push(Item::Date(0.0));
         self.memory.insert(object, index);
         let item = match rt.host_object(value) {
-            Some(_) => Self::host_item(rt, object)?,
+            Some(_) => self.host_item(rt, object)?,
             None => self.plain_item(rt, object, index)?,
         };
         if let Some(slot) = self.items.get_mut(index as usize) {
@@ -404,10 +427,20 @@ impl Serializer {
         });
     }
 
-    /// The item of a platform object: a `DOMException` clones, the other
-    /// platform objects do not.
-    fn host_item(rt: &Runtime, object: Gc<Object>) -> b::Result<Item> {
+    /// The item of a platform object: a `DOMException` clones, a
+    /// `MessagePort` of the transfer list transfers (HTML
+    /// `StructuredSerializeInternal`), the other platform objects do not.
+    fn host_item(&self, rt: &Runtime, object: Gc<Object>) -> b::Result<Item> {
         let value = Value::Object(object);
+        if rt.implements(value, g::MESSAGE_PORT) {
+            return match self.ports.iter().position(|(port, _)| *port == object) {
+                Some(index) => Ok(Item::Port(index as u32)),
+                None => Err(Exception::dom(
+                    "DataCloneError",
+                    "A MessagePort could not be cloned because it was not transferred.",
+                )),
+            };
+        }
         if !rt.implements(value, g::DOM_EXCEPTION) {
             return Err(not_cloneable(rt, value));
         }
@@ -598,15 +631,25 @@ fn detached() -> Exception {
     )
 }
 
-/// `StructuredSerialize` (HTML §2.7.2): the record of `value`. `transfer`
-/// are the buffers that the caller detaches afterwards; they clone like
-/// the other buffers here.
-fn serialize_with(rt: &mut Runtime, value: Value) -> b::Result<Serialized> {
+/// `StructuredSerialize` (HTML §2.7.2): the record of `value`. The
+/// buffers of `transfer` clone like the other buffers (the caller detaches
+/// them afterwards); the `MessagePort`s of `transfer` become items that
+/// refer to the record's list of ports.
+fn serialize_with(
+    rt: &mut Runtime,
+    value: Value,
+    transfer: &[Gc<Object>],
+) -> b::Result<Serialized> {
+    let ports: Vec<(Gc<Object>, u64)> = transfer
+        .iter()
+        .filter_map(|&object| Some((object, message_port::port_info(rt, object)?.id)))
+        .collect();
     let mut serializer = Serializer {
         items: Vec::new(),
         memory: HashMap::new(),
         stack: Vec::new(),
         bytes: 0,
+        ports,
     };
     let root = serializer.visit(rt, value)?;
     serializer.run(rt)?;
@@ -614,12 +657,13 @@ fn serialize_with(rt: &mut Runtime, value: Value) -> b::Result<Serialized> {
         items: serializer.items,
         root,
         bytes: serializer.bytes,
+        ports: serializer.ports.iter().map(|&(_, id)| id).collect(),
     })
 }
 
 /// `StructuredSerialize` of `value` without transfer.
 pub(crate) fn serialize(rt: &mut Runtime, value: Value) -> b::Result<Serialized> {
-    serialize_with(rt, value)
+    serialize_with(rt, value, &[])
 }
 
 // ----- Deserialization -----
@@ -627,6 +671,21 @@ pub(crate) fn serialize(rt: &mut Runtime, value: Value) -> b::Result<Serialized>
 /// `StructuredDeserialize` (HTML §2.7.4): new objects in `realm` for the
 /// record's items; the value of the record's root.
 pub(crate) fn deserialize(rt: &mut Runtime, realm: u32, record: &Serialized) -> b::Result<Value> {
+    Ok(deserialize_with_ports(rt, realm, record)?.0)
+}
+
+/// [`deserialize`], and the `MessagePort` objects that the record
+/// transfers, in the order of the transfer list (HTML "transferred
+/// values": `MessageEvent.ports`). The ports get their objects first.
+pub(crate) fn deserialize_with_ports(
+    rt: &mut Runtime,
+    realm: u32,
+    record: &Serialized,
+) -> b::Result<(Value, Vec<Gc<Object>>)> {
+    let mut ports = Vec::with_capacity(record.ports.len());
+    for &id in &record.ports {
+        ports.push(message_port::adopt(rt, realm, id)?);
+    }
     let mut objects: Vec<Option<Gc<Object>>> = vec![None; record.items.len()];
     // The buffers first: the views refer to them.
     for (index, item) in record.items.iter().enumerate() {
@@ -641,7 +700,7 @@ pub(crate) fn deserialize(rt: &mut Runtime, realm: u32, record: &Serialized) -> 
     }
     for (index, item) in record.items.iter().enumerate() {
         if objects[index].is_none() {
-            objects[index] = Some(shell(rt, realm, item, &objects)?);
+            objects[index] = Some(shell(rt, realm, item, &objects, &ports)?);
         }
     }
     for (index, item) in record.items.iter().enumerate() {
@@ -652,7 +711,8 @@ pub(crate) fn deserialize(rt: &mut Runtime, realm: u32, record: &Serialized) -> 
             fill(rt, realm, object, item, &objects)?;
         }
     }
-    value_of(rt, &record.root, &objects)
+    let value = value_of(rt, &record.root, &objects)?;
+    Ok((value, ports))
 }
 
 /// The object of an item without its contents (properties, entries, the
@@ -662,8 +722,13 @@ fn shell(
     realm: u32,
     item: &Item,
     objects: &[Option<Gc<Object>>],
+    ports: &[Gc<Object>],
 ) -> b::Result<Gc<Object>> {
     Ok(match item {
+        Item::Port(index) => ports
+            .get(*index as usize)
+            .copied()
+            .ok_or(VmError::type_error("a port that is not there"))?,
         Item::Object(_) => rt.new_plain_object(realm)?,
         Item::Array { length, .. } => {
             let array = rt.new_array_of(realm, &[])?;
@@ -789,52 +854,97 @@ pub(crate) fn serialize_state(rt: &mut Runtime, data: Value) -> b::Result<Rc<Ser
 // ----- structuredClone() -----
 
 /// The checks of the `transfer` list (HTML "structured clone", steps of
-/// `StructuredSerializeWithTransfer`), worded as Chromium words them.
-fn check_transfer(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
+/// `StructuredSerializeWithTransfer`), worded as Chromium words them: the
+/// first pass finds a value that is not transferable and a duplicate, the
+/// second a buffer that is detached and a port that is neutered (measured:
+/// `[b, b]` with a detached `b` is a duplicate at index 1). `source` is the
+/// port that `postMessage()` is called on.
+fn check_transfer(
+    rt: &mut Runtime,
+    transfer: &[Gc<Object>],
+    source: Option<Gc<Object>>,
+) -> b::Result<()> {
+    let error = |message: String| Err(Exception::dom("DataCloneError", message));
+    let mut detached = Vec::new();
     for (index, &object) in transfer.iter().enumerate() {
-        let Slots::ArrayBuffer { detached, .. } = rt.slots_of(object)? else {
-            return Err(Exception::dom(
-                "DataCloneError",
-                format!("Value at index {index} does not have a transferable type."),
+        if let Some(port) = message_port::port_info(rt, object) {
+            if source == Some(object) {
+                return error(format!("Port at index {index} contains the source port."));
+            }
+            if transfer[..index].contains(&object) {
+                return error(format!(
+                    "Message port at index {index} is a duplicate of an earlier port."
+                ));
+            }
+            if port.detached {
+                detached.push(format!("Port at index {index} is already neutered."));
+            }
+            continue;
+        }
+        let Slots::ArrayBuffer { detached: gone, .. } = rt.slots_of(object)? else {
+            return error(format!(
+                "Value at index {index} does not have a transferable type."
             ));
         };
         if transfer[..index].contains(&object) {
-            return Err(Exception::dom(
-                "DataCloneError",
-                format!("ArrayBuffer at index {index} is a duplicate of an earlier ArrayBuffer."),
+            return error(format!(
+                "ArrayBuffer at index {index} is a duplicate of an earlier ArrayBuffer."
             ));
         }
-        if detached {
-            return Err(Exception::dom(
-                "DataCloneError",
-                format!("ArrayBuffer at index {index} is already detached."),
-            ));
+        if gone {
+            detached.push(format!("ArrayBuffer at index {index} is already detached."));
+        }
+    }
+    match detached.into_iter().next() {
+        Some(message) => error(message),
+        None => Ok(()),
+    }
+}
+
+/// `StructuredSerializeWithTransfer` (HTML §2.7.3) for `postMessage()`, in
+/// two steps: this function checks `transfer` and makes the record of
+/// `value`; [`detach_transfer`] then detaches the `ArrayBuffer`s and the
+/// ports of `transfer` in the sender. The caller detaches only when it
+/// keeps the record, so a failure or a dropped message leaves the transfer
+/// list as it was. The checks and their messages are those of
+/// `structuredClone()`. `source` is the port that `postMessage()` is
+/// called on, if any.
+pub(crate) fn serialize_for_transfer(
+    rt: &mut Runtime,
+    value: Value,
+    transfer: &[Gc<Object>],
+    source: Option<Gc<Object>>,
+) -> b::Result<Serialized> {
+    check_transfer(rt, transfer, source)?;
+    serialize_with(rt, value, transfer)
+}
+
+/// The second step of [`serialize_for_transfer`]: detaches the
+/// `ArrayBuffer`s of `transfer`, which that step checked, and neuters its
+/// ports.
+pub(crate) fn detach_transfer(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
+    detach_buffers(rt, transfer)?;
+    detach_port_objects(rt, transfer)
+}
+
+/// The `ArrayBuffer`s of `transfer` are detached.
+fn detach_buffers(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
+    for &object in transfer {
+        if message_port::port_info(rt, object).is_none() {
+            rt.detach_array_buffer(object.into())?;
         }
     }
     Ok(())
 }
 
-/// `StructuredSerializeWithTransfer` (HTML §2.7.3) for `postMessage()`, in
-/// two steps: this function checks `transfer` and makes the record of
-/// `value`; [`detach_transfer`] then detaches the `ArrayBuffer`s of
-/// `transfer` in the sender. The caller detaches only when it keeps the
-/// record, so a failure or a dropped message leaves the transfer list as it
-/// was. The checks and their messages are those of `structuredClone()`.
-pub(crate) fn serialize_for_transfer(
-    rt: &mut Runtime,
-    value: Value,
-    transfer: &[Gc<Object>],
-) -> b::Result<Serialized> {
-    check_transfer(rt, transfer)?;
-    serialize_with(rt, value)
-}
-
-/// The second step of [`serialize_for_transfer`]: detaches the
-/// `ArrayBuffer`s of `transfer`, which that step checked.
-pub(crate) fn detach_transfer(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
-    for &buffer in transfer {
-        rt.detach_array_buffer(buffer.into())?;
-    }
+/// The `MessagePort` objects of `transfer` are neutered.
+fn detach_port_objects(rt: &mut Runtime, transfer: &[Gc<Object>]) -> b::Result<()> {
+    let ports: Vec<Gc<Object>> = transfer
+        .iter()
+        .copied()
+        .filter(|&object| message_port::port_info(rt, object).is_some())
+        .collect();
+    message_port::detach_ports(rt, &ports)?;
     Ok(())
 }
 
@@ -846,11 +956,21 @@ pub(crate) fn structured_clone(
     options: StructuredSerializeOptions,
 ) -> b::Result<Value> {
     let transfer = options.transfer;
-    check_transfer(cx.rt, &transfer)?;
-    let record = serialize_with(cx.rt, value)?;
-    let result = deserialize(cx.rt, cx.realm(), &record)?;
-    for buffer in transfer {
-        cx.rt.detach_array_buffer(buffer.into())?;
-    }
+    check_transfer(cx.rt, &transfer, None)?;
+    let record = serialize_with(cx.rt, value, &transfer)?;
+    // The ports are neutered before the clone adopts them (a port object
+    // that is neutered after the adoption would lose its entry); a clone that
+    // fails closes them. The buffers are detached only after the clone
+    // succeeded, as before ports existed: the record holds their bytes, and
+    // a failed clone leaves them attached.
+    detach_port_objects(cx.rt, &transfer)?;
+    let result = match deserialize(cx.rt, cx.realm(), &record) {
+        Ok(result) => result,
+        Err(error) => {
+            message_port::release_ports(cx.rt, record.ports());
+            return Err(error);
+        }
+    };
+    detach_buffers(cx.rt, &transfer)?;
     Ok(result)
 }

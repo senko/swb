@@ -45,6 +45,8 @@ pub(crate) struct TargetData {
     pub(crate) xhr: Option<Box<crate::xhr::XhrState>>,
     /// The state of a `FileReader` (`file_api/reader.rs`).
     pub(crate) reader: Option<Box<crate::file_api::ReaderState>>,
+    /// The state of a `MessagePort` (`message_port.rs`).
+    pub(crate) port: Option<Box<crate::message_port::PortState>>,
 }
 
 impl GenericData for TargetData {
@@ -62,6 +64,9 @@ impl GenericData for TargetData {
         }
         if let Some(reader) = &self.reader {
             reader.trace(tracer);
+        }
+        if let Some(port) = &self.port {
+            port.trace(tracer);
         }
     }
 

@@ -92,6 +92,9 @@ pub(crate) enum Task {
     /// Deliver the oldest message that `window.postMessage()` queued (the
     /// posted message task source, `messaging.rs`).
     Message,
+    /// Deliver the next message of the `MessagePort` with this id (the posted
+    /// message task source of a port, `message_port.rs`).
+    PortMessage(u64),
 }
 
 /// A due time in page time (milliseconds), ordered as a number.

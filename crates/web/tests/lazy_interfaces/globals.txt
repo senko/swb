@@ -378,7 +378,9 @@ PopStateEvent:dwc
 Storage:dwc
 SubmitEvent:dwc
 HashChangeEvent:dwc
+MessagePort:dwc
 MessageEvent:dwc
+MessageChannel:dwc
 StorageEvent:dwc
 BeforeUnloadEvent:dwc
 IntersectionObserver:dwc

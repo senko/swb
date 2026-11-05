@@ -1449,9 +1449,9 @@ partial interface Document {
 
 // The events of HTML that createEvent() names: SubmitEvent (§4.10.18.6),
 // HashChangeEvent (§7.4.6), MessageEvent (§9.3), StorageEvent (Web Storage),
-// BeforeUnloadEvent (§7.4.6.3) and DragEvent (§6.11.3). `ports` of
-// MessageEvent and `dataTransfer` use `object` where swb has no MessagePort
-// or DataTransfer. HashChangeEvent has no init method, as in Chromium.
+// BeforeUnloadEvent (§7.4.6.3) and DragEvent (§6.11.3). `dataTransfer`
+// uses `object` where swb has no DataTransfer. HashChangeEvent has no init
+// method, as in Chromium.
 
 [Exposed=Window]
 interface SubmitEvent : Event {
@@ -1477,6 +1477,23 @@ dictionary HashChangeEventInit : EventInit {
   USVString newURL = "";
 };
 
+// MessagePort and MessageChannel (HTML §9.5, M9 feature 9, ADR 0031 section
+// 7, copied on 2026-11-05,
+// https://html.spec.whatwg.org/multipage/web-messaging.html#message-channels).
+// Chromium lists MessagePort, MessageEvent and MessageChannel in this order
+// among the properties of the global object.
+[Exposed=(Window,Worker,AudioWorklet), Transferable]
+interface MessagePort : EventTarget {
+  undefined postMessage(any message, sequence<object> transfer);
+  undefined postMessage(any message, optional StructuredSerializeOptions options = {});
+  undefined start();
+  undefined close();
+
+  // event handlers
+  attribute EventHandler onmessage;
+  attribute EventHandler onmessageerror;
+};
+
 [Exposed=Window]
 interface MessageEvent : Event {
   constructor(DOMString type, optional MessageEventInit eventInitDict = {});
@@ -1485,9 +1502,11 @@ interface MessageEvent : Event {
   readonly attribute USVString origin;
   readonly attribute DOMString lastEventId;
   readonly attribute EventTarget? source;
-  readonly attribute FrozenArray<object> ports;
+  // FrozenArray<MessagePort> in the standard. The same frozen array at each
+  // read (measured), which the hand-written code keeps; the IDL says `object`.
+  readonly attribute object ports;
 
-  undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional EventTarget? source = null, optional sequence<object> ports = []);
+  undefined initMessageEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional any data = null, optional USVString origin = "", optional DOMString lastEventId = "", optional EventTarget? source = null, optional sequence<MessagePort> ports = []);
 };
 
 dictionary MessageEventInit : EventInit {
@@ -1495,7 +1514,15 @@ dictionary MessageEventInit : EventInit {
   USVString origin = "";
   DOMString lastEventId = "";
   EventTarget? source = null;
-  sequence<object> ports = [];
+  sequence<MessagePort> ports = [];
+};
+
+[Exposed=(Window,Worker,AudioWorklet)]
+interface MessageChannel {
+  constructor();
+
+  readonly attribute MessagePort port1;
+  readonly attribute MessagePort port2;
 };
 
 [Exposed=Window]

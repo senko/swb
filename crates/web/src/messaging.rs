@@ -23,17 +23,23 @@
 //!   URL names, so such a message is dropped without an error);
 //! - messages arrive in the order of the calls.
 //!
+//! `MessagePort`s travel in the transfer list (M9 feature 9,
+//! `message_port.rs`): the record owns them until the task adopts them in
+//! the window's realm (`MessageEvent.ports`); a message that the origin
+//! check drops closes them.
+//!
 //! ADR 0031 feature 6 (messaging across documents; roadmap M9 feature 14)
 //! extends this module: other windows as targets, the `WindowProxy` as
-//! `source`, `MessagePort` transfers, and the page-wide queue and its
-//! budget. Until then the queue and its bounds are the runtime's.
+//! `source`, and the page-wide queue. Until then the queue is the
+//! runtime's.
 //!
-//! Bounds (ADR 0031 section 11): at most [`MAX_WAITING`] messages and
-//! [`MAX_BYTES`] of serialized bytes wait. A call past a bound drops its
-//! message with one warning until the queue is empty again (Chromium has no
-//! limit); a dropped message does not detach its transfer list. A flood of
-//! `postMessage` calls to self thus ends with the queue's bound and not
-//! with the heap.
+//! Bounds (ADR 0031 section 11): at most `MAX_WAITING` messages and
+//! `MAX_BYTES` (`message_port.rs`) of serialized bytes wait, the messages of the window and
+//! of the ports together (the count is in the port registry). A call past
+//! a bound drops its message with one warning until nothing waits again
+//! (Chromium has no limit); a dropped message does not detach its transfer
+//! list. A flood of `postMessage` calls to self thus ends with the bound and
+//! not with the heap.
 
 use std::collections::VecDeque;
 
@@ -45,14 +51,11 @@ use crate::bindings::{self as b, Cx, Exception};
 use crate::event_loop::{Task, queue_task};
 use crate::events::{Extra, fire_at_object, misc::Other};
 use crate::generated as g;
+use crate::message_port;
 use crate::state::{engine, state_mut};
-use crate::structured::{Serialized, deserialize, detach_transfer, serialize_for_transfer};
-
-/// The most messages that wait for their task.
-pub(crate) const MAX_WAITING: usize = 65_536;
-
-/// The most bytes of serialized messages that wait (256 MiB).
-pub(crate) const MAX_BYTES: usize = 256 << 20;
+use crate::structured::{
+    Serialized, deserialize_with_ports, detach_transfer, serialize_for_transfer,
+};
 
 /// What the `targetOrigin` of a call names.
 #[derive(Debug)]
@@ -76,13 +79,11 @@ pub(crate) struct Posted {
 }
 
 /// The messages that wait, in the order of the calls (each has a
-/// [`Task::Message`] in the task queue).
+/// [`Task::Message`] in the task queue). The count and the bytes against the
+/// bounds are in the port registry, shared with the ports' queues.
 #[derive(Debug, Default)]
 pub(crate) struct Messages {
     queue: VecDeque<Posted>,
-    bytes: usize,
-    /// True after the warning about a full queue, until the queue is empty.
-    warned: bool,
 }
 
 /// The origin of the window's document.
@@ -118,24 +119,19 @@ pub(crate) fn post(
     transfer: &[Gc<Object>],
 ) -> b::Result<()> {
     let target = parse_target(target_origin)?;
-    let record = serialize_for_transfer(cx.rt, message, transfer)?;
+    let record = serialize_for_transfer(cx.rt, message, transfer, None)?;
     let origin = document_origin(cx.rt)?.ascii_serialization();
     let bytes = record.byte_size();
-    let messages = &mut state_mut(cx.rt)?.messages;
-    if messages.queue.len() >= MAX_WAITING || messages.bytes.saturating_add(bytes) > MAX_BYTES {
-        if !messages.warned {
-            messages.warned = true;
-            log::warn!(
-                "postMessage: {} messages ({} bytes) wait; further messages are dropped until the queue is empty",
-                messages.queue.len(),
-                messages.bytes
-            );
-        }
+    if !message_port::admit(cx.rt, bytes)? {
         return Ok(());
     }
-    detach_transfer(cx.rt, transfer)?;
+    if let Err(error) = detach_transfer(cx.rt, transfer) {
+        // The message does not wait: give its count back.
+        message_port::release(cx.rt, bytes);
+        return Err(error);
+    }
+    message_port::hold_for_window(cx.rt, record.ports());
     let messages = &mut state_mut(cx.rt)?.messages;
-    messages.bytes += bytes;
     messages.queue.push_back(Posted {
         record,
         bytes,
@@ -154,10 +150,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
     let Some(posted) = messages.queue.pop_front() else {
         return Ok(());
     };
-    messages.bytes = messages.bytes.saturating_sub(posted.bytes);
-    if messages.queue.is_empty() {
-        messages.warned = false;
-    }
+    message_port::release(rt, posted.bytes);
+    message_port::unhold_for_window(rt, posted.record.ports());
     let delivered = match &posted.target {
         Target::Any | Target::Own => true,
         Target::Origin(origin) => *origin == document_origin(rt)?,
@@ -166,14 +160,18 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
         log::debug!(
             "postMessage: the message is not delivered: the target origin does not match the document"
         );
+        message_port::release_ports(rt, posted.record.ports());
         return Ok(());
     }
     // The spec fires `messageerror` when the data cannot be deserialized.
-    // With `ArrayBuffer`s as the only transferables and the record made in
-    // this runtime, only a heap limit fails here; `messageerror` comes with
-    // `MessagePort` transfers (ADR 0031 feature 6).
-    let data = deserialize(rt, 0, &posted.record)
-        .map_err(|_| VmError::type_error("a posted message could not be deserialized"))?;
+    // The record is made in this runtime, so only a heap limit fails here.
+    let Ok((data, ports)) = deserialize_with_ports(rt, 0, &posted.record) else {
+        // The ports of the record are not delivered: close them.
+        message_port::release_ports(rt, posted.record.ports());
+        return Err(VmError::type_error(
+            "a posted message could not be deserialized",
+        ));
+    };
     b::keep(rt, data);
     let window = rt.global(0)?;
     let other = Other::Message {
@@ -181,7 +179,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
         origin: posted.origin,
         last_event_id: String::new(),
         source: Some(window),
-        ports: Vec::new(),
+        ports,
+        frozen: None,
     };
     fire_at_object(
         rt,

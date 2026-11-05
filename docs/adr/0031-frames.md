@@ -614,6 +614,114 @@ is true for a tuple origin. Probe cases: `tools/probes/web-small-gaps.json`
 (`document-domain-*`, `post-message-self-*`; the frame cases stay in
 `web-frames.json`).
 
+**Done in one document (M9 feature 9, `crates/web/src/message_port.rs`;
+probe `tools/probes/web-message-channel.json`).** `MessageChannel` and
+`MessagePort` work within the runtime of the document; the registry is
+per runtime, which is per page until feature 5 (runtimes per origin)
+moves it to the page. Design:
+
+- *Registry.* Each port has an id (a counter that never reuses a value)
+  and an entry in the registry: the entangled port's id, the queue of
+  waiting messages (`Serialized` records), the enabled flag, the realm,
+  the port object (`None` while the port travels), and the number of
+  tasks in the event loop. The port object is a host object of its realm
+  whose `EventTarget` data holds `PortState` (the id and a share of the
+  registry). A closed port has no entry.
+- *Transfer.* `structured.rs` takes `MessagePort`s of the transfer list as
+  items of the record (`Item::Port`, `Serialized::ports`); the sender's
+  object is neutered (`PortState::detached`; every call does nothing) and
+  the entry keeps the queue, so messages queued before the transfer move
+  with the port; the receiving realm adopts the id with a new object whose
+  queue is not enabled, whatever the sender's state was. A record that is
+  not delivered (a window message dropped by the origin check, a message to
+  a port without partner, a clone that fails) closes its ports.
+- *Lifetime.* A port holds its entangled port strongly (the rule of HTML
+  "Ports and garbage collection"; `PortState::trace`), so a pair that
+  script no longer reaches is collected together (Chromium collects such
+  pairs too, also with listeners on both ends; measured by
+  finalization). The collector drops the `PortState` of a freed object;
+  the drop puts the id on a list and the next operation of the registry
+  removes the entry with its queue, disentangles the partner and closes
+  the ports that travel in the dropped messages (host-object
+  finalization through `Drop` of the generic data, not a weak table; no
+  change in `js`). A port stays alive while it has a task in the event
+  loop, and while it has a listener and its entangled port travels in a
+  message that waits (the entangled port is then not in the heap).
+  `close()` removes the entry at once. A port that travels (no object)
+  stays only while something can still deliver it: a *sweep* removes the
+  travelling entries that no root reaches, with their queues and their
+  budget. The roots are the entries with a port object or a queued task,
+  and the ports in the records of the window queue; the sweep follows the
+  ports in the queued records of the reached entries (one pass, a
+  worklist, no recursion). So a port that travels only in the queue of a
+  travelling port (`c.port1.postMessage(1, [c.port2])`: the queue of
+  `port2` holds `port2`; two channels that send each other a port) is
+  freed, as in Chromium. The sweep runs where no record is in flight: at
+  `new MessageChannel()` and `close()` when the removals since the last
+  sweep are a quarter of the entries (constant cost for each removal), at
+  the forced collection below (before and after it), and in the test
+  accessor. Root rule of the collector (`Shared::trace`): a port with a
+  listener whose partner travels stays alive, because the partner could
+  send to it. If the partner sits in an unreachable cycle, the sweep
+  removes the partner (the first collection leaves the port, since it is a
+  root, but the sweep that follows disentangles it), and the next collection
+  frees the port: at most two collections, each followed by a sweep; one
+  if a sweep ran before. At the limit of 65,536 live ports (or when 65,535
+  messages wait) `new MessageChannel()` forces a collection and a sweep (at
+  most once per 1,024 channels), counts again and throws `RangeError: ...
+  Too many message ports (65536).` with one warning per episode (until a
+  channel fits again); so a page that makes a channel per call (a
+  `setImmediate` polyfill) never reaches the limit while the collector
+  frees the pairs (hostile case `message-channel-million-unkept-js-on`:
+  1,000,000 channels in 1.1 s, 164 MiB), and a page that sends ports
+  through their own queues does not either (hostile case
+  `message-channel-travelling-cycle-js-on`: 70,000 iterations).
+- *Tasks.* Chromium delivers a port's messages one per task, and queues
+  the task for the next message after the listener of the previous one has
+  returned (measured: a timer or a window message that the handler of
+  message 1 queues runs before message 2, also when the handler posted
+  message 3 first; port messages are not queued as a block at the time of
+  the calls: with the timers 0 ms `t0` and `t0b` around `m1`, `m2`, `m3`
+  the order is `t0 m1 win t0b m2 m3`). `Task::PortMessage(id)` follows this
+  with one task for each port at most. There is no timer clamping (1,000
+  chained port messages in 50 ms against 19 chained timers). The queue
+  orders tasks by queuing time, so timers and the frames of the engine's
+  loop get their turns in an endless ping-pong (hostile case
+  `message-channel-ping-pong-js-on`: 750,000 round trips, 100 ticks of a
+  10 ms interval and 58 frames in the 1.5 s of `--settle-ms`).
+- *Queue enabled.* The assignment of `onmessage` or `onmessageerror` with
+  any value (`null` and `5` too) enables the queue; so does `start()`;
+  `addEventListener` does not (all measured). Messages posted to a port
+  before it is enabled wait.
+- *Closed and neutered ports.* `postMessage()` on a closed or neutered port
+  returns before the checks and before the transfer (the buffer stays
+  attached: measured); on a port whose partner is closed it serializes
+  and transfers, and the message is dropped. A message that was queued
+  before `close()` of the sender is delivered; `close()` of the receiver
+  drops its queue.
+- *Errors.* `Port at index N contains the source port.`, `Message port at
+  index N is a duplicate of an earlier port.`, `Port at index N is already
+  neutered.`, and `A MessagePort could not be cloned because it was not
+  transferred.` with the prefix of the caller (`MessagePort`, `Window`,
+  `structuredClone`, `History`). Chromium checks for non-transferable
+  values and duplicates first, and for detached buffers and neutered ports
+  second (`[b, b]` with a detached `b` is a duplicate at index 1).
+- *`MessageEvent`.* `ports` is one frozen array, made at the first read and
+  returned at each read (measured; the IDL says `object`); the init
+  dictionary and `initMessageEvent` take `sequence<MessagePort>` (a copy:
+  later changes of the array do not show); `source` may be a `MessagePort`,
+  and an `EventTarget` that is neither a window nor a port is refused
+  with Chromium's message; a port message has `origin` `""` and `source`
+  `null`.
+- *Budget.* The messages of ports and of `window.postMessage()` count
+  together: at most 65,536 waiting messages and 256 MiB of serialized bytes
+  for the runtime; a message past a bound is dropped with one warning until
+  nothing waits (hostile cases `message-port-flood-without-listener-js-on`,
+  `post-message-flood-to-self-js-on`).
+- *Departures.* The limits above (Chromium has none); no `BroadcastChannel`;
+  `messageerror` fires only when deserialization fails (only a heap limit
+  does today).
+
 **`BroadcastChannel`** is out (section 13) unless the diagnosis shows
 that a target needs it.
 

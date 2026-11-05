@@ -4585,6 +4585,132 @@ def post_message_flood_to_self_js_on() -> Page:
     return Page(doc("<p>messages</p>" + script))
 
 
+@case(
+    "A MessageChannel ping-pong without end (M9 feature 9): two ports send each other a message "
+    "from the handler of the last one, while a timer counts and an animation frame callback runs. "
+    "Each message is a task with no timer clamp; the event loop orders the tasks by queuing time, "
+    "so the timer and the frames get their turns and --settle-ms ends (ADR 0031 sections 7 and 11)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=10,
+    rss_limit_mib=320,
+)
+def message_channel_ping_pong_js_on() -> Page:
+    script = (
+        "<script>const c = new MessageChannel(); let pongs = 0, ticks = 0, frames = 0; "
+        "c.port1.onmessage = (e) => c.port2.postMessage(e.data); "
+        "c.port2.onmessage = (e) => { pongs++; c.port1.postMessage(e.data); }; "
+        "c.port1.postMessage('ping'); "
+        "setInterval(() => ticks++, 10); "
+        "const frame = () => { frames++; requestAnimationFrame(frame); }; "
+        "requestAnimationFrame(frame); "
+        "setTimeout(() => console.log('pongs ' + pongs + ' ticks ' + ticks + ' frames ' + "
+        "frames), 1000);"
+        "</script>"
+    )
+    return Page(doc("<p>ping-pong</p>" + script))
+
+
+@case(
+    "One message with 10,000 ports (M9 feature 9): 5,000 channels, both ports of each in the "
+    "transfer list. The ports travel in the record, the receiver gets 10,000 new objects, and the "
+    "ports that nobody holds go with the collector (ADR 0031 sections 7 and 11)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=10,
+    rss_limit_mib=256,
+)
+def message_channel_transfer_10000_ports_js_on() -> Page:
+    script = (
+        "<script>const hub = new MessageChannel(); const ports = []; "
+        "for (let i = 0; i < 5000; i++) { const c = new MessageChannel(); "
+        "ports.push(c.port1, c.port2); } "
+        "hub.port2.onmessage = (e) => console.log('received ' + e.ports.length + ' ' + "
+        "e.ports.every((p) => p instanceof MessagePort)); "
+        "hub.port1.postMessage('many', ports);</script>"
+    )
+    return Page(doc("<p>ports</p>" + script))
+
+
+@case(
+    "A million new MessageChannel() in a loop that keeps none (M9 feature 9; some setImmediate "
+    "polyfills make a channel per call): the collector frees the pairs and the registry follows, "
+    "so the limit of 65,536 live ports is never reached (ADR 0031 sections 7 and 11)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    forbid_log="message ports are live",
+)
+def message_channel_million_unkept_js_on() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 1000000; i++) new MessageChannel(); "
+        "console.log('made 1000000');</script>"
+    )
+    return Page(doc("<p>channels</p>" + script))
+
+
+@case(
+    "70,000 channels whose second port travels in a message that only it holds (M9 feature 9, "
+    "review fix): c.port1.postMessage(1, [c.port2]) puts the port into its own queue, a cycle "
+    "that the collector cannot see. The registry frees such entries and their waiting messages, "
+    "so the limits of 65,536 ports and 65,536 waiting messages are not reached, and a message "
+    "after the loop is delivered (ADR 0031 section 7); the case fails if swb logs the warning "
+    "about the port limit",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    forbid_log="message ports are live",
+)
+def message_channel_travelling_cycle_js_on() -> Page:
+    script = (
+        "<script>let error = ''; "
+        "try { for (let i = 0; i < 70000; i++) { const c = new MessageChannel(); "
+        "c.port1.postMessage(1, [c.port2]); } } catch (e) { error = e.name; } "
+        "const d = new MessageChannel(); "
+        "d.port2.onmessage = (e) => console.log('after ' + e.data + error); "
+        "d.port1.postMessage(7);</script>"
+    )
+    return Page(doc("<p>channels</p>" + script))
+
+
+@case(
+    "70,000 MessageChannel objects that the page keeps (M9 feature 9): at most 65,536 ports are "
+    "live; new MessageChannel() past it throws a RangeError and swb logs a warning (Chromium has "
+    "no limit; ADR 0031 section 11)",
+    expect_log="message ports are live",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=384,
+)
+def message_channel_70000_live_js_on() -> Page:
+    script = (
+        "<script>const keep = []; let error = ''; "
+        "try { for (let i = 0; i < 70000; i++) keep.push(new MessageChannel()); } "
+        "catch (e) { error = e.name; } "
+        "console.log('kept ' + keep.length + ' ' + error);</script>"
+    )
+    return Page(doc("<p>channels</p>" + script))
+
+
+@case(
+    "A flood of port messages to a port without a listener (M9 feature 9): the queue of the port "
+    "holds at most 65,536 waiting messages (window and ports together); a later message is "
+    "dropped with a warning, the page settles (Chromium has no limit; ADR 0031 section 11)",
+    expect_log="further messages are dropped",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=10,
+    rss_limit_mib=1024,
+)
+def message_port_flood_without_listener_js_on() -> Page:
+    script = (
+        "<script>const c = new MessageChannel(); "
+        "const big = 'x'.repeat(4 << 20); "
+        "for (let i = 0; i < 100; i++) c.port1.postMessage(big + i); "
+        "for (let i = 0; i < 300000; i++) c.port1.postMessage(i); "
+        "let got = 0; setTimeout(() => { c.port2.onmessage = () => { got++; }; "
+        "setTimeout(() => console.log('got ' + got), 700); }, 300);</script>"
+    )
+    return Page(doc("<p>messages</p>" + script))
+
+
 # --- document.write (M9 feature 2) -------------------------------------------
 
 

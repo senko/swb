@@ -466,7 +466,7 @@ pub(crate) fn set(
     };
     let key = key_of(rt, target, name)?;
     sync(rt, key.target())?;
-    match value {
+    let result = match value {
         Value::Object(object) => {
             set_value(rt, key, name, Value_::Function(object))?;
             if let HandlerTarget::Object(target) = target {
@@ -475,7 +475,13 @@ pub(crate) fn set(
             Ok(())
         }
         _ => deactivate(rt, key, name),
+    };
+    // The first assignment of `onmessage` or `onmessageerror` of a
+    // `MessagePort` enables its queue, whatever the value.
+    if let HandlerTarget::Object(target) = target {
+        crate::message_port::handler_assigned(rt, target, attr)?;
     }
+    result
 }
 
 /// The key of the handler `name` of an IDL attribute's target.

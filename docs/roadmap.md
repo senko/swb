@@ -4300,6 +4300,27 @@ Steps:
       2.5 %. JS off: snapshot identical; `compare --js` unchanged.
    9. `MessageChannel` and `MessagePort` in one document
       (`implementer`; ADR 0031 feature 1).
+      Done 2026-11-05: a port registry per runtime
+      (`crates/web/src/message_port.rs`) with ids, entanglement and a
+      queue per port; a port object holds its entangled port, so a pair
+      that nothing reaches is collected together, and a freed object
+      removes its entry. One task per port at a time, the next queued
+      after the listener returns (Chromium's order), with no timer
+      clamp. Any assignment of `onmessage` or `onmessageerror`, or
+      `start()`, enables the queue. Ports transfer through
+      `port.postMessage`, `window.postMessage` and `structuredClone`;
+      `MessageEvent.ports` is one frozen array. Budgets: 65,536 waiting
+      messages and 256 MiB (window and port messages together), 65,536
+      live ports. Review fix: ports that travel only in the queues of
+      other travelling ports (`c.port1.postMessage(1, [c.port2])` in a
+      loop) were never freed, and the page reached the port limit; a
+      sweep now removes the travelling entries that no live port, task
+      or window message reaches. Probe cases: 106 queries in
+      `web-message-channel.json` (three equal Chromium runs), run in
+      `message_channel.rs`, also with GC stress; hostile cases
+      `message-*` (6). BBC's React scheduler uses `MessageChannel`;
+      load and `bbc.rs` unchanged. JS off: snapshot identical;
+      `compare --js` unchanged.
    10. Frame tree, loading and rendering (`implementer-hard`; ADR 0031
        feature 2): frames render with JavaScript off; with JavaScript
        on, frame documents parse without scripts. Reports the three
@@ -4342,8 +4363,6 @@ Steps:
   activation (Chromium allows it; ADR 0031 refuses it).
 - `contenteditable` elements are not focusable; an empty `iframe` is
   (Chromium: the other way round; feature 1 probe cases).
-- `MessageEvent.ports` returns a new frozen array on each read
-  (Chromium: the same array).
 - `Attr` is not a `Node` (`nodeName`, M8 departure).
 - `reference --js` writes through a symlinked `out` into the main tree;
   the briefs copy the references instead.
@@ -4491,6 +4510,16 @@ Steps:
   at 725 to 845 ms). swb compiles three `_next/static/chunks` scripts
   after `load`. Check whether scripts that a page inserts (webpack chunk
   loading) delay the `load` event as the HTML spec says.
+- Message ports (found in feature 9): no `BroadcastChannel` and no
+  `MessageEvent.userActivation`; the port registry is per runtime (the
+  frames work makes it page-level, with `Task::PortMessage` going to the
+  owner's runtime); `initMessageEvent` with a `source` that is another
+  kind of `EventTarget` is not measured; a hanging task count keeps a
+  port alive if the document drops its tasks (unload; no effect today).
+  In virtual time `performance.now()` does not advance inside a task, so
+  React's scheduler never yields after 5 ms (BBC: 3 port messages,
+  Chromium 52); the record of `bbc.rs` does not change. GitHub's React
+  scheduler uses `MessageChannel` too (survey `github-swb`).
 - Scroll anchoring (found in feature 8; CSS Scroll Anchoring,
   `overflow-anchor`): BBC's first wheel step scrolls 16 px less in
   Chromium; `bbc.rs` turns anchoring off in both browsers. Chromium
@@ -4975,9 +5004,9 @@ Steps:
   constraint validation API (`checkValidity`, `reportValidity`,
   `validity`); `contenteditable` elements are not focusable;
   Chromium-only handler names (`onsearch` and others) are not defined;
-  the members of event types that swb has not (`MessagePort`,
-  `Storage`, `DataTransfer`, `StaticRange`) are `object` or null, and
-  `MessageEvent.ports` is a new array at each read; the members of
+  the members of event types that swb has not (`Storage`,
+  `DataTransfer`, `StaticRange`) are `object` or null (`MessagePort`
+  and `MessageEvent.ports` done in M9 feature 9); the members of
   `PointerEvent` are in the generator's order; the `toString` of an
   empty handler attribute differs from Chromium; an element that stops
   being rendered (`display: none`) keeps the focus until the engine's

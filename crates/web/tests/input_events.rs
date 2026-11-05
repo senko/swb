@@ -45,12 +45,6 @@ const SWB_VALUES: &[Departure] = &[
     ),
     (
         "other-events",
-        14,
-        r#""TypeError: Failed to construct 'MessageEvent': Failed to read the 'ports' property from 'MessageEventInit': Failed to convert value to 'object'.""#,
-        "swb has no MessagePort: `ports` holds objects",
-    ),
-    (
-        "other-events",
         17,
         r#""data,origin,lastEventId,source,ports,initMessageEvent,constructor""#,
         "MessageEvent has no `userActivation` (no UserActivation interface)",

@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 9: `MessageChannel` and `MessagePort`
+
+- `MessageChannel` and `MessagePort` in one document (ADR 0031 section
+  7). A port registry per runtime holds the entanglement and a queue per
+  port. A port object holds its entangled port, so a pair that nothing
+  reaches is collected together, and a freed object removes its entry.
+- Each port has at most one task in the event loop; the next one is
+  queued after the listener returns. This gives Chromium's measured
+  order against timers and window messages. Port messages have no timer
+  clamp, and timers and animation frames still run during an endless
+  ping-pong.
+- Ports transfer through `port.postMessage`, `window.postMessage` and
+  `structuredClone`, with Chromium's error messages. `MessageEvent.ports`
+  is one frozen array (before: a new array at each read).
+- Budgets: 65,536 waiting messages and 256 MiB for window and port
+  messages together, 65,536 live ports. Chromium has no limits.
+- Review fix: a port that travels has no object, so the collector
+  cannot free it. Ports that travel only in the queues of other
+  travelling ports (`c.port1.postMessage(1, [c.port2])` in a loop) were
+  never freed, and after about 32,768 iterations the page could make no
+  more channels. A sweep now removes the travelling ports that no live
+  port, queued task or window message reaches; it runs when enough
+  ports have gone since the last one. Also: the message count is given
+  back when a transfer fails, the ports of a window message that cannot
+  be deserialized are closed, and the port-limit warning is logged once.
+- Chromium 148: 10 probe cases, 106 queries, three equal runs. The
+  queue starts on any assignment of `onmessage` or `onmessageerror`
+  (also `null`), not on `addEventListener`; a received port starts
+  disabled; `close()` drops later messages, without a `close` event.
+- BBC: React's scheduler uses `MessageChannel` now. The load time and
+  the `bbc.rs` record do not change.
+- JS-off snapshot identical; `compare --js` of the six JS fixtures
+  unchanged.
+- Next: M9 feature 10 (frame tree, loading and rendering).
+
 ## 2026-11-05: M9 feature 8: BBC test and load-time budget
 
 - `crates/automation/tests/bbc.rs` tests the items 2 to 8 of the BBC

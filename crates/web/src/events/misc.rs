@@ -10,7 +10,7 @@
 use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 
 use super::{Extra, base, construct, this_data, this_data_mut};
-use crate::bindings::{self as b, Cx, NodeId, Platform};
+use crate::bindings::{self as b, Cx, Exception, NodeId, Platform};
 use crate::generated as g;
 use crate::generated::types::{
     DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit, HashChangeEventInit,
@@ -39,6 +39,9 @@ pub(crate) enum Other {
         last_event_id: String,
         source: Option<Gc<Object>>,
         ports: Vec<Gc<Object>>,
+        /// The frozen array that `ports` returns, made at the first read
+        /// (the same array at each read, measured).
+        frozen: Option<Gc<Object>>,
     },
     Storage {
         key: Option<String>,
@@ -120,10 +123,11 @@ impl Other {
                 data,
                 source,
                 ports,
+                frozen,
                 ..
             } => {
                 tracer.value(*data);
-                for object in source.iter().chain(ports) {
+                for object in source.iter().chain(ports).chain(frozen) {
                     tracer.object(*object);
                 }
             }
@@ -282,15 +286,31 @@ impl g::pop_state_event::PopStateEventImpl for WebState {
     }
 }
 
+/// True if `source` can be the `source` of a `MessageEvent`: a window or a
+/// `MessagePort` (HTML `MessageEventSource`; Chromium checks it in the
+/// constructor, measured).
+fn is_message_source(cx: &Cx<'_>, source: Gc<Object>) -> bool {
+    let value = Value::Object(source);
+    cx.rt.implements(value, g::WINDOW) || cx.rt.implements(value, g::MESSAGE_PORT)
+}
+
 impl g::message_event::MessageEventImpl for WebState {
     fn constructor(cx: &mut Cx<'_>, kind: String, init: MessageEventInit) -> b::Result<Gc<Object>> {
         let flags = (init.bubbles, init.cancelable, init.composed);
+        if let Some(source) = init.source
+            && !is_message_source(cx, source.object)
+        {
+            return Err(Exception::type_error(
+                "The optional 'source' property is neither a Window nor MessagePort.",
+            ));
+        }
         let other = Other::Message {
             data: init.data,
             origin: init.origin,
             last_event_id: init.last_event_id,
             source: init.source.map(|p| p.object),
-            ports: init.ports,
+            ports: init.ports.into_iter().map(|p| p.object).collect(),
+            frozen: None,
         };
         make(cx, kind, flags, other)
     }
@@ -323,11 +343,25 @@ impl g::message_event::MessageEventImpl for WebState {
         }
     }
 
-    fn ports(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<Gc<Object>>> {
-        match other(cx, this)? {
-            Other::Message { ports, .. } => Ok(ports.clone()),
-            _ => Ok(Vec::new()),
+    /// `ports`: a frozen array of the ports, made at the first read and
+    /// returned at each read after it (`FrozenArray` as a cached
+    /// attribute).
+    fn ports(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        let (frozen, ports) = match other(cx, this)? {
+            Other::Message { frozen, ports, .. } => (*frozen, ports.clone()),
+            _ => (None, Vec::new()),
+        };
+        if let Some(array) = frozen {
+            return Ok(array);
         }
+        let realm = cx.realm();
+        let values: Vec<Value> = ports.into_iter().map(Value::Object).collect();
+        let array = cx.rt.new_array_of(realm, &values)?;
+        cx.rt.freeze(array)?;
+        if let Other::Message { frozen, .. } = other_mut(cx, this)? {
+            *frozen = Some(array);
+        }
+        Ok(array)
     }
 
     fn init_message_event(
@@ -340,7 +374,7 @@ impl g::message_event::MessageEventImpl for WebState {
         origin: String,
         last_event_id: String,
         source: Option<Platform>,
-        ports: Vec<Gc<Object>>,
+        ports: Vec<Platform>,
     ) -> b::Result<()> {
         if init(cx, this, kind, bubbles, cancelable)? {
             *other_mut(cx, this)? = Other::Message {
@@ -348,7 +382,8 @@ impl g::message_event::MessageEventImpl for WebState {
                 origin,
                 last_event_id,
                 source: source.map(|p| p.object),
-                ports,
+                ports: ports.into_iter().map(|p| p.object).collect(),
+                frozen: None,
             };
         }
         Ok(())
@@ -648,6 +683,7 @@ pub(crate) fn blank(name: &str) -> Option<(swb_js::ClassId, Other)> {
                 last_event_id: String::new(),
                 source: None,
                 ports: Vec::new(),
+                frozen: None,
             },
         ),
         "storageevent" => (

@@ -21,14 +21,14 @@ pub trait MessageEventImpl: b::Host {
     /// `readonly attribute EventTarget? source`.
     fn source(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
-    /// `readonly attribute FrozenArray<object> ports`.
-    fn ports(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Vec<swb_js::Gc<swb_js::Object>>>;
+    /// `readonly attribute object ports`.
+    fn ports(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `constructor(DOMString type, optional MessageEventInit eventInitDict)`.
     fn constructor(cx: &mut b::Cx<'_>, type_: String, event_init_dict: super::types::MessageEventInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-    /// `undefined initMessageEvent(DOMString type, optional boolean bubbles, optional boolean cancelable, optional any data, optional USVString origin, optional DOMString lastEventId, optional EventTarget? source, optional sequence<object> ports)`.
-    fn init_message_event(cx: &mut b::Cx<'_>, this: b::Platform, type_: String, bubbles: bool, cancelable: bool, data: swb_js::Value, origin: String, last_event_id: String, source: Option<b::Platform>, ports: Vec<swb_js::Gc<swb_js::Object>>) -> b::Result<()>;
+    /// `undefined initMessageEvent(DOMString type, optional boolean bubbles, optional boolean cancelable, optional any data, optional USVString origin, optional DOMString lastEventId, optional EventTarget? source, optional sequence<MessagePort> ports)`.
+    fn init_message_event(cx: &mut b::Cx<'_>, this: b::Platform, type_: String, bubbles: bool, cancelable: bool, data: swb_js::Value, origin: String, last_event_id: String, source: Option<b::Platform>, ports: Vec<b::Platform>) -> b::Result<()>;
 
 }
 
@@ -68,7 +68,7 @@ fn get_ports<H: MessageEventImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
     b::glue::run(rt, call, b::Context::Getter("MessageEvent", "ports"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::MESSAGE_EVENT)?;
         let result = <H as MessageEventImpl>::ports(&mut b::Cx::new(rt, call, super::MESSAGE_EVENT), this)?;
-        Ok(b::to_js::frozen_sequence(rt, call.realm(), &result, |_rt, item0| swb_js::VmResult::Ok(swb_js::Value::Object(*item0)))?)
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -103,7 +103,7 @@ fn op_init_message_event<H: MessageEventImpl>(rt: &mut swb_js::Runtime, call: &s
         let v = rt.arg(call, 6);
         let a6 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::platform(rt, v, super::EVENT_TARGET, "EventTarget").map(Some) }).map_err(|e| e.argument(6))? };
         let v = rt.arg(call, 7);
-        let a7 = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::object(item0)).map_err(|e| e.argument(7))? };
+        let a7 = if v.is_undefined() { Vec::new() } else { b::convert::sequence(rt, v, |rt: &mut swb_js::Runtime, item0: swb_js::Value| b::convert::platform(rt, item0, super::MESSAGE_PORT, "MessagePort")).map_err(|e| e.argument(7))? };
         <H as MessageEventImpl>::init_message_event(&mut b::Cx::new(rt, call, super::MESSAGE_EVENT), this, a0, a1, a2, a3, a4, a5, a6, a7)?;
         Ok(swb_js::Value::Undefined)
     })

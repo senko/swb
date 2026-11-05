@@ -103,6 +103,7 @@ mod intersection_observer;
 mod location;
 mod matrix;
 mod media_queries;
+mod message_port;
 mod messaging;
 mod mime;
 mod mutation_observer;

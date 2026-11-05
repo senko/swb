@@ -57,18 +57,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "MimeType is the interface object only: the list is always empty, so no instance exists",
     ),
     (
-        "post-message-self-http",
-        13,
-        r#"[null, "", "", null, 0, false]"#,
-        "`ports` is a new frozen array at each read, not one array (Chromium: the same array)",
-    ),
-    (
-        "post-message-self-file",
-        13,
-        r#"[null, "", "", null, 0, false]"#,
-        "`ports` is a new frozen array at each read, not one array (Chromium: the same array)",
-    ),
-    (
         "fv-click-script-editable",
         0,
         r#""a 0000000 1000000""#,

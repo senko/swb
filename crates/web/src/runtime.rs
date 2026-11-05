@@ -672,6 +672,12 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, false);
                 result
             }),
+            Task::PortMessage(id) => self.task("the event 'message'", |rt| {
+                set_listener_checkpoints(rt, true);
+                let result = crate::message_port::deliver(rt, id).map_err(task_error);
+                set_listener_checkpoints(rt, false);
+                result
+            }),
             Task::XhrTimeout(id) => self.task("an XMLHttpRequest timeout", |rt| {
                 set_listener_checkpoints(rt, true);
                 let result = crate::xhr::timeout_fired(rt, id).map_err(task_error);
@@ -872,6 +878,18 @@ impl ScriptRuntime {
     /// The bytes that the heap uses (for tests and measurements).
     pub fn heap_size(&self) -> usize {
         self.rt.heap().heap_size()
+    }
+
+    /// The number of live message ports of the document: those that were
+    /// made and not closed or collected (for tests and measurements).
+    pub fn live_message_ports(&self) -> usize {
+        crate::state::state(&self.rt).map_or(0, |s| s.ports.live())
+    }
+
+    /// The number of messages that wait in the queues of the ports and of
+    /// `window.postMessage()` (for tests and measurements).
+    pub fn waiting_messages(&self) -> usize {
+        crate::state::state(&self.rt).map_or(0, |s| s.ports.waiting())
     }
 
     /// Runs a full collection (for tests).
