@@ -18,6 +18,8 @@ use swb_text::FontContext;
 
 use super::{DocumentState, ScrollTarget};
 use crate::forms::{ControlType, InputType, LayoutControls, display_offset};
+use crate::frames::paint::FrameSource;
+use crate::frames::{FrameId, Frames};
 use crate::selection::Highlight;
 
 /// The most layout passes of one [`DocumentState::update_layout`]: web
@@ -307,7 +309,11 @@ impl DocumentState {
             swb_paint::build_display_list(fragments, &self.images, &NoHighlights, &scrolling)
         };
         self.timings.display_list = started.elapsed();
+        self.flushes.display_list_runs = self.flushes.display_list_runs.saturating_add(1);
         log::debug!("display list: {:?}", self.timings.display_list);
+        if self.frame {
+            self.list_ends = swb_paint::transform_ends(&list.items);
+        }
         self.display_list = Some(list);
     }
 
@@ -396,6 +402,9 @@ impl DocumentState {
                 self.start_image(url);
             }
         }
+        if self.frame && self.update_canvas_text() {
+            self.compute_styles();
+        }
     }
 
     /// Discards the parsed stylesheets, the stylist, the styles, the
@@ -418,6 +427,7 @@ impl DocumentState {
         strip_rows: u32,
         what: Rendering,
         fonts: &mut FontContext,
+        frames: &Frames,
     ) {
         swb_paint::fill(target, swb_style::Rgba::WHITE);
         self.update_display_list(fonts);
@@ -433,7 +443,19 @@ impl DocumentState {
                 scale: self.view.scale,
             };
             let started = Instant::now();
-            swb_paint::rasterize_in_strips(list, target, params, strip_rows, fonts, &self.images);
+            if frames.count() == 0 {
+                swb_paint::rasterize_in_strips(
+                    list,
+                    target,
+                    params,
+                    strip_rows,
+                    fonts,
+                    &self.images,
+                );
+            } else {
+                let source = FrameSource::new(&self.images, frames, FrameId::TOP);
+                swb_paint::rasterize_in_strips(list, target, params, strip_rows, fonts, &source);
+            }
             self.timings.raster = started.elapsed();
         }
         // The viewport indicators belong on a rendering of the viewport.

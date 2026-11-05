@@ -2,6 +2,7 @@
 //! budget, and the rendering budget of one frame.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use tiny_skia::{IntSize, Pixmap};
@@ -50,9 +51,12 @@ struct State {
     bytes: usize,
     /// Counts lookups, for the least recently used order.
     clock: u64,
-    /// Counts frames.
-    frame: u64,
 }
+
+/// The number of the next frame. It is unique among all caches, because one
+/// rasterization of a page with frames uses several caches with the budget
+/// of one.
+static NEXT_FRAME: AtomicU64 = AtomicU64::new(1);
 
 /// An image, the pixel size and the concrete object size in CSS px (as
 /// bits). The same pixel size can belong to different concrete sizes: an
@@ -87,12 +91,12 @@ pub(crate) struct FrameBudget {
 }
 
 impl FrameBudget {
-    /// A budget for a frame without a cache.
+    /// The budget of a new frame.
     pub(crate) fn new() -> Self {
         FrameBudget {
             reduce: ReduceBudget::new(),
             work: MAX_FRAME_WORK,
-            frame: 0,
+            frame: NEXT_FRAME.fetch_add(1, Ordering::Relaxed),
             skipped: false,
         }
     }
@@ -121,16 +125,6 @@ impl VectorCache {
             state: Mutex::new(State::default()),
             budget_bytes,
             max_entries,
-        }
-    }
-
-    /// Starts a frame.
-    pub(crate) fn begin_frame(&self) -> FrameBudget {
-        let mut state = self.lock();
-        state.frame += 1;
-        FrameBudget {
-            frame: state.frame,
-            ..FrameBudget::new()
         }
     }
 
@@ -267,7 +261,7 @@ mod tests {
     fn renders_once_per_size() {
         let cache = VectorCache::default();
         let image = image();
-        let mut frame = cache.begin_frame();
+        let mut frame = FrameBudget::new();
         let a = cache
             .get(&image, size(10, 10), (10.0, 10.0), &mut frame)
             .unwrap();
@@ -289,7 +283,7 @@ mod tests {
         let cache = VectorCache::with_limits(800, 100);
         let image = image();
         let get = |concrete: f32| {
-            let mut frame = cache.begin_frame();
+            let mut frame = FrameBudget::new();
             cache.get(&image, size(10, 10), (concrete, concrete), &mut frame)
         };
         let first = get(1.0).unwrap();
@@ -304,7 +298,7 @@ mod tests {
             "the recently used rendering stays"
         );
         // Too large for the budget: rendered, not kept.
-        let mut frame = cache.begin_frame();
+        let mut frame = FrameBudget::new();
         let large = cache
             .get(&image, size(20, 20), (1.0, 1.0), &mut frame)
             .unwrap();
@@ -317,7 +311,7 @@ mod tests {
         let cache = VectorCache::with_limits(usize::MAX, 3);
         let image = image();
         for i in 0..10 {
-            let mut frame = cache.begin_frame();
+            let mut frame = FrameBudget::new();
             cache.get(&image, size(1, 1), (i as f32, 1.0), &mut frame);
         }
         assert_eq!(cache.usage().0, 3);
@@ -329,14 +323,14 @@ mod tests {
         // renderings; the others reuse the closest.
         let cache = VectorCache::default();
         let image = image();
-        let mut frame = cache.begin_frame();
+        let mut frame = FrameBudget::new();
         for width in 1..=200 {
             let pixmap = cache.get(&image, size(width, 10), (width as f32, 10.0), &mut frame);
             assert!(pixmap.is_some());
         }
         assert_eq!(cache.usage().0, MAX_PER_IMAGE);
         // The next frame renders sizes it has not used yet.
-        let mut next = cache.begin_frame();
+        let mut next = FrameBudget::new();
         cache.get(&image, size(300, 10), (300.0, 10.0), &mut next);
         assert_eq!(cache.usage().0, MAX_PER_IMAGE + 1);
     }
@@ -345,7 +339,7 @@ mod tests {
     fn the_frame_budget_stops_rendering() {
         let cache = VectorCache::default();
         let image = image();
-        let mut frame = cache.begin_frame();
+        let mut frame = FrameBudget::new();
         cache.get(&image, size(10, 10), (10.0, 10.0), &mut frame);
         assert!(!frame.skipped());
         frame.work = 0.0;

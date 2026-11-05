@@ -135,6 +135,8 @@ pub struct FlushCounters {
     /// `deleteRule`, `selectorText`, the declarations of a rule, `disabled`,
     /// `media`), each of which makes the stylist dirty.
     pub sheet_changes: u32,
+    /// Builds of the display list.
+    pub display_list_runs: u32,
 }
 
 impl FlushCounters {
@@ -310,6 +312,11 @@ pub struct Page {
     /// The bytes of the external style sheets of frame documents (ADR 0031
     /// section 11).
     frame_styles: Arc<swb_net::ByteBudget>,
+    /// The decoded fonts of frame documents (ADR 0031 section 11).
+    frame_fonts: Arc<swb_net::ByteBudget>,
+    /// The renderings of the SVG images of all frame documents (ADR 0031
+    /// section 11): one budget for the page, not one per document.
+    frame_vectors: Arc<swb_paint::VectorCache>,
 }
 
 impl Page {
@@ -351,6 +358,8 @@ impl Page {
             frame_bodies: swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES),
             frame_images: swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES),
             frame_styles: swb_net::ByteBudget::new(crate::frames::MAX_STYLE_BYTES),
+            frame_fonts: swb_net::ByteBudget::new(crate::frames::MAX_FONT_BYTES),
+            frame_vectors: Arc::default(),
         }
     }
 

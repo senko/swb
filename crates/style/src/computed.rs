@@ -39,6 +39,9 @@ pub type CustomProperties = HashMap<Arc<str>, Arc<[ComponentValue]>>;
 pub struct ComputedStyle {
     // ----- Inherited properties -----
     pub color: Rgba,
+    /// `color-scheme`: `None` for `normal`, else the words of the value. See
+    /// [`crate::used_color_scheme`].
+    pub color_scheme: Option<Arc<str>>,
     pub font_family: Arc<[FontFamily]>,
     pub font_size: f32,
     /// How `font_size` was derived (not a CSS property). Inherited with
@@ -270,11 +273,21 @@ impl ComputedStyle {
         Arc::clone(&INITIAL)
     }
 
+    /// The initial style of a document whose root has the dark used color
+    /// scheme: the text is white.
+    pub(crate) fn initial_dark() -> Arc<ComputedStyle> {
+        Arc::new(ComputedStyle {
+            color: Rgba::WHITE,
+            ..ComputedStyle::new_initial()
+        })
+    }
+
     #[allow(clippy::too_many_lines)] // One line per property.
     fn new_initial() -> Self {
         let medium_border = 3.0;
         ComputedStyle {
             color: Rgba::BLACK,
+            color_scheme: None,
             font_family: Arc::from([FontFamily::Generic(GenericFamily::Serif)]),
             font_size: 16.0,
             font_size_origin: FontSizeOrigin::default(),

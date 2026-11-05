@@ -588,6 +588,7 @@ fn computed(name: &str, r: &Resolver<'_>) -> String {
             ZIndex::Auto => "auto".to_owned(),
             ZIndex::Integer(i) => i.to_string(),
         },
+        "color-scheme" => s.color_scheme.as_deref().unwrap_or("normal").to_owned(),
         // Without a box Chromium gives `none`.
         "transform" | "border-image-source" => "none".to_owned(),
         "transform-origin" => format!(

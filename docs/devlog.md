@@ -4,6 +4,51 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 10b: frame rendering
+
+- Frame documents paint (ADR 0031 section 4). The parent's display list
+  has `DisplayItem::Frame` with the `iframe` element and its content box.
+  The rasterizer gets the frame's list through `ImageSource::frame` and
+  draws it in place, clipped and moved to the snapped corner of the box
+  minus the frame's scroll offset. So the `iframe`'s opacity, transform,
+  clip, rounded corners, filter and mask apply, and the strip's budgets
+  cover the frames. Fixed and sticky boxes use the frame's viewport.
+- `Page::prepare_frames` brings layouts and display lists up to date
+  before each rendering, so the first paint and both screenshots show
+  frames. A change in a frame document rebuilds only its list.
+- `color-scheme` is a property now. A frame's canvas is transparent when
+  the used schemes of its `iframe` and its root are the same, else white
+  or rgb(18, 18, 18), and a dark root has white default text (frames only;
+  the top-level document stays as it was).
+- Chromium 148, 19 probe cases, three equal runs. A `backdrop-filter` in a
+  frame reads through it to the parent. A frame at `left: 10.5px` starts
+  at pixel 11. Web fonts of a frame do not reach its parent or siblings.
+- Each frame document has its own web fonts: the font context holds one
+  document's face set and exchanges it around the frame's calls (ADR
+  0022), so the top-level text path has no new step.
+- New page-wide budgets: 256 MiB of fonts, SVG images in the image budget,
+  one 128 MiB cache of SVG renderings, 4 Mi frame items per strip, 1,024
+  nested groups in frames.
+- JS-off fixture report: all fixture frames are `display: none`; snapshot
+  identical. JS on: `compare --js` unchanged, because no frame on the
+  targets paints yet. BBC's consent frame sits in a `display: none`
+  container until scripts run in frames. A test page with visible frames:
+  pixels 0.8946 → 0.9998. Raster of 1,000 small frames: 12 ms.
+- Cost for pages without frames (callgrind, Hacker News, per iteration):
+  total +0.9 %, style +1.8 % (one more property, `ComputedStyle` 16 bytes
+  larger), display list -0.2 %, raster +0.3 %. An idle `render` with 1,000
+  offscreen frames takes 0.34 ms (0.042 ms with no frames).
+- Review fixes: `only` in `color-scheme` stands first or last in the list
+  (`light only dark` is invalid, as in Chromium); a test that a frame's
+  text paints the glyphs of its own web font next to a parent with a face
+  of the same family.
+- That test found a bug from 10a. With JavaScript off, a `srcdoc`
+  navigation takes no network completion, so `wait_until_loaded` ended
+  before layout had found the web fonts and background images of the page
+  and its frames. A screenshot then showed the fallback font. The wait now
+  lays out when the load looks done, and checks again.
+- Feature 10 is complete. Next: M9 feature 11 (input in frames).
+
 ## 2026-11-05: M9 feature 10a: frame tree and loading
 
 - Feature 10 is split: 10a loads and lays out frames, 10b paints them.

@@ -4352,6 +4352,26 @@ Steps:
          no web fonts yet.
        - 10b. Frame rendering: the nested display list, transparency and
          color scheme, screenshots, the JS-off fixture report.
+         Done 2026-11-05: the parent's display list has
+         `DisplayItem::Frame` with the `iframe` element and its content
+         box; the rasterizer draws the frame's list in place through
+         `ImageSource::frame`, so the `iframe`'s opacity, transform, clips,
+         filter and mask apply. `color-scheme` is a property; a frame's
+         canvas is transparent when the used schemes of its `iframe` and
+         its root are the same, else white or rgb(18, 18, 18). Each frame
+         document has its own web fonts. New page-wide budgets: 256 MiB of
+         fonts, SVG images in the image budget, one 128 MiB cache of SVG
+         renderings, 4 Mi frame items per strip, 1,024 nested groups in
+         frames. 19 probe cases with Chromium's values, 10 engine tests,
+         12 raster tests, a layout test, 9 hostile cases. JS-off fixture
+         report: all fixture frames are `display: none`; snapshot identical
+         and scores unchanged. JS on: `compare --js` unchanged, because no
+         frame on the targets has a box that paints yet (BBC's consent
+         frame sits in a `display: none` container until scripts run in
+         frames). A page with visible frames: pixels 0.8946 → 0.9998.
+         Departures in ADR 0031: the budgets; dark frames have only the
+         canvas and the default text color dark; transform layers nest
+         8 deep also across frames.
    11. Input in frames, automation and tools for frames (`implementer`;
        ADR 0031 feature 3).
    12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
@@ -4554,6 +4574,29 @@ Steps:
   frames under a page-wide budget. Sandbox flags apply when the document
   arrives; Chromium's behaviour for a `sandbox` change during a slow load
   is not measured.
+- Frame rendering (found in feature 10b): `color-scheme` of the top-level
+  document (Chromium paints its canvas, text, links and form controls
+  dark; swb ignores it there); the other dark defaults in frames (links,
+  controls); a burst of frame fonts or images can hit the 64 MiB budget of
+  unread bodies and fail where a slower start would load them (throttle
+  the requests of frame documents); `unload_face` walks all instances, so
+  destroying many frames with many faces costs faces × instances; a
+  `Stylist` and UA rule index per frame document keep the 0.3 MiB per
+  frame; `Pixmap::pixel(x, y)` does not check `x` against the width (a
+  helper in `backdrop_filter.rs` may have the same trap). From the review:
+  a face that unloads and loads again is charged a second time against the
+  256 MiB of fonts (`held`, 16,384 reloads use it up; today only window
+  resizes across a media query reach this; fix it with feature 12, when
+  scripts run in frames); `text` never reuses its `faces` and `instances`
+  slots; a frame's list with more pops than pushes would damage the
+  parent's clips and layers (the builder cannot make such a list; keep the
+  counts at the frame's entry as a floor, or check the balance when
+  `list_ends` is built); `prepare_frames` builds display lists for frames
+  far outside the viewport (paid once); a frame document with a dark root
+  computes its styles twice on every stylist rebuild; with 1,000 frames a
+  page can force 2.6 GiB and 4.8 s through the node budget (500 boxes per
+  frame, 2.5 million items). The hostile case stays at 250 boxes, because
+  `test_hostile.py` caps every case at 2,048 MiB. Revisit `MAX_NODES`.
 - Measurement (found in feature 10a): the wall times of swb runs fall on
   a grid of about 50 ms (cause not known), so the load-time runs cannot
   show a smaller change.

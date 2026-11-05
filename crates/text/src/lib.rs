@@ -40,7 +40,7 @@ pub use metrics::FontMetrics;
 pub use query::{FamilyName, FontQuery, FontStyle, GenericFamily, GenericFamilyMap};
 pub use raster::GlyphMask;
 pub use shape::{Direction, Feature, ShapeOptions, ShapedGlyph, ShapedRun, context_around};
-pub use web::{MAX_FACES_PER_FAMILY, WebFaceId, WebFontFace, WebFontStyle};
+pub use web::{MAX_FACES_PER_FAMILY, WebFaceId, WebFontFace, WebFontSet, WebFontStyle};
 
 /// A concrete font: one face of a font file with its synthetic styles and
 /// variation settings. Valid only for the [`FontContext`] that returned it.

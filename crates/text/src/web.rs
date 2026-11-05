@@ -176,6 +176,14 @@ pub(crate) struct WebFonts {
     composite_ids: HashMap<(String, CompositeKey), usize>,
 }
 
+/// The web font faces of a document that is not the current one of its
+/// [`FontContext`]: a frame document (ADR 0031 section 4). The context holds
+/// the faces of one document, which [`FontContext::swap_web_fonts`] changes;
+/// the loaded faces and the font ids stay in the context, so the fonts of a
+/// document's display list work with any set.
+#[derive(Debug, Default)]
+pub struct WebFontSet(WebFonts);
+
 /// The font properties that select a composite font.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 struct CompositeKey {
@@ -287,6 +295,21 @@ impl FontContext {
     pub fn reset_web_fonts(&mut self) {
         self.set_web_fonts(Vec::new());
         self.web.loads = 0;
+    }
+
+    /// Exchanges the current web font faces with `set`: text, requests and
+    /// the other web font calls act on the faces of `set` until the next
+    /// exchange. Constant time.
+    pub fn swap_web_fonts(&mut self, set: &mut WebFontSet) {
+        std::mem::swap(&mut self.web, &mut set.0);
+    }
+
+    /// Unloads the faces of `set`, whose document went away. The current
+    /// faces stay.
+    pub fn drop_web_fonts(&mut self, mut set: WebFontSet) {
+        self.swap_web_fonts(&mut set);
+        self.reset_web_fonts();
+        self.swap_web_fonts(&mut set);
     }
 
     /// The faces that text needs and that are not loaded yet, since the

@@ -28,13 +28,18 @@
 //!   content box of its container, clamped to [`MAX_VIEWPORT_SIDE`]; a
 //!   frame without a box keeps its last viewport ([`Page::layout_frames`]).
 //!
-//! Frame documents run no scripts in feature 10a (with JavaScript on they
-//! parse with the scripting flag set); their content does not paint yet.
+//! - *Paint*: [`Page::prepare_frames`] brings the display lists up to date
+//!   before a rendering; the rasterizer draws them in place of the `iframe`
+//!   contents (`crate::frames::paint`, `swb_paint`).
+//!
+//! Frame documents run no scripts yet (with JavaScript on they parse with
+//! the scripting flag set).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use swb_css::ColorScheme;
 use swb_dom::{NodeId, QuirksMode};
 use swb_layout::Size;
 use swb_net::{Destination, NetError, Origin, Request, Response, Url, escape_html, same_site};
@@ -171,6 +176,8 @@ impl Page {
         // The arena stays, so that the ids of the old frames stay stale.
         self.frames.reset_top();
         self.frame_navigations.clear();
+        self.frame_fonts.reset_warning();
+        self.frame_bodies.reset_warning();
     }
 
     /// Acts on the `iframe` changes that the drain of `frame`'s document
@@ -392,7 +399,10 @@ impl Page {
     ) -> Box<DocumentState> {
         let scroll_target = url.fragment().map(|f| ScrollTarget::Fragment(f.to_owned()));
         let mut images = images;
-        images.attach_budget(Arc::clone(&self.frame_images));
+        images.attach_budget(
+            Arc::clone(&self.frame_images),
+            Arc::clone(&self.frame_vectors),
+        );
         let fallback_base = (url.scheme() == "about")
             .then(|| self.doc_of(parent).map(|d| d.base_url().clone()))
             .flatten();
@@ -415,6 +425,7 @@ impl Page {
             fallback_base,
             style_budget: Some(Arc::clone(&self.frame_styles)),
             body_budget: Some(Arc::clone(&self.frame_bodies)),
+            font_budget: Some(Arc::clone(&self.frame_fonts)),
         }))
     }
 
@@ -609,9 +620,10 @@ impl Page {
         {
             self.loader.cancel(request);
         }
-        if let Some(frame) = self.frames.remove(id) {
-            if let Some(doc) = &frame.doc {
+        if let Some(mut frame) = self.frames.remove(id) {
+            if let Some(doc) = frame.doc.as_deref_mut() {
                 self.loader.cancel_client(doc.client);
+                doc.release_own_fonts(&mut self.fonts);
             }
             log::debug!("{id}: destroyed");
         }
@@ -646,7 +658,7 @@ impl Page {
             if let Some(frame) = self.frames.get_mut(id)
                 && let Some(doc) = frame.doc.as_deref_mut()
             {
-                doc.stop_loading(&mut self.fonts);
+                doc.with_own_fonts(&mut self.fonts, DocumentState::stop_loading);
             }
         }
     }
@@ -900,12 +912,16 @@ impl Page {
         let Some(frame) = self.frames.get_mut(id) else {
             return;
         };
-        let old = frame.doc.replace(doc);
+        let mut old = frame.doc.replace(doc);
         frame.load_fired = false;
         frame.refresh = refresh;
+        frame.canvas = None;
         let old_client = old.as_ref().map(|d| d.client);
         if let Some(old) = old_client {
             self.loader.cancel_client(old);
+        }
+        if let Some(old) = old.as_deref_mut() {
+            old.release_own_fonts(&mut self.fonts);
         }
         self.frames.set_client(id, old_client, client);
         self.frames.set_charge(id, charge);
@@ -931,7 +947,9 @@ impl Page {
         let Some(pending) = doc.requests.pending.remove(&completion.id) else {
             return false;
         };
-        doc.handle_completion(pending, completion.result, &mut self.fonts);
+        doc.with_own_fonts(&mut self.fonts, |doc, fonts| {
+            doc.handle_completion(pending, completion.result, fonts);
+        });
         // Without scripts in the frame nothing listens to its element
         // events.
         doc.take_element_events();
@@ -1099,13 +1117,16 @@ impl Page {
                 .map(DocumentState::layout_serial);
             let mut viewport = frame.viewport;
             let mut viewport_serial = frame.viewport_serial;
+            let mut has_box = frame.has_box;
             if serial.is_some() && serial != frame.viewport_serial {
                 let parent_boxes = boxes.entry(parent).or_insert_with(|| {
                     self.doc_of(parent)
                         .map(DocumentState::frame_boxes)
                         .unwrap_or_default()
                 });
-                if let Some(size) = parent_boxes.get(&container) {
+                let size = parent_boxes.get(&container);
+                has_box = size.is_some();
+                if let Some(size) = size {
                     viewport = clamp_viewport(*size);
                 }
                 viewport_serial = serial;
@@ -1116,13 +1137,55 @@ impl Page {
             };
             frame.viewport = viewport;
             frame.viewport_serial = viewport_serial;
+            frame.has_box = has_box;
             if let Some(doc) = frame.doc.as_deref_mut() {
                 doc.set_view(view);
-                doc.update_layout(&mut self.fonts);
+                doc.with_own_fonts(&mut self.fonts, DocumentState::update_layout);
             }
         }
     }
+
+    /// Brings the frame documents up to date for a rendering (ADR 0031
+    /// section 4): their layouts, parents first, and for the frames with a
+    /// box their display lists and canvases. A list is built only when its
+    /// document changed. The frame's canvas is transparent when the used
+    /// color schemes of its container and of its root are the same (CSS
+    /// Color Adjustment 1 §2.3); else it is opaque in the frame's color.
+    pub(super) fn prepare_frames(&mut self) {
+        if self.lent || self.frames.count() == 0 {
+            return;
+        }
+        self.layout_frames();
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            let Some(frame) = self.frames.get(id).filter(|f| f.has_box) else {
+                continue;
+            };
+            let (Some(parent), Some(container)) = (frame.parent, frame.container) else {
+                continue;
+            };
+            let container_scheme = self
+                .doc_of_mut(parent)
+                .map(|d| d.used_color_scheme(container));
+            let Some(frame) = self.frames.get_mut(id) else {
+                continue;
+            };
+            let Some(doc) = frame.doc.as_deref_mut() else {
+                continue;
+            };
+            doc.with_own_fonts(&mut self.fonts, DocumentState::update_display_list);
+            let root_scheme = doc.root_color_scheme();
+            let color = match root_scheme {
+                ColorScheme::Dark => DARK_CANVAS,
+                ColorScheme::Light => swb_style::Rgba::WHITE,
+            };
+            frame.canvas = (container_scheme != Some(root_scheme)).then_some(color);
+        }
+    }
 }
+
+/// The canvas color of a document with the dark color scheme (measured:
+/// case `transparency`).
+const DARK_CANVAS: swb_style::Rgba = swb_style::Rgba::rgb(18, 18, 18);
 
 /// Clamps a frame's viewport to the accepted viewport sizes.
 fn clamp_viewport(size: Size) -> Size {

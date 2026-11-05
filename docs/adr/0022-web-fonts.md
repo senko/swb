@@ -213,6 +213,36 @@ bounding box of what an element paints):
 
 The rendering of synthetic styles is unchanged (ADR 0006).
 
+### Frame documents (ADR 0031, M9 feature 10b)
+
+Each document of a page has its own faces (measured, case `paint-fonts` of
+`tools/probes/web-frames.json`: the family `F` next to a parent with another
+`F` gives each document its face, and a sibling without the rule uses its
+next family, so nothing leaks either way). The page has one font context
+(its system fonts, loaded faces, instances and caches are worth sharing), and
+that context holds one document's face set, `FontContext::web`. Two designs:
+
+1. A font context per document: the text and layout code stays, but the
+   caches of system fonts and glyph masks multiply by the frame count.
+2. One context with a current face set: `FontContext::swap_web_fonts`
+   exchanges it with a `WebFontSet` that the frame document keeps.
+
+swb uses the second. The top-level document's set stays in the context, so its
+text path has no new step and its cost is flat. A frame document's calls that
+use fonts (layout, a font that arrives, `stop`) run in
+`DocumentState::with_own_fonts`, which exchanges the sets around them in
+constant time. Font ids stay valid across exchanges, because the loaded faces
+and the instances stay in the context, so the rasterizer draws the display list
+of any document without an exchange. When a frame document goes, its faces are
+unloaded (`FontContext::drop_web_fonts`).
+
+The limits of this ADR apply per document. The decoded fonts of frame documents
+have a page-wide budget of 256 MiB (ADR 0031 section 11). The requests of the
+frames of a page usually start together, so the budget of 64 MiB for response
+bodies can act first: thousands of fonts in one burst fail with one warning
+(hostile case `frames-1000-web-fonts`). The top-level document has no such
+budgets.
+
 ## Consequences
 
 - Ars Technica geometry 0.1830 → 0.6908, BBC 0.0240 → 0.7775 (fixture

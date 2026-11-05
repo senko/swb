@@ -36,6 +36,7 @@
 
 mod bloom;
 mod cascade;
+mod color_scheme;
 mod computed;
 mod content;
 mod counter_style;
@@ -57,6 +58,7 @@ mod transform_list;
 mod values;
 
 pub use cascade::{compute_element_styles, compute_pseudo_element_style, compute_styles};
+pub use color_scheme::{parse_meta_color_scheme, used_color_scheme};
 pub use computed::{ComputedStyle, CustomProperties};
 pub use content::content_text;
 pub use element::{

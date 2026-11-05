@@ -56,7 +56,7 @@ impl Rasterizer<'_> {
             return;
         }
         let visible = if escapes_clips {
-            self.surface_rect()
+            self.fixed_area()
         } else {
             self.visible_area()
         };
@@ -66,7 +66,7 @@ impl Rasterizer<'_> {
         let mut content = Some(bounds).filter(non_empty).map(|b| self.to_device(b));
         if let Some(fixed) = fixed.filter(non_empty) {
             let saved = std::mem::take(&mut self.translation);
-            let at = self.to_device(fixed.translate(self.viewport_scroll));
+            let at = self.to_device(fixed.translate(self.fixed_origin));
             self.translation = saved;
             content = Some(content.map_or(at, |c| c.union(&at)));
         }
@@ -177,6 +177,10 @@ impl Rasterizer<'_> {
             self.budget.layer_pixels = self.budget.layer_pixels.saturating_sub(pixels);
         }
         if escapes_clips {
+            // Only the viewport of an enclosing frame clips the result.
+            self.clips.clear();
+            self.clips.extend(self.viewport_clip);
+            self.mask = None;
             self.composite_filtered(&pixmap, layer.origin);
             self.clips = clips;
         } else {

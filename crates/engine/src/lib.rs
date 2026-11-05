@@ -24,8 +24,8 @@ pub use boxes::{ElementBox, element_boxes};
 pub use document::DocumentState;
 pub use edit::TextEdit;
 pub use frames::{
-    DEFAULT_FRAME_VIEWPORT, FrameId, MAX_DEPTH, MAX_FRAMES, MAX_IMAGE_BYTES, MAX_NAVIGATIONS,
-    MAX_NODES, MAX_SOURCE_BYTES, MAX_STYLE_BYTES, NAVIGATION_WINDOW_MS, Sandbox,
+    DEFAULT_FRAME_VIEWPORT, FrameId, MAX_DEPTH, MAX_FONT_BYTES, MAX_FRAMES, MAX_IMAGE_BYTES,
+    MAX_NAVIGATIONS, MAX_NODES, MAX_SOURCE_BYTES, MAX_STYLE_BYTES, NAVIGATION_WINDOW_MS, Sandbox,
 };
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};

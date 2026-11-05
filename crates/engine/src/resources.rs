@@ -478,6 +478,12 @@ impl AutoSizes {
     }
 }
 
+/// What a decoded SVG image holds in memory per byte of its source: an image
+/// of 100,000 shapes (7.4 MB) took about 50 MiB (measured in the hostile case
+/// `frames-big-svg-images`). The budget for the images of frame documents
+/// counts it, as the source of an SVG image can be 8 MiB.
+const SVG_MEMORY_FACTOR: usize = 8;
+
 /// Images of a page, by URL, and which elements use them.
 #[derive(Default)]
 pub(crate) struct Images {
@@ -507,8 +513,9 @@ pub(crate) struct Images {
     /// partial selection does not make them.
     #[cfg(test)]
     pub(crate) forget_calls: usize,
-    /// Renderings of the page's SVG images.
-    vector_cache: VectorCache,
+    /// Renderings of the document's SVG images. The frame documents of a page
+    /// share one cache (ADR 0031 section 11).
+    vector_cache: Arc<VectorCache>,
     /// What counting spans may still take for the page's SVG images.
     pub(crate) counting: CountBudget,
     /// The page-wide budget for the decoded pixels of frame documents'
@@ -521,10 +528,12 @@ pub(crate) struct Images {
 
 impl Images {
     /// Puts the images under the page's `budget` for the decoded pixels of
-    /// frame documents; the images that are loaded already take their
-    /// share (those that do not fit fail).
-    pub(crate) fn attach_budget(&mut self, budget: Arc<ByteBudget>) {
+    /// frame documents, and their renderings of SVG images into the page's
+    /// `vectors`; the images that are loaded already take their share (those
+    /// that do not fit fail).
+    pub(crate) fn attach_budget(&mut self, budget: Arc<ByteBudget>, vectors: Arc<VectorCache>) {
         self.budget = Some(budget);
+        self.vector_cache = vectors;
         let loaded: Vec<Url> = self
             .by_url
             .iter()
@@ -532,40 +541,45 @@ impl Images {
             .map(|(url, _)| url.clone())
             .collect();
         for url in loaded {
-            self.admit(&url);
+            self.admit(&url, 0);
         }
     }
 
     /// True if the page's budget for the images of frame documents cannot
-    /// take the raster image that `data` declares (by its header), so that
-    /// the decode can be skipped.
+    /// take the raster image that `data` declares (by its header), or the
+    /// SVG image that `data` would be, so that the decode can be skipped.
     pub(crate) fn exceeds_budget(&self, data: &[u8]) -> bool {
         let Some(budget) = &self.budget else {
             return false;
         };
-        let Some((width, height)) = swb_paint::raster_size(data) else {
-            return false;
+        let bytes = match swb_paint::raster_size(data) {
+            Some((width, height)) => {
+                let bytes = u64::from(width) * u64::from(height) * 4;
+                usize::try_from(bytes).unwrap_or(usize::MAX)
+            }
+            None => data.len().saturating_mul(SVG_MEMORY_FACTOR),
         };
-        let bytes = u64::from(width) * u64::from(height) * 4;
-        let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
         budget.used().saturating_add(bytes) > budget.limit()
     }
 
-    /// Charges the raster image of `url`, which was just inserted, to the
-    /// page's budget; an image that does not fit fails. Returns true if the
-    /// image is loaded.
-    pub(crate) fn admit(&mut self, url: &Url) -> bool {
+    /// Charges the image of `url`, which was just inserted, to the page's
+    /// budget; an image that does not fit fails. A raster image costs its
+    /// pixels, an SVG image [`SVG_MEMORY_FACTOR`] times its `source_bytes`.
+    /// Returns true if the image is loaded.
+    pub(crate) fn admit(&mut self, url: &Url, source_bytes: usize) -> bool {
         let Some(ImageState::Loaded(image)) = self.by_url.get(url) else {
             return false;
         };
         let Some(budget) = &self.budget else {
             return true;
         };
-        let Some(pixels) = image.raster() else {
-            return true;
+        let bytes = match image.raster() {
+            Some(pixels) => {
+                let bytes = u64::from(pixels.width()) * u64::from(pixels.height()) * 4;
+                usize::try_from(bytes).unwrap_or(usize::MAX)
+            }
+            None => source_bytes.saturating_mul(SVG_MEMORY_FACTOR),
         };
-        let bytes = u64::from(pixels.width()) * u64::from(pixels.height()) * 4;
-        let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
         if let Some(reservation) = Reservation::new(budget, bytes) {
             self.held.push(reservation);
             return true;
@@ -939,8 +953,8 @@ mod tests {
         let budget = ByteBudget::new(60);
         let mut first = Images::default();
         let mut second = Images::default();
-        first.attach_budget(Arc::clone(&budget));
-        second.attach_budget(Arc::clone(&budget));
+        first.attach_budget(Arc::clone(&budget), Arc::default());
+        second.attach_budget(Arc::clone(&budget), Arc::default());
         let urls: Vec<Url> = ["a", "b", "c"]
             .iter()
             .map(|n| Url::parse(&format!("https://example.com/{n}.png")).unwrap())
@@ -949,13 +963,13 @@ mod tests {
         // header check says so before the decode).
         assert!(!first.exceeds_budget(&png));
         first.by_url.insert(urls[0].clone(), raster().1);
-        assert!(first.admit(&urls[0]));
+        assert!(first.admit(&urls[0], 0));
         second.by_url.insert(urls[1].clone(), raster().1);
-        assert!(second.admit(&urls[1]));
+        assert!(second.admit(&urls[1], 0));
         assert_eq!(budget.used(), 48);
         assert!(second.exceeds_budget(&png));
         second.by_url.insert(urls[2].clone(), raster().1);
-        assert!(!second.admit(&urls[2]));
+        assert!(!second.admit(&urls[2], 0));
         assert!(matches!(second.by_url[&urls[2]], ImageState::Failed));
         // The bytes return with the document's images.
         drop(first);
@@ -964,6 +978,25 @@ mod tests {
         // A document without a budget (the top-level one) is not limited.
         let mut top = Images::default();
         top.by_url.insert(urls[2].clone(), raster().1);
-        assert!(top.admit(&urls[2]) && !top.exceeds_budget(&png));
+        assert!(top.admit(&urls[2], 0) && !top.exceeds_budget(&png));
+    }
+
+    #[test]
+    fn svg_images_of_frame_documents_count_by_their_source() {
+        let budget = ByteBudget::new(1000);
+        let mut images = Images::default();
+        images.attach_budget(Arc::clone(&budget), Arc::default());
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
+        let decode = || {
+            let image = swb_paint::decode_with_type(svg, Some("image/svg+xml")).unwrap();
+            ImageState::Loaded(Arc::new(image))
+        };
+        let url = |n: &str| Url::parse(&format!("https://example.com/{n}.svg")).unwrap();
+        images.by_url.insert(url("a"), decode());
+        assert!(images.admit(&url("a"), 100));
+        assert_eq!(budget.used(), 100 * SVG_MEMORY_FACTOR);
+        images.by_url.insert(url("b"), decode());
+        assert!(!images.admit(&url("b"), 100));
+        assert!(matches!(images.by_url[&url("b")], ImageState::Failed));
     }
 }

@@ -14,13 +14,14 @@
 //! stays until the worker lets the request go.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// A limit over a sum of bytes, shared by the reservations that draw on it.
 #[derive(Debug)]
 pub struct ByteBudget {
     limit: usize,
     used: AtomicUsize,
+    warned: AtomicBool,
 }
 
 impl ByteBudget {
@@ -29,7 +30,19 @@ impl ByteBudget {
         Arc::new(ByteBudget {
             limit,
             used: AtomicUsize::new(0),
+            warned: AtomicBool::new(false),
         })
+    }
+
+    /// True the first time after the creation or [`ByteBudget::reset_warning`]:
+    /// for one warning about the budget.
+    pub fn warn_once(&self) -> bool {
+        !self.warned.swap(true, Ordering::Relaxed)
+    }
+
+    /// The next [`ByteBudget::warn_once`] is true again.
+    pub fn reset_warning(&self) {
+        self.warned.store(false, Ordering::Relaxed);
     }
 
     /// The bytes that reservations hold now.

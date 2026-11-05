@@ -5621,3 +5621,201 @@ def frames_made_and_removed_js_on() -> Page:
         "if (n < 200000) setTimeout(step, 0); else console.log('done ' + n); } step();</script>"
     )
     return Page(doc("<p>frames</p>" + script), {"f.html": "<p>frame"})
+
+
+FULL_FRAMES = "iframe{position:absolute;left:0;top:0;width:100%;height:100%;border:0}"
+"""Frames that all cover the viewport, so that the rasterizer draws all of them."""
+
+
+@case(
+    "1,000 frames over the whole viewport, each with a document of 250 boxes with text (M9 "
+    "feature 10b): the rasterizer walks 1.25 million items in one frame of the page, within its "
+    "budget of 4 Mi items. 250 boxes keep the case under the memory cap of this set; at 500 "
+    "boxes, the node budget's end, it takes 2.6 GiB (ADR 0031 section 11)",
+    time_limit_s=10,
+    rss_limit_mib=2048,
+)
+def frames_1000_big_lists() -> Page:
+    box = "<div style='background:rgb(1,2,3);border:1px solid'>text</div>"
+    return Page(
+        doc("<iframe src=f.html></iframe>" * 1000, FULL_FRAMES),
+        {"f.html": box * 250},
+    )
+
+
+@case(
+    "One frame with a document of 800,000 boxes with an opacity, a filter, a border and a clip "
+    "(M9 feature 10b): its display list is longer than the 4 Mi items of a rasterization of "
+    "frames, so it paints nothing, with one warning (ADR 0031 section 11)",
+    time_limit_s=6,
+    rss_limit_mib=2048,
+    expect_log="frames: the display lists",
+)
+def frame_past_the_item_budget() -> Page:
+    css = (
+        "div{opacity:.9;filter:invert(0);background:rgb(1,2,3);border:1px solid;overflow:hidden;"
+        "width:1px;height:1px}"
+    )
+    return Page(
+        doc("<p>big list</p><iframe src=f.html></iframe>"),
+        {"f.html": f"<style>{css}</style>" + "<div></div>" * 800_000},
+    )
+
+
+def nested_frames(depth: int, css: str, inner: str = "<p>end") -> dict[str, str]:
+    """Files `f0.html` to `f{depth - 1}.html`: each document has a style sheet
+    `css` and a frame with the next one (separate URLs: a document does not
+    embed itself)."""
+    files = {
+        f"f{i}.html": f"<!doctype html><style>{css}</style><iframe src=f{i + 1}.html></iframe>"
+        for i in range(depth - 1)
+    }
+    files[f"f{depth - 1}.html"] = inner
+    return files
+
+
+@case(
+    "Frames nested 40 deep, each iframe with a blur and a rotation (M9 feature 10b): frames nest "
+    "at most 32 deep and transform layers 8 deep; the filter and layer budgets of the "
+    "rasterization cover the frames (ADR 0031 section 11)",
+    time_limit_s=3,
+    rss_limit_mib=512,
+    expect_log="frames are nested 32 deep",
+)
+def frames_nested_filter_transform() -> Page:
+    css = (
+        "html{background:rgb(200,200,255)} iframe{filter:blur(2px);transform:rotate(1deg);"
+        "width:95vw;height:95vh;border:0}"
+    )
+    return Page(
+        doc(f"<style>{css}</style><iframe src=f0.html></iframe>"),
+        nested_frames(40, css),
+    )
+
+
+@case(
+    "Frames nested 40 deep, each iframe with an opacity (M9 feature 10b): the layers of the 32 "
+    "levels stay within the layer budget of the rasterization (ADR 0031 section 11)",
+    time_limit_s=3,
+    rss_limit_mib=512,
+    expect_log="frames are nested 32 deep",
+)
+def frames_nested_opacity() -> Page:
+    css = "iframe{opacity:.9;width:100vw;height:100vh;border:0}"
+    return Page(
+        doc(f"<style>{css}</style><iframe src=f0.html></iframe>"),
+        nested_frames(40, css),
+    )
+
+
+@case(
+    "Frames nested 32 deep, each document with 250 nested boxes with a translation (M9 feature "
+    "10b): one rasterizer recurses through the groups of all documents of the chain; the groups "
+    "nest at most 1,024 deep in frames, with one warning (ADR 0031 section 11)",
+    time_limit_s=3,
+    rss_limit_mib=512,
+    expect_log="frames: the display lists",
+)
+def frames_nested_groups() -> Page:
+    box = "<div style='transform:translate(0,0);width:100vw;height:100vh'>"
+    css = "body{margin:0} iframe{width:100vw;height:100vh;border:0}"
+    files = {
+        f"f{i}.html": (
+            f"<!doctype html><style>{css}</style>"
+            + nest(box, "</div>", 250, f"<iframe src=f{i + 1}.html></iframe>")
+        )
+        for i in range(31)
+    }
+    files["f31.html"] = "<p>end"
+    return Page(
+        doc(
+            "<style>iframe{width:100vw;height:100vh;border:0}</style><iframe src=f0.html></iframe>"
+        ),
+        files,
+    )
+
+
+def many_shapes_svg(shapes: int) -> str:
+    """An SVG image with `shapes` translucent rectangles over its whole area."""
+    rect = "<rect width='1000' height='1000' fill='rgb(10,20,30)' fill-opacity='.5'/>"
+    return (
+        "<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'>"
+        + rect * shapes
+        + "</svg>"
+    )
+
+
+@case(
+    "200 frames over the whole viewport, each with a different SVG image of 100,000 shapes, one "
+    "rendering each (M9 feature 10b): the frames share the rendering budget of one frame of the "
+    "page and one cache of renderings of 128 MiB (ADR 0031 section 11)",
+    time_limit_s=8,
+    rss_limit_mib=1800,
+    expect_log="SVG images: the rendering budget",
+)
+def frames_big_svg_images() -> Page:
+    svg = many_shapes_svg(100_000)
+    return Page(
+        doc("<iframe src=f.html></iframe>" * 200, FULL_FRAMES),
+        {
+            "f.html": "<body style='margin:0'><img src=i.svg style='width:100vw;height:100vh'>",
+            "i.svg": svg,
+        },
+    )
+
+
+@case(
+    "1,000 frames of 300 x 300 px over each other, with an SVG image of the size of the frame "
+    "(M9 feature 10b): without a page-wide cache, the renderings would take 360 MB; the frames "
+    "share a cache of 128 MiB (ADR 0031 section 11)",
+    time_limit_s=5,
+    rss_limit_mib=600,
+)
+def frames_1000_svg_renderings() -> Page:
+    svg = many_shapes_svg(1)
+    css = "iframe{position:absolute;left:0;top:0;width:300px;height:300px;border:0}"
+    return Page(
+        doc("<iframe src=f.html></iframe>" * 1000, css),
+        {
+            "f.html": "<body style='margin:0'><img src=i.svg style='width:100vw;height:100vh'>",
+            "i.svg": svg,
+        },
+    )
+
+
+@case(
+    "Four viewport changes with 1,000 visible frames whose size depends on the viewport, with "
+    "JavaScript on (M9 feature 10b): each change lays out all frame documents again, and the "
+    "last one paints them (the budgets of a rendering stay as they are)",
+    swb_args=(
+        "--js",
+        "--steps",
+        '[{"viewport":[1000,700]},{"wait":50},{"viewport":[900,700]},{"wait":50},'
+        '{"viewport":[800,600]},{"wait":50},{"viewport":[1200,800]},{"wait":50}]',
+    ),
+    time_limit_s=5,
+    rss_limit_mib=1024,
+)
+def frames_1000_viewport_changes_js_on() -> Page:
+    css = "iframe{width:9%;height:40px;border:0;float:left}"
+    body = "<p>text in a frame</p>" * 5
+    return Page(doc("<iframe src=f.html></iframe>" * 1000, css), {"f.html": body})
+
+
+@case(
+    "1,000 frames, each with 40 @font-face rules with font files of its own (M9 feature 10b): "
+    "each frame document has its own faces, and the requests come in one burst, so the budget of "
+    "response bodies acts first, with one warning; the decoded fonts of frame documents have "
+    "their own budget per page (ADR 0031 section 11)",
+    time_limit_s=5,
+    rss_limit_mib=2048,
+    expect_log="over the memory budget",
+)
+def frames_1000_web_fonts() -> Page:
+    fonts = range(40)
+    rules = "".join(f"@font-face{{font-family:F{i};src:url(f.ttf?{i})}}" for i in fonts)
+    text = "".join(f"<p style='font-family:F{i}'>x" for i in fonts)
+    return Page(
+        doc("<iframe src=f.html></iframe>" * 1000),
+        {"f.html": f"<style>{rules}</style>{text}", "f.ttf": _web_font()},
+    )

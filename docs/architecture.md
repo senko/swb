@@ -360,12 +360,20 @@ loader *client* number, its requests carry it, and the page hands each
 completion to the document of its client (`Completion::client`,
 `Loader::cancel_client`); the request of a frame document has the
 destination `iframe` and the site for cookies of its parent
-(`Request::site_for_cookies`). Frame documents run no scripts and do not
-paint yet (features 10b and 12). The frame documents of a page share
+(`Request::site_for_cookies`). Frame documents paint (feature 10b, ADR 0031
+section 4): before a rendering `Page::prepare_frames` lays out the frames
+parents first and builds the display lists of those with a box, and the
+rasterizer draws a frame's list when it meets `DisplayItem::Frame` in its
+parent's list, through the lookup `ImageSource::frame`
+(`engine/src/frames/paint.rs`), so the groups of the parent apply. Each frame
+document has its own web fonts, exchanged in the font context around its
+calls (`DocumentState::with_own_fonts`, ADR 0022). Frame documents run no
+scripts yet (feature 12). The frame documents of a page share
 budgets (`engine/src/frames/budget.rs`, ADR 0031 section 11): the source
 bytes and DOM nodes of the documents that are alive together, and, through
 `swb_net::ByteBudget`, the response bodies that wait for the page, the
-decoded raster images and the external style sheets of frame documents. The current document is a boxed
+decoded images, the fonts and the external style sheets of frame documents,
+and one cache of renderings of SVG images. The current document is a boxed
 `DocumentState` (`engine/src/document/`, ADR 0028 section 2): the DOM and
 its parser, the stylesheets and the stylist,
 the styles, the fragments and the display list, the images and web fonts
@@ -709,7 +717,12 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   corners); the backdrop root is the nearest layer below the box's own
   groups, so the root layers are the opacity, mask, filter and clip path
   groups, and the display list adds a layer for roots without one that
-  have a `backdrop-filter` below them. Gradients are interpolated in
+  have a `backdrop-filter` below them. A frame (ADR 0031 section 4; M9
+  feature 10b) has a `Frame` item: `paint/src/raster/frame.rs` gets the
+  frame's display list from the `ImageSource` and draws it in place, clipped
+  to the content box and moved to its snapped corner minus the frame's scroll
+  offset, so the budgets of the strip and the groups around the item apply;
+  fixed boxes in the frame start at that corner. Gradients are interpolated in
   premultiplied space: `raster.rs` cuts a pair of stops of different alpha
   and color into sections for tiny-skia, which interpolates without the
   alpha. The rasterizer
@@ -750,18 +763,21 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   arena of `Frame` records addressed by `FrameId` (index and generation;
   a stale id finds nothing), the limits (1,000 frames, depth 32, 64
   navigations per frame in 10 s of page time) and the `sandbox` flags.
+  `frames/paint.rs` (feature 10b): `FrameSource`, what the rasterizer sees of
+  a document with frames.
 - `page/frames.rs`: the life of frames: an `iframe` that the journal
   drain reports inserted gets a frame with an `about:blank` document,
   then its `srcdoc` or `src` navigates it; removal destroys it with its
   descendants and their requests. The documents of frames (requests,
   commits, `about:srcdoc`, the declarative refresh), the load state (a
-  frame delays its parent's `load`; the container's `load` event), and the
+  frame delays its parent's `load`; the container's `load` event), the
   viewports (the content boxes of the containers after the parent's
-  layout).
+  layout), and what a rendering needs (`prepare_frames`: display lists and
+  canvases).
 - `document/frames.rs`: what a document tells the page about its frames:
   the `iframe` changes of the drain, the content boxes of the `iframe`
-  boxes, the declarative refresh, and the subresource requests with the
-  document's loader client and site for cookies.
+  boxes, the declarative refresh, the used color schemes, and the subresource
+  requests with the document's loader client and site for cookies.
 - `document/mod.rs`: `DocumentState`, its construction and the parse in
   steps, element states and the selection.
 - `document/script_actions.rs`: what scripts ask for focus, links and

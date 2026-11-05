@@ -38,12 +38,13 @@ pub use display_list::{
     DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, Scrolling, build_display_list,
 };
+pub use group_bounds::transform_ends;
 pub use image::{
     DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_in_document, decode_with_type,
     is_supported_image_type, raster_size,
 };
 pub use mask::{MaskLayer, MaskLayerImage};
-pub use raster::{ImageSource, RasterParams, rasterize, rasterize_in_strips};
+pub use raster::{FrameContent, ImageSource, RasterParams, rasterize, rasterize_in_strips};
 pub use scroll_indicator::scroll_indicators;
 pub use svg::{CountBudget, VectorCache};
 pub use tiny_skia::Pixmap;

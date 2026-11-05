@@ -257,7 +257,7 @@ fn close(item: &mut DisplayItem, areas: Areas, sticky: &mut StickyCache) -> Area
 
 /// The index of the matching `PopTransform` of each `PushTransform` in
 /// `items` (the length of `items` if there is none); 0 for other items.
-pub(crate) fn transform_ends(items: &[DisplayItem]) -> Vec<usize> {
+pub fn transform_ends(items: &[DisplayItem]) -> Vec<usize> {
     let mut ends = vec![0; items.len()];
     let mut open: Vec<usize> = Vec::new();
     for (i, item) in items.iter().enumerate() {

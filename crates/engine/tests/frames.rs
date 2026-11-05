@@ -1,6 +1,7 @@
 //! Frames (ADR 0031 sections 2 to 4 and 11, M9 feature 10a): the frame
 //! tree, the loading of frame documents, the load state, the `iframe` box
-//! and the frame viewports.
+//! and the frame viewports; `frames/paint.rs` (feature 10b): what frames
+//! paint.
 //!
 //! The cases of `tools/probes/web-frames.json` that feature 10a covers run
 //! here with Chromium's values (`tests/data/web-frames.json`: `just probe
@@ -31,6 +32,8 @@ use swb_engine::{
 use swb_net::{CookieJar, Fetcher, Headers, NetError, Request, Response};
 
 mod common;
+#[path = "frames/paint.rs"]
+mod paint;
 use common::{finish_loading, new_page, on_page_thread, value};
 
 const MAIN: &str = "http://127.0.0.1:8000";
@@ -61,10 +64,6 @@ const QUERIES_LATER: &[(&str, &str)] = &[
         "document.cookie, fetch() and postMessage in frames: features 13 and 14",
     ),
     (
-        "javascript-off",
-        "the pixels of frame documents: feature 10b",
-    ),
-    (
         "limits",
         "frames made by script in one task (contentWindow at once): feature 12",
     ),
@@ -80,7 +79,7 @@ const QUERIES_LATER: &[(&str, &str)] = &[
 /// A resource: body, content type, extra headers, delay.
 #[derive(Clone)]
 struct Res {
-    body: String,
+    body: Vec<u8>,
     content_type: &'static str,
     headers: Vec<(String, String)>,
     delay_ms: u64,
@@ -89,7 +88,7 @@ struct Res {
 impl Res {
     fn html(body: &str) -> Res {
         Res {
-            body: body.to_owned(),
+            body: body.as_bytes().to_vec(),
             content_type: "text/html; charset=utf-8",
             headers: Vec::new(),
             delay_ms: 0,
@@ -165,7 +164,7 @@ impl Fetcher for Sim {
             url: request.url.clone(),
             status: 200,
             headers,
-            body: res.body.clone().into_bytes(),
+            body: res.body.clone(),
             redirected: false,
         })
     }

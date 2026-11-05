@@ -1,0 +1,18 @@
+{
+  "url": "tests/layout/frames-visible.html",
+  "viewport": [800, 600],
+  "elements": [
+    {"tag": "html", "rect": [0.0, 0.0, 800.0, 406.0], "parent": null},
+    {"tag": "head", "rect": null, "parent": 0},
+    {"tag": "title", "rect": null, "parent": 1},
+    {"tag": "style", "rect": null, "parent": 1},
+    {"tag": "body", "rect": [8.0, 16.0, 784.0, 374.0], "parent": 0},
+    {"tag": "p", "rect": [8.0, 16.0, 784.0, 18.0], "parent": 4},
+    {"tag": "iframe", "rect": [8.0, 50.0, 200.0, 60.0], "parent": 4},
+    {"tag": "div", "rect": [8.0, 118.0, 784.0, 122.0], "parent": 4},
+    {"tag": "iframe", "rect": [8.0, 118.0, 388.0, 122.0], "parent": 7},
+    {"tag": "iframe", "rect": [404.0, 118.0, 388.0, 122.0], "parent": 7},
+    {"tag": "iframe", "rect": [8.0, 248.0, 308.0, 108.0], "parent": 4},
+    {"tag": "p", "rect": [8.0, 372.0, 784.0, 18.0], "parent": 4}
+  ]
+}

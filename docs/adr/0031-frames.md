@@ -377,8 +377,9 @@ media queries against the frame's viewport (`width`, `height`), and
 `prefers-color-scheme` of the page.
 
 **Paint.** The parent's display list gets an item
-`DisplayItem::Frame { frame: FrameId, rect }` (the content box) at the
-place of the replaced content. The display lists stay separate: the
+`DisplayItem::Frame { node, rect }` (the `iframe` element and its content
+box; "Done (feature 10b)" below gives the reason) at the place of the
+replaced content. The display lists stay separate: the
 rasterizer draws the frame's display list when it meets the item, clipped
 to the rectangle and translated to its origin minus the frame's scroll
 offset, inside the parent's open groups (so the `iframe`'s opacity,
@@ -435,6 +436,70 @@ document lays out as a top-level document (case `geometry`: the frame
 viewports and root widths equal Chromium's `innerWidth`,
 `clientWidth`; quirks mode for `about:blank`, no-quirks for
 `about:srcdoc`). No `resize` events (frame documents run no scripts).
+
+**Done (feature 10b: paint; `paint/raster/frame.rs`, `engine/frames/paint.rs`,
+`Page::prepare_frames`).** Measured in Chromium 148 with the cases `paint-*`
+and `transparency` of `tools/probes/web-frames.json` (three equal runs; all
+points within 2 levels). Decisions and departures:
+
+- *The item.* `DisplayItem::Frame { node, rect }`: the `node` is the `iframe`
+  element, not a `FrameId` as above. The lookup finds the frame from the
+  document and the element, so the parent's list does not change when a frame
+  starts, ends or navigates (a move of an `iframe` changes the list anyway),
+  and the paint crate has no ids of the engine.
+- *The lookup.* `swb_paint::ImageSource::frame(node)` gives a `FrameContent`:
+  the display list, the transform group ends, the scroll offset, the canvas
+  and a source for the frame's own images and frames. `ImageSource` is
+  already passed through the whole rasterizer. A page without frames passes
+  its `Images` as before; a page with frames passes `frames::paint::FrameSource`.
+- *The raster* draws the list at its item, in the parent's open groups, with a
+  clip to the content box (`Rasterizer::frame`). The origin of the list is the
+  corner of the content box snapped to a device pixel, as the clip is (case
+  `paint-fractional`: the frame at `left: 10.5px` starts at pixel 11, and the
+  content of the frame stays on whole pixels). `overflow: clip` of the `iframe`
+  with `border-radius` is a rounded clip around the item (case `paint-effects`).
+  Fixed boxes in a frame start at the corner of the content box
+  (`Rasterizer::fixed_origin`) and stay inside the frame's clip
+  (`Rasterizer::viewport_clip`, also for the layers of groups with fixed
+  content); sticky boxes use the frame's scroll offset and their own cache
+  (cases `paint-fixed`, `paint-sticky`). Frames that the visible area misses
+  are culled before the lookup, as other items.
+- *Order.* `Page::render_in_strips` builds the page's display list, then
+  `prepare_frames`: the layout of the frames parents first, and for frames whose
+  container has a box the display list and the canvas. So the first paint shows
+  the frames. A `display: none` frame lays out but has no list. `render` and
+  `screenshot` (viewport and full page) take this path, in the GUI too; a
+  full-page screenshot draws frames at their own scroll offsets (case
+  `paint-full-page`).
+- *Invalidation.* A change in a frame document drops that document's display
+  list, as in any document, and the next rendering builds it; the parent's list
+  stays (test `an_image_that_loads_in_a_frame_repaints_only_the_frame`, with
+  the new `FlushCounters::display_list_runs`). The completions of frame
+  documents already make `Page::pump` report a change, which is what the GUI's
+  frame loop redraws on.
+- *Backdrop roots.* A `backdrop-filter` in a frame reads through the frame:
+  Chromium's transparent frame shows its parent's red inverted (case
+  `paint-backdrop`, 0,255,255). So the frame's root is no backdrop root and the
+  frame needs no layer; the backdrop is the surface below, as for a box in the
+  parent (`raster/backdrop.rs` is unchanged).
+- *Transparency and color scheme.* `color-scheme` is now a property (inherited,
+  `swb_style::used_color_scheme`, the meta name in `document/frames.rs`; case
+  `paint-color-scheme-syntax`, with `only` last in the serialization and `none`
+  as a custom identifier). Measured: `meta` with `light dark` is light on a
+  light page; `body { color-scheme: dark }` does not count, only the root's
+  value; the root's `color-scheme: light` wins over a `dark` meta element; an
+  `iframe` with `normal` takes the meta element of its own document, so a light
+  frame in a dark document has a white canvas. The default text color of a
+  frame document with a dark root is white (`CanvasText`,
+  `Stylist::set_dark_canvas_text`, two style runs when it changes). Departure:
+  the other dark defaults (links, form controls) stay light, and the top-level
+  document does not use color schemes at all (a backlog item; its pixels must
+  not change in this feature).
+- *Web fonts.* See ADR 0022, "Frame documents".
+- *Budgets.* See section 11. A frame past `MAX_FRAME_ITEMS` paints nothing, also
+  no canvas, with one warning per rasterization (case `paint-past-budget`:
+  Chromium paints the document of 900,000 boxes blue; swb leaves the frame
+  transparent).
 
 ### 5. Scripts: agents, runtimes and realms
 
@@ -948,6 +1013,11 @@ document. The feature that turns rendering on reports the scores.
 | Response bodies of frame documents (documents and their subresources) that the workers have read and the page has not taken, per page | 64 MiB (a `Reservation` of the request in a `ByteBudget`, as for `fetch()`) | the request fails (`OverBudget`): an error document, a failed image or style sheet. Without it the workers outrun the page: 1,000 frames of 10 MiB filled 4.4 GiB in 0.8 s |
 | Decoded raster images of frame documents, per page | 512 MiB (`MAX_IMAGE_BYTES`, 4 bytes per pixel, charged from the header before the decode) | the image fails with a warning. One frame with 50 PNGs of 16 Mpx took 3.2 GiB |
 | External style sheets of frame documents, per page | 8 MiB of CSS text (`MAX_STYLE_BYTES`) | the sheet fails with a warning. A sheet of 13 MB (1,000,000 rules) took 1.46 GiB parsed |
+| SVG images of frame documents, per page | they count against the 512 MiB of `MAX_IMAGE_BYTES` with 8 times their source (`SVG_MEMORY_FACTOR`; an image of 7.4 MB took about 50 MiB) | the image fails with a warning, before the decode if the source alone does not fit |
+| Renderings of SVG images of frame documents, per page | one `VectorCache` of 128 MiB for all frame documents; the top-level document keeps its own. The rendering budget of a rasterization (`MAX_FRAME_WORK`) covers all documents | the least recently used renderings go; past the rendering budget an image uses a rendering of another size or is not drawn, with one warning |
+| Decoded web fonts of frame documents, per page | 256 MiB (`MAX_FONT_BYTES`): the decoded files of each document, 16 KiB per face that loads, 1 MiB per `local()` face | the font fails with one warning per top-level document, and the text uses the next family |
+| Items of the display lists of the frames that a strip draws | 4 Mi (`MAX_FRAME_ITEMS`; frames outside the visible area do not count). 2.5 million items took 0.52 s | the frame that does not fit paints nothing; one warning per rasterization |
+| Transform groups nested in frames | 1,024 over a chain of frames (`MAX_FRAME_GROUP_DEPTH`), so that the recursion of the rasterizer stays bounded; 32 frames with 256 nested boxes each would give 8,192 | the deeper group is not drawn, with the warning of the item budget |
 | Hit testing | the 40 ms budget per call covers all frames | as now |
 
 Chromium has none of the budgets for frame documents. They are departures
@@ -965,10 +1035,27 @@ style and layout; 50 PNGs of 4000 x 4000 px 3.2 GiB; a style sheet of
 above are page-wide for these. Not multiplied, because frame documents run
 no scripts and use no web fonts in feature 10a: the script heap, the
 `fetch()` budget of 256 MiB per document, web fonts, the font context.
-Feature 10b must put two things under a page-wide budget when frame
-documents paint: the vector cache of SVG images (128 MiB per document,
-`paint/src/svg/cache.rs`) and the display lists and rasters of frames. The
-top-level document keeps the per-document limits: it has no page-wide
+Feature 10b put the vector cache of SVG images under one page-wide cache and
+measured the display lists and rasters of frames with 1,000 visible frames
+(hostile cases `frames-*`, table above):
+
+- The display lists follow from the node budget, which is page-wide, so
+  they cost what one big top-level document costs. 1,000 frames of 500 boxes
+  with text (2.5 million items, 1 Mi nodes): 2.6 GiB of RSS with everything
+  else of these documents, 4.8 s to load and paint, 0.52 s for one
+  rasterization. They got no memory budget of their own; the budget of items
+  bounds the time. The hostile set has a cap of 2,048 MiB per case, so its case
+  `frames-1000-big-lists` has half of these boxes; the numbers above were
+  measured once with the same case at 500 boxes.
+- A frame has no raster of its own. It draws in the target or in the layers of
+  the groups around it, so the budgets of a strip (group layers, filters,
+  masks, transforms, paths) cover all frames together. 40 nested frames with a
+  blur and a rotation each: 0.25 s, 102 MiB, with the warning of the transform
+  layers.
+- 1,000 small visible frames (a background and a line of text each) take
+  12 ms of raster.
+
+The top-level document keeps the per-document limits: it has no page-wide
 budget for images and style sheets, so a top-level document with 50 such
 PNGs takes the same 3.2 GiB (backlog).
 

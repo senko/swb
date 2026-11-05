@@ -271,6 +271,7 @@ pub(crate) fn parse_longhand(
             }
             L::UserSelect => V::UserSelect(parse_user_select(p)?),
             L::UnicodeBidi => V::UnicodeBidi(parse_unicode_bidi(p)?),
+            L::ColorScheme => V::ColorScheme(crate::color_scheme::parse_color_scheme(p)?),
             L::TransitionProperty
             | L::TransitionDuration
             | L::TransitionDelay

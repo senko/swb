@@ -342,6 +342,18 @@ pub enum DisplayItem {
         /// The node it belongs to (an element or a text node).
         node: NodeId,
     },
+    /// Draw the document of a frame (ADR 0031 section 4) at the place of
+    /// the content of its `iframe`: the rasterizer gets the frame's list
+    /// through [`crate::ImageSource::frame`], clips it to `rect` and moves
+    /// it to the origin of `rect`, inside the groups that are open here.
+    /// The item names the element, not the frame, so that a frame that
+    /// starts or ends does not change the list of its parent.
+    Frame {
+        /// The `iframe` element.
+        node: NodeId,
+        /// The content box of the element: the frame's viewport.
+        rect: Rect,
+    },
 }
 
 impl DisplayItem {
@@ -352,7 +364,8 @@ impl DisplayItem {
         match self {
             DisplayItem::Rect { rect, .. }
             | DisplayItem::Border { rect, .. }
-            | DisplayItem::BackdropFilter { rect, .. } => Some(*rect),
+            | DisplayItem::BackdropFilter { rect, .. }
+            | DisplayItem::Frame { rect, .. } => Some(*rect),
             DisplayItem::Image { rect, clip, .. }
             | DisplayItem::LinearGradient { rect, clip, .. } => rect.intersection(clip),
             DisplayItem::Text {
@@ -1648,6 +1661,24 @@ impl Builder<'_> {
             }
             BoxContent::Svg(svg) => {
                 crate::inline_svg::paint(&mut self.list, svg, style, content, self.scale);
+            }
+            BoxContent::Frame(node) if content.width > 0.0 && content.height > 0.0 => {
+                // The user-agent style sheet gives an `iframe` `overflow:
+                // clip !important`, so the rounded inner border edge clips
+                // the frame; the rasterizer clips to the rectangle.
+                let padding = b.padding_rect().translate(origin);
+                let rounded =
+                    padding_radii(b, origin).filter(|r| rounded_clip(padding, r).is_some());
+                if rounded.is_some() {
+                    self.list.push(clip_item(padding, rounded));
+                }
+                self.list.push(DisplayItem::Frame {
+                    node: *node,
+                    rect: content,
+                });
+                if rounded.is_some() {
+                    self.list.push(unclip_item(rounded));
+                }
             }
             _ => {}
         }

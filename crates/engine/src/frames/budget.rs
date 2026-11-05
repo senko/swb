@@ -30,6 +30,13 @@ pub const MAX_IMAGE_BYTES: usize = 512 << 20;
 /// sheet past it fails. (The top-level document has no such budget.)
 pub const MAX_STYLE_BYTES: usize = 8 << 20;
 
+/// The most bytes of decoded fonts of frame documents that are alive at the
+/// same time: the decoded files and a share for each face that loads
+/// (`crate::web_fonts::FACE_COST`). One font file may decode to 64 MiB, and
+/// each document decodes its own files. A font past it fails, and the text
+/// uses the next family. (The top-level document has no such budget.)
+pub const MAX_FONT_BYTES: usize = 256 << 20;
+
 /// What a frame document costs the budget.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Charge {

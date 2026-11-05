@@ -80,6 +80,7 @@ pub(crate) fn apply(value: &LonghandValue, cx: &ComputeContext<'_>, s: &mut Comp
     match value {
         // `color: currentColor` is `color: inherit`.
         V::Color(c) => s.color = c.resolve(cx.parent.color),
+        V::ColorScheme(v) => s.color_scheme.clone_from(v),
         V::FontFamily(f) => s.font_family = Arc::clone(f),
         V::FontSize(v) => {
             let (size, origin) = v.compute(cx, is_monospace(&s.font_family));

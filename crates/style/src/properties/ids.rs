@@ -112,6 +112,7 @@ macro_rules! longhands {
 longhands! {
     // Inherited.
     Color "color" inherited color: Color;
+    ColorScheme "color-scheme" inherited color_scheme: Option<Arc<str>>;
     FontFamily "font-family" inherited font_family: Arc<[FontFamily]>;
     FontSize "font-size" inherited font_size: SpecifiedFontSize;
     FontWeight "font-weight" inherited font_weight: SpecifiedFontWeight;

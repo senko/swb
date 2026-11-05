@@ -6,7 +6,9 @@
 //! The page keeps the frame tree (`crate::frames`) and acts on these.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use swb_css::ColorScheme;
 use swb_dom::{Document, NodeId, is_html_whitespace, local_name};
 use swb_layout::{BoxContent, FragmentRef, Size};
 use swb_net::{Request, RequestId, Reservation, Url};
@@ -114,6 +116,84 @@ impl DocumentState {
     /// The serial number of the current layout (it grows with each).
     pub(crate) fn layout_serial(&self) -> u64 {
         self.layout_serial
+    }
+
+    /// The style, layout and display list runs of the document since it was
+    /// created.
+    pub fn flush_counters(&self) -> crate::FlushCounters {
+        self.flushes
+    }
+
+    /// The used color scheme of the element `node` (CSS Color Adjustment 1
+    /// §2.1); light for an element without a style.
+    pub(crate) fn used_color_scheme(&mut self, node: NodeId) -> ColorScheme {
+        let value = self
+            .styles
+            .as_ref()
+            .and_then(|s| s.get(node))
+            .and_then(|s| s.color_scheme.clone());
+        // The meta element counts only for `normal`.
+        let page = if value.is_none() {
+            self.page_color_schemes()
+        } else {
+            None
+        };
+        swb_style::used_color_scheme(value.as_deref(), page.as_deref(), self.view.color_scheme)
+    }
+
+    /// The used color scheme of the root element.
+    pub(crate) fn root_color_scheme(&mut self) -> ColorScheme {
+        match self.dom.document_element() {
+            Some(root) => self.used_color_scheme(root),
+            None => ColorScheme::Light,
+        }
+    }
+
+    /// The page's supported color schemes (HTML "the `color-scheme` meta
+    /// name"): the first `meta` element in `head` with that name whose
+    /// non-empty `content` is a valid value.
+    /// <https://html.spec.whatwg.org/multipage/semantics.html#meta-color-scheme>
+    fn page_color_schemes(&mut self) -> Option<Arc<str>> {
+        let generation = self.dom.generation();
+        if let Some((at, schemes)) = &self.page_color_schemes
+            && *at == generation
+        {
+            return schemes.clone();
+        }
+        let dom = &self.dom;
+        let schemes = dom
+            .document_element()
+            .into_iter()
+            .flat_map(|root| dom.children(root))
+            .find(|&n| dom.is_html_element(n, &local_name!("head")))
+            .into_iter()
+            .flat_map(|head| dom.children(head))
+            .filter(|&n| dom.is_html_element(n, &local_name!("meta")))
+            .filter_map(|n| dom.element(n))
+            .filter(|e| {
+                e.attr("name")
+                    .is_some_and(|v| v.eq_ignore_ascii_case("color-scheme"))
+            })
+            .filter_map(|e| e.attr("content"))
+            .find_map(swb_style::parse_meta_color_scheme)
+            .flatten();
+        self.page_color_schemes = Some((generation, schemes.clone()));
+        schemes
+    }
+
+    /// The default text color of a frame document: the root's used color
+    /// scheme decides it (`CanvasText`), and scoped to frames, because the
+    /// rendering of the top-level document does not use color schemes (ADR
+    /// 0031 section 4). True if the styles must be computed again.
+    pub(crate) fn update_canvas_text(&mut self) -> bool {
+        let dark = self.root_color_scheme() == ColorScheme::Dark;
+        match self.stylist.as_mut() {
+            Some(stylist) if stylist.dark_canvas_text() != dark => {
+                stylist.set_dark_canvas_text(dark);
+                true
+            }
+            _ => false,
+        }
     }
 
     /// The declarative refresh of the document: the first `meta` element

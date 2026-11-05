@@ -11,9 +11,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use swb_net::Url;
+use swb_net::{ByteBudget, Reservation, Url};
 use swb_style::{FontFace, FontFaceSource, FontFaceStyle};
-use swb_text::{Feature, WebFaceId, WebFontFace, WebFontStyle};
+use swb_text::{Feature, WebFaceId, WebFontFace, WebFontSet, WebFontStyle};
 
 /// The prefix of a `local()` source in the text crate's face set. A
 /// resolved URL always has a scheme, so it never starts with this.
@@ -85,6 +85,15 @@ pub(crate) enum FontFile {
     Failed,
 }
 
+/// What a face that loads costs the page's budget for the fonts of frame
+/// documents, besides its file: the parsed tables and the shape plans
+/// (`LoadedFace`). A document may load 1,000 faces of one small file.
+pub(crate) const FACE_COST: usize = 16 * 1024;
+
+/// What a `local()` face costs that budget: the file of the installed font,
+/// which the text crate reads (the size is not known before that).
+pub(crate) const LOCAL_FACE_COST: usize = 1 << 20;
+
 /// The web font loading state of a page.
 #[derive(Debug, Default)]
 pub(crate) struct WebFonts {
@@ -93,9 +102,48 @@ pub(crate) struct WebFonts {
     /// The media environment of the face set that the font context has;
     /// `None` when the face set must be computed again (a new stylist).
     pub(crate) env: Option<swb_css::MediaEnvironment>,
+    /// The faces of a frame document while another document's faces are in
+    /// the font context (ADR 0031 section 4). The top-level document's
+    /// faces stay in the context, so its text path has no exchange.
+    pub(crate) set: WebFontSet,
+    /// The page's budget for the fonts of frame documents; `None` for the
+    /// top-level document.
+    budget: Option<Arc<ByteBudget>>,
+    /// What the fonts of the document hold of `budget`; the bytes return
+    /// when the document goes.
+    held: Vec<Arc<Reservation>>,
 }
 
 impl WebFonts {
+    /// The state of a new document under `budget`.
+    pub(crate) fn with_budget(budget: Option<Arc<ByteBudget>>) -> Self {
+        WebFonts {
+            budget,
+            ..WebFonts::default()
+        }
+    }
+
+    /// Charges `bytes` to the page's budget for the fonts of frame
+    /// documents. False, with one warning per budget and top-level document,
+    /// if they do not fit: the font (or face) then fails.
+    pub(crate) fn admit(&mut self, bytes: usize) -> bool {
+        let Some(budget) = &self.budget else {
+            return true;
+        };
+        if let Some(reservation) = Reservation::new(budget, bytes) {
+            self.held.push(reservation);
+            return true;
+        }
+        if budget.warn_once() {
+            log::warn!(
+                "the web fonts of frame documents hold {} of {} bytes, the limit; later fonts of frames fail",
+                budget.used(),
+                budget.limit()
+            );
+        }
+        false
+    }
+
     /// Forgets files whose fetch was cancelled (by `stop` or a
     /// navigation): their faces fail.
     pub(crate) fn forget_loading(&mut self) -> Vec<WebFaceId> {
@@ -114,6 +162,23 @@ impl WebFonts {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fonts_of_frame_documents_share_a_budget() {
+        let budget = ByteBudget::new(100);
+        let mut first = WebFonts::with_budget(Some(Arc::clone(&budget)));
+        let mut second = WebFonts::with_budget(Some(Arc::clone(&budget)));
+        assert!(first.admit(60));
+        assert!(!second.admit(41));
+        assert!(second.admit(40));
+        assert_eq!(budget.used(), 100);
+        // The bytes return with the document.
+        drop(first);
+        assert_eq!(budget.used(), 40);
+        assert!(second.admit(60));
+        // The top-level document has no budget.
+        assert!(WebFonts::default().admit(1 << 40));
+    }
 
     #[test]
     fn local_source_strips_one_closing_parenthesis() {

@@ -54,10 +54,15 @@
 //!   group layers while it is drawn, and the layers of one strip have a
 //!   work budget ([`MAX_TRANSFORM_PIXELS`]); groups beyond these limits
 //!   are not drawn.
+//! - A frame (`raster/frame.rs`, ADR 0031 section 4) draws the display list
+//!   of its document in place, inside the groups that are open at its item:
+//!   the budgets of the strip cover it. [`frame::MAX_FRAME_ITEMS`] bounds
+//!   the items of the frames of a strip.
 
 use std::sync::Arc;
 
-use swb_layout::{Matrix, Point, Rect, StickyCache};
+use swb_dom::NodeId;
+use swb_layout::{GroupTransform, Matrix, Point, Rect, StickyCache};
 use swb_style::{BorderStyle, Rgba};
 use swb_text::FontContext;
 use tiny_skia::{
@@ -74,11 +79,13 @@ use crate::svg::{FrameBudget, MAX_RENDER_PIXELS, VectorCache};
 
 mod backdrop;
 mod filter_layer;
+mod frame;
 mod gradient;
 mod path;
 mod svg_clip;
 
 use filter_layer::FilterLayer;
+pub use frame::FrameContent;
 use gradient::{degenerate_color, gradient_line, gradient_shader, gradient_tile};
 use svg_clip::ClipResult;
 
@@ -100,7 +107,8 @@ const MAX_TRANSFORM_PIXELS: u64 = 64 * 1024 * 1024;
 /// The deepest nesting of layers for transform groups.
 const MAX_TRANSFORM_DEPTH: usize = 8;
 
-/// Supplies decoded images to the rasterizer.
+/// Supplies the resources of a document to the rasterizer: its decoded
+/// images and the content of its frames.
 pub trait ImageSource {
     /// The decoded image, if it is loaded.
     fn image(&self, image: &ImageRef) -> Option<&DecodedImage>;
@@ -108,6 +116,12 @@ pub trait ImageSource {
     /// The cache for vector images rendered at their drawn size. Without a
     /// cache, vector images are rendered for every draw.
     fn vector_cache(&self) -> Option<&VectorCache>;
+
+    /// The content of the frame of the `iframe` element `node`, if it has
+    /// one to draw. The default has no frames.
+    fn frame(&self, _node: NodeId) -> Option<FrameContent<'_>> {
+        None
+    }
 }
 
 /// Where and how to rasterize.
@@ -211,9 +225,7 @@ pub fn rasterize_in_strips(
     fonts: &mut FontContext,
     images: &dyn ImageSource,
 ) {
-    let mut vectors = images
-        .vector_cache()
-        .map_or_else(FrameBudget::new, VectorCache::begin_frame);
+    let mut vectors = FrameBudget::new();
     let (width, height) = (target.width(), target.height());
     let rows = equal_strip_rows(height, strip_rows);
     let row_bytes = width as usize * 4;
@@ -292,6 +304,9 @@ struct Skipped {
     paths: bool,
     /// An SVG stroke had more than [`crate::path_cost::MAX_DASHES`] dashes.
     dashes: bool,
+    /// A frame did not fit into [`frame::MAX_FRAME_ITEMS`], or its groups
+    /// nested too deep.
+    frames: bool,
 }
 
 impl Skipped {
@@ -303,6 +318,7 @@ impl Skipped {
         self.transforms |= other.transforms;
         self.paths |= other.paths;
         self.dashes |= other.dashes;
+        self.frames |= other.frames;
     }
 
     /// Logs a warning for each budget that left something out.
@@ -334,6 +350,11 @@ impl Skipped {
             (
                 self.dashes,
                 "inline SVG: a stroke has too many dashes; it is drawn solid",
+            ),
+            (
+                self.frames,
+                "frames: the display lists of the visible frames are too long for one frame of \
+                 the page, or nest too deep; some frames or groups in them are not drawn",
             ),
         ];
         for (skipped, message) in table {
@@ -371,6 +392,9 @@ struct Budget {
     path_work: f64,
     /// The budget of `path_work`.
     max_path_work: f64,
+    /// The items of the frames drawn so far (see
+    /// [`frame::MAX_FRAME_ITEMS`]).
+    frame_items: u64,
     /// What the budgets left out.
     skipped: Skipped,
 }
@@ -425,7 +449,10 @@ fn rasterize_strip(
         translation: Point::default(),
         visible: viewport,
         viewport_scroll: params.viewport_scroll,
+        fixed_origin: params.viewport_scroll,
+        viewport_clip: None,
         depth: 0,
+        frames: FrameNesting::default(),
         sticky: StickyCache::default(),
     };
     r.run(&list.items, 0..list.items.len(), ends, fonts, images);
@@ -537,10 +564,22 @@ struct Rasterizer<'a> {
     visible: Rect,
     /// The scroll offset of the viewport (the offset of fixed and sticky
     /// boxes depends on it); inside a layer, `params.scroll` is the origin
-    /// of the layer instead.
+    /// of the layer instead. Inside a frame: the frame's viewport.
     viewport_scroll: Point,
+    /// Where the top-left corner of the viewport is, in the coordinates
+    /// that `params` maps to device px: content fixed to the viewport is
+    /// drawn from here, whatever the enclosing translations are.
+    /// `viewport_scroll` for the page, the corner of the frame's content
+    /// box inside a frame.
+    fixed_origin: Point,
+    /// The clip of the viewport of the enclosing frame (target device px,
+    /// inside the clips around the frame): content fixed to the viewport
+    /// does not leave it. `None` outside frames (the target is the viewport).
+    viewport_clip: Option<Rect>,
     /// The number of enclosing layers of transform groups.
     depth: usize,
+    /// The nesting of frames and of the groups in them.
+    frames: FrameNesting,
     /// The offsets of sticky boxes at `viewport_scroll`, shared by the
     /// groups of the strip (the rasterizer of a transform layer takes it
     /// over while it draws).
@@ -599,6 +638,17 @@ fn layer_size(area: Rect, k: f32) -> Option<(u32, u32)> {
     fits.then_some((width as u32, height as u32))
 }
 
+/// The nesting of frames at a point of the drawing: all the rasterizers of
+/// a strip share it.
+#[derive(Clone, Copy, Default)]
+struct FrameNesting {
+    /// The number of enclosing frames.
+    frames: u32,
+    /// The number of enclosing transform groups inside frames (each adds
+    /// to the stack of the rasterizer).
+    groups: u32,
+}
+
 /// Where and how large the layer of a transform group is.
 struct LayerPlan {
     /// From the group's coordinates to target device px.
@@ -638,23 +688,31 @@ impl Rasterizer<'_> {
             {
                 let end = ends.get(i).copied().unwrap_or(range.end).min(range.end);
                 let outer = Matrix::translate(self.translation.x, self.translation.y);
-                let m = transform.resolve_with(&outer, self.viewport_scroll, &mut self.sticky);
+                let m = match transform {
+                    GroupTransform::Fixed => {
+                        Matrix::translate(self.fixed_origin.x, self.fixed_origin.y)
+                    }
+                    other => other.resolve_with(&outer, self.viewport_scroll, &mut self.sticky),
+                };
                 // Content fixed to the viewport in the group moves with the
                 // viewport scroll offset.
                 let fixed_visible = fixed_bounds.is_some_and(|f| {
-                    f.translate(self.viewport_scroll)
+                    f.translate(self.fixed_origin)
                         .intersection(&self.visible)
                         .is_some()
                 });
                 let visible = m.is_finite()
                     && (m.map_rect(bounds).intersection(&self.visible).is_some() || fixed_visible);
-                if visible && m.is_translation() {
-                    let saved = self.translation;
-                    self.translation = Point::new(m.e, m.f);
-                    self.run(items, i + 1..end, ends, fonts, images);
-                    self.translation = saved;
-                } else if visible {
-                    self.transform_layer(items, i + 1..end, ends, &m, *bounds, fonts, images);
+                if visible && self.enter_group() {
+                    if m.is_translation() {
+                        let saved = self.translation;
+                        self.translation = Point::new(m.e, m.f);
+                        self.run(items, i + 1..end, ends, fonts, images);
+                        self.translation = saved;
+                    } else {
+                        self.transform_layer(items, i + 1..end, ends, &m, *bounds, fonts, images);
+                    }
+                    self.leave_group();
                 }
                 i = end + 1;
                 continue;
@@ -730,7 +788,10 @@ impl Rasterizer<'_> {
                 translation: Point::default(),
                 visible: area,
                 viewport_scroll: self.viewport_scroll,
+                fixed_origin: self.fixed_origin,
+                viewport_clip: None,
                 depth: self.depth + 1,
+                frames: self.frames,
                 sticky: std::mem::take(&mut self.sticky),
             };
             nested.run(items, range, ends, fonts, images);
@@ -851,11 +912,13 @@ impl Rasterizer<'_> {
             } => self.linear_gradient(*rect, *clip, gradient, *current_color),
             DisplayItem::PushClip(rect) => self.push_rect_clip(*rect),
             // The target is the viewport (or a strip of it): the clip
-            // hides nothing there.
+            // hides nothing there. In a frame it is the frame's viewport.
             DisplayItem::PushViewportClip => {
                 let (width, height) = self.target_size;
-                self.clips
-                    .push(Rect::new(0.0, 0.0, width as f32, height as f32));
+                let clip = self
+                    .viewport_clip
+                    .unwrap_or_else(|| Rect::new(0.0, 0.0, width as f32, height as f32));
+                self.clips.push(clip);
                 self.mask = None;
             }
             DisplayItem::PopClip => {
@@ -909,6 +972,7 @@ impl Rasterizer<'_> {
             DisplayItem::FillPath { .. }
             | DisplayItem::StrokePath { .. }
             | DisplayItem::PushSvgClip { .. } => self.svg_item(item),
+            DisplayItem::Frame { node, rect } => self.frame(*node, *rect, fonts, images),
             // `run` handles transform groups.
             DisplayItem::HitRegion { .. }
             | DisplayItem::HitShape { .. }
@@ -1041,6 +1105,17 @@ impl Rasterizer<'_> {
         }
     }
 
+    /// The part of the current surface that content fixed to the viewport
+    /// can reach, which the enclosing clips do not clip (target device px):
+    /// the surface, in a frame inside the frame's viewport.
+    fn fixed_area(&self) -> Option<Rect> {
+        let surface = self.surface_rect()?;
+        match &self.viewport_clip {
+            Some(clip) => clip.intersection(&surface),
+            None => Some(surface),
+        }
+    }
+
     /// Draws on the current surface if a part of `bounds` (target device
     /// px) is visible. `paint` gets the surface, the transform from target
     /// device px to surface px, and the clip mask (`None` if `bounds` is
@@ -1111,7 +1186,7 @@ impl Rasterizer<'_> {
         } = new;
         self.mask = None;
         let visible = if escapes_clips {
-            self.surface_rect()
+            self.fixed_area()
         } else {
             self.visible_area()
         };
@@ -1122,7 +1197,7 @@ impl Rasterizer<'_> {
         let mut device = Some(bounds).filter(non_empty).map(|b| self.to_device(b));
         if let Some(fixed) = fixed.filter(non_empty) {
             let saved = std::mem::take(&mut self.translation);
-            let at = self.to_device(fixed.translate(self.viewport_scroll));
+            let at = self.to_device(fixed.translate(self.fixed_origin));
             self.translation = saved;
             device = Some(device.map_or(at, |d| d.union(&at)));
         }
@@ -3036,7 +3111,10 @@ mod tests {
             translation: Point::default(),
             visible: Rect::new(0.0, 0.0, target_size.0 as f32, target_size.1 as f32),
             viewport_scroll: Point::default(),
+            fixed_origin: Point::default(),
+            viewport_clip: None,
             depth: 0,
+            frames: FrameNesting::default(),
             sticky: StickyCache::default(),
         }
     }
@@ -3647,6 +3725,7 @@ mod tests {
     }
 
     mod backdrop;
+    mod frame;
     mod gradient;
     mod svg;
 }

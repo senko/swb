@@ -196,6 +196,8 @@ pub struct Stylist {
     font_faces: Vec<(FontFace, Option<u32>)>,
     /// True if `@font-face` rules beyond [`MAX_FONT_FACES`] were ignored.
     font_faces_truncated: bool,
+    /// See [`Stylist::set_dark_canvas_text`].
+    dark_canvas_text: bool,
 }
 
 /// The most `@font-face` rules that a document can have; later rules are
@@ -205,6 +207,20 @@ pub struct Stylist {
 pub(crate) const MAX_FONT_FACES: usize = 10_000;
 
 impl Stylist {
+    /// True if the initial `color` is the `CanvasText` of the dark color
+    /// scheme.
+    pub fn dark_canvas_text(&self) -> bool {
+        self.dark_canvas_text
+    }
+
+    /// Sets the initial `color` to the `CanvasText` of the dark color scheme
+    /// (white, measured in a frame with `color-scheme: dark`), or back to
+    /// black. The engine sets it for frame documents whose root has the dark
+    /// used color scheme (ADR 0031 section 4).
+    pub fn set_dark_canvas_text(&mut self, dark: bool) {
+        self.dark_canvas_text = dark;
+    }
+
     /// Creates a stylist with the user-agent stylesheet (and, in quirks
     /// mode, the quirks-mode user-agent rules) and the presentational hint
     /// rules.
@@ -224,6 +240,7 @@ impl Stylist {
             state_dependencies: ElementState::empty(),
             font_faces: Vec::new(),
             font_faces_truncated: false,
+            dark_canvas_text: false,
         };
         let ua = ParserContext::user_agent();
         stylist.add_rules(&UA_SHEET.rules, &ua, CascadeOrigin::UserAgent, None);

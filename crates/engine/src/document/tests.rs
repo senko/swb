@@ -67,6 +67,7 @@ fn state_with(
         fallback_base: None,
         style_budget: None,
         body_budget: None,
+        font_budget: None,
     });
     doc.run_parser();
     doc

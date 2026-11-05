@@ -22,21 +22,26 @@ impl Page {
     }
 
     /// Renders the viewport into `target` (device pixels). The target size
-    /// should be the viewport size times the scale factor. The frame
-    /// documents lay out (their loads start) but do not paint yet (M9
-    /// feature 10a).
+    /// should be the viewport size times the scale factor.
     pub fn render(&mut self, target: &mut Pixmap) {
         let rows = target.height();
         self.render_in_strips(target, rows, Rendering::Viewport);
-        self.layout_frames();
     }
 
     /// Renders `what` into `target` in strips of `strip_rows` device rows
     /// (see [`crate::document::DocumentState`]); white without a document.
+    /// The display lists come first, of the document and of the frame
+    /// documents: a frame's viewport comes from the layout of its parent,
+    /// so that the first paint shows the frames (ADR 0031 section 4).
     fn render_in_strips(&mut self, target: &mut Pixmap, strip_rows: u32, what: Rendering) {
-        match self.parts() {
-            Some((doc, fonts)) => doc.render_in_strips(target, strip_rows, what, fonts),
-            None => swb_paint::fill(target, swb_style::Rgba::WHITE),
+        let Some((doc, fonts)) = self.parts() else {
+            swb_paint::fill(target, swb_style::Rgba::WHITE);
+            return;
+        };
+        doc.update_display_list(fonts);
+        self.prepare_frames();
+        if let Some(doc) = self.doc.as_deref_mut() {
+            doc.render_in_strips(target, strip_rows, what, &mut self.fonts, &self.frames);
         }
     }
 

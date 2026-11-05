@@ -251,7 +251,11 @@ impl<'a> Styler<'a> {
                 env,
                 quirks,
                 root_font_size: env.root_font_size,
-                initial: ComputedStyle::initial(),
+                initial: if stylist.dark_canvas_text() {
+                    ComputedStyle::initial_dark()
+                } else {
+                    ComputedStyle::initial()
+                },
             },
             media: stylist.evaluate_media(env),
             matching: MatchingContext::new(if quirks {

@@ -33,7 +33,7 @@ use super::DocumentState;
 use super::changes::LoadPlan;
 use crate::image_source;
 use crate::resources::{AutoSizes, ImageState, Pending, Requests, SheetSlot};
-use crate::web_fonts::{FontFile, Source, web_font_face};
+use crate::web_fonts::{FACE_COST, FontFile, LOCAL_FACE_COST, Source, web_font_face};
 
 impl DocumentState {
     /// Handles the completion of a subresource request.
@@ -49,6 +49,7 @@ impl DocumentState {
             Pending::Script { node, mode } => self.script_arrived(node, mode, result),
             Pending::Image { url } => {
                 let too_big = matches!(&result, Ok(r) if self.images.exceeds_budget(&r.body));
+                let source_bytes = result.as_ref().map_or(0, |r| r.body.len());
                 let state = if too_big {
                     log::warn!("image {url}: the images of frame documents have no room left");
                     ImageState::Failed
@@ -56,7 +57,7 @@ impl DocumentState {
                     ImageState::from_fetch(&url, result, &self.images.counting)
                 };
                 self.images.by_url.insert(url.clone(), state);
-                let ok = self.images.admit(&url);
+                let ok = self.images.admit(&url, source_bytes);
                 self.images.load_ended(&url);
                 self.image_done(&url, ok);
                 self.invalidate_layout();
@@ -321,11 +322,7 @@ impl DocumentState {
         if sheets_dropped {
             self.invalidate_style();
         }
-        if !self.frame {
-            // A frame document has no web fonts; the requests in the font
-            // context are the top-level document's.
-            self.cancel_font_loads(fonts);
-        }
+        self.cancel_font_loads(fonts);
         self.invalidate_layout();
     }
 
@@ -384,11 +381,6 @@ impl DocumentState {
     /// apply in the current media environment, when the stylist or the
     /// environment changed.
     pub(super) fn update_web_font_faces(&mut self, fonts: &mut FontContext) {
-        if self.frame {
-            // The font context holds the faces of the top-level document
-            // (M9 feature 10a: frame documents use no web fonts).
-            return;
-        }
         let env = self.media_environment();
         if self.web_fonts.env.as_ref() == Some(&env) {
             return;
@@ -408,13 +400,31 @@ impl DocumentState {
 
     /// Starts loading the faces that the last layout requested.
     pub(super) fn start_font_loads(&mut self, fonts: &mut FontContext) {
-        if self.frame {
-            // The requests are the top-level document's.
-            return;
-        }
         for id in fonts.take_web_font_requests() {
             self.load_font_source(id, 0, fonts);
         }
+    }
+
+    /// Runs `f` with the web font faces of this frame document in the font
+    /// context, and takes them out again (ADR 0031 section 4). A frame
+    /// document's faces are its own: the same family name in another
+    /// document gives another face.
+    pub(crate) fn with_own_fonts<R>(
+        &mut self,
+        fonts: &mut FontContext,
+        f: impl FnOnce(&mut DocumentState, &mut FontContext) -> R,
+    ) -> R {
+        let mut set = std::mem::take(&mut self.web_fonts.set);
+        fonts.swap_web_fonts(&mut set);
+        let result = f(self, fonts);
+        fonts.swap_web_fonts(&mut set);
+        self.web_fonts.set = set;
+        result
+    }
+
+    /// Unloads the faces of this frame document, which goes away.
+    pub(crate) fn release_own_fonts(&mut self, fonts: &mut FontContext) {
+        fonts.drop_web_fonts(std::mem::take(&mut self.web_fonts.set));
     }
 
     /// Loads the first source of face `id` at index `from` or later that
@@ -429,6 +439,9 @@ impl DocumentState {
             let url = match Source::parse(source) {
                 Source::Url(url) => url,
                 Source::Local(name) => {
+                    if !self.web_fonts.admit(LOCAL_FACE_COST) {
+                        continue;
+                    }
                     // An installed font loads at once.
                     match fonts.web_font_local(id, &name) {
                         Ok(()) => {
@@ -444,6 +457,9 @@ impl DocumentState {
             match self.web_fonts.files.get_mut(&url) {
                 Some(FontFile::Loaded(data)) => {
                     let data = data.clone();
+                    if !self.web_fonts.admit(FACE_COST) {
+                        continue;
+                    }
                     match fonts.web_font_loaded(id, url.as_str(), &data) {
                         Ok(()) => {
                             self.invalidate_layout();
@@ -493,7 +509,8 @@ impl DocumentState {
         let file = match result {
             Ok(response) if response.is_success() => {
                 match swb_text::decode_web_font(url.as_str(), &response.body) {
-                    Ok(data) => FontFile::Loaded(data),
+                    Ok(data) if self.web_fonts.admit(data.len()) => FontFile::Loaded(data),
+                    Ok(_) => FontFile::Failed,
                     Err(e) => {
                         log::warn!("{e}");
                         FontFile::Failed
@@ -502,6 +519,15 @@ impl DocumentState {
             }
             Ok(response) => {
                 log::warn!("font {url}: HTTP {}", response.status);
+                FontFile::Failed
+            }
+            // One warning for the page's budget of response bodies of frame
+            // documents: a page with many frames can pass it with thousands
+            // of fonts.
+            Err(NetError::OverBudget { .. })
+                if self.body_budget.as_ref().is_some_and(|b| !b.warn_once()) =>
+            {
+                log::debug!("font {url}: over the budget of response bodies");
                 FontFile::Failed
             }
             Err(e) => {
@@ -519,10 +545,11 @@ impl DocumentState {
                 _ => None,
             };
             let loaded = data.is_some_and(|data| {
-                fonts
-                    .web_font_loaded(id, url.as_str(), &data)
-                    .map_err(|e| log::warn!("{e}"))
-                    .is_ok()
+                self.web_fonts.admit(FACE_COST)
+                    && fonts
+                        .web_font_loaded(id, url.as_str(), &data)
+                        .map_err(|e| log::warn!("{e}"))
+                        .is_ok()
             });
             if !loaded {
                 self.load_font_source(id, index + 1, fonts);

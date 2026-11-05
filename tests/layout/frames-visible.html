@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- Visible frames with text, borders and sizes from the parent (M9 feature
+     10b, ADR 0031 section 4). The boxes are of the top document; the pixels
+     of the frames count in the screenshot. -->
+<html>
+<head>
+<title>Frames</title>
+<style>
+body { margin: 8px; font: 16px serif; background: rgb(240, 240, 250); }
+iframe { display: block; margin: 8px 0; background: white; }
+.row { display: flex; gap: 8px; }
+.row iframe { flex: 1; height: 120px; margin: 0; border: 1px solid rgb(100, 100, 100); }
+#small { width: 200px; height: 60px; border: 0; }
+#round { width: 300px; height: 100px; border: 4px solid rgb(0, 0, 200); border-radius: 12px; }
+</style>
+</head>
+<body>
+<p>Text before the frames.</p>
+<iframe id="small" srcdoc="<!doctype html><style>body{margin:0;font:14px sans-serif}</style><p>A frame without a border.</p>"></iframe>
+<div class="row">
+  <iframe srcdoc="<!doctype html><style>body{margin:8px;font:14px serif;background:rgb(255,250,220)}</style><h1 style='font-size:20px'>Left</h1><p>A paragraph in the left frame that wraps at the frame's width and goes on for some more words.</p>"></iframe>
+  <iframe srcdoc="<!doctype html><style>body{margin:8px;font:14px monospace}div{width:60px;height:30px;background:rgb(0,150,0)}</style><div></div><p>Right frame.</p>"></iframe>
+</div>
+<iframe id="round" srcdoc="<!doctype html><style>html{background:rgb(220,240,255)}body{margin:4px;font:14px sans-serif}</style>Rounded corners clip the frame's canvas and its text."></iframe>
+<p>Text after the frames.</p>
+</body>
+</html>

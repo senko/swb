@@ -124,6 +124,8 @@ pub(crate) fn serialize_longhand(ser: Ser, tokens: &[ComponentValue]) -> String 
         Ser::TouchAction => {
             declared("touch-action", tokens).unwrap_or_else(|| serialize(tokens, Style::PLAIN))
         }
+        Ser::ColorScheme => crate::color_scheme::declared_color_scheme(tokens)
+            .unwrap_or_else(|| serialize(tokens, Style::PLAIN)),
         Ser::GridLine => grid_line(tokens),
         Ser::GridAutoFlow => {
             let w = words(tokens, Style::PLAIN);

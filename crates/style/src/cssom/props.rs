@@ -73,6 +73,8 @@ pub(crate) enum Ser {
     Easing,
     /// `will-change`.
     WillChange,
+    /// `color-scheme`: custom identifiers keep their case, `only` goes last.
+    ColorScheme,
     /// `touch-action`: the keywords in a fixed order.
     TouchAction,
 }
@@ -750,6 +752,7 @@ fn ser_of(name: &str) -> Ser {
         "transition-property" => Ser::TransitionProperty,
         "transition-timing-function" => Ser::Easing,
         "will-change" => Ser::WillChange,
+        "color-scheme" => Ser::ColorScheme,
         "touch-action" => Ser::TouchAction,
         "background-repeat" | "mask-repeat" => Ser::Repeat,
         "background-size" | "mask-size" => Ser::BackgroundSize,

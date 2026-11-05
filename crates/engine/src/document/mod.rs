@@ -145,6 +145,9 @@ pub(crate) struct DocumentInit {
     /// frame documents and the page has not taken yet; `None` for the
     /// top-level document.
     pub(crate) body_budget: Option<Arc<ByteBudget>>,
+    /// The page's budget for the fonts of frame documents; `None` for the
+    /// top-level document.
+    pub(crate) font_budget: Option<Arc<ByteBudget>>,
 }
 
 /// The state of one document. See the module documentation.
@@ -268,6 +271,13 @@ pub struct DocumentState {
     /// valid while this stays the same.
     pub(crate) layout_serial: u64,
     pub(crate) display_list: Option<DisplayList>,
+    /// [`swb_paint::transform_ends`] of `display_list`, for a frame document
+    /// (the rasterizer of its parent uses it; the top-level document's list
+    /// gets it in each rasterization).
+    pub(crate) list_ends: Vec<usize>,
+    /// The page's supported color schemes (the `color-scheme` meta element)
+    /// at a DOM generation, for a frame document.
+    page_color_schemes: Option<(u64, Option<Arc<str>>)>,
     pub(crate) timings: StageTimings,
     /// The style and layout runs of the document.
     pub(crate) flushes: FlushCounters,
@@ -357,7 +367,7 @@ impl DocumentState {
             sheet_serial: 0,
             images: init.images,
             lazy: lazy::LazyImages::default(),
-            web_fonts: WebFonts::default(),
+            web_fonts: WebFonts::with_budget(init.font_budget),
             view: init.view,
             scroll: Point::default(),
             pending_scroll: init.scroll_target,
@@ -375,6 +385,8 @@ impl DocumentState {
             fragments: None,
             layout_serial: 0,
             display_list: None,
+            list_ends: Vec::new(),
+            page_color_schemes: None,
             timings: StageTimings {
                 parse: init.parse,
                 ..StageTimings::default()

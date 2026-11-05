@@ -571,6 +571,297 @@
      "js": "(() => { const fd = f.contentDocument, w = f.contentWindow; const b = document.createElement('b'); b.textContent = 'x'; b.onclick = () => 0; b.addEventListener('custom', () => log.push('custom')); fd.body.appendChild(b); const out = [b.ownerDocument === fd, b instanceof HTMLElement, Object.getPrototypeOf(b) === HTMLElement.prototype, b instanceof w.HTMLElement, fd.createElement('i') instanceof HTMLElement, typeof b.onclick]; b.dispatchEvent(new Event('custom')); out.push(log.join()); const q = fd.getElementById('q'); document.body.appendChild(q); out.push(q.ownerDocument === document, Object.getPrototypeOf(q) === w.HTMLParagraphElement.prototype, document.getElementById('q') === q, fd.getElementById('q')); const i = document.importNode(fd.body, true); out.push(i.ownerDocument === document, Object.getPrototypeOf(i) === HTMLBodyElement.prototype); const a = document.adoptNode(fd.createElement('span')); out.push(a.ownerDocument === document, Object.getPrototypeOf(a) === w.HTMLSpanElement.prototype); out.push(E(() => fd.body.appendChild(document)), E(() => document.body.appendChild(fd.documentElement).nodeName)); return out; })()"
     }
    ]
+  },
+  {
+   "name": "paint-content",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(200,200,200)} iframe{position:absolute;left:10px;top:10px;width:100px;height:100px;border:5px solid rgb(255,0,0);padding:5px;background:rgb(0,255,0)}</style><iframe srcdoc=\"<style>body{margin:0}</style><div style='width:50px;height:50px;background:rgb(0,0,255)'></div>\"></iframe><div id=over style='position:absolute;left:60px;top:60px;width:20px;height:20px;background:rgb(255,255,0)'></div>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[2, 2], [7, 7], [15, 15], [55, 55], [65, 65], [100, 100], [108, 108], [112, 112], [125, 125]]
+    }
+   ]
+  },
+  {
+   "name": "paint-effects",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:100px;height:100px} .b{background:rgb(0,255,0)}</style><iframe id=o class=b style='left:0;top:0;opacity:.5' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=t style='left:120px;top:0;transform:translate(10px,10px) scale(.5)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=rot style='left:240px;top:0;transform:rotate(45deg)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=r style='left:360px;top:0;border-radius:50px' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=c style='left:480px;top:0;clip-path:circle(30px at 50px 50px)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=f style='left:600px;top:0;filter:invert(1)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=m style='left:0;top:120px;mask-image:linear-gradient(to right,rgb(0,0,0) 50%,transparent 50%)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=bl style='left:120px;top:120px;filter:blur(5px)' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><div style='position:absolute;left:240px;top:120px;width:100px;height:100px;opacity:.5'><iframe id=po style='left:0;top:0' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe></div><div style='position:absolute;left:360px;top:120px;width:50px;height:50px;overflow:hidden'><iframe id=pc style='left:0;top:0' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe></div>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[1, 1], [50, 50], [30, 30], [70, 70], [98, 98], [5, 50], [50, 5], [25, 50], [75, 50], [110, 50], [50, 110]]
+    }
+   ]
+  },
+  {
+   "name": "paint-scroll-fragment",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:100px;height:100px;left:0;top:0}</style><iframe src='c.html#t'></iframe><iframe id=n style='left:120px' src='c.html'></iframe>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0} div{width:300px;height:500px}</style><div style='background:rgb(255,0,0)'></div><div id=t style='background:rgb(0,255,0)'></div><div style='background:rgb(0,0,255)'></div>"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[10, 10], [90, 90], [50, 50]]
+    }
+   ]
+  },
+  {
+   "name": "paint-nested",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{border:0;width:200px;height:200px;display:block;margin:10px}</style><iframe id=a srcdoc=\"<style>html{background:rgb(255,0,0)} body{margin:0} iframe{border:0;width:150px;height:150px;display:block;margin:10px}</style><iframe srcdoc=&quot;<style>html{background:rgb(0,255,0)} body{margin:0} iframe{border:0;width:100px;height:100px;display:block;margin:10px}</style><iframe srcdoc='<style>html{background:rgb(0,0,255)}</style>'></iframe>&quot;></iframe>\"></iframe>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[5, 5], [15, 15], [25, 25], [50, 50], [125, 125], [175, 175], [205, 205]]
+    }
+   ]
+  },
+  {
+   "name": "paint-srcdoc-image",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:100px;height:100px;top:0;left:0}</style><iframe srcdoc=\"<style>body{margin:0} div{width:40px;height:40px;background:url(i.svg)}</style><img src=i.svg width=40 height=40 style='display:block'><div></div>\"></iframe>",
+   "resources": {
+    "i.svg": {
+     "text": "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='rgb(0,255,0)'/></svg>",
+     "content_type": "image/svg+xml"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[20, 20], [20, 60], [20, 90], [60, 20]]
+    }
+   ]
+  },
+  {
+   "name": "paint-fixed",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255);height:3000px} iframe{position:absolute;border:0;width:100px;height:100px;top:20px;left:20px}</style><iframe src='c.html#t'></iframe>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:3000px;background:rgb(0,0,255)} #t{position:absolute;top:1000px;width:1px;height:1px} #f{position:fixed;right:0;bottom:0;width:20px;height:20px;background:rgb(0,255,0)} #w{position:fixed;left:-10px;top:-10px;width:15px;height:15px;background:rgb(255,0,0)}</style><div id=t></div><div id=f></div><div id=w></div>"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[90, 90], [50, 50], [2, 2], [10, 10], [-5, -5], [105, 105], [1020, 1020]]
+    }
+   ]
+  },
+  {
+   "name": "paint-fonts",
+   "javascript": true,
+   "html": "<!DOCTYPE html><style>@font-face{font-family:F;src:url(dv.ttf)} body{margin:0;background:rgb(255,255,255)} span{font:40px F;display:inline-block;background:rgb(0,255,0);color:rgb(0,255,0)} #p{position:absolute;left:0;top:0} iframe{position:absolute;left:0;border:0;width:300px;height:80px}</style><span id=p>mmmm</span><iframe id=a style='top:80px' srcdoc=\"<style>@font-face{font-family:F;src:url(lm.ttf)} body{margin:0} span{font:40px F;display:inline-block;background:rgb(0,255,0);color:rgb(0,255,0)}</style><span>mmmm</span>\"></iframe><iframe id=b style='top:160px' srcdoc=\"<style>body{margin:0} span{font:40px F;display:inline-block;background:rgb(0,255,0);color:rgb(0,255,0)}</style><span>mmmm</span>\"></iframe><iframe id=c style='top:240px' src=c.html></iframe><div id=g style='position:absolute;left:0;top:320px;font:40px G;display:inline-block;background:rgb(0,255,0);color:rgb(0,255,0)'>mmmm</div>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><style>@font-face{font-family:G;src:url(dv.ttf)} body{margin:0} span{font:40px G;display:inline-block;background:rgb(0,255,0);color:rgb(0,255,0)}</style><span>mmmm</span>"
+    }
+   },
+   "files": {
+    "dv.ttf": "fixtures/fonts/DejaVuSans.ttf",
+    "lm.ttf": "fixtures/fonts/LiberationMono-Regular.ttf"
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[80, 20], [110, 20], [140, 20], [170, 20]]
+    },
+    {
+     "pixels": "#p",
+     "points": [[80, 20], [110, 20], [140, 20], [170, 20]]
+    },
+    {
+     "pixels": "#g",
+     "points": [[80, 20], [110, 20], [130, 20], [170, 20]]
+    },
+    {
+     "js": "(async () => { await Promise.all([...document.querySelectorAll('iframe')].map(f => f.contentDocument.fonts.ready)); return [document.querySelector('#p').getBoundingClientRect().width, document.querySelector('#g').getBoundingClientRect().width, ...[...document.querySelectorAll('iframe')].map(f => f.contentDocument.querySelector('span').getBoundingClientRect().width)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "paint-hidden",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:100px;height:100px;top:0}</style><iframe id=n style='left:0;display:none' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=v style='left:120px;visibility:hidden' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=z style='left:240px;width:0;height:0' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=op style='left:360px;opacity:0' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><div id=m1 style='position:absolute;left:0;top:0;width:1px;height:1px'></div><div id=m2 style='position:absolute;left:120px;top:0;width:1px;height:1px'></div><div id=m3 style='position:absolute;left:240px;top:0;width:1px;height:1px'></div><div id=m4 style='position:absolute;left:360px;top:0;width:1px;height:1px'></div>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "#m1, #m2, #m3, #m4",
+     "points": [[50, 50]]
+    }
+   ]
+  },
+  {
+   "name": "paint-backdrop",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,0,0)} iframe{position:absolute;border:0;width:100px;height:100px;top:0}</style><iframe id=t style='left:0' srcdoc=\"<style>body{margin:0} div{width:50px;height:50px;backdrop-filter:invert(1)}</style><div></div>\"></iframe><iframe id=c style='left:120px' srcdoc=\"<style>html{background:rgb(0,0,255)} body{margin:0} div{width:50px;height:50px;backdrop-filter:invert(1)}</style><div></div>\"></iframe><iframe id=e style='left:240px;backdrop-filter:invert(1)' srcdoc=\"<style>body{margin:0} div{width:50px;height:50px;background:rgb(0,0,255)}</style><div></div>\"></iframe>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[25, 25], [75, 75]]
+    }
+   ]
+  },
+  {
+   "name": "paint-stacking",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{border:0;width:100px;height:100px;display:block}</style><iframe id=a srcdoc=\"<style>body{margin:0} div{position:absolute;z-index:9999;left:0;top:0;width:100px;height:100px;background:rgb(0,0,255)}</style><div></div>\"></iframe><div id=o style='position:absolute;left:25px;top:25px;width:50px;height:50px;background:rgb(0,255,0)'></div><div id=s style='position:absolute;left:150px;top:0;width:100px;height:100px;overflow:hidden'><div style='height:30px'></div><iframe id=b srcdoc=\"<style>html{background:rgb(255,0,0)}</style>\"></iframe></div>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "#a",
+     "points": [[5, 5], [50, 50], [95, 95]]
+    },
+    {
+     "pixels": "#s",
+     "points": [[50, 15], [50, 50], [50, 110], [50, 135]]
+    }
+   ]
+  },
+  {
+   "name": "paint-color-scheme",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,0,0)} iframe{border:0;width:100px;height:100px;position:absolute;top:0}</style><iframe id=a style='left:0' srcdoc=\"<style>html{color-scheme:dark}</style><p>x\"></iframe><iframe id=b style='left:120px' srcdoc=\"<meta name=color-scheme content='light dark'><p>x\"></iframe><iframe id=c style='left:240px;color-scheme:light dark' srcdoc=\"<p>x\"></iframe><iframe id=d style='left:360px;color-scheme:dark' srcdoc=\"<style>html{color-scheme:dark;background:rgb(0,255,0)}</style>\"></iframe><iframe id=e style='left:480px' srcdoc=\"<meta name=color-scheme content='only dark'><p>x\"></iframe><iframe id=f style='left:600px' srcdoc=\"<style>body{margin:0;color-scheme:dark}</style>\"></iframe><iframe id=g style='left:0;top:120px' srcdoc=\"<meta name=color-scheme content='dark'><style>html{color-scheme:light}</style>\"></iframe><iframe id=t style='left:120px;top:120px;width:300px;height:300px' srcdoc=\"<meta name=color-scheme content=dark><style>body{margin:0}</style><div style='width:70px;height:100px;background:currentColor'></div>\"></iframe><iframe id=u style='left:440px;top:120px' srcdoc=\"<meta name=color-scheme content=dark><style>body{margin:0}</style><iframe style='border:0;width:50px;height:50px' srcdoc='<p>x'></iframe>\"></iframe>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[90, 10], [50, 95], [25, 25], [60, 60]]
+    }
+   ]
+  },
+  {
+   "name": "paint-fractional",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:40px;height:40px;background:rgb(255,0,0)}</style><iframe id=a style='left:10.5px;top:10.5px' srcdoc=\"<style>body{margin:0}</style><div style='width:20px;height:20px;background:rgb(0,0,255)'></div>\"></iframe><iframe id=b style='left:60.25px;top:10.25px' srcdoc=\"<style>body{margin:0}</style><div style='width:20px;height:20px;background:rgb(0,0,255)'></div>\"></iframe><iframe id=c style='left:110.75px;top:10.75px' srcdoc=\"<style>body{margin:0}</style><div style='margin:.5px;width:20px;height:20px;background:rgb(0,0,255)'></div>\"></iframe><div id=m style='position:absolute;left:0;top:0;width:1px;height:1px'></div>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "#m",
+     "points": [[10, 20], [11, 20], [12, 20], [30, 20], [31, 20], [32, 20], [50, 20], [51, 20], [52, 20], [59, 20], [60, 20], [61, 20], [79, 20], [80, 20], [81, 20], [99, 20], [100, 20], [101, 20], [110, 20], [111, 20], [112, 20], [131, 20], [132, 20], [133, 20], [150, 20], [151, 20], [152, 20]]
+    }
+   ]
+  },
+  {
+   "name": "paint-sticky",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;border:0;width:100px;height:100px;top:0;left:0}</style><iframe src='c.html#t'></iframe>",
+   "resources": {
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:3000px;background:rgb(0,0,255)} #t{position:absolute;top:1000px;width:1px;height:1px} #s{position:sticky;top:10px;width:30px;height:30px;background:rgb(0,255,0)}</style><div id=t></div><div id=s></div>"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[15, 5], [15, 15], [15, 35], [15, 45]]
+    }
+   ]
+  },
+  {
+   "name": "paint-color-scheme-syntax",
+   "html": "<!DOCTYPE html><body><p id=p>x</p>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "['normal','light','dark','light dark','dark light','DARK','only dark','dark only','light only dark','only light dark','only','only only dark','normal dark','dark normal','foo','Foo bar','foo dark','none','none dark','initial','default','revert dark','dark, light','','1px'].map(v => { const p = document.querySelector('#p'); p.style.colorScheme = ''; p.style.colorScheme = v; return [v, CSS.supports('color-scheme', v), p.style.colorScheme, getComputedStyle(p).colorScheme]; })"
+    }
+   ]
+  },
+  {
+   "name": "paint-many",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{float:left;width:8px;height:6px;border:0}</style><body><script>for (let i = 0; i < 1000; i++) { const f = document.createElement('iframe'); f.id = 'f' + i; f.srcdoc = '<style>html{background:rgb(0,0,255)}</style>'; document.body.appendChild(f); }</script>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "#f0, #f99, #f100, #f999",
+     "points": [[4, 3], [10, 3], [4, 8]]
+    }
+   ]
+  },
+  {
+   "name": "paint-past-budget",
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255)} iframe{position:absolute;left:0;top:0;width:200px;height:100px;border:0}</style><iframe id=a></iframe><script>addEventListener('load', () => setTimeout(() => { document.querySelector('#a').srcdoc = '<style>html{background:rgb(0,0,255)} div{opacity:.9;background:rgb(1,2,3);border:1px solid;width:1px;height:1px}</style>' + '<div></div>'.repeat(900000); }, 500));</script>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => { const f = document.querySelector('#a'); f.onload = () => r(1); })"
+    },
+    {
+     "pixels": "iframe",
+     "points": [[150, 50]]
+    }
+   ]
+  },
+  {
+   "name": "paint-full-page",
+   "javascript": false,
+   "html": "<!DOCTYPE html><style>body{margin:0;background:rgb(255,255,255);height:2000px} iframe{position:absolute;border:0;width:100px;height:100px;left:0}</style><iframe id=a style='top:0' srcdoc=\"<style>html{background:rgb(0,0,255)}</style>\"></iframe><iframe id=b style='top:1500px' srcdoc=\"<style>html{background:rgb(0,255,0)}</style>\"></iframe>",
+   "resources": {
+    "dummy.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "pixels": "iframe",
+     "points": [[50, 50], [150, 50]]
+    }
+   ]
   }
  ]
 }

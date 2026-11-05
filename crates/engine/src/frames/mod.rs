@@ -11,6 +11,7 @@
 //! the limits of ADR 0031 section 11.
 
 mod budget;
+pub(crate) mod paint;
 mod sandbox;
 
 use std::collections::{HashMap, VecDeque};
@@ -22,7 +23,7 @@ use swb_net::{ClientId, RequestId, Url};
 use crate::document::DocumentState;
 
 pub(crate) use budget::Charge;
-pub use budget::{MAX_IMAGE_BYTES, MAX_NODES, MAX_SOURCE_BYTES, MAX_STYLE_BYTES};
+pub use budget::{MAX_FONT_BYTES, MAX_IMAGE_BYTES, MAX_NODES, MAX_SOURCE_BYTES, MAX_STYLE_BYTES};
 pub use sandbox::Sandbox;
 
 use budget::Budget;
@@ -135,6 +136,12 @@ pub(crate) struct Frame {
     pub(crate) viewport: Size,
     /// The parent's layout serial of the last viewport update.
     pub(crate) viewport_serial: Option<u64>,
+    /// True if the container has a box in the parent's last layout: the
+    /// frame paints, so its document gets a display list.
+    pub(crate) has_box: bool,
+    /// The color of the canvas below the document if it is opaque; `None`
+    /// for a transparent canvas (ADR 0031 section 4).
+    pub(crate) canvas: Option<swb_style::Rgba>,
     /// 0 for the top-level frame.
     pub(crate) depth: u32,
     /// True once the current document has loaded (with its delaying child
@@ -167,6 +174,8 @@ impl Frame {
             pending: None,
             viewport: DEFAULT_FRAME_VIEWPORT,
             viewport_serial: None,
+            has_box: false,
+            canvas: None,
             depth,
             load_fired: false,
             navigations: VecDeque::new(),

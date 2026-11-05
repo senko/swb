@@ -118,7 +118,17 @@ impl Page {
             // A removed frame no longer delays the `load` event.
             self.check_load_after_frame_removal();
             if self.load_done() {
-                break;
+                // Layout can discover more resources (web fonts, background
+                // images), also after a frame navigation, which takes no
+                // completion. With a runtime, the check of the load event
+                // lays out.
+                if self.script.is_none() {
+                    self.update_layout();
+                }
+                if self.load_done() {
+                    break;
+                }
+                continue;
             }
             if self.run_frame_navigations() {
                 continue;
@@ -137,11 +147,6 @@ impl Page {
                 self.handle_completion(completion);
             }
             self.run_due_tasks();
-            // Layout can discover more resources (background images); with
-            // a runtime, the check of the load event lays out.
-            if self.script.is_none() && !self.is_loading() {
-                self.update_layout();
-            }
         }
         true
     }
@@ -371,6 +376,7 @@ impl Page {
             fallback_base: None,
             style_budget: None,
             body_budget: None,
+            font_budget: None,
         });
         // Set without a restyle: the styles of the new document are not
         // computed yet.
