@@ -1,0 +1,453 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "focus-fixup-ancestor-display-none",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.display = 'none'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-own-display-none",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('i').style.display = 'none'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-ancestor-visibility-hidden",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.visibility = 'hidden'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-own-visibility-hidden",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('i').style.visibility = 'hidden'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-ancestor-hidden-attribute",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').hidden = true; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-ancestor-class-display-none",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><style>.off { display: none }</style><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').className = 'off'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-ancestor-display-none-then-block",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.display = 'none'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.display = 'block'; document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-button-ancestor-display-none",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><button id=i>b</button></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.display = 'none'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "focus-fixup-ancestor-opacity-zero",
+   "html": "<!DOCTYPE html><html><head><script>\nwindow.log = [];\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=w><div id=v><input id=i></div></div><p>after</p></body></html>",
+   "measure": [
+    {
+     "js": "(() => { const i = document.getElementById('i'); i.addEventListener('blur', () => log.push('blur:' + document.activeElement.tagName)); i.addEventListener('focusout', () => log.push('focusout')); i.focus(); return document.activeElement.id; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('w').style.opacity = '0'; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return document.activeElement.tagName + ' [' + log.join() + ']'; })()"
+    },
+    {
+     "js": "frame().then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    },
+    {
+     "js": "wait(100).then(() => document.activeElement.tagName + ' [' + log.join() + ']')"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-shrink-above",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-grow-above",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '500px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-overflow-anchor-none",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { document.documentElement.style.overflowAnchor = 'none'; scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-overflow-anchor-none-body",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { document.body.style.overflowAnchor = 'none'; scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-at-top",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 0); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-change-below",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('b25').style.height = '500px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-change-in-view",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('b4').style.height = '100px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-shrink-above-two-steps",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; document.body.offsetHeight; document.getElementById('top').style.height = '250px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-display-none-above",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('b0').style.display = 'none'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-insert-above",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { const d = document.createElement('div'); d.style.height = '120px'; document.body.insertBefore(d, document.getElementById('b0')); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-change-in-scroll-handler",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\nwindow.addEventListener('scroll', () => { const t = document.getElementById('top'); t.style.height = scrollY > 600 ? '300px' : '400px'; });\n</script></head><body><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => frame()).then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    },
+    {
+     "js": "(() => { scrollBy(0, 300); return window.scrollY; })()"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  },
+  {
+   "name": "scroll-anchoring-fixed-above",
+   "html": "<!DOCTYPE html><html><head><style>body { margin: 0 } .b { height: 200px; border-bottom: 1px solid #888 }</style><script>\nfunction wait(ms) { return new Promise((r) => setTimeout(r, ms)); }\nfunction frame() { return new Promise((r) => requestAnimationFrame(() => r())); }\n</script></head><body><div style='position:fixed;top:0;height:50px;width:100%;background:#ccc' id=fx></div><div id=top style='height:400px'></div><div class=b id=b0>0</div><div class=b id=b1>1</div><div class=b id=b2>2</div><div class=b id=b3>3</div><div class=b id=b4>4</div><div class=b id=b5>5</div><div class=b id=b6>6</div><div class=b id=b7>7</div><div class=b id=b8>8</div><div class=b id=b9>9</div><div class=b id=b10>10</div><div class=b id=b11>11</div><div class=b id=b12>12</div><div class=b id=b13>13</div><div class=b id=b14>14</div><div class=b id=b15>15</div><div class=b id=b16>16</div><div class=b id=b17>17</div><div class=b id=b18>18</div><div class=b id=b19>19</div><div class=b id=b20>20</div><div class=b id=b21>21</div><div class=b id=b22>22</div><div class=b id=b23>23</div><div class=b id=b24>24</div><div class=b id=b25>25</div><div class=b id=b26>26</div><div class=b id=b27>27</div><div class=b id=b28>28</div><div class=b id=b29>29</div></body></html>",
+   "measure": [
+    {
+     "js": "(() => { scrollTo(0, 700); return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.getElementById('top').style.height = '300px'; return window.scrollY; })()"
+    },
+    {
+     "js": "(() => { document.body.offsetHeight; return window.scrollY; })()"
+    },
+    {
+     "js": "frame().then(() => window.scrollY)"
+    },
+    {
+     "js": "wait(100).then(() => window.scrollY)"
+    }
+   ]
+  }
+ ]
+}

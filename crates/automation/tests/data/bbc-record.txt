@@ -1,0 +1,1 @@
+window.__s ? (() => { const o = JSON.parse(window.__s()); o.res = [...new Set(performance.getEntriesByType('resource').filter((e) => e.initiatorType === 'img' && e.name.startsWith('https://ichef.')).map((e) => e.name))].sort(); return JSON.stringify(o); })() : JSON.stringify({navigated: true})

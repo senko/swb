@@ -179,6 +179,90 @@ pixels 0.9986; wikipedia-web-browser 0.1810, 0.9735 (its script error
 craigslist-posting 0.1895, 0.7332 (its scripts read `location`, which
 comes with 8a).
 
+### BBC with hydration (M9 feature 8)
+
+The budget of the BBC page is 4.60 s (3 × Chromium's jitless task time of
+1.523 s, plus the JS-off pipeline of 25 ms; ADR 0028 section 16). Since M9
+feature 6 the page hydrates (Next.js, styled-components, 813 `insertRule`
+calls) and since feature 7 its cookie banner runs. Release build, Intel
+Core i5-13500, load average 1.6, `swb --headless --js --replay
+fixtures/js/bbc --test-fonts --size 1280x800 --now 1792694203000
+--virtual-time --settle-ms S`, wall time with the process start, median of
+7 (minimum and maximum in brackets):
+
+| Point | Time | Of the budget |
+|---|---|---|
+| `load` event (S = 0) | 0.340 s (0.337 to 0.347) | 7 % |
+| Hydrated page, 1.5 s of page time after `load` (S = 1500) | 2.785 s (2.757 to 2.804) | 61 % |
+| The same, binary of abf312b (before feature 8) | 0.348 s, 2.805 s | |
+
+Which point counts: Chromium's replay hydrates before `load` (the measures
+`Next.js-before-hydration` 0 to 285 ms and `Next.js-hydration` 285 to
+364 ms, the `load` event at 725 and 845 ms in two runs; the Register button
+exists at `load`). swb fires `load` first (the Register button does not
+exist yet) and hydrates in the first 100 ms of page time after it, then the
+page is idle (S = 500: 2.8 to 2.9 s, S = 12,000: 2.8 s, three runs each,
+measured while the hostile set ran). The later point, the hydrated page,
+is the one that is compared with the budget: 2.785 s, 61 % of 4.60 s.
+Feature 8 does not change the engine's speed (the base binary needs 0.348 s
+and 2.805 s).
+
+Flushes of the load (`--bench 3 --js`, which adds one render of its own):
+style 7 runs (31.9 ms), layout 9 runs (77.2 ms), of which forced by
+scripts: style 6 (27.5 ms) and layout 6 (51.4 ms); 800 sheet changes (the
+`insertRule` calls that the page makes) cost 4 builds of the stylist
+(3.0 ms): the style system restyles once for each flush, not once for each
+inserted rule. Style and layout together are about 105 ms, 4 % of the
+2.785 s.
+
+Where the time goes. The callgrind profile of the S = 1500 run (6.69 G
+instructions; made with `--now` set to 2025-10-22, a year before the
+capture, so the page saw other cookies and compiled 84 scripts where the
+run at the capture time compiles 88) gives the shares of the instructions;
+the table puts the time next to them (the
+logs `swb_js=debug` and `swb_engine=debug` have the time of each script
+compile, of each image decode and of each style and layout run):
+
+| Work | Instructions | Time |
+|---|---|---|
+| `Runtime::compile`, 88 scripts, 4.85 M units | 34 % (2.29 G) | 0.244 s (9 %) |
+| WebP and other image decoding, 21 images, 0.40 MB, on the page thread | 16 % | 0.070 s (2.5 %) |
+| Style and layout, 7 and 9 runs | 7 % | about 0.105 s (4 %) |
+| Script execution and the rest (DOM, collector, process start, fixture reads) | 43 % | about 2.37 s (85 %, by difference) |
+
+The compile code runs at about 9 G instructions per second (a tight loop
+with few cache misses); the rest of the process at about 1.7 G
+instructions per second. So the share of instructions over-states the
+time of the compile (34 % against 9 %), and the time is in the execution of
+the page's scripts and the work they cause, not in the front end.
+
+Why the compile time differs from the 176 ms of the survey. The M7
+measurement (`swb-js bench-compile out/bbc-js`, best of three passes) had
+60 scripts and 3.5 MB; the page of the fixture compiles 88 scripts (8 of
+them inline scripts of the document) with 4.85 M code units: 80 scripts
+with 8 bits per unit (3.20 M units, 145 ms) and 8 with 16-bit text (1.66 M
+units, 98 ms; `tinypass.min.js` 495,000 units 31 ms,
+`echo-2.6.0-avi.min.js` 407,000 units 24 ms, the BBC's own `_next` chunk
+301,000 units 19 ms). The same 88 scripts in `swb-js bench-compile` need
+212 ms (best of three passes), the browser 244 ms (one pass, cold). Both
+are 44 to 50 ns for each unit, the rate of the survey (176 ms for 3.5 MB:
+50 ns). No script is compiled twice (88 different texts). The 16-bit path
+costs 30 % more for each unit (parse and compile 59 ns against 45 ns, the
+parse 24 ns against 20 ns); the 16-bit scripts are 34 % of the units and
+40 % of the compile time. The difference to the survey is the size of the
+set (4.85 against 3.5 MB), and the 34 % of the callgrind profile is a share
+of instructions, not of time.
+
+Shares for the backlog (the things that this feature does not build): an
+incremental restyle and incremental layout after inserted rules would save
+at most the 105 ms of style and layout (4 %); lazy compilation of
+functions (M7 13f) at most the 244 ms of the compile (9 %), less the
+compile of the functions that run; image decoding in a thread at most 70
+ms (2.5 %). None of the three is needed for the budget (2.785 s of 4.60
+s). The part that dominates, the 2.4 s of script execution, is the
+interpreter's speed on the Next.js and styled-components code (about 1.7 G
+instructions per second); the next step for the time is there.
+
 ## Script runtime of a document
 
 The engine creates a `swb_web::ScriptRuntime` for each document that

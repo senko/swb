@@ -478,23 +478,42 @@ impl Runtime {
         start: (u32, u32),
         goal: Goal,
     ) -> Result<(Gc<Generic>, Rc<FunctionCode>), ScriptError> {
+        let started = std::time::Instant::now();
         let script = match goal {
             Goal::Script => swb_js_syntax::parse_script(source, &mut self.budget)?,
             Goal::Module => swb_js_syntax::parse_module(source, &mut self.budget)?,
         };
+        let parsed = started.elapsed();
         // The compile data counts against the heap limit while it exists
         // (ADR 0026 section 3).
         let size = script.ast.heap_size() + script.scopes.heap_size();
         self.heap
             .reserve(size, &self.vm)
             .map_err(|e| finish_error(e.into()))?;
-        compile_script(
+        let result = compile_script(
             &mut self.heap,
             &script,
             (source, name, start),
             &mut self.budget,
         )
-        .map_err(compile_error)
+        .map_err(compile_error);
+        // The time of each script, for the measurements of the load time
+        // (docs/performance.md, "BBC with hydration").
+        if log::log_enabled!(log::Level::Debug) {
+            // The name of a script from a `data:` URL can be long.
+            let shown: String = name.chars().take(120).collect();
+            log::debug!(
+                "compiled {shown}: {} {} units, parse {parsed:.1?}, parse and compile {:.1?}",
+                if matches!(source, Str16::Latin1(_)) {
+                    "8-bit"
+                } else {
+                    "16-bit"
+                },
+                source.len(),
+                started.elapsed(),
+            );
+        }
+        result
     }
 
     /// Compiles a script and returns the statistics of its code (for

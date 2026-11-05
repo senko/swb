@@ -1,0 +1,173 @@
+{
+ "menu news": {
+  "menu panel": [
+   255,
+   255,
+   255
+  ],
+  "menu dimmed page": [
+   178,
+   178,
+   178
+  ],
+  "menu dimmed page right": [
+   178,
+   178,
+   178
+  ],
+  "menu header": [
+   255,
+   255,
+   255
+  ],
+  "save popover": [
+   255,
+   255,
+   255
+  ],
+  "save popover corner": [
+   255,
+   255,
+   255
+  ],
+  "save sign in button": [
+   49,
+   49,
+   49
+  ],
+  "save page": [
+   255,
+   255,
+   255
+  ],
+  "language button": [
+   255,
+   255,
+   255
+  ],
+  "language list": [
+   178,
+   178,
+   178
+  ],
+  "language list lower": [
+   178,
+   178,
+   178
+  ]
+ },
+ "save open": {
+  "menu panel": [
+   246,
+   246,
+   246
+  ],
+  "menu dimmed page": [
+   246,
+   246,
+   246
+  ],
+  "menu dimmed page right": [
+   206,
+   190,
+   80
+  ],
+  "menu header": [
+   255,
+   255,
+   255
+  ],
+  "save popover": [
+   32,
+   34,
+   36
+  ],
+  "save popover corner": [
+   32,
+   34,
+   36
+  ],
+  "save sign in button": [
+   0,
+   0,
+   0
+  ],
+  "save page": [
+   255,
+   255,
+   255
+  ],
+  "language button": [
+   246,
+   246,
+   246
+  ],
+  "language list": [
+   246,
+   246,
+   246
+  ],
+  "language list lower": [
+   246,
+   246,
+   246
+  ]
+ },
+ "language open": {
+  "menu panel": [
+   210,
+   212,
+   214
+  ],
+  "menu dimmed page": [
+   197,
+   199,
+   201
+  ],
+  "menu dimmed page right": [
+   246,
+   246,
+   246
+  ],
+  "menu header": [
+   255,
+   255,
+   255
+  ],
+  "save popover": [
+   255,
+   255,
+   255
+  ],
+  "save popover corner": [
+   255,
+   255,
+   255
+  ],
+  "save sign in button": [
+   255,
+   255,
+   255
+  ],
+  "save page": [
+   255,
+   255,
+   255
+  ],
+  "language button": [
+   210,
+   212,
+   214
+  ],
+  "language list": [
+   230,
+   232,
+   234
+  ],
+  "language list lower": [
+   230,
+   232,
+   234
+  ]
+ }
+}

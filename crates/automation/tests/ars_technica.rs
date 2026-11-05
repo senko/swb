@@ -76,14 +76,16 @@
 mod common;
 
 use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
-use common::{console_errors, fixture, load_at_capture_with, on_page_thread, step_groups, value};
+use common::{
+    Recording, console_errors, fixture, load_at_capture_with, on_page_thread, step_groups, value,
+};
 use serde_json::Value;
 use swb_automation::run_steps;
 use swb_engine::Page;
-use swb_net::{CookieJar, Fetcher, NetError, ReplayFetcher, Request, Response};
+use swb_net::ReplayFetcher;
 
 /// The keys of the record whose values hold rectangles (compared with
 /// [`TOLERANCE`]).
@@ -124,24 +126,6 @@ const OWN_SCRIPTS: [&str; 9] = [
     "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/stats.01cffe.js",
     "https://cdn.arstechnica.net/wp-content/themes/ars-v9/public/js/cntracking.4577bc.js",
 ];
-
-/// A fetcher that records the URLs of its requests, in order, and answers
-/// from the fixture.
-struct Recording {
-    inner: ReplayFetcher,
-    urls: Mutex<Vec<String>>,
-}
-
-impl Fetcher for Recording {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        self.urls.lock().unwrap().push(request.url.to_string());
-        self.inner.fetch(request)
-    }
-
-    fn cookie_jar(&self) -> Option<&CookieJar> {
-        self.inner.cookie_jar()
-    }
-}
 
 /// The requests for scripts of the site's own hosts, with the random parts
 /// of the A/B requests masked.
@@ -185,20 +169,14 @@ fn ars_technica_works_with_javascript_on() {
     on_page_thread(move || {
         let expected: Vec<Value> =
             serde_json::from_str(include_str!("data/ars-technica-chromium.json")).unwrap();
-        let fetcher = Arc::new(Recording {
-            inner: ReplayFetcher::load(&dir).unwrap(),
-            urls: Mutex::new(Vec::new()),
-        });
+        let fetcher = Arc::new(Recording::new(ReplayFetcher::load(&dir).unwrap()));
         let mut page = load_at_capture_with(&dir, Duration::from_millis(1500), fetcher.clone());
         assert!(page.has_script_runtime());
         assert_eq!(console_errors(&page), Vec::<String>::new());
         // The two headline scripts write their A/B scripts with
         // `document.write` (M9 feature 2): swb requests them where Chromium
         // does.
-        assert_eq!(
-            own_script_requests(&fetcher.urls.lock().unwrap()),
-            OWN_SCRIPTS
-        );
+        assert_eq!(own_script_requests(&fetcher.urls()), OWN_SCRIPTS);
         assert_eq!(value(&mut page, "document.readyState"), "complete");
         assert_eq!(value(&mut page, include_str!("data/ars-technica.js")), 1);
 
@@ -278,12 +256,9 @@ fn ars_technica_lazy_images_load_as_in_chromium() {
     on_page_thread(move || {
         let expected: Vec<BTreeSet<String>> =
             serde_json::from_str(include_str!("data/ars-technica-lazy-chromium.json")).unwrap();
-        let fetcher = Arc::new(Recording {
-            inner: ReplayFetcher::load(&dir).unwrap(),
-            urls: Mutex::new(Vec::new()),
-        });
+        let fetcher = Arc::new(Recording::new(ReplayFetcher::load(&dir).unwrap()));
         let mut page = load_at_capture_with(&dir, Duration::from_millis(1500), fetcher.clone());
-        let requested = |fetcher: &Recording| photo_requests(&fetcher.urls.lock().unwrap());
+        let requested = |fetcher: &Recording| photo_requests(&fetcher.urls());
         assert_eq!(requested(&fetcher), expected[0], "requests at the load");
         let groups = step_groups(include_str!("data/ars-technica-lazy-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());

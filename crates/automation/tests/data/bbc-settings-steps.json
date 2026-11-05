@@ -1,0 +1,4 @@
+[
+  {"name": "consent", "steps": [{"click": [775, 584]}, {"wait": 1500}]},
+  {"name": "settings link", "steps": [{"click": "#bbccookies-settings a"}, {"wait": 800}]}
+]

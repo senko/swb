@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -15,7 +15,40 @@ use swb_engine::{
     ClockMode, ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageClock, PageConfig, Size,
     Url,
 };
-use swb_net::{Fetcher, ReplayFetcher};
+use swb_net::{CookieJar, Fetcher, NetError, ReplayFetcher, Request, Response};
+
+/// A fetcher that records the URLs of its requests, in order, and answers
+/// from the fixture.
+pub(crate) struct Recording {
+    inner: ReplayFetcher,
+    urls: Mutex<Vec<String>>,
+}
+
+impl Recording {
+    /// A recording fetcher around `inner`.
+    pub(crate) fn new(inner: ReplayFetcher) -> Self {
+        Recording {
+            inner,
+            urls: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// The URLs requested so far, in order.
+    pub(crate) fn urls(&self) -> Vec<String> {
+        self.urls.lock().unwrap().clone()
+    }
+}
+
+impl Fetcher for Recording {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        self.urls.lock().unwrap().push(request.url.to_string());
+        self.inner.fetch(request)
+    }
+
+    fn cookie_jar(&self) -> Option<&CookieJar> {
+        self.inner.cookie_jar()
+    }
+}
 
 /// The repository root.
 pub(crate) fn repo_root() -> PathBuf {

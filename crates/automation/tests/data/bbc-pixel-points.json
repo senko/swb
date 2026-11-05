@@ -1,0 +1,21 @@
+{
+  "groups": ["menu news", "save open", "language open"],
+  "group_points": {
+    "menu news": ["menu "],
+    "save open": ["save "],
+    "language open": ["language "]
+  },
+  "points": {
+    "menu panel": [120, 600],
+    "menu dimmed page": [700, 720],
+    "menu dimmed page right": [1100, 300],
+    "menu header": [240, 60],
+    "save popover": [126, 412],
+    "save popover corner": [210, 384],
+    "save sign in button": [56, 454],
+    "save page": [140, 496],
+    "language button": [140, 580],
+    "language list": [700, 650],
+    "language list lower": [420, 720]
+  }
+}

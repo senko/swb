@@ -4283,6 +4283,21 @@ Steps:
       with the real CSSOM (style after inserted rules without a full
       restyle, fewer forced runs, the cost of `getComputedStyle`);
       the integration test `bbc.rs` for features 2 to 8 of the list.
+      Done 2026-11-05: `crates/automation/tests/bbc.rs` covers the
+      items 2 to 8 of the list (item 1, the consent frame, comes with
+      feature 15): 26 step groups in one load and a second load for the
+      banner's settings link, compared with three equal Chromium runs
+      (rectangles within 3 px, 11 pixel points, the requested image
+      URLs). No item failed in swb. Chromium's record run clicks "I
+      agree" in the consent frame in a group that swb does not run.
+      Departures: scroll anchoring (the test sets `overflow-anchor:
+      none` in both browsers) and the focus fixup rule; Chromium values
+      in `tools/probes/web-bbc-gaps.json`. Budget: `load` 0.34 s, the
+      hydrated page 2.79 s (Chromium hydrates before `load`, swb after
+      it). Scope change: style and layout take 4 % of the 2.79 s, so
+      the incremental restyle is not built; script execution takes
+      about 85 %, the compile of the 88 scripts 9 %, image decoding
+      2.5 %. JS off: snapshot identical; `compare --js` unchanged.
    9. `MessageChannel` and `MessagePort` in one document
       (`implementer`; ADR 0031 feature 1).
    10. Frame tree, loading and rendering (`implementer-hard`; ADR 0031
@@ -4461,11 +4476,34 @@ Steps:
   (`lazy_cases.py`, `cssom_cases.py`, `module_cases.py`).
 - Tools (found in feature 6): `swbtools replay` has no option for a
   script that runs before the page's scripts (the inventory of BBC's
-  CSSOM calls needed a patched fixture copy).
-- Feature 8 input (from feature 6): a forced flush after `insertRule`
-  restyles and lays out the whole page (7.3 ms on a page of 2,700
-  elements); BBC spends about 2.3 s in scripts after `load` within
-  1.5 s of page time.
+  CSSOM calls needed a patched fixture copy; feature 8 needed one for
+  the hydration timeline and used the `Next.js-hydration` measure).
+- BBC performance (found in feature 8; the budget is met, none of this
+  is needed for it): incremental restyle and layout after `insertRule`
+  (a forced flush restyles and lays out the whole page, 7.3 ms on 2,700
+  elements; style and layout are about 105 ms of BBC's 2.79 s); lazy
+  compilation (M7 13f; at most the 244 ms of the compile); image
+  decoding off the page thread (70 ms for 21 images). About 85 % of the
+  time is the interpreter's execution of the page's scripts: a profile
+  by time, or counters per task kind, would show what to speed up.
+- `engine` (found in feature 8): swb fires BBC's `load` event before the
+  Next.js hydration, Chromium after it (hydration ends at 364 ms, `load`
+  at 725 to 845 ms). swb compiles three `_next/static/chunks` scripts
+  after `load`. Check whether scripts that a page inserts (webpack chunk
+  loading) delay the `load` event as the HTML spec says.
+- Scroll anchoring (found in feature 8; CSS Scroll Anchoring,
+  `overflow-anchor`): BBC's first wheel step scrolls 16 px less in
+  Chromium; `bbc.rs` turns anchoring off in both browsers. Chromium
+  values in `tools/probes/web-bbc-gaps.json` (no adjustment at scroll
+  offset 0, none for changes below or inside the viewport, none with
+  `overflow-anchor: none` on `html` or `body`).
+- Focus fixup rule (found in feature 8): when a style or attribute
+  change makes the focused element not rendered (`display: none`,
+  `hidden`, `visibility: hidden` on it or an ancestor), Chromium moves
+  the focus to the body after the next frame (`blur`, `focusout`); swb
+  keeps it (BBC's "Yes, I agree"; `bbc.rs` skips `active` there).
+  `opacity: 0` keeps the focus. Probe cases `focus-fixup-*` in
+  `web-bbc-gaps.json`.
 
 ## Backlog from M8
 

@@ -33,7 +33,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); `Intl`: `builtins_intl.rs` (see "Intl tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py`, `test_js_time_zone_names.py` and `test_js_intl_data.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
-| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests); Python client: `tools/tests/test_automation.py` | no |
+| Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests), and the BBC features: `crates/automation/tests/bbc.rs` (local fixture; M9 feature 8); Python client: `tools/tests/test_automation.py` | no |
 | Web API binding tests  | `crates/web/tests/bindings.rs` (the glue of the test IDL), `crates/web/tests/lazy_interfaces.rs` (the glue of the browser's IDL), unit tests in `crates/web/src/bindings/`; the generator: unit tests in `crates/webidl/src/`, the freshness test `crates/webidl/tests/freshness.rs` (see "Web API bindings") | no |
 
 `cargo test` needs no network, no Python and no Chromium. Python and
@@ -1517,6 +1517,74 @@ uv run --project tools swbtools replay ars-technica \
   --pixels-out crates/automation/tests/data/ars-technica-pixels.json \
   --out crates/automation/tests/data/ars-technica-chromium.json
 ```
+
+`bbc.rs` (M9 feature 8, about 7 s for both tests in the dev profile) does the same for the
+BBC home page (the fixture `fixtures/js/bbc`) with the items 2 to 8 of the
+target's list: 26 step groups in one load (the cookie banner's "Yes, I agree"
+and its cookies `ckns_explicit` and `ckns_policy`; the menu button, the
+navigation panel with its search field, the section News with its 23 links,
+`Escape` and the button; both carousels with Next and Previous, the arrows'
+states and `scrollLeft`; the Save popover and `Escape`; eight wheel steps down
+the page with the counts of images, grey placeholders and loaded photos and
+the requested image URLs; the language dropdown open and closed; Register,
+whose click a listener records, and Sign In, whose URL the test checks as for
+Ars Technica's view switcher), and a second, short load for the banner's
+settings link (`data/bbc-settings-steps.json`; the click navigates away, and
+the test checks the requested URL). The record of `data/bbc.js` has the
+rectangles of the hydrated header (menu button, Register, Sign In), the
+banner, the navigation panel, the first six cards and the language list
+(within 3 px), the carousels' scroll offsets, arrows and visible cards, the
+popover's text and box, the focused element and the scroll position; the pixel
+points of `data/bbc-pixel-points.json` check the open menu with its dimmed
+page, the popover and the language list (tolerance 12). Chromium's record
+adds the key `res` (the `ichef` image URLs of the resource timing entries); the
+test adds the same list from a recording fetcher (`common::Recording`).
+
+The consent frame: Chromium's replay shows the Sourcepoint dialog in a
+cross-origin frame over the page, and swb has no frames before M9 features 10
+to 15. The first group, `consent`, clicks "I agree" in the frame (Chromium
+only; the frame sends `sp.hideMessage` and the page removes it) and the test
+skips it. swb's record at the load equals Chromium's record after the group
+(and Chromium's at the load except for the focused element), so both browsers
+run the later steps on the same page state. Feature 15 of the milestone runs
+the group in swb and adds item 1. The group `anchoring off` sets
+`overflow-anchor: none` in both browsers: swb has no scroll anchoring, and
+Chromium's first wheel step scrolls 16 px less than the wheel with it
+(`tools/probes/web-bbc-gaps.json`, 21 cases, no Rust test runs it: `just probe
+--with-swb tools/probes/web-bbc-gaps.json` shows the departures, `!` in the
+swb rows). The cases of scroll anchoring (12; in Chromium 148 the scroll
+offset follows a change of the content above the viewport, and
+`overflow-anchor: none`, the top of the page and changes below or inside
+the viewport do not move it) differ in 7; the cases of the focus fixup
+rule (9: after the next frame Chromium moves the focus to the body, with
+`blur` and `focusout`, when the focused element or an ancestor gets
+`display: none`, `hidden` or `visibility: hidden`; `opacity: 0` keeps it)
+differ in 8, because swb keeps the focus (the test skips the focused
+element after "banner agree"). The command for the records, colors and
+requested images (three runs, equal; the record expression is in
+`data/bbc-record.txt`; the view of the page after the click that navigates
+away is `{"navigated": true}`):
+
+```
+uv run --project tools swbtools replay bbc \
+  --steps crates/automation/tests/data/bbc-steps.json \
+  --setup crates/automation/tests/data/bbc.js \
+  --record "$(cat crates/automation/tests/data/bbc-record.txt)" \
+  --pixels crates/automation/tests/data/bbc-pixel-points.json \
+  --pixels-out crates/automation/tests/data/bbc-pixels.json \
+  --out crates/automation/tests/data/bbc-chromium.json
+uv run --project tools swbtools replay bbc \
+  --steps crates/automation/tests/data/bbc-settings-steps.json \
+  --setup crates/automation/tests/data/bbc.js \
+  --record "$(cat crates/automation/tests/data/bbc-record.txt)" \
+  --out crates/automation/tests/data/bbc-settings-chromium.json
+```
+
+Chromium's replay logs two errors after the click in the consent frame (the
+consent choice requests are not in the fixture): `ERROR in
+messagingWithoutDetection: RequestError: Server request error: 0`
+(`wrapperMessagingWithoutDetection.js`) and the exception `Failed to fetch`.
+swb has no error on its console at the load or after the steps.
 
 `small_gaps.rs` (M9 feature 1) runs the 80 cases of
 `tools/probes/web-small-gaps.json` against Chromium's values

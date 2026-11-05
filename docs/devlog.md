@@ -4,6 +4,44 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 8: BBC test and load-time budget
+
+- `crates/automation/tests/bbc.rs` tests the items 2 to 8 of the BBC
+  list against three equal Chromium runs: the cookie banner and its
+  cookies, the menu with its News section, both carousels, the Save
+  popover, the language dropdown, Register and Sign In, and eight wheel
+  steps with the image counts and the requested image URLs. One load has
+  26 step groups; a second load follows the banner's settings link. Both
+  tests take 7 s in the dev profile. No item failed in swb.
+- Review fix: the carousel record read the section (1280 px wide),
+  not the row of cards that scrolls, so only the arrows' state was
+  checked. It now records the row: Next moves the two rows to their
+  ends (`scrollLeft` 1088 of 2336 px and 996 of 2244 px in a scroller of
+  1248 px), Previous moves them back to 0, in both browsers.
+- The consent frame: Chromium's record run clicks "I agree" in the
+  frame in a first group that swb does not run (no frames yet). swb's
+  state at the load equals Chromium's state after that group.
+- Two differences to Chromium are in the backlog. Scroll anchoring:
+  Chromium scrolls the first wheel step 16 px less, so the test sets
+  `overflow-anchor: none` in both browsers. The focus fixup rule: when
+  "Yes, I agree" hides the focused button, Chromium moves the focus to
+  the body; swb keeps it. Chromium's values for both are in
+  `tools/probes/web-bbc-gaps.json`.
+- Budget: `load` at 0.34 s, the hydrated page at 2.79 s, against
+  4.60 s. Chromium hydrates before `load` and swb after it, so the
+  hydrated page is the point to compare. Shares of the 2.79 s: script
+  execution about 85 %, compile of the 88 scripts 9 % (244 ms), style
+  and layout 4 %, image decoding 2.5 %. An instruction profile had
+  shown compile at 34 %: compile runs at about 9 G instructions per
+  second, the interpreter at about 1.7 G.
+- Scope change: the roadmap planned incremental restyle after
+  `insertRule` for this feature. Style and layout take 4 % of the time,
+  and the budget is met, so it is not built (backlog, with lazy
+  compilation and off-thread image decoding).
+- JS-off snapshot identical; `compare --js` of the six JS fixtures
+  unchanged.
+- Next: M9 feature 9 (`MessageChannel` and `MessagePort`).
+
 ## 2026-11-04: M9 feature 7: module scripts without imports
 
 - `type=module` scripts, inline and external, run when they need no

@@ -401,7 +401,20 @@ impl ImageState {
     pub(crate) fn decode(url: &Url, response: &Response, counting: &CountBudget) -> Self {
         let content_type = response.content_type();
         let essence = content_type.as_ref().map(|c| c.essence.as_str());
-        match swb_paint::decode_in_document(&response.body, essence, counting) {
+        let started = std::time::Instant::now();
+        let decoded = swb_paint::decode_in_document(&response.body, essence, counting);
+        // The decode runs on the thread of the page (docs/performance.md,
+        // "BBC with hydration").
+        if log::log_enabled!(log::Level::Debug) {
+            // A `data:` URL can be long.
+            let shown: String = url.as_str().chars().take(120).collect();
+            log::debug!(
+                "decoded image {shown}: {} bytes in {:.1?}",
+                response.body.len(),
+                started.elapsed()
+            );
+        }
+        match decoded {
             Ok(image) => ImageState::Loaded(Arc::new(image)),
             Err(e) => {
                 log::warn!("image {url}: {e}");
