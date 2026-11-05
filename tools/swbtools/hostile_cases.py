@@ -5995,3 +5995,87 @@ def frame_self_link_clicked_300_times() -> Page:
             )
         },
     )
+
+
+@case(
+    "A script reads window.x through 1,000,000 different property names, with JavaScript on: "
+    "every read misses the inline cache of the WindowProxy (M9 feature 12a)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=420,
+)
+def window_proxy_million_names_js_on() -> Page:
+    script = (
+        "<script>var hits = 0; for (var i = 0; i < 1000000; i++) "
+        "{ if (window['n' + i] === undefined) hits++; } "
+        "document.title = String(hits);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "A Proxy chain 1,000 deep over window: reads, writes and has through it, with JavaScript "
+    "on: the recursion budget of proxies acts, and no stack overflow (M9 feature 12a)",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=220,
+)
+def window_proxy_proxy_chain_js_on() -> Page:
+    script = (
+        "<script>var p = window; for (var i = 0; i < 1000; i++) { p = new Proxy(p, {}); } "
+        "var out = 0; for (var k = 0; k < 200; k++) { p.chain = k; "
+        "if ('chain' in p) out += p.chain; Object.getPrototypeOf(p); } "
+        "document.title = String(out);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "Object.setPrototypeOf(obj, window) in a loop with reads of its properties, with "
+    "JavaScript on: each read walks through the WindowProxy on the generic path (M9 feature "
+    "12a)",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=380,
+)
+def window_proxy_as_prototype_js_on() -> Page:
+    script = (
+        "<script>var seen = 0; window.shared = 1; for (var i = 0; i < 300000; i++) "
+        "{ var o = {own: i}; Object.setPrototypeOf(o, window); seen += o.shared + o.own; "
+        "o.written = i; if (o.Array !== Array) seen = 0; } "
+        "document.title = String(seen);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "A script adds a new key to window and reads window.x in a loop, with JavaScript on: each "
+    "add moves the watch epoch, so each read fills the inline cache of the WindowProxy again "
+    "(M9 feature 12a)",
+    swb_args=("--js",),
+    time_limit_s=4,
+    rss_limit_mib=850,
+)
+def window_proxy_new_key_each_read_js_on() -> Page:
+    script = (
+        "<script>window.x = 1; var sum = 0; for (var i = 0; i < 1000000; i++) "
+        "{ window['k' + i] = 1; sum += window.x; } "
+        "document.title = String(sum);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "Object.getOwnPropertyNames(window) in a loop, with JavaScript on: each call lists the keys "
+    "of the target through the WindowProxy (M9 feature 12a)",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=240,
+)
+def window_proxy_own_names_loop_js_on() -> Page:
+    script = (
+        "<script>var n = 0; for (var i = 0; i < 1000; i++) "
+        "{ n += Object.getOwnPropertyNames(window).length; } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))

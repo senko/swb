@@ -35,8 +35,7 @@ fn wrap(
 ) -> b::Result<Gc<Object>> {
     let proto = cx.prototype_from_new_target()?;
     let node = make(cx)?;
-    let realm = cx.realm();
-    Ok(wrap_node_with_proto(cx.rt, realm, node, proto)?)
+    Ok(wrap_node_with_proto(cx.rt, node, proto)?)
 }
 
 /// `new Image(width, height)`: an `img` with the `width` and `height`

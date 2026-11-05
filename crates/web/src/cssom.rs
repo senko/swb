@@ -85,10 +85,10 @@ const MIN_BLOCKS: usize = 4096;
 /// Drops the blocks of elements that are not connected, and sets the next
 /// limit to twice the blocks that stay, so the drops cost O(1) per block.
 fn drop_detached_blocks(rt: &mut Runtime) -> b::Result<()> {
-    let mut map = std::mem::take(&mut state_mut(rt)?.style_blocks.map);
+    let mut map = std::mem::take(&mut state_mut(rt)?.doc.style_blocks.map);
     let doc = dom(rt)?;
     map.retain(|&node, _| doc.is_connected(node));
-    let blocks = &mut state_mut(rt)?.style_blocks;
+    let blocks = &mut state_mut(rt)?.doc.style_blocks;
     blocks.limit = map.len().saturating_mul(2).max(MIN_BLOCKS);
     blocks.map = map;
     Ok(())
@@ -353,7 +353,7 @@ fn with_block<R>(
     let generation = doc.generation();
     let quirks = doc.quirks_mode == QuirksMode::Quirks;
     let current = doc.element(element).and_then(|e| e.attr("style"));
-    let blocks = &state(rt)?.style_blocks;
+    let blocks = &state(rt)?.doc.style_blocks;
     let cached = blocks.map.get(&element);
     let fresh =
         cached.is_some_and(|c| c.generation == generation || c.source.as_deref() == current);
@@ -366,7 +366,7 @@ fn with_block<R>(
     if full {
         drop_detached_blocks(rt)?;
     }
-    let blocks = &mut state_mut(rt)?.style_blocks.map;
+    let blocks = &mut state_mut(rt)?.doc.style_blocks.map;
     let cache = match rebuilt {
         Some(cache) => {
             blocks.insert(element, cache);
@@ -383,6 +383,7 @@ fn with_block<R>(
 /// style attribute for") and keeps the block as the attribute's.
 fn write_attribute(rt: &mut Runtime, element: NodeId) -> b::Result<()> {
     let text = state(rt)?
+        .doc
         .style_blocks
         .map
         .get(&element)
@@ -391,7 +392,7 @@ fn write_attribute(rt: &mut Runtime, element: NodeId) -> b::Result<()> {
     let name = QualName::new(None, ns!(), LocalName::from("style"));
     set_attribute(rt, element, &name, &text)?;
     let generation = dom(rt)?.generation();
-    if let Some(cache) = state_mut(rt)?.style_blocks.map.get_mut(&element) {
+    if let Some(cache) = state_mut(rt)?.doc.style_blocks.map.get_mut(&element) {
         cache.generation = generation;
         cache.source = Some(text);
     }

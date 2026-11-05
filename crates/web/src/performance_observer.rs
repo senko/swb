@@ -117,10 +117,10 @@ pub(crate) fn queue_for_observers(
     entry: Gc<Object>,
     kind: EntryKind,
 ) -> swb_js::VmResult<()> {
-    if state(rt)?.perf.observers.is_empty() {
+    if state(rt)?.doc.perf.observers.is_empty() {
         return Ok(());
     }
-    let observers = state(rt)?.perf.observers.clone();
+    let observers = state(rt)?.doc.perf.observers.clone();
     let mut queued = false;
     for observer in observers {
         if let Some(data) = registered_data(rt, observer)
@@ -139,7 +139,7 @@ pub(crate) fn queue_for_observers(
 
 /// Queues the delivery task unless one waits.
 fn queue_delivery(rt: &mut Runtime) -> swb_js::VmResult<()> {
-    let perf = &mut state_mut(rt)?.perf;
+    let perf = &mut state_mut(rt)?.doc.perf;
     if perf.delivery_queued {
         return Ok(());
     }
@@ -150,8 +150,8 @@ fn queue_delivery(rt: &mut Runtime) -> swb_js::VmResult<()> {
 /// The delivery task: each observer with entries in its queue gets them in
 /// a `PerformanceObserverEntryList`.
 pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
-    state_mut(rt).map_err(task_error)?.perf.delivery_queued = false;
-    let observers = state(rt).map_err(task_error)?.perf.observers.clone();
+    state_mut(rt).map_err(task_error)?.doc.perf.delivery_queued = false;
+    let observers = state(rt).map_err(task_error)?.doc.perf.observers.clone();
     for observer in observers {
         let Some(data) = registered_data(rt, observer) else {
             continue;
@@ -176,10 +176,11 @@ fn call_callback(
     entries: Vec<Gc<Object>>,
 ) -> Result<(), ScriptError> {
     let made = (|| {
+        let realm = crate::state::doc_realm(rt)?;
         let data = rt.alloc_host_data(ListData { entries })?;
-        let list = rt.new_host_object(0, g::PERFORMANCE_OBSERVER_ENTRY_LIST, data)?;
+        let list = rt.new_host_object(realm, g::PERFORMANCE_OBSERVER_ENTRY_LIST, data)?;
         b::keep(rt, Value::Object(list));
-        let options = rt.new_plain_object(0)?;
+        let options = rt.new_plain_object(realm)?;
         b::keep(rt, Value::Object(options));
         b::to_js::dictionary_member(rt, options, "droppedEntriesCount", Value::number(0.0))?;
         swb_js::VmResult::Ok((list, options))
@@ -211,7 +212,7 @@ fn register(rt: &mut Runtime, this: Platform) -> b::Result<()> {
     if std::mem::replace(&mut data.registered, true) {
         return Ok(());
     }
-    state_mut(rt)?.perf.observers.push(this.object);
+    state_mut(rt)?.doc.perf.observers.push(this.object);
     Ok(())
 }
 
@@ -293,6 +294,7 @@ impl g::performance_observer::PerformanceObserverImpl for WebState {
         data.queue.clear();
         data.registered = false;
         state_mut(cx.rt)?
+            .doc
             .perf
             .observers
             .retain(|&observer| observer != this.object);

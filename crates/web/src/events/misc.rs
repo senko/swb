@@ -214,7 +214,8 @@ impl g::submit_event::SubmitEventImpl for WebState {
         match other(cx, this)? {
             Other::Submit {
                 submitter: Some(object),
-            } => Ok(b::node_of(
+            } => Ok(b::node_here(
+                cx.rt,
                 cx.rt
                     .host_object((*object).into())
                     .map(|(_, data)| data)

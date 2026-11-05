@@ -97,14 +97,14 @@ fn cached_tokens(rt: &mut Runtime, this: Platform) -> b::Result<Rc<Vec<String>>>
     let (element, attribute) = list_of(rt, this)?;
     let generation = dom(rt)?.generation();
     let key = (element, attribute);
-    let cache = &state(rt)?.token_cache;
+    let cache = &state(rt)?.doc.token_cache;
     if cache.0 == generation
         && let Some(tokens) = cache.1.get(&key)
     {
         return Ok(Rc::clone(tokens));
     }
     let tokens = Rc::new(parse(&raw_value(rt, key.0, &key.1)?.unwrap_or_default()));
-    let cache = &mut state_mut(rt)?.token_cache;
+    let cache = &mut state_mut(rt)?.doc.token_cache;
     if cache.0 != generation {
         cache.1.clear();
         cache.0 = generation;

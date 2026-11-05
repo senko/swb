@@ -61,11 +61,11 @@ pub(crate) fn match_media(cx: &mut Cx<'_>, query: &str) -> b::Result<Gc<Object>>
     let list = swb_css::MediaQueryList::parse_str(query);
     let matches = list.matches(&engine(cx.rt)?.media_environment());
     let state = state_mut(cx.rt)?;
-    state.media_query_count += 1;
+    state.doc.media_query_count += 1;
     let media = MediaQueryState {
         media: list.to_string(),
         list,
-        sequence: state.media_query_count,
+        sequence: state.doc.media_query_count,
         matches,
         registered: None,
     };
@@ -146,13 +146,13 @@ pub(crate) fn register(rt: &mut Runtime, object: Gc<Object>) -> VmResult<()> {
     }
     media.registered = Some(object);
     let sequence = media.sequence;
-    state_mut(rt)?.media_queries.insert(sequence, handle);
+    state_mut(rt)?.doc.media_queries.insert(sequence, handle);
     Ok(())
 }
 
 /// True if a `MediaQueryList` of the document has a listener.
 pub(crate) fn any_registered(rt: &Runtime) -> bool {
-    state(rt).is_ok_and(|s| !s.media_queries.is_empty())
+    state(rt).is_ok_and(|s| !s.doc.media_queries.is_empty())
 }
 
 /// CSSOM View "evaluate media queries and report changes": fires `change`
@@ -160,7 +160,7 @@ pub(crate) fn any_registered(rt: &Runtime) -> bool {
 /// evaluation, in the order of creation (a part of a task).
 pub(crate) fn report_changes(rt: &mut Runtime) -> VmResult<()> {
     let env = engine(rt)?.media_environment();
-    let lists: Vec<Gc<Generic>> = state(rt)?.media_queries.values().copied().collect();
+    let lists: Vec<Gc<Generic>> = state(rt)?.doc.media_queries.values().copied().collect();
     for handle in lists {
         let changed = {
             let Some(media) = rt

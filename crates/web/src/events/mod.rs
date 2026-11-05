@@ -246,7 +246,7 @@ fn this_data_mut<'a>(cx: &'a mut Cx<'_>, this: Platform) -> b::Result<&'a mut Ev
 /// The time comes from the page clock (`clock.rs`), so it follows virtual
 /// time.
 pub(crate) fn now(rt: &Runtime) -> f64 {
-    state(rt).map_or(0.0, |state| state.clock.now())
+    state(rt).map_or(0.0, |state| state.doc.clock.now())
 }
 
 /// A new event object of a constructor (`new Event(...)` and the

@@ -198,17 +198,17 @@ fn report_exception(
     message: &str,
     location: Option<SourceLocation>,
 ) -> VmResult<()> {
-    let event_loop = &mut state_mut(rt)?.event_loop;
+    let state = state_mut(rt)?;
     let mut not_handled = true;
-    if !event_loop.error_reporting {
-        event_loop.error_reporting = true;
+    if !state.doc.error_reporting {
+        state.doc.error_reporting = true;
         // Chromium runs the microtasks of `error` listeners after the
         // report (measured), not after each listener.
-        let checkpoints = std::mem::replace(&mut event_loop.listener_checkpoints, false);
+        let checkpoints = std::mem::replace(&mut state.event_loop.listener_checkpoints, false);
         let fired = fire_error(rt, message, location, value);
-        let event_loop = &mut state_mut(rt)?.event_loop;
-        event_loop.error_reporting = false;
-        event_loop.listener_checkpoints = checkpoints;
+        let state = state_mut(rt)?;
+        state.doc.error_reporting = false;
+        state.event_loop.listener_checkpoints = checkpoints;
         not_handled = fired?;
     }
     if not_handled {
@@ -273,8 +273,7 @@ fn fire_at_window(
     class: swb_js::ClassId,
     extra: Extra,
 ) -> VmResult<bool> {
-    let result = rt
-        .global(0)
+    let result = crate::state::window_proxy(rt)
         .and_then(|window| crate::events::fire_at_object(rt, window, class, kind, true, extra));
     match result {
         Err(VmError::Throw(_) | VmError::Raise { .. }) => Ok(true),

@@ -9,10 +9,12 @@
 //! an element for `[Reflect]`, and the [`GlueState`] in the host state.
 //!
 //! Platform objects: a node's wrapper has the host data
-//! [`node_data`]`(id)` (a word, the index of the node); other platform
-//! objects carry generic data. Arguments and `this` of an interface that
-//! inherits from `Node` convert to a [`NodeId`]; those of other interfaces
-//! to a [`Platform`] (the object and its host data).
+//! [`node_data_in`]`(document, id)` (a word: the key of the node's document
+//! in the high half, the index of the node in the low half, ADR 0031 section
+//! 5); other platform objects carry generic data. Arguments and `this` of an
+//! interface that inherits from `Node` convert to a [`NodeId`] of the current
+//! document; those of other interfaces to a [`Platform`] (the object and its
+//! host data).
 
 pub mod convert;
 pub mod dom_exception;
@@ -69,8 +71,15 @@ impl<'a> Cx<'a> {
         }
     }
 
-    /// The realm of the called function.
+    /// The realm of the objects that the member makes: the realm of the
+    /// called function. In a runtime with several documents it is the realm
+    /// of the current document, which is not the function's when `this`
+    /// belongs to another document: a list of a node of that document reads
+    /// that arena.
     pub fn realm(&self) -> u32 {
+        if self.rt.host_flag() {
+            return crate::state::doc_realm(self.rt).unwrap_or(self.realm);
+        }
         self.realm
     }
 
@@ -99,18 +108,15 @@ impl<'a> Cx<'a> {
     /// subclasses work), with the `[LegacyUnforgeable]` members of the
     /// interface.
     pub fn new_instance<H: Host>(&mut self, data: HostData) -> VmResult<Gc<Object>> {
+        let realm = self.realm();
         let proto = match self.call {
             Some(call) => self.rt.prototype_from_new_target(call, self.class)?,
-            None => {
-                self.rt
-                    .interface_or_create(self.realm, self.class)?
-                    .prototype
-            }
+            None => self.rt.interface_or_create(realm, self.class)?.prototype,
         };
         let object = self
             .rt
-            .new_host_object_with_proto(Some(proto), self.class, data)?;
-        glue::install_unforgeables::<H>(self.rt, self.realm, self.class, object)?;
+            .new_host_object_with_proto(realm, Some(proto), self.class, data)?;
+        glue::install_unforgeables::<H>(self.rt, realm, self.class, object)?;
         Ok(object)
     }
 }
@@ -124,17 +130,46 @@ pub struct Platform {
     pub data: HostData,
 }
 
-/// The host data of the wrapper of a node.
+/// The bits of a wrapper's host data word below the document key.
+const DOCUMENT_SHIFT: u32 = 32;
+
+/// The host data of the wrapper of a node of a runtime's first document.
 pub fn node_data(node: NodeId) -> HostData {
-    HostData::Word(node.index() as u64)
+    node_data_in(0, node)
 }
 
-/// The node of a wrapper's host data.
+/// The host data of the wrapper of a node of the document `document`.
+pub fn node_data_in(document: u32, node: NodeId) -> HostData {
+    HostData::Word((u64::from(document) << DOCUMENT_SHIFT) | node.index() as u64)
+}
+
+/// The document key in a wrapper's host data word.
+pub(crate) fn node_document(word: u64) -> u32 {
+    (word >> DOCUMENT_SHIFT) as u32
+}
+
+/// The node of a wrapper's host data, without a look at its document. A
+/// native whose `this` is the wrapper may use it: the glue made the node's
+/// document the current one (`crate::state::enter_call`). For any other
+/// wrapper, use [`node_here`].
 pub fn node_of(data: HostData) -> Option<NodeId> {
     match data {
-        HostData::Word(word) => NodeId::from_index(usize::try_from(word).ok()?),
+        HostData::Word(word) => NodeId::from_index(word as u32 as usize),
         HostData::Generic(_) => None,
     }
+}
+
+/// The node of a wrapper's host data if the node belongs to the current
+/// document, so that its `NodeId` means this arena (ADR 0031 section 5).
+pub fn node_here(rt: &Runtime, data: HostData) -> Option<NodeId> {
+    let node = node_of(data)?;
+    if rt.host_flag()
+        && let HostData::Word(word) = data
+        && Ok(node_document(word)) != crate::state::document_key(rt)
+    {
+        return None;
+    }
+    Some(node)
 }
 
 /// What the generated glue needs from the engine side.
@@ -262,5 +297,9 @@ mod tests {
         let node = NodeId::from_index(41).unwrap();
         assert_eq!(node_of(node_data(node)), Some(node));
         assert_eq!(node_of(HostData::Word(u64::MAX)), None);
+        let data = node_data_in(7, node);
+        assert_eq!(node_of(data), Some(node));
+        assert_eq!(data, HostData::Word((7 << 32) + 41));
+        assert_eq!(node_document((7 << 32) + 41), 7);
     }
 }

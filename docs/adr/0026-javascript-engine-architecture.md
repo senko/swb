@@ -3559,6 +3559,71 @@ where the first plan did not work:
     realm, the shell has no `createRealm`, and the cross-realm test262
     tests are skipped.
 
+### 17. Choices made during M9
+
+- **Realms for the host, the global this value, `WindowProxy`** (M9
+  feature 12a, ADR 0031 section 5).
+  - `Runtime::create_realm` is public, and `eval_named_at` and
+    `eval_module_at` take a realm. Each `Realm` has `global_this`
+    (`[[GlobalThisValue]]`, §9.3.1 `SetDefaultGlobalBindings`), the global
+    object unless the host calls `set_global_this`, which also writes the
+    property `globalThis`. Global `this`, a sloppy function's `this` for
+    `undefined` and `null`, indirect eval and `this_or_global` give it. So do
+    the receiver of an accessor of the global object that is read or written
+    by name: the global object itself never reaches script code. Name lookups
+    still go to the global object, so `SiteCache::GlobalProperty` is
+    unchanged. The shell keeps `this` equal to the global object.
+  - `ObjectKind::WindowProxy(WindowProxySlot)`, next to `Proxy`: the host's
+    frame id and an optional target, in 12 bytes (`ObjectKind` stays at 16).
+    It stores no properties. `Heap::needs_runtime`, `walks_exotic` and
+    `sets_exotic` are true for it, so every path that already handles a proxy
+    takes the generic methods; `Heap::is_proxy_like` (formerly `is_proxy`)
+    is true for both, and each `proxy_*` method of `vm/proxy.rs` starts by
+    handing a `WindowProxy` to `vm/window_proxy.rs`. With a target, a method
+    forwards to it (HTML §7.2.3); the target's chain has immutable prototypes
+    and no proxy, so forwarding needs no recursion budget. Without a target,
+    it calls `WindowProxyHooks`. Chromium's refusals are there:
+    `[[IsExtensible]]` true, `[[PreventExtensions]]` false, `[[SetPrototypeOf]]`
+    `SetImmutablePrototype`, an index key defines nothing.
+  - A write through the proxy as its own receiver runs as a write to the
+    target with the target as the receiver, and only a setter gets the proxy
+    back as its `this`, so it does not pass the forwarding
+    `[[GetOwnProperty]]` and `[[DefineOwnProperty]]`.
+  - Inline caches: `SiteCache::WindowProperty { target, holder, slot,
+    accessor, epoch }` (28 bytes, like `Proto`). A hit checks the kind and the
+    target of the receiver by identity and the watch epoch. No shape: a
+    `Window` has a dictionary shape, and the target and its chain are watched
+    objects, which is what the global entries rely on as well. A change of the
+    target misses because the identity differs; the epoch does not move, so
+    other sites keep their entries. A freed target cannot match (the handle
+    has a generation). The walk stops at `WindowProperties`, as
+    `SiteCache::GlobalProperty` does, so `window.addEventListener` is not
+    cached. `SetPlan::TargetSlot` writes a data property; its hit compares the
+    epoch as a read does, and the write adds no key, so it does not move the
+    epoch.
+  - `Heap::host_slot` looks through a `WindowProxy`, so `host_object`,
+    `implements`, `host_data_of` and all Web IDL brand checks unwrap it at one
+    place. A proxy without a target has no slot: `Illegal invocation`.
+  - The host slot holds the realm of a host object (11 bits next to the 20 bits
+    of the class number; `host_object_realm`, Web IDL "relevant realm"), and
+    `new_host_object_with_proto` takes it.
+  - A native runs in its own realm: with more than one realm in the runtime,
+    `run_native` compares the function's realm with the running one, and a
+    native of another realm runs with the last frame's realm set to its own
+    (`vm.base_realm` when no frame exists), so its intrinsics, its objects and
+    the error objects of its `Raise` errors are of that realm. One realm costs
+    one comparison of the realm count. A step of a native loop after its first
+    one runs in the caller's realm, so it can allocate there. Only built-ins of
+    `js` use native loops, so no step reads a document (backlog).
+  - `create_realm` fails at 2,048 realms, the most that a host slot can name.
+  - `Runtime::host_flag` and `host_signal` are a bit and a shared cell of the
+    host that a native reads without the type check of `host_data` (about 15
+    instructions; the browser: the runtime has several documents, a mutation
+    registry asks for attention).
+  - Measured against Chromium: ADR 0031 section 5; tests
+    `crates/js/tests/window_proxy.rs` (two realms, a retarget, the hooks, the
+    collector) and `object/cache.rs`.
+
 ## Consequences
 
 - The design keeps each memory risk behind a check: generations catch

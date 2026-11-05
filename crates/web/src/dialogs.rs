@@ -69,11 +69,11 @@ fn log_dialog(cx: &mut Cx<'_>, kind: &str, message: &str) {
     let Ok(state) = state_mut(cx.rt) else {
         return;
     };
-    if state.dialogs_logged > LOG_DIALOGS {
+    if state.doc.dialogs_logged > LOG_DIALOGS {
         return;
     }
-    state.dialogs_logged += 1;
-    if state.dialogs_logged > LOG_DIALOGS {
+    state.doc.dialogs_logged += 1;
+    if state.doc.dialogs_logged > LOG_DIALOGS {
         log::debug!("more than {LOG_DIALOGS} dialogs: the log shows no more");
         return;
     }
@@ -119,7 +119,7 @@ pub(crate) fn print(cx: &mut Cx<'_>) -> b::Result<()> {
         return Ok(());
     }
     if !scripts.completely_loaded() {
-        state_mut(cx.rt)?.print_when_loaded = true;
+        state_mut(cx.rt)?.doc.print_when_loaded = true;
         return Ok(());
     }
     run_printing_steps(cx.rt)?;
@@ -129,7 +129,7 @@ pub(crate) fn print(cx: &mut Cx<'_>) -> b::Result<()> {
 /// The print-when-loaded flag: after the `load` event, the printing steps
 /// run once for the calls that came earlier.
 pub(crate) fn run_when_loaded(rt: &mut Runtime) -> swb_js::VmResult<()> {
-    if !std::mem::take(&mut state_mut(rt)?.print_when_loaded) {
+    if !std::mem::take(&mut state_mut(rt)?.doc.print_when_loaded) {
         return Ok(());
     }
     run_printing_steps(rt)
@@ -138,12 +138,11 @@ pub(crate) fn run_when_loaded(rt: &mut Runtime) -> swb_js::VmResult<()> {
 /// The printing steps: `beforeprint`, `afterprint` (nothing is printed in
 /// between). Does nothing during the steps.
 fn run_printing_steps(rt: &mut Runtime) -> swb_js::VmResult<()> {
-    if state(rt)?.printing {
+    if state(rt)?.doc.printing {
         return Ok(());
     }
-    let event_loop = &mut state_mut(rt)?.event_loop;
-    let reporting = std::mem::replace(&mut event_loop.error_reporting, true);
-    state_mut(rt)?.printing = true;
+    let reporting = std::mem::replace(&mut state_mut(rt)?.doc.error_reporting, true);
+    state_mut(rt)?.doc.printing = true;
     let mut result = Ok(());
     for kind in ["beforeprint", "afterprint"] {
         let fired = crate::scripts::fire(rt, DispatchTarget::Window, &TrustedEvent::new(kind));
@@ -152,8 +151,8 @@ fn run_printing_steps(rt: &mut Runtime) -> swb_js::VmResult<()> {
             break;
         }
     }
-    state_mut(rt)?.printing = false;
-    state_mut(rt)?.event_loop.error_reporting = reporting;
+    state_mut(rt)?.doc.printing = false;
+    state_mut(rt)?.doc.error_reporting = reporting;
     result
 }
 

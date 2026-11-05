@@ -109,7 +109,7 @@ impl g::document::DocumentImpl for WebState {
     }
 
     fn url(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
-        if !is_main(this) && !state(cx.rt)?.parsed_documents.contains(&this) {
+        if !is_main(this) && !state(cx.rt)?.doc.parsed_documents.contains(&this) {
             return Ok("about:blank".to_owned());
         }
         Ok(engine(cx.rt)?.url())
@@ -475,8 +475,7 @@ impl g::document::DocumentImpl for WebState {
         if !is_main(this) {
             return Ok(None);
         }
-        let realm = cx.realm();
-        Ok(Some(cx.rt.global(realm)?))
+        Ok(Some(crate::state::window_proxy(cx.rt)?))
     }
 
     fn implementation(cx: &mut Cx<'_>, this: NodeId) -> b::Result<swb_js::Gc<swb_js::Object>> {

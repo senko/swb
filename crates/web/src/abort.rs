@@ -349,15 +349,21 @@ pub(crate) fn remove_on_abort(
 /// A task of `AbortSignal.timeout()` came due: abort the signal with a
 /// `TimeoutError`.
 pub(crate) fn timeout_fired(rt: &mut Runtime, id: u64) -> VmResult<()> {
-    let Some(signal) = state_mut(rt)?.signal_timeouts.remove(&id) else {
+    let Some(signal) = state_mut(rt)?.doc.signal_timeouts.remove(&id) else {
         return Ok(());
     };
     // Out of the table, the signal lives as long as the task's scope (the
     // page may hold it only through its listeners).
     rt.heap_mut().record(signal);
-    let error =
-        b::dom_exception::create(rt, 0, g::DOM_EXCEPTION, "TimeoutError", "signal timed out")?;
-    signal_abort(rt, 0, signal, error.into())
+    let realm = crate::state::doc_realm(rt)?;
+    let error = b::dom_exception::create(
+        rt,
+        realm,
+        g::DOM_EXCEPTION,
+        "TimeoutError",
+        "signal timed out",
+    )?;
+    signal_abort(rt, realm, signal, error.into())
 }
 
 impl g::abort_controller::AbortControllerImpl for WebState {
@@ -415,7 +421,7 @@ impl g::abort_signal::AbortSignalImpl for WebState {
         let realm = cx.realm();
         let signal = new_signal(cx.rt, realm)?;
         let state = state_mut(cx.rt)?;
-        if state.signal_timeouts.len() >= MAX_TIMEOUT_SIGNALS {
+        if state.doc.signal_timeouts.len() >= MAX_TIMEOUT_SIGNALS {
             log::warn!(
                 "a document has more than {MAX_TIMEOUT_SIGNALS} AbortSignal.timeout() signals"
             );
@@ -424,10 +430,10 @@ impl g::abort_signal::AbortSignalImpl for WebState {
                 .terminate("too many AbortSignal.timeout() signals in the document")
                 .into());
         }
-        state.next_timeout_signal += 1;
-        let id = state.next_timeout_signal;
-        state.signal_timeouts.insert(id, signal);
-        let due = state.clock.page_now() + milliseconds as f64;
+        state.doc.next_timeout_signal += 1;
+        let id = state.doc.next_timeout_signal;
+        state.doc.signal_timeouts.insert(id, signal);
+        let due = state.doc.clock.page_now() + milliseconds as f64;
         state.event_loop.tasks.push(due, Task::AbortTimeout(id));
         Ok(signal)
     }

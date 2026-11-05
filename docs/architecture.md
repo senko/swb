@@ -401,7 +401,12 @@ Scripts (`page/script.rs`, ADR 0028 section 2): a document that commits
 with JavaScript on gets a `swb_web::ScriptRuntime`, which the page drops
 with the document. For each task the page lends the boxed state to the
 runtime as a `Box<dyn EngineHost>` and takes it back (a downcast), which
-drains the journal of the task. Feature 5c (ADR 0028 section 8): the
+drains the journal of the task. M9 feature 12a (ADR 0031 section 5): a
+runtime is an agent that can hold several documents, each with a realm, a
+`Window` behind a `WindowProxy` and a `DocState` in the binding state
+(`crates/web/src/state.rs`; `WebState` keeps what the agent shares, and a
+native switches to the document of its `this`). A page still has one document
+per runtime until feature 12b. Feature 5c (ADR 0028 section 8): the
 runtime drives the parse of its document (`EngineHost::parse_step`, one
 step per `script` end tag), runs inline scripts at their place, waits for
 parser-blocking scripts and for the style sheets that block scripts, and

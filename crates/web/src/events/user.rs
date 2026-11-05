@@ -125,7 +125,7 @@ pub(crate) fn fields_of(
         UserKind::Input => (g::INPUT_EVENT, Family::Input),
     };
     let mut f = Fields::new(family);
-    f.view = Some(rt.global(0)?);
+    f.view = Some(crate::state::window_proxy(rt)?);
     f.detail = event.detail;
     f.mods = event.modifiers;
     f.related_target = None;
@@ -162,7 +162,8 @@ fn fill_mouse(rt: &mut Runtime, f: &mut Fields, event: &UserEvent) -> VmResult<(
     m.button = event.button.max(0);
     m.buttons = event.buttons;
     if let Some(node) = event.related_target {
-        m.related_target = Some(WebState::wrap_node(rt, 0, node)?);
+        let realm = crate::state::doc_realm(rt)?;
+        m.related_target = Some(WebState::wrap_node(rt, realm, node)?);
     }
     if pointer {
         let p = &mut m.pointer;

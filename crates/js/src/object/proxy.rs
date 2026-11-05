@@ -50,10 +50,14 @@ impl Heap {
         })
     }
 
-    /// Whether `object` is a proxy.
+    /// Whether the internal methods of `object` are those of `vm/proxy.rs`:
+    /// a proxy, or a `WindowProxy`, which they hand to `vm/window_proxy.rs`.
     #[inline]
-    pub(crate) fn is_proxy(&self, object: Gc<Object>) -> Result<bool> {
-        Ok(matches!(self.object(object)?.kind, ObjectKind::Proxy(_)))
+    pub(crate) fn is_proxy_like(&self, object: Gc<Object>) -> Result<bool> {
+        Ok(matches!(
+            self.object(object)?.kind,
+            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_)
+        ))
     }
 
     /// Revokes a proxy (§28.2.2.1.1 steps 5 and 6): both slots become

@@ -1,9 +1,10 @@
-//! The event loop of a document (HTML §8.1.7,
+//! The event loop of an agent (HTML §8.1.7,
 //! <https://html.spec.whatwg.org/multipage/webappapis.html#event-loops>;
 //! ADR 0028 section 7): the task queue, the microtask checkpoint, the
 //! notification of rejected promises and the cleanup of finalization
 //! registries. The timers are in `timers.rs`, the error reports in
-//! `errors.rs`, and the runtime runs the tasks (`runtime.rs`).
+//! `errors.rs`, and the runtime runs the tasks (`runtime.rs`). A task belongs
+//! to a document: it runs with that document as the current one.
 //!
 //! The queue orders every task by its due time in page time and then by
 //! the order of queuing. A timer is due when its timeout has passed; any
@@ -27,8 +28,7 @@ use std::collections::BTreeMap;
 
 use swb_js::{Runtime, ScriptError, Tracer, Value, VmError, VmResult};
 
-use crate::state::{state, state_mut};
-use crate::timers::Timers;
+use crate::state::{DocKey, state, state_mut};
 
 /// A task of the event loop.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,14 +124,22 @@ impl Ord for Due {
 /// The key of a task in the queue: the due time, then the sequence number.
 pub(crate) type TaskKey = (Due, u64);
 
-/// The tasks of a document, by due time and order of queuing.
+/// The tasks of an agent, by due time and order of queuing. Each task
+/// belongs to the document that was the current one when it was queued.
 #[derive(Debug, Default)]
 pub(crate) struct TaskQueue {
-    queue: BTreeMap<TaskKey, Task>,
+    queue: BTreeMap<TaskKey, (DocKey, Task)>,
     next_seq: u64,
+    /// The current document (the binding state keeps it up to date).
+    document: DocKey,
 }
 
 impl TaskQueue {
+    /// Sets the document of the tasks that are queued from now on.
+    pub(crate) fn set_document(&mut self, document: DocKey) {
+        self.document = document;
+    }
+
     /// The sequence number that the next task gets.
     pub(crate) fn next_seq(&self) -> u64 {
         self.next_seq
@@ -141,7 +149,7 @@ impl TaskQueue {
     pub(crate) fn push(&mut self, due: f64, task: Task) -> TaskKey {
         let key = (Due(due), self.next_seq);
         self.next_seq += 1;
-        self.queue.insert(key, task);
+        self.queue.insert(key, (self.document, task));
         key
     }
 
@@ -155,8 +163,8 @@ impl TaskQueue {
         self.queue.first_key_value().map(|((due, _), _)| due.0)
     }
 
-    /// Takes the first task if it is due at `now`.
-    pub(crate) fn pop_due(&mut self, now: f64) -> Option<Task> {
+    /// Takes the first task if it is due at `now`, with its document.
+    pub(crate) fn pop_due(&mut self, now: f64) -> Option<(DocKey, Task)> {
         let entry = self.queue.first_entry()?;
         if entry.key().0.0 > now {
             return None;
@@ -169,7 +177,6 @@ impl TaskQueue {
 #[derive(Debug, Default)]
 pub(crate) struct EventLoop {
     pub(crate) tasks: TaskQueue,
-    pub(crate) timers: Timers,
     /// The timer nesting level of the running task: the level of a timer
     /// task while it and its microtasks run (Chromium keeps it in the
     /// microtasks; measured), 0 for other tasks.
@@ -179,8 +186,6 @@ pub(crate) struct EventLoop {
     /// True while the engine dispatches an event: a checkpoint runs after
     /// each listener.
     pub(crate) listener_checkpoints: bool,
-    /// HTML "in error reporting mode" of the window.
-    pub(crate) error_reporting: bool,
     /// HTML "about-to-be-notified rejected promises list".
     pub(crate) about_to_notify: Vec<Value>,
     /// True while a [`Task::NotifyRejections`] waits in the queue.
@@ -194,7 +199,6 @@ pub(crate) struct EventLoop {
 
 impl EventLoop {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        self.timers.trace(tracer);
         for value in &self.about_to_notify {
             tracer.value(*value);
         }
@@ -206,7 +210,7 @@ impl EventLoop {
 
 /// The page time now, from the document's clock.
 pub(crate) fn page_now(rt: &Runtime) -> f64 {
-    state(rt).map_or(0.0, |s| s.clock.page_now())
+    state(rt).map_or(0.0, |s| s.doc.clock.page_now())
 }
 
 /// Queues a task that is due now.

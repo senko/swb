@@ -17,7 +17,7 @@ use swb_js::{Runtime, ScriptError, ThrowKind};
 /// Runs `source` as a module: the printed lines, then the error if any.
 fn run_module_in(rt: &mut Runtime, source: &str) -> String {
     let result = rt
-        .eval_module_at(source, "m.js", (0, 0))
+        .eval_module_at(0, source, "m.js", (0, 0))
         .and_then(|value| rt.run_jobs().map(|()| value));
     let mut lines = rt.host_data_mut::<Output>().unwrap().take();
     if let Err(error) = result {
@@ -102,7 +102,7 @@ fn errors_name_the_module_and_the_position() {
     on_big_stack(|| {
         let mut rt = runtime(false);
         let error = rt
-            .eval_module_at("\n  null.x;", "http://x.test/m.js", (4, 10))
+            .eval_module_at(0, "\n  null.x;", "http://x.test/m.js", (4, 10))
             .unwrap_err();
         let ScriptError::Uncaught {
             name,
@@ -120,8 +120,7 @@ fn errors_name_the_module_and_the_position() {
         assert_eq!((location.line, location.column), (6, 8));
         assert!(offset.is_some());
         let stack = rt
-            .eval_module_at(
-                "print(new Error('z').stack)\nfunction g() { return new Error('w').stack }\nprint(g())",
+            .eval_module_at(0, "print(new Error('z').stack)\nfunction g() { return new Error('w').stack }\nprint(g())",
                 "m.js",
                 (0, 0),
             )
@@ -167,7 +166,7 @@ fn syntax_that_is_an_error_in_modules() {
         let source = source.to_owned();
         on_big_stack(move || {
             let mut rt = runtime(false);
-            let error = rt.eval_module_at(&source, "m.js", (0, 0)).unwrap_err();
+            let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
             assert!(!error.is_unsupported(), "{source}: {error}");
             assert_eq!(error.to_string(), format!("SyntaxError: {message}"));
         });
@@ -180,7 +179,10 @@ fn the_same_text_is_a_script() {
         let mut rt = runtime(false);
         // As a script, `010` and `with` are legal sloppy code.
         assert!(rt.eval("var o = 010; with ({}) {}").is_ok());
-        assert!(rt.eval_module_at("var o = 010;", "m.js", (0, 0)).is_err());
+        assert!(
+            rt.eval_module_at(0, "var o = 010;", "m.js", (0, 0))
+                .is_err()
+        );
     });
 }
 
@@ -207,7 +209,7 @@ fn modules_that_need_other_modules_do_not_compile() {
         on_big_stack(move || {
             for stress in [false, true] {
                 let mut rt = runtime(stress);
-                let error = rt.eval_module_at(&source, "m.js", (0, 0)).unwrap_err();
+                let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
                 assert!(error.is_unsupported(), "{source}: {error}");
                 let ScriptError::Compile { kind, message, .. } = &error else {
                     panic!("{source}: {error:?}");
@@ -244,7 +246,7 @@ fn the_budgets_of_scripts_apply() {
         for i in 0..70_000 {
             write!(source, "let v{i};").unwrap();
         }
-        let error = rt.eval_module_at(&source, "m.js", (0, 0)).unwrap_err();
+        let error = rt.eval_module_at(0, &source, "m.js", (0, 0)).unwrap_err();
         assert!(!error.is_unsupported());
         assert!(matches!(error, ScriptError::Compile { .. }), "{error:?}");
         // A module of 60,000 bindings is under the limit.
@@ -256,13 +258,13 @@ fn the_budgets_of_scripts_apply() {
         assert_eq!(run_module_in(&mut rt, &source), "59999");
         // A deep expression is a range error, not a crash.
         let deep = format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000));
-        assert!(rt.eval_module_at(&deep, "m.js", (0, 0)).is_err());
+        assert!(rt.eval_module_at(0, &deep, "m.js", (0, 0)).is_err());
         // An endless loop ends at the deadline.
         rt.set_deadline(Some(
             std::time::Instant::now() + std::time::Duration::from_millis(100),
         ));
         let error = rt
-            .eval_module_at("for (;;) {}", "m.js", (0, 0))
+            .eval_module_at(0, "for (;;) {}", "m.js", (0, 0))
             .unwrap_err();
         assert!(matches!(error, ScriptError::Terminated(_)), "{error:?}");
     });

@@ -669,8 +669,13 @@ impl Runtime {
                                 save!();
                                 tri!(self.put_value(target, key, value, code.strict_at(pc - 1)))
                             }
+                            Some(SetPlan::TargetSlot { target, slot })
+                                if tri!(self.heap.write_target_slot(target, slot, value)) =>
+                            {
+                                continue;
+                            }
                             // (`cached_set` leaves `Own` to `cached_own_write`.)
-                            Some(SetPlan::Own(_)) | None => {
+                            Some(SetPlan::Own(_) | SetPlan::TargetSlot { .. }) | None => {
                                 let key = site!(site);
                                 save!();
                                 let strict = code.strict_at(pc - 1);

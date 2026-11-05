@@ -44,7 +44,12 @@ mod lazy;
 mod ops;
 
 use std::any::Any;
+use std::cell::Cell;
+use std::rc::Rc;
 
+pub use crate::vm::window_proxy::{
+    GetPrototypeHook, SetPrototypeHook, WindowDefineHook, WindowOwnPropertyHook, WindowProxyHooks,
+};
 pub use handler::EventHandler;
 pub use hooks::{
     DefineOwnPropertyHook, DeleteHook, GetHook, GetOwnPropertyHook, HostHooks, OwnKeysHook,
@@ -67,8 +72,8 @@ use crate::vm::{NativeCall, NativeFn, VmError, VmResult};
 /// `tools/probes/web-embedding.json`).
 pub(crate) const ILLEGAL_INVOCATION: &str = "Illegal invocation";
 
-/// The most host classes of a runtime (class numbers stay below 2^31,
-/// the bit above marks generic data in an object's slot).
+/// The most host classes of a runtime (an object's slot has 20 bits for
+/// the class number, `object/host.rs`).
 const MAX_CLASSES: usize = 1 << 20;
 
 /// A host class of a runtime: its number in the registry, in the order of
@@ -186,6 +191,15 @@ pub(crate) struct Host {
     pub(crate) state: Option<Box<dyn HostState>>,
     /// The hooks of lazy creation (`lazy.rs`).
     pub(crate) lazy: Option<LazyHooks>,
+    /// A flag of the host that a native reads without a look at the host
+    /// state ([`Runtime::host_flag`]).
+    pub(crate) flag: bool,
+    /// A cell of the host that a native reads without a look at the host
+    /// state ([`Runtime::host_signal`]).
+    pub(crate) signal: Rc<Cell<bool>>,
+    /// The internal methods of a `WindowProxy` without a target
+    /// (`vm/window_proxy.rs`).
+    pub(crate) window_proxy: Option<WindowProxyHooks>,
 }
 
 impl Host {
@@ -275,20 +289,22 @@ impl Runtime {
         data: HostData,
     ) -> VmResult<Gc<Object>> {
         let prototype = self.interface_or_create(realm, class)?.prototype;
-        self.new_host_object_with_proto(Some(prototype), class, data)
+        self.new_host_object_with_proto(realm, Some(prototype), class, data)
     }
 
     /// [`Runtime::new_host_object`] with another prototype (a constructor
     /// called through a subclass: the `prototype` of `new.target`, see
-    /// [`Runtime::prototype_from_new_target`]).
+    /// [`Runtime::prototype_from_new_target`]). `realm` is the realm of the
+    /// object ([`Runtime::host_object_realm`]).
     pub fn new_host_object_with_proto(
         &mut self,
+        realm: u32,
         proto: Option<Gc<Object>>,
         class: ClassId,
         data: HostData,
     ) -> VmResult<Gc<Object>> {
         let exotic = self.vm.host.class(class.0)?.hooks.is_some();
-        let slot = HostSlot::new(class.0, data)?;
+        let slot = HostSlot::new(class.0, realm, data)?;
         let object = self.heap.new_host_object_with_slot(proto, slot, exotic)?;
         Ok(self.keep(object))
     }
@@ -301,7 +317,22 @@ impl Runtime {
         Ok(HostData::Generic(self.keep(generic)))
     }
 
-    /// The class and the host data of a value, if it is a host object.
+    /// The realm of a host object (Web IDL "relevant realm"), or of the
+    /// target of a `WindowProxy`.
+    pub fn host_object_realm(&self, value: Value) -> Option<u32> {
+        let Value::Object(object) = value else {
+            return None;
+        };
+        Some(self.heap.host_slot(object).ok()??.realm())
+    }
+
+    /// The class and the host data of a value, if it is a host object, or a
+    /// `WindowProxy` with a target (the class and the data of the target).
+    #[allow(
+        clippy::inline_always,
+        reason = "a brand check of each native: measured, ADR 0031 section 5"
+    )]
+    #[inline(always)]
     pub fn host_object(&self, value: Value) -> Option<(ClassId, HostData)> {
         let Value::Object(object) = value else {
             return None;
@@ -320,6 +351,11 @@ impl Runtime {
     /// The host data of `value` if it is a host object of `class` or of a
     /// subclass (Web IDL "implements"); otherwise `TypeError: Illegal
     /// invocation`, as in Chromium.
+    #[allow(
+        clippy::inline_always,
+        reason = "a brand check of each native: measured, ADR 0031 section 5"
+    )]
+    #[inline(always)]
     pub fn host_data_of(&self, value: Value, class: ClassId) -> VmResult<HostData> {
         match self.host_object(value) {
             Some((own, data)) if self.vm.host.implements(own.0, class) => Ok(data),
@@ -329,17 +365,17 @@ impl Runtime {
 
     /// The brand check of `this` of a native function (Web IDL §3.7.6,
     /// the steps of operations and attributes): `undefined` and `null`
-    /// stand for the global object of the function's realm, then
+    /// stand for the global this value of the function's realm, then
     /// [`Runtime::host_data_of`].
     pub fn this_host_data(&self, call: &NativeCall, class: ClassId) -> VmResult<HostData> {
         self.host_data_of(self.this_or_global(call)?, class)
     }
 
-    /// `this` of a native call, with the global object of the function's
+    /// `this` of a native call, with the global this value of the function's
     /// realm for `undefined` and `null`.
     pub fn this_or_global(&self, call: &NativeCall) -> VmResult<Value> {
         Ok(match call.this() {
-            Value::Undefined | Value::Null => self.global_object(call.realm())?.into(),
+            Value::Undefined | Value::Null => self.global_this(call.realm())?.into(),
             this => this,
         })
     }
@@ -363,6 +399,32 @@ impl Runtime {
     pub fn host_data_mut<T: HostState>(&mut self) -> Option<&mut T> {
         let state: &mut dyn Any = self.vm.host.state.as_deref_mut()?;
         state.downcast_mut()
+    }
+
+    /// A flag of the host: one load, where a read of the host state takes a
+    /// type check (the browser's bindings: the runtime has several
+    /// documents, so a native must look for its document).
+    #[inline]
+    pub fn host_flag(&self) -> bool {
+        self.vm.host.flag
+    }
+
+    /// Sets the flag of [`Runtime::host_flag`].
+    pub fn set_host_flag(&mut self, flag: bool) {
+        self.vm.host.flag = flag;
+    }
+
+    /// A cell of the host: as [`Runtime::host_flag`], for a value that code
+    /// without the runtime sets (the browser's mutation registry asks for
+    /// attention after a native call).
+    #[inline]
+    pub fn host_signal(&self) -> bool {
+        self.vm.host.signal.get()
+    }
+
+    /// The cell of [`Runtime::host_signal`].
+    pub fn host_signal_cell(&self) -> Rc<Cell<bool>> {
+        Rc::clone(&self.vm.host.signal)
     }
 
     // --- Termination ---

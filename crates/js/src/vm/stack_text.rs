@@ -187,7 +187,11 @@ impl Runtime {
     fn is_toplevel_receiver(&self, this: Value) -> bool {
         match this {
             Value::Undefined | Value::Null | Value::Empty => true,
-            Value::Object(object) => self.vm.realms.iter().any(|realm| realm.global == object),
+            Value::Object(object) => self
+                .vm
+                .realms
+                .iter()
+                .any(|realm| realm.global == object || realm.global_this == object),
             _ => false,
         }
     }

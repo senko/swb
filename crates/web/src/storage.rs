@@ -347,7 +347,13 @@ fn store(rt: &mut Runtime) -> b::Result<SharedStorage> {
 /// A `SecurityError` if the document has no storage.
 pub(crate) fn storage_object(cx: &mut Cx<'_>, kind: StorageKind) -> b::Result<Gc<Object>> {
     let slot = kind as usize;
-    if let Some(object) = state(cx.rt)?.storage_objects.get(slot).copied().flatten() {
+    if let Some(object) = state(cx.rt)?
+        .doc
+        .storage_objects
+        .get(slot)
+        .copied()
+        .flatten()
+    {
         return Ok(object);
     }
     let url = engine(cx.rt)?.url();
@@ -357,7 +363,7 @@ pub(crate) fn storage_object(cx: &mut Cx<'_>, kind: StorageKind) -> b::Result<Gc
         origin: Rc::from(origin),
     })?;
     let object = cx.rt.new_host_object(cx.realm(), g::STORAGE, data)?;
-    if let Some(entry) = state_mut(cx.rt)?.storage_objects.get_mut(slot) {
+    if let Some(entry) = state_mut(cx.rt)?.doc.storage_objects.get_mut(slot) {
         *entry = Some(object);
     }
     Ok(object)

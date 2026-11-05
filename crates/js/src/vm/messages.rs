@@ -219,7 +219,7 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> Option<Value> {
-        let mut current = Some(object);
+        let mut current = Some(self.through_window_proxy(object));
         for _ in 0..CHAIN_LIMIT {
             let object = current?;
             match self.heap.get_own_property(object, key) {
@@ -326,6 +326,14 @@ impl Runtime {
     /// The text of an object in messages (V8 shows the constructor name;
     /// the global object as Node.js shows it).
     pub(crate) fn object_text(&self, object: Gc<Object>) -> String {
+        // A `WindowProxy` shows as its target; the host's messages of one
+        // without a target name no object.
+        if let Ok(ObjectKind::WindowProxy(slot)) = self.heap.object(object).map(|o| &o.kind) {
+            return match slot.target() {
+                Some(target) => self.object_text(target),
+                None => "#<Object>".to_owned(),
+            };
+        }
         let host = matches!(
             self.heap.object(object).map(|o| &o.kind),
             Ok(ObjectKind::Host(_) | ObjectKind::HostExotic(_))

@@ -128,9 +128,15 @@ pub(crate) fn kind_of(rt: &Runtime, object: Gc<Object>) -> VmResult<TargetKind> 
     let illegal = || VmError::type_error("Illegal invocation");
     let (_, data) = rt.host_object(value).ok_or_else(illegal)?;
     if rt.implements(value, g::NODE) {
-        return b::node_of(data).map(TargetKind::Node).ok_or_else(illegal);
+        return b::node_here(rt, data)
+            .map(TargetKind::Node)
+            .ok_or_else(illegal);
     }
     if rt.implements(value, g::WINDOW) {
+        // The list of `TargetKind::Window` is the current document's.
+        if rt.host_flag() && rt.host_object_realm(value) != crate::state::doc_realm(rt).ok() {
+            return Err(illegal());
+        }
         return Ok(TargetKind::Window);
     }
     match data {
@@ -149,11 +155,12 @@ pub(crate) fn listeners_of(
 ) -> VmResult<Vec<std::rc::Rc<Listener>>> {
     Ok(match target {
         TargetKind::Node(node) => state(rt)?
+            .doc
             .listeners
             .get(&node)
             .map(|l| l.of_type(kind))
             .unwrap_or_default(),
-        TargetKind::Window => state(rt)?.window_listeners.of_type(kind),
+        TargetKind::Window => state(rt)?.doc.window_listeners.of_type(kind),
         TargetKind::Constructed(handle) => rt
             .heap()
             .generic::<TargetData>(handle)?
@@ -170,8 +177,8 @@ pub(crate) fn with_listeners<R>(
     f: impl FnOnce(&mut Listeners) -> R,
 ) -> VmResult<R> {
     Ok(match target {
-        TargetKind::Node(node) => f(state_mut(rt)?.listeners.entry(node).or_default()),
-        TargetKind::Window => f(&mut state_mut(rt)?.window_listeners),
+        TargetKind::Node(node) => f(state_mut(rt)?.doc.listeners.entry(node).or_default()),
+        TargetKind::Window => f(&mut state_mut(rt)?.doc.window_listeners),
         TargetKind::Constructed(handle) => {
             f(&mut rt.heap_mut().generic_mut::<TargetData>(handle)?.listeners)
         }
@@ -207,7 +214,7 @@ pub(super) fn default_passive(rt: &Runtime, target: TargetKind, kind: &str) -> V
 /// The listeners on the nodes and the window of the document.
 fn document_listeners(rt: &Runtime) -> VmResult<usize> {
     let state = state(rt)?;
-    Ok(state.listener_count)
+    Ok(state.doc.listener_count)
 }
 
 impl g::event_target::EventTargetImpl for WebState {
@@ -264,7 +271,7 @@ impl g::event_target::EventTargetImpl for WebState {
         };
         let added = with_listeners(cx.rt, target, |list| list.add(&kind, listener))?;
         if added && in_document {
-            state_mut(cx.rt)?.listener_count += 1;
+            state_mut(cx.rt)?.doc.listener_count += 1;
         }
         if let TargetKind::Constructed(_) = target {
             crate::media_queries::register(cx.rt, this.object)?;
@@ -341,13 +348,18 @@ pub(crate) fn remove(
     let removed = with_listeners(rt, target, f)?;
     if let TargetKind::Node(node) = target {
         let state = state_mut(rt)?;
-        if state.listeners.get(&node).is_some_and(Listeners::is_empty) {
-            state.listeners.remove(&node);
+        if state
+            .doc
+            .listeners
+            .get(&node)
+            .is_some_and(Listeners::is_empty)
+        {
+            state.doc.listeners.remove(&node);
         }
     }
     if removed && !matches!(target, TargetKind::Constructed(_)) {
         let state = state_mut(rt)?;
-        state.listener_count = state.listener_count.saturating_sub(1);
+        state.doc.listener_count = state.doc.listener_count.saturating_sub(1);
     }
     Ok(removed)
 }

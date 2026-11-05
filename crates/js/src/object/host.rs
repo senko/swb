@@ -1,6 +1,7 @@
 //! The slot of a host object (ADR 0026 section 12, ADR 0028 sections 4
-//! and 6): the class of the object and its host data, a word or a handle
-//! of generic data, in 12 bytes, so that [`ObjectKind`] stays at 16 bytes.
+//! and 6): the class of the object, its realm and its host data, a word or
+//! a handle of generic data, in 12 bytes, so that [`ObjectKind`] stays at
+//! 16 bytes.
 //!
 //! A host object of a class without hooks is [`ObjectKind::Host`]: its
 //! internal methods are the ordinary ones, and the inline caches treat it
@@ -9,6 +10,9 @@
 //! runtime dispatches its internal methods to the hooks (`host/hooks.rs`),
 //! the heap's walks return `Generic` at it, as at a proxy, and the caches
 //! never store it.
+//!
+//! The realm is Web IDL's "relevant realm" of the object: a host finds the
+//! document of a platform object with it (ADR 0031 section 5).
 
 use crate::error::{Error, Result};
 use crate::heap::{Gc, Generic, Heap};
@@ -16,6 +20,18 @@ use crate::object::{Object, ObjectKind};
 
 /// The bit of [`HostSlot::tag`] that marks the data as generic data.
 const GENERIC_BIT: u32 = 1 << 31;
+
+/// The bits of [`HostSlot::tag`] below the realm: the class number
+/// (the registry has at most 2^20 classes, `host/mod.rs`).
+const CLASS_BITS: u32 = 20;
+
+/// The mask of the class number in [`HostSlot::tag`].
+const CLASS_MASK: u32 = (1 << CLASS_BITS) - 1;
+
+/// The most realms with host objects in a runtime (the bits of
+/// [`HostSlot::tag`] between the class and [`GENERIC_BIT`]). The browser's
+/// budget is 256 realms (ADR 0031 section 11).
+pub(crate) const MAX_HOST_REALMS: u32 = 1 << 11;
 
 /// The host data of a host object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,38 +44,51 @@ pub enum HostData {
     Generic(Gc<Generic>),
 }
 
-/// The class and the host data of a host object (the payload of
+/// The class, the realm and the host data of a host object (the payload of
 /// [`ObjectKind::Host`] and [`ObjectKind::HostExotic`]; the runtime's
 /// `host_object` reads it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HostSlot {
-    /// The class number, with [`GENERIC_BIT`] for generic data.
+    /// The class number, the realm above it, and [`GENERIC_BIT`] for
+    /// generic data.
     tag: u32,
     /// The word, or the index and the generation of the generic data.
     data: [u32; 2],
 }
 
 impl HostSlot {
-    /// The slot of an object of class `class` (below 2^31) with `data`.
-    pub(crate) fn new(class: u32, data: HostData) -> Result<HostSlot> {
-        if class & GENERIC_BIT != 0 {
-            return Err(Error::invariant("a host class number of 2^31 or more"));
+    /// The slot of an object of class `class` (below 2^20) in `realm`
+    /// (below 2^11) with `data`.
+    pub(crate) fn new(class: u32, realm: u32, data: HostData) -> Result<HostSlot> {
+        if class > CLASS_MASK {
+            return Err(Error::invariant("a host class number of 2^20 or more"));
         }
+        if realm >= MAX_HOST_REALMS {
+            return Err(Error::invariant("a host object in a realm of 2^11 or more"));
+        }
+        let tag = class | (realm << CLASS_BITS);
         Ok(match data {
             HostData::Word(word) => HostSlot {
-                tag: class,
+                tag,
                 data: [word as u32, (word >> 32) as u32],
             },
             HostData::Generic(generic) => HostSlot {
-                tag: class | GENERIC_BIT,
+                tag: tag | GENERIC_BIT,
                 data: [generic.index(), generic.generation()],
             },
         })
     }
 
     /// The class number.
+    #[inline]
     pub(crate) fn class(self) -> u32 {
-        self.tag & !GENERIC_BIT
+        self.tag & CLASS_MASK
+    }
+
+    /// The realm of the object.
+    #[inline]
+    pub(crate) fn realm(self) -> u32 {
+        (self.tag & !GENERIC_BIT) >> CLASS_BITS
     }
 
     /// The host data.
@@ -92,7 +121,7 @@ impl Heap {
         class: u32,
         data: Gc<Generic>,
     ) -> Result<Gc<Object>> {
-        let slot = HostSlot::new(class, HostData::Generic(data))?;
+        let slot = HostSlot::new(class, 0, HostData::Generic(data))?;
         self.new_host_object_with_slot(proto, slot, false)
     }
 
@@ -114,23 +143,37 @@ impl Heap {
         self.new_object_with_kind(proto, kind)
     }
 
-    /// The host slot of an object, if it is a host object.
-    #[inline]
+    /// The host slot of an object, if it is a host object or a `WindowProxy`
+    /// with a target, which stands for its target here (the brand checks of
+    /// Web IDL unwrap it, ADR 0031 section 5).
+    #[allow(
+        clippy::inline_always,
+        reason = "a brand check of each native: measured, ADR 0031 section 5"
+    )]
+    #[inline(always)]
     pub(crate) fn host_slot(&self, object: Gc<Object>) -> Result<Option<HostSlot>> {
         Ok(match self.object(object)?.kind {
             ObjectKind::Host(slot) | ObjectKind::HostExotic(slot) => Some(slot),
+            ObjectKind::WindowProxy(proxy) => match proxy.target() {
+                Some(target) => match self.object(target)?.kind {
+                    ObjectKind::Host(slot) | ObjectKind::HostExotic(slot) => Some(slot),
+                    _ => None,
+                },
+                None => None,
+            },
             _ => None,
         })
     }
 
     /// Whether the internal methods of `object` need the runtime because
-    /// they can run script code: a proxy, or a host object whose class has
-    /// hooks. Such an object takes the generic paths of the runtime.
+    /// they can run script code: a proxy, a `WindowProxy`, or a host object
+    /// whose class has hooks. Such an object takes the generic paths of the
+    /// runtime.
     #[inline]
     pub(crate) fn needs_runtime(&self, object: Gc<Object>) -> Result<bool> {
         Ok(matches!(
             self.object(object)?.kind,
-            ObjectKind::Proxy(_) | ObjectKind::HostExotic(_)
+            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_)
         ))
     }
 }
@@ -141,16 +184,19 @@ mod tests {
 
     #[test]
     fn a_slot_keeps_its_class_and_data() {
-        let word = HostSlot::new(7, HostData::Word(u64::MAX - 5)).unwrap();
+        let word = HostSlot::new(7, 3, HostData::Word(u64::MAX - 5)).unwrap();
         assert_eq!(word.class(), 7);
+        assert_eq!(word.realm(), 3);
         assert_eq!(word.data(), HostData::Word(u64::MAX - 5));
         assert_eq!(word.generic(), None);
         let handle = Gc::new(12, 34);
-        let generic = HostSlot::new(9, HostData::Generic(handle)).unwrap();
+        let generic = HostSlot::new(9, 2047, HostData::Generic(handle)).unwrap();
         assert_eq!(generic.class(), 9);
+        assert_eq!(generic.realm(), 2047);
         assert_eq!(generic.data(), HostData::Generic(handle));
         assert_eq!(generic.generic(), Some(handle));
-        assert!(HostSlot::new(GENERIC_BIT, HostData::Word(0)).is_err());
+        assert!(HostSlot::new(CLASS_MASK + 1, 0, HostData::Word(0)).is_err());
+        assert!(HostSlot::new(0, MAX_HOST_REALMS, HostData::Word(0)).is_err());
         assert_eq!(size_of::<HostSlot>(), 12);
         assert_eq!(size_of::<ObjectKind>(), 16);
     }

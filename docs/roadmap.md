@@ -4385,7 +4385,21 @@ Steps:
        `compare --js` unchanged. `mouse_move` on pages without frames: no
        change in instructions. Departures in ADR 0031 section 8.
    12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
-       ADR 0031 feature 4).
+       ADR 0031 feature 4). Two parts:
+       - 12a. Done 2026-11-05: the plumbing, with one document per runtime.
+         `js`: public realms, the global this value, `ObjectKind::WindowProxy`
+         and an inline cache entry that names its target, natives run in
+         their own realm. `web`: the top-level window behind a proxy, and
+         `WebState` split into the agent's part and `DocState`, with a
+         switch of one comparison on the common path. No page changes,
+         except `Object.freeze(window)`, which now throws as in Chromium.
+         `window.x` reads and writes are now cached (0.48 and 0.32 of the
+         old time). test262 unchanged. JS off: snapshot identical. JS on:
+         `compare --js` unchanged.
+       - 12b. Scripts in same-origin frame documents, `contentWindow`,
+         `contentDocument`, `frames`, index and named access, `parent`,
+         `top`, `frameElement`, `opener`, `name`, synchronous `about:blank`,
+         adoption across arenas, events in frames.
    13. Runtimes per origin and cross-origin objects
        (`implementer-hard`; ADR 0031 feature 5).
    14. Messaging and storage across documents (`implementer`; ADR 0031

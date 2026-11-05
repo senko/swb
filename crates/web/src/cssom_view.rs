@@ -508,14 +508,7 @@ pub(crate) fn scroll_position(rt: &mut Runtime) -> b::Result<(f64, f64)> {
 
 /// `window.screen`: one object per window, made at the first access.
 pub(crate) fn screen(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    let realm = cx.realm();
-    crate::state::window_object(
-        cx,
-        realm,
-        |s| &mut s.screen,
-        g::SCREEN,
-        crate::state::no_data,
-    )
+    crate::state::window_object(cx, |d| &mut d.screen, g::SCREEN, crate::state::no_data)
 }
 
 impl g::screen::ScreenImpl for WebState {
@@ -554,11 +547,9 @@ impl g::screen::ScreenImpl for WebState {
     /// `screen.orientation` (Screen Orientation): one object per window.
     fn orientation(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
         // An `EventTarget` keeps its listeners in its data.
-        let realm = cx.realm();
         crate::state::window_object(
             cx,
-            realm,
-            |s| &mut s.screen_orientation,
+            |d| &mut d.screen_orientation,
             g::SCREEN_ORIENTATION,
             crate::state::target_data,
         )

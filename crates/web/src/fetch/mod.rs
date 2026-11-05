@@ -149,9 +149,9 @@ fn stream_body(rt: &mut Runtime, has_body: bool) {
         return;
     }
     if let Ok(state) = state_mut(rt)
-        && !state.fetches.stream_warned
+        && !state.doc.fetches.stream_warned
     {
-        state.fetches.stream_warned = true;
+        state.doc.fetches.stream_warned = true;
         log::warn!("Request.body and Response.body are null: swb has no streams");
     }
 }
@@ -204,7 +204,7 @@ fn fetch_impl(cx: &mut Cx<'_>, input: Value, init: RequestInit) -> b::Result<Gc<
         return Ok(promise);
     };
     crate::abort::register_fetch(cx.rt, request.signal, id)?;
-    state_mut(cx.rt)?.fetches.pending.insert(
+    state_mut(cx.rt)?.doc.fetches.pending.insert(
         id,
         Pending {
             promise,
@@ -224,16 +224,16 @@ pub(crate) fn complete(
     result: Result<swb_net::Response, swb_net::NetError>,
     kind: swb_net::ResponseKind,
 ) -> VmResult<()> {
-    if let Some(size) = state_mut(rt)?.fetches.beacons.remove(&id) {
+    if let Some(size) = state_mut(rt)?.doc.fetches.beacons.remove(&id) {
         // A beacon has no handler; the quota returns.
         let state = state_mut(rt)?;
-        state.beacon_bytes = state.beacon_bytes.saturating_sub(size);
+        state.doc.beacon_bytes = state.doc.beacon_bytes.saturating_sub(size);
         return Ok(());
     }
-    if let Some(xhr) = state_mut(rt)?.fetches.xhrs.remove(&id) {
+    if let Some(xhr) = state_mut(rt)?.doc.fetches.xhrs.remove(&id) {
         return crate::xhr::completed(rt, xhr, id, result);
     }
-    let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
+    let Some(pending) = state_mut(rt)?.doc.fetches.pending.remove(&id) else {
         // Aborted before.
         return Ok(());
     };
@@ -309,9 +309,9 @@ pub(crate) fn start_request(rt: &mut Runtime, request: swb_net::Request) -> VmRe
     };
     if let Local::Blob { bytes, .. } = &local {
         let state = state_mut(rt)?;
-        if state.fetches.local_blobs >= MAX_LOCAL_BLOBS {
-            if !state.fetches.local_warned {
-                state.fetches.local_warned = true;
+        if state.doc.fetches.local_blobs >= MAX_LOCAL_BLOBS {
+            if !state.doc.fetches.local_warned {
+                state.doc.fetches.local_warned = true;
                 log::warn!("too many requests of Blob URLs wait: {MAX_LOCAL_BLOBS}");
             }
             return Ok(None);
@@ -334,13 +334,13 @@ pub(crate) fn finish_locally(
 
 fn queue_local(rt: &mut Runtime, local: Local) -> VmResult<u64> {
     let state = state_mut(rt)?;
-    state.fetches.next_local += 1;
-    let id = LOCAL_BASE + state.fetches.next_local;
+    state.doc.fetches.next_local += 1;
+    let id = LOCAL_BASE + state.doc.fetches.next_local;
     if matches!(local, Local::Blob { .. }) {
-        state.fetches.local_blobs += 1;
+        state.doc.fetches.local_blobs += 1;
     }
-    state.fetches.local.insert(id, local);
-    let due = state.clock.page_now();
+    state.doc.fetches.local.insert(id, local);
+    let due = state.doc.clock.page_now();
     state
         .event_loop
         .tasks
@@ -371,13 +371,13 @@ fn blob_response(
 /// The task of a request that did not go to the network.
 pub(crate) fn local_completed(rt: &mut Runtime, id: u64) -> VmResult<()> {
     let state = state_mut(rt)?;
-    let Some(local) = state.fetches.local.remove(&id) else {
+    let Some(local) = state.doc.fetches.local.remove(&id) else {
         return Ok(());
     };
     let result = match local {
         Local::Done(result) => result,
         Local::Blob { url, bytes, kind } => {
-            state.fetches.local_blobs = state.fetches.local_blobs.saturating_sub(1);
+            state.doc.fetches.local_blobs = state.doc.fetches.local_blobs.saturating_sub(1);
             // The copy happens here, one request at a time; its owner (an
             // XHR or a `Response`) charges it to the heap.
             let response = blob_response(url, &bytes, kind);
@@ -391,7 +391,7 @@ pub(crate) fn local_completed(rt: &mut Runtime, id: u64) -> VmResult<()> {
 /// The signal of the call `id` aborted: rejects its promise with `reason`
 /// and tells the engine to drop the request.
 pub(crate) fn abort_fetch(rt: &mut Runtime, id: u64, reason: Value) -> VmResult<()> {
-    let Some(pending) = state_mut(rt)?.fetches.pending.remove(&id) else {
+    let Some(pending) = state_mut(rt)?.doc.fetches.pending.remove(&id) else {
         return Ok(());
     };
     if let Ok(host) = engine_mut(rt) {

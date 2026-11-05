@@ -8,7 +8,7 @@
 //! `--host-global` (with `--only`) runs them with a global object as the
 //! browser makes it (ADR 0028 section 4): a host object of class `Window`
 //! with 300 more own properties and a prototype chain with an exotic
-//! named properties object.
+//! named properties object, behind a `WindowProxy` (ADR 0031 section 5).
 //!
 //! `cargo run --release -p swb-js --example vm_bench [-- --print-js | --only TEXT [--host-global]]`
 
@@ -117,6 +117,26 @@ const PROGRAMS: &[(&str, &str)] = &[
         "global: 3 reads of globals per step, 5M steps",
         "var step = 1;
          function run() { var s = 0; for (var i = 0; i < 5000000; i++) { s += step; if (Math === undefined) s = 0; } return s; }",
+    ),
+    (
+        "window: read of window.x, 5M times",
+        "globalThis.winx = 1; var win = globalThis;
+         function run() { var w = win; var s = 0; for (var i = 0; i < 5000000; i++) { s += w.winx; } return s; }",
+    ),
+    (
+        "window: write of window.x, 5M times",
+        "globalThis.winx = 1; var win = globalThis;
+         function run() { var w = win; for (var i = 0; i < 5000000; i++) { w.winx = i; } return w.winx; }",
+    ),
+    (
+        "window: call of window.f(), 3M times",
+        "globalThis.winf = function (a) { return a + 1; }; var win = globalThis;
+         function run() { var w = win; var s = 0; for (var i = 0; i < 3000000; i++) { s = w.winf(s); } return s; }",
+    ),
+    (
+        "window: this of a sloppy function, 3M calls",
+        "function me() { return this; }
+         function run() { var o; for (var i = 0; i < 3000000; i++) { o = me(); } return o === globalThis; }",
     ),
     (
         "string: indexOf 1M calls",
@@ -685,10 +705,12 @@ fn host_global(rt: &mut Runtime) -> VmResult<()> {
         rt.define_value(global, name, object.into(), Attributes::HIDDEN)?;
     }
     let properties =
-        rt.new_host_object_with_proto(Some(base.prototype), named, HostData::Word(0))?;
+        rt.new_host_object_with_proto(0, Some(base.prototype), named, HostData::Word(0))?;
     rt.heap_mut()
         .set_prototype_of(interface.prototype, Some(properties))?;
     rt.init_global(0, window, HostData::Word(0))?;
+    let proxy = rt.new_window_proxy(0, Some(global))?;
+    rt.set_global_this(0, proxy)?;
     rt.eval("for (var k = 0; k < 300; k++) globalThis['p' + k] = k;")
         .map(|_| ())
         .map_err(|error| swb_js::VmError::type_error(error.to_string()))

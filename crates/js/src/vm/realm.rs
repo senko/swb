@@ -276,6 +276,11 @@ impl GlobalLexicals {
 pub(crate) struct Realm {
     /// The global object (in a browser, behind `WindowProxy`).
     pub(crate) global: Gc<Object>,
+    /// `[[GlobalThisValue]]` (§9.3.1 `SetDefaultGlobalBindings`): the value
+    /// of global `this`, `globalThis` and the `this` of a sloppy function
+    /// called with `undefined`. The global object unless the host sets
+    /// another ([`Runtime::set_global_this`]).
+    pub(crate) global_this: Gc<Object>,
     /// `None` for the two intrinsics that exist only after the built-in
     /// functions are installed, until `set_intrinsic` runs.
     intrinsics: [Option<Gc<Object>>; INTRINSIC_COUNT],
@@ -302,6 +307,7 @@ pub(crate) struct Realm {
 impl Realm {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         tracer.object(self.global);
+        tracer.object(self.global_this);
         for object in self.intrinsics.iter().flatten() {
             tracer.object(*object);
         }
@@ -406,10 +412,51 @@ impl Runtime {
             .ok_or(VmError::invariant("a realm index without a realm"))
     }
 
+    /// `[[GlobalThisValue]]` of a realm.
+    pub fn global_this(&self, realm: u32) -> VmResult<Gc<Object>> {
+        self.vm
+            .realms
+            .get(realm as usize)
+            .map(|r| r.global_this)
+            .ok_or(VmError::invariant("a realm index without a realm"))
+    }
+
+    /// Sets `[[GlobalThisValue]]` of a realm (HTML "set up a window
+    /// environment settings object"): the realm's `WindowProxy`, or its
+    /// global object. It also becomes the value of the property `globalThis`
+    /// of the global object. Call it before any script of the realm runs.
+    /// Global name lookups still go to the global object.
+    pub fn set_global_this(&mut self, realm: u32, object: Gc<Object>) -> VmResult<()> {
+        let global = self.global_object(realm)?;
+        if object != global && self.heap.window_proxy(object)?.is_none() {
+            return Err(VmError::invariant(
+                "a global this value that is no WindowProxy",
+            ));
+        }
+        if let Some(record) = self.vm.realms.get_mut(realm as usize) {
+            record.global_this = object;
+        }
+        let key = self.heap.key_from_str("globalThis")?;
+        self.define(global, key, object.into(), true, false, true)
+    }
+
+    /// The realm whose global object is `object`.
+    pub(crate) fn realm_of_global(&self, object: Gc<Object>) -> Option<u32> {
+        self.vm
+            .realms
+            .iter()
+            .position(|realm| realm.global == object)
+            .map(|index| index as u32)
+    }
+
     /// Creates a realm with its intrinsics and global object (§9.3.1
     /// `InitializeHostDefinedRealm`) and returns its index. Runs in a no-GC
-    /// region: nothing of the realm is rooted until it is complete.
-    pub(crate) fn create_realm(&mut self) -> VmResult<u32> {
+    /// region: nothing of the realm is rooted until it is complete. Fails at
+    /// the most realms that a host object can name.
+    pub fn create_realm(&mut self) -> VmResult<u32> {
+        if self.vm.realms.len() >= crate::object::MAX_HOST_REALMS as usize {
+            return Err(VmError::type_error("too many realms"));
+        }
         let depth = self.heap.no_gc_depth();
         self.heap.enter_no_gc();
         let result = self.build_realm();
@@ -551,6 +598,7 @@ impl Runtime {
         }
         let realm = Realm {
             global,
+            global_this: global,
             intrinsics,
             lexical: GlobalLexicals::default(),
             regexp: crate::object::RegExpRealm::default(),

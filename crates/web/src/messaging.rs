@@ -131,7 +131,7 @@ pub(crate) fn post(
         return Err(error);
     }
     message_port::hold_for_window(cx.rt, record.ports());
-    let messages = &mut state_mut(cx.rt)?.messages;
+    let messages = &mut state_mut(cx.rt)?.doc.messages;
     messages.queue.push_back(Posted {
         record,
         bytes,
@@ -146,7 +146,7 @@ pub(crate) fn post(
 /// not the document's origin now (step 7.1 of the "message" task), else
 /// fires `message` at the window.
 pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
-    let messages = &mut state_mut(rt)?.messages;
+    let messages = &mut state_mut(rt)?.doc.messages;
     let Some(posted) = messages.queue.pop_front() else {
         return Ok(());
     };
@@ -165,7 +165,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
     }
     // The spec fires `messageerror` when the data cannot be deserialized.
     // The record is made in this runtime, so only a heap limit fails here.
-    let Ok((data, ports)) = deserialize_with_ports(rt, 0, &posted.record) else {
+    let realm = crate::state::doc_realm(rt)?;
+    let Ok((data, ports)) = deserialize_with_ports(rt, realm, &posted.record) else {
         // The ports of the record are not delivered: close them.
         message_port::release_ports(rt, posted.record.ports());
         return Err(VmError::type_error(
@@ -173,7 +174,7 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
         ));
     };
     b::keep(rt, data);
-    let window = rt.global(0)?;
+    let window = crate::state::window_proxy(rt)?;
     let other = Other::Message {
         data,
         origin: posted.origin,

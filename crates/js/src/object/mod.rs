@@ -38,6 +38,7 @@ mod table;
 mod typed_array;
 mod typed_window;
 mod weak;
+mod window_proxy;
 
 pub(crate) use arguments::ArgumentsTemplate;
 pub(crate) use array::{BIGINT_LENGTH, INVALID_ARRAY_LENGTH, length_write_message};
@@ -55,7 +56,7 @@ pub(crate) const LITERAL_KEY_LIMIT: usize = shape::DICTIONARY_LIMIT as usize;
 pub(crate) use collection::CollectionIterator;
 pub(crate) use element_access::{ChainSearch, DenseArray, FIRST_NAMED_INDEX};
 pub use host::HostData;
-pub(crate) use host::HostSlot;
+pub(crate) use host::{HostSlot, MAX_HOST_REALMS};
 pub(crate) use iterator_helper::{HelperOp, HelperStatus};
 pub(crate) use iterator_helper::{IteratorHelper, WrappedIterator};
 pub use ops::{GetResult, SetResult};
@@ -73,6 +74,7 @@ pub(crate) use typed_array::load;
 pub(crate) use typed_window::mask;
 pub(crate) use weak::WeakKey;
 pub(crate) use weak::{Registry, WeakRefData};
+pub(crate) use window_proxy::WindowProxySlot;
 
 pub(crate) use elements::Elements;
 pub(crate) use shape::{ShapeKind, Transition};
@@ -194,10 +196,15 @@ pub enum ObjectKind {
     /// A Proxy exotic object (§10.5): its target and handler (`proxy.rs`;
     /// the internal methods are in `vm/proxy.rs`).
     Proxy(Box<ProxyData>),
+    /// A `WindowProxy` exotic object (HTML §7.2.3): the host's frame id and
+    /// an optional target, the global object of a realm (`window_proxy.rs`;
+    /// the internal methods are in `vm/window_proxy.rs`). (Next to `Proxy`:
+    /// `Heap::is_proxy_like` tests both with one comparison.)
+    WindowProxy(WindowProxySlot),
     /// A typed array (§10.4.5, §23.2): its buffer, offset, length and
     /// element type (`typed_array.rs`). Its elements are not stored in the
-    /// object. (Next to `Proxy`: [`ObjectKind::walks_exotic`] tests both
-    /// with one comparison.)
+    /// object. (Next to `WindowProxy`: [`ObjectKind::walks_exotic`] tests
+    /// the three with one comparison.)
     TypedArray(Box<TypedArrayData>),
     /// A host object of a class with hooks for its internal methods
     /// (`host/hooks.rs`): the runtime calls them, as it calls the traps of
@@ -310,6 +317,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::PrivateEnvironment(_) => "PrivateEnvironment",
             ObjectKind::Environment(_) => "Environment",
             ObjectKind::Proxy(_) => "Proxy",
+            ObjectKind::WindowProxy(_) => "WindowProxy",
             ObjectKind::WeakMap(_) => "WeakMap",
             ObjectKind::WeakSet(_) => "WeakSet",
             ObjectKind::WeakRef(_) => "WeakRef",
@@ -326,15 +334,18 @@ impl fmt::Debug for ObjectKind {
 impl ObjectKind {
     /// Whether the walks of the heap's `[[Get]]`, `[[Set]]` and
     /// `[[HasProperty]]` along the prototype chain must look at this kind
-    /// before its stored properties: a proxy or a host object with hooks
-    /// (which run script code) or a typed array (whose numeric keys end the
-    /// walk). The hot paths test this first and handle these kinds out of
-    /// line.
+    /// before its stored properties: a proxy, a `WindowProxy` or a host
+    /// object with hooks (which run script code or forward to another
+    /// object) or a typed array (whose numeric keys end the walk). The hot
+    /// paths test this first and handle these kinds out of line.
     #[inline]
     pub(crate) fn walks_exotic(&self) -> bool {
         matches!(
             self,
-            ObjectKind::Proxy(_) | ObjectKind::TypedArray(_) | ObjectKind::HostExotic(_)
+            ObjectKind::Proxy(_)
+                | ObjectKind::WindowProxy(_)
+                | ObjectKind::TypedArray(_)
+                | ObjectKind::HostExotic(_)
         )
     }
 
@@ -346,6 +357,7 @@ impl ObjectKind {
             self,
             ObjectKind::StringWrapper(_)
                 | ObjectKind::Proxy(_)
+                | ObjectKind::WindowProxy(_)
                 | ObjectKind::TypedArray(_)
                 | ObjectKind::HostExotic(_)
         )
@@ -421,6 +433,7 @@ impl ObjectKind {
             ObjectKind::Promise(state) => state.trace(tracer),
             ObjectKind::ArrayFromAsync(state) => state.trace(tracer),
             ObjectKind::Proxy(data) => data.trace(tracer),
+            ObjectKind::WindowProxy(slot) => slot.trace(tracer),
             ObjectKind::WeakMap(_) => tracer.weak_map(index),
             ObjectKind::WeakSet(_) => tracer.weak_set(index),
             ObjectKind::WeakRef(_) => tracer.weak_holder(index),

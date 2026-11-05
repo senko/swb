@@ -26,9 +26,16 @@
 //!   shape (which fixes its first prototype), every object on the path
 //!   has the keys, attributes and prototype of the walk, so the walk
 //!   would find the same holder and slot.
+//! - A `WindowProxy` receiver: its target, by identity, and the epoch
+//!   ([`SiteCache::WindowProperty`]). The target and the objects of its
+//!   chain are watched, so a dictionary shape needs no shape check, as for
+//!   the global entries (a `Window` has a dictionary shape). A navigation
+//!   changes the target of the proxy, so the entry misses, and the old
+//!   holder stays out of reach.
 //! - Kinds: the shape does not fix the kind of an object (an array and
-//!   `Object.create(Array.prototype)` share the root shape). Proxies and
-//!   host objects with hooks never match (host objects without hooks are
+//!   `Object.create(Array.prototype)` share the root shape). Proxies,
+//!   `WindowProxy` objects and host objects with hooks never match the
+//!   shape entries (host objects without hooks are
 //!   ordinary objects with a class: wrappers, the global object); a typed
 //!   array matches an entry of the
 //!   chain only when the walk proved that the key is not a canonical
@@ -41,7 +48,7 @@
 
 use crate::error::Result;
 use crate::heap::{Gc, Heap, RootSource};
-use crate::object::{GetResult, Object, ObjectKind, Property, Shape, ShapeKind};
+use crate::object::{GetResult, Object, ObjectKind, Property, Shape, ShapeKind, WindowProxySlot};
 use crate::string::PropertyKey;
 use crate::value::Value;
 
@@ -112,6 +119,18 @@ pub(crate) enum SiteCache {
         accessor: bool,
         epoch: u32,
     },
+    /// A property of the target of a `WindowProxy` receiver or of the
+    /// target's prototype chain: `holder` at `slot`, a data value (a write:
+    /// `holder` is the target and the property is writable) or an accessor.
+    /// Valid while the receiver has the target `target` and the epoch is
+    /// unchanged; the receiver of a getter or setter is the proxy.
+    WindowProperty {
+        target: Gc<Object>,
+        holder: Gc<Object>,
+        slot: u32,
+        accessor: bool,
+        epoch: u32,
+    },
     /// A data property of the prototype object of a primitive kind
     /// (`"abc".slice`, `n.toFixed`): the object `holder` (the
     /// `String.prototype` or `Number.prototype` of the realm that runs)
@@ -139,7 +158,8 @@ impl SiteCache {
             | SiteCache::Absent { epoch, .. }
             | SiteCache::TypedLength { epoch, .. }
             | SiteCache::Add { epoch, .. }
-            | SiteCache::GlobalProperty { epoch, .. } => epoch == u32::MAX,
+            | SiteCache::GlobalProperty { epoch, .. }
+            | SiteCache::WindowProperty { epoch, .. } => epoch == u32::MAX,
             _ => false,
         }
     }
@@ -156,6 +176,8 @@ pub(crate) enum SetPlan {
     /// Add a data property to the receiver (it is extensible and
     /// ordinary, the chain has no setter and no read-only property).
     Add,
+    /// Write this slot of the target of a `WindowProxy` receiver.
+    TargetSlot { target: Gc<Object>, slot: u32 },
     /// Anything else: the general `[[Set]]`.
     General,
 }
@@ -165,7 +187,10 @@ pub(crate) enum SetPlan {
 /// objects with hooks have their own internal methods (ADR 0028 section 6).
 #[inline]
 fn own_cacheable(kind: &ObjectKind) -> bool {
-    !matches!(kind, ObjectKind::Proxy(_) | ObjectKind::HostExotic(_))
+    !matches!(
+        kind,
+        ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_)
+    )
 }
 
 /// Whether an object of this kind can match an entry of its prototype
@@ -173,7 +198,7 @@ fn own_cacheable(kind: &ObjectKind) -> bool {
 #[inline]
 fn chain_cacheable(kind: &ObjectKind, typed: bool) -> bool {
     match kind {
-        ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => false,
+        ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => false,
         ObjectKind::TypedArray(_) => typed,
         _ => true,
     }
@@ -377,8 +402,78 @@ impl Heap {
                 let getter = self.object(holder)?.slots.get(slot as usize).copied();
                 getter.map(|getter| getter_result(getter, receiver))
             }
+            SiteCache::WindowProperty {
+                target,
+                holder,
+                slot,
+                accessor,
+                epoch,
+            } if epoch == self.watch_epoch => match record.kind {
+                ObjectKind::WindowProxy(proxy) if proxy.target() == Some(target) => {
+                    let value = self.object(holder)?.slots.get(slot as usize).copied();
+                    match value {
+                        Some(getter) if accessor => Some(getter_result(getter, receiver)),
+                        // No entry is made for a lazy value and no slot gets
+                        // one back; a miss is the safe answer anyway.
+                        Some(value) if !value.is_lazy() => Some(GetResult::Value(value)),
+                        Some(_) | None => None,
+                    }
+                }
+                _ => None,
+            },
             _ => None,
         })
+    }
+
+    /// The cache entry for the property `key` of the target of a `WindowProxy`
+    /// receiver, for a read or a write: a walk of the target's chain as far
+    /// as the caches can follow it. `Empty` without a target, without a
+    /// property, or when the walk meets an object that a cache cannot follow.
+    fn window_entry(
+        &self,
+        proxy: WindowProxySlot,
+        key: PropertyKey,
+        write: bool,
+    ) -> Result<SiteCache> {
+        let Some(target) = proxy.target() else {
+            return Ok(SiteCache::Empty);
+        };
+        if matches!(key, PropertyKey::Index(_)) {
+            return Ok(SiteCache::Empty);
+        }
+        let mut current = Some(target);
+        while let Some(object) = current {
+            let record = self.object(object)?;
+            if record.kind.walks_exotic() || !record.watched {
+                return Ok(SiteCache::Empty);
+            }
+            let shape = self.arenas.shapes.get(record.shape)?;
+            if let Some(found) = shape.find(key, &self.arenas.key_lists)? {
+                let accessor = found.flags.accessor();
+                let data_write = write && !accessor;
+                if data_write && (object != target || !found.flags.writable()) {
+                    return Ok(SiteCache::Empty);
+                }
+                // A lazy value that is not created yet (`host/lazy.rs`).
+                if !accessor
+                    && record
+                        .slots
+                        .get(found.slot as usize)
+                        .is_some_and(|value| value.is_lazy())
+                {
+                    return Ok(SiteCache::Empty);
+                }
+                return Ok(SiteCache::WindowProperty {
+                    target,
+                    holder: object,
+                    slot: found.slot,
+                    accessor,
+                    epoch: self.watch_epoch,
+                });
+            }
+            current = shape.proto;
+        }
+        Ok(SiteCache::Empty)
     }
 
     /// `[[Get]]` (§10.1.8) of a string or symbol key with the receiver
@@ -404,6 +499,9 @@ impl Heap {
                 if let Some(found) = self.exotic_get(record, key)? {
                     let entry = match record.kind {
                         ObjectKind::Proxy(_) if depth == 0 => SiteCache::Proxy,
+                        ObjectKind::WindowProxy(proxy) if depth == 0 => {
+                            self.window_entry(proxy, key, false)?
+                        }
                         _ => SiteCache::Empty,
                     };
                     return Ok((found, entry));
@@ -573,8 +671,44 @@ impl Heap {
                 ObjectKind::Proxy(_) => Some(SetPlan::General),
                 _ => None,
             },
+            SiteCache::WindowProperty {
+                target,
+                holder,
+                slot,
+                accessor,
+                epoch: cached,
+            } if cached == epoch => match record.kind {
+                ObjectKind::WindowProxy(proxy) if proxy.target() == Some(target) => {
+                    if accessor {
+                        setter_plan(self.object(holder)?.slots.get(slot as usize + 1).copied())
+                    } else {
+                        Some(SetPlan::TargetSlot { target, slot })
+                    }
+                }
+                _ => None,
+            },
             _ => None,
         })
+    }
+
+    /// Writes a data property through [`SetPlan::TargetSlot`]: a value, so
+    /// the layout of the target stays as it is.
+    #[inline]
+    pub(crate) fn write_target_slot(
+        &mut self,
+        target: Gc<Object>,
+        slot: u32,
+        value: Value,
+    ) -> Result<bool> {
+        Ok(
+            match self.object_mut(target)?.slots.get_mut(slot as usize) {
+                Some(stored) => {
+                    *stored = value;
+                    true
+                }
+                None => false,
+            },
+        )
     }
 
     /// The plan of `object.key = value` with the receiver `object`
@@ -594,6 +728,9 @@ impl Heap {
         let record = self.object(object)?;
         if let ObjectKind::Proxy(_) = record.kind {
             return Ok((SetPlan::General, SiteCache::Proxy));
+        }
+        if let ObjectKind::WindowProxy(proxy) = record.kind {
+            return Ok((SetPlan::General, self.window_entry(proxy, key, true)?));
         }
         if !chain_cacheable(&record.kind, false)
             || (is_length && matches!(record.kind, ObjectKind::Array { .. }))
@@ -640,7 +777,9 @@ impl Heap {
                 return Ok(GENERAL);
             }
             match record.kind {
-                ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) => return Ok(GENERAL),
+                ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => {
+                    return Ok(GENERAL);
+                }
                 ObjectKind::TypedArray(_) => {
                     if self.numeric_index(key)?.is_some() {
                         return Ok(GENERAL);
@@ -899,6 +1038,57 @@ mod tests {
             heap.get_for_cache(array, length).unwrap().1,
             SiteCache::ArrayLength
         );
+    }
+
+    #[test]
+    fn a_window_entry_follows_the_target_of_the_proxy() {
+        let mut heap = heap();
+        let proto = heap.new_object(None).unwrap();
+        let key = put(&mut heap, proto, "m", Value::Int(7));
+        let first = heap.new_object(Some(proto)).unwrap();
+        heap.watch(first).unwrap();
+        let own = put(&mut heap, first, "x", Value::Int(1));
+        let second = heap.new_object(Some(proto)).unwrap();
+        heap.watch(second).unwrap();
+        put(&mut heap, second, "y", Value::Int(2));
+        let slot = WindowProxySlot::new(1, Some(first)).unwrap();
+        let proxy = heap
+            .new_object_with_kind(None, ObjectKind::WindowProxy(slot))
+            .unwrap();
+        // The own property and the property of the chain.
+        let (found, entry) = heap.get_for_cache(proxy, own).unwrap();
+        assert_eq!(found, GetResult::Generic);
+        assert!(matches!(entry, SiteCache::WindowProperty { .. }));
+        assert_eq!(
+            heap.cached_get(proxy, entry).unwrap(),
+            Some(GetResult::Value(Value::Int(1)))
+        );
+        let (_, chain) = heap.get_for_cache(proxy, key).unwrap();
+        assert_eq!(
+            heap.cached_get(proxy, chain).unwrap(),
+            Some(GetResult::Value(Value::Int(7)))
+        );
+        // A write hits for the writable own property, not for the chain.
+        let (plan, write) = heap.set_plan(proxy, own).unwrap();
+        assert_eq!(plan, SetPlan::General);
+        assert!(matches!(
+            heap.cached_set(proxy, write).unwrap(),
+            Some(SetPlan::TargetSlot { target, .. }) if target == first
+        ));
+        assert_eq!(heap.set_plan(proxy, key).unwrap().1, SiteCache::Empty);
+        // A change of the target misses.
+        heap.set_window_proxy_target(proxy, Some(second)).unwrap();
+        assert_eq!(heap.cached_get(proxy, entry).unwrap(), None);
+        assert_eq!(heap.cached_get(proxy, chain).unwrap(), None);
+        assert_eq!(heap.cached_set(proxy, write).unwrap(), None);
+        // No target: no entry.
+        heap.set_window_proxy_target(proxy, None).unwrap();
+        assert_eq!(heap.get_for_cache(proxy, own).unwrap().1, SiteCache::Empty);
+        // A new key of a watched object changes the epoch.
+        heap.set_window_proxy_target(proxy, Some(first)).unwrap();
+        assert!(heap.cached_get(proxy, entry).unwrap().is_some());
+        put(&mut heap, first, "z", Value::Int(3));
+        assert_eq!(heap.cached_get(proxy, entry).unwrap(), None);
     }
 
     #[test]

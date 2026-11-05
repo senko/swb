@@ -1,8 +1,9 @@
 //! The internal methods of Proxy exotic objects (ECMA-262 §10.5,
 //! <https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots>)
 //! and the generic forms of the internal methods that dispatch to them
-//! (ADR 0026 sections 6 and 15), and to the hooks of host objects
-//! (`host/hooks.rs`).
+//! (ADR 0026 sections 6 and 15), to the hooks of host objects
+//! (`host/hooks.rs`) and to the methods of `WindowProxy` objects
+//! (`window_proxy.rs`: each method of a proxy here starts by handing one over).
 //!
 //! Each method follows the steps of the specification in their order: the
 //! check of a revoked proxy, the trap lookup (`GetMethod` on the handler,
@@ -199,7 +200,7 @@ impl Runtime {
     /// result is recorded in the current handle scope when it comes from a
     /// trap.
     pub(crate) fn get_prototype_of(&mut self, object: Gc<Object>) -> VmResult<Option<Gc<Object>>> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_get_prototype_of(object);
         }
         Ok(self.heap.get_prototype_of(object)?)
@@ -207,7 +208,7 @@ impl Runtime {
 
     /// `IsExtensible(O)` for any object (§7.2.5, §10.5.3).
     pub(crate) fn is_extensible(&mut self, object: Gc<Object>) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_is_extensible(object);
         }
         Ok(self.heap.is_extensible(object)?)
@@ -216,7 +217,7 @@ impl Runtime {
     /// `O.[[PreventExtensions]]()` for any object (§10.1.4, §10.5.4). With
     /// `throw`, a `false` result is V8's `TypeError`.
     pub(crate) fn prevent_extensions(&mut self, object: Gc<Object>, throw: bool) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_prevent_extensions(object, throw);
         }
         if let Some(hooks) = self.host_hooks(object)? {
@@ -233,7 +234,7 @@ impl Runtime {
         key: PropertyKey,
         throw: bool,
     ) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_delete(object, key, throw);
         }
         let deleted = match self.host_hooks(object)? {
@@ -326,7 +327,7 @@ impl Runtime {
     ) -> VmResult<Lookup> {
         let mut current = object;
         loop {
-            if self.heap.is_proxy(current)? {
+            if self.heap.is_proxy_like(current)? {
                 return self.proxy_get(current, key, receiver);
             }
             if let Some(hooks) = self.host_hooks(current)? {
@@ -374,7 +375,7 @@ impl Runtime {
     pub(crate) fn has_generic(&mut self, object: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
         let mut current = object;
         loop {
-            if self.heap.is_proxy(current)? {
+            if self.heap.is_proxy_like(current)? {
                 return self.proxy_has(current, key);
             }
             if let Some((data, index)) = self.typed_numeric(current, key)? {
@@ -417,7 +418,7 @@ impl Runtime {
         // Steps 1 and 2 as a loop over the prototype chain.
         let mut current = object;
         loop {
-            if self.heap.is_proxy(current)? {
+            if self.heap.is_proxy_like(current)? {
                 return self.proxy_set(current, key, value, receiver, throw);
             }
             let mut own = None;
@@ -550,7 +551,7 @@ impl Runtime {
         desc: PropertyDescriptor,
         throw: bool,
     ) -> VmResult<bool> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_define_own_property(object, key, desc, throw);
         }
         if let Some(hooks) = self.host_hooks(object)? {
@@ -576,6 +577,9 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     fn proxy_get_prototype_of(&mut self, proxy: Gc<Object>) -> VmResult<Option<Gc<Object>>> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_get_prototype_of(proxy, slot);
+        }
         self.proxy_level(|rt| {
             let (target, handler, trap) = rt.proxy_trap(proxy, Trap::GetPrototypeOf)?;
             let Some(trap) = trap else {
@@ -611,6 +615,9 @@ impl Runtime {
         proxy: Gc<Object>,
         proto: Option<Gc<Object>>,
     ) -> VmResult<ProtoSet> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_set_prototype_of(proxy, slot, proto);
+        }
         self.proxy_level(|rt| {
             let (target, handler, trap) = rt.proxy_trap(proxy, Trap::SetPrototypeOf)?;
             let Some(trap) = trap else {
@@ -637,6 +644,10 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     fn proxy_is_extensible(&mut self, proxy: Gc<Object>) -> VmResult<bool> {
+        if self.heap.window_proxy(proxy)?.is_some() {
+            // HTML §7.2.3.4: "Return true."
+            return Ok(true);
+        }
         self.proxy_level(|rt| {
             let (target, handler, trap) = rt.proxy_trap(proxy, Trap::IsExtensible)?;
             let Some(trap) = trap else {
@@ -658,6 +669,9 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     fn proxy_prevent_extensions(&mut self, proxy: Gc<Object>, throw: bool) -> VmResult<bool> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_prevent_extensions(proxy, slot);
+        }
         self.proxy_level(|rt| {
             let (target, handler, trap) = rt.proxy_trap(proxy, Trap::PreventExtensions)?;
             let Some(trap) = trap else {
@@ -690,6 +704,9 @@ impl Runtime {
         proxy: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<Option<Property>> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_get_own_property(proxy, slot, key);
+        }
         self.proxy_level(|rt| {
             // The key may be an atom that only the caller's Rust code holds.
             rt.heap.record(key);
@@ -783,6 +800,9 @@ impl Runtime {
         desc: PropertyDescriptor,
         throw: bool,
     ) -> VmResult<bool> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_define_own_property(proxy, slot, key, desc, throw);
+        }
         self.proxy_level(|rt| {
             for value in [desc.value, desc.get, desc.set].into_iter().flatten() {
                 rt.heap.record(value);
@@ -859,6 +879,9 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     fn proxy_has(&mut self, proxy: Gc<Object>, key: PropertyKey) -> VmResult<bool> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_has(proxy, slot, key);
+        }
         self.proxy_level(|rt| {
             // The key may be an atom that only the caller's Rust code holds.
             rt.heap.record(key);
@@ -899,6 +922,9 @@ impl Runtime {
         key: PropertyKey,
         receiver: Value,
     ) -> VmResult<Lookup> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_get(proxy, slot, key, receiver);
+        }
         self.proxy_level(|rt| {
             rt.heap.record(receiver);
             // The key may be an atom that only the caller's Rust code holds.
@@ -952,6 +978,9 @@ impl Runtime {
         receiver: Value,
         throw: bool,
     ) -> VmResult<SetDone> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_set(proxy, slot, (key, value, receiver), throw);
+        }
         self.proxy_level(|rt| {
             rt.heap.record(value);
             rt.heap.record(receiver);
@@ -1005,6 +1034,9 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     fn proxy_delete(&mut self, proxy: Gc<Object>, key: PropertyKey, throw: bool) -> VmResult<bool> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_delete(proxy, slot, key, throw);
+        }
         self.proxy_level(|rt| {
             // The key may be an atom that only the caller's Rust code holds.
             rt.heap.record(key);
@@ -1048,6 +1080,9 @@ impl Runtime {
     #[cold]
     #[inline(never)]
     pub(crate) fn proxy_own_keys(&mut self, proxy: Gc<Object>) -> VmResult<Vec<PropertyKey>> {
+        if let Some(slot) = self.heap.window_proxy(proxy)? {
+            return self.window_own_keys(proxy, slot);
+        }
         self.proxy_level(|rt| {
             let (target, handler, trap) = rt.proxy_trap(proxy, Trap::OwnKeys)?;
             let Some(trap) = trap else {
@@ -1297,6 +1332,7 @@ impl Runtime {
         for _ in 0..1_000_000 {
             match &self.heap.object(current).ok()?.kind {
                 ObjectKind::Proxy(data) => current = data.target?,
+                ObjectKind::WindowProxy(slot) => current = slot.target()?,
                 _ => return Some(current),
             }
         }

@@ -129,6 +129,7 @@ fn ordinary_elements(kind: &ObjectKind) -> bool {
         ObjectKind::StringWrapper(_)
             | ObjectKind::HostExotic(_)
             | ObjectKind::Proxy(_)
+            | ObjectKind::WindowProxy(_)
             | ObjectKind::TypedArray(_)
     )
 }

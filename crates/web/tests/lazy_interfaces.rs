@@ -181,8 +181,12 @@ fn changes_before_the_first_use_act_on_the_property_only() {
             "\"1,false\"",
         ),
         (
-            "Object.freeze(window); [Object.isFrozen(window), typeof HTMLSpanElement, Object.getOwnPropertyDescriptor(window, 'HTMLSpanElement').writable].join()",
-            "\"true,function,false\"",
+            "Object.defineProperty(window, 'HTMLSpanElement', {writable: false}); [typeof HTMLSpanElement, Object.getOwnPropertyDescriptor(window, 'HTMLSpanElement').writable].join()",
+            "\"function,false\"",
+        ),
+        (
+            "try { Object.freeze(window); } catch (e) { e.message + ' ' + Object.isFrozen(window); }",
+            "\"Cannot freeze false\"",
         ),
     ]);
     assert!(failures.is_empty(), "{}", failures.join("\n"));

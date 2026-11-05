@@ -113,7 +113,7 @@ fn hello(rt: &mut Runtime, _call: &NativeCall) -> VmResult<NativeReturn> {
 fn make_leaf(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let class = host(rt)?.leaf;
     let proto = rt.prototype_from_new_target(call, class)?;
-    let object = rt.new_host_object_with_proto(Some(proto), class, HostData::Word(1))?;
+    let object = rt.new_host_object_with_proto(0, Some(proto), class, HostData::Word(1))?;
     Ok(NativeReturn::Value(object.into()))
 }
 

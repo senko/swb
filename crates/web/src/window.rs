@@ -3,9 +3,10 @@
 //! `WindowProperties` (Web IDL §3.7.4,
 //! <https://webidl.spec.whatwg.org/#named-properties-object>).
 //!
-//! Without frames, the `WindowProxy` of the window is the global object
-//! itself (ADR 0028 section 4): `window`, `self`, `frames`, `top` and
-//! `parent` return it, and `length` is 0.
+//! Script sees the `WindowProxy` of the window (ADR 0031 section 5): `this`
+//! of a member is the proxy, also for a call with `undefined` as `this`, and
+//! `window`, `self`, `frames`, `top` and `parent` return it. Without frames
+//! in scripts (feature 12b), `length` is 0.
 //!
 //! `WindowProperties` sits between `Window.prototype` and
 //! `EventTarget.prototype` and answers `window[name]` for the ids of
@@ -146,7 +147,7 @@ impl g::window::WindowImpl for WebState {
     /// `window.event` (DOM §2.3): the window's current event, or
     /// `undefined`.
     fn event(cx: &mut Cx<'_>, _this: Platform) -> b::Result<EventOrUndefined> {
-        let event = state(cx.rt)?.current_event;
+        let event = state(cx.rt)?.doc.current_event;
         Ok(
             match event.and_then(|e| Some((e, cx.rt.host_object(e.into())?.1))) {
                 Some((object, data)) => EventOrUndefined::Event(Platform { object, data }),
@@ -160,8 +161,7 @@ impl g::window::WindowImpl for WebState {
         // An `EventTarget` keeps its listeners in its data.
         crate::state::window_object(
             cx,
-            0,
-            |s| &mut s.performance,
+            |d| &mut d.performance,
             g::PERFORMANCE,
             crate::state::target_data,
         )
@@ -362,9 +362,9 @@ impl g::window::WindowImpl for WebState {
 /// classes) and remembers its number.
 pub(crate) fn define_class(rt: &mut Runtime) -> VmResult<ClassId> {
     let hooks = HostHooks {
-        get_own_property: Some(get_own_property),
+        get_own_property: Some(get_own_property_in_document),
         define_own_property: Some(define_own_property),
-        delete: Some(delete),
+        delete: Some(delete_in_document),
         prevent_extensions: Some(b::legacy::prevent_extensions),
         ..HostHooks::default()
     };
@@ -389,8 +389,12 @@ pub(crate) fn install(rt: &mut Runtime, realm: u32, class: ClassId) -> VmResult<
     // holds them.
     let scope = rt.heap_mut().open_scope();
     let result = (|| {
-        let object =
-            rt.new_host_object_with_proto(Some(target.prototype), class, crate::state::NOT_A_NODE)?;
+        let object = rt.new_host_object_with_proto(
+            realm,
+            Some(target.prototype),
+            class,
+            crate::state::NOT_A_NODE,
+        )?;
         rt.heap_mut().record(object);
         rt.heap_mut()
             .set_prototype_of(window.prototype, Some(object))
@@ -453,7 +457,7 @@ enum Named {
 /// one with the id.
 fn named(rt: &mut Runtime, name: &str) -> VmResult<Option<Named>> {
     let state = state(rt)?;
-    let Some(host) = state.host.as_deref() else {
+    let Some(host) = state.doc.host.as_deref() else {
         return Ok(None);
     };
     if name.is_empty() {
@@ -467,7 +471,7 @@ fn named(rt: &mut Runtime, name: &str) -> VmResult<Option<Named>> {
         None
     };
     let generation = dom.generation();
-    let (first_name, by_name) = match &state.window_names {
+    let (first_name, by_name) = match &state.doc.window_names {
         Some((built, names)) if *built == generation => names
             .get(name)
             .map_or((None, 0), |&(n, c)| (Some(n), usize::from(c))),
@@ -476,7 +480,7 @@ fn named(rt: &mut Runtime, name: &str) -> VmResult<Option<Named>> {
             let found = names
                 .get(name)
                 .map_or((None, 0), |&(n, c)| (Some(n), usize::from(c)));
-            state_mut(rt)?.window_names = Some((generation, names));
+            state_mut(rt)?.doc.window_names = Some((generation, names));
             found
         }
     };
@@ -502,7 +506,7 @@ fn visible(
     let Some(found) = named(rt, &name)? else {
         return Ok(None);
     };
-    let global = rt.global(0)?;
+    let global = crate::state::window_global(rt)?;
     if rt.own_property_of(global, key)?.is_some() {
         return Ok(None);
     }
@@ -524,6 +528,18 @@ fn string_key(rt: &Runtime, key: PropertyKey) -> Option<String> {
     }
 }
 
+/// [`get_own_property`] in the document of the named properties object.
+fn get_own_property_in_document(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+) -> VmResult<Option<Property>> {
+    let entered = crate::state::enter_object(rt, object)?;
+    let result = get_own_property(rt, object, key);
+    crate::state::leave(rt, entered);
+    result
+}
+
 /// `[[GetOwnProperty]]` (Web IDL §3.7.4.1): a visible name is a data
 /// property (writable, not enumerable because `Window` has
 /// `[LegacyUnenumerableNamedProperties]`, configurable), as Chromium shows.
@@ -535,9 +551,10 @@ fn get_own_property(
     let Some((name, found)) = visible(rt, object, key)? else {
         return Ok(None);
     };
+    let realm = crate::state::doc_realm(rt)?;
     let value = match found {
-        Named::One(element) => <WebState as b::Host>::wrap_node(rt, 0, element)?,
-        Named::Many => lists::window_name(rt, 0, &name)?,
+        Named::One(element) => <WebState as b::Host>::wrap_node(rt, realm, element)?,
+        Named::Many => lists::window_name(rt, realm, &name)?,
     };
     Ok(Some(Property::Data {
         value: Value::Object(value),
@@ -556,6 +573,18 @@ fn define_own_property(
     _desc: &PropertyDescriptor,
 ) -> VmResult<Option<bool>> {
     Ok(Some(false))
+}
+
+/// [`delete`] in the document of the named properties object.
+fn delete_in_document(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+) -> VmResult<Option<bool>> {
+    let entered = crate::state::enter_object(rt, object)?;
+    let result = delete(rt, object, key);
+    crate::state::leave(rt, entered);
+    result
 }
 
 /// `[[Delete]]` (Web IDL §3.7.4.3): a visible name cannot be deleted;

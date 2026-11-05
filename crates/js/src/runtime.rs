@@ -258,6 +258,7 @@ impl Runtime {
             closure_shapes: None,
             jobs: crate::vm::jobs::JobQueue::default(),
             host: crate::host::Host::default(),
+            base_realm: 0,
             terminating: None,
         };
         let mut runtime = Runtime {
@@ -399,16 +400,18 @@ impl Runtime {
     /// or URL) that stack traces show. An empty name shows as
     /// `<anonymous>`.
     pub fn eval_named(&mut self, source: &str, name: &str) -> Result<Value, ScriptError> {
-        self.eval_named_at(source, name, (0, 0))
+        self.eval_named_at(0, source, name, (0, 0))
     }
 
-    /// Like [`Runtime::eval_named`], for a script whose text starts at
-    /// `start` (line and column from 0, the column in code units) in the
-    /// document that holds it: positions in stack traces and
-    /// [`SourceLocation`]s count from the start of the document (an inline
-    /// script of an HTML page). The column applies to the first line only.
+    /// Like [`Runtime::eval_named`], in the realm `realm`, for a script
+    /// whose text starts at `start` (line and column from 0, the column in
+    /// code units) in the document that holds it: positions in stack traces
+    /// and [`SourceLocation`]s count from the start of the document (an
+    /// inline script of an HTML page). The column applies to the first line
+    /// only.
     pub fn eval_named_at(
         &mut self,
+        realm: u32,
         source: &str,
         name: &str,
         start: (u32, u32),
@@ -417,14 +420,14 @@ impl Runtime {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(text.as_str16(), name, start, Goal::Script);
+        let result = self.eval_text(realm, text.as_str16(), name, start, Goal::Script);
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
 
-    /// Compiles and runs a module that requests no other module, in realm
-    /// 0 (§16.2.1.5, "Source Text Module Records", for a module without
-    /// imports; ADR 0028 section 6, item 7): strict code with `this`
+    /// Compiles and runs a module that requests no other module, in the
+    /// realm `realm` (§16.2.1.5, "Source Text Module Records", for a module
+    /// without imports; ADR 0028 section 6, item 7): strict code with `this`
     /// undefined, whose top-level declarations belong to the module and
     /// not to the global object. `name` and `start` are as in
     /// [`Runtime::eval_named_at`]. The module needs no other module:
@@ -433,6 +436,7 @@ impl Runtime {
     /// starts with "not supported yet" ([`ScriptError::is_unsupported`]).
     pub fn eval_module_at(
         &mut self,
+        realm: u32,
         source: &str,
         name: &str,
         start: (u32, u32),
@@ -441,13 +445,14 @@ impl Runtime {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(text.as_str16(), name, start, Goal::Module);
+        let result = self.eval_text(realm, text.as_str16(), name, start, Goal::Module);
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
 
     fn eval_text(
         &mut self,
+        realm: u32,
         source: Str16<'_>,
         name: &str,
         position: (u32, u32),
@@ -456,13 +461,13 @@ impl Runtime {
         self.vm.error_offset = None;
         let start = self.run_start();
         let (code, compiled) = self.compile(source, name, position, goal)?;
-        // A script runs with the global object as `this`; a module has
+        // A script runs with the global this value as `this`; a module has
         // none (§16.2.1.6.4 `InitializeEnvironment`: `this` is undefined).
         let this = match goal {
             Goal::Script => None,
             Goal::Module => Some(Value::Undefined),
         };
-        let result = self.run_script(code, compiled, 0, this);
+        let result = self.run_script(code, compiled, realm, this);
         if result.is_err() {
             self.restore_run_start(&start);
         }
@@ -533,8 +538,8 @@ impl Runtime {
     }
 
     /// Runs the code of a script in a realm: a frame whose result goes to
-    /// the host. `this` is the value of `this` (the realm's global object
-    /// for `None`).
+    /// the host. `this` is the value of `this` (the realm's global this
+    /// value for `None`).
     fn run_script(
         &mut self,
         code: Gc<Generic>,
@@ -542,7 +547,7 @@ impl Runtime {
         realm: u32,
         this: Option<Value>,
     ) -> VmResult<Value> {
-        let global = self.global_object(realm)?;
+        let global_this = self.global_this(realm)?;
         let restore_top = self.vm.stack.len();
         let registers = compiled.register_count as usize;
         if self.vm.frames.len() >= self.vm.frame_limit
@@ -550,7 +555,7 @@ impl Runtime {
         {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }
-        let window = self.push_window(Value::Undefined, global.into(), &[])?;
+        let window = self.push_window(Value::Undefined, global_this.into(), &[])?;
         self.vm.stack.resize(window + registers, Value::Undefined);
         self.vm.frames.push(Frame {
             function: None,
@@ -559,7 +564,7 @@ impl Runtime {
             pc: 0,
             base: window as u32,
             restore_top: restore_top as u32,
-            this: this.unwrap_or_else(|| global.into()),
+            this: this.unwrap_or_else(|| global_this.into()),
             new_target: Value::Undefined,
             argc: 0,
             extra_args: Vec::new(),

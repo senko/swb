@@ -239,7 +239,7 @@ impl Runtime {
         object: Gc<Object>,
         proto: Option<Gc<Object>>,
     ) -> VmResult<ProtoSet> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_set_prototype_of(object, proto);
         }
         if self.is_immutable_prototype(object)? {

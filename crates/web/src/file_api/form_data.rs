@@ -355,11 +355,11 @@ pub(crate) fn build_entry_list(
     form: NodeId,
     submitter: Option<NodeId>,
 ) -> b::Result<Option<Vec<FormEntry>>> {
-    if !state_mut(rt)?.constructing_forms.insert(form) {
+    if !state_mut(rt)?.doc.constructing_forms.insert(form) {
         return Ok(None);
     }
     let result = construct(rt, realm, form, submitter);
-    state_mut(rt)?.constructing_forms.remove(&form);
+    state_mut(rt)?.doc.constructing_forms.remove(&form);
     result.map(Some)
 }
 
@@ -429,24 +429,25 @@ pub(crate) fn submission_entries(
     coordinate: (i32, i32),
 ) -> b::Result<Option<Vec<FormDataEntry>>> {
     let before = engine_mut(rt)?.form_entries(form, submitter, coordinate);
-    if !state_mut(rt)?.constructing_forms.insert(form) {
+    if !state_mut(rt)?.doc.constructing_forms.insert(form) {
         return Ok(None);
     }
     let result = changed_entries(rt, form, &before);
-    state_mut(rt)?.constructing_forms.remove(&form);
+    state_mut(rt)?.doc.constructing_forms.remove(&form);
     result
 }
 
 /// Fires `formdata` at `form` with the entries `before` and returns the
-/// entries if a listener changed them. The objects are made in realm 0, the
-/// document's (swb has one realm).
+/// entries if a listener changed them. The objects are made in the realm of
+/// the document.
 fn changed_entries(
     rt: &mut Runtime,
     form: NodeId,
     before: &[FormDataEntry],
 ) -> b::Result<Option<Vec<FormDataEntry>>> {
-    let entries = host_entries_to_objects(rt, 0, before.to_vec())?;
-    let form_data = new_form_data(rt, 0, entries)?;
+    let realm = crate::state::doc_realm(rt)?;
+    let entries = host_entries_to_objects(rt, realm, before.to_vec())?;
+    let form_data = new_form_data(rt, realm, entries)?;
     let event = TrustedEvent {
         bubbles: true,
         interface: EventInterface::FormData { form_data },

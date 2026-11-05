@@ -207,7 +207,7 @@ impl ScriptRuntime {
         }
         // HTML "print()": the calls that came before the document was
         // completely loaded print now (`dialogs.rs`).
-        if crate::state::state(&self.rt).is_ok_and(|s| s.print_when_loaded) {
+        if crate::state::state(&self.rt).is_ok_and(|s| s.doc.print_when_loaded) {
             let _ = self.task("printing", |rt| {
                 crate::dialogs::run_when_loaded(rt).map_err(task_error)
             });

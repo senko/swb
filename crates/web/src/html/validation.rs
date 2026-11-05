@@ -86,7 +86,8 @@ pub(crate) fn will_validate(cx: &mut Cx<'_>, node: NodeId) -> b::Result<bool> {
 pub(crate) fn validity(cx: &mut Cx<'_>, node: NodeId) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
     Ok(same_object(cx.rt, node, Slot::Validity, |rt| {
-        rt.new_host_object(realm, g::VALIDITY_STATE, b::node_data(node))
+        let data = crate::state::node_data_here(rt, node)?;
+        rt.new_host_object(realm, g::VALIDITY_STATE, data)
     })?)
 }
 

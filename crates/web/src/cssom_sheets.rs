@@ -181,7 +181,7 @@ fn owner_of_list(rt: &Runtime, this: Platform) -> b::Result<(Gc<Object>, Owner)>
 /// Drops the map entries of sheets and rules that only their wrapper
 /// holds, when the maps reached their limit.
 fn sweep(rt: &mut Runtime) -> b::Result<()> {
-    let objects = &state(rt)?.cssom;
+    let objects = &state(rt)?.doc.cssom;
     if objects.sheets.len() + objects.rules.len() < objects.limit.max(MIN_OBJECTS) {
         return Ok(());
     }
@@ -206,7 +206,7 @@ fn sweep(rt: &mut Runtime) -> b::Result<()> {
         .filter(|(_, o)| held_alone(rt, **o))
         .map(|(k, _)| *k)
         .collect();
-    let objects = &mut state_mut(rt)?.cssom;
+    let objects = &mut state_mut(rt)?.doc.cssom;
     for key in dead_sheets {
         objects.sheets.remove(&key);
     }
@@ -222,7 +222,7 @@ fn sweep(rt: &mut Runtime) -> b::Result<()> {
 /// The one wrapper of `sheet`.
 pub(crate) fn wrap_sheet(cx: &mut Cx<'_>, sheet: SheetRef) -> b::Result<Gc<Object>> {
     let key = Rc::as_ptr(&sheet) as usize;
-    if let Some(object) = state(cx.rt)?.cssom.sheets.get(&key) {
+    if let Some(object) = state(cx.rt)?.doc.cssom.sheets.get(&key) {
         return Ok(*object);
     }
     sweep(cx.rt)?;
@@ -233,14 +233,14 @@ pub(crate) fn wrap_sheet(cx: &mut Cx<'_>, sheet: SheetRef) -> b::Result<Gc<Objec
         media: None,
     })?;
     let object = cx.rt.new_host_object(realm, g::CSS_STYLE_SHEET, data)?;
-    state_mut(cx.rt)?.cssom.sheets.insert(key, object);
+    state_mut(cx.rt)?.doc.cssom.sheets.insert(key, object);
     Ok(object)
 }
 
 /// The one wrapper of `rule`, of the interface of its kind.
 pub(crate) fn wrap_rule(cx: &mut Cx<'_>, rule: RuleRef) -> b::Result<Gc<Object>> {
     let key = Rc::as_ptr(&rule) as usize;
-    if let Some(object) = state(cx.rt)?.cssom.rules.get(&key) {
+    if let Some(object) = state(cx.rt)?.doc.cssom.rules.get(&key) {
         return Ok(*object);
     }
     sweep(cx.rt)?;
@@ -260,7 +260,7 @@ pub(crate) fn wrap_rule(cx: &mut Cx<'_>, rule: RuleRef) -> b::Result<Gc<Object>>
         style: None,
     })?;
     let object = cx.rt.new_host_object(realm, class, data)?;
-    state_mut(cx.rt)?.cssom.rules.insert(key, object);
+    state_mut(cx.rt)?.doc.cssom.rules.insert(key, object);
     Ok(object)
 }
 
@@ -412,7 +412,8 @@ fn delete_from_sheet(rt: &mut Runtime, sheet: &SheetRef, index: u32) -> b::Resul
 pub(crate) fn style_sheets(cx: &mut Cx<'_>, document: NodeId) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
     Ok(same_object(cx.rt, document, Slot::StyleSheets, |rt| {
-        rt.new_host_object(realm, g::STYLE_SHEET_LIST, b::node_data(document))
+        let data = crate::state::node_data_here(rt, document)?;
+        rt.new_host_object(realm, g::STYLE_SHEET_LIST, data)
     })?)
 }
 

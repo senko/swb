@@ -904,6 +904,7 @@ fn key_description(rt: &Runtime, key: PropertyKey, in_array: bool) -> String {
 /// The constructor name that a cycle message shows (see the module
 /// comment).
 fn constructor_name(rt: &Runtime, object: Gc<Object>) -> String {
+    let object = rt.through_window_proxy(object);
     let mut name = None;
     let mut current = rt.heap.get_prototype_of(object).ok().flatten();
     for _ in 0..64 {

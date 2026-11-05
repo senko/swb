@@ -109,7 +109,8 @@ impl g::svg_element::SVGElementImpl for WebState {
     fn class_name(cx: &mut Cx<'_>, this: NodeId) -> b::Result<Gc<Object>> {
         let realm = cx.realm();
         Ok(same_object(cx.rt, this, Slot::ClassName, |rt| {
-            rt.new_host_object(realm, g::SVG_ANIMATED_STRING, b::node_data(this))
+            let data = crate::state::node_data_here(rt, this)?;
+            rt.new_host_object(realm, g::SVG_ANIMATED_STRING, data)
         })?)
     }
 

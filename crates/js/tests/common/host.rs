@@ -89,7 +89,7 @@ fn a_constructor(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> 
     let host = host(rt)?;
     host.next_word += 1;
     let word = host.next_word;
-    let object = rt.new_host_object_with_proto(Some(proto), class, HostData::Word(word))?;
+    let object = rt.new_host_object_with_proto(0, Some(proto), class, HostData::Word(word))?;
     Ok(NativeReturn::Value(object.into()))
 }
 
@@ -564,6 +564,7 @@ fn create_global(rt: &mut Runtime, classes: &Classes) -> VmResult<()> {
         .interface(0, classes.window)
         .ok_or(VmError::type_error("no Window"))?;
     let named = rt.new_host_object_with_proto(
+        0,
         Some(event_target.prototype),
         classes.window_properties,
         HostData::Word(0),

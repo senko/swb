@@ -4,6 +4,43 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 12a: `WindowProxy` and per-document binding state
+
+- Plumbing for scripts in frames (ADR 0031 section 5, ADR 0026 section 17,
+  ADR 0028 M9 notes). A runtime still has one document, so no page changes,
+  except `Object.freeze(window)`, which now throws as in Chromium.
+- `js`: public `create_realm`, the global this value of a realm, and
+  `ObjectKind::WindowProxy`, which forwards to its target. `this`,
+  `globalThis`, sloppy `this`, indirect eval and getter receivers give the
+  proxy; the raw global object never reaches script. A proxy without a target
+  throws `SecurityError` through host hooks; feature 13 writes the
+  cross-origin rules. A native now runs in its own realm, and `HostSlot` holds
+  the object's realm.
+- Inline cache: `SiteCache::WindowProperty` names the target by identity and
+  checks the watch epoch. A retarget misses by identity. `window.x` had no
+  cache before: reads now take 0.48 of the old time, writes 0.32.
+- `web`: the top-level window sits behind a proxy. `WebState` keeps the
+  agent's state, and `DocState` holds what names a node or belongs to a
+  `Window`. A native switches to the document of its `this`; the common path
+  costs one load and one comparison. The host data word of a wrapper packs
+  document key and node index, and a node of another document gives a
+  `TypeError` until 12b adopts across arenas. Tasks remember their document.
+- Found in review, then fixed: the documents of a runtime share the cell that
+  says a mutation registry asks for attention. A record from a hook of B was
+  lost if the next native belonged to A, and a termination left B's observers
+  dead. A switch now queues what the leaving document asked for, and a
+  termination resets every document. `create_realm` now stops at 2,048 realms.
+- Chromium 148: `windowproxy-top`, 14 queries, three equal runs. It found the
+  `Cannot freeze` and `Cannot seal` errors, the immutable prototype error, the
+  proxy as getter `this`, and the wording of index keys in set and define.
+- Costs: geomean over 114 `vm_bench` rows 1.0017; bindings per iteration
+  0.96 to 1.01; pages by callgrind -0.04 % to +0.2 %; BBC hydrated in 2.83 s
+  (budget 4.60 s). A bare `document` read costs +2.5 % per iteration, because
+  the proxy is its `this` and the brand check looks through it.
+- test262: 40,574, unchanged. JS off: snapshot identical. JS on:
+  `compare --js` unchanged. 5 new hostile cases.
+- Next: 12b, scripts in same-origin frames.
+
 ## 2026-11-05: M9 feature 11: input in frames
 
 - Frame documents take the pointer, the wheel, the keys, focus, Tab and

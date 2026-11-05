@@ -222,7 +222,7 @@ fn size_of_object(rt: &Runtime, this: Platform) -> b::Result<&SizeData> {
 
 impl g::resize_observer::ResizeObserverImpl for WebState {
     fn constructor(cx: &mut Cx<'_>, callback: ResizeObserverCallback) -> b::Result<Gc<Object>> {
-        let ro = &mut state_mut(cx.rt)?.ro;
+        let ro = &mut state_mut(cx.rt)?.doc.ro;
         ro.next_id += 1;
         let id = ro.next_id;
         let data = cx.rt.alloc_host_data(ObserverData {
@@ -244,7 +244,7 @@ impl g::resize_observer::ResizeObserverImpl for WebState {
             ResizeObserverBoxOptions::BorderBox => BoxKind::Border,
             ResizeObserverBoxOptions::DevicePixelContentBox => BoxKind::DevicePixel,
         };
-        let ro = &mut state_mut(cx.rt)?.ro;
+        let ro = &mut state_mut(cx.rt)?.doc.ro;
         if ro.targets >= MAX_TARGETS {
             log::warn!("a document observes more than {MAX_TARGETS} targets with resize observers");
             return Err(cx.rt.terminate("too many resize observer targets").into());
@@ -270,7 +270,7 @@ impl g::resize_observer::ResizeObserverImpl for WebState {
 
     fn unobserve(cx: &mut Cx<'_>, this: Platform, target: NodeId) -> b::Result<()> {
         let id = observer_id(cx.rt, this)?;
-        let ro = &mut state_mut(cx.rt)?.ro;
+        let ro = &mut state_mut(cx.rt)?.doc.ro;
         let Some(observer) = ro.observers.get_mut(&id) else {
             return Ok(());
         };
@@ -286,7 +286,7 @@ impl g::resize_observer::ResizeObserverImpl for WebState {
 
     fn disconnect(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = observer_id(cx.rt, this)?;
-        let ro = &mut state_mut(cx.rt)?.ro;
+        let ro = &mut state_mut(cx.rt)?.doc.ro;
         if let Some(observer) = ro.observers.remove(&id) {
             ro.targets -= observer.targets.len();
         }
@@ -441,21 +441,21 @@ impl Gathered {
 
 /// True if a resize observer has targets.
 pub(crate) fn is_observing(rt: &Runtime) -> bool {
-    state(rt).is_ok_and(|s| s.ro.is_observing())
+    state(rt).is_ok_and(|s| s.doc.ro.is_observing())
 }
 
 /// Asks for another run of the loop in the next frame (observations were
 /// skipped).
 pub(crate) fn request(rt: &mut Runtime) {
     if let Ok(s) = state_mut(rt) {
-        s.ro.requested = true;
+        s.doc.ro.requested = true;
     }
 }
 
 /// Notes that the loop runs now (the observations added so far count).
 pub(crate) fn clear_request(rt: &mut Runtime) {
     if let Ok(s) = state_mut(rt) {
-        s.ro.requested = false;
+        s.doc.ro.requested = false;
     }
 }
 
@@ -464,10 +464,10 @@ pub(crate) fn clear_request(rt: &mut Runtime) {
 /// the active ones that are not.
 pub(crate) fn gather(rt: &mut Runtime, limit: i32) -> b::Result<Gathered> {
     let scale = engine_mut(rt)?.viewport().scale;
-    let ids: Vec<u32> = state(rt)?.ro.observers.keys().copied().collect();
+    let ids: Vec<u32> = state(rt)?.doc.ro.observers.keys().copied().collect();
     let mut gathered = Gathered::default();
     for id in ids {
-        let targets: Vec<(u64, Target)> = match state(rt)?.ro.observers.get(&id) {
+        let targets: Vec<(u64, Target)> = match state(rt)?.doc.ro.observers.get(&id) {
             Some(observer) => observer.targets.iter().map(|(&s, &t)| (s, t)).collect(),
             None => continue,
         };
@@ -501,7 +501,7 @@ pub(crate) fn broadcast(
     let task = crate::runtime::task_error;
     let scale = engine_mut(rt).map_err(task)?.viewport().scale;
     let seqs = gathered.targets_of(id);
-    let (object, targets) = match state(rt).map_err(task)?.ro.observers.get(&id) {
+    let (object, targets) = match state(rt).map_err(task)?.doc.ro.observers.get(&id) {
         Some(observer) => {
             let found: Vec<(u64, Target)> = seqs
                 .iter()
@@ -527,14 +527,15 @@ pub(crate) fn broadcast(
                 content_rect: None,
             })
             .map_err(task)?;
+        let realm = crate::state::doc_realm(rt).map_err(task)?;
         let entry = rt
-            .new_host_object(0, g::RESIZE_OBSERVER_ENTRY, data)
+            .new_host_object(realm, g::RESIZE_OBSERVER_ENTRY, data)
             .map_err(task)?;
         b::keep(rt, Value::Object(entry));
         entries.push(entry);
         reported.push((seq, target.node, sizes.of(target.kind)));
     }
-    if let Some(observer) = state_mut(rt).map_err(task)?.ro.observers.get_mut(&id) {
+    if let Some(observer) = state_mut(rt).map_err(task)?.doc.ro.observers.get_mut(&id) {
         for (seq, node, size) in reported {
             if let Some(target) = observer.targets.get_mut(&seq)
                 && target.node == node
@@ -543,8 +544,9 @@ pub(crate) fn broadcast(
             }
         }
     }
-    let list =
-        b::to_js::sequence(rt, 0, &entries, |_, item| Ok(Value::Object(*item))).map_err(task)?;
+    let realm = crate::state::doc_realm(rt).map_err(task)?;
+    let list = b::to_js::sequence(rt, realm, &entries, |_, item| Ok(Value::Object(*item)))
+        .map_err(task)?;
     b::keep(rt, list);
     b::keep(rt, Value::Object(callback));
     b::keep(rt, Value::Object(object));

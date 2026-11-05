@@ -639,8 +639,9 @@ its own arena (section 2), so a node is (document, `NodeId`):
 - A wrapper's host data word packs a document key and the `NodeId` (the
   word is 64 bits). The binding state keeps the wrapper vector, the
   `[SameObject]` side table, the listener table and the mutation registry
-  per document. `Cx` resolves the document of `this`; the bindings' calls
-  of `EngineHost` take the document.
+  per document. A native runs with the document of its `this` as the
+  current document of the binding state, so the bindings' calls of
+  `EngineHost` need no document argument (feature 12a, below).
 - The runtime lends every document of its agent for a task (a set of
   boxed `EngineHost`s keyed by document), not one. The page takes them
   all back after the task.
@@ -676,6 +677,89 @@ cross-origin frame that navigates to another origin drops it at once).
 The leak is bounded by a realm budget (section 11). Realm collection
 (a retired realm is marked only through its functions and objects, and
 swept when unreachable) is a `js` feature after M9's targets work.
+
+**Done (feature 12a).** The plumbing of this section, with one document in
+each page's runtime; no page changes its behaviour.
+
+- `js`: `create_realm` is public, `eval_named_at` and `eval_module_at` take
+  a realm, and each realm has `[[GlobalThisValue]]`
+  (`Runtime::set_global_this`, ADR 0026 section 17). `ObjectKind::WindowProxy`
+  holds the frame id and an optional target. The generic internal methods
+  treat it as a proxy (`vm/proxy.rs` hands it to `vm/window_proxy.rs`), so the
+  paths that test `needs_runtime` needed no change. A proxy without a target
+  calls `WindowProxyHooks`.
+- Inline caches: the entry `SiteCache::WindowProperty` names the target by
+  identity, the holder, the slot and the watch epoch. A `Window` has a
+  dictionary shape, so the shape proves nothing; the target and its chain are
+  watched, as for the global entries. A retarget changes the identity that
+  the hit compares, so no old holder is read.
+- `web`: the realm's global this value is the frame's proxy (the table
+  `WebState::window_proxies`). `this_or_global` gives the proxy for
+  `undefined`, so `Platform::object` of a `Window` member is the proxy, and
+  `Heap::host_slot` looks through a proxy, which is the unwrapping of every
+  brand check. `rt.global()` stays for the realm's own definitions; every
+  value that goes to script comes from `state::window_proxy`.
+- **The split.** `WebState` keeps what belongs to the agent; `DocState` what
+  belongs to a document and its `Window` (ADR 0028 "Feature 12a notes" has the
+  list). `state.doc` is a `Box<DocState>`, the current document. The word of a
+  wrapper is `(document key << 32) | node index`.
+- **How a native finds its document.** The glue's `run` and `run_promise` and
+  the hooks of legacy platform objects and of `WindowProperties` start with
+  `enter_call` or `enter_object`: if `Runtime::host_flag` says that the runtime
+  has several documents, the document of `this` (a word with a key, else the
+  realm of the host object, which the slot now holds) or of the function's
+  realm becomes current, and `leave` restores what was found. That design was
+  chosen over a document argument on every binding (1,600 call sites) and over
+  a hook on the realm switch of a call (a native of realm A with a node of
+  document B as `this` must also switch: a moved node keeps its prototype).
+  The flag is a field of the runtime, so a runtime with one document pays one
+  load and one comparison, without the type check of `host_data`.
+- A task remembers the document that was current when it was queued
+  (`TaskQueue`), and `run_due_tasks` runs it there. Timers are per document;
+  the queue is per agent.
+- **Node conversions.** A `NodeId` of another document cannot reach an arena:
+  an argument conversion (`convert::node`) fails with a `TypeError`, and the
+  other readers of a word go through `b::node_here`. `this` needs no check,
+  because the entry made its document current. Feature 12b replaces these
+  failures with adoption.
+- **Measured** (case `windowproxy-top`, three equal runs; every value is
+  compared in `crates/engine/tests/frames/window_proxy.rs`): the identities,
+  descriptors (`Window`'s accessors and own functions; a `var` is not
+  configurable), `in`, `delete`, `Object.preventExtensions` (`TypeError: Cannot
+  prevent extensions`, `Cannot freeze`, `Cannot seal`), `Reflect.preventExtensions`
+  `false`, `Object.setPrototypeOf` (`Immutable prototype object '#<Window>'
+  cannot have their prototype set`), a getter by name and through the proxy
+  sees the proxy, `undefined` as `this` of a member works and `{}` is `Illegal
+  invocation`, also through `new Proxy(window, {})` and `Object.create(window)`.
+  An index on a `WindowProxy` without frames: a sloppy write is ignored, a
+  strict one throws `Failed to set an indexed property [6] on 'Window':
+  Indexed property setter is not supported.`, `Object.defineProperty` throws
+  the same with `Index property setter`, `Reflect.defineProperty` and
+  `Reflect.set` answer `true` and define nothing.
+- **Departures.** `opener`, `frameElement` and `name` of the window are still
+  missing (three rows of the test; feature 12b adds them, because a page that
+  reads `name` could change its path). Eval of a function over a
+  non-configurable global property gives the `TypeError` of ECMA-262 §19.2.1.3;
+  V8 gives a `SyntaxError` (the fourth row). Objects that a native makes with a
+  `this` of another document are in that document's realm (`Cx::realm`), the
+  function's realm only with one document. The mutation observer microtask is
+  per document, not per agent: the order between two documents' observers
+  in one checkpoint follows the order in which their microtasks were queued.
+- **Known gaps that only several documents reach (feature 12b).** A native
+  switches to the document of its `this` and forgets the caller's, so
+  `other.postMessage()` takes `source` and `origin` from the receiver (Chromium:
+  the sender), and relative URLs of `location.href`, `open` and `fetch` have the
+  same problem (HTML "incumbent" and "entry" settings objects). `setAttributeNode`,
+  `removeAttributeNode` and `setNamedItem` read the owner's `NodeId` from an
+  `Attr` without the document check; no panic, and `eB.setAttributeNode(aOfA)`
+  does nothing (Chromium: `InUseAttributeError`). Nothing frees a `DocState` or an
+  entry of `window_proxies` yet, and `run_due_tasks` drops a task of an unknown
+  document and counts it as run.
+  An `AbortSignal` of one document cannot remove a listener from a node of
+  another (`remove_listener` ignores it). `WebState::blob_urls` is per agent
+  but a document's unload does not revoke yet.
+- Costs: docs/performance.md, "`WindowProxy` and the split of the binding
+  state".
 
 ### 6. The event loop with several runtimes
 

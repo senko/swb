@@ -465,7 +465,7 @@ pub(crate) fn completed(
 
 /// The `timeout` of the request `id` is over.
 pub(crate) fn timeout_fired(rt: &mut Runtime, id: u64) -> VmResult<()> {
-    let Some(xhr) = state_mut(rt)?.fetches.xhrs.remove(&id) else {
+    let Some(xhr) = state_mut(rt)?.doc.fetches.xhrs.remove(&id) else {
         return Ok(());
     };
     // Out of the table, the object lives as long as the task's scope.
@@ -491,7 +491,7 @@ fn terminate(rt: &mut Runtime, xhr: Gc<Object>) -> b::Result<()> {
     let id = xhr_mut(rt, xhr)?.request_id.take();
     cancel_timeout(rt, xhr);
     if let Some(id) = id {
-        state_mut(rt)?.fetches.xhrs.remove(&id);
+        state_mut(rt)?.doc.fetches.xhrs.remove(&id);
         if let Ok(host) = engine_mut(rt) {
             host.cancel_api_fetch(id);
         }
@@ -647,9 +647,9 @@ fn start(rt: &mut Runtime, xhr: Gc<Object>, request: swb_net::Request) -> b::Res
         s.timeout
     };
     let app = state_mut(rt)?;
-    app.fetches.xhrs.insert(id, xhr);
+    app.doc.fetches.xhrs.insert(id, xhr);
     if timeout > 0 {
-        let due = app.clock.page_now() + f64::from(timeout);
+        let due = app.doc.clock.page_now() + f64::from(timeout);
         let key = app.event_loop.tasks.push(due, Task::XhrTimeout(id));
         xhr_mut(rt, xhr)?.timeout_key = Some(key);
     }
@@ -706,7 +706,7 @@ pub(crate) fn drop_requests(rt: &mut Runtime) {
     let Ok(app) = state_mut(rt) else {
         return;
     };
-    let objects: Vec<Gc<Object>> = app.fetches.xhrs.drain().map(|(_, xhr)| xhr).collect();
+    let objects: Vec<Gc<Object>> = app.doc.fetches.xhrs.drain().map(|(_, xhr)| xhr).collect();
     for xhr in objects {
         cancel_timeout(rt, xhr);
         if let Ok(s) = xhr_mut(rt, xhr) {
@@ -762,7 +762,7 @@ fn html_document(rt: &mut Runtime, realm: u32, text: &str, mime: &str) -> b::Res
     }
     let result = swb_dom::parse_document(dom_mut(rt)?, text);
     let node = crate::dom::dom_result(rt, result)?;
-    state_mut(rt)?.parsed_documents.insert(node);
+    state_mut(rt)?.doc.parsed_documents.insert(node);
     Ok(Some(
         <WebState as b::Host>::wrap_node(rt, realm, node)?.into(),
     ))
@@ -932,7 +932,8 @@ impl g::xml_http_request::XMLHttpRequestImpl for WebState {
             return Ok(None);
         }
         let value = Self::response(cx, this)?;
-        Ok(b::node_of(
+        Ok(b::node_here(
+            cx.rt,
             cx.rt
                 .host_object(value)
                 .map_or(HostData::Word(u64::MAX), |(_, data)| data),

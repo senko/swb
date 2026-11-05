@@ -164,7 +164,7 @@ pub(crate) fn place_at_target(
         return Ok(());
     }
     let node = match rt.host_object(target.into()) {
-        Some((_, data)) if rt.implements(target.into(), g::NODE) => b::node_of(data),
+        Some((_, data)) if rt.implements(target.into(), g::NODE) => b::node_here(rt, data),
         _ => None,
     };
     let Some(node) = node else {
@@ -228,7 +228,7 @@ fn node_of_object(cx: &Cx<'_>, object: Gc<Object>) -> Option<NodeId> {
     let value = object.into();
     let (_, data) = cx.rt.host_object(value)?;
     if cx.rt.implements(value, g::NODE) {
-        b::node_of(data)
+        b::node_here(cx.rt, data)
     } else {
         None
     }
@@ -509,7 +509,7 @@ pub(crate) fn new_click_event(
     detail: i32,
 ) -> VmResult<Gc<Object>> {
     let mut f = super::ui::Fields::new(Family::Pointer);
-    f.view = Some(rt.global(0)?);
+    f.view = Some(crate::state::window_proxy(rt)?);
     f.detail = detail;
     f.mouse.pointer.id = -1;
     let mut data = EventData::new(
@@ -519,7 +519,7 @@ pub(crate) fn new_click_event(
         Extra::Ui(Box::new(f)),
     );
     data.is_trusted = trusted;
-    new_event_object(rt, 0, g::POINTER_EVENT, data)
+    new_event_object(rt, crate::state::doc_realm(rt)?, g::POINTER_EVENT, data)
 }
 
 #[cfg(test)]

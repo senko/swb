@@ -54,11 +54,11 @@ impl AnimationFrames {
 
 /// `requestAnimationFrame(callback)`: the handle of the new entry.
 pub(crate) fn request(rt: &mut Runtime, callback: Gc<Object>) -> b::Result<u32> {
-    if state(rt)?.animation_frames.callbacks.len() >= MAX_CALLBACKS {
+    if state(rt)?.doc.animation_frames.callbacks.len() >= MAX_CALLBACKS {
         log::warn!("a document has more than {MAX_CALLBACKS} animation frame callbacks");
         return Err(rt.terminate("too many animation frame callbacks").into());
     }
-    let frames = &mut state_mut(rt)?.animation_frames;
+    let frames = &mut state_mut(rt)?.doc.animation_frames;
     // Handles start at 1; 0 is never a handle, also after a wrap.
     frames.last = frames.last.wrapping_add(1).max(1);
     let handle = frames.last;
@@ -68,7 +68,11 @@ pub(crate) fn request(rt: &mut Runtime, callback: Gc<Object>) -> b::Result<u32> 
 
 /// `cancelAnimationFrame(handle)`.
 pub(crate) fn cancel(rt: &mut Runtime, handle: u32) -> b::Result<()> {
-    state_mut(rt)?.animation_frames.callbacks.remove(&handle);
+    state_mut(rt)?
+        .doc
+        .animation_frames
+        .callbacks
+        .remove(&handle);
     Ok(())
 }
 
@@ -76,7 +80,7 @@ pub(crate) fn cancel(rt: &mut Runtime, handle: u32) -> b::Result<()> {
 pub(crate) fn handles(rt: &Runtime) -> Vec<u32> {
     state(rt).map_or_else(
         |_| Vec::new(),
-        |s| s.animation_frames.callbacks.keys().copied().collect(),
+        |s| s.doc.animation_frames.callbacks.keys().copied().collect(),
     )
 }
 
@@ -85,6 +89,7 @@ pub(crate) fn handles(rt: &Runtime) -> Vec<u32> {
 pub(crate) fn run(rt: &mut Runtime, handle: u32, now: f64) -> Result<(), swb_js::ScriptError> {
     let callback = state_mut(rt)
         .map_err(crate::runtime::task_error)?
+        .doc
         .animation_frames
         .callbacks
         .remove(&handle);

@@ -62,14 +62,17 @@ fn ordinary_lookup(result: GetResult) -> VmResult<Lookup> {
 impl Runtime {
     /// The realm of the running code.
     pub(crate) fn current_realm(&self) -> u32 {
-        self.vm.frames.last().map_or(0, |f| f.realm)
+        match self.vm.frames.last() {
+            Some(frame) => frame.realm,
+            None => self.vm.base_realm,
+        }
     }
 
     /// `[[OwnPropertyKeys]]` for a built-in function: charges the time
     /// countdown for the keys, then lists them (the heap checks that the
     /// list fits under the limit before it allocates).
     pub(crate) fn own_keys(&mut self, object: Gc<Object>) -> VmResult<Vec<PropertyKey>> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return self.proxy_own_keys(object);
         }
         if let Some(hooks) = self.host_hooks(object)? {

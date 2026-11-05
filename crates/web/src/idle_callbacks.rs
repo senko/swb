@@ -103,19 +103,19 @@ pub(crate) fn request(
     callback: Gc<Object>,
     options: &IdleRequestOptions,
 ) -> b::Result<u32> {
-    if state(cx.rt)?.idle.waiting.len() >= MAX_CALLBACKS {
+    if state(cx.rt)?.doc.idle.waiting.len() >= MAX_CALLBACKS {
         log::warn!("a document has more than {MAX_CALLBACKS} idle callbacks");
         return Err(cx.rt.terminate("too many idle callbacks").into());
     }
     let state = state_mut(cx.rt)?;
     // Handles start at 1; 0 is never a handle, also after a wrap.
-    state.idle.last = state.idle.last.wrapping_add(1).max(1);
-    let handle = state.idle.last;
+    state.doc.idle.last = state.doc.idle.last.wrapping_add(1).max(1);
+    let handle = state.doc.idle.last;
     let timeout_task = options.timeout.filter(|&t| t > 0).map(|timeout| {
-        let due = state.clock.page_now() + f64::from(timeout);
+        let due = state.doc.clock.page_now() + f64::from(timeout);
         state.event_loop.tasks.push(due, Task::IdleTimeout(handle))
     });
-    state.idle.waiting.insert(
+    state.doc.idle.waiting.insert(
         handle,
         Waiting {
             callback,
@@ -128,7 +128,7 @@ pub(crate) fn request(
 /// `cancelIdleCallback(handle)`.
 pub(crate) fn cancel(rt: &mut Runtime, handle: u32) -> b::Result<()> {
     let state = state_mut(rt)?;
-    if let Some(entry) = state.idle.waiting.remove(&handle)
+    if let Some(entry) = state.doc.idle.waiting.remove(&handle)
         && let Some(key) = entry.timeout_task
     {
         state.event_loop.tasks.remove(key);
@@ -139,13 +139,16 @@ pub(crate) fn cancel(rt: &mut Runtime, handle: u32) -> b::Result<()> {
 /// The handles of the callbacks that wait now (the callbacks of an idle
 /// period that starts now).
 pub(crate) fn handles(rt: &Runtime) -> Vec<u32> {
-    state(rt).map_or_else(|_| Vec::new(), |s| s.idle.waiting.keys().copied().collect())
+    state(rt).map_or_else(
+        |_| Vec::new(),
+        |s| s.doc.idle.waiting.keys().copied().collect(),
+    )
 }
 
 /// True if the callback of `handle` still waits (an earlier callback of the
 /// period can cancel it).
 pub(crate) fn waits(rt: &Runtime, handle: u32) -> bool {
-    state(rt).is_ok_and(|s| s.idle.waiting.contains_key(&handle))
+    state(rt).is_ok_and(|s| s.doc.idle.waiting.contains_key(&handle))
 }
 
 /// Runs the callback of `handle` if it still waits. `deadline` is the end
@@ -154,20 +157,21 @@ pub(crate) fn waits(rt: &Runtime, handle: u32) -> bool {
 /// errors.
 pub(crate) fn run(rt: &mut Runtime, handle: u32, deadline: Option<f64>) -> Result<(), ScriptError> {
     let state = state_mut(rt).map_err(task_error)?;
-    let Some(entry) = state.idle.waiting.remove(&handle) else {
+    let Some(entry) = state.doc.idle.waiting.remove(&handle) else {
         return Ok(());
     };
     if let Some(key) = entry.timeout_task {
         state.event_loop.tasks.remove(key);
     }
-    let now = state.clock.page_now();
+    let now = state.doc.clock.page_now();
     let data = DeadlineData {
         deadline: deadline.unwrap_or(now),
         did_timeout: deadline.is_none(),
     };
     let object = (|| {
+        let realm = crate::state::doc_realm(rt)?;
         let data = rt.alloc_host_data(data)?;
-        rt.new_host_object(0, g::IDLE_DEADLINE, data)
+        rt.new_host_object(realm, g::IDLE_DEADLINE, data)
     })()
     .map_err(task_error)?;
     b::keep(rt, Value::Object(entry.callback));
@@ -195,7 +199,7 @@ impl g::idle_deadline::IdleDeadlineImpl for WebState {
 
     fn time_remaining(cx: &mut Cx<'_>, this: Platform) -> b::Result<f64> {
         let deadline = deadline_data(cx.rt, this)?.deadline;
-        let clock = &state(cx.rt)?.clock;
+        let clock = &state(cx.rt)?.doc.clock;
         if clock.page.is_virtual() {
             // Time passes while script runs, but never past the deadline.
             let now = clock.page_now();

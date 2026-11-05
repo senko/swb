@@ -102,6 +102,18 @@ pub fn node(this: Platform) -> Result<NodeId> {
     node_of(this.data).ok_or_else(|| VmError::type_error("Illegal invocation").into())
 }
 
+/// Runs a hook of the platform object `object` in its document.
+fn in_document<R>(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    hook: impl FnOnce(&mut Runtime) -> VmResult<R>,
+) -> VmResult<R> {
+    let entered = crate::state::enter_object(rt, object)?;
+    let result = hook(rt);
+    crate::state::leave(rt, entered);
+    result
+}
+
 /// `[[GetOwnProperty]]` (§3.9.1): `LegacyPlatformObjectGetOwnProperty(O,
 /// P, false)`.
 pub fn get_own_property(
@@ -110,13 +122,29 @@ pub fn get_own_property(
     key: PropertyKey,
     spec: &Legacy,
 ) -> VmResult<Option<Property>> {
-    let cx = Call::new(rt, object, spec)?;
-    cx.own_property(rt, key, false)
+    in_document(rt, object, |rt| {
+        let cx = Call::new(rt, object, spec)?;
+        cx.own_property(rt, key, false)
+    })
 }
 
 /// `[[Set]]` (§3.9.2): the setters when the object is the receiver, else
 /// the ordinary steps with the own property without the named ones.
 pub fn set(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+    value: Value,
+    receiver: Value,
+    spec: &Legacy,
+) -> VmResult<SetAnswer> {
+    in_document(rt, object, |rt| {
+        set_here(rt, object, key, value, receiver, spec)
+    })
+}
+
+/// [`set`] in the document of the object.
+fn set_here(
     rt: &mut Runtime,
     object: Gc<Object>,
     key: PropertyKey,
@@ -174,6 +202,19 @@ pub fn define_own_property(
     desc: &PropertyDescriptor,
     spec: &Legacy,
 ) -> VmResult<Option<bool>> {
+    in_document(rt, object, |rt| {
+        define_own_property_here(rt, object, key, desc, spec)
+    })
+}
+
+/// [`define_own_property`] in the document of the object.
+fn define_own_property_here(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+    desc: &PropertyDescriptor,
+    spec: &Legacy,
+) -> VmResult<Option<bool>> {
     let cx = Call::new(rt, object, spec)?;
     let accessor = desc.get.is_some() || desc.set.is_some();
     let value = desc.value.unwrap_or(Value::Undefined);
@@ -218,6 +259,16 @@ pub fn delete(
     key: PropertyKey,
     spec: &Legacy,
 ) -> VmResult<Option<bool>> {
+    in_document(rt, object, |rt| delete_here(rt, object, key, spec))
+}
+
+/// [`delete`] in the document of the object.
+fn delete_here(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+    spec: &Legacy,
+) -> VmResult<Option<bool>> {
     let cx = Call::new(rt, object, spec)?;
     if let (Some(indexed), PropertyKey::Index(index)) = (spec.indexed, key) {
         return Ok(Some(!cx.has_index(rt, indexed, index)?));
@@ -248,6 +299,16 @@ pub fn prevent_extensions(_rt: &mut Runtime, _object: Gc<Object>) -> VmResult<Op
 /// supported names (the runtime appends the stored keys). Chromium lists
 /// the stored string keys before the names; swb follows Web IDL.
 pub fn own_keys(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    keys: &mut Vec<PropertyKey>,
+    spec: &Legacy,
+) -> VmResult<()> {
+    in_document(rt, object, |rt| own_keys_here(rt, object, keys, spec))
+}
+
+/// [`own_keys`] in the document of the object.
+fn own_keys_here(
     rt: &mut Runtime,
     object: Gc<Object>,
     keys: &mut Vec<PropertyKey>,
@@ -286,6 +347,17 @@ pub fn own_keys(
 /// the refusal does not come from the indexed or named properties (a
 /// read-only expando, an accessor on the prototype): V8's message.
 pub fn refusal(
+    rt: &mut Runtime,
+    object: Gc<Object>,
+    key: PropertyKey,
+    why: Refusal,
+    spec: &Legacy,
+) -> VmResult<Option<String>> {
+    in_document(rt, object, |rt| refusal_here(rt, object, key, why, spec))
+}
+
+/// [`refusal`] in the document of the object.
+fn refusal_here(
     rt: &mut Runtime,
     object: Gc<Object>,
     key: PropertyKey,
@@ -355,7 +427,12 @@ impl<'a> Call<'a> {
         Ok(Call {
             object,
             this: Platform { object, data },
-            realm: rt.running_realm(),
+            // The objects of a hook hold nodes of the object's document.
+            realm: if rt.host_flag() {
+                crate::state::doc_realm(rt)?
+            } else {
+                rt.running_realm()
+            },
             spec,
         })
     }

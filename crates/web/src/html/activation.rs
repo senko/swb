@@ -194,7 +194,7 @@ pub(crate) fn pre_activation(rt: &mut Runtime, mut a: Activation) -> VmResult<Ac
     match a.kind {
         Kind::Checkbox => {
             let checked = engine_mut(rt)?.control_checked(a.node).unwrap_or(false);
-            let indeterminate = state(rt)?.indeterminate.contains(&a.node);
+            let indeterminate = state(rt)?.doc.indeterminate.contains(&a.node);
             a.saved = Saved::Checkbox {
                 checked,
                 indeterminate,
@@ -225,9 +225,9 @@ fn set_checked(rt: &mut Runtime, node: NodeId, checked: bool) -> VmResult<()> {
 
 fn set_indeterminate(rt: &mut Runtime, node: NodeId, value: bool) -> VmResult<()> {
     let changed = if value {
-        state_mut(rt)?.indeterminate.insert(node)
+        state_mut(rt)?.doc.indeterminate.insert(node)
     } else {
-        state_mut(rt)?.indeterminate.remove(&node)
+        state_mut(rt)?.doc.indeterminate.remove(&node)
     };
     if changed {
         engine_mut(rt)?.set_control_indeterminate(node, value);
@@ -454,7 +454,8 @@ pub(crate) fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult
 /// ADR 0028 "Feature 6d2 notes").
 pub(crate) fn run_javascript_url(rt: &mut Runtime, source: &str) -> VmResult<()> {
     let name = crate::scripts::document_url(rt);
-    match rt.eval_named(source, &name) {
+    let realm = crate::state::doc_realm(rt)?;
+    match rt.eval_named_at(realm, source, &name, (0, 0)) {
         Ok(_) => Ok(()),
         Err(ScriptError::Terminated(termination)) => Err(VmError::Terminated(termination)),
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
@@ -547,7 +548,7 @@ fn activate_label(
     if origin == control || document.ancestors(origin).any(|a| a == control) {
         return Ok(());
     }
-    if is_disabled(rt, control)? || !state_mut(rt)?.busy.label.insert(label) {
+    if is_disabled(rt, control)? || !state_mut(rt)?.doc.busy.label.insert(label) {
         return Ok(());
     }
     // The click of a label comes from the pointer: the control gets the
@@ -556,7 +557,7 @@ fn activate_label(
     engine_mut(rt)?.set_keyboard_modality(false);
     let result = super::focus::focus_node(rt, control, false)
         .and_then(|()| dispatch_click_as(rt, control, click));
-    state_mut(rt)?.busy.label.remove(&label);
+    state_mut(rt)?.doc.busy.label.remove(&label);
     result
 }
 
@@ -585,9 +586,10 @@ fn dispatch_click_as(
 ) -> VmResult<()> {
     let scope = rt.heap_mut().open_scope();
     let result = (|| {
-        let target = WebState::wrap_node(rt, 0, node)?;
+        let realm = crate::state::doc_realm(rt)?;
+        let target = WebState::wrap_node(rt, realm, node)?;
         let event = new_click_event(rt, trusted, detail)?;
-        dispatch(rt, 0, target, event, None).map(|_| ())
+        dispatch(rt, realm, target, event, None).map(|_| ())
     })();
     if let Err(error) = rt.heap_mut().close_scope(scope) {
         log::warn!("the handle scope of a click was not the last one: {error:?}");
@@ -602,14 +604,14 @@ pub(crate) fn click(cx: &mut Cx<'_>, node: NodeId) -> b::Result<()> {
     if is_disabled(cx.rt, node)? {
         return Ok(());
     }
-    if !state_mut(cx.rt)?.busy.click.insert(node) {
+    if !state_mut(cx.rt)?.doc.busy.click.insert(node) {
         return Ok(());
     }
     let result =
         handlers::with_context(cx.rt, "Failed to execute 'click' on 'HTMLElement'", |rt| {
             dispatch_click(rt, node)
         });
-    state_mut(cx.rt)?.busy.click.remove(&node);
+    state_mut(cx.rt)?.doc.busy.click.remove(&node);
     Ok(result?)
 }
 
@@ -639,11 +641,11 @@ pub(crate) fn submit(
     if !document.is_connected(form) || document.node_document(form) != NodeId::DOCUMENT {
         return Ok(());
     }
-    if !state_mut(rt)?.busy.submit.insert(form) {
+    if !state_mut(rt)?.doc.busy.submit.insert(form) {
         return Ok(());
     }
     let result = submit_steps(rt, form, submitter, from_method, click);
-    state_mut(rt)?.busy.submit.remove(&form);
+    state_mut(rt)?.doc.busy.submit.remove(&form);
     result
 }
 
@@ -699,14 +701,14 @@ pub(crate) fn implicit_submit(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
 /// controls return to their defaults. A reset that runs inside the `reset`
 /// event of the same form does nothing ("locked for reset").
 pub(crate) fn reset(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
-    if !state_mut(rt)?.busy.reset.insert(form) {
+    if !state_mut(rt)?.doc.busy.reset.insert(form) {
         return Ok(());
     }
     let mut event = TrustedEvent::new("reset");
     event.bubbles = true;
     event.cancelable = true;
     let result = fire_trusted(rt, DispatchTarget::Node(form), &event);
-    state_mut(rt)?.busy.reset.remove(&form);
+    state_mut(rt)?.doc.busy.reset.remove(&form);
     if result? {
         engine_mut(rt)?.reset_form(form);
         reset_outputs(rt, form)?;
@@ -717,17 +719,17 @@ pub(crate) fn reset(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
 /// The reset algorithm of `output` elements: the text content becomes the
 /// default value override, and the value mode flag is "default" again.
 fn reset_outputs(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
-    if state_mut(rt)?.output_defaults.is_empty() {
+    if state_mut(rt)?.doc.output_defaults.is_empty() {
         return Ok(());
     }
-    let keys: Vec<NodeId> = state_mut(rt)?.output_defaults.keys().copied().collect();
+    let keys: Vec<NodeId> = state_mut(rt)?.doc.output_defaults.keys().copied().collect();
     let document = dom(rt)?;
     let owned: Vec<NodeId> = keys
         .into_iter()
         .filter(|&n| form_owner(document, n) == Some(form))
         .collect();
     for output in owned {
-        if let Some(default) = state_mut(rt)?.output_defaults.remove(&output) {
+        if let Some(default) = state_mut(rt)?.doc.output_defaults.remove(&output) {
             // Only a failure of the DOM could fail; the output keeps its text.
             let _ = crate::dom::string_replace_all_in(rt, output, &default);
         }
@@ -782,11 +784,11 @@ pub(crate) fn reset_method(cx: &mut Cx<'_>, form: NodeId) -> b::Result<()> {
 
 /// Used by `focus.rs`: the busy set for "locked for focus".
 pub(crate) fn lock_focus(rt: &mut Runtime, node: NodeId) -> VmResult<bool> {
-    Ok(state_mut(rt)?.busy.focus.insert(node))
+    Ok(state_mut(rt)?.doc.busy.focus.insert(node))
 }
 
 /// Used by `focus.rs`: leaves "locked for focus".
 pub(crate) fn unlock_focus(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
-    state_mut(rt)?.busy.focus.remove(&node);
+    state_mut(rt)?.doc.busy.focus.remove(&node);
     Ok(())
 }

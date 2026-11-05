@@ -35,7 +35,7 @@ impl ScriptRuntime {
 }
 
 fn deliver(rt: &mut Runtime, node: NodeId, ok: bool) -> VmResult<()> {
-    let waiting = state_mut(rt)?.decodes.remove(&node).unwrap_or_default();
+    let waiting = state_mut(rt)?.doc.decodes.remove(&node).unwrap_or_default();
     for promise in waiting {
         if ok {
             rt.resolve_pending_promise(promise, Value::Undefined)?;
@@ -72,7 +72,7 @@ pub(crate) fn decode_image(cx: &mut Cx<'_>, node: NodeId) -> b::Result<Gc<Object
         }
         return Ok(promise);
     }
-    let decodes = &mut state_mut(cx.rt)?.decodes;
+    let decodes = &mut state_mut(cx.rt)?.doc.decodes;
     let list = decodes.entry(node).or_default();
     if list.len() >= MAX_DECODES_PER_IMAGE || decodes.len() > MAX_DECODES {
         return Err(Exception::dom(

@@ -337,6 +337,7 @@ mod tests {
         // column moves on its first line only; stack traces agree.
         let error = rt
             .eval_named_at(
+                0,
                 "var e1 = new Error('a');\n  var e2 = new Error('b'); [e1, e2]",
                 "page.html",
                 (3, 9),

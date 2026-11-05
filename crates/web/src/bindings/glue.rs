@@ -16,7 +16,8 @@ use swb_js::{
 use super::exception::{Context, Exception, not_enough_arguments, throw};
 use super::{Host, NodeId, Platform, Result, glue_state, node_of};
 
-/// Runs the body of a member and converts its exception
+/// Runs the body of a member in the document of its `this`
+/// ([`crate::state::enter_call`]) and converts its exception
 /// ([`super::exception::throw`]).
 pub fn run(
     rt: &mut Runtime,
@@ -25,11 +26,12 @@ pub fn run(
     dom_exception: ClassId,
     body: impl FnOnce(&mut Runtime) -> Result<Value>,
 ) -> VmResult<NativeReturn> {
+    let entered = crate::state::enter_call(rt, call)?;
     let result = body(rt);
     // A change that the call made may have queued mutation records: the
     // mutation observer microtask takes its place in the job queue now.
-    if crate::mutation_observer::needs_attention(rt) {
-        crate::mutation_observer::after_request(rt)?;
+    if crate::mutation_observer::needs_attention(rt) || entered != crate::state::NO_SWITCH {
+        return finish_slowly(rt, call, (context, dom_exception), result, entered);
     }
     match result {
         Ok(value) => Ok(NativeReturn::Value(value)),
@@ -37,11 +39,50 @@ pub fn run(
     }
 }
 
+/// The end of [`run`] after mutation records were queued or the document
+/// was switched.
+#[cold]
+#[inline(never)]
+fn finish_slowly(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    (context, dom_exception): (Context, ClassId),
+    result: Result<Value>,
+    entered: crate::state::Entered,
+) -> VmResult<NativeReturn> {
+    let attention = if crate::mutation_observer::needs_attention(rt) {
+        crate::mutation_observer::after_request(rt)
+    } else {
+        Ok(())
+    };
+    let answer = match (attention, result) {
+        (Err(error), _) => Err(error),
+        (Ok(()), Ok(value)) => Ok(NativeReturn::Value(value)),
+        (Ok(()), Err(exception)) => Err(throw(rt, call.realm(), context, dom_exception, exception)),
+    };
+    crate::state::leave(rt, entered);
+    answer
+}
+
 /// [`run`] for an operation that returns a promise: an exception becomes
 /// a rejected promise (Web IDL §3.7.6, step "if an exception was thrown
 /// and the return type is a promise type"); a termination still ends the
 /// task.
 pub fn run_promise(
+    rt: &mut Runtime,
+    call: &NativeCall,
+    context: Context,
+    dom_exception: ClassId,
+    body: impl FnOnce(&mut Runtime) -> Result<Value>,
+) -> VmResult<NativeReturn> {
+    let entered = crate::state::enter_call(rt, call)?;
+    let answer = run_promise_body(rt, call, context, dom_exception, body);
+    crate::state::leave(rt, entered);
+    answer
+}
+
+/// [`run_promise`] in the document of the call.
+fn run_promise_body(
     rt: &mut Runtime,
     call: &NativeCall,
     context: Context,

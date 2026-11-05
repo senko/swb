@@ -380,12 +380,12 @@ impl Scripts {
 
 /// The script state of the runtime.
 pub(crate) fn scripts(rt: &Runtime) -> VmResult<&Scripts> {
-    Ok(&state(rt)?.scripts)
+    Ok(&state(rt)?.doc.scripts)
 }
 
 /// The script state of the runtime, for changes.
 pub(crate) fn scripts_mut(rt: &mut Runtime) -> VmResult<&mut Scripts> {
-    Ok(&mut state_mut(rt)?.scripts)
+    Ok(&mut state_mut(rt)?.doc.scripts)
 }
 
 /// Where a script that the parser reached comes from.
@@ -968,10 +968,11 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
     } else {
         scripts.current_script.replace(node)
     };
+    let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
     let run = if module {
-        rt.eval_module_at(&script.source, &script.url, script.start)
+        rt.eval_module_at(realm, &script.source, &script.url, script.start)
     } else {
-        rt.eval_named_at(&script.source, &script.url, script.start)
+        rt.eval_named_at(realm, &script.source, &script.url, script.start)
     }
     .map(drop);
     // Departure (ADR 0028 section 6, item 7): a module that needs another

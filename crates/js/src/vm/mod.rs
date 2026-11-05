@@ -73,6 +73,7 @@ pub(crate) mod stack_text;
 mod symbols;
 pub(crate) mod time;
 pub(crate) mod typed_array;
+pub(crate) mod window_proxy;
 
 use std::borrow::Cow;
 use std::rc::Rc;
@@ -443,6 +444,9 @@ pub(crate) struct Vm {
     /// The host classes and the host state (`host/mod.rs`); the host
     /// state is a root.
     pub(crate) host: crate::host::Host,
+    /// The realm of the running code when no frame exists: 0, or the realm
+    /// of a native function that the host called.
+    pub(crate) base_realm: u32,
     /// A termination that a native function requested
     /// ([`Runtime::terminate`]): every time check repeats it until the
     /// host's outermost run ends, so that no handler that dropped the error

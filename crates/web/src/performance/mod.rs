@@ -167,8 +167,8 @@ pub(crate) fn record(rt: &mut Runtime, milestone: Milestone) {
     let Ok(state) = state_mut(rt) else {
         return;
     };
-    let now = state.clock.now();
-    let times = &mut state.perf.times;
+    let now = state.doc.clock.now();
+    let times = &mut state.doc.perf.times;
     let set = |slot: &mut Option<f64>| {
         slot.get_or_insert(now);
     };
@@ -194,7 +194,7 @@ pub(crate) fn record_url(rt: &mut Runtime) {
         return;
     };
     if let Ok(state) = state_mut(rt) {
-        state.perf.nav_url.get_or_insert(url);
+        state.doc.perf.nav_url.get_or_insert(url);
     }
 }
 
@@ -315,10 +315,10 @@ pub(crate) fn filter_sorted(
 
 /// The navigation entry, made at the first use.
 fn navigation_entry(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = state(cx.rt)?.perf.nav_entry {
+    if let Some(object) = state(cx.rt)?.doc.perf.nav_entry {
         return Ok(object);
     }
-    let name = match &state(cx.rt)?.perf.nav_url {
+    let name = match &state(cx.rt)?.doc.perf.nav_url {
         Some(url) => url.clone(),
         None => engine(cx.rt)?.url(),
     };
@@ -333,7 +333,7 @@ fn navigation_entry(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
     let object = cx
         .rt
         .new_host_object(cx.realm(), g::PERFORMANCE_NAVIGATION_TIMING, data)?;
-    state_mut(cx.rt)?.perf.nav_entry = Some(object);
+    state_mut(cx.rt)?.doc.perf.nav_entry = Some(object);
     Ok(object)
 }
 
@@ -341,7 +341,7 @@ fn navigation_entry(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
 pub(crate) fn buffer(cx: &mut Cx<'_>) -> b::Result<Vec<Gc<Object>>> {
     let nav = navigation_entry(cx)?;
     let mut all = vec![nav];
-    all.extend(state(cx.rt)?.perf.entries.iter().copied());
+    all.extend(state(cx.rt)?.doc.perf.entries.iter().copied());
     Ok(all)
 }
 
@@ -363,14 +363,14 @@ fn singleton(
 
 impl g::performance::PerformanceImpl for WebState {
     fn time_origin(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
-        Ok(state(cx.rt)?.clock.time_origin())
+        Ok(state(cx.rt)?.doc.clock.time_origin())
     }
 
     fn timing(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
         singleton(
             cx,
-            |s| s.perf.timing,
-            |s, o| s.perf.timing = Some(o),
+            |s| s.doc.perf.timing,
+            |s, o| s.doc.perf.timing = Some(o),
             g::PERFORMANCE_TIMING,
         )
     }
@@ -378,14 +378,14 @@ impl g::performance::PerformanceImpl for WebState {
     fn navigation(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
         singleton(
             cx,
-            |s| s.perf.navigation,
-            |s, o| s.perf.navigation = Some(o),
+            |s| s.doc.perf.navigation,
+            |s, o| s.doc.perf.navigation = Some(o),
             g::PERFORMANCE_NAVIGATION,
         )
     }
 
     fn now(cx: &mut Cx<'_>, _this: Platform) -> b::Result<f64> {
-        Ok(state(cx.rt)?.clock.now())
+        Ok(state(cx.rt)?.doc.clock.now())
     }
 
     fn to_json(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
@@ -488,21 +488,21 @@ impl g::performance::PerformanceImpl for WebState {
 
 /// Removes the entries of `kind` (with `name`, if given) from the buffer.
 fn clear(cx: &mut Cx<'_>, kind: EntryKind, name: Option<&str>) -> b::Result<()> {
-    let entries = std::mem::take(&mut state_mut(cx.rt)?.perf.entries);
+    let entries = std::mem::take(&mut state_mut(cx.rt)?.doc.perf.entries);
     let kept: Vec<Gc<Object>> = entries
         .into_iter()
         .filter(|&object| {
             info(cx.rt, object).is_none_or(|(k, n, _)| k != kind || name.is_some_and(|w| w != n))
         })
         .collect();
-    state_mut(cx.rt)?.perf.entries = kept;
+    state_mut(cx.rt)?.doc.perf.entries = kept;
     Ok(())
 }
 
 /// Puts a new entry in the buffer (if there is room) and queues it for the
 /// observers.
 fn add_entry(cx: &mut Cx<'_>, entry: Gc<Object>, kind: EntryKind) -> b::Result<()> {
-    let perf = &mut state_mut(cx.rt)?.perf;
+    let perf = &mut state_mut(cx.rt)?.doc.perf;
     if perf.entries.len() < MAX_ENTRIES {
         perf.entries.push(entry);
     } else if !perf.full_warned {
@@ -556,7 +556,7 @@ fn mark_data(
             )));
         }
         Some(time) => time,
-        None => state(cx.rt)?.clock.now(),
+        None => state(cx.rt)?.doc.clock.now(),
     };
     let detail = serialize_detail(cx, options.detail)?;
     Ok(EntryData {
@@ -591,7 +591,7 @@ fn timestamp_of(cx: &mut Cx<'_>, mark: &DomStringOrDouble, measure_name: &str) -
         DomStringOrDouble::Double(time) => return Ok(*time),
         DomStringOrDouble::DomString(name) => name,
     };
-    match state(cx.rt)?.perf.times.of_timing_name(name) {
+    match state(cx.rt)?.doc.perf.times.of_timing_name(name) {
         TimingName::At(time) => return Ok(time),
         TimingName::NotYet => {
             return Err(Exception::dom(
@@ -605,6 +605,7 @@ fn timestamp_of(cx: &mut Cx<'_>, mark: &DomStringOrDouble, measure_name: &str) -
     }
     let rt: &Runtime = cx.rt;
     state(rt)?
+        .doc
         .perf
         .entries
         .iter()
@@ -667,7 +668,7 @@ fn make_measure(
     };
     let end = match end {
         Some(end) => end,
-        None => state(cx.rt)?.clock.now(),
+        None => state(cx.rt)?.doc.clock.now(),
     };
     let detail = serialize_detail(cx, options.detail)?;
     new_entry(
@@ -742,7 +743,7 @@ impl g::performance_entry::PerformanceEntryImpl for WebState {
         let data = entry_data(cx.rt, this)?;
         if data.kind == EntryKind::Navigation {
             // The duration of the navigation entry is `loadEventEnd`.
-            return Ok(state(cx.rt)?.perf.times.load_end.unwrap_or(0.0));
+            return Ok(state(cx.rt)?.doc.perf.times.load_end.unwrap_or(0.0));
         }
         Ok(data.duration)
     }
@@ -753,7 +754,7 @@ impl g::performance_entry::PerformanceEntryImpl for WebState {
             (data.kind, data.name.clone(), data.start, data.duration)
         };
         let duration = if kind == EntryKind::Navigation {
-            state(cx.rt)?.perf.times.load_end.unwrap_or(0.0)
+            state(cx.rt)?.doc.perf.times.load_end.unwrap_or(0.0)
         } else {
             duration
         };

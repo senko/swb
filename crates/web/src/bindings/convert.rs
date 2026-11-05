@@ -18,7 +18,7 @@ use std::hash::Hash;
 
 use swb_js::{Gc, Object, Property, PropertyKey, Runtime, Value, VmError};
 
-use super::{Exception, NodeId, Platform, Result, node_of};
+use super::{Exception, NodeId, Platform, Result, node_here, node_of};
 
 /// The longest sequence that a conversion builds; a longer one is a
 /// `RangeError` (a limit of swb, so that an endless iterator cannot fill
@@ -296,7 +296,8 @@ pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<O
 }
 
 /// An interface type that inherits from `Node`: the node of a wrapper of
-/// `class` or of a subclass.
+/// `class` or of a subclass. A node of another document fails here (ADR 0031
+/// section 5: its `NodeId` means another arena; feature 12b handles it).
 pub fn node(
     rt: &Runtime,
     value: Value,
@@ -307,6 +308,9 @@ pub fn node(
         && let Some((_, data)) = rt.host_object(value)
         && let Some(node) = node_of(data)
     {
+        if node_here(rt, data).is_none() {
+            return Err(VmError::type_error("a node of another document").into());
+        }
         return Ok(node);
     }
     Err(Exception::NotOfType(name.into()))

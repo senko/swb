@@ -15,9 +15,11 @@
 //!   `js::Runtime` with the bindings and the `Window` global, runs classic
 //!   scripts as tasks, evaluates expressions and keeps the console. The
 //!   engine lends its document state through [`EngineHost`] for each task.
-//!   `state` holds the binding state (the wrapper vector, the side table,
-//!   the listeners of nodes and the window); `dom`, `window` and `events`
-//!   the behaviour of the interfaces.
+//!   `state` holds the binding state (what the agent shares, and for each
+//!   document the wrapper vector, the side table, the listeners of nodes and
+//!   the window; M9 feature 12a, ADR 0031 section 5); `dom`, `window` and
+//!   `events` the behaviour of the interfaces; `window_proxy` the `WindowProxy`
+//!   without a target.
 //! - Events (feature 5a): `EventTarget`, `Event` and its subclasses, the
 //!   dispatch algorithm, and [`ScriptRuntime::dispatch_event`], the entry
 //!   for events that the engine fires ([`DispatchTarget`],
@@ -122,6 +124,7 @@ mod text_codec;
 mod timers;
 mod url_api;
 mod window;
+mod window_proxy;
 mod xhr;
 
 pub use clock::{ClockMode, PageClock};
@@ -134,8 +137,8 @@ pub use host::{
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{
-    ConsoleMessage, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart, HEAP_LIMIT,
-    JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
+    ConsoleMessage, DocumentKey, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart,
+    HEAP_LIMIT, JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
 pub use scripts::{FetchedScript, ScriptFetchMode, is_javascript_mime_type};
 pub use storage::{

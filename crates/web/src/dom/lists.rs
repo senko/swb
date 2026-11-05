@@ -439,11 +439,11 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
     let stale = {
         let registry_generation = dom(cx.rt)?.generation();
         let state = state_mut(cx.rt)?;
-        if state.list_registry_generation == registry_generation {
+        if state.doc.list_registry_generation == registry_generation {
             Vec::new()
         } else {
-            state.list_registry_generation = registry_generation;
-            std::mem::take(&mut state.list_registry)
+            state.doc.list_registry_generation = registry_generation;
+            std::mem::take(&mut state.doc.list_registry)
         }
     };
     for other in stale {
@@ -460,7 +460,7 @@ fn fresh(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
         names: None,
     });
     if registers {
-        state_mut(cx.rt)?.list_registry.push(data);
+        state_mut(cx.rt)?.doc.list_registry.push(data);
     }
     Ok(())
 }
@@ -632,7 +632,7 @@ fn ensure_names(cx: &mut Cx<'_>, data: Gc<Generic>) -> b::Result<()> {
 /// The number of registered lists that hold a cache (for the tests).
 #[cfg(test)]
 pub(crate) fn registered(rt: &Runtime) -> usize {
-    crate::state::state(rt).map_or(0, |s| s.list_registry.len())
+    crate::state::state(rt).map_or(0, |s| s.doc.list_registry.len())
 }
 
 /// The class names of `getElementsByClassName`: the ASCII whitespace

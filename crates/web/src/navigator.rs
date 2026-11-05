@@ -81,7 +81,7 @@ fn send_beacon(cx: &mut Cx<'_>, url: &str, data: swb_js::Value) -> b::Result<boo
         Some(crate::fetch::body::extract(cx.rt, data)?)
     };
     let size = extracted.as_ref().map_or(0, |e| e.bytes.len());
-    if state_mut(cx.rt)?.beacon_bytes + size > BEACON_QUOTA {
+    if state_mut(cx.rt)?.doc.beacon_bytes + size > BEACON_QUOTA {
         return Ok(false);
     }
     let mut request = swb_net::Request::get(parsed, swb_net::Destination::Other);
@@ -106,8 +106,8 @@ fn send_beacon(cx: &mut Cx<'_>, url: &str, data: swb_js::Value) -> b::Result<boo
         return Ok(false);
     };
     let state = state_mut(cx.rt)?;
-    state.beacon_bytes += size;
-    state.fetches.beacons.insert(id, size);
+    state.doc.beacon_bytes += size;
+    state.doc.fetches.beacons.insert(id, size);
     Ok(true)
 }
 
@@ -196,20 +196,12 @@ impl g::navigator::NavigatorImpl for WebState {
 
     /// `navigator.plugins` ([`SameObject`]): the empty `PluginArray`.
     fn plugins(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
-        let realm = cx.realm();
-        window_object(cx, realm, |s| &mut s.plugins, g::PLUGIN_ARRAY, no_data)
+        window_object(cx, |d| &mut d.plugins, g::PLUGIN_ARRAY, no_data)
     }
 
     /// `navigator.mimeTypes` ([`SameObject`]): the empty `MimeTypeArray`.
     fn mime_types(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
-        let realm = cx.realm();
-        window_object(
-            cx,
-            realm,
-            |s| &mut s.mime_types,
-            g::MIME_TYPE_ARRAY,
-            no_data,
-        )
+        window_object(cx, |d| &mut d.mime_types, g::MIME_TYPE_ARRAY, no_data)
     }
 
     fn hardware_concurrency(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<u64> {
@@ -285,6 +277,5 @@ impl g::mime_type_array::MimeTypeArrayImpl for WebState {
 
 /// The window's `Navigator` object, made at the first access.
 pub(crate) fn navigator_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    let realm = cx.realm();
-    window_object(cx, realm, |s| &mut s.navigator, g::NAVIGATOR, no_data)
+    window_object(cx, |d| &mut d.navigator, g::NAVIGATOR, no_data)
 }

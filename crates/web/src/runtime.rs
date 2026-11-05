@@ -1,6 +1,8 @@
-//! The script runtime of a document (ADR 0028 section 2): a `js::Runtime`
-//! with the bindings, whose global object is the `Window`, the console
-//! buffer, and the runs of tasks (ADR 0028 section 7).
+//! The script runtime of an agent (ADR 0028 section 2, ADR 0031 section 5):
+//! a `js::Runtime` with the bindings, a realm with a `Window` for each of its
+//! documents, the console buffer, and the runs of tasks (ADR 0028 section 7).
+//! The methods below act on the current document, the first one unless the
+//! host selects another ([`ScriptRuntime::with_document`]).
 //!
 //! The engine creates one when it commits a document with JavaScript on
 //! and drops it with the document. For each task it lends the document
@@ -142,7 +144,32 @@ const SERIALIZER: &str = r"(() => {
   return (v, strict, isError) => isError ? error(v) : value(v, strict, []);
 })()";
 
-/// The script runtime of one document.
+/// The frame id of the `WindowProxy` of a runtime's first document.
+const TOP_FRAME: u32 = 0;
+
+/// Makes the `Window` of the realm `realm`: its interfaces, its named
+/// properties object and its global object.
+fn init_window(rt: &mut Runtime, realm: u32) -> Result<(), VmError> {
+    let Some(window_properties) = crate::state::state(rt)?.window_properties else {
+        return Err(VmError::type_error("the class WindowProperties is missing"));
+    };
+    g::create_interfaces::<WebState>(rt, realm)?;
+    crate::window::install(rt, realm, window_properties)?;
+    crate::cssom::install_css_namespace(rt, realm)?;
+    g::init_global::<WebState>(rt, realm, crate::state::NOT_A_NODE)
+}
+
+/// The key of a document in a runtime (ADR 0031 section 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct DocumentKey(u32);
+
+impl DocumentKey {
+    /// The runtime's first document.
+    pub const FIRST: DocumentKey = DocumentKey(0);
+}
+
+/// The script runtime of an agent: its documents share one heap (ADR 0031
+/// section 5). A runtime starts with one document.
 pub struct ScriptRuntime {
     pub(crate) rt: Runtime,
     console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
@@ -202,14 +229,12 @@ impl ScriptRuntime {
         let document_clock = DocumentClock::new(clock.clone());
         let setup = |rt: &mut Runtime| -> Result<(), VmError> {
             g::define_classes::<WebState>(rt)?;
-            let mut state = WebState::default();
-            state.clock = document_clock;
-            rt.set_host_data(state);
-            let window_properties = crate::window::define_class(rt)?;
-            g::create_interfaces::<WebState>(rt, 0)?;
-            crate::window::install(rt, 0, window_properties)?;
-            crate::cssom::install_css_namespace(rt, 0)?;
-            g::init_global::<WebState>(rt, 0, crate::state::NOT_A_NODE)
+            rt.set_host_data(WebState::default());
+            crate::window::define_class(rt)?;
+            crate::window_proxy::install_hooks(rt);
+            init_window(rt, 0)?;
+            crate::state::add_document(rt, 0, TOP_FRAME, document_clock)?;
+            Ok(())
         };
         setup(&mut rt).map_err(|e| internal(&e))?;
         let wall = clock.clone();
@@ -275,16 +300,80 @@ impl ScriptRuntime {
         &self.clock
     }
 
-    /// Lends the document state to the runtime for a task.
+    /// Adds a document to the agent: a new realm with a `Window`, the record
+    /// of the document, and the `WindowProxy` of the frame `frame` (below
+    /// 2^31; one object per frame, ADR 0031 section 5). Returns the key of
+    /// the document. The runtime's first document has the key 0.
+    pub fn add_document(&mut self, frame: u32) -> Result<DocumentKey, ScriptError> {
+        let clock = DocumentClock::new(self.clock.clone());
+        let setup = |rt: &mut Runtime| -> Result<u32, VmError> {
+            let realm = rt.create_realm()?;
+            init_window(rt, realm)?;
+            crate::state::add_document(rt, realm, frame, clock)
+        };
+        setup(&mut self.rt)
+            .map(DocumentKey)
+            .map_err(|e| internal(&e))
+    }
+
+    /// Defines the global `name` in the document `into` with the
+    /// `WindowProxy` of the document `window`: a way between two documents
+    /// of the agent. (Scripts have no `contentWindow` before feature 12b.)
+    pub fn expose_window(
+        &mut self,
+        into: DocumentKey,
+        name: &str,
+        window: DocumentKey,
+    ) -> Result<(), ScriptError> {
+        let define = |rt: &mut Runtime| -> Result<(), VmError> {
+            let proxy = crate::state::window_proxy_of(rt, window.0)?;
+            let global = crate::state::global_of(rt, into.0)?;
+            let key = rt.key_from_str(name)?;
+            let desc = swb_js::PropertyDescriptor::data(proxy.into(), true, false, true);
+            rt.define_property(global, key, desc)
+        };
+        define(&mut self.rt).map_err(|e| internal(&e))
+    }
+
+    /// Runs `f` with the document `key` as the current one: the scripts,
+    /// events and tasks that it starts belong to that document. An unknown
+    /// key gives `None`.
+    pub fn with_document<R>(
+        &mut self,
+        key: DocumentKey,
+        f: impl FnOnce(&mut ScriptRuntime) -> R,
+    ) -> Option<R> {
+        let entered = crate::state::switch_if_other(&mut self.rt, key.0).ok()?;
+        let result = f(self);
+        crate::state::leave(&mut self.rt, entered);
+        Some(result)
+    }
+
+    /// Lends the state of the runtime's first document for a task. A runtime
+    /// with several documents lends each with [`ScriptRuntime::lend_document`]
+    /// (ADR 0031 section 5).
     pub fn lend(&mut self, host: Box<dyn EngineHost>) {
-        if let Ok(state) = state_mut(&mut self.rt) {
-            state.host = Some(host);
+        self.lend_document(DocumentKey::FIRST, host);
+    }
+
+    /// Takes the lent state of the first document back.
+    pub fn take_back(&mut self) -> Option<Box<dyn EngineHost>> {
+        self.take_back_document(DocumentKey::FIRST)
+    }
+
+    /// Lends the state of the document `key` for a task.
+    pub fn lend_document(&mut self, key: DocumentKey, host: Box<dyn EngineHost>) {
+        if let Ok(state) = state_mut(&mut self.rt)
+            && let Some(doc) = crate::state::document_mut(state, key.0)
+        {
+            doc.host = Some(host);
         }
     }
 
-    /// Takes the lent document state back.
-    pub fn take_back(&mut self) -> Option<Box<dyn EngineHost>> {
-        state_mut(&mut self.rt).ok()?.host.take()
+    /// Takes the lent state of the document `key` back.
+    pub fn take_back_document(&mut self, key: DocumentKey) -> Option<Box<dyn EngineHost>> {
+        let state = state_mut(&mut self.rt).ok()?;
+        crate::state::document_mut(state, key.0)?.host.take()
     }
 
     /// Runs a classic script as a task: the script, then a microtask
@@ -293,7 +382,8 @@ impl ScriptRuntime {
     /// no listener canceled it; the first error is returned.
     pub fn run_classic_script(&mut self, source: &str, name: &str) -> Result<(), ScriptError> {
         self.task(name, |rt| {
-            let result = rt.eval_named(source, name).map(|_| ());
+            let realm = crate::state::doc_realm(rt).map_err(task_error)?;
+            let result = rt.eval_named_at(realm, source, name, (0, 0)).map(|_| ());
             if let Err(error) = &result {
                 report_error(rt, &Site::script(name, source), error)?;
             }
@@ -420,11 +510,11 @@ impl ScriptRuntime {
             let task = state_mut(&mut self.rt)
                 .ok()
                 .and_then(|s| s.event_loop.tasks.pop_due(now));
-            let Some(task) = task else {
+            let Some((document, task)) = task else {
                 break;
             };
-            // Errors are reported.
-            let _ = self.run_task(task);
+            // Errors are reported. A task runs in its document.
+            self.with_document(DocumentKey(document), |runtime| runtime.run_task(task));
             self.clock.advance_to(now + VIRTUAL_TASK_TIME);
             ran += 1;
             if started.elapsed() >= budget || (!load_due && self.load_event_due()) {
@@ -449,7 +539,7 @@ impl ScriptRuntime {
 
     /// The number of active timers.
     pub fn active_timers(&self) -> usize {
-        crate::state::state(&self.rt).map_or(0, |s| s.event_loop.timers.len())
+        crate::state::state(&self.rt).map_or(0, |s| s.doc.timers.len())
     }
 
     // ----- The rendering update (HTML §8.1.7.3; feature 7b2) -----
@@ -457,7 +547,8 @@ impl ScriptRuntime {
     /// True if an animation frame callback waits: the engine runs a frame
     /// for it.
     pub fn has_animation_frame_callbacks(&self) -> bool {
-        !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.animation_frames.is_empty())
+        !self.stopped
+            && crate::state::state(&self.rt).is_ok_and(|s| !s.doc.animation_frames.is_empty())
     }
 
     // ----- Observers (feature 9a) -----
@@ -467,14 +558,15 @@ impl ScriptRuntime {
     pub fn has_observations(&self) -> bool {
         !self.stopped
             && crate::state::state(&self.rt)
-                .is_ok_and(|s| s.io.is_observing() || s.ro.is_observing())
+                .is_ok_and(|s| s.doc.io.is_observing() || s.doc.ro.is_observing())
     }
 
     /// True if an observation was added since the last update: the engine
     /// runs a frame for it.
     pub fn observations_requested(&self) -> bool {
         !self.stopped
-            && crate::state::state(&self.rt).is_ok_and(|s| s.io.requested() || s.ro.requested())
+            && crate::state::state(&self.rt)
+                .is_ok_and(|s| s.doc.io.requested() || s.doc.ro.requested())
     }
 
     /// The resize observer steps of the rendering update (Resize Observer
@@ -539,10 +631,10 @@ impl ScriptRuntime {
     /// `frame_time`, queues the entries that changed and the task that
     /// delivers them. Returns true if it ran.
     pub fn update_intersection_observers(&mut self, frame_time: f64) -> bool {
-        if self.stopped || !crate::state::state(&self.rt).is_ok_and(|s| s.io.is_observing()) {
+        if self.stopped || !crate::state::state(&self.rt).is_ok_and(|s| s.doc.io.is_observing()) {
             return false;
         }
-        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.clock.at(frame_time));
+        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.doc.clock.at(frame_time));
         let _ = self.task("intersection observations", |rt| {
             crate::intersection_observer::update(rt, now)
         });
@@ -554,7 +646,7 @@ impl ScriptRuntime {
     /// True if an idle callback waits: the engine starts an idle period
     /// for it when no task and no frame is due.
     pub fn has_idle_callbacks(&self) -> bool {
-        !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.idle.is_empty())
+        !self.stopped && crate::state::state(&self.rt).is_ok_and(|s| !s.doc.idle.is_empty())
     }
 
     /// An idle period that ends at the page time `deadline`: the callbacks
@@ -606,7 +698,7 @@ impl ScriptRuntime {
         if self.stopped {
             return;
         }
-        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.clock.at(frame_time));
+        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.doc.clock.at(frame_time));
         for handle in crate::animation_frames::handles(&self.rt) {
             if self.stopped {
                 return;
@@ -764,7 +856,8 @@ impl ScriptRuntime {
     pub fn start_evaluation(&mut self, source: &str, form: JsonForm) -> EvaluationStart {
         let mut error_text = None;
         let started = self.task("evaluate", |rt| {
-            let value = match rt.eval_named(source, "") {
+            let realm = crate::state::doc_realm(rt).map_err(task_error)?;
+            let value = match rt.eval_named_at(realm, source, "", (0, 0)) {
                 Ok(value) => value,
                 Err(error) => {
                     error_text = Some(thrown_text(rt, &error));

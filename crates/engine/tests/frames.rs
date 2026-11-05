@@ -36,6 +36,8 @@ mod common;
 mod input;
 #[path = "frames/paint.rs"]
 mod paint;
+#[path = "frames/window_proxy.rs"]
+mod window_proxy;
 use common::{finish_loading, new_page, on_page_thread, value};
 
 const MAIN: &str = "http://127.0.0.1:8000";

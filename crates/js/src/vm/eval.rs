@@ -245,10 +245,10 @@ impl Runtime {
         self.heap.record(handle);
         self.create_eval_bindings(&declarations, &var_env, None)?;
         let closure = self.new_closure(handle, &compiled, Box::new([]), call.realm)?;
-        let global = self.global_object(call.realm)?;
+        let this = self.global_this(call.realm)?;
         Ok(NativeReturn::Call {
             callee: closure.into(),
-            this: global.into(),
+            this: this.into(),
             args: Vec::new(),
         })
     }

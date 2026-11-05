@@ -273,7 +273,7 @@ pub(crate) fn remove_attribute(
     }
     if let Some(old) = &old {
         let key = (element, name.ns.clone(), name.local.clone());
-        if let Some(object) = state_mut(rt)?.attr_objects.remove(&key) {
+        if let Some(object) = state_mut(rt)?.doc.attr_objects.remove(&key) {
             let data = attr_data_mut(rt, object)?;
             data.owner = None;
             data.value.clone_from(old);
@@ -357,11 +357,11 @@ pub(super) fn attr_object(
     name: &QualName,
 ) -> VmResult<Gc<Object>> {
     let key = (element, name.ns.clone(), name.local.clone());
-    if let Some(object) = state(rt)?.attr_objects.get(&key) {
+    if let Some(object) = state(rt)?.doc.attr_objects.get(&key) {
         return Ok(*object);
     }
     let object = new_attr(rt, realm, Some(element), name.clone(), String::new())?;
-    state_mut(rt)?.attr_objects.insert(key, object);
+    state_mut(rt)?.doc.attr_objects.insert(key, object);
     Ok(object)
 }
 
@@ -419,7 +419,7 @@ pub(super) fn set_attribute_node(
             let old = attr_object(cx.rt, realm, element, n)?;
             // The old attribute leaves the element with its value.
             let key = (element, n.ns.clone(), n.local.clone());
-            state_mut(cx.rt)?.attr_objects.remove(&key);
+            state_mut(cx.rt)?.doc.attr_objects.remove(&key);
             let data = attr_data_mut(cx.rt, old)?;
             data.owner = None;
             data.value = old_value.unwrap_or_default();
@@ -430,7 +430,7 @@ pub(super) fn set_attribute_node(
     let stored = existing.unwrap_or_else(|| name.clone());
     set_attribute(cx.rt, element, &stored, &value)?;
     let key = (element, stored.ns.clone(), stored.local.clone());
-    state_mut(cx.rt)?.attr_objects.insert(key, object);
+    state_mut(cx.rt)?.doc.attr_objects.insert(key, object);
     let data = attr_data_mut(cx.rt, object)?;
     data.owner = Some(element);
     data.name = stored;

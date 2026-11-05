@@ -64,13 +64,13 @@ pub(crate) fn state_value(
     realm: u32,
     record: &Rc<Serialized>,
 ) -> b::Result<Value> {
-    if let Some(cache) = &state(rt)?.history_state
+    if let Some(cache) = &state(rt)?.doc.history_state
         && Rc::ptr_eq(&cache.record, record)
     {
         return Ok(cache.value);
     }
     let value = structured::deserialize(rt, realm, record)?;
-    state_mut(rt)?.history_state = Some(StateCache {
+    state_mut(rt)?.doc.history_state = Some(StateCache {
         record: Rc::clone(record),
         value,
     });
@@ -79,7 +79,7 @@ pub(crate) fn state_value(
 
 /// The one `Location` object of the window.
 pub(crate) fn location_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    if let Some(object) = state(cx.rt)?.location {
+    if let Some(object) = state(cx.rt)?.doc.location {
         return Ok(object);
     }
     let realm = cx.realm();
@@ -87,17 +87,15 @@ pub(crate) fn location_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
     b::glue::install_unforgeables::<WebState>(cx.rt, realm, g::LOCATION, object)?;
     // Web IDL / HTML: `Object.setPrototypeOf(location, x)` throws.
     cx.rt.set_immutable_prototype(object)?;
-    state_mut(cx.rt)?.location = Some(object);
+    state_mut(cx.rt)?.doc.location = Some(object);
     Ok(object)
 }
 
 /// The one `History` object of the window.
 pub(crate) fn history_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    let realm = cx.realm();
     window_object(
         cx,
-        realm,
-        |s| &mut s.history,
+        |d| &mut d.history,
         g::HISTORY,
         |rt| rt.alloc_host_data(NoData),
     )

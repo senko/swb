@@ -157,7 +157,7 @@ pub fn new_iterator<H: Host>(
         kind,
         index: 0,
     })?;
-    rt.new_host_object_with_proto(Some(prototype), class, data)
+    rt.new_host_object_with_proto(realm, Some(prototype), class, data)
 }
 
 /// A step of `next` (§3.7.9.2): the brand check of `this` (a default

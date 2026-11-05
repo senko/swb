@@ -48,9 +48,11 @@ impl Runtime {
                     Property::Accessor { get, .. } if get.is_undefined() => {
                         Lookup::Value(Value::Undefined)
                     }
+                    // The receiver is the global this value, so that the
+                    // global object itself stays out of script's reach.
                     Property::Accessor { get, .. } => Lookup::Getter {
                         getter: get,
-                        receiver: global.into(),
+                        receiver: self.global_this(realm)?.into(),
                     },
                 }));
             }
@@ -85,7 +87,8 @@ impl Runtime {
             if !rt.has_property(global, key)? {
                 return Ok(Some(Lookup::Value(Value::Undefined)));
             }
-            Ok(Some(rt.get_with_receiver(global, key, global.into())?))
+            let receiver = rt.global_this(rt.current_realm())?;
+            Ok(Some(rt.get_with_receiver(global, key, receiver.into())?))
         })
     }
 
@@ -123,7 +126,7 @@ impl Runtime {
                     } else {
                         GetResult::CallGetter {
                             getter,
-                            receiver: record.global.into(),
+                            receiver: record.global_this.into(),
                         }
                     }),
                     // No entry is made for a lazy value and no slot gets one
@@ -246,7 +249,10 @@ impl Runtime {
             let object_record = self.heap.object(object)?;
             let plain = !matches!(
                 object_record.kind,
-                ObjectKind::Proxy(_) | ObjectKind::HostExotic(_) | ObjectKind::TypedArray(_)
+                ObjectKind::Proxy(_)
+                    | ObjectKind::WindowProxy(_)
+                    | ObjectKind::HostExotic(_)
+                    | ObjectKind::TypedArray(_)
             );
             if !plain || !object_record.watched {
                 return Ok(SiteCache::Empty);
@@ -304,13 +310,20 @@ impl Runtime {
             binding.value = value;
             return Ok(SetOutcome::Done);
         }
-        let global = record.global;
+        let (global, global_this) = (record.global, record.global_this);
         let key = PropertyKey::String(name);
         if strict && !self.has_property(global, key)? {
             let text = self.name_text(name);
             return Err(VmError::reference_error(format!("{text} is not defined")));
         }
-        self.put_value(global.into(), key, value, strict)
+        Ok(match self.put_value(global.into(), key, value, strict)? {
+            // As for a read: a setter sees the global this value.
+            SetOutcome::Setter { setter, .. } => SetOutcome::Setter {
+                setter,
+                receiver: global_this.into(),
+            },
+            SetOutcome::Done => SetOutcome::Done,
+        })
     }
 
     /// Initializes a global `let` or `const` binding at its declaration.

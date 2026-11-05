@@ -319,6 +319,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::SymbolWrapper(_)
         | ObjectKind::BigIntWrapper(_)
         | ObjectKind::Proxy(_)
+        | ObjectKind::WindowProxy(_)
         | ObjectKind::WeakMap(_)
         | ObjectKind::WeakSet(_)
         | ObjectKind::WeakRef(_)

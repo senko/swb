@@ -349,6 +349,13 @@ impl Registry {
         (microtask, overdue)
     }
 
+    /// [`Self::take_signals`] without the time check: the work stays counted,
+    /// and the next work of this registry asks for the check again.
+    pub(crate) fn take_microtask_request(&mut self) -> bool {
+        self.request.set(false);
+        std::mem::take(&mut self.microtask_wanted)
+    }
+
     /// Counts work; asks the host to check the time limit when it is large.
     fn check_work(&mut self) {
         if self.work >= WORK_PER_CHECK {

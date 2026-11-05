@@ -238,7 +238,7 @@ pub(crate) fn stringify_json(rt: &mut Runtime, value: Value) -> b::Result<Option
 /// The `JSON` object of the global object and its function `name`.
 /// (Deviation: a page that replaced `JSON.parse` changes `json()`.)
 fn json_function(rt: &mut Runtime, name: &str) -> b::Result<(Value, Value)> {
-    let global = rt.global(0)?;
+    let global = crate::state::window_global(rt)?;
     let key = rt.key_from_str("JSON")?;
     let json = rt.get_key(global.into(), key)?;
     let key = rt.key_from_str(name)?;

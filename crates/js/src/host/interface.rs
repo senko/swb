@@ -361,7 +361,7 @@ impl Runtime {
         }
         let prototype = self.interface_or_create(realm, class)?.prototype;
         let global = self.global_object(realm)?;
-        let slot = HostSlot::new(class.index(), data)?;
+        let slot = HostSlot::new(class.index(), realm, data)?;
         if let HostData::Generic(generic) = data {
             self.heap.generic_check(generic)?;
         }

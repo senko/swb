@@ -20,7 +20,7 @@ fn timing_ms(cx: &mut Cx<'_>, rel: Option<f64>) -> b::Result<u64> {
     let Some(rel) = rel else {
         return Ok(0);
     };
-    let origin = state(cx.rt)?.clock.time_origin();
+    let origin = state(cx.rt)?.doc.clock.time_origin();
     Ok((origin + rel).floor().max(0.0) as u64)
 }
 
@@ -34,7 +34,7 @@ fn timing_attribute(cx: &mut Cx<'_>, name: &str) -> b::Result<u64> {
             | "redirectEnd"
             | "secureConnectionStart"
     );
-    let rel = match state(cx.rt)?.perf.times.of_timing_name(name) {
+    let rel = match state(cx.rt)?.doc.perf.times.of_timing_name(name) {
         TimingName::At(time) if !zero => Some(time),
         _ => None,
     };
@@ -112,7 +112,7 @@ impl g::performance_navigation::PerformanceNavigationImpl for WebState {
 
 /// A value of the navigation entry, read from the load times.
 fn nav_time(cx: &mut Cx<'_>, pick: impl Fn(&NavigationTimes) -> Option<f64>) -> b::Result<f64> {
-    Ok(pick(&state(cx.rt)?.perf.times).unwrap_or(0.0))
+    Ok(pick(&state(cx.rt)?.doc.perf.times).unwrap_or(0.0))
 }
 
 /// The members of the navigation entry beyond the four of every entry, as

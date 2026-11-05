@@ -1309,6 +1309,77 @@ interleaved runs; the table of the other candidates is in the ADR.
 `peak RSS` is `ru_maxrss` of the child after `wait4`. The hostile set
 passes (the peaks of small pages are 50 to 100 MiB higher).
 
+### `WindowProxy` and the split of the binding state (M9 feature 12a)
+
+The global this value, `SiteCache::WindowProperty`, the split of `WebState`
+(ADR 0031 section 5). `vm_bench`, best of 5 within a run and best of two
+alternating runs, base bb4603e with the new rows, release, Intel Core i5-13500,
+other jobs on the machine; with `--host-global` (a `Window` of 300 more
+properties, behind a `WindowProxy` in the new build):
+
+| Program | base (ms) | 12a (ms) | 12a / base |
+|---|---|---|---|
+| window: read of `window.x`, 5M times | 166.8 | 79.6 | 0.48 |
+| window: write of `window.x`, 5M times | 212.5 | 67.9 | 0.32 |
+| window: call of `window.f()`, 3M times | 205.0 | 152.0 | 0.74 |
+| window: `this` of a sloppy function, 3M calls | 120.3 | 126.0 | 1.05 (layout: instructions 0.996 in the shell) |
+| global: 3 reads of globals per step, 5M steps | 146.6 | 143.0 | 0.98 |
+
+Under callgrind, the row of global reads takes 16,559 M → 16,334 M
+instructions (-1.4 %). The `window.x` rows got faster because the base has no
+cache for them: a `Window` has a dictionary shape, so each read was a hash
+lookup. The geometric
+mean of 114 rows without `--host-global` is 1.0017. The rows that moved by more
+than 3 % in both directions are spread (0.90 to 1.19); the largest,
+`regexp: global replace, 1M matches in 3M units` 1.19 and `destructuring: for
+(const [k, v] of map)` 1.08, execute the same instructions under callgrind
+(5,833.36 M both, and 5,269 M against 5,278 M), which makes them layout.
+
+Hot bindings under callgrind (`swb --headless --js`, 20,000 iterations of a
+loop over global variables against an empty page, instructions per iteration;
+the column "net" subtracts the 665 and 648 of the empty loop):
+
+| Binding | base | 12a | iteration | net |
+|---|---|---|---|---|
+| `x = i` (the loop) | 665 | 648 | 0.975 | |
+| `e.firstChild` | 1,354 | 1,318 | 0.974 | 0.972 |
+| `e.getAttribute('id')` | 2,658 | 2,620 | 0.986 | 0.989 |
+| `e.addEventListener('x', f)` | 2,778 | 2,794 | 1.006 | 1.016 |
+| `document.getElementById('a')` | 2,624 | 2,650 | 1.010 | 1.022 |
+| `e.style.color` | 6,732 | 6,759 | 1.004 | 1.007 |
+| `e.children[0]` | 3,177 | 3,168 | 0.997 | 1.003 |
+| `t.appendChild(n)` | 3,471 | 3,498 | 1.008 | 1.015 |
+| `document` by name | 1,192 | 1,222 | 1.025 | 1.09 |
+| `innerWidth` by name | 1,191 | 1,200 | 1.007 | 1.05 |
+| `window.document` | 2,090 | 1,908 | 0.913 | 0.88 |
+| `window.setTimeout` | 1,523 | 1,285 | 0.844 | 0.74 |
+
+A native pays one load and one comparison at its entry (`Runtime::host_flag`)
+and one load per use of `state.doc` (a `Box`). `needs_attention` lost the type
+check of `host_data` (`Runtime::host_signal`, a cell of the runtime), which
+pays for those. A getter by name has the proxy as its `this`, and the brand
+check looks through it: about 45 instructions, which are all of the last
+increase of `document.getElementById`.
+
+The first version took a tuple of the two results in `glue::run` and a
+`host_slot` that the compiler did not inline: 1.032 and 1.029 on `document`
+and `getElementById`; `#[inline(always)]` and a cold `finish_slowly` removed that.
+
+The pages (`--bench 3`, JavaScript on, callgrind, total instructions):
+Hacker News 396.98 M → 396.84 M, senko.net 142.69 M → 142.70 M, Wikipedia
+2,008.4 M → 2,008.3 M, BBC 4,909.8 M → 4,911.6 M, Ars Technica 7,761 M →
+7,778 M (+0.2 %; one task reaches the time limit under callgrind in both).
+Stages, normal runs,
+minimum of three medians, ms, base → 12a: Hacker News parse 0.64 → 0.64,
+stylesheets 0.38 → 0.37, style 1.46 → 1.42, layout 1.58 → 1.58, display list
+0.13 → 0.13, raster 0.68 → 0.66; Ars Technica 3.04 → 3.01, 9.30 → 9.19,
+23.26 → 23.14, 6.63 → 6.52, 0.50 → 0.51, 6.85 → 6.77.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration"):
+`load` 0.356 → 0.351 s, hydrated 2.890 → 2.831 s, 62 % of the budget of 4.60 s.
+Peak RSS, JavaScript on, 500 ms after `load`, median of 3: Hacker News 67.1 →
+67.0 MiB, Ars Technica 273.9 → 273.9 MiB, BBC 382.6 → 384.8 MiB.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

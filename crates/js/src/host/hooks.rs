@@ -142,7 +142,10 @@ impl Runtime {
 
     /// Runs one hook call: [`HOOK_WEIGHT`] of the recursion budget and a
     /// time step.
-    fn hook_level<T>(&mut self, f: impl FnOnce(&mut Runtime) -> VmResult<T>) -> VmResult<T> {
+    pub(crate) fn hook_level<T>(
+        &mut self,
+        f: impl FnOnce(&mut Runtime) -> VmResult<T>,
+    ) -> VmResult<T> {
         if self.budget.enter(HOOK_WEIGHT).is_err() {
             return Err(VmError::range_error(STACK_OVERFLOW));
         }

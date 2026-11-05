@@ -171,7 +171,7 @@ fn initialize(
     let state = state_mut(rt)?;
     let units = 1 + arguments.len();
     let code_bytes = handler.code_bytes();
-    let timers = &state.event_loop.timers;
+    let timers = &mut state.doc.timers;
     if timers.units + units > MAX_TIMER_UNITS {
         log::warn!(
             "the timers of the document reached the limit of {MAX_TIMER_UNITS}; the task ends"
@@ -196,13 +196,13 @@ fn initialize(
     };
     let id = match previous {
         Some(previous) => previous.id,
-        None => event_loop.timers.new_id(),
+        None => timers.new_id(),
     };
     let handle = event_loop.tasks.next_seq();
     let key = event_loop.tasks.push(due, Task::Timer { id, handle });
-    event_loop.timers.units += units;
-    event_loop.timers.code_bytes += code_bytes;
-    event_loop.timers.active.insert(
+    timers.units += units;
+    timers.code_bytes += code_bytes;
+    timers.active.insert(
         id,
         Timer {
             handler,
@@ -218,9 +218,9 @@ fn initialize(
 
 /// `clearTimeout` and `clearInterval`.
 fn clear(rt: &mut Runtime, id: i32) -> VmResult<()> {
-    let event_loop = &mut state_mut(rt)?.event_loop;
-    if let Some(key) = event_loop.timers.remove(id) {
-        event_loop.tasks.remove(key);
+    let state = state_mut(rt)?;
+    if let Some(key) = state.doc.timers.remove(id) {
+        state.event_loop.tasks.remove(key);
     }
     Ok(())
 }
@@ -240,7 +240,7 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
     let started = crate::event_loop::page_now(rt);
     let (handler, arguments, timeout, repeat, nesting, due) = {
         let state = state(rt).map_err(crate::runtime::task_error)?;
-        match state.event_loop.timers.active.get(&id) {
+        match state.doc.timers.active.get(&id) {
             Some(timer) if timer.key.1 == handle => (
                 timer.handler.clone(),
                 timer.arguments.clone(),
@@ -267,11 +267,14 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
     let url = crate::scripts::document_url(rt);
     let result = match &handler {
         Handler::Function(f) => {
-            let window = rt.global(0).map_err(crate::runtime::task_error)?;
+            let window = crate::state::window_proxy(rt).map_err(crate::runtime::task_error)?;
             rt.call_function(Value::Object(*f), window.into(), &arguments)
                 .map(|_| ())
         }
-        Handler::Code(code) => rt.eval_named(code, &url).map(|_| ()),
+        Handler::Code(code) => {
+            let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
+            rt.eval_named_at(realm, code, &url, (0, 0)).map(|_| ())
+        }
     };
     if let Err(error) = &result {
         let site = match &handler {
@@ -297,7 +300,7 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
     crate::event_loop::microtask_checkpoint(rt)?;
     let still_active = state(rt)
         .map_err(crate::runtime::task_error)?
-        .event_loop
+        .doc
         .timers
         .active
         .get(&id)

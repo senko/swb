@@ -271,7 +271,7 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
     /// The default value override once `value` was written, else the
     /// text content.
     fn default_value(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
-        if let Some(default) = crate::state::state(cx.rt)?.output_defaults.get(&this) {
+        if let Some(default) = crate::state::state(cx.rt)?.doc.output_defaults.get(&this) {
             return Ok(default.clone());
         }
         Ok(dom(cx.rt)?.text_content(this))
@@ -279,6 +279,7 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
 
     fn set_default_value(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
         if let Some(default) = crate::state::state_mut(cx.rt)?
+            .doc
             .output_defaults
             .get_mut(&this)
         {
@@ -296,11 +297,13 @@ impl g::html_output_element::HTMLOutputElementImpl for WebState {
     /// content so far becomes the default value override.
     fn set_value(cx: &mut Cx<'_>, this: NodeId, value: String) -> b::Result<()> {
         if !crate::state::state(cx.rt)?
+            .doc
             .output_defaults
             .contains_key(&this)
         {
             let default = dom(cx.rt)?.text_content(this);
             crate::state::state_mut(cx.rt)?
+                .doc
                 .output_defaults
                 .insert(this, default);
         }

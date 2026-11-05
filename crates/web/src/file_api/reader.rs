@@ -156,16 +156,16 @@ fn start(cx: &mut Cx<'_>, this: Platform, blob: Platform, kind: Kind) -> b::Resu
     };
     let id = if id == 0 {
         let app = state_mut(cx.rt)?;
-        app.next_reader += 1;
-        let id = app.next_reader;
+        app.doc.next_reader += 1;
+        let id = app.doc.next_reader;
         reader_mut(cx.rt, this.object)?.id = id;
         id
     } else {
         id
     };
     let app = state_mut(cx.rt)?;
-    app.readers.insert(id, this.object);
-    let due = app.clock.page_now();
+    app.doc.readers.insert(id, this.object);
+    let due = app.doc.clock.page_now();
     app.event_loop.tasks.push(
         due,
         Task::FileReader {
@@ -184,7 +184,7 @@ pub(crate) fn reader_task(
     generation: u64,
     finish: bool,
 ) -> swb_js::VmResult<()> {
-    let Some(object) = state_mut(rt)?.readers.get(&id).copied() else {
+    let Some(object) = state_mut(rt)?.doc.readers.get(&id).copied() else {
         return Ok(());
     };
     // The reader leaves the table before its last events; it lives as long
@@ -200,7 +200,7 @@ pub(crate) fn reader_task(
     if !finish {
         crate::events::misc::fire_progress(rt, object, "loadstart", true, 0, total)?;
         let app = state_mut(rt)?;
-        let due = app.clock.page_now();
+        let due = app.doc.clock.page_now();
         app.event_loop.tasks.push(
             due,
             Task::FileReader {
@@ -239,7 +239,7 @@ pub(crate) fn reader_task(
         state.ready_state = 2;
     })
     .map_err(crate::fetch::exception_error)?;
-    state_mut(rt)?.readers.remove(&id);
+    state_mut(rt)?.doc.readers.remove(&id);
     crate::events::misc::fire_progress(rt, object, "load", true, total, total)?;
     crate::events::misc::fire_progress(rt, object, "loadend", true, total, total)
 }
@@ -260,7 +260,7 @@ fn read_failed(
         state.read = None;
     }
     let app = state_mut(rt)?;
-    app.readers.remove(&id);
+    app.doc.readers.remove(&id);
     if !app.reader_warned {
         app.reader_warned = true;
         log::warn!(
@@ -298,7 +298,10 @@ fn make_result(rt: &mut Runtime, bytes: &BlobBytes, kind: &Kind) -> b::Result<Ou
     }
     let data = bytes.to_vec();
     Ok(match kind {
-        Kind::ArrayBuffer => Output::Buffer(rt.create_array_buffer(0, data, None)?),
+        Kind::ArrayBuffer => {
+            let realm = crate::state::doc_realm(rt)?;
+            Output::Buffer(rt.create_array_buffer(realm, data, None)?)
+        }
         Kind::BinaryString => Output::Text(data.iter().map(|&b| char::from(b)).collect()),
         Kind::Text(label) => {
             let encoding = label
@@ -391,7 +394,7 @@ impl g::file_reader::FileReaderImpl for WebState {
             "An ongoing operation was aborted, typically with a call to abort().",
         )?;
         reader_mut(cx.rt, this.object)?.error = Some(error);
-        state_mut(cx.rt)?.readers.remove(&id);
+        state_mut(cx.rt)?.doc.readers.remove(&id);
         crate::events::misc::fire_progress(cx.rt, this.object, "abort", true, 0, total)?;
         crate::events::misc::fire_progress(cx.rt, this.object, "loadend", true, 0, total)?;
         Ok(())

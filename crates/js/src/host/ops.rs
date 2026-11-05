@@ -44,8 +44,8 @@ impl Runtime {
         self.is_callable(value)
     }
 
-    /// The realm of the running code (of the innermost function; realm 0
-    /// when no script runs).
+    /// The realm of the running code (of the innermost function or native;
+    /// realm 0 when no script runs).
     pub fn running_realm(&self) -> u32 {
         self.current_realm()
     }
@@ -67,7 +67,7 @@ impl Runtime {
         object: Gc<Object>,
         key: PropertyKey,
     ) -> VmResult<Option<Property>> {
-        if self.heap.is_proxy(object)? {
+        if self.heap.is_proxy_like(object)? {
             return Ok(None);
         }
         match self.heap.get_own_property(object, key)? {

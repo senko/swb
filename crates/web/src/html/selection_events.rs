@@ -66,7 +66,7 @@ pub(crate) struct SelectionEvents {
 /// Queues one event for the control.
 fn push(rt: &mut Runtime, node: NodeId, select: bool) -> VmResult<()> {
     let connected = dom(rt)?.is_connected(node);
-    let events = &mut state_mut(rt)?.selection_events;
+    let events = &mut state_mut(rt)?.doc.selection_events;
     if !connected || events.pending.len() >= MAX_PENDING {
         return Ok(());
     }
@@ -126,7 +126,7 @@ pub(crate) fn focused(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
     if key(rt, node, true)?.is_none() {
         return Ok(());
     }
-    let events = &mut state_mut(rt)?.selection_events;
+    let events = &mut state_mut(rt)?.doc.selection_events;
     if events.owner == Some(node) {
         return Ok(());
     }
@@ -141,7 +141,7 @@ pub(crate) fn user_changed(rt: &mut Runtime, node: NodeId, select: bool) -> VmRe
     if key(rt, node, false)?.is_none() {
         return Ok(());
     }
-    state_mut(rt)?.selection_events.owner = Some(node);
+    state_mut(rt)?.doc.selection_events.owner = Some(node);
     if select {
         let mut event = TrustedEvent::new("select");
         event.bubbles = true;
@@ -156,6 +156,7 @@ pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
     let pending = {
         let events = &mut state_mut(rt)
             .map_err(crate::runtime::task_error)?
+            .doc
             .selection_events;
         events.queued = false;
         events.changes.clear();

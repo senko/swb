@@ -475,11 +475,11 @@ impl Runtime {
             ThisMode::Lexical => Value::Undefined,
             ThisMode::Strict => self.stack_value(window - 1)?,
             // §10.2.1.2: an object stays, `undefined` and `null` become the
-            // global object of the function's realm.
+            // global this value of the function's realm.
             ThisMode::Global => match self.stack_value(window - 1)? {
                 this @ Value::Object(_) => this,
                 Value::Undefined | Value::Null => match self.vm.realms.get(realm as usize) {
-                    Some(record) => Value::Object(record.global),
+                    Some(record) => Value::Object(record.global_this),
                     None => return Err(VmError::invariant("a realm index without a realm")),
                 },
                 this => self.coerce_this(this, realm)?,
@@ -655,10 +655,10 @@ impl Runtime {
     }
 
     /// `OrdinaryCallBindThis` for sloppy functions (§10.2.1.2): `undefined`
-    /// and `null` become the global object, primitives become objects.
+    /// and `null` become the global this value, primitives become objects.
     fn coerce_this(&mut self, this: Value, realm: u32) -> VmResult<Value> {
         match this {
-            Value::Undefined | Value::Null => Ok(self.global_object(realm)?.into()),
+            Value::Undefined | Value::Null => Ok(self.global_this(realm)?.into()),
             Value::Object(_) => Ok(this),
             // `Frame::this` roots the wrapper; no allocation happens before the
             // frame record exists, so it needs no handle.
@@ -721,6 +721,58 @@ impl Runtime {
     /// returned.
     #[inline]
     fn run_native(
+        &mut self,
+        function: Gc<Object>,
+        func: crate::vm::NativeFn,
+        realm: u32,
+        site: CallSite,
+    ) -> VmResult<NativeReturn> {
+        if self.vm.realms.len() > 1 && realm != self.current_realm() {
+            return self.run_native_of_other_realm(function, func, realm, site);
+        }
+        self.run_native_here(function, func, realm, site)
+    }
+
+    /// [`Runtime::run_native`] of a function of another realm than the code
+    /// that calls it: it runs in its own realm (§10.3.1 step 7), so that its
+    /// intrinsics, its new objects and its errors are of that realm. Natives
+    /// have no frames: the last frame has the function's realm for the call.
+    #[cold]
+    #[inline(never)]
+    fn run_native_of_other_realm(
+        &mut self,
+        function: Gc<Object>,
+        func: crate::vm::NativeFn,
+        realm: u32,
+        site: CallSite,
+    ) -> VmResult<NativeReturn> {
+        let caller = self.current_realm();
+        self.set_running_realm(realm);
+        let result = self.run_native_here(function, func, realm, site);
+        // The error object of a `Raise` is made in the function's realm.
+        let result = match result {
+            Err(VmError::Raise { kind, message }) => match self.error_object(kind, &message) {
+                Ok(object) => Err(VmError::Throw(object.into())),
+                Err(error) => Err(error),
+            },
+            other => other,
+        };
+        self.set_running_realm(caller);
+        result
+    }
+
+    /// Sets the realm of the running code (of the last frame; the realm of
+    /// host code without a frame).
+    fn set_running_realm(&mut self, realm: u32) {
+        match self.vm.frames.last_mut() {
+            Some(frame) => frame.realm = realm,
+            None => self.vm.base_realm = realm,
+        }
+    }
+
+    /// The call of a native function in the running realm.
+    #[inline]
+    fn run_native_here(
         &mut self,
         function: Gc<Object>,
         func: crate::vm::NativeFn,

@@ -14,7 +14,7 @@
 //! `XMLDocument`), and `DOMImplementation` has no `createDocument`.
 
 use swb_dom::{ElementData, NodeData, NodeId, QualName, local_name, ns};
-use swb_js::{GenericData, HostData, Tracer};
+use swb_js::{GenericData, Tracer};
 
 use super::{dom_result, string_replace_all};
 use crate::bindings::{self as b, Cx, Exception, Platform};
@@ -22,16 +22,10 @@ use crate::generated as g;
 use crate::generated::types::SupportedType;
 use crate::state::{Slot, WebState, dom, dom_mut, same_object, state_mut};
 
-/// The document of a `DOMImplementation` object (its host data is the
-/// node index of the document).
+/// The document of a `DOMImplementation` object (its host data names the
+/// document as that of a wrapper does).
 fn document_of(this: Platform) -> b::Result<NodeId> {
-    match this.data {
-        HostData::Word(index) => usize::try_from(index)
-            .ok()
-            .and_then(NodeId::from_index)
-            .ok_or_else(|| Exception::type_error("Illegal invocation")),
-        HostData::Generic(_) => Err(Exception::type_error("Illegal invocation")),
-    }
+    b::node_of(this.data).ok_or_else(|| Exception::type_error("Illegal invocation"))
 }
 
 /// `Document.implementation`: the one `DOMImplementation` of the document.
@@ -41,11 +35,8 @@ pub(super) fn implementation(
 ) -> b::Result<swb_js::Gc<swb_js::Object>> {
     let realm = cx.realm();
     Ok(same_object(cx.rt, document, Slot::Implementation, |rt| {
-        rt.new_host_object(
-            realm,
-            g::DOM_IMPLEMENTATION,
-            HostData::Word(document.index() as u64),
-        )
+        let data = crate::state::node_data_here(rt, document)?;
+        rt.new_host_object(realm, g::DOM_IMPLEMENTATION, data)
     })?)
 }
 
@@ -177,7 +168,7 @@ impl g::dom_parser::DOMParserImpl for WebState {
         }
         let result = swb_dom::parse_document(dom_mut(cx.rt)?, &string);
         let document = dom_result(cx.rt, result)?;
-        state_mut(cx.rt)?.parsed_documents.insert(document);
+        state_mut(cx.rt)?.doc.parsed_documents.insert(document);
         Ok(document)
     }
 }

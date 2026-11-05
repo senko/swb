@@ -53,11 +53,9 @@ impl g::clipboard::ClipboardImpl for WebState {
 /// The `navigator.clipboard` attribute ([`SameObject`]): one object per
 /// window. An `EventTarget` keeps its listeners in its data.
 pub(crate) fn clipboard_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
-    let realm = cx.realm();
     window_object(
         cx,
-        realm,
-        |s| &mut s.clipboard,
+        |d| &mut d.clipboard,
         g::CLIPBOARD,
         crate::state::target_data,
     )

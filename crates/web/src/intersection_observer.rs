@@ -353,7 +353,7 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
             delay: options.delay,
             track_visibility: options.track_visibility,
         };
-        let io = &mut state_mut(cx.rt)?.io;
+        let io = &mut state_mut(cx.rt)?.doc.io;
         io.next_id += 1;
         let id = io.next_id;
         let data = cx.rt.alloc_host_data(ObserverData {
@@ -366,12 +366,12 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
 
     fn observe(cx: &mut Cx<'_>, this: Platform, target: NodeId) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
-        let new_config = if state(cx.rt)?.io.observers.contains_key(&id) {
+        let new_config = if state(cx.rt)?.doc.io.observers.contains_key(&id) {
             None
         } else {
             Some(observer_data(cx.rt, this)?.config.clone())
         };
-        let io = &mut state_mut(cx.rt)?.io;
+        let io = &mut state_mut(cx.rt)?.doc.io;
         if io.targets >= MAX_TARGETS {
             log::warn!(
                 "a document observes more than {MAX_TARGETS} targets with intersection observers"
@@ -417,7 +417,7 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
 
     fn unobserve(cx: &mut Cx<'_>, this: Platform, target: NodeId) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
-        let io = &mut state_mut(cx.rt)?.io;
+        let io = &mut state_mut(cx.rt)?.doc.io;
         let Some(observer) = io.observers.get_mut(&id) else {
             return Ok(());
         };
@@ -436,7 +436,7 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
 
     fn disconnect(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
-        let io = &mut state_mut(cx.rt)?.io;
+        let io = &mut state_mut(cx.rt)?.doc.io;
         if let Some(observer) = io.observers.remove(&id) {
             io.targets -= observer.targets.len();
         }
@@ -445,7 +445,7 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
 
     fn take_records(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<Gc<Object>>> {
         let id = observer_data(cx.rt, this)?.id;
-        let entries = match state_mut(cx.rt)?.io.observers.get_mut(&id) {
+        let entries = match state_mut(cx.rt)?.doc.io.observers.get_mut(&id) {
             Some(observer) => std::mem::take(&mut observer.queue),
             None => Vec::new(),
         };
@@ -519,7 +519,8 @@ fn entries_to_js(rt: &mut Runtime, entries: &[Entry]) -> VmResult<Vec<Gc<Object>
             bounding: None,
             intersection: None,
         })?;
-        let object = rt.new_host_object(0, g::INTERSECTION_OBSERVER_ENTRY, data)?;
+        let realm = crate::state::doc_realm(rt)?;
+        let object = rt.new_host_object(realm, g::INTERSECTION_OBSERVER_ENTRY, data)?;
         b::keep(rt, Value::Object(object));
         objects.push(object);
     }
@@ -721,7 +722,7 @@ fn threshold_index(thresholds: &[f64], ratio: f64) -> i32 {
 /// delivery task. The caller runs it in a task (a deadline, a handle scope).
 pub(crate) fn update(rt: &mut Runtime, time: f64) -> Result<(), ScriptError> {
     let ids: Vec<u32> = {
-        let io = &mut state_mut(rt).map_err(crate::runtime::task_error)?.io;
+        let io = &mut state_mut(rt).map_err(crate::runtime::task_error)?.doc.io;
         io.requested = false;
         io.observers.keys().copied().collect()
     };
@@ -749,7 +750,7 @@ pub(crate) fn update(rt: &mut Runtime, time: f64) -> Result<(), ScriptError> {
     for id in ids {
         let Some((config, mut targets)) = state(rt)
             .ok()
-            .and_then(|s| s.io.observers.get(&id))
+            .and_then(|s| s.doc.io.observers.get(&id))
             .map(|o| (o.config.clone(), o.targets.clone()))
         else {
             continue;
@@ -774,7 +775,10 @@ pub(crate) fn update(rt: &mut Runtime, time: f64) -> Result<(), ScriptError> {
             }
         }
         // The observer may have been changed by nothing: no script ran.
-        if let Some(observer) = state_mut(rt).ok().and_then(|s| s.io.observers.get_mut(&id)) {
+        if let Some(observer) = state_mut(rt)
+            .ok()
+            .and_then(|s| s.doc.io.observers.get_mut(&id))
+        {
             observer.targets = targets;
             let room = MAX_QUEUE.saturating_sub(observer.queue.len());
             if entries.len() > room {
@@ -801,7 +805,7 @@ fn exception_error(exception: Exception) -> VmError {
 
 /// Queues the delivery task unless one waits.
 fn queue_delivery(rt: &mut Runtime) -> VmResult<()> {
-    let io = &mut state_mut(rt)?.io;
+    let io = &mut state_mut(rt)?.doc.io;
     if io.delivery_queued {
         return Ok(());
     }
@@ -814,14 +818,14 @@ fn queue_delivery(rt: &mut Runtime) -> VmResult<()> {
 /// microtask checkpoint after each callback.
 pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
     let ids: Vec<u32> = {
-        let io = &mut state_mut(rt).map_err(crate::runtime::task_error)?.io;
+        let io = &mut state_mut(rt).map_err(crate::runtime::task_error)?.doc.io;
         io.delivery_queued = false;
         io.observers.keys().copied().collect()
     };
     for id in ids {
         let Some((object, entries)) = state_mut(rt)
             .ok()
-            .and_then(|s| s.io.observers.get_mut(&id))
+            .and_then(|s| s.doc.io.observers.get_mut(&id))
             .filter(|o| !o.queue.is_empty())
             .map(|o| (o.object, std::mem::take(&mut o.queue)))
         else {
@@ -831,7 +835,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
             continue;
         };
         let objects = entries_to_js(rt, &entries).map_err(crate::runtime::task_error)?;
-        let list = b::to_js::sequence(rt, 0, &objects, |_, item| Ok(Value::Object(*item)))
+        let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
+        let list = b::to_js::sequence(rt, realm, &objects, |_, item| Ok(Value::Object(*item)))
             .map_err(crate::runtime::task_error)?;
         b::keep(rt, list);
         b::keep(rt, Value::Object(callback));

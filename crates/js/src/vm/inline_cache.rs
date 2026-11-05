@@ -125,6 +125,9 @@ impl Runtime {
                 self.fill_cache(code, site, entry);
                 Ok(SetOutcome::Done)
             }
+            SetPlan::TargetSlot { .. } => {
+                Err(VmError::invariant("a target slot in the plan of a miss"))
+            }
             SetPlan::General => {
                 // A proxy receiver: the next write skips the plan.
                 self.fill_cache(code, site, entry);

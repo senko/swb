@@ -218,11 +218,14 @@ impl g::html_input_element::HTMLInputElementImpl for WebState {
     }
 
     fn indeterminate(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
-        Ok(crate::state::state(cx.rt)?.indeterminate.contains(&this))
+        Ok(crate::state::state(cx.rt)?
+            .doc
+            .indeterminate
+            .contains(&this))
     }
 
     fn set_indeterminate(cx: &mut Cx<'_>, this: NodeId, value: bool) -> b::Result<()> {
-        let set = &mut crate::state::state_mut(cx.rt)?.indeterminate;
+        let set = &mut crate::state::state_mut(cx.rt)?.doc.indeterminate;
         if value {
             set.insert(this);
         } else {

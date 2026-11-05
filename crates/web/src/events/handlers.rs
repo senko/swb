@@ -204,7 +204,7 @@ fn entry_mut<'a>(
             .handlers
             .0
             .get_mut(attr),
-        _ => state_mut(rt)?.handlers.entries.get_mut(&(key, attr)),
+        _ => state_mut(rt)?.doc.handlers.entries.get_mut(&(key, attr)),
     })
 }
 
@@ -223,6 +223,7 @@ fn entry_or_null<'a>(rt: &'a mut Runtime, key: Key, attr: &'static str) -> VmRes
             .entry(attr)
             .or_insert_with(null),
         _ => state_mut(rt)?
+            .doc
             .handlers
             .entries
             .entry((key, attr))
@@ -237,12 +238,13 @@ pub(crate) fn with_context<R>(
     f: impl FnOnce(&mut Runtime) -> VmResult<R>,
 ) -> VmResult<R> {
     let old = state_mut(rt)?
+        .doc
         .handlers
         .context
         .replace(Cow::Borrowed(context));
     let result = f(rt);
     if let Ok(state) = state_mut(rt) {
-        state.handlers.context = old;
+        state.doc.handlers.context = old;
     }
     result
 }
@@ -298,7 +300,7 @@ pub(crate) fn sync(rt: &mut Runtime, target: TargetKind) -> VmResult<()> {
 }
 
 fn sync_node(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
-    if !state_mut(rt)?.handlers.synced.insert(node) {
+    if !state_mut(rt)?.doc.handlers.synced.insert(node) {
         return Ok(());
     }
     let document = dom(rt)?;
@@ -351,7 +353,7 @@ pub(crate) fn attribute_changed(
     if attribute.ns != ns!() || !attribute.local.starts_with("on") {
         return Ok(());
     }
-    if !state(rt)?.handlers.synced.contains(&element) {
+    if !state(rt)?.doc.handlers.synced.contains(&element) {
         return Ok(());
     }
     let dom = dom(rt)?;
@@ -369,11 +371,11 @@ pub(crate) fn attribute_changed(
 
 /// The callback of handler listeners.
 fn marker(rt: &mut Runtime) -> VmResult<Gc<Object>> {
-    if let Some(marker) = state(rt)?.handlers.marker {
+    if let Some(marker) = state(rt)?.doc.handlers.marker {
         return Ok(marker);
     }
-    let marker = rt.new_plain_object(0)?;
-    state_mut(rt)?.handlers.marker = Some(marker);
+    let marker = rt.new_plain_object(crate::state::doc_realm(rt)?)?;
+    state_mut(rt)?.doc.handlers.marker = Some(marker);
     Ok(marker)
 }
 
@@ -389,7 +391,7 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
     // The lists of other targets are in the JavaScript heap (as for
     // `addEventListener`).
     let in_document = !matches!(target, TargetKind::Constructed(_));
-    if in_document && state(rt)?.listener_count >= MAX_DOCUMENT_LISTENERS {
+    if in_document && state(rt)?.doc.listener_count >= MAX_DOCUMENT_LISTENERS {
         log::warn!("a document has more than {MAX_DOCUMENT_LISTENERS} event listeners");
         return Err(rt.terminate("too many event listeners in the document"));
     }
@@ -405,7 +407,7 @@ fn set_value(rt: &mut Runtime, key: Key, name: &'static Name, value: Value_) -> 
     };
     with_listeners(rt, target, |list| list.add(name.event, listener))?;
     if in_document {
-        state_mut(rt)?.listener_count += 1;
+        state_mut(rt)?.doc.listener_count += 1;
     }
     if let Some(entry) = entry_mut(rt, key, name.attr)? {
         entry.registered = true;
@@ -445,9 +447,9 @@ pub(crate) fn get(rt: &mut Runtime, target: HandlerTarget, attr: &str) -> VmResu
     let key = key_of(rt, target, name)?;
     sync(rt, key.target())?;
     let context = getter_context(dom(rt)?, target, name);
-    let saved = state_mut(rt)?.handlers.context.replace(context);
+    let saved = state_mut(rt)?.doc.handlers.context.replace(context);
     let value = current_value(rt, key, name);
-    state_mut(rt)?.handlers.context = saved;
+    state_mut(rt)?.doc.handlers.context = saved;
     Ok(value?.map_or(Value::Null, Value::Object))
 }
 
@@ -565,16 +567,17 @@ fn compile(
     // A handler that forwards to the window (`body`, `frameset`) has no
     // element and no document in its scope (HTML: the scope is for an
     // element target only).
+    let realm = crate::state::doc_realm(rt)?;
     let mut scope = Vec::new();
     if key != Key::Window {
-        scope.push(WebState::wrap_node(rt, 0, document)?);
+        scope.push(WebState::wrap_node(rt, realm, document)?);
     }
     for node in form.into_iter().chain(element) {
-        scope.push(WebState::wrap_node(rt, 0, node)?);
+        scope.push(WebState::wrap_node(rt, realm, node)?);
     }
     let url = engine(rt)?.url();
     let handler = EventHandler {
-        realm: 0,
+        realm,
         name: name.attr,
         params,
         body: text,
@@ -597,7 +600,7 @@ fn compile(
             if let Some(entry) = entry_mut(rt, key, name.attr)? {
                 entry.value = Value_::Null;
             }
-            let context = state(rt)?.handlers.context.clone();
+            let context = state(rt)?.doc.handlers.context.clone();
             let error = with_context_message(error, context.as_deref());
             let site = crate::errors::Site::script(&url, text);
             crate::errors::report(rt, &site, &error)?;

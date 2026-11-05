@@ -142,9 +142,10 @@ pub(crate) fn dispatch_trusted(
     target: DispatchTarget,
     event: &TrustedEvent,
 ) -> VmResult<bool> {
+    let realm = crate::state::doc_realm(rt)?;
     let target_object = match target {
-        DispatchTarget::Node(node) => WebState::wrap_node(rt, 0, node)?,
-        DispatchTarget::Window => rt.global(0)?,
+        DispatchTarget::Node(node) => WebState::wrap_node(rt, realm, node)?,
+        DispatchTarget::Window => crate::state::window_proxy(rt)?,
     };
     let mut init = EventInit {
         bubbles: event.bubbles,
@@ -161,16 +162,16 @@ pub(crate) fn dispatch_trusted(
         ),
         EventInterface::Focus { related_target } => {
             let mut fields = super::ui::Fields::new(super::ui::Family::Focus);
-            fields.view = Some(rt.global(0)?);
+            fields.view = Some(crate::state::window_proxy(rt)?);
             fields.related_target = match related_target {
-                Some(node) => Some(WebState::wrap_node(rt, 0, *node)?),
+                Some(node) => Some(WebState::wrap_node(rt, realm, *node)?),
                 None => None,
             };
             (g::FOCUS_EVENT, Extra::Ui(Box::new(fields)))
         }
         EventInterface::Submit { submitter } => {
             let submitter = match submitter {
-                Some(node) => Some(WebState::wrap_node(rt, 0, *node)?),
+                Some(node) => Some(WebState::wrap_node(rt, realm, *node)?),
                 None => None,
             };
             (
@@ -180,7 +181,7 @@ pub(crate) fn dispatch_trusted(
         }
         EventInterface::PopState { state } => {
             let state = match state {
-                Some(record) => crate::location::state_value(rt, 0, record)
+                Some(record) => crate::location::state_value(rt, realm, record)
                     .map_err(|_| VmError::type_error("the state of the history entry"))?,
                 None => Value::Null,
             };
@@ -216,13 +217,13 @@ pub(crate) fn dispatch_trusted(
     };
     let mut data = EventData::new(event.kind.clone(), &init, super::now(rt), extra);
     data.is_trusted = true;
-    let object = new_event_object(rt, 0, class, data)?;
+    let object = new_event_object(rt, realm, class, data)?;
     let target_override = if event.legacy_target_override && target == DispatchTarget::Window {
-        Some(WebState::wrap_node(rt, 0, NodeId::DOCUMENT)?)
+        Some(WebState::wrap_node(rt, realm, NodeId::DOCUMENT)?)
     } else {
         None
     };
-    dispatch(rt, 0, target_object, object, target_override)
+    dispatch(rt, realm, target_object, object, target_override)
 }
 
 /// [`dispatch_trusted`] in a handle scope of its own, for a native
@@ -260,9 +261,10 @@ pub(crate) fn fire_at_object(
     };
     let mut data = EventData::new(kind.to_owned(), &init, super::now(rt), extra);
     data.is_trusted = true;
+    let realm = crate::state::doc_realm(rt)?;
     let scope = rt.heap_mut().open_scope();
-    let result =
-        new_event_object(rt, 0, class, data).and_then(|event| dispatch(rt, 0, target, event, None));
+    let result = new_event_object(rt, realm, class, data)
+        .and_then(|event| dispatch(rt, realm, target, event, None));
     if let Err(error) = rt.heap_mut().close_scope(scope) {
         log::warn!("the handle scope of an event was not the last one: {error:?}");
     }
@@ -392,7 +394,7 @@ fn build_path(
         path.push(item(wrapper));
     }
     if window {
-        path.push(item(rt.global(realm)?));
+        path.push(item(crate::state::window_proxy(rt)?));
     }
     super::data_mut(rt, event)?.path = path;
     Ok(())
@@ -532,9 +534,9 @@ fn inner_invoke(
             super::target::remove(rt, target, |list| list.remove_listener(kind, listener))?;
         }
         // Steps 6 to 9: the window's current event, the passive flag.
-        let current_event = state(rt)?.current_event;
+        let current_event = state(rt)?.doc.current_event;
         if !item.in_shadow_tree {
-            state_mut(rt)?.current_event = Some(event);
+            state_mut(rt)?.doc.current_event = Some(event);
         }
         super::data_mut(rt, handle)?.in_passive_listener = listener.passive;
         b::keep(rt, Value::Object(listener.callback));
@@ -543,7 +545,7 @@ fn inner_invoke(
             None => call_listener(rt, listener.callback, item.target, event, kind),
         };
         super::data_mut(rt, handle)?.in_passive_listener = false;
-        state_mut(rt)?.current_event = current_event;
+        state_mut(rt)?.doc.current_event = current_event;
         result?;
         // HTML "clean up after running a callback" (for the engine's
         // events; a no-op while script runs).

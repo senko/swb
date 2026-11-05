@@ -7,8 +7,10 @@
 //! module makes the JavaScript objects and delivers.
 //!
 //! **Delivery.** DOM "queue a mutation observer microtask": the registry
-//! sets a request flag when it queues a record. The glue of every native
-//! call checks the flag after the call ([`after_call`]), and so does each
+//! sets a request flag when it queues a record (a cell of the runtime that
+//! all documents share: a registry changes only while its document is the
+//! current one). The glue of every native call checks the flag after the
+//! call ([`after_call`]), and so does each
 //! microtask checkpoint, and then queues one microtask (a host function)
 //! unless one waits. So the microtask has its place in the queue among the
 //! promise jobs, as in Chromium (measured: a promise reaction queued before
@@ -44,8 +46,6 @@ use crate::state::{WebState, dom_mut, state, state_mut};
 /// The mutation observer state of the binding state.
 pub(crate) struct MutationState {
     registry: Shared,
-    /// The registry sets it when a record is queued.
-    request: Rc<Cell<bool>>,
     /// True once the registry is the document's mutation sink.
     installed: bool,
     next_id: u32,
@@ -59,10 +59,16 @@ pub(crate) struct MutationState {
 
 impl Default for MutationState {
     fn default() -> MutationState {
-        let request = Rc::new(Cell::new(false));
+        MutationState::new(Rc::new(Cell::new(false)))
+    }
+}
+
+impl MutationState {
+    /// The state of a document whose registry sets `request` when a record
+    /// is queued ([`Runtime::host_signal_cell`]).
+    pub(crate) fn new(request: Rc<Cell<bool>>) -> MutationState {
         MutationState {
-            registry: Rc::new(RefCell::new(Registry::new(request.clone()))),
-            request,
+            registry: Rc::new(RefCell::new(Registry::new(request))),
             installed: false,
             next_id: 0,
             kept: BTreeMap::new(),
@@ -70,9 +76,7 @@ impl Default for MutationState {
             notify_fn: None,
         }
     }
-}
 
-impl MutationState {
     /// Reports the handles that the state holds.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for observer in self.kept.values() {
@@ -171,15 +175,14 @@ pub(crate) fn after_call(rt: &mut Runtime) -> VmResult<()> {
 /// test, then [`after_request`].
 #[inline]
 pub(crate) fn needs_attention(rt: &Runtime) -> bool {
-    rt.host_data::<WebState>()
-        .is_some_and(|web| web.mutation.request.get())
+    rt.host_signal()
 }
 
 /// The slow path of [`after_call`]: the registry asked for attention.
 #[cold]
 #[inline(never)]
 pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
-    let registry = state(rt)?.mutation.registry.clone();
+    let registry = state(rt)?.doc.mutation.registry.clone();
     let (microtask, overdue) = registry.borrow_mut().take_signals();
     if microtask {
         queue_microtask(rt);
@@ -190,43 +193,89 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     Ok(())
 }
 
+/// The current document stops being current. The documents of a runtime share
+/// the cell that [`needs_attention`] reads, and [`after_request`] asks the
+/// current document only, so a request must not outlive the switch (a hook
+/// ends without a look at the cell). A time check that waits comes back with
+/// the next work of this document's registry.
+pub(crate) fn before_switch(rt: &mut Runtime) {
+    if !needs_attention(rt) {
+        return;
+    }
+    let Ok(web) = state(rt) else {
+        return;
+    };
+    let registry = web.doc.mutation.registry.clone();
+    let microtask = registry.borrow_mut().take_microtask_request();
+    if microtask {
+        queue_microtask(rt);
+    }
+}
+
 /// DOM "queue a mutation observer microtask".
 fn queue_microtask(rt: &mut Runtime) {
     let Ok(web) = state_mut(rt) else {
         return;
     };
-    if web.mutation.queued {
+    if web.doc.mutation.queued {
         return;
     }
-    web.mutation.queued = true;
-    let function = if let Some(function) = web.mutation.notify_fn {
+    web.doc.mutation.queued = true;
+    let function = if let Some(function) = web.doc.mutation.notify_fn {
         function
-    } else if let Ok(function) = rt.new_host_function(0, "", notify) {
+    } else if let Ok(function) =
+        crate::state::doc_realm(rt).and_then(|realm| rt.new_host_function(realm, "", notify))
+    {
         if let Ok(web) = state_mut(rt) {
-            web.mutation.notify_fn = Some(function);
+            web.doc.mutation.notify_fn = Some(function);
         }
         function
     } else {
         if let Ok(web) = state_mut(rt) {
-            web.mutation.queued = false;
+            web.doc.mutation.queued = false;
         }
         return;
     };
     rt.queue_microtask(Value::Object(function));
 }
 
-/// The job queue was cleared (a termination): the microtask is gone, and
-/// records may wait.
+/// The job queue of the agent was cleared (a termination): the microtask of
+/// every document is gone, and records may wait. The other documents ask
+/// first: each switch back queues their microtask ([`before_switch`]).
 pub(crate) fn jobs_cleared(rt: &mut Runtime) {
+    let Ok(web) = state_mut(rt) else {
+        return;
+    };
+    let current = web.doc.key;
+    let keys: Vec<_> = crate::state::documents_mut(web)
+        .map(|doc| {
+            doc.mutation.queued = false;
+            doc.key
+        })
+        .collect();
+    for key in keys.into_iter().filter(|&key| key != current) {
+        if let Ok(entered) = crate::state::switch_if_other(rt, key) {
+            ask_for_waiting_records(rt);
+            crate::state::leave(rt, entered);
+        }
+    }
+    ask_for_waiting_records(rt);
+}
+
+/// Asks for the microtask of the current document if records wait.
+fn ask_for_waiting_records(rt: &mut Runtime) {
     if let Ok(web) = state_mut(rt) {
-        web.mutation.queued = false;
-        web.mutation.registry.borrow_mut().want_microtask();
+        web.doc.mutation.registry.borrow_mut().want_microtask();
     }
 }
 
 /// The mutation observer microtask.
-fn notify(rt: &mut Runtime, _call: &NativeCall) -> VmResult<NativeReturn> {
-    deliver(rt)?;
+fn notify(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
+    // The function belongs to the realm of the document whose records wait.
+    let entered = crate::state::enter_realm(rt, call.realm())?;
+    let result = deliver(rt);
+    crate::state::leave(rt, entered);
+    result?;
     Ok(NativeReturn::Value(Value::Undefined))
 }
 
@@ -234,8 +283,8 @@ fn notify(rt: &mut Runtime, _call: &NativeCall) -> VmResult<NativeReturn> {
 fn deliver(rt: &mut Runtime) -> VmResult<()> {
     let registry = {
         let web = state_mut(rt)?;
-        web.mutation.queued = false;
-        web.mutation.registry.clone()
+        web.doc.mutation.queued = false;
+        web.doc.mutation.registry.clone()
     };
     let ids = registry.borrow_mut().take_notify_set();
     for (position, &id) in ids.iter().enumerate() {
@@ -256,7 +305,7 @@ fn notify_one(rt: &mut Runtime, registry: &Shared, id: u32) -> VmResult<()> {
     if records.is_empty() {
         return Ok(());
     }
-    let Some(&observer) = state(rt)?.mutation.kept.get(&id) else {
+    let Some(&observer) = state(rt)?.doc.mutation.kept.get(&id) else {
         return Ok(());
     };
     let Some(callback) = callback_of(rt, observer) else {
@@ -295,6 +344,7 @@ fn callback_of(rt: &Runtime, observer: Gc<Object>) -> Option<Gc<Object>> {
 
 /// The array of `MutationRecord` objects for `records`.
 fn records_to_js(rt: &mut Runtime, records: Vec<Record>) -> VmResult<Gc<Object>> {
+    let realm = crate::state::doc_realm(rt)?;
     let mut objects = Vec::with_capacity(records.len());
     for record in records {
         let data = rt.alloc_host_data(RecordData {
@@ -302,11 +352,11 @@ fn records_to_js(rt: &mut Runtime, records: Vec<Record>) -> VmResult<Gc<Object>>
             added_list: None,
             removed_list: None,
         })?;
-        let object = rt.new_host_object(0, g::MUTATION_RECORD, data)?;
+        let object = rt.new_host_object(realm, g::MUTATION_RECORD, data)?;
         b::keep(rt, Value::Object(object));
         objects.push(object);
     }
-    let value = b::to_js::sequence(rt, 0, &objects, |_, item| Ok(Value::Object(*item)))?;
+    let value = b::to_js::sequence(rt, realm, &objects, |_, item| Ok(Value::Object(*item)))?;
     match value {
         Value::Object(array) => Ok(array),
         _ => Err(VmError::type_error("a sequence is an array")),
@@ -315,12 +365,12 @@ fn records_to_js(rt: &mut Runtime, records: Vec<Record>) -> VmResult<Gc<Object>>
 
 /// Makes the registry the document's mutation sink, once.
 fn install_sink(rt: &mut Runtime) -> b::Result<()> {
-    if state(rt)?.mutation.installed {
+    if state(rt)?.doc.mutation.installed {
         return Ok(());
     }
-    let registry = state(rt)?.mutation.registry.clone();
+    let registry = state(rt)?.doc.mutation.registry.clone();
     dom_mut(rt)?.set_mutation_sink(Some(Box::new(Sink(registry))));
-    state_mut(rt)?.mutation.installed = true;
+    state_mut(rt)?.doc.mutation.installed = true;
     Ok(())
 }
 
@@ -369,7 +419,7 @@ fn options_of(init: MutationObserverInit) -> b::Result<Options> {
 
 impl g::mutation_observer::MutationObserverImpl for WebState {
     fn constructor(cx: &mut Cx<'_>, callback: MutationCallback) -> b::Result<Gc<Object>> {
-        let mutation = &mut state_mut(cx.rt)?.mutation;
+        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
         mutation.next_id += 1;
         let id = mutation.next_id;
         let data = cx.rt.alloc_host_data(ObserverData {
@@ -388,7 +438,7 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
         let id = observer_data(cx.rt, this)?.id;
         let options = options_of(options)?;
         install_sink(cx.rt)?;
-        let mutation = &mut state_mut(cx.rt)?.mutation;
+        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
         mutation.registry.borrow_mut().observe(id, target, options);
         mutation.kept.insert(id, this.object);
         Ok(())
@@ -396,7 +446,7 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
 
     fn disconnect(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
-        let mutation = &mut state_mut(cx.rt)?.mutation;
+        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
         mutation.registry.borrow_mut().disconnect(id);
         mutation.kept.remove(&id);
         Ok(())
@@ -404,7 +454,7 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
 
     fn take_records(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<Gc<Object>>> {
         let id = observer_data(cx.rt, this)?.id;
-        let registry = state(cx.rt)?.mutation.registry.clone();
+        let registry = state(cx.rt)?.doc.mutation.registry.clone();
         let records = registry.borrow_mut().take_records(id);
         let mut objects = Vec::with_capacity(records.len());
         for record in records {
@@ -414,7 +464,9 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
                 added_list: None,
                 removed_list: None,
             })?;
-            let object = cx.rt.new_host_object(0, g::MUTATION_RECORD, data)?;
+            let object =
+                cx.rt
+                    .new_host_object(crate::state::doc_realm(cx.rt)?, g::MUTATION_RECORD, data)?;
             b::keep(cx.rt, Value::Object(object));
             objects.push(object);
         }
