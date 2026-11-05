@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser};
 use swb_engine::{ClockMode, Size, check_scale, check_viewport_size};
 use swb_net::{ExtendingFetcher, Fetcher, NetworkFetcher, RecordingFetcher, ReplayFetcher};
 use swb_text::FontContext;
@@ -116,6 +116,20 @@ struct Args {
     )]
     eval: Vec<String>,
 
+    /// Headless: the frame that the `--eval` arguments after this one
+    /// evaluate in: CSS selectors of `iframe` elements from the top-level
+    /// document, joined by ` >> ` (`#a >> #b`). An empty PATH is the
+    /// top-level document again. A path that finds no frame, and a frame
+    /// without scripts (scripts in frames are not supported yet), give an
+    /// error line.
+    #[arg(
+        long = "eval-frame",
+        value_name = "PATH",
+        allow_hyphen_values = true,
+        requires = "headless"
+    )]
+    eval_frame: Vec<String>,
+
     /// Headless: after the page loaded, send these input steps (a JSON
     /// list; see `swb_automation::run_steps`) through the `input.*` methods
     /// of the automation API, before the evaluations and the outputs. For
@@ -200,9 +214,47 @@ fn print_server_address(port: u16) -> Result<()> {
         .context("cannot write to standard output")
 }
 
+/// The `--eval` expressions in the order of the command line, each with the
+/// frame path that the last `--eval-frame` before it set (`None`: the
+/// top-level document).
+fn eval_requests(matches: &ArgMatches, args: &Args) -> Vec<headless::EvalRequest> {
+    let indices = |id: &str| {
+        matches
+            .indices_of(id)
+            .map_or_else(Vec::new, Iterator::collect)
+    };
+    let mut items: Vec<(usize, bool, &String)> = indices("eval")
+        .into_iter()
+        .zip(&args.eval)
+        .map(|(i, e)| (i, false, e))
+        .chain(
+            indices("eval_frame")
+                .into_iter()
+                .zip(&args.eval_frame)
+                .map(|(i, p)| (i, true, p)),
+        )
+        .collect();
+    items.sort_by_key(|(i, ..)| *i);
+    let mut frame: Option<String> = None;
+    let mut requests = Vec::new();
+    for (_, is_frame, value) in items {
+        if is_frame {
+            frame = Some(value.clone()).filter(|p| !p.trim().is_empty());
+        } else {
+            requests.push(headless::EvalRequest {
+                frame: frame.clone(),
+                expression: value.clone(),
+            });
+        }
+    }
+    requests
+}
+
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
-    let args = Args::parse();
+    let matches = Args::command().get_matches();
+    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let evals = eval_requests(&matches, &args);
 
     let fetcher: Arc<dyn Fetcher> = match (&args.replay, &args.record, &args.record_missing) {
         (Some(dir), _, _) => Arc::new(
@@ -266,7 +318,7 @@ fn main() -> Result<()> {
             dump_boxes: args.dump_boxes.as_deref(),
             bench: args.bench,
             javascript,
-            eval: &args.eval,
+            eval: &evals,
             steps: args.steps.as_deref(),
             clock,
             settle: Duration::from_millis(args.settle_ms),
@@ -274,4 +326,61 @@ fn main() -> Result<()> {
         return stack::on_page_thread(|| headless::run(fonts, &options))?;
     }
     gui::run(fetcher, fonts, url, args.remote_port, javascript, args.now)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn requests(arguments: &[&str]) -> Vec<(Option<String>, String)> {
+        let matches = Args::command().get_matches_from(arguments);
+        let args = Args::from_arg_matches(&matches).expect("the arguments are valid");
+        eval_requests(&matches, &args)
+            .into_iter()
+            .map(|r| (r.frame, r.expression))
+            .collect()
+    }
+
+    #[test]
+    fn eval_frame_sets_the_frame_of_the_evals_after_it() {
+        let got = requests(&[
+            "swb",
+            "--headless",
+            "--js",
+            "--eval=a",
+            "--eval-frame=#f >> #g",
+            "--eval=b",
+            "--eval=-c",
+            "--eval-frame=",
+            "--eval=d",
+            "--eval-frame=#h",
+            "--eval=e",
+            "about:blank",
+        ]);
+        let frame = |p: &str| Some(p.to_owned());
+        assert_eq!(
+            got,
+            vec![
+                (None, "a".to_owned()),
+                (frame("#f >> #g"), "b".to_owned()),
+                (frame("#f >> #g"), "-c".to_owned()),
+                (None, "d".to_owned()),
+                (frame("#h"), "e".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn evals_without_a_frame_have_none() {
+        let got = requests(&[
+            "swb",
+            "--headless",
+            "--js",
+            "--eval=1",
+            "--eval=2",
+            "about:blank",
+        ]);
+        assert_eq!(got.len(), 2);
+        assert!(got.iter().all(|(frame, _)| frame.is_none()));
+    }
 }

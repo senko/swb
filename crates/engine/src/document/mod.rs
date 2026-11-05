@@ -74,7 +74,7 @@ pub(crate) use derived::Derived;
 pub(crate) use history_api::{HistoryInfo, StateChange};
 pub(crate) use pipeline::Rendering;
 pub use queries::ElementScroll;
-pub(crate) use queries::{indicated, is_rendered_in};
+pub(crate) use queries::{indicated, rendered_test};
 pub(crate) use script_actions::{MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
 
 /// What the document knows of its viewport: the page sets it.
@@ -248,6 +248,13 @@ pub struct DocumentState {
     /// clears it, a key sets it (Chromium 148, measured in
     /// `tools/probes/web-small-gaps.json`, cases `fv-*`).
     pub(crate) keyboard_modality: bool,
+    /// The `iframe` element that holds the focus through its frame
+    /// (`document.activeElement`); the page sets it (ADR 0031 section 8).
+    pub(crate) frame_focus: Option<NodeId>,
+    /// True while the window does not have the focus: Tab left the page,
+    /// or the frame that held the focus is gone; the page keeps it
+    /// (`document.hasFocus()`).
+    pub(crate) window_blurred: bool,
     /// The text selection of the page.
     pub(crate) selection: Option<Selection>,
     pub(crate) stylist: Option<Stylist>,
@@ -374,6 +381,8 @@ impl DocumentState {
             scrollers: Scrollers::default(),
             states: ElementStates::default(),
             keyboard_modality: true,
+            frame_focus: None,
+            window_blurred: false,
             selection: None,
             stylist: None,
             styles: None,
@@ -623,6 +632,14 @@ impl swb_web::EngineHost for DocumentState {
 
     fn focused_element(&self) -> Option<NodeId> {
         self.states.focus
+    }
+
+    fn frame_focus_element(&self) -> Option<NodeId> {
+        self.frame_focus
+    }
+
+    fn window_has_focus(&self) -> bool {
+        !self.window_blurred
     }
 
     fn can_focus(&mut self, node: NodeId) -> bool {

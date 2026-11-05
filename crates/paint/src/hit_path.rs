@@ -29,16 +29,17 @@ const CURVE_STEPS: u32 = 16;
 /// them (40 shapes in each of 300 references) took 20 s before the limit.
 const MAX_HIT_WORK: u64 = 30_000_000;
 
-/// The work that is left for one hit test.
+/// The work that is left for one hit test. One value covers a test that goes
+/// through several documents (frames, ADR 0031 section 4).
 #[derive(Debug)]
-pub(crate) struct HitWork {
+pub struct HitWork {
     left: Cell<u64>,
     out: Cell<bool>,
 }
 
 impl HitWork {
     /// The budget of one hit test.
-    pub(crate) fn new() -> HitWork {
+    pub fn new() -> HitWork {
         HitWork {
             left: Cell::new(MAX_HIT_WORK),
             out: Cell::new(false),
@@ -59,8 +60,14 @@ impl HitWork {
     }
 
     /// True if a test ran out of work: results after that are not valid.
-    fn exhausted(&self) -> bool {
+    pub fn exhausted(&self) -> bool {
         self.out.get()
+    }
+}
+
+impl Default for HitWork {
+    fn default() -> HitWork {
+        HitWork::new()
     }
 }
 

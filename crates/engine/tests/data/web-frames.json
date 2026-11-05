@@ -4079,6 +4079,1360 @@
      ]
     }
    ]
+  },
+  {
+   "name": "input-pointer-events",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:') || x == '--sep').join(' ')",
+     "value": "p:pointerover@HTML p:pointerenter@doc p:pointerenter@HTML p:mouseover@HTML p:mouseenter@doc p:mouseenter@HTML p:pointermove@HTML p:mousemove@HTML p:pointerout@HTML<f p:pointerover@f<HTML p:pointerenter@BODY<HTML p:pointerenter@f<HTML p:mouseout@HTML<f p:mouseover@f<HTML p:mouseenter@BODY<HTML p:mouseenter@f<HTML p:pointerout@f<b p:pointerleave@f<b p:pointerover@b<f p:pointerenter@b<f p:mouseout@f<b p:mouseleave@f<b p:mouseover@b<f p:mouseenter@b<f p:pointermove@b p:mousemove@b --sep p:pointerout@b<f p:pointerleave@b<f p:pointerover@f<b p:pointerenter@f<b p:mouseout@b<f p:mouseleave@b<f p:mouseover@f<b p:mouseenter@f<b p:pointerout@f<HTML p:pointerleave@f<HTML p:pointerleave@BODY<HTML p:pointerover@HTML<f p:mouseout@f<HTML p:mouseleave@f<HTML p:mouseleave@BODY<HTML p:mouseover@HTML<f p:pointermove@HTML p:mousemove@HTML"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:') || x == '--sep').join(' ')",
+     "value": "c:pointerover@a c:pointerenter@doc c:pointerenter@HTML c:pointerenter@BODY c:pointerenter@a c:mouseover@a c:mouseenter@doc c:mouseenter@HTML c:mouseenter@BODY c:mouseenter@a c:pointermove@a c:mousemove@a c:pointermove@a c:mousemove@a c:pointerout@a c:pointerleave@a c:pointerleave@BODY c:pointerleave@HTML c:pointerleave@doc c:mouseout@a c:mouseleave@a c:mouseleave@BODY c:mouseleave@HTML c:mouseleave@doc --sep c:pointerover@a c:pointerenter@doc c:pointerenter@HTML c:pointerenter@BODY c:pointerenter@a c:mouseover@a c:mouseenter@doc c:mouseenter@HTML c:mouseenter@BODY c:mouseenter@a c:pointermove@a c:mousemove@a c:pointerout@a c:pointerleave@a c:pointerleave@BODY c:pointerleave@HTML c:pointerleave@doc c:mouseout@a c:mouseleave@a c:mouseleave@BODY c:mouseleave@HTML c:mouseleave@doc"
+    }
+   ]
+  },
+  {
+   "name": "input-hover",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^h\\d:/.test(x)).join(' ')",
+     "value": "h1:true,false,true,true,true h2:false,true,false,false,false h3:false,false,false,false,false"
+    }
+   ]
+  },
+  {
+   "name": "input-press-in-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ') + ' ' + log.filter(x => /^(h|a)\\d:/.test(x)).join(' ')",
+     "value": "p:pointerover@f p:pointerenter@doc p:pointerenter@HTML p:pointerenter@BODY p:pointerenter@f p:mouseover@f p:mouseenter@doc p:mouseenter@HTML p:mouseenter@BODY p:mouseenter@f a1:true,true,true,true h1:true,false,false,false,true a2:false,false,false,false"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:pointerover@a c:pointerenter@doc c:pointerenter@HTML c:pointerenter@BODY c:pointerenter@a c:mouseover@a c:mouseenter@doc c:mouseenter@HTML c:mouseenter@BODY c:mouseenter@a c:pointermove@a c:mousemove@a c:pointerdown@a c:mousedown@a c:pointerout@a<HTML c:pointerleave@a<HTML c:pointerleave@BODY<HTML c:pointerover@HTML<a c:mouseout@a<HTML c:mouseleave@a<HTML c:mouseleave@BODY<HTML c:mouseover@HTML<a c:pointermove@HTML c:mousemove@HTML c:pointermove@HTML c:mousemove@HTML c:pointerup@HTML c:mouseup@HTML c:click@HTML"
+    }
+   ]
+  },
+  {
+   "name": "input-press-in-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:pointerover@b p:pointerenter@doc p:pointerenter@HTML p:pointerenter@BODY p:pointerenter@b p:mouseover@b p:mouseenter@doc p:mouseenter@HTML p:mouseenter@BODY p:mouseenter@b p:pointermove@b p:mousemove@b p:pointerdown@b p:mousedown@b p:pointerout@b<f p:pointerleave@b<f p:pointerover@f<b p:pointerenter@f<b p:mouseout@b<f p:mouseleave@b<f p:mouseover@f<b p:mouseenter@f<b p:pointermove@f p:mousemove@f"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:pointerover@a c:pointerenter@doc c:pointerenter@HTML c:pointerenter@BODY c:pointerenter@a c:mouseover@a c:mouseenter@doc c:mouseenter@HTML c:mouseenter@BODY c:mouseenter@a c:pointermove@a c:mousemove@a c:pointerup@a c:mouseup@a"
+    }
+   ]
+  },
+  {
+   "name": "input-click-in-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:pointerover@f p:pointerenter@doc p:pointerenter@HTML p:pointerenter@BODY p:pointerenter@f p:mouseover@f p:mouseenter@doc p:mouseenter@HTML p:mouseenter@BODY p:mouseenter@f"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:pointerover@a c:pointerenter@doc c:pointerenter@HTML c:pointerenter@BODY c:pointerenter@a c:mouseover@a c:mouseenter@doc c:mouseenter@HTML c:mouseenter@BODY c:mouseenter@a c:pointermove@a c:mousemove@a c:pointerdown@a c:mousedown@a c:pointerup@a c:mouseup@a c:click@a"
+    }
+   ]
+  },
+  {
+   "name": "input-wheel-events",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:wheel') || x.startsWith('s1:')).join(' ')",
+     "value": "s1:50,500"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:wheel')).join(' ')",
+     "value": "c:wheel@a c:wheel@a c:wheel@a"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-pointer-events-none",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@under p:mousedown@under p:click@under p:mousedown@under p:click@under"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": ""
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:false,true,false"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-visibility-hidden",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@under p:mousedown@under p:click@under p:mousedown@under p:click@under"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": ""
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:false,true,false"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-covered",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@cover p:mousedown@cover p:click@cover p:mouseout@cover p:mouseover@f"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:mouseover@a c:mousedown@a c:click@a"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:true,false,true"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-opacity-0",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@f"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:mouseover@a c:mousedown@a c:click@a c:mousedown@a c:click@a"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:true,false,true"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-transform",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@f p:mouseout@f p:mouseover@under p:mousedown@under p:click@under"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:mouseover@a c:mousedown@a c:click@a c:mouseout@a"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:false,true,false"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-border",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:mouseover@HTML p:mouseout@HTML p:mouseover@f p:mousedown@f p:click@f"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:mouseover@a c:mousedown@a c:click@a"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('hh1:')).join(' ')",
+     "value": "hh1:true,false,true"
+    }
+   ]
+  },
+  {
+   "name": "input-link-self",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-13.html / t.html?self | blank | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "t.html?top / gone"
+    }
+   ]
+  },
+  {
+   "name": "input-link-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "t.html?par / gone"
+    }
+   ]
+  },
+  {
+   "name": "input-link-named",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-16.html / l.html | t.html?named | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-fragment",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-17.html / l.html#z | blank | 418"
+    }
+   ]
+  },
+  {
+   "name": "input-link-self-target",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-18.html / t.html?selft | blank | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-name",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-19.html / l.html | t.html?pnamed | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-frame-name",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-20.html / t.html?pf | blank | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "t.html?pt / gone"
+    }
+   ]
+  },
+  {
+   "name": "input-link-form-target",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')",
+     "value": "case-22.html / l.html | t.html?a=1 | 0"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')",
+     "value": "t.html?top / gone"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')",
+     "value": "t.html?par / gone"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-named",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')",
+     "value": "case-25.html / SecurityError | about:blank"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-self",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')",
+     "value": "case-26.html / SecurityError | about:blank"
+    }
+   ]
+  },
+  {
+   "name": "input-form-type-enter",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "v1:form.html | hi | true | b | q / v2:r.html?q=hi&c=on&s=b&go=go |  |  |  | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-form-checkbox-select",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "v1:form.html |  | false | b | c / v2:form.html |  | true | b | c / v3:form.html |  | true | c | s / v4:form.html |  | true | a | s / v5:r.html?q=&c=on&s=a&go=go |  |  |  | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-form-submit-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "v1:r.html?q=x+y&c=on&s=b&go=go |  |  |  | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-forward",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fc\\d:/.test(x)).join(' ')",
+     "value": "fc0:f/c1/true/true fc1:f/c2/true/true fc2:p2/BODY/true/false fc3:BODY/BODY/false/false"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win p:focus@win p:focus@p2 p:focusin@p2 p:blur@p2 p:focusout@p2 p:blur@win"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:focus@win c:focus@c1 c:focusin@c1 c:blur@c1 c:focusout@c1 c:focus@c2 c:focusin@c2 c:blur@c2 c:focusout@c2 c:blur@win"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-backward",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fc\\d:/.test(x)).join(' ')",
+     "value": "fc0:f/c2/true/true fc1:f/c1/true/true fc2:p1/BODY/true/false fc3:BODY/BODY/false/false"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:focus@p2 p:focusin@p2 p:blur@p2 p:focusout@p2 p:blur@win p:focus@win p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('c:')).join(' ')",
+     "value": "c:focus@win c:focus@c2 c:focusin@c2 c:blur@c2 c:focusout@c2 c:focus@c1 c:focusin@c1 c:blur@c1 c:focusout@c1 c:blur@win"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-kinds",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fk\\d:/.test(x)).join(' ')",
+     "value": "fk0:empty/BODY/BODY fk1:p2/BODY/BODY fk2:BODY/BODY/BODY fk3:pos/d1/BODY fk4:p1/BODY/BODY fk5:empty/BODY/BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fn\\d:/.test(x)).join(' ')",
+     "value": "fn0:f/n1/BODY fn1:f/g/m1 fn2:f/g/m2 fn3:f/n2/BODY fn4:p2/BODY/BODY fn5:BODY/BODY/BODY fn6:p1/BODY/BODY"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win p:focus@win p:focus@p2 p:focusin@p2 p:blur@p2 p:focusout@p2 p:blur@win p:focus@win p:focus@p1 p:focusin@p1"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-nested-backward",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fn\\d:/.test(x)).join(' ')",
+     "value": "fn0:f/n2/BODY fn1:f/g/m2 fn2:f/g/m1 fn3:f/n1/BODY fn4:p1/BODY/BODY fn5:BODY/BODY/BODY fn6:p2/BODY/BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.filter(x => /^fx\\d:/.test(x)).join(' ')",
+     "value": "fx1:p1/BODY/true/false/false/false/false fx2:f/BODY/true/true/false/false/false fx3:f/c1/true/true/false/true/true fx4:f/c1/true/true/false/true/true fx5:BODY/BODY/false/false/false/false/false"
+    },
+    {
+     "kind": "js",
+     "label": "log.filter(x => x.startsWith('p:')).join(' ')",
+     "value": "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-remove",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "p:blur@win l1:BODY/false p:focus@win p:focus@p2 p:focusin@p2 l2:p2/true"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-navigate",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "p:blur@win l1:f/true/BODY p:focus@win p:focus@p2 p:focusin@p2 l2:p2/true"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-hide",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "p:blur@win l1:f/true p:focus@win p:focus@p2 p:focusin@p2 l2:p2/true"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "s0:0,40,0 s1:0,215,0 s2:0,800,0 s3:2400,800,0 s4:2400,800,0 s5:2400,0,0 s6:2400,40,0"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-no",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "s0:40,0,0 s1:565,0,0 s2:2400,0,0 s3:0,0,0"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "s0:40,0,0 s1:80,0,0"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-input",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "s0:0,175,0 s1:0,175,0"
+    }
+   ]
+  },
+  {
+   "name": "input-wheel-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "w0:0,0,400 w1:0,0,800 w2:0,0,900 w3:0,400,900 w4:400,400,900"
+    }
+   ]
+  },
+  {
+   "name": "input-select-double-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1: | alpha | f | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1: | lpha beta g | f | BODY / sl2: | lpha beta gamma\n\nd | f | BODY / sl3: | lpha beta gamma\n\ndelta epsilon zeta | f | BODY / sl4: | lpha beta gamma\n\ndelta epsilon zeta | f | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag-above",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1: | a | f | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag-from-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1:arent text words |  | BODY | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-all",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1:parent text words |  | BODY | BODY / sl2: | alpha beta gamma\n\ndelta epsilon zeta | f | BODY / sl3: | field text here | f | i"
+    }
+   ]
+  },
+  {
+   "name": "focus",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.activeElement.id, f.contentDocument.activeElement.id || f.contentDocument.activeElement.nodeName, document.hasFocus(), f.contentDocument.hasFocus(), f.contentDocument.getElementById('c').value, log.join(' ')]",
+     "value": [
+      "q",
+      "BODY",
+      true,
+      false,
+      "ab",
+      "p:focus@p p:blur@p p:blur@win c:focus@cwin c:focus@c state:f,c,true,true c:blur@c c:focus@c2 c:blur@c2 c:blur@cwin p:focus@win p:focus@q"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "wheel-scroll",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log",
+     "value": [
+      "0,100,0",
+      "0,266,0",
+      "100,266,0",
+      "100,266,0",
+      "100,266,50"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-1.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top-allowed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "t.html?top / gone"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "0 0"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top-activation",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "t.html?top / gone"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "0 0"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-parent-is-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-4.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-opaque-top-allowed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "t.html?top / gone"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "0 0"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-named",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-6.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-kid",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-7.html | l.html | t.html?kid | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-self",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-8.html | t.html?self | - | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "2 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-blank",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-9.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-opaque-self",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-10.html | SecurityError | - | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "2 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-form",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-11.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-form-allowed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-12.html | t.html?form=1 | - | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "2 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-13.html | n.html | l.html | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-parent-top-nav",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-14.html | n.html | l.html | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-top-nav",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "t.html?top / gone"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "0 0"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-inherited-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-16.html | n.html | l.html | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-nested-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-17.html | n.html | SecurityError | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-name-case",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-18.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-unknown-name",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-19.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-blank",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-20.html | l.html | about:blank | about:blank | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-name-first-refused",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-21.html | SecurityError | SecurityError | t.html?named | - | t.html"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 2"
+    }
+   ]
+  },
+  {
+   "name": "input-target-ancestor-origin",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-22.html | l.html | about:blank | m.html | t.html?named | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 1"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-sibling-same-origin",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-23.html | SecurityError | SecurityError | t.html?named | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 2"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-sibling-from-top-origin",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()",
+     "value": "case-24.html | l.html | about:blank | t.html?named | - | -"
+    },
+    {
+     "kind": "js",
+     "label": "[window.fl | 0, window.gl | 0].join(' ')",
+     "value": "1 2"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-tab-remove",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win l1:BODY/false p:focus@win p:focus@p1 p:focusin@p1 l2:p1/true"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-click-remove",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win l1:BODY/false p:focus@win p:focus@p2 p:focusin@p2 l2:p2/true"
+    }
+   ]
+  },
+  {
+   "name": "input-select-frame-cleared",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1: | alpha beta gamma\n\ndelta epsilon zeta | f | BODY / sl2: | alpha beta gamma\n\ndelta epsilon zeta | BODY | BODY / sl3: | alpha beta gamma\n\ndelta epsilon zeta | pi | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-frame-to-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1: | alpha beta gamma\n\ndelta epsilon zeta | f | BODY / sl2: | alpha beta gamma\n\ndelta epsilon zeta | g | BODY"
+    }
+   ]
+  },
+  {
+   "name": "input-select-parent-click-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' / ')",
+     "value": "sl1:parent text words |  | BODY | BODY / sl2: |  | f | BODY"
+    }
+   ]
   }
  ]
 }

@@ -5819,3 +5819,179 @@ def frames_1000_web_fonts() -> Page:
         doc("<iframe src=f.html></iframe>" * 1000),
         {"f.html": f"<style>{rules}</style>{text}", "f.ttf": _web_font()},
     )
+
+
+# ----- Input in frames (M9 feature 11) -----
+
+_OVERLAP = "iframe{position:absolute;left:0;top:0;width:300px;height:200px;border:0}"
+
+
+@case(
+    "1,000 frames over each other, each with a document of 30 boxes, and 300 pointer moves "
+    "across them, a click and a wheel turn, with JavaScript off (M9 feature 11): a hit test "
+    "scans the display list of the page and goes into the topmost frame only, so a move costs "
+    "the same as on a page without frames plus one frame (ADR 0031 section 8)",
+    swb_args=(
+        "--steps",
+        json.dumps(
+            [{"hover": [5 + i % 280, 5 + i % 190]} for i in range(300)]
+            + [{"click": [40, 40]}, {"wheel": [0, 100]}]
+        ),
+    ),
+    time_limit_s=2,
+    rss_limit_mib=1100,
+)
+def frames_1000_over_each_other_pointer_moves() -> Page:
+    boxes = "<div style='height:6px;background:#ccc'></div>" * 30
+    return Page(
+        doc("<iframe src=f.html></iframe>" * 1000, _OVERLAP),
+        {"f.html": "<body style='margin:0'>" + boxes},
+    )
+
+
+@case(
+    "1,000 frames over each other with JavaScript on and mouse listeners on the page "
+    "and in the frames (M9 feature 11): each pointer move is a task that fires the page's "
+    "events for the `iframe` only; the frames run no scripts (ADR 0031 section 8)",
+    swb_args=_steps(
+        [{"hover": [5 + i % 280, 5 + i % 190]} for i in range(300)]
+        + [{"click": [40, 40]}, {"wheel": [0, 100]}]
+    ),
+    time_limit_s=2,
+    rss_limit_mib=920,
+)
+def frames_1000_over_each_other_pointer_moves_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (const t of ['mouseover', 'mouseout', 'mousemove', 'click', "
+        "'wheel']) document.addEventListener(t, () => n++); "
+        "setTimeout(() => console.log('events ' + n), 2000);</script>"
+    )
+    return Page(
+        doc(script + "<iframe src=f.html></iframe>" * 1000, _OVERLAP),
+        {"f.html": "<body style='margin:0'><p>frame</p>"},
+    )
+
+
+def _nested_transformed(depth: int) -> str:
+    """The outermost of `depth` frames inside each other (through `srcdoc`), each with a
+    rotation, a rounded border box and a clip, around a red box."""
+    inner = "<body style='margin:0'><div style='width:20px;height:20px;background:#c00'></div>"
+    frame = ""
+    for _ in range(depth):
+        frame = (
+            "<iframe style='position:absolute;left:4px;top:4px;width:calc(100% - 8px);"
+            "height:calc(100% - 8px);border:1px solid #888;transform:rotate(0.3deg);"
+            "border-radius:6px;clip-path:inset(0 round 6px)' srcdoc=\""
+            + inner.replace("&", "&amp;").replace('"', "&quot;")
+            + '"></iframe>'
+        )
+        inner = "<body style='margin:0'>" + frame
+    return frame
+
+
+@case(
+    "Frames nested 40 deep through srcdoc, each with a rotation, a rounded border box and a "
+    "clip-path, and 300 pointer moves over them with a click and a wheel turn (M9 feature "
+    "11): nesting stops at 32 with one warning, the hit test goes through the 32 levels with "
+    "their transforms and clips under its work budget, and the wheel chains through them (ADR "
+    "0031 sections 8 and 11)",
+    swb_args=(
+        "--steps",
+        json.dumps(
+            [{"hover": [20 + i % 500, 20 + i % 300]} for i in range(300)]
+            + [{"click": [200, 150]}, {"wheel": [0, 100]}]
+        ),
+    ),
+    time_limit_s=1,
+    rss_limit_mib=300,
+    expect_log="nested 32 deep",
+)
+def frames_nested_32_hit_through_transforms_and_clips() -> Page:
+    outer = "<div style='position:relative;width:800px;height:500px'>"
+    return Page(doc("<p>nested</p>" + outer + _nested_transformed(40) + "</div>"))
+
+
+@case(
+    "1,000 frames that each have a focusable element, and 1,010 Tab keys (M9 feature 11): "
+    "each Tab finds the next element of the page's order, enters the frame and finds its "
+    "first element; the cost of a Tab is the cost of one document's order, not of all frames "
+    "(ADR 0031 section 8)",
+    swb_args=("--steps", json.dumps([{"key": "Tab"}] * 1010)),
+    time_limit_s=2,
+    rss_limit_mib=900,
+)
+def frames_1000_tab_through_focusable_elements() -> Page:
+    return Page(
+        doc(
+            "<input>" + "<iframe src=f.html></iframe>" * 1000 + "<input>",
+            "iframe{float:left;width:90px;height:30px;border:0}",
+        ),
+        {"f.html": "<body style='margin:0'><input style='width:60px'>"},
+    )
+
+
+@case(
+    "1,000 frames whose documents have no focusable element, and 1,010 Tab keys (M9 feature "
+    "11): each frame is a stop of its own, the focus then goes on after the `iframe`; the page "
+    "goes round more than once (ADR 0031 section 8)",
+    swb_args=("--steps", json.dumps([{"key": "Tab"}] * 1010)),
+    time_limit_s=2,
+    rss_limit_mib=900,
+)
+def frames_1000_tab_without_focusable_elements() -> Page:
+    return Page(
+        doc(
+            "<iframe src=f.html></iframe>" * 1000,
+            "iframe{float:left;width:90px;height:30px;border:0}",
+        ),
+        {"f.html": "<body style='margin:0'><p>nothing to focus</p>"},
+    )
+
+
+@case(
+    "A link of the page with `target` of a frame that a script clicks 5,000 times in a loop "
+    "with JavaScript on (M9 feature 11): the frame navigates at most 64 times in 10 s of page "
+    "time; later navigations are dropped with one warning, and the page stays responsive "
+    "(ADR 0031 sections 8 and 11)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=5,
+    rss_limit_mib=250,
+    expect_log="navigated 64 times",
+)
+def frame_target_link_clicked_in_a_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const timer = setInterval(() => { "
+        "document.getElementById('l').click(); if (++n >= 5000) clearInterval(timer); }, 0);"
+        "</script>"
+    )
+    body = "<a id=l href='r.html?x' target=fr>go</a><iframe name=fr src=r.html></iframe>" + script
+    return Page(doc(body), {"r.html": "<p>reply</p>"})
+
+
+@case(
+    "A link in a frame that points to its own document, clicked 300 times (M9 feature 11): "
+    "each click navigates the frame; the frame navigates at most 64 times in 10 s of page "
+    "time, later navigations are dropped with one warning (ADR 0031 sections 8 and 11)",
+    swb_args=(
+        "--steps",
+        json.dumps([{"click": [20, 20]}] * 300),
+        "--settle-ms",
+        "500",
+    ),
+    time_limit_s=2,
+    rss_limit_mib=200,
+    expect_log="navigated 64 times",
+)
+def frame_self_link_clicked_300_times() -> Page:
+    return Page(
+        doc(
+            "<iframe src=l.html style='position:absolute;left:0;top:0;width:200px;height:100px;"
+            "border:0'></iframe>"
+        ),
+        {
+            "l.html": (
+                "<body style='margin:0'><a href=l.html "
+                "style='display:block;width:150px;height:50px'>again</a>"
+            )
+        },
+    )

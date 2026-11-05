@@ -27,8 +27,9 @@ use swb_web::{FormDataEntry, FormDataValue};
 /// A navigation that a script asked for.
 #[derive(Clone, Debug)]
 pub(crate) enum ScriptNavigation {
-    /// Follow a hyperlink (a fragment of this document scrolls).
-    Link(Url),
+    /// Follow a hyperlink (a fragment of this document scrolls), into the
+    /// browsing context that `target` names (`None`: this one).
+    Link(Url, Option<String>),
     /// Submit a form.
     Form(FormRequest),
     /// `location.href = url`, `assign()` (`replace` false) and `replace()`
@@ -184,7 +185,8 @@ impl DocumentState {
         let Some(url) = link_target(&self.dom, node, self.base_url.value()) else {
             return false;
         };
-        self.script_requests.navigation = Some(ScriptNavigation::Link(url));
+        let target = crate::hit_test::navigation_target(&self.dom, node);
+        self.script_requests.navigation = Some(ScriptNavigation::Link(url, target));
         true
     }
 

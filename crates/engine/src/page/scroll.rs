@@ -121,14 +121,24 @@ impl Page {
         let (dx, dy) = (finite_or_zero(dx), finite_or_zero(dy));
         // The pointer is where the wheel turns (the hovered link and the
         // cursor follow it after the scroll).
-        self.input.pointer = Some(Point::new(x, y));
+        let point = Point::new(x, y);
+        self.input.pointer = Some(point);
+        if self.frames.count() > 0 {
+            let route = self.route_at(point);
+            if route.in_frame() {
+                let scrolled = self.wheel_in_frames(&route, dx, dy);
+                // Other content is under the pointer now.
+                self.update_hover(false);
+                return scrolled;
+            }
+        }
         // With scripts, `wheel` goes first; a listener that cancels it
         // keeps the page from scrolling.
         let generation = self.dom_generation();
         if self.script_input() && !self.scripted_wheel(Point::new(x, y), dx, dy) {
             return generation != self.dom_generation();
         }
-        let start = self.hit_test(x, y).map(|h| h.node);
+        let start = self.hit_doc(x, y).map(|h| h.node);
         let scrolled = self.user_scroll(start, |_| (dx, dy), (dx, dy));
         // Listeners may have changed the page as well.
         scrolled || generation != self.dom_generation()

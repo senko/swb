@@ -104,8 +104,8 @@ impl g::document::DocumentImpl for WebState {
         crate::cssom_sheets::style_sheets(cx, this)
     }
 
-    fn has_focus(_cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
-        Ok(crate::html::focus::has_focus(this))
+    fn has_focus(cx: &mut Cx<'_>, this: NodeId) -> b::Result<bool> {
+        crate::html::focus::has_focus(cx, this)
     }
 
     fn url(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {

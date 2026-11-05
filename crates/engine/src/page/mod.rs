@@ -27,13 +27,18 @@
 //! accepted limits, screenshots), `scroll.rs` (scrolling by the user and
 //! the scroll queries), `input.rs` (pointer, keyboard, focus, selection),
 //! `forms.rs` (form controls: editing, activation, submission),
-//! `script.rs` (the script runtime of the document) and `frames.rs` (the
+//! `script.rs` (the script runtime of the document), `frame_input.rs`,
+//! `frame_focus.rs` and `frame_navigate.rs` (input and navigation by input in
+//! frames; ADR 0031 section 8) and `frames.rs` (the
 //! frames of `iframe` elements, their documents, load state and viewports;
 //! ADR 0031).
 
 mod events;
 mod forms;
 mod frame;
+mod frame_focus;
+mod frame_input;
+mod frame_navigate;
 mod frames;
 mod history_api;
 mod idle;
@@ -301,6 +306,16 @@ pub struct Page {
     /// True after a frame was destroyed: it may have been the last one that
     /// delayed the `load` event, which the next turn then checks.
     frame_destroyed: bool,
+    /// The frame whose document `doc` holds: [`FrameId::TOP`], except while
+    /// [`Page::in_frame`] runs the input code of a frame (ADR 0031 section
+    /// 8).
+    active_frame: FrameId,
+    /// The pointer and keyboard state of each frame document, by frame
+    /// (`frame_input.rs`).
+    frame_inputs: std::collections::HashMap<FrameId, input::InputState>,
+    /// The navigations that the input in a frame document asked for; the
+    /// page acts on them when the frame's document is back in its place.
+    deferred_navigations: Vec<frame_navigate::FrameNavigation>,
     /// The bodies of frame documents that the workers have read and the page
     /// has not taken yet (ADR 0031 section 11): requests of frame documents
     /// hold a reservation, so that 1,000 frames cannot make the workers
@@ -355,6 +370,9 @@ impl Page {
             frames: Frames::new(),
             frame_navigations: Vec::new(),
             frame_destroyed: false,
+            active_frame: FrameId::TOP,
+            frame_inputs: std::collections::HashMap::new(),
+            deferred_navigations: Vec::new(),
             frame_bodies: swb_net::ByteBudget::new(crate::frames::MAX_SOURCE_BYTES),
             frame_images: swb_net::ByteBudget::new(crate::frames::MAX_IMAGE_BYTES),
             frame_styles: swb_net::ByteBudget::new(crate::frames::MAX_STYLE_BYTES),

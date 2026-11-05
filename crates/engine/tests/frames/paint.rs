@@ -425,17 +425,20 @@ fn a_viewport_change_repaints_the_frame() {
     });
 }
 
-/// Feature 10b does not go into frames for hit tests: the `iframe` element.
+/// A hit on the content of a frame finds a node of the frame's document
+/// (feature 11); one on the border finds the `iframe` element.
 #[test]
-fn a_hit_on_a_frame_finds_its_element() {
+fn a_hit_on_a_frame_finds_its_content() {
     on_page_thread(|| {
         let html = "<!doctype html><style>body{margin:0} iframe{border:0;display:block;\
                     width:100px;height:100px}</style><iframe id=f srcdoc=\"<style>body{margin:0}\
                     </style><div style='height:100px'>x</div>\"></iframe>";
         let (mut page, _) = open_with(html, &[]);
         page.screenshot(false).unwrap();
-        let iframe = node(&page, "f");
-        assert_eq!(page.hit_test(50.0, 50.0).map(|h| h.node), Some(iframe));
+        let f = frame(&page, "f");
+        let hit = page.hit_test(50.0, 50.0).unwrap();
+        assert_eq!(hit.frame, f);
+        assert_ne!(hit.node, node(&page, "f"));
     });
 }
 

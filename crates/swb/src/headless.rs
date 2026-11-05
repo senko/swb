@@ -13,6 +13,14 @@ use swb_layout::FragmentRef;
 use swb_net::Fetcher;
 use swb_text::FontContext;
 
+/// An expression for `--eval`, and the frame to evaluate it in.
+pub(crate) struct EvalRequest {
+    /// The frame path of the last `--eval-frame` before it; `None`: the
+    /// top-level document.
+    pub(crate) frame: Option<String>,
+    pub(crate) expression: String,
+}
+
 /// What to produce in headless mode.
 pub(crate) struct HeadlessOptions<'a> {
     /// The fetcher of the page (the benchmark fetches the document again).
@@ -31,7 +39,7 @@ pub(crate) struct HeadlessOptions<'a> {
     /// The JavaScript setting.
     pub(crate) javascript: bool,
     /// Expressions to evaluate after the load (`--eval`).
-    pub(crate) eval: &'a [String],
+    pub(crate) eval: &'a [EvalRequest],
     /// Input steps to send after the load (`--steps`, a JSON list).
     pub(crate) steps: Option<&'a str>,
     /// The mode and the start time of the page clock (`--virtual-time`,
@@ -147,11 +155,17 @@ pub(crate) fn run(fonts: FontContext, options: &HeadlessOptions<'_>) -> Result<(
 /// the probe's JSON form (`NaN`, `Infinity`, `-0.0` allowed), or
 /// `{"error": "Name: message"}`. A promise is awaited through the event
 /// loop for at most `timeout`.
-fn evaluate(page: &mut Page, expressions: &[String], timeout: Duration) -> Result<()> {
+fn evaluate(page: &mut Page, requests: &[EvalRequest], timeout: Duration) -> Result<()> {
     let mut out = std::io::stdout().lock();
-    for expression in expressions {
-        let evaluation = page.evaluate_with_timeout(expression, JsonForm::Probe, timeout);
-        let line = answer_line(evaluation);
+    for request in requests {
+        let line = match &request.frame {
+            None => answer_line(page.evaluate_with_timeout(
+                &request.expression,
+                JsonForm::Probe,
+                timeout,
+            )),
+            Some(path) => frame_answer_line(page, path),
+        };
         writeln!(out, "{line}").context("cannot write to standard output")?;
         // The tasks that are due now run between two expressions, as they
         // do in Chromium between two calls of the probe (the notification
@@ -159,6 +173,20 @@ fn evaluate(page: &mut Page, expressions: &[String], timeout: Duration) -> Resul
         page.run_event_loop(Duration::from_micros(1), Duration::from_secs(5));
     }
     out.flush().context("cannot write to standard output")
+}
+
+/// The answer line for an expression in the frame of `path`: an error line
+/// for a path that finds no frame, and for a frame (frame documents run no
+/// scripts yet: ADR 0031 section 14, features 12 and 13).
+fn frame_answer_line(page: &mut Page, path: &str) -> String {
+    let message = match swb_automation::resolve_frame(page, path) {
+        Err(error) => format!("FrameError: {error}"),
+        Ok(_) => {
+            "FrameError: the frame has no script runtime (scripts in frames are not supported yet)"
+                .to_owned()
+        }
+    };
+    serde_json::json!({ "error": message }).to_string()
 }
 
 /// One line per box fragment: depth, element, and absolute border box.

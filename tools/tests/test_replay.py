@@ -231,3 +231,11 @@ def test_pixels_reject_a_name_used_twice(tmp_path, wanted):
     out = tmp_path / "pixels.json"
     assert replay_command("page", None, steps, "1", None, 50, True, None, points, out) == 2
     assert not out.exists()
+
+
+def test_steps_files_take_frame_steps(tmp_path):
+    path = write(tmp_path, [[{"click": "#b", "frame": "#f >> #g"}, {"hover": [1, 2]}]])
+    assert read_groups(path) == [({"click": "#b", "frame": "#f >> #g"}, {"hover": [1, 2]})]
+    bad = write(tmp_path, [[{"type": "x", "frame": "#f"}]])
+    with pytest.raises(ProbeError, match="group 1, step 1: frame"):
+        read_groups(bad)

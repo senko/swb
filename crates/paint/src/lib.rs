@@ -35,10 +35,11 @@ mod scroll_indicator;
 mod svg;
 
 pub use display_list::{
-    DisplayItem, DisplayList, Highlights, ImageRef, ImageSizes, NoHighlights, Radii,
+    DisplayItem, DisplayList, Highlights, Hit, ImageRef, ImageSizes, NoHighlights, Radii,
     SELECTION_BACKGROUND, Scrolling, build_display_list,
 };
 pub use group_bounds::transform_ends;
+pub use hit_path::HitWork;
 pub use image::{
     DecodedImage, ImageError, SVG_MIME_TYPE, decode, decode_in_document, decode_with_type,
     is_supported_image_type, raster_size,

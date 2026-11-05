@@ -34,6 +34,9 @@ class Query:
     points: tuple[tuple[int, int], ...] = ()
     """The points of a `pixels` query: (x, y) in px from the top left of the
     element's border box (also outside the box)."""
+    frame: str | None = None
+    """The frame of a `js` query: CSS selectors of `iframe` elements from the
+    top-level document, joined by ` >> ` (Playwright's `frame_locator`)."""
 
 
 @dataclass(frozen=True)
@@ -100,9 +103,14 @@ def _parse_query(item: Any, where: str) -> Query:
             f" ({', '.join(QUERY_KINDS)}); its keys: {found}"
         )
     kind = kinds[0]
-    extra = set(item) - {kind, "props", "points"}
+    extra = set(item) - {kind, "props", "points", "frame"}
     if extra:
         raise ProbeError(f"{where}: unknown key {sorted(extra)[0]!r} in a {kind} entry")
+    frame = item.get("frame")
+    if "frame" in item and kind != "js":
+        raise ProbeError(f"{where}: frame belongs to js, not {kind}")
+    if "frame" in item and not (isinstance(frame, str) and frame.strip()):
+        raise ProbeError(f"{where}: frame must be a non-empty string (a frame path)")
     target = item[kind]
     if not isinstance(target, str) or not target.strip():
         raise ProbeError(f"{where}: {kind} must be a non-empty string")
@@ -113,7 +121,7 @@ def _parse_query(item: Any, where: str) -> Query:
     if kind != "style":
         if "props" in item:
             raise ProbeError(f"{where}: props belongs to style, not {kind}")
-        return Query(kind, target)
+        return Query(kind, target, frame=frame)
     props = item.get("props")
     if not isinstance(props, list) or not props or not all(isinstance(p, str) for p in props):
         raise ProbeError(f"{where}: style needs props, a non-empty list of property names")
@@ -226,7 +234,8 @@ def parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
         if not isinstance(item, dict) or not item:
             raise ProbeError(f"{where}, step {number}: a step is an object with one key")
         modifiers = item.get("modifiers")
-        rest = {k: v for k, v in item.items() if k != "modifiers"}
+        frame = item.get("frame")
+        rest = {k: v for k, v in item.items() if k not in ("modifiers", "frame")}
         if len(rest) != 1:
             raise ProbeError(f"{where}, step {number}: a step is an object with one key")
         ((kind, argument),) = rest.items()
@@ -238,6 +247,13 @@ def parse_steps(value: Any, where: str) -> tuple[dict[str, Any], ...]:
             raise ProbeError(f"{where}, step {number}: bad modifiers")
         if kind not in STEP_KINDS:
             raise ProbeError(f"{where}, step {number}: unknown step {kind!r}")
+        if "frame" in item and not (
+            kind in _POINT_STEPS and isinstance(argument, str) and isinstance(frame, str) and frame
+        ):
+            raise ProbeError(
+                f"{where}, step {number}: frame (a frame path) belongs to a point step"
+                " with a selector"
+            )
         if kind in _POINT_STEPS:
             ok = _is_point(argument) or (isinstance(argument, str) and bool(argument))
         elif kind == "wheel":

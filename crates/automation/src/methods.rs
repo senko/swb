@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use swb_engine::{
-    Evaluation, EvaluationId, EvaluationStart, FlushCounters, JsonForm, Key, LoadState, Modifiers,
-    MouseButton, NodeId, Page, Point, Rect, Size, Url, check_scale, check_viewport_size,
+    Evaluation, EvaluationId, EvaluationStart, FlushCounters, FrameId, JsonForm, Key, LoadState,
+    Modifiers, MouseButton, NodeId, Page, Point, Rect, Size, Url, check_scale, check_viewport_size,
 };
 use swb_net::CookieJar;
 
@@ -84,6 +84,11 @@ const MAX_BLOCKING_MS: u64 = 30_000;
 
 /// Executes a method.
 pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
+    match frame_param(&params) {
+        Ok(Some(frame)) => return execute_in_frame(page, frame, method, params),
+        Ok(None) => {}
+        Err(e) => return Outcome::Done(Err(e)),
+    }
     let result = match method {
         "page.navigate" => navigate(page, params),
         "page.reload" => {
@@ -99,6 +104,7 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         "page.waitForLoad" => return wait_for_load(params),
         "page.waitForIdle" => return wait_for_idle(page, params),
         "page.info" => Ok(info(page)),
+        "page.frames" => Ok(frames(page)),
         "page.setJavaScript" => set_javascript(page, params),
         "page.evaluate" => return evaluate(page, params),
         "page.consoleMessages" => Ok(console_messages(page)),
@@ -162,6 +168,113 @@ pub(crate) fn execute(page: &mut Page, method: &str, params: Value) -> Outcome {
         )),
     };
     Outcome::Done(result)
+}
+
+/// The `frameId` of the parameters: `None` for the top-level frame or no
+/// parameter.
+fn frame_param(params: &Value) -> Result<Option<FrameId>, RpcError> {
+    // `null` is the top-level frame, as no `frameId`.
+    let Some(value) = params.get("frameId").filter(|v| !v.is_null()) else {
+        return Ok(None);
+    };
+    let id = value
+        .as_u64()
+        .ok_or_else(|| RpcError::invalid_params("frameId is a frame ID of page.frames"))?;
+    Ok(Some(FrameId::from_u64(id)).filter(|&f| f != FrameId::TOP))
+}
+
+/// `page.frames`: the frames in tree order, the top-level one first. Each
+/// has its `frameId`, the `parentId` (`null` for the top-level frame), the
+/// `url` and `origin` of its document, its `name` (the `name` attribute of
+/// its container), the `nodeId` of the container in the parent's document
+/// and the container's content box in the parent's document coordinates
+/// (`[x, y, width, height]`, the viewport of the frame; `null` without a
+/// box). The last three are `null` for the top-level frame.
+fn frames(page: &mut Page) -> Value {
+    let frames: Vec<Value> = page
+        .frame_ids()
+        .into_iter()
+        .map(|id| {
+            let document = page.frame_document(id);
+            let (url, origin) = (
+                document.map(|d| d.url().as_str().to_owned()),
+                document.map(swb_engine::DocumentState::origin_string),
+            );
+            json!({
+                "frameId": id.to_u64(),
+                "parentId": page.frame_parent(id).map(FrameId::to_u64),
+                "url": url,
+                "origin": origin,
+                "name": page.frame_name(id),
+                "nodeId": page.frame_container(id).map(NodeId::index),
+                "box": page.frame_content_box(id).map(rect_json),
+            })
+        })
+        .collect();
+    json!({ "frames": frames })
+}
+
+/// Executes a method of a frame (`frameId` in the parameters): the `dom.*`
+/// methods and the input that takes a node act on the frame's document
+/// (node IDs, boxes and coordinates are the frame's). Scripts do not run in
+/// frames yet (ADR 0031 section 14, features 12 and 13), so
+/// `page.evaluate` is an error and `page.consoleMessages` has no messages.
+fn execute_in_frame(page: &mut Page, frame: FrameId, method: &str, params: Value) -> Outcome {
+    let mut params = params;
+    if let Some(object) = params.as_object_mut() {
+        object.remove("frameId");
+    }
+    let result = match method {
+        _ if page.frame_document(frame).is_none() => {
+            Err(RpcError::failed(format!("no frame {}", frame.to_u64())))
+        }
+        "page.evaluate" => Err(RpcError::failed(
+            "the frame has no script runtime (scripts in frames are not supported yet)",
+        )),
+        "page.consoleMessages" => Ok(json!({ "messages": [] })),
+        "dom.boxes" => page
+            .with_frame(frame, |page| {
+                page.update_layout();
+                let url = page
+                    .document_state()
+                    .map_or("", |d| d.url().as_str())
+                    .to_owned();
+                Ok(crate::box_dump(page, &url))
+            })
+            .unwrap_or_else(|| Err(RpcError::failed("the frame is busy"))),
+        m if m.starts_with("dom.") => {
+            return page
+                .with_frame(frame, |page| execute(page, method, params))
+                .unwrap_or_else(|| Outcome::Done(Err(RpcError::failed("the frame is busy"))));
+        }
+        "input.click" | "input.mouseMove" | "input.mouseDown" | "input.mouseUp" => {
+            framed_input(page, frame, method, &params)
+        }
+        _ => Err(RpcError::invalid_params(format!(
+            "{method} does not take a frameId"
+        ))),
+    };
+    Outcome::Done(result)
+}
+
+/// An `input.*` method on a node (or a point) of a frame: the page gets the
+/// input at the point in its own viewport.
+fn framed_input(page: &mut Page, frame: FrameId, method: &str, params: &Value) -> MethodResult {
+    let p: MouseParams = parse(params.clone())?;
+    let local = page
+        .with_frame(frame, |frame_page| p.point(frame_page))
+        .ok_or_else(|| RpcError::failed("the frame is busy"))??;
+    let origin = page
+        .frame_origin(frame)
+        .ok_or_else(|| RpcError::failed("the frame has no box"))?;
+    let mut object = params.as_object().cloned().unwrap_or_default();
+    object.remove("nodeId");
+    object.insert("x".to_owned(), json!(origin.x + local.x));
+    object.insert("y".to_owned(), json!(origin.y + local.y));
+    match execute(page, method, Value::Object(object)) {
+        Outcome::Done(result) => result,
+        Outcome::Wait(..) | Outcome::Close => Err(RpcError::failed("not an input method")),
+    }
 }
 
 /// Parses the parameters of a method. Null counts as an empty object.
@@ -379,7 +492,9 @@ fn console_messages(page: &Page) -> Value {
     let messages: Vec<Value> = page
         .console_messages()
         .into_iter()
-        .map(|m| json!({ "level": m.level.name(), "text": m.text }))
+        .map(|m| {
+            json!({ "level": m.level.name(), "text": m.text, "frameId": FrameId::TOP.to_u64() })
+        })
         .collect();
     json!({ "messages": messages })
 }

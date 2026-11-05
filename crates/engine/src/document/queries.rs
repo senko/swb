@@ -16,7 +16,7 @@ use swb_text::FontContext;
 use super::DocumentState;
 use crate::focus;
 use crate::forms::{ControlType, InputType};
-use crate::hit_test::{self, HitResult};
+use crate::hit_test::{self, DocumentHit};
 use crate::scrollers::{Align, snap_scroll_offset};
 use crate::selection::{self, Selection, Snap, TextPosition};
 
@@ -54,6 +54,23 @@ pub(crate) fn is_rendered_in(
         && styles
             .get(node)
             .is_some_and(|s| s.visibility == Visibility::Visible)
+}
+
+/// [`is_rendered_in`] for many nodes of one layout: the boxes are collected
+/// once (a test of each of 1,000 elements would collect them 1,000 times).
+pub(crate) fn rendered_test<'a>(
+    doc: &'a Document,
+    tree: &'a FragmentTree,
+    styles: &'a StyleMap,
+) -> impl Fn(NodeId) -> bool + 'a {
+    let boxes = tree.element_boxes();
+    move |node| {
+        boxes.contains_key(&node)
+            && !doc.in_closed_details_content(node)
+            && styles
+                .get(node)
+                .is_some_and(|s| s.visibility == Visibility::Visible)
+    }
 }
 
 impl DocumentState {
@@ -96,17 +113,28 @@ impl DocumentState {
         swb_style::query_selector_all(&self.dom, selectors, &self.states)
     }
 
-    /// Hit-tests a point in viewport coordinates (CSS px).
-    pub fn hit_test(&mut self, x: f32, y: f32, fonts: &mut FontContext) -> Option<HitResult> {
+    /// Hit-tests a point in viewport coordinates (CSS px) in this document
+    /// alone: a point in the content of an `iframe` hits the element, and
+    /// the result has the point in the frame. `work` is the budget of the
+    /// whole test.
+    pub(crate) fn hit_test_in(
+        &mut self,
+        x: f32,
+        y: f32,
+        fonts: &mut FontContext,
+        work: &swb_paint::HitWork,
+    ) -> Option<DocumentHit> {
         self.update_display_list(fonts);
         let list = self.display_list.as_ref()?;
         let point = Point::new(x + self.scroll.x, y + self.scroll.y);
-        hit_test::hit_test(
+        hit_test::hit_test_in(
             &self.dom,
             list,
             point,
             self.scroll,
+            self.view.scale,
             Some(self.base_url.value()),
+            work,
         )
     }
 

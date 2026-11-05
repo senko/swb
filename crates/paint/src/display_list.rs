@@ -58,6 +58,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::hit_path::HitWork;
 use swb_dom::NodeId;
 use swb_layout::svg::{ClipPath, StrokeStyle, SvgPath};
 use swb_layout::{
@@ -353,6 +354,9 @@ pub enum DisplayItem {
         node: NodeId,
         /// The content box of the element: the frame's viewport.
         rect: Rect,
+        /// False if hit testing does not go into the frame: the element
+        /// has `pointer-events: none` (ADR 0031 section 8).
+        interactive: bool,
     },
 }
 
@@ -542,6 +546,27 @@ pub struct DisplayList {
     pub items: Vec<DisplayItem>,
 }
 
+/// What a hit test found.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Hit {
+    /// A node of the document.
+    Node(NodeId),
+    /// The frame of the `iframe` element `node` (ADR 0031 section 8): the
+    /// topmost thing at the point is the content of the frame. `point` and
+    /// `rect` are in the coordinates of the list's groups; `rect` is the
+    /// content box of the element, the viewport of the frame. The point in
+    /// the frame's viewport is `point` minus the corner of `rect` (snapped
+    /// to a device pixel, as the rasterizer draws the frame).
+    Frame {
+        /// The `iframe` element.
+        node: NodeId,
+        /// The point.
+        point: Point,
+        /// The content box.
+        rect: Rect,
+    },
+}
+
 impl DisplayList {
     /// The node of the topmost hit region at `point` (document coordinates,
     /// CSS px) that is not clipped away, at the viewport scroll offset
@@ -550,10 +575,26 @@ impl DisplayList {
     /// region in a transform group is hit in the group's coordinates; a
     /// group whose transform cannot be inverted is not hit. Groups whose
     /// bounds do not contain the point are skipped, so the list must have
-    /// the bounds that [`build_display_list`] sets.
+    /// the bounds that [`build_display_list`] sets. A frame counts as its
+    /// `iframe` element ([`DisplayList::hit_test_with`] tells them apart).
     pub fn hit_test(&self, point: Point, scroll: Point) -> Option<NodeId> {
         let mut hit = None;
-        self.hits(point, scroll, |node| hit = Some(node));
+        self.hits(point, scroll, &HitWork::new(), |h| {
+            if let Hit::Node(node) = h {
+                hit = Some(node);
+            }
+        });
+        hit
+    }
+
+    /// The topmost hit at `point`, as [`DisplayList::hit_test`] finds it,
+    /// but the content of a frame that nothing covers at the point is
+    /// reported as [`Hit::Frame`]. The path work of the test is taken from
+    /// `work`, so that one budget can cover a hit test that goes through
+    /// several frames.
+    pub fn hit_test_with(&self, point: Point, scroll: Point, work: &HitWork) -> Option<Hit> {
+        let mut hit = None;
+        self.hits(point, scroll, work, |h| hit = Some(h));
         hit
     }
 
@@ -562,14 +603,18 @@ impl DisplayList {
     /// than once). For `elementsFromPoint`.
     pub fn hit_test_all(&self, point: Point, scroll: Point) -> Vec<NodeId> {
         let mut hits = Vec::new();
-        self.hits(point, scroll, |node| hits.push(node));
+        self.hits(point, scroll, &HitWork::new(), |h| {
+            if let Hit::Node(node) = h {
+                hits.push(node);
+            }
+        });
         hits.reverse();
         hits
     }
 
-    /// Calls `hit` with the node of each hit region at `point` in paint
+    /// Calls `hit` with each hit region and frame at `point` in paint
     /// order (see [`DisplayList::hit_test`]).
-    fn hits(&self, point: Point, scroll: Point, mut hit: impl FnMut(NodeId)) {
+    fn hits(&self, point: Point, scroll: Point, work: &HitWork, mut hit: impl FnMut(Hit)) {
         let mut clips: Vec<bool> = Vec::new();
         // The transforms of the enclosing groups and the point in their
         // coordinates.
@@ -577,8 +622,6 @@ impl DisplayList {
         let mut matrix = Matrix::IDENTITY;
         let mut local = Some(point);
         let mut sticky = StickyCache::default();
-        // The path work of the whole test (see `hit_path`).
-        let work = crate::hit_path::HitWork::new();
         // The ends of the transform groups, once a group is skipped.
         let mut ends: Option<Vec<usize>> = None;
         let inside = |rect: &Rect, local: Option<Point>| local.is_some_and(|p| rect.contains(p));
@@ -600,7 +643,7 @@ impl DisplayList {
                     let in_clip = clips.last().is_none_or(|&c| c)
                         && inside(bounds, local)
                         && local.zip(transform.invert()).is_some_and(|(p, inverse)| {
-                            crate::hit_path::clip_contains(clip, inverse.apply(p), &work)
+                            crate::hit_path::clip_contains(clip, inverse.apply(p), work)
                         });
                     clips.push(in_clip);
                 }
@@ -638,7 +681,20 @@ impl DisplayList {
                 DisplayItem::HitRegion { rect, node }
                     if clips.last().is_none_or(|&c| c) && inside(rect, local) =>
                 {
-                    hit(*node);
+                    hit(Hit::Node(*node));
+                }
+                DisplayItem::Frame {
+                    node,
+                    rect,
+                    interactive: true,
+                } if clips.last().is_none_or(|&c| c) && inside(rect, local) => {
+                    if let Some(point) = local {
+                        hit(Hit::Frame {
+                            node: *node,
+                            point,
+                            rect: *rect,
+                        });
+                    }
                 }
                 DisplayItem::HitShape {
                     node,
@@ -648,10 +704,10 @@ impl DisplayList {
                     stroke_width,
                 } if clips.last().is_none_or(|&c| c)
                     && local.is_some_and(|p| {
-                        crate::hit_path::contains(path, transform, *fill, *stroke_width, p, &work)
+                        crate::hit_path::contains(path, transform, *fill, *stroke_width, p, work)
                     }) =>
                 {
-                    hit(*node);
+                    hit(Hit::Node(*node));
                 }
                 _ => {}
             }
@@ -1675,6 +1731,7 @@ impl Builder<'_> {
                 self.list.push(DisplayItem::Frame {
                     node: *node,
                     rect: content,
+                    interactive: style.pointer_events != PointerEvents::None,
                 });
                 if rounded.is_some() {
                     self.list.push(unclip_item(rounded));
@@ -2286,6 +2343,119 @@ mod tests {
         // A box wide enough keeps them.
         let radii = resolve_radii(&style, Rect::new(0.0, 0.0, 200.0, 100.0));
         assert_eq!(radii, [(80.0, 40.0), (40.0, 20.0), (0.0, 0.0), (0.0, 0.0)]);
+    }
+
+    /// A frame item is a hit of its own: the topmost thing at the point
+    /// unless a later region covers it, a clip hides it, or the element has
+    /// `pointer-events: none` (ADR 0031 section 8).
+    #[test]
+    fn hit_testing_reports_the_content_of_a_frame() {
+        let node = |i: usize| NodeId::from_index(i).unwrap();
+        let region = |rect, n| DisplayItem::HitRegion { rect, node: n };
+        let content = Rect::new(12.0, 12.0, 96.0, 46.0);
+        let frame = |interactive| DisplayItem::Frame {
+            node: node(1),
+            rect: content,
+            interactive,
+        };
+        let border = Rect::new(10.0, 10.0, 100.0, 50.0);
+        let work = HitWork::new();
+        let at = Point::new(20.0, 30.0);
+        let list = DisplayList {
+            items: vec![region(border, node(1)), frame(true)],
+        };
+        assert_eq!(
+            list.hit_test_with(at, Point::default(), &work),
+            Some(Hit::Frame {
+                node: node(1),
+                point: at,
+                rect: content
+            })
+        );
+        // As a node, the frame is its `iframe` element.
+        assert_eq!(list.hit_test(at, Point::default()), Some(node(1)));
+        // The border of the `iframe` is the element, not the frame.
+        assert_eq!(
+            list.hit_test_with(Point::new(11.0, 30.0), Point::default(), &work),
+            Some(Hit::Node(node(1)))
+        );
+        // A region painted later covers the frame.
+        let covered = DisplayList {
+            items: vec![
+                region(border, node(1)),
+                frame(true),
+                region(Rect::new(0.0, 0.0, 30.0, 40.0), node(2)),
+            ],
+        };
+        assert_eq!(
+            covered.hit_test_with(at, Point::default(), &work),
+            Some(Hit::Node(node(2)))
+        );
+        // `pointer-events: none`: the frame is not hit, the region below it
+        // is not there either (the element has none).
+        let none = DisplayList {
+            items: vec![
+                region(Rect::new(0.0, 0.0, 200.0, 200.0), node(3)),
+                frame(false),
+            ],
+        };
+        assert_eq!(
+            none.hit_test_with(at, Point::default(), &work),
+            Some(Hit::Node(node(3)))
+        );
+        // A clip around the item hides the part outside it.
+        let clipped = DisplayList {
+            items: vec![
+                region(border, node(1)),
+                DisplayItem::PushClip(Rect::new(10.0, 10.0, 5.0, 50.0)),
+                frame(true),
+                DisplayItem::PopClip,
+            ],
+        };
+        assert_eq!(
+            clipped.hit_test_with(at, Point::default(), &work),
+            Some(Hit::Node(node(1)))
+        );
+        assert!(matches!(
+            clipped.hit_test_with(Point::new(13.0, 30.0), Point::default(), &work),
+            Some(Hit::Frame { .. })
+        ));
+    }
+
+    #[test]
+    fn hit_testing_reports_a_frame_in_a_transform_group() {
+        let node = NodeId::from_index(1).unwrap();
+        let content = Rect::new(0.0, 0.0, 100.0, 50.0);
+        let mut items = vec![
+            DisplayItem::PushTransform {
+                transform: GroupTransform::Matrix(Matrix::translate(200.0, 100.0)),
+                bounds: Rect::default(),
+                hit_bounds: Rect::default(),
+                fixed_bounds: None,
+            },
+            DisplayItem::Frame {
+                node,
+                rect: content,
+                interactive: true,
+            },
+            DisplayItem::PopTransform,
+        ];
+        finish_groups(&mut items);
+        let list = DisplayList { items };
+        // The point is in the group's coordinates: the frame's own.
+        let hit = list.hit_test_with(Point::new(250.0, 120.0), Point::default(), &HitWork::new());
+        assert_eq!(
+            hit,
+            Some(Hit::Frame {
+                node,
+                point: Point::new(50.0, 20.0),
+                rect: content
+            })
+        );
+        assert_eq!(
+            list.hit_test_with(Point::new(10.0, 10.0), Point::default(), &HitWork::new()),
+            None
+        );
     }
 
     #[test]

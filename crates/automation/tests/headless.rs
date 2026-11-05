@@ -735,8 +735,8 @@ fn evaluate_and_console_messages() {
     assert_eq!(
         client.call("page.consoleMessages", Value::Null).unwrap(),
         json!({ "messages": [
-            { "level": "log", "text": "hello 1" },
-            { "level": "error", "text": "bad" },
+            { "level": "log", "text": "hello 1", "frameId": 0 },
+            { "level": "error", "text": "bad", "frameId": 0 },
         ] })
     );
     assert_eq!(
@@ -803,5 +803,126 @@ fn timers_run_in_the_server_loop_and_wait_for_idle_and_promises() {
         client.call("page.waitForIdle", busy).unwrap(),
         json!({ "idle": false })
     );
+    stop(client, thread);
+}
+
+/// A page with a frame `f` (named `inner`) that has a frame `deep`, and a
+/// hidden frame; opened in a headless browser.
+fn frames_site() -> (Client, JoinHandle<()>) {
+    let dir = std::env::temp_dir().join(format!("swb-automation-frames-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("parent.html"),
+        "<!DOCTYPE html><style>body{margin:0}iframe{position:absolute;left:100px;top:50px;\
+         width:300px;height:150px;border:0}</style><iframe id=f name=inner src=f.html></iframe>\
+         <iframe id=hidden src=g.html style='display:none'></iframe>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("f.html"),
+        "<!DOCTYPE html><style>body{margin:0}</style><p id=p style='margin:0;height:20px'>in the frame</p>\
+         <input id=c type=checkbox style='position:absolute;left:10px;top:60px'>\
+         <iframe id=deep src=g.html style='position:absolute;left:0;top:90px;width:100px;height:50px;border:0'></iframe>",
+    )
+    .unwrap();
+    std::fs::write(dir.join("g.html"), "<!DOCTYPE html><p id=q>deep</p>").unwrap();
+    let url = swb_net::Url::from_file_path(dir.join("parent.html")).unwrap();
+    let (mut client, thread) = start(Arc::new(NetworkFetcher::new()));
+    client.navigate(url.as_str()).unwrap();
+    assert!(client.wait_for_load(TIMEOUT).unwrap());
+    (client, thread)
+}
+
+/// `page.frames` (ADR 0031 section 10).
+#[test]
+fn page_frames_lists_the_frame_tree() {
+    let (mut client, thread) = frames_site();
+    let frames = client.call("page.frames", Value::Null).unwrap()["frames"].clone();
+    let frames = frames.as_array().unwrap();
+    assert_eq!(frames.len(), 4);
+    let top = &frames[0];
+    assert_eq!(top["parentId"], Value::Null);
+    assert_eq!(top["nodeId"], Value::Null);
+    assert!(top["url"].as_str().unwrap().ends_with("/parent.html"));
+    let (inner, deep, hidden) = (&frames[1], &frames[2], &frames[3]);
+    assert_eq!(inner["parentId"], top["frameId"]);
+    assert_eq!(inner["name"], "inner");
+    assert!(inner["url"].as_str().unwrap().ends_with("/f.html"));
+    assert!(inner["origin"].is_string());
+    assert_eq!(inner["box"], json!([100.0, 50.0, 300.0, 150.0]));
+    let container = client.query_selector("#f").unwrap().unwrap();
+    assert_eq!(inner["nodeId"], json!(container));
+    assert_eq!(deep["parentId"], inner["frameId"]);
+    assert_eq!(deep["box"], json!([0.0, 90.0, 100.0, 50.0]));
+    assert_eq!(hidden["box"], Value::Null);
+    assert_eq!(client.info().unwrap()["frames"], 3);
+    stop(client, thread);
+}
+
+/// `frameId` for `dom.*`, the input that takes a node, `page.evaluate` and
+/// `page.consoleMessages`.
+#[test]
+fn methods_take_a_frame_id() {
+    let (mut client, thread) = frames_site();
+    let frames = client.call("page.frames", Value::Null).unwrap()["frames"].clone();
+    let (f, deep) = (frames[1]["frameId"].clone(), frames[2]["frameId"].clone());
+    let in_frame = |client: &mut Client, selector: &str, frame: &Value| {
+        client
+            .call(
+                "dom.querySelector",
+                json!({ "selector": selector, "frameId": frame }),
+            )
+            .unwrap()["nodeId"]
+            .clone()
+    };
+
+    // The `dom.*` methods take the frame; node IDs and boxes are its own.
+    let p = in_frame(&mut client, "#p", &f);
+    assert!(p.is_u64());
+    let text = client
+        .call("dom.text", json!({ "nodeId": p, "frameId": f }))
+        .unwrap();
+    assert_eq!(text["text"], "in the frame");
+    assert_eq!(in_frame(&mut client, "#p", &Value::Null), Value::Null);
+    let boxes = client.call("dom.boxes", json!({ "frameId": f })).unwrap();
+    assert!(boxes["url"].as_str().unwrap().ends_with("/f.html"));
+
+    // A click on a node or a point of the frame reaches it through the page.
+    let c = in_frame(&mut client, "#c", &f);
+    let checked = |client: &mut Client| {
+        let params = json!({ "nodeId": c, "frameId": f });
+        client.call("dom.value", params).unwrap()["checked"].clone()
+    };
+    let click = json!({ "nodeId": c, "frameId": f });
+    client.call("input.click", click).unwrap();
+    assert_eq!(checked(&mut client), true);
+    let click = json!({ "x": 15.0, "y": 65.0, "frameId": f });
+    client.call("input.click", click).unwrap();
+    assert_eq!(checked(&mut client), false);
+    // A node of the nested frame.
+    let q = in_frame(&mut client, "#q", &deep);
+    let text = client
+        .call("dom.text", json!({ "nodeId": q, "frameId": deep }))
+        .unwrap();
+    assert_eq!(text["text"], "deep");
+
+    // Scripts do not run in frames yet, and their console is empty; the
+    // other methods take no frame; an invented or malformed ID is an error.
+    let evaluate = json!({ "expression": "1", "frameId": f });
+    let code = rpc_code(client.call("page.evaluate", evaluate));
+    assert_eq!(code, RpcError::FAILED);
+    let console = client
+        .call("page.consoleMessages", json!({ "frameId": f }))
+        .unwrap();
+    assert_eq!(console, json!({ "messages": [] }));
+    let scroll = json!({ "x": 0, "y": 0, "frameId": f });
+    let code = rpc_code(client.call("page.scrollTo", scroll));
+    assert_eq!(code, RpcError::INVALID_PARAMS);
+    let invented = json!({ "selector": "p", "frameId": 987_654u64 });
+    let code = rpc_code(client.call("dom.querySelector", invented));
+    assert_eq!(code, RpcError::FAILED);
+    let malformed = json!({ "nodeId": 1, "frameId": "x" });
+    let code = rpc_code(client.call("dom.text", malformed));
+    assert_eq!(code, RpcError::INVALID_PARAMS);
     stop(client, thread);
 }

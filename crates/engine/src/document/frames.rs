@@ -118,6 +118,60 @@ impl DocumentState {
         self.layout_serial
     }
 
+    /// The content box of the `iframe` element `node` in this document's
+    /// coordinates (the viewport of its frame; scroll offsets not applied),
+    /// as the display list has it; `None` if the element has no box.
+    pub(crate) fn frame_item_rect(
+        &mut self,
+        node: NodeId,
+        fonts: &mut swb_text::FontContext,
+    ) -> Option<swb_layout::Rect> {
+        self.update_display_list(fonts);
+        self.display_list
+            .as_ref()?
+            .items
+            .iter()
+            .find_map(|item| match item {
+                swb_paint::DisplayItem::Frame { node: n, rect, .. } if *n == node => Some(*rect),
+                _ => None,
+            })
+    }
+
+    /// The element under the pointer (`:hover`); the `iframe` for a
+    /// document whose frame the pointer is in.
+    pub fn hovered_element(&self) -> Option<NodeId> {
+        self.states.hover
+    }
+
+    /// The element that is being pressed (`:active`).
+    pub fn pressed_element(&self) -> Option<NodeId> {
+        self.states.active
+    }
+
+    /// The focused element of the document (`:focus`).
+    pub fn focus_element(&self) -> Option<NodeId> {
+        self.states.focus
+    }
+
+    /// The `iframe` element that holds the page's focus through its frame
+    /// (`document.activeElement` while no element of the document is
+    /// focused; ADR 0031 section 8).
+    pub fn focused_frame_element(&self) -> Option<NodeId> {
+        self.frame_focus
+    }
+
+    /// The value of a form control (the `value` IDL attribute); `None` for
+    /// other elements.
+    pub fn control_value(&self, node: NodeId) -> Option<String> {
+        self.forms.value().value(&self.dom, node)
+    }
+
+    /// The checkedness of a checkbox or radio button, or the selectedness
+    /// of an option; `None` for other elements.
+    pub fn control_checked(&self, node: NodeId) -> Option<bool> {
+        self.forms.value().checked(node)
+    }
+
     /// The style, layout and display list runs of the document since it was
     /// created.
     pub fn flush_counters(&self) -> crate::FlushCounters {

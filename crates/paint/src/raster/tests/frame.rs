@@ -83,6 +83,7 @@ fn frame(id: usize, x: f32, y: f32, w: f32, h: f32) -> DisplayItem {
     DisplayItem::Frame {
         node: node(id),
         rect: Rect::new(x, y, w, h),
+        interactive: true,
     }
 }
 

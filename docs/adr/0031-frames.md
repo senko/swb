@@ -313,13 +313,16 @@ these decisions and departures:
   `SecurityError`, `MessageEvent.origin` is `"null"`); without
   `allow-scripts` its scripts do not run (and `noscript` stays raw text:
   the scripting flag follows JavaScript, sandboxing only stops the
-  scripts). The other tokens are parsed (`DOMTokenList.supports` exists)
-  and ignored: they gate forms, popups, top-level navigation, modals and
-  downloads, and swb either has none of these or blocks them for every
-  cross-origin frame (below).
-- **Navigation of the top level from a frame**: a cross-origin frame may
-  not navigate `top` in M9 (logged). Chromium allows it only after a user
-  activation; swb has no activation tracking for it.
+  scripts). Without `allow-forms` its forms do not submit, without
+  `allow-popups` it opens no new browsing context, and it navigates only
+  itself and its descendants, and the top level with an
+  `allow-top-navigation` token (feature 11, section 8). The other tokens are
+  parsed (`DOMTokenList.supports` exists) and ignored: they gate modals and
+  downloads, which swb lacks in frames.
+- **Navigation of the top level from a frame**: a cross-origin frame without
+  a sandbox may not navigate `top` in M9 (logged). Chromium allows it only
+  after a user activation; swb has no activation tracking for it. A
+  sandbox's `allow-top-navigation` token allows it.
 - **CORS** of a frame's own requests uses the frame document's origin as
   the request's origin; nothing else changes.
 
@@ -939,6 +942,156 @@ that a target needs it.
 - With JavaScript off the same paths run without DOM events (as now for
   the top document).
 
+**Done (feature 11: `page/frame_input.rs`, `frame_focus.rs`,
+`frame_navigate.rs`; `DisplayList::hit_test_with`).** Measured in Chromium
+148 with the cases `focus`, `wheel-scroll` and the 77 cases `input-*` of
+`tools/probes/web-frames.json` (three equal runs; the values are in
+`engine/tests/data/web-frames.json`, the test is
+`crates/automation/tests/frame_input.rs`). Frame documents still run no
+scripts, so the page's scripts see what they see in Chromium and the frames'
+own events wait for feature 12 (the queries that read what a frame's scripts
+logged are listed as `c:` entries and skipped by the test). Decisions and
+departures:
+
+- *The active document.* The input code of a document (`input.rs`,
+  `forms.rs`, `scroll.rs`: hover, press, drag, activation, text editing,
+  keys, selection, scrolling) acts on `Page::doc`. Input in a frame runs that
+  same code with the frame's document in that place: `Page::in_frame`
+  exchanges the document, the pointer and keyboard state of the frame
+  (`Page::frame_inputs`), the viewport and the font faces of the frame with
+  the page's, takes the page's script runtime out (so the frame's code takes
+  the paths of a page without JavaScript), runs the code and undoes the
+  exchange. It is not nested: the routing (hit test, focus chain, scroll
+  chain) runs in the page's own context and calls it once per document on
+  the path. What changes the page (a navigation) is deferred until the
+  exchange is undone. Reason: the input code is large and per document;
+  the alternative, a `FrameId` argument on every function, touches hundreds
+  of calls. Feature 12 gives `in_frame` the frame's runtime in place of
+  `None`.
+- *Hit test.* `DisplayItem::Frame` has `interactive` (false for
+  `pointer-events: none`). `DisplayList::hit_test_with` reports the topmost of
+  the regions and the frames: a `Hit::Frame` has the point and the content
+  box in the coordinates of the groups, so the transforms and clips of the
+  `iframe` (the rounded one is a `PushSvgClip` around the item) apply. The
+  engine maps the point to the frame's viewport (minus the corner of the
+  content box snapped to a device pixel, as the raster draws it) and goes
+  on in the frame's list (`Page::route_at`; `HitResult::frame`). A point on the
+  border hits the `iframe`; `visibility: hidden` has no item; a later region
+  above the frame wins; `opacity: 0` does not matter (all measured, cases
+  `input-hit-*`). One `HitWork` budget covers the whole test, and the nesting
+  limit (32) bounds the depth. A frame's layout is brought up to date for its
+  viewport before its list is tested.
+- *Pointer.* The parent's document sees the pointer on the `iframe`: it
+  fires `pointerout`, `pointerover`, `pointerenter` and the mouse versions on
+  entering and leaving it, in the order of other elements, and no
+  `pointermove` or `mousemove` for the `iframe`'s content (measured; during a
+  press that started in the parent, the move that crosses the edge fires them
+  once). Hover is per document: the `iframe` and its ancestors match
+  `:hover` and `:active` in the parent, the elements under the pointer in the
+  frame; leaving a frame clears its hover (also the pointer leaving the
+  page). The cursor and the hovered link come from the innermost document.
+  A press of the primary button in a frame keeps the pointer in that frame
+  until the release (`FramePress`: the frame sees the point minus the offset
+  of the press; outside its viewport the frame's `html` is hovered and a
+  selection reaches the nearest text), the parent sees nothing more; a
+  press that started in the parent never goes into a frame, and a release
+  over a frame after it fires nothing in the parent (measured; Chromium
+  gives the frame a `mouseup` there, swb's frame has no listener).
+  Other buttons do nothing in frames.
+- *Links and forms.* A link or form navigates the browsing context of its
+  `target` (HTML "rules for choosing a navigable"): none and `_self` give the
+  source's own frame, `_parent` the parent, `_top` the top level, a name the
+  first frame in tree order that has it and that the source may navigate. A
+  name is compared exactly, the keywords without ASCII case. `_blank` and a
+  name that no frame has give the source's own frame (swb has one tab;
+  Chromium opens a new tab and leaves the frame as it is), and nothing in a
+  sandbox without `allow-popups`. Rules for what a frame may navigate, all
+  measured (cases `input-target-*`): itself and its descendants, always; from
+  a sandbox (the flags go down to frames without `sandbox`), else only the top
+  level with `allow-top-navigation` or
+  `allow-top-navigation-by-user-activation`, also from a nested frame and with
+  an opaque origin, so `_parent` to a frame that is not the top level is
+  refused; without a sandbox, a frame whose document, or the document of one of
+  whose ancestors, has the source's origin. So a frame with the top level's
+  origin may navigate any frame, and a cross-origin frame may not navigate its
+  parent. Departure: a cross-origin frame navigates the top level after a click
+  in Chromium, which swb has no activation to allow; it refuses and logs (ADR
+  0031 section 3). A form in a sandbox without `allow-forms` does not submit.
+  What feature 12 must add: the by-user-activation token needs an activation
+  when a script asks, and a script's `submit()` needs the forms check. The
+  `target` of a link
+  or form is read as HTML says (the `formtarget` of the submitter, the
+  `target` of the form, the `base` element's) and travels with scripted
+  `click()` and `submit()` too (`ScriptNavigation`). The parent's own links
+  and forms can name a frame. A fragment link in a frame scrolls the frame
+  and gives its document the URL with the fragment; the other navigations
+  replace the frame's entry (`POST` bodies included), under the navigation
+  limit of 64 per 10 s.
+- *Wheel and scroll keys.* The chain is the same function in the frame and
+  in the page: the innermost scroller under the point, then the document's
+  viewport (not for `scrolling=no`, also `off` and `noscroll`), then the
+  parent's chain from the `iframe`. A wheel that reaches the end of the
+  frame stops there; the next one scrolls the parent (measured, also for two
+  levels). The parent gets no `wheel` event for a wheel over a frame. A
+  scrolling key acts on the focused document and chains up the same way (a
+  frame at its end, or with `scrolling=no`, hands it to the parent;
+  measured). A scroll of a frame builds no new list for the parent. The lazy
+  images of frame documents (JavaScript on) load when the frame's viewport
+  comes near them: the lazy check of the frame loop runs for the frame
+  documents too (it ran for the page's document only; a fix of this
+  feature).
+- *Focus.* Each document has its focused element. When a frame holds the
+  page's focus, `InputState::focus_frame` names the innermost frame, the
+  documents above it have no focused element, and `DocumentState::frame_focus`
+  is the `iframe` that holds the focus: `document.activeElement` is the
+  `iframe`, and `:focus` does not match it (measured). `document.hasFocus()`
+  is true in the page and in the frame; it is false after Tab left the page
+  and after the focused frame was removed (measured; the engine tells,
+  `EngineHost::window_has_focus`). Moving the focus into a frame gives the page's
+  focused element a `blur` and the window a `blur`, without a `focus` event
+  on the `iframe`; the focus coming back to the page gives the window a
+  `focus` and the element a `focus` (measured order, ADR 0009). A document
+  loses its selection when the focus enters one of its frames; a frame that
+  loses the focus keeps its selection, also to another frame (measured, cases
+  `input-select-*`). A frame that is navigated keeps the focus,
+  with no focused element in its new document; a frame that is hidden keeps
+  it; a removed one gives it to its parent, and the window has none until the
+  next focus (measured). The same holds when the page's `blur` listener removes
+  the frame that a click or a Tab is moving the focus into (measured). Departure:
+  after the removal, Tab starts at the first element, Chromium starts where the
+  `iframe` was.
+- *Tab.* Sequential navigation treats a frame as its content: the order of
+  the parent contains the `iframe` (with its `tabindex`, so a positive one
+  comes first and `-1` skips the frame and its content; a hidden frame is
+  skipped); a Tab that reaches it enters the frame at its first (last, for
+  Shift+Tab) focusable element, recursively; after the frame's last element
+  it goes on after the `iframe` in the parent; after the last element of the
+  page the focus leaves the page (all measured, nested frames too). A frame
+  without a focusable element is a stop of its own: its document is
+  focused with no element, the next Tab goes on. The page scrolls to the
+  `iframe` of the focused element (departure: the whole `iframe`, not the
+  element's rectangle). `rendered` is computed once per step (a page of 1,000
+  frames took 55 ms per Tab with a test per element).
+- *Keys and selection.* Keys go to the focused document: typing, Enter (the
+  default button of a form, a link), Space, the arrows in selects and
+  radio groups, Escape, Ctrl+A. The selection is per document. A double and
+  a triple click select a word and a paragraph in the frame; a drag stays
+  in the document where it started; `Page::selected_text`, `select_all`,
+  `cut_selection`, `insert_text` and `has_editable_focus` act on the focused
+  document, so copy and paste use it.
+- *Departures and what waits.* The transforms of an `iframe` are followed by
+  the hit test, but not by the offset that a press keeps or by
+  `Page::frame_origin` (automation points); the offset also stays when the
+  parent scrolls or changes its layout during the press, so a drag is off by
+  that distance. `:focus-within` of the ancestors
+  of a frame that holds the focus is not set. The keyboard modality of
+  `:focus-visible` is per document. A `javascript:` link in a frame does
+  nothing. The events of a frame's own scripts (the `c:` entries of the
+  cases), `contentDocument.activeElement` as a script reads it, and the
+  `focus()` of a frame's element from a script (which moves the page's focus
+  into the frame in Chromium) are feature 12. Frame documents have no
+  `hasFocus` of their own yet beyond the engine API.
+
 ### 9. JavaScript off
 
 Owner decision of 2026-11-01: frames work with JavaScript off. A frame
@@ -991,6 +1144,29 @@ document. The feature that turns rendering on reports the scores.
 - **`page.info`** gets `frames` (the count) and the load state counts the
   frames' loads.
 - **Console**: the messages of all documents, each with its `frameId`.
+
+**Done (feature 11).** `page.frames` lists the frames in tree order (the
+top-level frame first, `frameId` 0). `frameId` goes to `dom.*`,
+`page.evaluate`, `page.consoleMessages` and the input methods that take a
+node or a point (`input.click`, `mouseMove`, `mouseDown`, `mouseUp`): the
+call runs in the frame's context (`Page::with_frame`, the same exchange as
+the input code of section 8), node IDs, boxes and coordinates are the
+frame's, and input is sent to the page at the point in the page's viewport
+(`Page::frame_origin`, which does not follow transforms). `dom.boxes` dumps
+the frame's document. `page.evaluate` with a `frameId` is an error until
+feature 12, `page.consoleMessages` has no frame messages, and every
+message has a `frameId`. A `frameId` on another method is an invalid
+parameter. `swb --eval-frame=PATH` (in order with the `--eval` arguments
+after it; an empty PATH goes back to the top; the path is `SEL >> SEL`, the
+first match of each selector must be an `iframe` with a frame) gives an
+error line `FrameError: ...` for a path that finds no frame and for a frame
+(no scripts yet). The probe tool takes `"frame": "SEL >> SEL"` in a `js`
+query (Chromium: the frame of `frame_locator`; swb: `--eval-frame`) and in a
+point step with a selector (`click`, `dblclick`, `rightclick`, `middleclick`,
+`hover`: the selector is looked up in the frame, the click goes to the
+point in the page's viewport); `swbtools replay` shares the step format and
+has no further option (clicks by coordinates reach frames without it).
+`swb_automation::resolve_frame` is the one implementation of the path.
 
 ### 11. Budgets and robustness
 

@@ -34,7 +34,7 @@ use swb_web::{
     JsonForm, PageClock, ScriptRuntime, TrustedEvent,
 };
 
-use super::{HistoryHandling, Page};
+use super::Page;
 use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation};
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
@@ -317,19 +317,12 @@ impl Page {
             self.note_scroll(None);
         }
         match requests.navigation {
-            Some(ScriptNavigation::Link(url)) => {
-                self.follow_link(url);
+            Some(ScriptNavigation::Link(url, target)) => {
+                self.navigate_from_input(url, None, target);
             }
             Some(ScriptNavigation::Form(request)) => {
                 log::info!("a script submits a form: {}", request.url);
-                let initiator = self.document_origin();
-                self.start_navigation(
-                    request.url,
-                    request.post,
-                    HistoryHandling::Push,
-                    None,
-                    initiator,
-                );
+                self.navigate_from_input(request.url, request.post, request.target);
             }
             Some(ScriptNavigation::Location { url, replace }) => {
                 self.location_navigate(url, replace);

@@ -8,13 +8,13 @@ use swb_dom::{Document, NodeId, local_name};
 use swb_layout::{FragmentRef, Point};
 use swb_style::{PseudoKind, is_actually_disabled};
 
-use super::{HistoryHandling, Page};
+use super::Page;
 use crate::edit::TextEdit;
 use crate::forms::{
     ButtonType, ControlType, FormContext, Forms, InputType, Submitter, blocking_fields,
     default_button, form_submission, labeled_control, option_label, value_offset,
 };
-use crate::hit_test::link_around;
+use crate::hit_test::{link_around, navigation_target};
 use crate::input::{Key, Modifiers};
 use crate::selection;
 
@@ -22,9 +22,10 @@ impl Page {
     // ----- Public API -----
 
     /// True if the focused element is a text field or a text area that
-    /// can be edited (not read-only or disabled).
-    pub fn has_editable_focus(&self) -> bool {
-        self.editable_focus().is_some()
+    /// can be edited (not read-only or disabled). The focused element is
+    /// that of the frame that has the focus, if one has it.
+    pub fn has_editable_focus(&mut self) -> bool {
+        self.in_focused_document(|p| p.editable_focus().is_some())
     }
 
     /// Inserts text at the caret of the focused text control (typed or
@@ -33,13 +34,13 @@ impl Page {
     /// With scripts, `beforeinput` and `input` (`inputType` `insertText`)
     /// surround the edit.
     pub fn insert_text(&mut self, text: &str) -> bool {
-        self.insert_text_as(text, "insertText")
+        self.in_focused_document(|p| p.insert_text_as(text, "insertText"))
     }
 
     /// Inserts pasted text (`inputType` `insertFromPaste`); otherwise as
     /// [`Page::insert_text`].
     pub fn paste_text(&mut self, text: &str) -> bool {
-        self.insert_text_as(text, "insertFromPaste")
+        self.in_focused_document(|p| p.insert_text_as(text, "insertFromPaste"))
     }
 
     fn insert_text_as(&mut self, text: &str, input_type: &str) -> bool {
@@ -85,6 +86,10 @@ impl Page {
     /// for password fields, which cannot be copied). With scripts,
     /// `beforeinput` and `input` (`deleteByCut`) surround the deletion.
     pub fn cut_selection(&mut self) -> String {
+        self.in_focused_document(Page::cut_selection_in_document)
+    }
+
+    fn cut_selection_in_document(&mut self) -> String {
         let text = self
             .doc
             .as_ref()
@@ -428,12 +433,15 @@ impl Page {
 
     /// Follows the nearest link that contains `node` (or is `node`).
     /// Returns true if a navigation started or the page scrolled.
-    fn follow_link_around(&mut self, node: NodeId) -> bool {
+    pub(super) fn follow_link_around(&mut self, node: NodeId) -> bool {
         let Some(doc) = self.doc.as_deref() else {
             return false;
         };
-        let link = link_around(doc.dom(), node, doc.base_url());
-        link.is_some_and(|(_, link)| self.follow_link(link))
+        let Some((element, link)) = link_around(doc.dom(), node, doc.base_url()) else {
+            return false;
+        };
+        let target = navigation_target(doc.dom(), element);
+        self.navigate_from_input(link, None, target)
     }
 
     /// True if a click on control `node` does something: checkboxes and
@@ -776,6 +784,12 @@ impl Page {
     /// Submits `form`: validates it (unless `novalidate`), builds the
     /// request and navigates. Returns true if a navigation started.
     fn submit_form(&mut self, form: NodeId, submitter: Submitter) -> bool {
+        if !self.sandbox_of(self.active_frame).forms_allowed() {
+            // HTML "sandboxed forms browsing context flag" (measured, case
+            // `input-target-sb-form`).
+            log::info!("form not submitted: the sandbox has no `allow-forms`");
+            return false;
+        }
         let Some(state) = self.doc.as_deref() else {
             return false;
         };
@@ -817,15 +831,7 @@ impl Page {
             "GET"
         };
         log::info!("submitting a form: {method} {}", submission.url);
-        let initiator = self.document_origin();
-        self.start_navigation(
-            submission.url,
-            submission.post,
-            HistoryHandling::Push,
-            None,
-            initiator,
-        );
-        true
+        self.navigate_from_input(submission.url, submission.post, submission.target)
     }
 
     /// Updates the style states and the layout after a control's value,

@@ -862,6 +862,3118 @@
      "points": [[50, 50], [150, 50]]
     }
    ]
+  },
+  {
+   "name": "input-pointer-events",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "hover": [
+      160,
+      130
+     ]
+    },
+    {
+     "hover": [
+      450,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('--sep')"
+    },
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "hover": [
+      10,
+      10
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:') || x == '--sep').join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:') || x == '--sep').join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hover",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "eval": "log.push('h1:' + [f.matches(':hover'), b.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover'), f.contentDocument.body.matches(':hover'), f.contentDocument.documentElement.matches(':hover')].join())"
+    },
+    {
+     "hover": [
+      450,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('h2:' + [f.matches(':hover'), b.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover'), f.contentDocument.body.matches(':hover'), f.contentDocument.documentElement.matches(':hover')].join())"
+    },
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "eval": "log.push('h3:' + [f.matches(':hover'), b.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover'), f.contentDocument.body.matches(':hover'), f.contentDocument.documentElement.matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^h\\d:/.test(x)).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-press-in-frame",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "eval": "log.push('a1:' + [f.matches(':active'), document.body.matches(':active'), f.contentDocument.getElementById('a').matches(':active'), f.contentDocument.body.matches(':active')].join())"
+    },
+    {
+     "hover": [
+      450,
+      150
+     ]
+    },
+    {
+     "hover": [
+      460,
+      160
+     ]
+    },
+    {
+     "eval": "log.push('h1:' + [f.matches(':hover'), b.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover'), f.contentDocument.body.matches(':hover'), f.contentDocument.documentElement.matches(':hover')].join())"
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "eval": "log.push('a2:' + [f.matches(':active'), document.body.matches(':active'), f.contentDocument.getElementById('a').matches(':active'), f.contentDocument.body.matches(':active')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ') + ' ' + log.filter(x => /^(h|a)\\d:/.test(x)).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-press-in-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      450,
+      150
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "hover": [
+      160,
+      130
+     ]
+    },
+    {
+     "mouseup": "left"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-click-in-frame",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      150,
+      120
+     ]
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-wheel-events",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #f{position:absolute;left:100px;top:100px;width:200px;height:100px;border:0} #b{position:absolute;left:400px;top:100px;width:100px;height:100px;background:#ddd} #f:hover{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body style='height:2000px'><iframe id=f src=f.html></iframe><div id=b></div></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:200px;height:100px;background:#eee} #a:hover{background:#faa}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of [\"pointerover\", \"pointerout\", \"pointerenter\", \"pointerleave\", \"pointermove\", \"pointerdown\", \"pointerup\", \"mouseover\", \"mouseout\", \"mouseenter\", \"mouseleave\", \"mousemove\", \"mousedown\", \"mouseup\", \"click\", \"wheel\", \"contextmenu\", \"dblclick\"]) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target) + rt(e)), true);\n</script></head><body><div id=a style='height:600px'>frame</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      150,
+      120
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      50
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "wheel": [
+      0,
+      2000
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "wheel": [
+      0,
+      50
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('s1:' + [scrollY, f.contentWindow.scrollY].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:wheel') || x.startsWith('s1:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:wheel')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-pointer-events-none",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"pointer-events:none\"></iframe></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      130,
+      130
+     ]
+    },
+    {
+     "click": [
+      380,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-visibility-hidden",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"visibility:hidden\"></iframe></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      130,
+      130
+     ]
+    },
+    {
+     "click": [
+      380,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-covered",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"\"></iframe><div id=cover style='position:absolute;left:100px;top:100px;width:150px;height:100px;background:#ccf'></div></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      130,
+      130
+     ]
+    },
+    {
+     "click": [
+      380,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-opacity-0",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"opacity:0\"></iframe></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      130,
+      130
+     ]
+    },
+    {
+     "click": [
+      380,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-transform",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"transform:rotate(90deg)\"></iframe></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      250,
+      150
+     ]
+    },
+    {
+     "click": [
+      380,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-hit-border",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0} #under{position:absolute;left:100px;top:100px;width:300px;height:100px;background:#cfc} #f{position:absolute;left:100px;top:100px;width:300px;height:100px;border:2px solid blue;box-sizing:content-box}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => log.push('p:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=under></div><iframe id=f src=h.html style=\"\"></iframe></body></html>",
+   "resources": {
+    "h.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} #a{position:absolute;left:0;top:0;width:300px;height:100px;background:#fcc} #a:hover{background:#f00}</style><script>\nfor (const t of ['mouseover','mouseout','mousedown','click']) document.addEventListener(t, e => parent.log.push('c:' + t + '@' + (e.target.id || e.target.nodeName)), true);\n</script></head><body><div id=a>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      10,
+      10
+     ]
+    },
+    {
+     "click": [
+      101,
+      150
+     ]
+    },
+    {
+     "click": [
+      130,
+      150
+     ]
+    },
+    {
+     "eval": "log.push('hh1:' + [f.matches(':hover'), under.matches(':hover'), f.contentDocument.getElementById('a').matches(':hover')].join())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('hh1:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-self",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      120
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-top",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-named",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-fragment",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      240
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-self-target",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      270
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-name",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      30,
+      410
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-frame-name",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      30,
+      440
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-from-parent-top",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      30,
+      470
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-form-target",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": "#sb"
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof f === 'undefined' ? 'gone' : [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search + f.contentWindow.location.hash, g.contentWindow.location.pathname.split('/').pop() + g.contentWindow.location.search, f.contentWindow.scrollY].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-top",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='$OTHER/$FOLDER/l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='$OTHER/$FOLDER/l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-named",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='$OTHER/$FOLDER/l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-link-cross-origin-self",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn src='$OTHER/$FOLDER/l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n<a id=pl target=other href='t.html?pnamed' style='position:absolute;left:10px;top:400px;width:100px;height:20px;display:block'>pl</a>\n<a id=pf target=fn href='t.html?pf' style='position:absolute;left:10px;top:430px;width:100px;height:20px;display:block'>pf</a>\n<a id=pt target=_top href='t.html?pt' style='position:absolute;left:10px;top:460px;width:100px;height:20px;display:block'>pt</a>\n<form id=fm target=other action='t.html' style='position:absolute;left:10px;top:500px'><input name=a value=1><input type=submit id=sb value=go></form>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=frag href='#z' style='top:130px'>frag</a>\n<a id=selft target=_self href='t.html?selft' style='top:160px'>self2</a>\n<div style='height:600px'></div><div id=z>Z</div></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      110,
+      120
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop() + location.search + location.hash, typeof g === 'undefined' ? 'gone' : [(() => { try { return f.contentWindow.location.href.split('/').pop(); } catch (e) { return e.name; } })(), g.contentWindow.location.href.split('/').pop()].join(' | ')].join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-form-type-enter",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0'><iframe id=f src='form.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "form.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} * {position:absolute}</style></head><body>\n<form action=r.html method=get>\n<input id=q name=q style='left:10px;top:10px;width:100px'>\n<input id=c type=checkbox name=c checked style='left:10px;top:50px'>\n<select id=s name=s style='left:10px;top:80px'><option value=a>a<option value=b selected>b<option value=c>c</select>\n<input id=go type=submit name=go value=go style='left:10px;top:120px;width:60px;height:25px'>\n</form></body></html>"
+    },
+    "r.html": {
+     "text": "<!DOCTYPE html><title>r</title><p>result</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      130,
+      120
+     ]
+    },
+    {
+     "type": "hi"
+    },
+    {
+     "eval": "log.push('v1:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    },
+    {
+     "key": "Enter"
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "log.push('v2:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-form-checkbox-select",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0'><iframe id=f src='form.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "form.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} * {position:absolute}</style></head><body>\n<form action=r.html method=get>\n<input id=q name=q style='left:10px;top:10px;width:100px'>\n<input id=c type=checkbox name=c checked style='left:10px;top:50px'>\n<select id=s name=s style='left:10px;top:80px'><option value=a>a<option value=b selected>b<option value=c>c</select>\n<input id=go type=submit name=go value=go style='left:10px;top:120px;width:60px;height:25px'>\n</form></body></html>"
+    },
+    "r.html": {
+     "text": "<!DOCTYPE html><title>r</title><p>result</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      115,
+      155
+     ]
+    },
+    {
+     "eval": "log.push('v1:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "eval": "log.push('v2:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "eval": "log.push('v3:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    },
+    {
+     "key": "ArrowUp"
+    },
+    {
+     "key": "ArrowUp"
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "eval": "log.push('v4:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "log.push('v5:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-form-submit-click",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0'><iframe id=f src='form.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "form.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} * {position:absolute}</style></head><body>\n<form action=r.html method=get>\n<input id=q name=q style='left:10px;top:10px;width:100px'>\n<input id=c type=checkbox name=c checked style='left:10px;top:50px'>\n<select id=s name=s style='left:10px;top:80px'><option value=a>a<option value=b selected>b<option value=c>c</select>\n<input id=go type=submit name=go value=go style='left:10px;top:120px;width:60px;height:25px'>\n</form></body></html>"
+    },
+    "r.html": {
+     "text": "<!DOCTYPE html><title>r</title><p>result</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      130,
+      120
+     ]
+    },
+    {
+     "type": "x y"
+    },
+    {
+     "click": [
+      130,
+      235
+     ]
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "log.push('v1:' + (() => { const d = f.contentDocument; return [f.contentWindow.location.pathname.split('/').pop() + f.contentWindow.location.search, d.getElementById('q') && d.getElementById('q').value, d.getElementById('c') && d.getElementById('c').checked, d.getElementById('s') && d.getElementById('s').value, d.activeElement.id || d.activeElement.nodeName].join(' | '); })())"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-forward",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=f.html style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:200px;width:60px'></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=c1 style='position:absolute;left:10px;top:10px;width:60px'><input id=c2 style='position:absolute;left:100px;top:10px;width:60px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "focus": "#p1"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fc0:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fc1:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fc2:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fc3:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fc\\d:/.test(x)).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-backward",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=f.html style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:200px;width:60px'></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=c1 style='position:absolute;left:10px;top:10px;width:60px'><input id=c2 style='position:absolute;left:100px;top:10px;width:60px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "focus": "#p2"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fc0:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fc1:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fc2:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fc3:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fc\\d:/.test(x)).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('c:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-kinds",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=empty src=e.html style='position:absolute;left:10px;top:50px;width:100px;height:50px;border:0'></iframe><iframe id=hid src=f.html style='position:absolute;left:150px;top:50px;width:100px;height:50px;border:0;visibility:hidden'></iframe><iframe id=none src=f.html style='display:none'></iframe><iframe id=neg tabindex=-1 src=f.html style='position:absolute;left:300px;top:50px;width:100px;height:50px;border:0'></iframe><iframe id=pos tabindex=2 src=f.html style='position:absolute;left:450px;top:50px;width:100px;height:50px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:200px;width:60px'></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=d1 style='position:absolute;left:10px;top:10px;width:60px'></body></html>"
+    },
+    "e.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><p>nothing here</p></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "focus": "#p1"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk0:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk1:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk2:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk3:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk4:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fk5:' + [act(document), act(pos.contentDocument), act(empty.contentDocument)].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fk\\d:/.test(x)).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-nested",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=n.html style='position:absolute;left:10px;top:50px;width:400px;height:200px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=n1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=g src=g.html style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0'></iframe><input id=n2 style='position:absolute;left:10px;top:160px;width:60px'></body></html>"
+    },
+    "g.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body><input id=m1 style='position:absolute;left:10px;top:10px;width:60px'><input id=m2 style='position:absolute;left:100px;top:10px;width:60px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "focus": "#p1"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn0:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn1:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn2:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn3:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn4:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn5:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fn6:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fn\\d:/.test(x)).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-tab-nested-backward",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=n.html style='position:absolute;left:10px;top:50px;width:400px;height:200px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=n1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=g src=g.html style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0'></iframe><input id=n2 style='position:absolute;left:10px;top:160px;width:60px'></body></html>"
+    },
+    "g.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0}</style></head><body><input id=m1 style='position:absolute;left:10px;top:10px;width:60px'><input id=m2 style='position:absolute;left:100px;top:10px;width:60px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "focus": "#p2"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn0:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn1:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn2:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn3:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn4:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn5:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    },
+    {
+     "key": "Shift+Tab"
+    },
+    {
+     "eval": "log.push('fn6:' + [act(document), act(f.contentDocument), act(f.contentDocument.getElementById('g').contentDocument)].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fn\\d:/.test(x)).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-click",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}iframe:focus{outline:2px solid red}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=f.html style='position:absolute;left:10px;top:50px;width:300px;height:100px;border:0'></iframe></body></html>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} input:focus{outline:3px solid blue} #c1{position:absolute;left:10px;top:10px;width:80px}</style><script>\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => parent.log.push('c:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=c1><div id=blank style='position:absolute;left:0;top:50px;width:300px;height:50px'>x</div></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      20,
+      20
+     ]
+    },
+    {
+     "eval": "log.push('fx1:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus(), f.matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus-visible')].join('/'))"
+    },
+    {
+     "click": [
+      100,
+      130
+     ]
+    },
+    {
+     "eval": "log.push('fx2:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus(), f.matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus-visible')].join('/'))"
+    },
+    {
+     "click": [
+      30,
+      70
+     ]
+    },
+    {
+     "eval": "log.push('fx3:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus(), f.matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus-visible')].join('/'))"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "eval": "log.push('fx4:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus(), f.matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus-visible')].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('fx5:' + [act(document), act(f.contentDocument), document.hasFocus(), f.contentDocument.hasFocus(), f.matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus'), f.contentDocument.getElementById('c1').matches(':focus-visible')].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.filter(x => /^fx\\d:/.test(x)).join(' ')"
+    },
+    {
+     "js": "log.filter(x => x.startsWith('p:')).join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-remove",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=fi.html style='position:absolute;left:100px;top:100px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "fi.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><input id=c1 style='position:absolute;left:10px;top:10px;width:80px'></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "eval": "f.remove()"
+    },
+    {
+     "eval": "log.push('l1:' + [act(document), document.hasFocus()].join('/'))"
+    },
+    {
+     "type": "x"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l2:' + [act(document), document.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-navigate",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=fi.html style='position:absolute;left:100px;top:100px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "fi.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><input id=c1 style='position:absolute;left:10px;top:10px;width:80px'></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "eval": "f.src = 't.html'"
+    },
+    {
+     "wait": 400
+    },
+    {
+     "eval": "log.push('l1:' + [act(document), document.hasFocus()].join('/') + '/' + act(f.contentDocument))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l2:' + [act(document), document.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-hide",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nconst rt = e => e.relatedTarget ? '<' + nm(e.relatedTarget) : '';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=fi.html style='position:absolute;left:100px;top:100px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "fi.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><input id=c1 style='position:absolute;left:10px;top:10px;width:80px'></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "eval": "f.style.display = 'none'"
+    },
+    {
+     "eval": "log.push('l1:' + [act(document), document.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l2:' + [act(document), document.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0;height:3000px'><iframe id=f src='tall.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe><iframe id=g scrolling=no src='tall.html' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "tall.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><div style='height:1000px;background:linear-gradient(#fff,#888)'></div><input id=i style='position:absolute;left:10px;top:20px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      300,
+      200
+     ]
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s0:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "PageDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s1:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s2:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s3:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "Space"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s4:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "Home"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s5:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s6:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-no",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0;height:3000px'><iframe id=f src='tall.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe><iframe id=g scrolling=no src='tall.html' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "tall.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><div style='height:1000px;background:linear-gradient(#fff,#888)'></div><input id=i style='position:absolute;left:10px;top:20px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      600,
+      200
+     ]
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s0:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "PageDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s1:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "End"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s2:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "Home"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s3:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0;height:3000px'><iframe id=f src='tall.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe><iframe id=g scrolling=no src='tall.html' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "tall.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><div style='height:1000px;background:linear-gradient(#fff,#888)'></div><input id=i style='position:absolute;left:10px;top:20px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s0:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "click": [
+      300,
+      200
+     ]
+    },
+    {
+     "click": [
+      50,
+      400
+     ]
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s1:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-keys-scroll-input",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0;height:3000px'><iframe id=f src='tall.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe><iframe id=g scrolling=no src='tall.html' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "tall.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><div style='height:1000px;background:linear-gradient(#fff,#888)'></div><input id=i style='position:absolute;left:10px;top:20px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      150,
+      130
+     ]
+    },
+    {
+     "key": "PageDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s0:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    },
+    {
+     "key": "ArrowDown"
+    },
+    {
+     "wait": 700
+    },
+    {
+     "eval": "log.push('s1:' + [scrollY, f.contentWindow.scrollY, g.contentWindow.scrollY].join(','))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-wheel-nested",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = [];</script></head><body style='margin:0;height:3000px'><iframe id=f src='outer.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe></body></html>",
+   "resources": {
+    "outer.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><iframe id=g src='tall.html' style='position:absolute;left:0;top:0;width:200px;height:100px;border:0'></iframe><div style='height:600px'></div></body></html>"
+    },
+    "tall.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><div style='height:1000px;background:linear-gradient(#fff,#888)'></div><input id=i style='position:absolute;left:10px;top:20px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      150,
+      150
+     ]
+    },
+    {
+     "wheel": [
+      0,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('w0:' + [scrollY, f.contentWindow.scrollY, f.contentDocument.getElementById('g').contentWindow.scrollY].join(','))"
+    },
+    {
+     "wheel": [
+      0,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('w1:' + [scrollY, f.contentWindow.scrollY, f.contentDocument.getElementById('g').contentWindow.scrollY].join(','))"
+    },
+    {
+     "wheel": [
+      0,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('w2:' + [scrollY, f.contentWindow.scrollY, f.contentDocument.getElementById('g').contentWindow.scrollY].join(','))"
+    },
+    {
+     "wheel": [
+      0,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('w3:' + [scrollY, f.contentWindow.scrollY, f.contentDocument.getElementById('g').contentWindow.scrollY].join(','))"
+    },
+    {
+     "wheel": [
+      0,
+      400
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "eval": "log.push('w4:' + [scrollY, f.contentWindow.scrollY, f.contentDocument.getElementById('g').contentWindow.scrollY].join(','))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-double-click",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "dblclick": [
+      130,
+      110
+     ]
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      115,
+      110
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "hover": [
+      200,
+      112
+     ]
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "hover": [
+      122,
+      130
+     ]
+    },
+    {
+     "eval": "log.push('sl2:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "hover": [
+      300,
+      400
+     ]
+    },
+    {
+     "eval": "log.push('sl3:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "eval": "log.push('sl4:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag-above",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      115,
+      110
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "hover": [
+      200,
+      150
+     ]
+    },
+    {
+     "hover": [
+      20,
+      20
+     ]
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "mouseup": "left"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-drag-from-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "hover": [
+      20,
+      260
+     ]
+    },
+    {
+     "mousedown": "left"
+    },
+    {
+     "hover": [
+      150,
+      130
+     ]
+    },
+    {
+     "hover": [
+      250,
+      150
+     ]
+    },
+    {
+     "mouseup": "left"
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-all",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      20,
+      260
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      250,
+      175
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl2:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      150,
+      190
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl3:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top-allowed",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin allow-top-navigation' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-top-activation",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin allow-top-navigation-by-user-activation' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-parent-is-top",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-opaque-top-allowed",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-top-navigation' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-named",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-kid",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      270
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-self",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-blank",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      240
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-opaque-self",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-form",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      365
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-form-allowed",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin allow-forms' src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      365
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='n.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h sandbox='allow-same-origin' src='l.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-parent-top-nav",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='n.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h sandbox='allow-same-origin allow-top-navigation' src='l.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-nested-top-nav",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='n.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h sandbox='allow-same-origin allow-top-navigation' src='l.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      150
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-sb-inherited-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn sandbox='allow-same-origin' src='n.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h  src='l.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-nested-parent",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='n.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h  src='$OTHER/$FOLDER/l.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      180
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-name-case",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=Other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-unknown-name",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=nothing src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-blank",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='about:blank' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      240
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-name-first-refused",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='$OTHER/$FOLDER/x.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=k name=other src='t.html' style='position:absolute;left:450px;top:320px;width:300px;height:100px;border:0'></iframe>\n<iframe id=g name=other src='$OTHER/$FOLDER/t.html' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='$ORIGIN/$FOLDER/t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='$ORIGIN/$FOLDER/t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='$ORIGIN/$FOLDER/t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='$ORIGIN/$FOLDER/t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='$ORIGIN/$FOLDER/t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='$ORIGIN/$FOLDER/t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='$ORIGIN/$FOLDER/t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-ancestor-origin",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=gg src='m.html' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><body style='margin:0'><iframe id=h name=other src='$OTHER/$FOLDER/t.html' style='position:absolute;left:0;top:0;width:300px;height:300px;border:0'></iframe></body></html>"
+    },
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-sibling-same-origin",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='$OTHER/$FOLDER/x.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='$OTHER/$FOLDER/t.html' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='$ORIGIN/$FOLDER/t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='$ORIGIN/$FOLDER/t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='$ORIGIN/$FOLDER/t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='$ORIGIN/$FOLDER/t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='$ORIGIN/$FOLDER/t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='$ORIGIN/$FOLDER/t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='$ORIGIN/$FOLDER/t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-target-x-sibling-from-top-origin",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head></head><body style='margin:0'>\n<iframe id=f name=fn  src='l.html' onload='window.fl=(window.fl|0)+1' style='position:absolute;left:100px;top:100px;width:300px;height:300px;border:0'></iframe>\n<iframe id=g name=other src='$OTHER/$FOLDER/t.html' onload='window.gl=(window.gl|0)+1' style='position:absolute;left:450px;top:100px;width:300px;height:200px;border:0'></iframe>\n</body></html>",
+   "resources": {
+    "l.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0} a{position:absolute;left:10px;width:200px;height:20px;display:block}</style></head><body>\n<a id=self href='t.html?self' style='top:10px'>self</a>\n<a id=top target=_top href='t.html?top' style='top:40px'>top</a>\n<a id=par target=_parent href='t.html?par' style='top:70px'>par</a>\n<a id=named target=other href='t.html?named' style='top:100px'>named</a>\n<a id=blank target=_blank href='t.html?blank' style='top:130px'>blank</a>\n<a id=kid target=kid href='t.html?kid' style='top:160px'>kid</a>\n<iframe id=kf name=kid src='about:blank' style='position:absolute;left:10px;top:190px;width:100px;height:50px;border:0'></iframe>\n<form action='t.html' style='position:absolute;left:10px;top:250px;margin:0'><input type=hidden name=form value=1><input type=submit value=go style='position:absolute;left:0;top:0;width:100px;height:30px'></form>\n</body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target page</p>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      120,
+      210
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "(() => { const last = w => { try { return w.location.href.split('/').pop(); } catch (e) { return e.name; } }; const own = location.pathname.split('/').pop() + location.search; if (typeof f === 'undefined') return own + ' / gone'; const kid = e => e.contentWindow.frames.length ? last(e.contentWindow.frames[0]) : '-'; return [own, last(f.contentWindow), kid(f), last(g.contentWindow), kid(g), typeof k === 'undefined' ? '-' : last(k.contentWindow)].join(' | '); })()"
+    },
+    {
+     "js": "[window.fl | 0, window.gl | 0].join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-tab-remove",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 onblur='f.remove()' style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=fi.html style='position:absolute;left:100px;top:100px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "fi.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><input id=c1 style='position:absolute;left:10px;top:10px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      40,
+      20
+     ]
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l1:' + [act(document), document.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l2:' + [act(document), document.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-focus-click-remove",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><style>body{margin:0}</style><script>\nwindow.log = [];\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nconst act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';\nfor (const t of ['focus', 'blur', 'focusin', 'focusout']) addEventListener(t, e => log.push('p:' + t + '@' + nm(e.target)), true);\n</script></head><body><input id=p1 onblur='f.remove()' style='position:absolute;left:10px;top:10px;width:60px'><iframe id=f src=fi.html style='position:absolute;left:100px;top:100px;width:300px;height:100px;border:0'></iframe><input id=p2 style='position:absolute;left:10px;top:300px;width:60px'></body></html>",
+   "resources": {
+    "fi.html": {
+     "text": "<!DOCTYPE html><html><head></head><body style='margin:0'><input id=c1 style='position:absolute;left:10px;top:10px;width:80px'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      40,
+      20
+     ]
+    },
+    {
+     "click": [
+      120,
+      120
+     ]
+    },
+    {
+     "eval": "log.push('l1:' + [act(document), document.hasFocus()].join('/'))"
+    },
+    {
+     "key": "Tab"
+    },
+    {
+     "eval": "log.push('l2:' + [act(document), document.hasFocus()].join('/'))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-frame-cleared",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><input id=pi style='position:absolute;left:10px;top:300px;width:100px'><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      250,
+      175
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      20,
+      260
+     ]
+    },
+    {
+     "eval": "log.push('sl2:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      250,
+      175
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "click": [
+      40,
+      310
+     ]
+    },
+    {
+     "eval": "log.push('sl3:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-frame-to-frame",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe><iframe id=g src='sel.html' style='position:absolute;left:100px;top:300px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      250,
+      175
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      250,
+      375
+     ]
+    },
+    {
+     "eval": "log.push('sl2:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
+  },
+  {
+   "name": "input-select-parent-click-frame",
+   "javascript": true,
+   "html": "<!DOCTYPE html><html><head><script>window.log = []; const act = d => d.activeElement ? (d.activeElement.id || d.activeElement.nodeName) : 'null';</script></head><body style='margin:0;font:16px/20px sans-serif'><p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p><iframe id=f src='sel.html' style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe></body></html>",
+   "resources": {
+    "sel.html": {
+     "text": "<!DOCTYPE html><html><head><style>body{margin:0;font:16px/20px sans-serif} p{margin:0 0 0 10px;width:280px}</style></head><body><p id=p1>alpha beta gamma</p><p id=p2>delta epsilon zeta</p><input id=i style='position:absolute;left:10px;top:80px;width:150px' value='field text here'></body></html>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      20,
+      260
+     ]
+    },
+    {
+     "key": "Control+a"
+    },
+    {
+     "eval": "log.push('sl1:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    },
+    {
+     "click": [
+      250,
+      175
+     ]
+    },
+    {
+     "eval": "log.push('sl2:' + [getSelection().toString().trim(), f.contentWindow.getSelection().toString().trim(), act(document), act(f.contentDocument)].join(' | '))"
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' / ')"
+    }
+   ]
   }
  ]
 }

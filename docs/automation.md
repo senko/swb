@@ -112,8 +112,9 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
 | `page.waitForIdle` | `quietMs` (default 100), `timeoutMs` (default 30000, at most 3600000) | `{"idle": bool}`: false on timeout. Runs the page's event loop until nothing is loading and no task (timer) of the document is due within `quietMs` of page time. In real time the request waits while the loop runs the timers; with `--virtual-time` the loop runs at once and its clock jumps from timer to timer. A page with an interval shorter than `quietMs` is never idle. |
 | `page.info` | — | see below |
 | `page.setJavaScript` | `enabled` (boolean) | `{}`. Sets the JavaScript setting. It applies to the next document: the current document keeps the value it was created with, and a reload or a navigation applies the change. See "The JavaScript setting". |
-| `page.evaluate` | `expression` (string), `timeoutMs` (default 30000, at most 3600000) | `{"value": V}` or `{"error": "Name: message"}`. Evaluates the expression as a classic script in the global scope of the document (the value of the last expression statement, as Chromium's `Runtime.evaluate`). A promise is awaited through the event loop (its timers run meanwhile; other requests are answered) until it settles or `timeoutMs` passes (then the error is `Error: the promise did not settle in time`); the evaluation handles the rejection of its promise, so no `unhandledrejection` follows. V is the value as JSON: arrays and the enumerable own properties of objects (cycles and functions are `null`), `undefined` is `null`, and `NaN`, `Infinity` and `-Infinity` are `null` and `-0` is `0`, as in `JSON.stringify`; a lone surrogate in a string or key becomes U+FFFD. A thrown value or a rejected promise gives `error`. The call fails (code -32000) if the document has no scripts (JavaScript off). |
-| `page.consoleMessages` | — | `{"messages": [{"level", "text"}]}`: the console lines of the current document in order (at most the last 1,000, each cut at 16 KiB). `level` is `log`, `info`, `warn`, `error` or `debug`; uncaught exceptions and unhandled promise rejections are `error` lines (`Uncaught TypeError: ...`, `Uncaught (in promise) ...`) unless a listener of the window's `error` or `unhandledrejection` event canceled the event. A new document starts with no messages. |
+| `page.evaluate` | `expression` (string), `timeoutMs` (default 30000, at most 3600000) | `{"value": V}` or `{"error": "Name: message"}`. Evaluates the expression as a classic script in the global scope of the document (the value of the last expression statement, as Chromium's `Runtime.evaluate`). A promise is awaited through the event loop (its timers run meanwhile; other requests are answered) until it settles or `timeoutMs` passes (then the error is `Error: the promise did not settle in time`); the evaluation handles the rejection of its promise, so no `unhandledrejection` follows. V is the value as JSON: arrays and the enumerable own properties of objects (cycles and functions are `null`), `undefined` is `null`, and `NaN`, `Infinity` and `-Infinity` are `null` and `-0` is `0`, as in `JSON.stringify`; a lone surrogate in a string or key becomes U+FFFD. A thrown value or a rejected promise gives `error`. The call fails (code -32000) if the document has no scripts (JavaScript off). With `frameId`, it fails the same way until scripts run in frames (M9 features 12 and 13). |
+| `page.frames` | — | `{"frames": [...]}`: the frames of the page in tree order, the top-level frame first (ADR 0031 section 10). Each has `frameId`, `parentId` (`null` for the top-level frame), `url` and `origin` of its document, `name` (the `name` attribute of its `iframe`; empty for the top-level frame), `nodeId` of the `iframe` element in the parent's document (`null` for the top-level frame) and `box`: the content box of the `iframe` in the parent's document coordinates, `[x, y, width, height]`, which is the frame's viewport (`null` for the top-level frame and for an `iframe` without a box). See "Frames". |
+| `page.consoleMessages` | optional `frameId` | `{"messages": [{"level", "text", "frameId"}]}`: the console lines of the current document in order (at most the last 1,000, each cut at 16 KiB). `level` is `log`, `info`, `warn`, `error` or `debug`; uncaught exceptions and unhandled promise rejections are `error` lines (`Uncaught TypeError: ...`, `Uncaught (in promise) ...`) unless a listener of the window's `error` or `unhandledrejection` event canceled the event. A new document starts with no messages. `frameId` is the frame of the document that logged the line (the top-level frame's ID until scripts run in frames). With `frameId`, the messages of that frame's document: none yet. |
 | `page.setViewport` | `width`, `height` (1 to 16384), `scale` (above 0, at most 8; default 1) | `{}`. For headless mode: with a window, the next resize of the window sets the viewport again. |
 | `page.screenshot` | `fullPage` (default false) | `{"width", "height", "png"}`: `png` is base64. The size is in device pixels. A full-page screenshot is limited to 128 Mpx; as in Chromium, it shows the page from its top with the layout of the viewport; fixed and sticky boxes are where they are at the page's scroll offset, and scroll containers keep their offsets. |
 | `page.scrollTo` | `x`, `y` | `{"scroll": {"x", "y"}}` (whole CSS px, clamped to the content, also on an axis with `overflow: hidden`) |
@@ -168,6 +169,36 @@ There are no events yet; use `page.waitForLoad` to wait for a load.
   the style sheets; `sheetChanges` counts the changes of style sheets by
   scripts (CSSOM `insertRule`, `deleteRule` and the other changes of
   rules, M9 feature 6).
+
+### Frames
+
+The frames of a page (`iframe` elements with a document; ADR 0031) have
+IDs. `page.frames` lists them. The top-level frame has `frameId` 0 and is
+the default of every method; a destroyed frame's ID is an error
+(code -32000), never another frame. Node IDs are those of the frame's own
+document, so a node needs its `frameId`.
+
+These methods take an optional `frameId` in their parameters and then act
+on that frame's document, with the viewport, the scroll offsets, the focus
+and the coordinates of the frame: `dom.querySelectorAll`,
+`dom.querySelector`, `dom.text`, `dom.outerHtml`, `dom.attributes`,
+`dom.value`, `dom.box`, `dom.boxes` (the box dump of the frame's document;
+`url` is the frame's), `dom.scrollInfo`, `dom.scrollTo`,
+`page.evaluate`, `page.consoleMessages`, and the input methods that take a
+node or a point: `input.click`, `input.mouseMove`, `input.mouseDown` and
+`input.mouseUp`. For these four, `nodeId` is a node of the frame's
+document and `x`, `y` are in the frame's viewport; the call sends the input
+to the page at the point in the page's viewport (the corner of the frame's
+content box and the point; the transforms of the `iframe` elements are not
+followed), so the page hit-tests and routes it as for a user: an `iframe`
+above the frame, or a transform, can send it elsewhere. Without `frameId`,
+a point or a node of the page's own document, and `x`, `y` over the content
+of a frame, reach that frame's document as a user's pointer does. The other
+methods fail with code -32602 if they get a `frameId`.
+
+`page.info.focusedNode` is the focused element of the page's own document.
+When a frame holds the focus, it is `null` and the focus is the frame's (the
+page's `document.activeElement` is the `iframe`).
 
 ### The JavaScript setting
 
@@ -258,7 +289,7 @@ from the DOM (see `scrollable` below):
 | `input.mouseDown` | point, `button`, `clickCount` (default 1), `modifiers` | `{}` |
 | `input.mouseUp` | point, `button` | `{}` |
 | `input.click` | point, `button`, `clickCount` (1 to 3), `modifiers` | `{}`. For `clickCount` n, presses and releases n times with click counts 1 to n. |
-| `input.wheel` | `x`, `y`, `dx`, `dy` | `{"scrolled": bool}`. A mouse wheel event at the point (viewport coordinates): scrolls by (`dx`, `dy`) CSS px the innermost scroll container under the point that can scroll in that direction, else the next one in its scroll chain, else the page (positive values scroll down and right). |
+| `input.wheel` | `x`, `y`, `dx`, `dy` | `{"scrolled": bool}`. A mouse wheel event at the point (viewport coordinates): scrolls by (`dx`, `dy`) CSS px the innermost scroll container under the point that can scroll in that direction, else the next one in its scroll chain, else the page (positive values scroll down and right). Over the content of a frame the chain starts in the frame's document, goes through the frame's viewport (not for an `iframe` with `scrolling=no`) and continues in the parent from the `iframe`; a wheel that reaches the end of the frame does not move the parent in the same event. |
 | `input.key` | `key`, `modifiers` | `{"handled": bool}`. Presses and releases the key. With JavaScript on, the page gets `keydown`, then `keypress` for a printable key or Enter, then `keyup`, at the focused element (the body without one); a listener that cancels `keydown` or `keypress` stops the default action. |
 | `input.type` | `text` | `{}`. Types the text into the focused text field or text area, as key presses would (`maxlength` applies). A line break presses Enter (a new line in a text area, implicit submission in a text field); a tab presses Tab (the focus moves to the next element, and typing goes on there). Typing stops when Enter starts a navigation or, with JavaScript off, when the focus leaves editable fields. Error -32000 if no editable field has the focus and JavaScript is off. With JavaScript on, each character of the US keyboard layout is a key press with `keydown`, `keypress`, `beforeinput`, `input` and `keyup` (as Playwright's `keyboard.type`), sent to the focused element or the body even if it is not editable, and typing goes on when the target stops being editable; a character that is not on the US layout is inserted as text without key events, and only into an editable field. |
 
@@ -271,6 +302,10 @@ from the DOM (see `scrollable` below):
 - `button`: `left` (default), `middle`, `right`, `back`, `forward`. Only
   `left` does something yet.
 - `clickCount` 2 selects a word, 3 the text of a block.
+- Input over the content of an `iframe` goes to the frame's document: the
+  pointer, the press and the wheel at the point, and, while a frame holds
+  the focus, the keys (also Tab, which enters and leaves frames) and typed
+  text. See "Frames" and ADR 0031 section 8.
 - The page handles these keys: Tab and Shift+Tab (focus), Enter (follows
   the focused link), Ctrl+A (select all), the arrows, Page Up, Page Down,
   Space, Shift+Space, Home and End (scrolling). The scrolling keys scroll
@@ -296,6 +331,9 @@ from the DOM (see `scrollable` below):
 | `selection.get` | — | `{"text"}`: the selected text as it would be copied (empty without a selection) |
 | `selection.selectAll` | — | `{"changed": bool}` |
 | `selection.clear` | — | `{"changed": bool}` |
+
+The selection methods act on the focused document: the page's own, or the
+frame that holds the focus (copy and select all act on it as a user's do).
 
 ### cookies
 

@@ -4373,7 +4373,17 @@ Steps:
          canvas and the default text color dark; transform layers nest
          8 deep also across frames.
    11. Input in frames, automation and tools for frames (`implementer`;
-       ADR 0031 feature 3).
+       ADR 0031 feature 3). Done 2026-11-05: hit tests through frames, one
+       work budget for the call; pointer, hover and a press that stays in
+       its frame; links and forms with `target`; wheel and scroll keys that
+       chain to the parent; focus and Tab through frames; selection per
+       document; lazy images in frames; the sandbox gates navigation, forms
+       and popups. `page.frames`, `frameId`, `--eval-frame`, the `frame`
+       option of the probe tool and replay. 79
+       probe cases with Chromium's values (14 queries wait for feature 12),
+       34 engine tests, 7 hostile cases. JS off: snapshot identical. JS on:
+       `compare --js` unchanged. `mouse_move` on pages without frames: no
+       change in instructions. Departures in ADR 0031 section 8.
    12. `WindowProxy` and same-origin frame realms (`implementer-hard`;
        ADR 0031 feature 4).
    13. Runtimes per origin and cross-origin objects
@@ -4408,6 +4418,17 @@ Steps:
   a framed site from clickjacking; swb has no CSP).
 - Top-level navigation from a cross-origin frame after a user
   activation (Chromium allows it; ADR 0031 refuses it).
+- Input in frames (feature 11, ADR 0031 section 8): Tab after a removed
+  focused frame starts at the first element (Chromium: where the `iframe`
+  was); `html:hover` over blank areas, top level and frames; `transform`
+  on an `iframe`, and a scroll or layout change of the parent during a
+  press, are not followed by the press offset (a drag is off by that
+  distance) and `Page::frame_origin`; `:focus-within` on the ancestors of a
+  frame that holds the focus; a press in the parent that moves over a frame
+  gives the frame no events (Chromium does); focus scrolls the whole
+  `iframe` into view, not the element's rectangle; `_blank` and unknown
+  target names navigate the source frame (one tab; Chromium opens a new
+  tab).
 - `contenteditable` elements are not focusable; an empty `iframe` is
   (Chromium: the other way round; feature 1 probe cases).
 - `Attr` is not a `Node` (`nodeName`, M8 departure).

@@ -224,19 +224,57 @@ impl Page {
     /// sheets or a layout that happened for another reason changed since
     /// the last check (a DOM change alone does not count; ADR 0032).
     fn lazy_due(&self) -> bool {
-        self.frames_run() && self.doc.as_deref().is_some_and(DocumentState::lazy_due)
+        self.frames_run()
+            && (self.doc.as_deref().is_some_and(DocumentState::lazy_due) || self.frame_lazy_due())
+    }
+
+    /// True if a frame document has a lazy image that can be in range now
+    /// (a scroll of the frame's viewport, a new frame size, ...). The
+    /// documents of frames have the scripting flag of the page, so their
+    /// lazy images are deferred; the frame loop of the page checks them
+    /// (ADR 0032, ADR 0031 section 8).
+    fn frame_lazy_due(&self) -> bool {
+        self.frames.count() > 0
+            && self
+                .frames
+                .tree_order()
+                .into_iter()
+                .skip(1)
+                .filter_map(|id| self.frames.get(id)?.doc.as_deref())
+                .any(DocumentState::lazy_due)
     }
 
     /// The check of the lazy images, if it is due (the loads of the images
-    /// near the viewport start). True if a load started.
+    /// near the viewport start), in the page's document and in the frame
+    /// documents. True if a load started.
     fn run_lazy_check(&mut self) -> bool {
         if self.lent {
             return false;
         }
-        match self.parts() {
+        let started = match self.parts() {
             Some((doc, fonts)) => doc.release_lazy_images(fonts),
             None => false,
+        };
+        started | self.run_frame_lazy_checks()
+    }
+
+    /// The check of the lazy images of the frame documents whose check is
+    /// due, each in the viewport of its frame.
+    fn run_frame_lazy_checks(&mut self) -> bool {
+        if !self.frame_lazy_due() {
+            return false;
         }
+        self.layout_frames();
+        let mut started = false;
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut()) else {
+                continue;
+            };
+            if doc.lazy_due() {
+                started |= doc.with_own_fonts(&mut self.fonts, DocumentState::release_lazy_images);
+            }
+        }
+        started
     }
 
     /// A document whose scripts cannot run frames (no runtime, or stopped
@@ -245,13 +283,22 @@ impl Page {
         if self.lent || self.frames_run() {
             return false;
         }
-        match self.doc.as_deref_mut() {
+        let mut released = match self.doc.as_deref_mut() {
             Some(doc) if doc.has_deferred_images() => {
                 doc.release_all_lazy_images();
                 true
             }
             _ => false,
+        };
+        for id in self.frames.tree_order().into_iter().skip(1) {
+            if let Some(doc) = self.frames.get_mut(id).and_then(|f| f.doc.as_deref_mut())
+                && doc.has_deferred_images()
+            {
+                doc.release_all_lazy_images();
+                released = true;
+            }
         }
+        released
     }
 
     /// The scroll steps: fires `scroll` once at each target that scrolled

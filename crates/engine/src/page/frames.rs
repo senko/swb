@@ -53,6 +53,7 @@ use crate::frames::{
     Charge, FrameId, FrameTarget, MAX_DEPTH, MAX_FRAMES, MAX_NAVIGATIONS, MAX_NODES,
     MAX_SOURCE_BYTES, PendingNavigation, Sandbox,
 };
+use crate::history::PostData;
 use crate::resources::Images;
 
 /// The markup of an initial `about:blank` document (measured:
@@ -175,6 +176,8 @@ impl Page {
         }
         // The arena stays, so that the ids of the old frames stay stale.
         self.frames.reset_top();
+        self.frame_inputs.clear();
+        self.deferred_navigations.clear();
         self.frame_navigations.clear();
         self.frame_fonts.reset_warning();
         self.frame_bodies.reset_warning();
@@ -495,6 +498,18 @@ impl Page {
     /// `file:` one, and when two or more ancestors' documents have the URL
     /// (Chromium's rule, case `self-embed`).
     fn navigate_frame(&mut self, id: FrameId, target: FrameTarget) {
+        self.navigate_frame_with(id, target, None, None);
+    }
+
+    /// [`Page::navigate_frame`] with a `POST` body, and the origin of the
+    /// document that asks (the parent's if `None`).
+    pub(super) fn navigate_frame_with(
+        &mut self,
+        id: FrameId,
+        target: FrameTarget,
+        post: Option<PostData>,
+        initiator: Option<Origin>,
+    ) {
         let now = self.clock.now();
         let Some(frame) = self.frames.get_mut(id) else {
             return;
@@ -520,9 +535,19 @@ impl Page {
         self.cancel_frame_navigation(id);
         let pending = match target {
             FrameTarget::Url(url) => {
-                let initiator = self.doc_of(parent).map(DocumentState::origin);
+                let initiator =
+                    initiator.or_else(|| self.doc_of(parent).map(DocumentState::origin));
                 let site = Some(self.site_for_cookies(parent, None));
-                let mut request = Request::get(url.clone(), Destination::IFrame)
+                let request = match post {
+                    Some(post) => Request::post(
+                        url.clone(),
+                        post.body.to_vec(),
+                        &post.content_type,
+                        Destination::IFrame,
+                    ),
+                    None => Request::get(url.clone(), Destination::IFrame),
+                };
+                let mut request = request
                     .with_initiator(initiator)
                     .with_site_for_cookies(site);
                 // A reservation of 0 bytes always fits; the worker grows it
@@ -615,6 +640,7 @@ impl Page {
     /// requests.
     fn drop_frame(&mut self, id: FrameId) {
         self.frame_destroyed = true;
+        self.forget_frame_input(id);
         if let Some(PendingNavigation::Request { request, .. }) =
             self.frames.get(id).and_then(|f| f.pending.clone())
         {
@@ -913,6 +939,21 @@ impl Page {
             return;
         };
         let mut old = frame.doc.replace(doc);
+        // The new document has its own pointer and keyboard state; the
+        // focus stays with the frame (measured: a navigated frame that
+        // held the focus keeps it, with no focused element in it).
+        self.frame_inputs.remove(&id);
+        if self
+            .input
+            .press_frame
+            .as_ref()
+            .is_some_and(|p| p.frame == id)
+        {
+            self.input.press_frame = None;
+        }
+        let Some(frame) = self.frames.get_mut(id) else {
+            return;
+        };
         frame.load_fired = false;
         frame.refresh = refresh;
         frame.canvas = None;
@@ -1105,43 +1146,58 @@ impl Page {
         }
         let mut boxes: HashMap<FrameId, HashMap<NodeId, Size>> = HashMap::new();
         for id in self.frames.tree_order().into_iter().skip(1) {
-            let Some(frame) = self.frames.get(id) else {
-                continue;
-            };
-            let (Some(parent), Some(container)) = (frame.parent, frame.container) else {
-                continue;
-            };
-            let serial = self
-                .doc_of(parent)
-                .filter(|d| d.fragments().is_some())
-                .map(DocumentState::layout_serial);
-            let mut viewport = frame.viewport;
-            let mut viewport_serial = frame.viewport_serial;
-            let mut has_box = frame.has_box;
-            if serial.is_some() && serial != frame.viewport_serial {
-                let parent_boxes = boxes.entry(parent).or_insert_with(|| {
-                    self.doc_of(parent)
-                        .map(DocumentState::frame_boxes)
-                        .unwrap_or_default()
-                });
-                let size = parent_boxes.get(&container);
-                has_box = size.is_some();
-                if let Some(size) = size {
-                    viewport = clamp_viewport(*size);
-                }
-                viewport_serial = serial;
+            self.layout_frame(id, &mut boxes);
+        }
+    }
+
+    /// Lays out frame `id` alone, for a hit test that goes into it: its
+    /// parent's layout is current (the hit test used it).
+    pub(super) fn layout_frame_alone(&mut self, id: FrameId) {
+        if self.lent {
+            return;
+        }
+        self.layout_frame(id, &mut HashMap::new());
+    }
+
+    /// Lays out frame `id` in its viewport (see [`Page::layout_frames`]);
+    /// `boxes` caches the frame boxes of the parents.
+    fn layout_frame(&mut self, id: FrameId, boxes: &mut HashMap<FrameId, HashMap<NodeId, Size>>) {
+        let Some(frame) = self.frames.get(id) else {
+            return;
+        };
+        let (Some(parent), Some(container)) = (frame.parent, frame.container) else {
+            return;
+        };
+        let serial = self
+            .doc_of(parent)
+            .filter(|d| d.fragments().is_some())
+            .map(DocumentState::layout_serial);
+        let mut viewport = frame.viewport;
+        let mut viewport_serial = frame.viewport_serial;
+        let mut has_box = frame.has_box;
+        if serial.is_some() && serial != frame.viewport_serial {
+            let parent_boxes = boxes.entry(parent).or_insert_with(|| {
+                self.doc_of(parent)
+                    .map(DocumentState::frame_boxes)
+                    .unwrap_or_default()
+            });
+            let size = parent_boxes.get(&container);
+            has_box = size.is_some();
+            if let Some(size) = size {
+                viewport = clamp_viewport(*size);
             }
-            let view = self.frame_view(viewport);
-            let Some(frame) = self.frames.get_mut(id) else {
-                continue;
-            };
-            frame.viewport = viewport;
-            frame.viewport_serial = viewport_serial;
-            frame.has_box = has_box;
-            if let Some(doc) = frame.doc.as_deref_mut() {
-                doc.set_view(view);
-                doc.with_own_fonts(&mut self.fonts, DocumentState::update_layout);
-            }
+            viewport_serial = serial;
+        }
+        let view = self.frame_view(viewport);
+        let Some(frame) = self.frames.get_mut(id) else {
+            return;
+        };
+        frame.viewport = viewport;
+        frame.viewport_serial = viewport_serial;
+        frame.has_box = has_box;
+        if let Some(doc) = frame.doc.as_deref_mut() {
+            doc.set_view(view);
+            doc.with_own_fonts(&mut self.fonts, DocumentState::update_layout);
         }
     }
 

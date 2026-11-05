@@ -15,13 +15,17 @@
 //! `--eval` does (M9 feature 1); `viewport` takes `[width, height]`
 //! (`page.setViewport`); `colorScheme` takes `"light"` or `"dark"`
 //! (`prefers-color-scheme`); `back` and `forward` take `true`
-//! (`page.back`, `page.forward`: the history of the tab).
+//! (`page.back`, `page.forward`: the history of the tab). A point step may
+//! have `frame`, the path of a frame (`#a >> #b`: CSS selectors of `iframe`
+//! elements from the top-level document, see [`resolve_frame`]): its
+//! selector is looked up in that frame, and a point `[x, y]` is in the
+//! frame's viewport.
 
 use std::io::Write;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use swb_engine::{Evaluation, JsonForm, Page};
+use swb_engine::{Evaluation, FrameId, JsonForm, Page};
 
 use crate::methods::{Outcome, execute};
 
@@ -46,18 +50,84 @@ fn call(page: &mut Page, method: &str, params: Value) -> Result<Value, String> {
     }
 }
 
+/// The frame of a frame path: CSS selectors of `iframe` elements, joined by
+/// ` >> `, from the top-level document (Playwright's form of
+/// `frame_locator`). The first element that a selector matches must be an
+/// `iframe` that has a frame.
+pub fn resolve_frame(page: &mut Page, path: &str) -> Result<FrameId, String> {
+    let mut frame = FrameId::TOP;
+    for selector in path.split(">>").map(str::trim) {
+        if selector.is_empty() {
+            return Err(format!("the frame path {path:?} has an empty selector"));
+        }
+        let found = page
+            .with_frame(frame, |p| {
+                let first = p.query_selector_all(selector).map(|n| n.first().copied());
+                let is_iframe = |n| {
+                    p.document()
+                        .is_some_and(|d| d.is_html_element(n, &swb_dom::local_name!("iframe")))
+                };
+                first.map(|n| n.map(|n| (n, is_iframe(n))))
+            })
+            .ok_or_else(|| format!("no frame for {selector:?} in {path:?}"))?;
+        let node = match found {
+            None => return Err(format!("{selector:?} is not a valid selector")),
+            Some(None) => return Err(format!("no iframe matches {selector:?} in {path:?}")),
+            Some(Some((_, false))) => {
+                return Err(format!("the first match of {selector:?} is not an iframe"));
+            }
+            Some(Some((node, true))) => node,
+        };
+        frame = page
+            .frame_of(frame, node)
+            .ok_or_else(|| format!("the iframe {selector:?} of {path:?} has no frame"))?;
+    }
+    Ok(frame)
+}
+
 /// The parameters that name a point: `[x, y]`, or the first match of a
-/// selector as a node.
-fn target(page: &mut Page, argument: &Value) -> Result<Value, String> {
-    if let Some([x, y]) = argument.as_array().map(Vec::as_slice) {
-        return Ok(json!({ "x": x, "y": y }));
+/// selector as a node; in the frame of `frame` (a frame path) if given.
+fn target(page: &mut Page, argument: &Value, frame: Option<&str>) -> Result<Value, String> {
+    let frame_id = match frame {
+        Some(path) => Some(resolve_frame(page, path)?.to_u64()),
+        None => None,
+    };
+    let mut params = if let Some([x, y]) = argument.as_array().map(Vec::as_slice) {
+        json!({ "x": x, "y": y })
+    } else {
+        let selector = argument.as_str().ok_or("a selector or [x, y]")?;
+        let mut query = json!({ "selector": selector });
+        if let Some(id) = frame_id {
+            query["frameId"] = json!(id);
+        }
+        let found = call(page, "dom.querySelector", query)?;
+        match found.get("nodeId").and_then(Value::as_u64) {
+            Some(id) => json!({ "nodeId": id }),
+            None => return Err(format!("no element matches {selector}")),
+        }
+    };
+    if let Some(id) = frame_id {
+        params["frameId"] = json!(id);
     }
-    let selector = argument.as_str().ok_or("a selector or [x, y]")?;
-    let found = call(page, "dom.querySelector", json!({ "selector": selector }))?;
-    match found.get("nodeId").and_then(Value::as_u64) {
-        Some(id) => Ok(json!({ "nodeId": id })),
-        None => Err(format!("no element matches {selector}")),
+    Ok(params)
+}
+
+/// A step with a point (`params` names it): the pointer moves there, and
+/// the kind of step then clicks or not.
+fn point_step(page: &mut Page, kind: &str, mut params: Value) -> Result<(), String> {
+    // Playwright moves the pointer to the point first, also when it is
+    // there.
+    call(page, "input.mouseMove", params.clone())?;
+    if kind != "hover" {
+        params["button"] = json!(match kind {
+            "rightclick" => "right",
+            "middleclick" => "middle",
+            _ => "left",
+        });
+        params["clickCount"] = json!(if kind == "dblclick" { 2 } else { 1 });
+        call(page, "input.click", params)?;
     }
+    Ok(())
 }
 
 fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
@@ -68,24 +138,25 @@ fn run_step(page: &mut Page, step: &Value) -> Result<(), String> {
         .unwrap_or_else(|| json!([]));
     let (kind, argument) = object
         .iter()
-        .find(|(key, _)| key.as_str() != "modifiers")
+        .find(|(key, _)| !matches!(key.as_str(), "modifiers" | "frame"))
         .ok_or("a step needs a kind")?;
+    let frame = match object.get("frame") {
+        Some(path) => Some(path.as_str().ok_or("frame is a frame path (a string)")?),
+        None => None,
+    };
+    if frame.is_some()
+        && !matches!(
+            kind.as_str(),
+            "click" | "dblclick" | "rightclick" | "middleclick" | "hover"
+        )
+    {
+        return Err(format!("the step {kind} does not take a frame"));
+    }
     match kind.as_str() {
         "click" | "dblclick" | "rightclick" | "middleclick" | "hover" => {
-            let mut params = target(page, argument)?;
+            let mut params = target(page, argument, frame)?;
             params["modifiers"] = modifiers;
-            // Playwright moves the pointer to the point first, also when
-            // it is there.
-            call(page, "input.mouseMove", params.clone())?;
-            if kind != "hover" {
-                params["button"] = json!(match kind.as_str() {
-                    "rightclick" => "right",
-                    "middleclick" => "middle",
-                    _ => "left",
-                });
-                params["clickCount"] = json!(if kind == "dblclick" { 2 } else { 1 });
-                call(page, "input.click", params)?;
-            }
+            point_step(page, kind, params)?;
         }
         "mousedown" | "mouseup" => {
             let at = page.pointer_position().unwrap_or_default();

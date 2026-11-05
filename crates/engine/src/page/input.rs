@@ -11,8 +11,10 @@ use swb_style::{Cursor, ElementStates, UserSelect};
 use super::Page;
 use super::events::Down;
 use super::frame::{ObservedState, ScrollSeen};
-use crate::document::is_rendered_in;
+use super::frame_focus::KeyOutcome;
+use super::frame_input::FramePress;
 use crate::focus;
+use crate::frames::{FrameId, MAX_DEPTH};
 use crate::hit_test::{self, HitResult};
 use crate::input::{Key, Modifiers, MouseButton};
 use crate::selection::{self, Selection, Snap, TextPosition};
@@ -26,7 +28,7 @@ const ARROW_SCROLL: f32 = 40.0;
 
 /// A press of the primary button.
 #[derive(Clone, Debug)]
-struct Press {
+pub(super) struct Press {
     /// Where the press started, in viewport coordinates.
     origin: Point,
     /// The element whose activation behavior a click would run (a link, a
@@ -48,16 +50,16 @@ pub(super) struct InputState {
     /// The pointer position in viewport coordinates, while it is over the
     /// page.
     pub(super) pointer: Option<Point>,
-    press: Option<Press>,
-    hovered_link: Option<swb_net::Url>,
-    cursor: Cursor,
+    pub(super) press: Option<Press>,
+    pub(super) hovered_link: Option<swb_net::Url>,
+    pub(super) cursor: Cursor,
     /// Where sequential focus navigation starts when no element is
     /// focused: the node of the last click or the target of the last
     /// fragment navigation.
-    focus_start: Option<NodeId>,
+    pub(super) focus_start: Option<NodeId>,
     /// The node of the last press of the primary button. Without a focused
     /// element, keyboard scrolling starts at its scroll container.
-    last_press: Option<NodeId>,
+    pub(super) last_press: Option<NodeId>,
     // ----- Events of the user's input (scripts on; `events.rs`) -----
     /// The element that the pointer is over, as the events saw it last.
     pub(super) over: Option<NodeId>,
@@ -97,6 +99,15 @@ pub(super) struct InputState {
     /// The boxes of the elements for `offsetX` and `offsetY`, kept while
     /// the layout and the scroll offsets stay the same (`events.rs`).
     pub(super) boxes: Option<super::events::BoxCache>,
+    // ----- Frames (`frame_input.rs`; only the page's own state uses them) -----
+    /// The deepest frame that holds the keyboard focus; `None` for the
+    /// page's own document.
+    pub(super) focus_frame: Option<FrameId>,
+    /// The frames below the page's document that the pointer is over,
+    /// outermost first: their documents have hover state.
+    pub(super) hover_frames: Vec<FrameId>,
+    /// The press of the primary button that started in a frame.
+    pub(super) press_frame: Option<FramePress>,
 }
 
 impl InputState {
@@ -110,12 +121,6 @@ impl InputState {
 }
 
 impl Page {
-    /// Hit-tests a point in viewport coordinates (CSS px).
-    pub fn hit_test(&mut self, x: f32, y: f32) -> Option<HitResult> {
-        let (doc, fonts) = self.parts()?;
-        doc.hit_test(x, y, fonts)
-    }
-
     /// The generation of the DOM of the current document (0 without one):
     /// it grows with every change, so a caller can tell that input events
     /// changed the page.
@@ -157,11 +162,15 @@ impl Page {
     /// The selected text, with white space collapsed and line breaks
     /// between blocks (as `innerText`). Empty without a selection. While a
     /// text control has the focus, the text selected in it (nothing for a
-    /// password field).
+    /// password field). The text, the selection and the focus are those of
+    /// the focused document: the frame that has the focus, else the page's
+    /// (ADR 0031 section 8).
     pub fn selected_text(&mut self) -> String {
-        self.parts()
-            .map(|(doc, fonts)| doc.selected_text(fonts))
-            .unwrap_or_default()
+        self.in_focused_document(|p| {
+            p.parts()
+                .map(|(doc, fonts)| doc.selected_text(fonts))
+                .unwrap_or_default()
+        })
     }
 
     /// The rendered text of an element (or text node), as `innerText`:
@@ -173,20 +182,25 @@ impl Page {
             .unwrap_or_default()
     }
 
-    /// Selects all text of the document. Returns true if the selection
-    /// changed.
+    /// Selects all text of the focused document. Returns true if the
+    /// selection changed.
     pub fn select_all(&mut self) -> bool {
+        self.in_focused_document(Page::select_all_in_document)
+    }
+
+    /// [`Page::select_all`] for the active document.
+    pub(super) fn select_all_in_document(&mut self) -> bool {
         self.parts()
             .is_some_and(|(doc, fonts)| doc.select_all(fonts))
     }
 
     /// Removes the selection. Returns true if there was one.
     pub fn clear_selection(&mut self) -> bool {
-        self.set_selection(None)
+        self.in_focused_document(|p| p.set_selection(None))
     }
 
     /// Replaces the selection. Returns true if it changed.
-    fn set_selection(&mut self, selection: Option<Selection>) -> bool {
+    pub(super) fn set_selection(&mut self, selection: Option<Selection>) -> bool {
         self.doc
             .as_deref_mut()
             .is_some_and(|doc| doc.set_selection(selection))
@@ -195,43 +209,87 @@ impl Page {
     // ----- Pointer -----
 
     /// Handles mouse movement over the page (viewport coordinates, CSS
-    /// px): hover, the cursor, and drag selection. Returns true if a
-    /// repaint is needed.
+    /// px): hover, the cursor, and drag selection. Over the content of a
+    /// frame the frame's document gets the move at its own point, and the
+    /// page's document sees the pointer on the `iframe` (ADR 0031 section
+    /// 8); a press that started in a frame keeps the moves in it. Returns
+    /// true if a repaint is needed.
     pub fn mouse_move(&mut self, x: f32, y: f32) -> bool {
         let point = Point::new(x, y);
         self.input.pointer = Some(point);
+        if let Some(press) = self.input.press_frame.clone() {
+            return self.move_in_pressed_frame(&press, point);
+        }
+        let route = self.route_for_pointer(point);
+        self.move_in_frames(&route, point)
+    }
+
+    /// The pointer moved to `point` as the page's own document sees it
+    /// (with `in_frame`, the pointer is in the content of an `iframe`, and
+    /// the document's events stop at the element): the events of scripts,
+    /// and the drag selection of a press that started in the document.
+    /// Returns true if a repaint is needed.
+    pub(super) fn move_top(&mut self, point: Point, in_frame: bool) -> bool {
         let generation = self.dom_generation();
         if self.script_input() {
-            self.scripted_move(point);
+            self.scripted_move(point, in_frame);
         }
         // Listeners may have changed the page.
-        let mut changed = generation != self.dom_generation();
-        if let Some(press) = &mut self.input.press {
-            let (dx, dy) = (point.x - press.origin.x, point.y - press.origin.y);
-            press.dragging |= dx.hypot(dy) > DRAG_THRESHOLD;
-            let (dragging, anchor, control) = (press.dragging, press.anchor, press.control);
-            if dragging && let Some(control) = control {
-                changed |= self.drag_in_control(control, point);
-            } else if dragging && let Some(anchor) = anchor {
-                let focus = self.position_at(point, Snap::Nearest);
-                if let Some(focus) = focus {
-                    changed |= self.set_selection(Some(Selection::new(anchor, focus)));
-                }
-            }
+        let changed = generation != self.dom_generation();
+        changed | self.drag_press(point)
+    }
+
+    /// The pointer moved to `point` (viewport coordinates of the active
+    /// document) with a press of this document in progress: a drag selects
+    /// text or moves the caret of the control that was pressed. A point
+    /// outside the viewport (a drag that left a frame) selects to the
+    /// nearest text, as in Chromium (measured, case `input-select-drag`).
+    /// Returns true if a repaint is needed.
+    pub(super) fn drag_press(&mut self, point: Point) -> bool {
+        let Some(press) = &mut self.input.press else {
+            return false;
+        };
+        let (dx, dy) = (point.x - press.origin.x, point.y - press.origin.y);
+        press.dragging |= dx.hypot(dy) > DRAG_THRESHOLD;
+        let (dragging, anchor, control) = (press.dragging, press.anchor, press.control);
+        if dragging && let Some(control) = control {
+            return self.drag_in_control(control, point);
         }
-        changed | self.update_hover(true)
+        if dragging
+            && let Some(anchor) = anchor
+            && let Some(focus) = self.position_at(point, Snap::Nearest)
+        {
+            return self.set_selection(Some(Selection::new(anchor, focus)));
+        }
+        false
     }
 
     /// Updates the hovered link and the cursor for the pointer position,
-    /// and with `restyle` also the hovered element (`:hover`). After a
-    /// scroll, `:hover` waits for the next mouse movement, as in Chromium:
-    /// otherwise each scroll step could restyle the page. Returns true if a
-    /// repaint is needed.
+    /// and with `restyle` also the hovered elements (`:hover`) of the
+    /// documents under it. After a scroll, `:hover` waits for the next
+    /// mouse movement, as in Chromium: otherwise each scroll step could
+    /// restyle the page. Returns true if a repaint is needed.
     pub(super) fn update_hover(&mut self, restyle: bool) -> bool {
+        if self.active_frame != FrameId::TOP {
+            return self.update_hover_in_document(restyle);
+        }
         let Some(pointer) = self.input.pointer else {
             return false;
         };
-        let hit = self.hit_test(pointer.x, pointer.y);
+        // The press of a frame keeps the hover state of the documents.
+        if self.input.press_frame.is_some() {
+            return false;
+        }
+        let route = self.route_for_pointer(pointer);
+        self.update_hover_route(&route, restyle)
+    }
+
+    /// [`Page::update_hover`] for the active document alone.
+    fn update_hover_in_document(&mut self, restyle: bool) -> bool {
+        let Some(pointer) = self.input.pointer else {
+            return false;
+        };
+        let hit = self.hit_doc(pointer.x, pointer.y);
         let link = hit.as_ref().and_then(|h| h.link.clone());
         let mut changed = link != self.input.hovered_link;
         self.input.hovered_link = link;
@@ -252,7 +310,8 @@ impl Page {
         }
         self.input.pointer = None;
         self.input.cursor = Cursor::Auto;
-        let changed = self.input.hovered_link.take().is_some();
+        let mut changed = self.input.hovered_link.take().is_some();
+        changed |= self.clear_frame_hover();
         changed | self.update_states(|s| s.hover = None)
     }
 
@@ -274,6 +333,16 @@ impl Page {
     ) -> bool {
         self.input.modifiers = modifiers;
         let point = Point::new(x, y);
+        let route = self.route_through_frames(point);
+        if route.in_frame() {
+            // The frame gets the press; its other buttons do nothing in
+            // swb (the frame has no scripts, and no context menu).
+            self.input.pointer = Some(point);
+            if button != MouseButton::Primary {
+                return false;
+            }
+            return self.press_in_frame(&route, point, modifiers, click_count);
+        }
         let scripted = self.script_input();
         let mut allowed = true;
         if scripted {
@@ -284,7 +353,29 @@ impl Page {
             return scripted;
         }
         self.input.pointer = Some(point);
-        let hit = self.hit_test(x, y);
+        if allowed {
+            // A press in the page's own document takes the focus from a
+            // frame.
+            self.set_focus_frame(FrameId::TOP);
+        }
+        self.press_in_document(point, modifiers, click_count, scripted, allowed)
+    }
+
+    /// The press of the primary button at `point` (the viewport
+    /// coordinates of the active document): the focus, the selection, the
+    /// `:active` state and the press that the release acts on. `scripted`:
+    /// the document's scripts have seen the press (`allowed` tells whether
+    /// none canceled it); a frame document has none.
+    pub(super) fn press_in_document(
+        &mut self,
+        point: Point,
+        modifiers: Modifiers,
+        click_count: u32,
+        scripted: bool,
+        allowed: bool,
+    ) -> bool {
+        self.input.pointer = Some(point);
+        let hit = self.hit_doc(point.x, point.y);
         let element = hit.as_ref().and_then(|h| self.element_of(h.node));
         let focus = hit
             .as_ref()
@@ -403,8 +494,42 @@ impl Page {
     /// Returns whether a repaint is needed and whether a click activated
     /// something.
     fn release(&mut self, x: f32, y: f32, button: MouseButton) -> (bool, bool) {
+        let point = Point::new(x, y);
+        if button == MouseButton::Primary
+            && let Some(press) = self.input.press_frame.take()
+        {
+            return self.release_in_frame(&press, point);
+        }
+        // A press of the page's own document that ends over a frame: the
+        // frame gets the release (measured), the document none of its
+        // events, and the press is over.
+        if self.frames.count() > 0 && self.route_at(point).in_frame() {
+            return (self.end_press(button), false);
+        }
+        self.release_in_document(point, button)
+    }
+
+    /// Ends the press of `button` of the page's own document without a
+    /// click. Returns true if a repaint is needed.
+    fn end_press(&mut self, button: MouseButton) -> bool {
+        self.input.down = None;
+        self.input.buttons &= !crate::page::events::button_bit(button);
+        if button != MouseButton::Primary {
+            return false;
+        }
+        self.input.press = None;
+        self.update_states(|s| s.active = None)
+    }
+
+    /// The release of `button` at `point` in the active document: the
+    /// events of its scripts and the click of the press that started in it.
+    pub(super) fn release_in_document(
+        &mut self,
+        point: Point,
+        button: MouseButton,
+    ) -> (bool, bool) {
         if self.script_input() {
-            return self.scripted_release(Point::new(x, y), button);
+            return self.scripted_release(point, button);
         }
         if button != MouseButton::Primary {
             return (false, false);
@@ -414,7 +539,8 @@ impl Page {
         let Some(press) = press.filter(|p| !p.dragging) else {
             return (changed, false);
         };
-        let hit = self.hit_test(x, y);
+        let hit = self.hit_doc(point.x, point.y);
+        let (x, y) = (point.x, point.y);
         let target = hit.and_then(|h| self.activation_target(h.node, Point::new(x, y)));
         let activated = match target {
             Some(target) if press.target == Some(target) => self.activate(target, Point::new(x, y)),
@@ -491,6 +617,12 @@ impl Page {
     /// summary clicks it when the key goes up ([`Page::key_up`]).
     pub fn key_down(&mut self, key: &Key, modifiers: Modifiers) -> bool {
         self.input.modifiers = modifiers;
+        // A frame that holds the focus gets the key; its document runs no
+        // scripts, so the key has no events there.
+        if let Some(frame) = self.focused_frame() {
+            self.set_keyboard_modality(true);
+            return self.key_down_in_frame(frame, key, modifiers);
+        }
         // A key makes the keyboard the modality of `:focus-visible`, also
         // if a listener cancels it, and the element that has the focus
         // matches it from now on (Chromium 148, measured: a click on a
@@ -534,7 +666,7 @@ impl Page {
     /// checkbox, a radio button or a summary clicks it now. Returns true
     /// if the page handled the key.
     pub fn key_up(&mut self, key: &Key, modifiers: Modifiers) -> bool {
-        if !self.script_input() {
+        if !self.script_input() || self.focused_frame().is_some() {
             return false;
         }
         self.input.modifiers = modifiers;
@@ -554,8 +686,17 @@ impl Page {
 
     /// The default action of a key (after its events, if scripts run).
     fn key_default(&mut self, key: &Key, modifiers: Modifiers) -> bool {
+        let outcome = self.key_in_document(key, modifiers);
+        self.finish_key(FrameId::TOP, &outcome, key, modifiers)
+    }
+
+    /// The default action of a key in the active document, as far as the
+    /// document decides it: the focused control, a summary, Enter on a
+    /// link, select all. Tab and the scrolling keys depend on the other
+    /// documents too ([`Page::finish_key`]).
+    pub(super) fn key_in_document(&mut self, key: &Key, modifiers: Modifiers) -> KeyOutcome {
         if let Some(handled) = self.control_key(key, modifiers) {
-            return handled;
+            return KeyOutcome::Handled(handled);
         }
         let ctrl = modifiers.ctrl || modifiers.meta;
         if !ctrl
@@ -564,19 +705,36 @@ impl Page {
             && let Some(details) = self.focused_summary()
         {
             if self.script_input() {
-                return self.scripted_activation_key(key);
+                return KeyOutcome::Handled(self.scripted_activation_key(key));
             }
-            return self.toggle_details(details);
+            return KeyOutcome::Handled(self.toggle_details(details));
         }
         match key {
-            Key::Tab if !ctrl && !modifiers.alt => self.focus_next(modifiers.shift),
-            Key::Enter if !ctrl && !modifiers.alt => self.activate_focused(),
+            Key::Tab if !ctrl && !modifiers.alt => KeyOutcome::Tab,
+            Key::Enter if !ctrl && !modifiers.alt => KeyOutcome::Handled(self.activate_focused()),
             key if ctrl && !modifiers.alt && key.is_char('a') => {
-                self.select_all();
-                true
+                self.select_all_in_document();
+                KeyOutcome::Handled(true)
             }
-            _ if ctrl || modifiers.alt => false,
-            key => self.scroll_key(key, modifiers.shift),
+            _ if ctrl || modifiers.alt => KeyOutcome::Handled(false),
+            _ => KeyOutcome::Scroll,
+        }
+    }
+
+    /// Does what the key does beyond its document: Tab moves the focus
+    /// from `frame`, a scrolling key scrolls the first scroll container in
+    /// the chain from the focused element up through the frames.
+    pub(super) fn finish_key(
+        &mut self,
+        frame: FrameId,
+        outcome: &KeyOutcome,
+        key: &Key,
+        modifiers: Modifiers,
+    ) -> bool {
+        match *outcome {
+            KeyOutcome::Handled(handled) => handled,
+            KeyOutcome::Tab => self.tab_from(frame, modifiers.shift),
+            KeyOutcome::Scroll => self.scroll_keys(frame, key, modifiers.shift),
         }
     }
 
@@ -592,6 +750,10 @@ impl Page {
             if !focusable || !self.is_rendered(node) {
                 return false;
             }
+        }
+        // The focus of the page's own document leaves the frames.
+        if self.active_frame == FrameId::TOP {
+            self.set_focus_frame(FrameId::TOP);
         }
         let before = self.focus_state();
         if self.script_input() {
@@ -611,7 +773,7 @@ impl Page {
 
     /// Sets the modality of `:focus-visible` (see
     /// `DocumentState::keyboard_modality`).
-    fn set_keyboard_modality(&mut self, keyboard: bool) {
+    pub(super) fn set_keyboard_modality(&mut self, keyboard: bool) {
         if let Some(doc) = self.doc.as_mut() {
             doc.keyboard_modality = keyboard;
         }
@@ -636,37 +798,6 @@ impl Page {
             self.focus(None, false);
             self.input.focus_start = Some(target);
         }
-    }
-
-    /// Moves the focus to the next (or previous) element in sequential
-    /// focus order. After the last element, the focus leaves the page; the
-    /// next Tab starts at the first element again.
-    fn focus_next(&mut self, backward: bool) -> bool {
-        let from_start = self.input.focus_start;
-        let Some((doc, fonts)) = self.parts() else {
-            return false;
-        };
-        doc.update_layout(fonts);
-        let (Some(tree), Some(styles)) = (&doc.fragments, &doc.styles) else {
-            return false;
-        };
-        let dom = &doc.dom;
-        let rendered = |n: NodeId| is_rendered_in(dom, tree, styles, n);
-        let from = doc.states.focus.or(from_start);
-        let next = focus::next_in_order(dom, from, backward, rendered);
-        self.input.focus_start = None;
-        let leaving = next.is_none() && self.focused_element().is_some();
-        self.focus(next, true);
-        if leaving && self.script_input() {
-            // Tab left the page: the window loses the focus.
-            self.input.window_blurred = true;
-            self.run_task(|s| s.window_focus(false));
-        }
-        // Keyboard focus selects the text of a text field.
-        if let Some(next) = next {
-            self.select_field_text(next);
-        }
-        true
     }
 
     /// The `details` element whose summary has the focus.
@@ -712,11 +843,11 @@ impl Page {
         let Some(focus) = self.focused_element().filter(|&n| self.is_rendered(n)) else {
             return false;
         };
-        let link = self
+        let is_link = self
             .doc
             .as_ref()
-            .and_then(|d| hit_test::link_target(d.dom(), focus, d.base_url()));
-        link.is_some_and(|link| self.follow_link(link))
+            .is_some_and(|d| hit_test::link_target(d.dom(), focus, d.base_url()).is_some());
+        is_link && self.follow_link_around(focus)
     }
 
     /// True if the element has a box and is visible.
@@ -725,13 +856,50 @@ impl Page {
             .is_some_and(|(doc, fonts)| doc.is_rendered(node, fonts))
     }
 
-    /// Scrolls for a scrolling key. Returns true if the key is one. As in
+    /// Scrolls the document of `frame` for a scrolling key; if it cannot
+    /// scroll in the direction, the next in the chain does: the document
+    /// that has the `iframe`, from the `iframe` on. Returns true if the key
+    /// is a scrolling key.
+    pub(super) fn scroll_keys(&mut self, frame: FrameId, key: &Key, shift: bool) -> bool {
+        let mut frame = frame;
+        let mut start = None;
+        for _ in 0..=MAX_DEPTH {
+            let viewport = self.frame_user_scrollable(frame);
+            let scrolled = self.in_frame(frame, |p| {
+                p.scroll_key_in_document(key, shift, start, viewport)
+            });
+            match scrolled {
+                Some(Some(true)) => return true,
+                Some(None) => return false,
+                // Nothing scrolled, or the frame is gone.
+                _ => {}
+            }
+            let Some(record) = self.frames.get(frame) else {
+                break;
+            };
+            let (Some(parent), Some(container)) = (record.parent, record.container) else {
+                break;
+            };
+            (frame, start) = (parent, Some(container));
+        }
+        true
+    }
+
+    /// Scrolls for a scrolling key. `None` if the key is not one. As in
     /// Chromium, the key scrolls the first scroll container that can
-    /// scroll in its direction in the scroll chain of the focused element
-    /// (or, without one, of the node of the last click); else the
-    /// viewport. Page Up, Page Down and Space scroll by 87.5 % of the
-    /// scrollport in whole pixels (`scrollers::page_step`).
-    fn scroll_key(&mut self, key: &Key, shift: bool) -> bool {
+    /// scroll in its direction in the scroll chain of `start` (without one,
+    /// of the focused element, or of the node of the last click); else the
+    /// viewport, if `viewport` (not for a frame with `scrolling=no`). Page
+    /// Up, Page Down and Space scroll by 87.5 % of the scrollport in whole
+    /// pixels (`scrollers::page_step`). Returns whether something
+    /// scrolled.
+    fn scroll_key_in_document(
+        &mut self,
+        key: &Key,
+        shift: bool,
+        start: Option<NodeId>,
+        viewport: bool,
+    ) -> Option<bool> {
         // The delta for a scrollport of `port` px.
         let delta = |port: Size| -> Option<(f32, f32)> {
             let page_step = crate::scrollers::page_step(port.height);
@@ -749,12 +917,10 @@ impl Page {
                 _ => return None,
             })
         };
-        let Some(viewport) = delta(self.view.viewport) else {
-            return false;
-        };
-        let start = self.focused_element().or(self.input.last_press);
-        self.user_scroll(start, |port| delta(port).unwrap_or_default(), viewport);
-        true
+        let by_viewport = delta(self.view.viewport)?;
+        let by_viewport = if viewport { by_viewport } else { (0.0, 0.0) };
+        let start = start.or(self.focused_element()).or(self.input.last_press);
+        Some(self.user_scroll(start, |port| delta(port).unwrap_or_default(), by_viewport))
     }
 
     // ----- Helpers -----
@@ -767,14 +933,14 @@ impl Page {
 
     /// The element of a hit node: the node itself, or the parent of a text
     /// node.
-    fn element_of(&self, node: NodeId) -> Option<NodeId> {
+    pub(super) fn element_of(&self, node: NodeId) -> Option<NodeId> {
         self.doc.as_ref()?.element_of(node)
     }
 
     /// The cursor over a hit node: the computed `cursor`, where `auto` is
     /// the text cursor over selectable text and the default cursor
     /// elsewhere. While a drag selects text, the text cursor.
-    fn cursor_for(&self, hit: Option<&HitResult>) -> Cursor {
+    pub(super) fn cursor_for(&self, hit: Option<&HitResult>) -> Cursor {
         if self
             .input
             .press

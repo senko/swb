@@ -367,8 +367,18 @@ rasterizer draws a frame's list when it meets `DisplayItem::Frame` in its
 parent's list, through the lookup `ImageSource::frame`
 (`engine/src/frames/paint.rs`), so the groups of the parent apply. Each frame
 document has its own web fonts, exchanged in the font context around its
-calls (`DocumentState::with_own_fonts`, ADR 0022). Frame documents run no
-scripts yet (feature 12). The frame documents of a page share
+calls (`DocumentState::with_own_fonts`, ADR 0022). Frame documents take
+input (feature 11, ADR 0031 section 8): the input code of a document acts on
+`Page::doc`, so input in a frame runs it with the frame's document in that
+place (`Page::in_frame`: the document, the pointer and keyboard state, the
+viewport and the font faces of the frame are exchanged with the page's, the
+script runtime is taken out, and the exchange is undone after the call; the
+routing runs in the page's own context). A pointer point goes down the
+frames by hit tests that share one budget (`Page::route_at`:
+`DisplayList::hit_test_with` reports `Hit::Frame`, the engine maps the
+point into the frame's viewport); the keyboard focus is a chain of frames
+(`InputState::focus_frame`, `DocumentState::frame_focus`). Frame documents
+run no scripts yet (feature 12). The frame documents of a page share
 budgets (`engine/src/frames/budget.rs`, ADR 0031 section 11): the source
 bytes and DOM nodes of the documents that are alive together, and, through
 `swb_net::ByteBudget`, the response bodies that wait for the page, the
@@ -815,6 +825,16 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   chains, alignment for scroll into view.
 - `page/input.rs`: mouse and key events, element states, cursor, focus
   navigation, selection by mouse and keyboard.
+- `page/frame_input.rs`, `page/frame_focus.rs`, `page/frame_navigate.rs`
+  (M9 feature 11, ADR 0031 section 8): input in frames. `frame_input.rs`:
+  `Page::in_frame` (the exchange of the active document), the hit test
+  through frames (`Route`), hover per document, the press that stays in a
+  frame (`FramePress`), the wheel chain, and `with_frame` for the
+  automation API. `frame_focus.rs`: the frame that holds the focus, the
+  documents above it, Tab through the content of frames (`tab_from`) and
+  the keys of the focused frame. `frame_navigate.rs`: the navigation that
+  a link or form asks for in a document with frames (`target`, `_top`,
+  `_parent`, names, the origin rules, fragments, `POST` into a frame).
 - `page/events.rs` (feature 6d2): the user's input as DOM events when the
   document has a script runtime. Each input is a task of the user
   interaction source that the embedder's call runs at once, ahead of the

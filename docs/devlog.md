@@ -4,6 +4,57 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-05: M9 feature 11: input in frames
+
+- Frame documents take the pointer, the wheel, the keys, focus, Tab and
+  selection (ADR 0031 section 8). Input in a frame runs the page's own
+  input code with the frame's document in `Page::doc` (`Page::in_frame`).
+  Routing (the hit test through frames, the focus chain, the scroll chain)
+  runs in the page's context, once per document on the path.
+- Hit test: `DisplayList::hit_test_with` reports a frame, and
+  `Page::route_at` maps the point into the frame's viewport. All frames
+  share one work budget of 40 ms for the call. The depth is bounded by 32.
+- Hover is per document. A press of the primary button that starts in a
+  frame keeps the following pointer events in that frame until the release.
+- Links and forms navigate the frame of their `target` (`_top`, `_parent`,
+  names; `_blank` and unknown names stay in the source frame). A
+  cross-origin frame does not navigate the top level (Chromium allows it
+  after a click; swb has no activation tracking).
+- The sandbox now gates navigation and forms (found in review, then
+  measured): a sandboxed frame navigates itself and its descendants, and
+  the top level with an `allow-top-navigation` token; without
+  `allow-forms` its forms do not submit; without `allow-popups` `_blank`
+  does nothing. Without a sandbox, a frame may navigate a frame whose
+  document, or the document of one of whose ancestors, has its origin. So a
+  cross-origin frame may not navigate its parent. Names compare exactly.
+- Wheel and scroll keys chain from the frame to the parent. `scrolling=no`
+  hands them on. A wheel turn at the end of a frame does not carry over.
+- The focus is a chain of frames. The parent's `activeElement` is the
+  `iframe`, which does not match `:focus`. Tab treats a frame as its
+  content; a frame with nothing focusable is a stop of its own.
+  `hasFocus()` now follows the window's focus.
+- Chromium 148, 79 probe cases (`focus`, `wheel-scroll`, 77 `input-*`),
+  three equal runs. The parent's scripts see boundary events on the
+  `iframe` only, never `mousemove` or `wheel` over a frame's content. A
+  press in a frame leaves the parent silent. Hidden and `tabindex=-1`
+  frames are skipped by Tab. Removing the focused frame sets the parent's
+  `hasFocus()` to false. A click into a frame clears the parent's
+  selection, but a frame keeps its selection when it loses the focus. 14
+  queries read what a frame's scripts logged and wait for feature 12.
+- Automation: `page.frames`, `frameId` on `dom.*`, `page.consoleMessages`
+  and the point-taking `input.*` methods. `page.evaluate` with a `frameId`
+  errors until feature 12. Tools: `--eval-frame=PATH`, the `frame` option
+  of the probe tool and of replay.
+- Two fixes found on the way: lazy images in frame documents never loaded
+  with JavaScript on (the check ran for the page's document only), and a
+  Tab collected all element boxes once per element (55 ms per Tab on 1,000
+  frames; now once per step).
+- JS off: snapshot identical. JS on: `compare --js` unchanged. Instructions
+  per `mouse_move`: Hacker News 11,116,714 → 11,116,752; Ars Technica
+  32,013,379 → 32,008,862; 1,000 visible frames 147,416 → 180,358.
+- Next: feature 12 gives `in_frame` the frame's script runtime, so frame
+  scripts see these events.
+
 ## 2026-11-05: M9 feature 10b: frame rendering
 
 - Frame documents paint (ADR 0031 section 4). The parent's display list

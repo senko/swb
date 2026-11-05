@@ -972,7 +972,7 @@ impl Rasterizer<'_> {
             DisplayItem::FillPath { .. }
             | DisplayItem::StrokePath { .. }
             | DisplayItem::PushSvgClip { .. } => self.svg_item(item),
-            DisplayItem::Frame { node, rect } => self.frame(*node, *rect, fonts, images),
+            DisplayItem::Frame { node, rect, .. } => self.frame(*node, *rect, fonts, images),
             // `run` handles transform groups.
             DisplayItem::HitRegion { .. }
             | DisplayItem::HitShape { .. }

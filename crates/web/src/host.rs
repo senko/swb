@@ -649,6 +649,21 @@ pub trait EngineHost: Any {
         None
     }
 
+    /// True while the window has the focus (`document.hasFocus()`): not
+    /// after Tab left the page, and not after the frame that held the focus
+    /// was removed. A page whose focus is in a frame has it.
+    fn window_has_focus(&self) -> bool {
+        true
+    }
+
+    /// The `iframe` element of the document that holds the focus through
+    /// its frame: `document.activeElement` is the element while no element
+    /// of the document itself is focused. It is not the focused element
+    /// for `:focus` or for the focusing steps (no `blur` event for it).
+    fn frame_focus_element(&self) -> Option<NodeId> {
+        None
+    }
+
     /// True if a script can focus `node`: it is a focusable area (HTML
     /// "focusable area": a link, a control that is not disabled, an element
     /// with `tabindex`) and it is rendered (its style and its ancestors'

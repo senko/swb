@@ -264,7 +264,7 @@ pub(crate) fn hidden_set(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
 /// have no focused element.
 pub(crate) fn active_element(cx: &mut Cx<'_>, document: NodeId) -> b::Result<Option<NodeId>> {
     if document == NodeId::DOCUMENT
-        && let Some(node) = focused(cx.rt)?
+        && let Some(node) = focused(cx.rt)?.or(engine(cx.rt)?.frame_focus_element())
         && dom(cx.rt)?.is_connected(node)
     {
         return Ok(Some(node));
@@ -282,7 +282,9 @@ pub(crate) fn active_element(cx: &mut Cx<'_>, document: NodeId) -> b::Result<Opt
     Ok(body)
 }
 
-/// `document.hasFocus()`: true for the document of the window.
-pub(crate) fn has_focus(document: NodeId) -> bool {
-    document == NodeId::DOCUMENT
+/// `document.hasFocus()`: true for the document of the window while the
+/// window has the focus (the engine tells: Tab left the page, or the
+/// focused frame was removed).
+pub(crate) fn has_focus(cx: &mut Cx<'_>, document: NodeId) -> b::Result<bool> {
+    Ok(document == NodeId::DOCUMENT && engine(cx.rt)?.window_has_focus())
 }

@@ -85,7 +85,7 @@ fn button_index(button: MouseButton) -> i16 {
 }
 
 /// The bit of a mouse button in `buttons`.
-fn button_bit(button: MouseButton) -> u16 {
+pub(super) fn button_bit(button: MouseButton) -> u16 {
     match button {
         MouseButton::Primary => 1,
         MouseButton::Secondary => 2,
@@ -135,7 +135,7 @@ impl Page {
     /// the hit node, else the root element (a point outside every box is on
     /// the canvas of the root element, as in Chromium).
     pub(super) fn target_at(&mut self, point: Point) -> Option<NodeId> {
-        let hit = self.hit_test(point.x, point.y);
+        let hit = self.hit_doc(point.x, point.y);
         let doc = self.doc.as_ref()?;
         hit.and_then(|h| doc.element_of(h.node))
             .or_else(|| doc.dom().element_children(NodeId::DOCUMENT).next())
@@ -350,8 +350,13 @@ impl Page {
 
     /// The pointer moved to `point` (or pressed or wheeled there): the
     /// boundary events if the element under it changed, then `pointermove`
-    /// and `mousemove`.
-    pub(super) fn scripted_move(&mut self, point: Point) {
+    /// and `mousemove`. Over the content of a frame (`in_frame`) the target
+    /// is the `iframe` element, and the document gets the boundary events
+    /// only: the frame gets the moves (measured in Chromium 148: the
+    /// parent's `mousemove` does not fire over an `iframe`'s content; during
+    /// a press that started in the parent, the move that crosses the edge of
+    /// the `iframe` fires it once).
+    pub(super) fn scripted_move(&mut self, point: Point, in_frame: bool) {
         let Some(new) = self.target_at(point) else {
             return;
         };
@@ -360,6 +365,11 @@ impl Page {
         self.input.over = Some(new);
         if old != Some(new) {
             self.boundary_events(old, new, point);
+        }
+        // Over a frame only the move that crosses its edge during a press of
+        // this document fires them (measured, case `input-press-in-parent`).
+        if in_frame && !(old != Some(new) && self.input.down.is_some()) {
+            return;
         }
         let movement = previous.map_or((0.0, 0.0), |p| (point.x - p.x, point.y - p.y));
         self.fire_mouse("pointermove", new, point, None, 0, 0, movement);
@@ -398,7 +408,7 @@ impl Page {
     /// listener canceled `pointerdown` or `mousedown`.
     pub(super) fn scripted_down(&mut self, point: Point, button: MouseButton, count: u32) -> bool {
         if self.input.last_point != Some(point) {
-            self.scripted_move(point);
+            self.scripted_move(point, false);
         }
         let Some(target) = self.target_at(point) else {
             return true;
@@ -431,7 +441,7 @@ impl Page {
     /// selectable. Returns false if a listener canceled it (no selection
     /// starts).
     pub(super) fn fire_selectstart(&mut self, point: Point) -> bool {
-        let Some(hit) = self.hit_test(point.x, point.y) else {
+        let Some(hit) = self.hit_doc(point.x, point.y) else {
             return true;
         };
         let Some(doc) = self.doc.as_ref() else {
@@ -466,7 +476,7 @@ impl Page {
         drag: bool,
     ) -> Option<(NodeId, bool)> {
         if self.input.last_point != Some(point) {
-            self.scripted_move(point);
+            self.scripted_move(point, false);
         }
         let down = self.input.down.take().filter(|d| d.button == button);
         self.input.buttons &= !button_bit(button);
@@ -613,6 +623,7 @@ impl Page {
     pub(super) fn regain_window_focus(&mut self) {
         if self.input.window_blurred {
             self.input.window_blurred = false;
+            self.sync_window_focus();
             self.run_task(|s| s.window_focus(true));
         }
     }

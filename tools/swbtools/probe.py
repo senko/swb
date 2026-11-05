@@ -96,7 +96,13 @@ A case file is JSON (committed ones are in `tools/probes/`):
   and calls `element.focus()` in the page, `eval` takes an expression,
   `back` and `forward` (`true`) go in the history of the tab.
   The point steps take `"modifiers": ["Shift", "Control", "Alt", "Meta"]`,
-  held during the step.
+  held during the step. A point step with a selector may have
+  `"frame": "SEL >> SEL"`: CSS selectors of `iframe` elements from the
+  top-level document (Playwright's `frame_locator`; swb's frame paths); the
+  selector is looked up in that frame, and the click goes to the point in
+  the page's viewport. A `js` query may have `"frame"` too: Chromium
+  evaluates it in that frame, swb with `--eval-frame` (until scripts run in
+  frames, swb answers `FrameError`).
 
 Chromium has the settings of the other tools (`browser.py`: bundled fonts,
 JavaScript disabled unless the case sets `javascript`, scale 1). The page is a
@@ -422,7 +428,8 @@ async def _run_query(page: Page, query: Query) -> list[Row]:
         if query.kind == "pixels":
             return await _pixel_rows(page, query.target, query.points)
         if query.kind == "js":
-            value = await page.evaluate(query.target)
+            scope = await frame_at(page, query.frame) if query.frame else page
+            value = await scope.evaluate(query.target)
             try:
                 json.dumps(value)
             except TypeError as error:
@@ -449,12 +456,32 @@ async def _run_query(page: Page, query: Query) -> list[Row]:
 _BUTTONS = {"click": "left", "dblclick": "left", "rightclick": "right", "middleclick": "middle"}
 
 
-async def _point_of(page: Page, argument: Any) -> tuple[float, float]:
+async def frame_at(page: Page, path: str) -> Any:
+    """The frame of a frame path: CSS selectors of `iframe` elements from the
+    top-level document, joined by ` >> `. The first element that a selector
+    matches must be an `iframe`."""
+    frame = page.main_frame
+    for selector in (part.strip() for part in path.split(">>")):
+        handle = await frame.query_selector(selector)
+        if handle is None:
+            raise ProbeError(f"frame {path!r}: nothing matches {selector!r}")
+        child = await handle.content_frame()
+        if child is None:
+            raise ProbeError(f"frame {path!r}: {selector!r} is not an iframe")
+        frame = child
+    return frame
+
+
+async def _point_of(
+    page: Page, argument: Any, frame_path: str | None = None
+) -> tuple[float, float]:
     """The viewport point of a step: `[x, y]`, or the center of the first
-    element that the selector matches (scrolled into view)."""
+    element that the selector matches (scrolled into view; in the frame of
+    `frame_path` if given: the box is still in the page's viewport)."""
     if isinstance(argument, list):
         return float(argument[0]), float(argument[1])
-    locator = page.locator(argument).first
+    scope = await frame_at(page, frame_path) if frame_path else page
+    locator = scope.locator(argument).first
     await locator.scroll_into_view_if_needed(timeout=5000)
     box = await locator.bounding_box(timeout=5000)
     if box is None:
@@ -467,11 +494,11 @@ async def run_steps(page: Page, steps: Sequence[dict[str, Any]], pause_ms: int =
     each step (page time), for tools that record page state between steps."""
     for step in steps:
         modifiers = step.get("modifiers", [])
-        ((kind, argument),) = [(k, v) for k, v in step.items() if k != "modifiers"]
+        ((kind, argument),) = [(k, v) for k, v in step.items() if k not in ("modifiers", "frame")]
         for modifier in modifiers:
             await page.keyboard.down(modifier)
         if kind in _POINT_STEPS:
-            x, y = await _point_of(page, argument)
+            x, y = await _point_of(page, argument, step.get("frame"))
             if kind == "hover":
                 await page.mouse.move(x, y)
             else:
@@ -593,8 +620,25 @@ def run_swb(
 
 JS_OPTION = "--js"
 EVAL_OPTION = "--eval"
+EVAL_FRAME_OPTION = "--eval-frame"
 STEPS_OPTION = "--steps"
 _PLAYWRIGHT_PREFIX = "Page.evaluate: "
+
+
+def eval_arguments(queries: Sequence[Query]) -> list[str]:
+    """The `--eval` arguments of the `js` queries of a case, in order, with
+    `--eval-frame` before a query whose frame differs from the one before
+    (an empty path goes back to the top-level document)."""
+    arguments = []
+    frame = None
+    for query in queries:
+        if query.kind != "js":
+            continue
+        if query.frame != frame:
+            frame = query.frame
+            arguments.append(f"{EVAL_FRAME_OPTION}={frame or ''}")
+        arguments.append(f"{EVAL_OPTION}={query.target}")
+    return arguments
 
 
 def printed_error(message: str) -> str:
@@ -672,9 +716,8 @@ def _compare_with_swb(
     extra = [JS_OPTION] if case.javascript else []
     if case.steps:
         extra.append(f"{STEPS_OPTION}={json.dumps(list(case.steps))}")
-    expressions = [query.target for query in case.queries if query.kind == "js"]
     if case.javascript:
-        extra += [f"{EVAL_OPTION}={expression}" for expression in expressions]
+        extra += eval_arguments(case.queries)
     wants_ink = any(query.kind in ("ink", "pixels") for query in case.queries)
     try:
         run = run_swb(binary, path, case.viewport, directory, wants_ink, extra, url)

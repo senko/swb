@@ -146,6 +146,22 @@ the viewport. Text selection and hit testing use the scrolled positions.
 - On Linux, a selection also sets the primary selection (middle-click
   paste).
 
+### Frames (M9 feature 11, ADR 0031 section 8)
+
+The focus is a chain of documents. Each document has its own focused
+element, selection and modality of `:focus-visible`. While a frame holds the
+page's focus, the documents above it have no focused element and report the
+`iframe` as `document.activeElement` (it does not match `:focus`); keys,
+typed text, copy and select all go to the innermost document of the chain.
+A click into a frame, Tab and a script's `focus()` of the page's own element
+move the chain; a document that loses the focus to another document
+loses its selection. Tab treats a frame as its content (the order of the
+parent contains the `iframe`; the frame is entered at its first or last
+focusable element and left after its last one), and a frame without a
+focusable element is a stop of its own. A frame that is navigated or hidden
+keeps the focus; a removed one gives it to its parent and the window has no
+focus until the next one.
+
 ## Consequences
 
 - Hover on pages with `:hover` rules costs a full restyle and often a full

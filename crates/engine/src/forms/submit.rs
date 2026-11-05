@@ -45,6 +45,10 @@ impl Submitter {
 pub(crate) struct FormRequest {
     pub(crate) url: Url,
     pub(crate) post: Option<PostData>,
+    /// The browsing context name that the form asks for: the submitter's
+    /// `formtarget`, else the form's `target`, else the `base` element's
+    /// (HTML "get an element's target").
+    pub(crate) target: Option<String>,
 }
 
 /// The document that a form submission needs.
@@ -100,6 +104,10 @@ pub(crate) fn form_submission_with(
     };
     let encoding = pick_encoding(form_element.attr("accept-charset"), cx.encoding);
     let entries = entries.unwrap_or_else(|| entry_list(cx, form, submitter, encoding));
+    let target = attr("formtarget", "target")
+        .map(str::to_owned)
+        .or_else(|| crate::hit_test::base_target(doc))
+        .filter(|t| !t.is_empty());
     let mut url = action_url(cx, attr("formaction", "action").unwrap_or(""))?;
     // `method` and `enctype` are enumerated attributes: matched ASCII
     // case-insensitively and not trimmed (`" post"` is the default, GET).
@@ -124,13 +132,18 @@ pub(crate) fn form_submission_with(
         if !post {
             url.set_query(Some(&encode::urlencoded(&entries, encoding)));
         }
-        return Some(FormRequest { url, post: None });
+        return Some(FormRequest {
+            url,
+            post: None,
+            target,
+        });
     }
     let enctype = attr("formenctype", "enctype").map(str::to_ascii_lowercase);
     let post = encode_body(&entries, enctype.as_deref(), encoding);
     Some(FormRequest {
         url,
         post: Some(post),
+        target,
     })
 }
 

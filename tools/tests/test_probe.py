@@ -22,6 +22,7 @@ from swbtools.probe import (
     compare_box,
     compare_ink,
     compare_pixels,
+    eval_arguments,
     ink_of,
     pixels_in,
     probe,
@@ -725,3 +726,174 @@ def test_steps_name_the_step_number():
 def test_steps_need_javascript():
     with pytest.raises(ProbeError, match="steps need javascript"):
         parse_steps([{"click": "#a"}], javascript=False)
+
+
+# --- Frames ----------------------------------------------------------------
+
+
+def test_js_queries_and_point_steps_take_a_frame():
+    text = json.dumps(
+        {
+            "javascript": True,
+            "cases": [
+                {
+                    "name": "a",
+                    "html": "<iframe id=f srcdoc='<p>x'></iframe>",
+                    "steps": [{"click": "p", "frame": "#f"}, {"hover": [1, 2]}],
+                    "measure": [{"js": "1"}, {"js": "document.title", "frame": "#f >> #g"}],
+                }
+            ],
+        }
+    )
+    case = parse_cases(text, "frames.json")[0]
+    assert [q.frame for q in case.queries] == [None, "#f >> #g"]
+    assert case.steps[0] == {"click": "p", "frame": "#f"}
+
+
+@pytest.mark.parametrize(
+    "case, message",
+    [
+        ({"steps": [{"click": [1, 2], "frame": "#f"}]}, "frame .* belongs to a point step"),
+        ({"steps": [{"type": "a", "frame": "#f"}]}, "frame .* belongs to a point step"),
+        ({"steps": [{"click": "p", "frame": ""}]}, "frame .* belongs to a point step"),
+        ({"steps": [{"click": "p", "frame": 3}]}, "frame .* belongs to a point step"),
+        ({"measure": [{"boxes": "p", "frame": "#f"}]}, "frame belongs to js"),
+        ({"measure": [{"js": "1", "frame": ""}]}, "frame must be a non-empty string"),
+    ],
+)
+def test_bad_frame_options(case, message):
+    item = {"name": "a", "html": "<p>x", "measure": [{"js": "1"}]}
+    item.update(case)
+    text = json.dumps({"javascript": True, "cases": [item]})
+    with pytest.raises(ProbeError, match=message):
+        parse_cases(text, "frames.json")
+
+
+def test_swb_gets_the_frame_of_each_js_query():
+    queries = (
+        Query("js", "a"),
+        Query("boxes", "p"),
+        Query("js", "b", frame="#f"),
+        Query("js", "c", frame="#f"),
+        Query("js", "d", frame="#f >> #g"),
+        Query("js", "e"),
+    )
+    assert eval_arguments(queries) == [
+        "--eval=a",
+        "--eval-frame=#f",
+        "--eval=b",
+        "--eval=c",
+        "--eval-frame=#f >> #g",
+        "--eval=d",
+        "--eval-frame=",
+        "--eval=e",
+    ]
+
+
+FRAME_PAGE = (
+    "<!DOCTYPE html><body style='margin:0'>"
+    "<iframe id=f style='position:absolute;left:100px;top:50px;width:200px;height:100px;border:0'"
+    " srcdoc=\"<body style='margin:0'><button id=b onclick='this.id=&quot;done&quot;'"
+    " style='width:50px;height:30px'>x</button>"
+    "<iframe id=g style='position:absolute;top:60px;width:100px;height:30px;border:0'"
+    " srcdoc='<p id=deep>d</p>'></iframe>\"></iframe>"
+)
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_evaluates_in_a_frame_and_clicks_in_it():
+    cases = parse_cases(
+        json.dumps(
+            {
+                "javascript": True,
+                "cases": [
+                    {
+                        "name": "frames",
+                        "html": FRAME_PAGE,
+                        "steps": [{"click": "#b", "frame": "#f"}],
+                        "measure": [
+                            {
+                                "js": "document.getElementById('done') ? 'clicked' : 'not'",
+                                "frame": "#f",
+                            },
+                            {
+                                "js": "document.getElementById('deep').textContent",
+                                "frame": "#f >> #g",
+                            },
+                            {"js": "document.getElementById('f') ? 'top' : 'frame'"},
+                        ],
+                    }
+                ],
+            }
+        ),
+        "frames.json",
+    )
+    results = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all(cases, None, 1.0, page, directory))
+    )
+    values = [row.data["value"] for row in results[0].rows]
+    assert values == ["clicked", "d", "top"]
+
+
+@pytest.mark.usefixtures("chromium")
+def test_swb_answers_a_frame_query_with_an_error_until_frames_run_scripts(capsys, tmp_path):
+    binary = swb.find_swb()
+    if binary is None:
+        pytest.skip("the swb binary does not exist")
+    path = tmp_path / "frames.json"
+    path.write_text(
+        json.dumps(
+            {
+                "javascript": True,
+                "cases": [
+                    {
+                        "name": "q",
+                        "html": FRAME_PAGE,
+                        "measure": [
+                            {"js": "1"},
+                            {"js": "1", "frame": "#f"},
+                            {"js": "1", "frame": "#nope"},
+                            {"js": "2"},
+                        ],
+                    }
+                ],
+            }
+        )
+    )
+    status = probe([path], ["q"], binary, 1.0, False)
+    out = capsys.readouterr().out
+    # The top-level document answers; the frame has no script runtime in swb
+    # yet (Chromium answers 1); a path that finds no frame is an error.
+    assert status == 1, out
+    assert "FrameError: the frame has no script runtime" in out
+    assert 'FrameError: no iframe matches "#nope"' in out
+    assert out.count("  swb    1  1\n") == 1
+    assert out.count("  swb    2  2\n") == 1
+
+
+@pytest.mark.usefixtures("chromium")
+def test_probe_reports_a_frame_path_that_finds_no_frame():
+    cases = parse_cases(
+        json.dumps(
+            {
+                "javascript": True,
+                "cases": [
+                    {
+                        "name": "missing",
+                        "html": FRAME_PAGE,
+                        "measure": [
+                            {"js": "1", "frame": "#nope"},
+                            {"js": "1", "frame": "#f >> #b"},
+                        ],
+                    }
+                ],
+            }
+        ),
+        "frames.json",
+    )
+    results = asyncio.run(
+        in_chromium(lambda page, directory: _probe_all(cases, None, 1.0, page, directory))
+    )
+    errors = [row.data["error"] for row in results[0].rows]
+    assert "nothing matches '#nope'" in errors[0]
+    assert "is not an iframe" in errors[1]
