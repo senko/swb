@@ -524,6 +524,7 @@ fn hooks() -> WindowProxyHooks {
         own_keys: |_, _| Err(refuse()),
         child_count: |_, _| Ok(0),
         child_frame: |_, _, _| Ok(None),
+        blocked: |_, _| refuse(),
     }
 }
 
@@ -613,6 +614,81 @@ fn a_proxy_without_a_target_calls_the_hooks() {
     // A target comes back: the same proxy forwards.
     rt.set_window_proxy_target(remote, Some(global)).unwrap();
     assert_eq!(eval(&mut rt, "var v = 5; remote.v"), "5");
+}
+
+/// The companion of a proxy without a target: the collector keeps it with the
+/// proxy, and a target drops it. A proxy with a target refuses one.
+#[test]
+fn a_companion_lives_with_its_proxy_until_a_target_comes() {
+    let mut config = RuntimeConfig::default();
+    config.heap.stress = true;
+    let mut rt = Runtime::new(config).unwrap();
+    rt.set_window_proxy_hooks(hooks());
+    let remote = rt.new_window_proxy(3, None).unwrap();
+    let global = rt.global(0).unwrap();
+    let key = rt.key_from_str("remote").unwrap();
+    rt.define_property(
+        global,
+        key,
+        PropertyDescriptor::data(remote.into(), true, true, true),
+    )
+    .unwrap();
+    assert_eq!(rt.window_proxy_companion(remote), None);
+    let location = rt.new_window_proxy(3 | (1 << 30), None).unwrap();
+    rt.set_window_proxy_companion(remote, location).unwrap();
+    rt.collect();
+    assert_eq!(rt.window_proxy_companion(remote), Some(location));
+    assert_eq!(rt.window_proxy_frame(location.into()), Some(3 | (1 << 30)));
+    rt.set_window_proxy_target(remote, Some(global)).unwrap();
+    assert_eq!(rt.window_proxy_companion(remote), None);
+    assert!(rt.set_window_proxy_companion(remote, location).is_err());
+    rt.set_window_proxy_target(remote, None).unwrap();
+    assert_eq!(rt.window_proxy_companion(remote), None);
+}
+
+/// `hasOwnProperty`, `propertyIsEnumerable`, `__lookupGetter__` and `for`-`in` on a
+/// proxy without a target (measured, cases `xo-descriptors`, `xo-keys-more`).
+#[test]
+fn the_builtins_that_treat_a_cross_origin_object_on_their_own() {
+    let mut rt = Runtime::new(RuntimeConfig::default()).unwrap();
+    rt.set_window_proxy_hooks(WindowProxyHooks {
+        has: |_, _, _| Ok(true),
+        own_keys: |rt, _| Ok(vec![rt.key_from_str("listed")?]),
+        get_own_property: |_, _, _| {
+            Ok(Some(Property::Data {
+                value: Value::Int(1),
+                writable: false,
+                enumerable: true,
+                configurable: true,
+            }))
+        },
+        ..hooks()
+    });
+    let remote = rt.new_window_proxy(3, None).unwrap();
+    let global = rt.global(0).unwrap();
+    let key = rt.key_from_str("remote").unwrap();
+    rt.define_property(
+        global,
+        key,
+        PropertyDescriptor::data(remote.into(), true, true, true),
+    )
+    .unwrap();
+    assert_eq!(
+        eval(
+            &mut rt,
+            "function E(g) { try { return String(g()); } catch (e) { return e.message; } }
+             const seen = []; for (const k in remote) seen.push(k);
+             const q = Object.setPrototypeOf({own: 1}, remote); for (const k in q) seen.push(k);
+             [
+               Object.prototype.hasOwnProperty.call(remote, 'x'), Object.hasOwn(remote, 'x'),
+               Object.prototype.propertyIsEnumerable.call(remote, 'x'),
+               E(() => Object.prototype.__lookupGetter__.call(remote, 'x')),
+               E(() => Object.prototype.__lookupSetter__.call(q, 'x')),
+               Object.keys(remote).join(), seen.join(),
+             ].join('|')"
+        ),
+        "true|true|false|blocked|blocked|listed|own"
+    );
 }
 
 #[test]

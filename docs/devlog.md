@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-06: M9 feature 13a: the cross-origin `Window` and `Location`
+
+- A proxy without a target has the real rules now: every internal method, with
+  Chromium's values and error texts, for frames of another origin and frames with an
+  opaque origin (ADR 0031 "Done (feature 13a)"). Such frames still run no scripts;
+  13b gives each origin a runtime.
+- One function per (name, realm), at most 16 per realm, and one `Location` per frame,
+  kept in the proxy. Generated natives take a cross-origin `this` through
+  `[SwbCrossOrigin]`. A navigation through a `Location` waits for the end of the task.
+  `postMessage` to such a frame checks its arguments and goes nowhere until feature 14.
+- Chromium 148: 22 new cases and 4 that had no data yet, three runs each. The rules
+  differ from HTML in nine places, each measured (for example `w.focus === g.focus`
+  across frames, and `w.location` is one object for callers of all realms).
+- The review compared about 2,400 values with Chromium and found no way across the
+  boundary. It found that a write to `location` took its sandbox flags when the page
+  started the navigation, after the task, and not at the write; this also held for
+  same-origin frames. It now has the flags of the write, in both directions. A native
+  that returns a promise now throws for a cross-origin `this`, on every interface
+  measured, in place of a rejected promise. New tests: the table of functions across a
+  collection, and the slot that retires at the last generation.
+- Next: 13b, runtimes per origin.
+
 ## 2026-11-06: M9 feature 12b2: nodes across documents, the caller's document, input with scripts in frames
 
 - A node of another document of the runtime is now an ordinary argument. A move

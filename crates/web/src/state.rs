@@ -99,6 +99,9 @@ pub(crate) struct WebState {
     pub(crate) docs: Vec<Option<Box<DocState>>>,
     /// The key of the document of each realm, by realm.
     realm_docs: Vec<DocKey>,
+    /// The functions of the cross-origin objects by (realm, name), made at
+    /// their first read (`window_proxy.rs`): at most 16 per realm.
+    pub(crate) cross_origin_functions: HashMap<(u32, &'static str), Gc<Object>>,
     /// The `WindowProxy` of each live frame that the runtime has seen (HTML
     /// gives a browsing context one `WindowProxy`; ADR 0031 section 5). The
     /// entry of a destroyed frame goes: nothing can ask for its proxy again,
@@ -339,6 +342,9 @@ impl HostState for WebState {
         self.ports.trace(tracer);
         for proxy in self.window_proxies.values() {
             tracer.object(*proxy);
+        }
+        for function in self.cross_origin_functions.values() {
+            tracer.object(*function);
         }
         self.mutation.trace(tracer);
         if let Some(marker) = self.handler_marker {
@@ -939,6 +945,12 @@ pub(crate) fn document_ref(state: &WebState, key: DocKey) -> Option<&DocState> {
 /// native (HTML's "incumbent" settings object).
 pub(crate) fn caller_key(rt: &Runtime) -> VmResult<DocKey> {
     Ok(document_of_realm(state(rt)?, rt.caller_realm()))
+}
+
+/// The key of the document of the realm of the running code (HTML's "current"
+/// settings object; a native runs in the realm of its function).
+pub(crate) fn running_key(rt: &Runtime) -> VmResult<DocKey> {
+    Ok(document_of_realm(state(rt)?, rt.running_realm()))
 }
 
 /// The key of the document of the script at the bottom of the stack (HTML's

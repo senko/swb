@@ -272,6 +272,7 @@ cancelAnimationFrame:dwec
 cancelIdleCallback:dwec
 clearInterval:dwec
 clearTimeout:dwec
+close:dwec
 confirm:dwec
 fetch:dwec
 focus:dwec

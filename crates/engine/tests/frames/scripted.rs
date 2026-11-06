@@ -134,13 +134,7 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "sandbox",
         0,
         "[0]",
-        "the script of a sandboxed frame with an opaque origin and postMessage: feature 13",
-    ),
-    (
-        "sandbox",
-        0,
-        "[6]",
-        "the message of a cross-origin access: feature 13",
+        "the script of a sandboxed frame with an opaque origin and postMessage: feature 13b",
     ),
 ];
 
@@ -242,6 +236,11 @@ fn resources(name: &str) -> Vec<(String, Res)> {
 /// Opens a case with JavaScript on and compares each `js` query. Returns the
 /// differences that are no departures.
 fn run_case(name: &str) -> Vec<String> {
+    compare_case(name, DEPARTURES)
+}
+
+/// [`run_case`] with other departures: (case, query, path, why).
+pub(super) fn compare_case(name: &str, departures: &[(&str, usize, &str, &str)]) -> Vec<String> {
     let owned = resources(name);
     let list: Vec<(&str, Res)> = owned.iter().map(|(p, r)| (p.as_str(), r.clone())).collect();
     let html = case_html(name)
@@ -270,7 +269,7 @@ fn run_case(name: &str) -> Vec<String> {
         let mut found = Vec::new();
         differences("", &swb, &want, &mut found);
         for (path, text) in found {
-            let departs = DEPARTURES
+            let departs = departures
                 .iter()
                 .any(|&(c, q, p, _)| c == name && q == query && (p.is_empty() || p == path));
             if !departs {
@@ -338,7 +337,7 @@ fn a_frame_gets_its_realm_at_its_first_need() {
 }
 
 /// A frame of another origin and a sandbox without `allow-same-origin` run no
-/// scripts until feature 13; their windows have no target.
+/// scripts until feature 13b; their windows have no target.
 #[test]
 fn other_origins_have_no_realm() {
     on_page_thread(|| {

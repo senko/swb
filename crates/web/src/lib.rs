@@ -18,8 +18,8 @@
 //!   `state` holds the binding state (what the agent shares, and for each
 //!   document the wrapper vector, the side table, the listeners of nodes and
 //!   the window; M9 feature 12a, ADR 0031 section 5); `dom`, `window` and
-//!   `events` the behaviour of the interfaces; `window_proxy` the `WindowProxy`
-//!   without a target.
+//!   `events` the behaviour of the interfaces; `window_proxy` the cross-origin
+//!   `Window` and `Location` (M9 feature 13a).
 //! - Events (feature 5a): `EventTarget`, `Event` and its subclasses, the
 //!   dispatch algorithm, and [`ScriptRuntime::dispatch_event`], the entry
 //!   for events that the engine fires ([`DispatchTarget`],

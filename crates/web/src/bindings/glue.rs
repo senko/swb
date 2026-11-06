@@ -108,6 +108,11 @@ fn run_promise_body(
             dom_exception,
             Exception::Type(message),
         ),
+        // A cross-origin `this` throws here too (measured, case
+        // `xo-promise-natives`).
+        Err(exception @ Exception::Blocked(_)) => {
+            return Err(throw(rt, call.realm(), context, dom_exception, exception));
+        }
         Err(exception) => throw(rt, call.realm(), context, dom_exception, exception),
     };
     let reason = match error {
@@ -123,17 +128,90 @@ fn run_promise_body(
 /// The brand check of `this` for a member of an interface that inherits
 /// from `Node`: the node, or `TypeError: Illegal invocation`.
 pub fn this_node(rt: &Runtime, call: &NativeCall, class: ClassId) -> Result<NodeId> {
-    let data = rt.this_host_data(call, class)?;
+    let data = match rt.this_host_data(call, class) {
+        Ok(data) => data,
+        Err(error) => return Err(refused(rt, call, error)),
+    };
     node_of(data).ok_or_else(|| VmError::type_error("Illegal invocation").into())
 }
 
 /// The brand check of `this` for a member of another interface.
 pub fn this_platform(rt: &Runtime, call: &NativeCall, class: ClassId) -> Result<Platform> {
     let this = rt.this_or_global(call)?;
-    let data = rt.host_data_of(this, class)?;
+    let data = match rt.host_data_of(this, class) {
+        Ok(data) => data,
+        Err(error) => return Err(refused(rt, call, error)),
+    };
     match this {
         Value::Object(object) => Ok(Platform { object, data }),
         _ => Err(VmError::type_error("Illegal invocation").into()),
+    }
+}
+
+/// The error of a failed brand check: a cross-origin object as `this` gets the
+/// `SecurityError` (measured: `Document.prototype.title` of a cross-origin
+/// window), another value `error`.
+#[cold]
+#[inline(never)]
+fn refused(rt: &Runtime, call: &NativeCall, error: VmError) -> Exception {
+    match call.this() {
+        Value::Object(object) if crate::window_proxy::is_cross_origin(rt, object) => {
+            Exception::Blocked(object)
+        }
+        _ => error.into(),
+    }
+}
+
+/// The word of [`Platform::data`] of a cross-origin object as `this`
+/// ([`this_platform_cross_origin`]).
+const CROSS_ORIGIN_THIS: u64 = u64::MAX - 1;
+
+/// True if `this` of a member is a cross-origin object.
+#[inline]
+pub fn is_cross_origin_this(this: Platform) -> bool {
+    matches!(this.data, swb_js::HostData::Word(CROSS_ORIGIN_THIS))
+}
+
+/// The brand check of `this` for a member that a cross-origin object has
+/// (`[SwbCrossOrigin]`): [`this_platform`], and a cross-origin object of the
+/// interface passes with [`CROSS_ORIGIN_THIS`] as its data. The member asks
+/// [`is_cross_origin_this`] and acts on the object. The current document stays the
+/// caller's.
+#[inline]
+pub fn this_platform_cross_origin(
+    rt: &Runtime,
+    call: &NativeCall,
+    class: ClassId,
+) -> Result<Platform> {
+    let this = rt.this_or_global(call)?;
+    let data = match rt.host_data_of(this, class) {
+        Ok(data) => data,
+        Err(error) => return cross_origin_platform(rt, this, class, error),
+    };
+    match this {
+        Value::Object(object) => Ok(Platform { object, data }),
+        _ => Err(VmError::type_error("Illegal invocation").into()),
+    }
+}
+
+/// The end of [`this_platform_cross_origin`] for `this` that is no platform
+/// object of the interface.
+#[cold]
+#[inline(never)]
+fn cross_origin_platform(
+    rt: &Runtime,
+    this: Value,
+    class: ClassId,
+    error: VmError,
+) -> Result<Platform> {
+    match this {
+        Value::Object(object) if crate::window_proxy::is_cross_origin_of(rt, object, class) => {
+            Ok(Platform {
+                object,
+                data: swb_js::HostData::Word(CROSS_ORIGIN_THIS),
+            })
+        }
+        _ => Err(error.into()),
     }
 }
 

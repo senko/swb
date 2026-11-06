@@ -326,12 +326,12 @@ impl Runtime {
     /// The text of an object in messages (V8 shows the constructor name;
     /// the global object as Node.js shows it).
     pub(crate) fn object_text(&self, object: Gc<Object>) -> String {
-        // A `WindowProxy` shows as its target; the host's messages of one
-        // without a target name no object.
+        // A `WindowProxy` shows as its target. One without a target tells
+        // nothing (measured: `Class extends value [object Object]`).
         if let Ok(ObjectKind::WindowProxy(slot)) = self.heap.object(object).map(|o| &o.kind) {
             return match slot.target() {
                 Some(target) => self.object_text(target),
-                None => "#<Object>".to_owned(),
+                None => "[object Object]".to_owned(),
             };
         }
         let host = matches!(

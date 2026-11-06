@@ -350,6 +350,15 @@ pub fn platform(
     {
         return Ok(Platform { object, data });
     }
+    // A cross-origin `Window` is a `Window` (measured: the `view` of an event).
+    if let Value::Object(object) = value
+        && crate::window_proxy::is_cross_origin_of(rt, object, class)
+    {
+        return Ok(Platform {
+            object,
+            data: crate::state::NOT_A_NODE,
+        });
+    }
     Err(Exception::NotOfType(name.into()))
 }
 

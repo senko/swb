@@ -53,6 +53,8 @@ const ATTRIBUTE_ATTRS: &[&str] = &[
     "SwbMissing",
     "SwbInvalid",
     "SwbCustom",
+    "SwbCrossOrigin",
+    "SwbCrossOriginSetter",
     "Exposed",
     "SecureContext",
 ];
@@ -62,6 +64,7 @@ const OPERATION_ATTRS: &[&str] = &[
     "NewObject",
     "LegacyUnforgeable",
     "SwbCustom",
+    "SwbCrossOrigin",
     "SwbRejectsOnError",
     "Exposed",
     "SecureContext",

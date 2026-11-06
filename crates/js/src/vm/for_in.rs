@@ -168,6 +168,11 @@ impl Runtime {
         let mut current = Some(object);
         while let Some(o) = current {
             self.tick()?;
+            // Measured: a cross-origin object lists nothing here, although
+            // `Object.keys` gives the indices of its frames. Its chain ends.
+            if self.heap.needs_runtime(o)? && self.is_cross_origin_object(o) {
+                break;
+            }
             let mut push = |rt: &mut Runtime, key: PropertyKey, listed: bool| -> VmResult<()> {
                 if !visited.insert(key) || !listed {
                     return Ok(());

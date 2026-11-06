@@ -218,7 +218,7 @@ fn frames(page: &mut Page) -> Value {
 /// methods and the input that takes a node act on the frame's document
 /// (node IDs, boxes and coordinates are the frame's). `page.evaluate` runs in
 /// the frame's document: an error for a frame of another origin, which has no
-/// scripts until feature 13 (ADR 0031 section 14). `page.consoleMessages` gives
+/// scripts until feature 13b (ADR 0031 section 14). `page.consoleMessages` gives
 /// the messages of the frame.
 fn execute_in_frame(page: &mut Page, frame: FrameId, method: &str, params: Value) -> Outcome {
     let mut params = params;

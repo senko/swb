@@ -11,7 +11,7 @@
 //! entries of the logs). Two things go through the engine API: the selection,
 //! because swb has no `getSelection` (the `eval` steps `log.push('slN:' + ...)`
 //! are snapshots, and the test pushes the string that Chromium's expression
-//! gives), and a cross-origin frame, which has no realm until feature 13.
+//! gives), and a cross-origin frame, which has no realm until feature 13b.
 //! `DEPARTURES` lists the queries where swb's value differs on purpose, with the
 //! reason.
 
@@ -313,7 +313,7 @@ fn check(name: &str) -> Vec<String> {
         let source = q["js"].as_str().unwrap();
         let want = &want[index];
         let got = match name {
-            // A cross-origin frame has no realm until feature 13: the engine
+            // A cross-origin frame has no realm until feature 13b: the engine
             // tells what the frame shows.
             n if n.starts_with("input-link-cross-origin-") => link_query(&mut page),
             n if n.starts_with("input-target-") && index == 0 => target_query(&mut page),

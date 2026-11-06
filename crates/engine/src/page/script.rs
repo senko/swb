@@ -496,6 +496,10 @@ impl Page {
             }
         }
         self.made_in_task.clear();
+        for (id, navigation) in after_task.navigations {
+            log::info!("a script navigates {id}: {}", navigation.url);
+            self.navigate_frame_by_location(id, navigation.url, navigation.initiator);
+        }
         if let Some(focused) = after_task.focused {
             self.input.focus_frame = (focused != FrameId::TOP).then_some(focused);
             self.input.window_blurred = focused != FrameId::TOP;
@@ -572,7 +576,7 @@ impl Page {
             }
             Some(ScriptNavigation::Location { url, .. }) => {
                 let initiator = self.doc_of(id).map(DocumentState::origin);
-                self.navigate_frame_with(id, FrameTarget::Url(url), None, initiator);
+                self.navigate_frame_by_location(id, url, initiator);
             }
             Some(ScriptNavigation::Reload) => self.reload_frame(id),
             None => {}

@@ -86,7 +86,7 @@ impl FrameId {
     }
 
     /// The number of the frame in the script runtime ([`swb_web::FrameHost`]):
-    /// below 2^31, and unique over the life of the arena, because a slot whose
+    /// below 2^30, and unique over the life of the arena, because a slot whose
     /// generation reaches [`MAX_GENERATION`] is not used again.
     pub fn number(self) -> u32 {
         (self.generation << INDEX_BITS) | self.index
@@ -107,7 +107,7 @@ impl FrameId {
 const INDEX_BITS: u32 = 10;
 
 /// The first generation that a slot does not get; see [`FrameId::number`].
-const MAX_GENERATION: u32 = 1 << (31 - INDEX_BITS);
+const MAX_GENERATION: u32 = 1 << (30 - INDEX_BITS);
 
 impl std::fmt::Display for FrameId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -171,6 +171,11 @@ pub(crate) struct Frame {
     /// from when it started (HTML "snapshot target snapshot params"; measured,
     /// case `scripted-sandbox-scripts`).
     pub(crate) pending_sandbox: Sandbox,
+    /// The sandboxing flags at a script's write to the `location` of this frame:
+    /// the page starts that navigation after the task, and it has the flags of the
+    /// write (measured, case `xo-navigate-flags-at-the-write`). With the generation
+    /// of the parent's DOM at the parse, so that a loop of writes parses once.
+    pub(crate) location_sandbox: Option<(u64, Sandbox)>,
     /// The document; `None` for the top-level frame (the page holds it).
     pub(crate) doc: Option<Box<DocumentState>>,
     /// A navigation whose document has not arrived.
@@ -219,6 +224,7 @@ impl Frame {
             resized: false,
             sandbox: Sandbox::default(),
             pending_sandbox: Sandbox::default(),
+            location_sandbox: None,
             doc: None,
             pending: None,
             viewport: DEFAULT_FRAME_VIEWPORT,
@@ -593,7 +599,7 @@ impl Frames {
     }
 
     /// The top-level frame's origin, which is the origin of the runtime
-    /// until feature 13 gives other origins runtimes of their own.
+    /// until feature 13b gives other origins runtimes of their own.
     pub(crate) fn top_origin(&self) -> Option<&Origin> {
         self.top().origin.as_ref()
     }

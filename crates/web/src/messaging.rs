@@ -115,13 +115,23 @@ pub(crate) fn post(
     target_origin: &str,
     transfer: &[Gc<Object>],
 ) -> b::Result<()> {
-    let target = parse_target(target_origin)?;
     if state(cx.rt)?.doc.retired {
         // A window without its document gets no message (measured, case
         // `scripted-retired`).
+        parse_target(target_origin)?;
         return Ok(());
     }
     let record = serialize_for_transfer(cx.rt, message, transfer, None)?;
+    // Measured, case `xo-post-message`: the transfer list detaches before the
+    // check of the target origin fails.
+    let target = match parse_target(target_origin) {
+        Ok(target) => target,
+        Err(error) => {
+            detach_transfer(cx.rt, transfer)?;
+            message_port::release_ports(cx.rt, record.ports());
+            return Err(error);
+        }
+    };
     let source = crate::state::caller_key(cx.rt)?;
     let origin = crate::state::origin_of_document(cx.rt, source)?;
     let bytes = record.byte_size();
@@ -143,6 +153,25 @@ pub(crate) fn post(
         source,
     });
     queue_task(cx.rt, Task::Message)?;
+    Ok(())
+}
+
+/// `postMessage` to a cross-origin `Window`: the checks and the effects on the
+/// sender, in Chromium's order (measured, case `xo-post-message`: the
+/// serialization and the transfer come before the check of the target origin).
+/// Feature 14 delivers the message; here it goes after the checks, and a
+/// transferred port closes. No script of the frame can observe that, because the
+/// frame runs none until feature 13b.
+pub(crate) fn post_to_remote(
+    cx: &mut Cx<'_>,
+    message: Value,
+    target_origin: &str,
+    transfer: &[Gc<Object>],
+) -> b::Result<()> {
+    let record = serialize_for_transfer(cx.rt, message, transfer, None)?;
+    detach_transfer(cx.rt, transfer)?;
+    message_port::release_ports(cx.rt, record.ports());
+    parse_target(target_origin)?;
     Ok(())
 }
 

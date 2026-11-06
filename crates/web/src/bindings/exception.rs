@@ -38,6 +38,10 @@ pub enum Exception {
     /// An abrupt completion of script code or of the engine (a thrown
     /// value, a termination); it passes unchanged.
     Js(VmError),
+    /// A member that a cross-origin object does not have was called on such
+    /// an object: the `SecurityError` of the hooks (`window_proxy.rs`), with
+    /// no context.
+    Blocked(swb_js::Gc<swb_js::Object>),
 }
 
 impl From<VmError> for Exception {
@@ -200,6 +204,7 @@ pub fn throw_with_prefix(
             }
         }
         Exception::Js(error) => error,
+        Exception::Blocked(object) => crate::window_proxy::blocked(rt, object),
     }
 }
 

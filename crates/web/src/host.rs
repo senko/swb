@@ -1139,8 +1139,9 @@ pub trait LentDocuments {
 
 /// The frame tree of the page as natives see it (ADR 0031 section 5). The page
 /// shares its registry with the runtime; a native borrows it for one call and
-/// never across a call into script. A frame has a number below 2^31; the top
-/// level has 0. A number of a destroyed frame finds nothing.
+/// never across a call into script. A frame has a number below 2^30 (the
+/// binding state uses the next bit, `window_proxy.rs`); the top level has 0. A
+/// number of a destroyed frame finds nothing.
 pub trait FrameHost {
     /// True if the frame exists.
     fn is_alive(&self, frame: u32) -> bool;
@@ -1174,7 +1175,7 @@ pub trait FrameHost {
     fn set_name(&mut self, frame: u32, name: &str);
 
     /// True if the document of the frame can have a realm in this runtime: it
-    /// has the origin of the runtime. Feature 13 gives other origins runtimes
+    /// has the origin of the runtime. Feature 13b gives other origins runtimes
     /// of their own.
     fn in_this_agent(&self, frame: u32) -> bool;
 
@@ -1219,6 +1220,16 @@ pub trait FrameHost {
 
     /// True if the document of frame `source` may navigate frame `target`.
     fn may_navigate(&self, source: u32, target: u32) -> bool;
+
+    /// A script writes to the `location` of frame `target`: the navigation, which
+    /// starts after the task, has the sandboxing flags of this moment.
+    fn note_location_flags(&mut self, target: u32, docs: &mut dyn LentDocuments);
+
+    /// The page navigates frame `target` to `url` when the task ends, for the
+    /// document of frame `source`: a write to the `Location` of a frame of
+    /// another origin, whose document no task can borrow. A later request for
+    /// the same frame replaces an earlier one.
+    fn navigate_frame(&mut self, target: u32, url: &str, source: u32);
 
     /// The frame that the browsing context name `name` (`_parent`, `_top` or a
     /// frame's name) means for frame `source`, if `source` may navigate it. `None`

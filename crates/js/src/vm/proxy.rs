@@ -262,6 +262,9 @@ impl Runtime {
         key: PropertyKey,
     ) -> VmResult<bool> {
         if self.heap.needs_runtime(object)? {
+            if self.is_cross_origin_object(object) {
+                return self.cross_origin_has_own(object, key);
+            }
             return Ok(self.exotic_own_property(object, key)?.is_some());
         }
         if let Some((data, index)) = self.typed_numeric(object, key)? {

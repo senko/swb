@@ -316,7 +316,7 @@ impl ScriptRuntime {
 
     /// Adds a document to the agent: a new realm with a `Window`, the record
     /// of the document, and the `WindowProxy` of the frame `frame` (below
-    /// 2^31; one object per frame, ADR 0031 section 5). Returns the key of
+    /// 2^30; one object per frame, ADR 0031 section 5). Returns the key of
     /// the document. The runtime's first document has the key 0.
     pub fn add_document(&mut self, frame: u32) -> Result<DocumentKey, ScriptError> {
         let clock = DocumentClock::new(self.clock.clone());

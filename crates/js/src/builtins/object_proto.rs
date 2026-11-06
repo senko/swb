@@ -68,6 +68,12 @@ fn is_prototype_of(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn
 fn property_is_enumerable(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
     let key = rt.key_arg(rt.arg(call, 0))?;
     let object = rt.this_object(call)?;
+    if rt.heap.needs_runtime(object)? && rt.is_cross_origin_object(object) {
+        // Measured: false for every key that `[[HasProperty]]` accepts, also
+        // for an index, whose descriptor says enumerable.
+        rt.cross_origin_has_own(object, key)?;
+        return Ok(NativeReturn::Value(Value::Bool(false)));
+    }
     let enumerable = rt.own_enumerable(object, key)?;
     Ok(NativeReturn::Value(Value::Bool(enumerable)))
 }
@@ -192,6 +198,10 @@ fn lookup_accessor_half(
     let key = rt.key_arg(rt.arg(call, 0))?;
     loop {
         rt.tick()?;
+        if rt.heap.needs_runtime(object)? && rt.is_cross_origin_object(object) {
+            // Measured: a cross-origin object shows no accessors this way.
+            return Err(rt.cross_origin_blocked(object));
+        }
         if let Some(property) = rt.own_property(object, key)? {
             let result = match property {
                 crate::object::Property::Accessor { get, set, .. } => {

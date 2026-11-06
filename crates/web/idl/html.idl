@@ -80,27 +80,31 @@ typedef HTMLScriptElement HTMLOrSVGScriptElement;
 [Global=Window, Exposed=Window]
 interface Window : EventTarget {
   // the current browsing context
-  [LegacyUnforgeable] readonly attribute WindowProxy window;
-  [Replaceable] readonly attribute WindowProxy self;
+  // `[SwbCrossOrigin]`: a member that a cross-origin object has (ADR 0031
+  // section 5); its `this` can be such an object. `WindowProxy?`: measured,
+  // `window`, `self` and `frames` of a window whose frame is gone are null.
+  [SwbCrossOrigin, LegacyUnforgeable] readonly attribute WindowProxy? window;
+  [SwbCrossOrigin, Replaceable] readonly attribute WindowProxy? self;
   [LegacyUnforgeable] readonly attribute Document document;
 
   // history and location (feature 8a1)
-  [PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
+  [SwbCrossOrigin, SwbCrossOriginSetter, PutForwards=href, LegacyUnforgeable] readonly attribute Location location;
   readonly attribute History history;
 
   // the user agent (feature 8a2)
   readonly attribute Navigator navigator;
 
   // other browsing contexts
-  [Replaceable] readonly attribute WindowProxy frames;
-  [Replaceable] readonly attribute unsigned long length;
-  [LegacyUnforgeable] readonly attribute WindowProxy? top;
-  [Replaceable] readonly attribute WindowProxy? parent;
-  attribute any opener;
+  [SwbCrossOrigin, Replaceable] readonly attribute WindowProxy? frames;
+  [SwbCrossOrigin, Replaceable] readonly attribute unsigned long length;
+  [SwbCrossOrigin, LegacyUnforgeable] readonly attribute WindowProxy? top;
+  [SwbCrossOrigin, Replaceable] readonly attribute WindowProxy? parent;
+  [SwbCrossOrigin] attribute any opener;
   attribute DOMString name;
-  readonly attribute boolean closed;
-  undefined focus();
-  undefined blur();
+  [SwbCrossOrigin] readonly attribute boolean closed;
+  [SwbCrossOrigin] undefined close();
+  [SwbCrossOrigin] undefined focus();
+  [SwbCrossOrigin] undefined blur();
   // From `WindowOrWorkerGlobalScope`.
   [Replaceable] readonly attribute USVString origin;
   // swb's type: `Element?` in the standard. The element is a node of another
@@ -116,8 +120,8 @@ interface Window : EventTarget {
 partial interface Window {
   readonly attribute boolean originAgentCluster;
 
-  undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
-  undefined postMessage(any message, optional WindowPostMessageOptions options = {});
+  [SwbCrossOrigin] undefined postMessage(any message, USVString targetOrigin, optional sequence<object> transfer = []);
+  [SwbCrossOrigin] undefined postMessage(any message, optional WindowPostMessageOptions options = {});
 };
 
 dictionary WindowPostMessageOptions : StructuredSerializeOptions {
@@ -1253,7 +1257,7 @@ interface History {
 
 [Exposed=Window]
 interface Location {
-  [LegacyUnforgeable] stringifier attribute USVString href;
+  [SwbCrossOriginSetter, LegacyUnforgeable] stringifier attribute USVString href;
   [LegacyUnforgeable] readonly attribute USVString origin;
   [LegacyUnforgeable] attribute USVString protocol;
   [LegacyUnforgeable] attribute USVString host;
@@ -1264,7 +1268,7 @@ interface Location {
   [LegacyUnforgeable] attribute USVString hash;
 
   [LegacyUnforgeable] undefined assign(USVString url);
-  [LegacyUnforgeable] undefined replace(USVString url);
+  [SwbCrossOrigin, LegacyUnforgeable] undefined replace(USVString url);
   [LegacyUnforgeable] undefined reload();
 };
 

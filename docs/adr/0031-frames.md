@@ -606,10 +606,10 @@ are proxies; on the top level they are the window itself.
   its child frames and the names of child frames whose name is set
   (measured `m.leafname` across a cross-origin child).
 - `Location`: `href` (setter only), `replace`, `then`.
-- Methods are functions of the caller's realm made per (property, caller
-  realm) and cached, so `w.postMessage === w.postMessage`; `location` is
-  an accessor pair `get location`/`set location`, `href` a setter `set
-  href`.
+- Methods are functions of the caller's realm, one per (property, caller
+  realm), so `w.postMessage === w.postMessage`, also for two frames
+  (`w.focus === g.focus`, measured in feature 13a); `location` is an accessor
+  pair `get location`/`set location`, `href` a setter `set href`.
 - Errors (the probe has them verbatim): `SecurityError: Failed to read a
   named property 'document' from 'Window': Blocked a frame with origin
   "O" from accessing a cross-origin frame.`; `Failed to set a named
@@ -770,7 +770,7 @@ cases, three equal runs); every value is compared in
 - *The font context.* One cell (`LentFonts`), which all documents of the page
   share while a task runs; a frame document swaps its own web font faces in for
   a query (`with_lent_fonts`).
-- *Frame numbers.* `FrameId::number` is `(generation << 10) | index`, below 2^31:
+- *Frame numbers.* `FrameId::number` is `(generation << 10) | index`, below 2^30:
   at most 1,000 live frames, a free slot before a new one, and a slot whose
   generation reaches 2^21 is not used again. So the number needs no table and
   is unique over the life of the arena.
@@ -909,7 +909,7 @@ cases, three equal runs); every value is compared in
   not count for that navigation either. Departure: a frame without `src` or `srcdoc`
   at its insertion that gets `src` and then a new `sandbox` in that same task has
   the flags at the end of the task. Without `allow-same-origin` the origin is
-  opaque: no realm until feature 13.
+  opaque: no realm until feature 13b.
 - *Cookies and storage of `about:` documents.* An `about:blank` or `about:srcdoc`
   frame document with its creator's origin has its creator's cookies and storage,
   also a nested one; a cookie with the `path` of the creator's URL shows, so the key
@@ -917,7 +917,7 @@ cases, three equal runs); every value is compared in
   `DocumentState::cookie_url`, `EngineHost::storage_url`). A document with an opaque
   origin keeps its own URL, so it has neither.
 - *Not in 12b1.* `document.referrer` of a frame document (feature 14: it is empty),
-  `document.open` on a frame document (feature 15), cross-origin frames (feature 13).
+  `document.open` on a frame document (feature 15), cross-origin frames (feature 13a and 13b).
 - Costs: docs/performance.md, "Scripts in frames".
 
 **Done (feature 12b2).** Nodes across documents, the caller's document, the
@@ -1130,8 +1130,156 @@ Input with scripts in frames (section 8):
 - *Fonts.* A face holds its charge by id (`WebFonts::admit_face`), and the charge returns
   when the face goes, so a face that loads again is charged once.
 - *Tests.* `frame_input.rs` runs plain scripts; only the selection (no `getSelection`) and
-  cross-origin frames (feature 13) still go through the engine API.
+  cross-origin frames (feature 13b) still go through the engine API.
 - Costs: docs/performance.md, "Nodes across documents and input in frames".
+
+**Done (feature 13a).** The rules behind the hooks: a frame of another origin has
+real cross-origin objects. Such a frame still runs no scripts (13b). Measured in
+Chromium 148 with the cases `cross-origin`, `nested-origins` and `xo-*` of
+`tools/probes/web-frames.json` (three equal runs apart from ports); every value is
+compared in `crates/engine/tests/frames/cross_origin.rs`, and a departure has a row
+there. Where HTML and the measurements differ, swb follows the measurements; the
+list below says where.
+
+- *The hooks* (`crates/web/src/window_proxy.rs`). A proxy without a target comes
+  here for each internal method. `[[GetPrototypeOf]]` gives `null`.
+  `[[SetPrototypeOf]]` throws for every value, also `null` (HTML:
+  `SetImmutablePrototype`). `[[Delete]]`, `[[DefineOwnProperty]]` and
+  `[[PreventExtensions]]` throw. `[[OwnPropertyKeys]]` lists the indices of the child
+  frames, the 14 names and the three symbols, and no names of frames, as HTML says.
+  `[[Get]]` and `[[Set]]` ignore the receiver: `Object.create(w).closed`
+  reads the frame's, and `q.location = u` with `w` in the chain of `q` navigates the
+  frame. `[[HasProperty]]` is true for an index of a child and for the names and the
+  three symbols; it throws for everything else, also for `then` and the name of a
+  child, which `[[GetOwnProperty]]` and `[[Get]]` accept. `hasOwnProperty`,
+  `Object.hasOwn` and `propertyIsEnumerable` have the answers and errors of
+  `[[HasProperty]]`, `__lookupGetter__` and `__lookupSetter__` always throw, and
+  `for`-`in` lists nothing (`Object.keys` gives the indices): small branches in the
+  cold paths of `js`.
+- *A named child* wins over `then` and over a name that is no cross-origin property,
+  and loses to the other cross-origin properties: `w.then` is a frame named `then`,
+  `w.location` stays the `Location`. An empty name finds nothing. A name that is an
+  index is an index. `w.leafname` is the first child of that name; the descriptor of
+  a named child is not enumerable, of an index enumerable.
+- *Errors.* A `SecurityError` of the realm of the running code (a native runs in its
+  function's realm, so `sw.Reflect.get(w, 'x')` gives one of `sw`). The prefixes are
+  `Failed to read a named property 'k' from 'Window': `, `Failed to set a named
+  property 'k' on 'Window': `, `Failed to read an indexed property [i] from 'Window':
+  `, the same for `Location`, and none for an access that names no property. A symbol
+  shows as `'[description]'`; the empty string, a symbol without a description and
+  `@@toPrimitive` show no name. The text after the prefix has three forms:
+  `Blocked a frame with origin "O" from accessing a cross-origin frame.`; when the
+  caller's frame is gone, `Blocked a restricted frame with origin "O" from accessing
+  another frame.`; and when the frame of the object is gone or the `Location` is stale,
+  `An attempt was made to break through the security policy of the user agent.`
+- *The functions.* One per (name, realm of the running code), so at most 16 per realm
+  (`WebState::cross_origin_functions`, traced) and 4,096 in a runtime. `w.focus ===
+  g.focus` for two frames (measured), and each differs from `window.focus`. Each is a
+  native of the generated bindings, which the IDL marks: `[SwbCrossOrigin]` on the
+  members and `[SwbCrossOriginSetter]` on `location` and `href` (ADR 0028). The native
+  checks `this`: a platform object of the interface, or a cross-origin object of the
+  interface, which passes with a word of its own in `Platform::data`; the member asks
+  `glue::is_cross_origin_this` and acts on the object. So `w.close.call(window)`, `w.focus.call(sw)`,
+  `window.focus.call(w)` and `Object.getOwnPropertyDescriptor(window,
+  'closed').get.call(w)` behave as measured, and `undefined` means the window of the
+  function's realm. A member that a cross-origin object does not have, called on one,
+  throws the bare `SecurityError` in `this_platform` and `this_node`, on the path of a
+  failed brand check, so that the path with a target pays nothing
+  (`Document.prototype.title` as well as `Window`'s `name`: measured). A native that
+  returns a promise also throws, on every interface measured (`fetch`, `scroll`,
+  `Blob.text`, `Response.json`, `Element.scrollTo`, `decode`, `readText`), while a plain
+  object as `this` gets a rejected promise (cases `xo-promise-natives` and
+  `xo-promise-natives-others`).
+- *The `Location`.* A second use of `ObjectKind::WindowProxy`: a proxy without a target
+  whose frame id has bit 30 (`FrameId::number` is now below 2^30). So all the rules stay
+  in the hooks, every path of the engine that treats a proxy as exotic works, and
+  `ObjectKind` keeps its size. Rejected: a host object with hooks (its hooks do not
+  cover the prototype and extensibility methods), and a new object kind. It is one
+  object per frame (measured: the same object for callers of two realms, not one per
+  caller realm), kept in the proxy (`WindowProxySlot` has room without a target,
+  `Runtime::set_window_proxy_companion`): it dies with the proxy and needs no table.
+  A new document of the frame drops it, also from one cross-origin document to the next
+  (measured: `w.location !== l` after each commit). A kept one is stale: it stays
+  cross-origin with its 3 names, its errors have the third text, and it navigates
+  nothing, without an error.
+- *How a navigation leaves the task.* The frame's document is not lent, so
+  `window_proxy::navigate` calls `FrameHost::navigate_frame`, and the page starts the
+  navigation in `after_frame_changes` (`AfterTask::navigations`: one per frame, the last
+  request; a map by frame, so a loop of a million writes costs no memory). Rules, as
+  measured: `href`, `replace`, `w.location =` (through `[PutForwards]`, so its errors
+  name `href` of `Location`). `may_navigate` first, so a refusal hides a URL that does
+  not parse. Then the URL against the entry document, a `SyntaxError` if it does not
+  parse. A `javascript:` URL is the same `SecurityError` as a refusal (HTML "navigate to
+  a javascript: URL" needs one origin) and runs nothing. A caller whose frame is gone
+  does nothing, without an error. A navigation from another origin is always a full one
+  (measured: a change of the fragment only fires `load`). A write to `location`, also
+  of a same-origin frame, has the sandboxing flags of the last write, in both directions
+  and under a sandboxed parent (`Frame::location_sandbox`; measured, cases
+  `xo-navigate-flags-at-the-write` and `xo-navigate-flags-more`), though it starts after
+  the task. The flags are parsed once per generation of the parent's DOM, so a loop of
+  writes does not pay for a long attribute each time. Departure: a set of `src` or `srcdoc` after the write in the
+  same task loses to the write (Chromium: the last one wins; also at the base for a
+  same-origin frame; measured in the review of 13a). To follow it, the page would need
+  the order of the journal's sets against the requests.
+- *Values.* `closed` and `length` come from the frame tree. `window`, `self` and `frames`
+  are the proxy, and `null` once the frame is gone (a same-origin window that is gone keeps
+  them, measured; so the IDL says `WindowProxy?`). `top` and `parent` are proxies of this
+  runtime, local when that frame is of this agent; `null` once the frame is gone. `opener`
+  is `null`. `focus()` moves the page's focus to the frame inside the call (measured:
+  `blur` at the window that held it, then `activeElement` is the `iframe`; no activation
+  needed; also from a caller whose frame is gone). `blur()` does nothing. `close()` does
+  nothing (new member, also on a same-origin window, because no script opens a window).
+- *`postMessage`.* The generated native converts the arguments, and `post_to_remote`
+  serializes and transfers: measured, the transfer list detaches before the check of the
+  target origin fails, also for a same-origin target, so `messaging::post` has that order
+  too. **The message goes nowhere until feature 14**, and a transferred port closes. No
+  script of the frame can see that until 13b, and 14 comes after it.
+- *Inline caches.* A proxy without a target never hits `SiteCache::WindowProperty`, which
+  names its target by identity, and has no entry of its own: each read goes to the hooks
+  (case `xo-stale-sites`: one site across same-origin, other origin, same-origin, other
+  origin, gone).
+- *`frameElement`* is `null` when the container's document has no realm here, also for
+  A > B > A' (case `xo-aba`). A' reads its parent B by the rules above, with its own `O`,
+  and reads the top level directly.
+- *Sandbox.* A frame with an opaque origin has the same object; a top-level navigation of
+  it goes through the same path (case `xo-navigate-rules`).
+- *The realm past the budget of 256* keeps a proxy without a target although its document
+  has this origin, so the rules above apply with `O` the document's own, and `w.document`
+  throws `Blocked a frame with origin "O" ...`. A departure that Chromium cannot show,
+  because it has no budget (`a_frame_past_the_budget_of_realms_has_the_rules_of_another_origin`).
+- *`document.domain` and `originAgentCluster`.* The cases load the document in a frame of
+  another origin, whose script runs from 13b. The test runs the same document as the top
+  level at that host and compares what the frame reported in Chromium. The second half of
+  `document-domain` (one frame reads the other) waits for 13b.
+- *Departures* (rows of `cross_origin.rs`). A frame that a script renames through a
+  same-origin path is found by its new name; Chromium, through a cross-origin parent,
+  finds it by no name. `f.focus()` while the frame holds the focus changes nothing;
+  Chromium's top window gets `focus` and `blur`. `null[w]` names the type of the key in
+  the `TypeError`. `new Event('x', w)`: the message lacks the part about the dictionary.
+  A URL with a host that the URL standard refuses (`http://a b/`): swb throws a
+  `SyntaxError`; Chromium navigates to an error page (not in the probe, it would navigate
+  the probe's top level in the same-origin control).
+  Not of this feature: `DOMException` has no `stack`, `console.dir` and `console.table`
+  do not exist, `Location` lacks `ancestorOrigins` and `valueOf`, `document.referrer` of
+  a frame is empty (feature 14).
+- *Memory.* All functions of a realm cost 11.4 KB of script heap (measured, with the atoms
+  of their names), so at most 2.9 MiB at the budget of 256 realms, whatever the number of
+  frames: 1,000 frames do not multiply them. A `Location` is an object without properties.
+- *What 13b needs.* A runtime per origin in the page; hooks that stay as they are, because
+  they read the frame tree and not the document. `Frames::in_agent` compares with the top
+  level's origin: it becomes per runtime, and so does `FrameHost::in_this_agent`.
+  `FrameRegistry` serves one runtime during a task; a task of another runtime needs it too.
+  `top` of a remote top level reaches `frames::top_of_remote`, and a navigation of a remote
+  top level reaches `navigate_frame_with`, which ignores a frame without a parent today: it
+  needs `location_navigate` and `replace`, which `navigate` drops now. `O` already comes
+  from the running code's document, so another origin's caller needs nothing. A retired
+  document's `Location` of `location.rs` stays as measured. The rows that name 13b in
+  `cross_origin.rs`, `scripted.rs` and `frames.rs` then run. Each runtime keeps its own
+  `window_proxies`, or `clear_frame_target`, which runs for a frame that a runtime knows,
+  misses the others. `focus_enters_remote` calls `switch_if_other` for the old holder's
+  document; when that holder lives in another runtime, its `blur` is lost, so the page has
+  to carry it. `FrameRegistry::document_mut` finds only documents of this runtime.
+- Costs: docs/performance.md, "The cross-origin `Window` and `Location`".
 
 ### 6. The event loop with several runtimes
 

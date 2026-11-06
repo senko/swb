@@ -284,6 +284,32 @@ impl Runtime {
         self.symbol_key(WellKnown::ToStringTag)
     }
 
+    /// The keys that a cross-origin object has and reads as `undefined`
+    /// (HTML "CrossOriginOwnPropertyKeys"): `@@toStringTag`, `@@hasInstance`
+    /// and `@@isConcatSpreadable`.
+    pub fn cross_origin_symbol_keys(&self) -> [PropertyKey; 3] {
+        [
+            self.symbol_key(WellKnown::ToStringTag),
+            self.symbol_key(WellKnown::HasInstance),
+            self.symbol_key(WellKnown::IsConcatSpreadable),
+        ]
+    }
+
+    /// The key of `@@toPrimitive`.
+    pub fn to_primitive_key(&self) -> PropertyKey {
+        self.symbol_key(WellKnown::ToPrimitive)
+    }
+
+    /// The text of the description of a symbol key; `None` for another key and
+    /// for a symbol without a description.
+    pub fn symbol_description(&self, key: PropertyKey) -> Option<String> {
+        let PropertyKey::Symbol(symbol) = key else {
+            return None;
+        };
+        let description = self.heap.symbol(symbol).ok()?.description?;
+        Some(self.heap.string_lossy(description, usize::MAX))
+    }
+
     /// A definition by the host. The host defines the properties of its
     /// own objects: on a host object with hooks, the definition is the
     /// ordinary one (the hooks are for scripts; Web IDL defines

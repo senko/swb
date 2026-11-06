@@ -4409,7 +4409,14 @@ Steps:
          and blur of frames. 36 new Chromium cases. JS off: snapshot identical.
          JS on: `compare --js` unchanged.
    13. Runtimes per origin and cross-origin objects
-       (`implementer-hard`; ADR 0031 feature 5).
+       (`implementer-hard`; ADR 0031 feature 5). Two parts:
+       - 13a. Done 2026-11-06: the cross-origin `Window` and `Location` on
+         proxies without a target, as measured. Frames of another origin still
+         run no scripts. JS off: snapshot identical. JS on: `compare --js`
+         unchanged.
+       - 13b. One script runtime per origin: frames of another origin and with
+         an opaque origin run their scripts; the event loop, budgets, load
+         events and input across runtimes.
    14. Messaging and storage across documents (`implementer`; ADR 0031
        feature 6), and `document.referrer` of frame documents (empty since
        12b1; measured in Chromium: the parent's URL for `src` and `about:blank`
@@ -4449,6 +4456,25 @@ Steps:
   and so a budget. Needs: a realm that is reachable only from live objects
   instead of a root, reuse of its index in `HostSlot`, and the release of its
   `DocState`.
+- Cross-origin objects (feature 13a; rows in
+  `crates/engine/tests/frames/cross_origin.rs`): a frame that a script renames is
+  found by its new name through a cross-origin parent (Chromium: by no name);
+  `f.focus()` while the frame holds the focus changes nothing (Chromium's top window
+  gets `focus` and `blur`); `location.href = 'http://a b/'` throws `SyntaxError`
+  (Chromium navigates to an error page; not in the probe); the texts of `null[w]` and
+  `new Event('x', w)`. `DOMException.stack`, `console.dir`, `console.table`,
+  `Location.valueOf` and `Location.ancestorOrigins` do not exist. The natives `top`,
+  `parent`, `length` and `closed` cost 40 instructions more. Measured in its review: a
+  set of `src` or `srcdoc` after a write to `location` in the same task loses to the
+  write (Chromium: the last one wins; also for a same-origin frame at the base);
+  `w.location = 'about:srcdoc'` gives `about:blank`; a retired document's `Location`
+  error lacks the prefix that names the property. `console.log(w)` prints `<Revoked
+  Proxy>` and `throw w` prints no text (not compared with Chromium).
+- Retired documents (found in the review of 13a, older than it): a retired same-origin
+  document stays scriptable: its `Function` runs (`fn.constructor('return x')()`),
+  `getElementById` finds its nodes, and its `History` works. Chromium: `TypeError: no
+  access`, `null`, and a `SecurityError`. No leak, because the code that holds them
+  has the same origin.
 - Nodes across documents (feature 12b2; rows in
   `crates/engine/tests/frames/nodes.rs`): `IntersectionObserver` and `ResizeObserver`
   with a target of another document give a `TypeError`, and a target that moves

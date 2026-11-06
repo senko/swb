@@ -246,6 +246,9 @@ struct Serializer {
 /// `DataCloneError`), worded as Chromium words it.
 fn not_cloneable(rt: &Runtime, value: Value) -> Exception {
     let text = match value {
+        Value::Object(object) if crate::window_proxy::is_cross_origin_location(rt, object) => {
+            "Location object".to_owned()
+        }
         Value::Object(object) => match platform_text(rt, object) {
             Some(text) => text,
             None => rt.uncloneable_text(value),

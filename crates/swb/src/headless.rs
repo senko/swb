@@ -177,7 +177,7 @@ fn evaluate(page: &mut Page, requests: &[EvalRequest], timeout: Duration) -> Res
 
 /// The answer line for an expression in the frame of `path`: an error line
 /// for a path that finds no frame, and for a frame without scripts in this
-/// runtime (another origin: ADR 0031 section 14, feature 13).
+/// runtime (another origin: ADR 0031 section 14, feature 13b).
 fn frame_answer_line(page: &mut Page, path: &str, expression: &str, timeout: Duration) -> String {
     let message = match swb_automation::resolve_frame(page, path) {
         Err(error) => format!("FrameError: {error}"),

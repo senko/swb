@@ -11,8 +11,8 @@
 //! A frame is known by its number. Every proxy of the runtime is in
 //! `WebState::window_proxies` until its frame is destroyed. A frame whose
 //! document has another origin, or that is past the budget of realms, gets a
-//! proxy without a target, whose hooks refuse every access (`window_proxy.rs`;
-//! feature 13 gives other origins runtimes of their own).
+//! proxy without a target, whose hooks write the rules of cross-origin objects
+//! (`window_proxy.rs`; feature 13b gives other origins runtimes of their own).
 //!
 //! *Retired documents.* When a frame is destroyed, or its document is
 //! replaced, a document with a realm stays in the runtime (`state.rs`,
@@ -276,6 +276,59 @@ pub(crate) fn child_named(rt: &Runtime, name: &str) -> VmResult<Option<u32>> {
     Ok(read(rt, |f| f.child_named(frame, name))?.flatten())
 }
 
+/// True if the frame exists.
+pub(crate) fn frame_alive(rt: &Runtime, frame: u32) -> VmResult<bool> {
+    Ok(read(rt, |f| f.is_alive(frame))?.unwrap_or(false))
+}
+
+/// The number of child frames of the frame `frame`.
+pub(crate) fn child_count_of_frame(rt: &Runtime, frame: u32) -> VmResult<u32> {
+    Ok(read(rt, |f| f.child_count(frame))?.unwrap_or(0))
+}
+
+/// The first child frame named `name` of the frame `frame`, as a proxy.
+pub(crate) fn child_named_of_frame(
+    rt: &mut Runtime,
+    frame: u32,
+    name: &str,
+) -> VmResult<Option<Gc<Object>>> {
+    match read(rt, |f| f.child_named(frame, name))?.flatten() {
+        Some(child) => window_of_frame(rt, child),
+        None => Ok(None),
+    }
+}
+
+/// `parent` of the cross-origin `Window` `proxy` of the frame `frame`: a proxy of
+/// this runtime, `null` for a frame that is gone (measured).
+pub(crate) fn parent_of_remote(
+    rt: &mut Runtime,
+    proxy: Gc<Object>,
+    frame: u32,
+) -> VmResult<Option<Gc<Object>>> {
+    if !frame_alive(rt, frame)? {
+        return Ok(None);
+    }
+    match read(rt, |f| f.parent(frame))?.flatten() {
+        Some(parent) => window_of_frame(rt, parent),
+        None => Ok(Some(proxy)),
+    }
+}
+
+/// `top` of the cross-origin `Window` `proxy` of the frame `frame`.
+pub(crate) fn top_of_remote(
+    rt: &mut Runtime,
+    proxy: Gc<Object>,
+    frame: u32,
+) -> VmResult<Option<Gc<Object>>> {
+    if !frame_alive(rt, frame)? {
+        return Ok(None);
+    }
+    if frame == 0 {
+        return Ok(Some(proxy));
+    }
+    window_of_frame(rt, 0)
+}
+
 /// The number of child frames of the frame of `proxy`.
 pub(crate) fn child_count_of_proxy(rt: &Runtime, proxy: Gc<Object>) -> VmResult<u32> {
     if no_frames(rt)? {
@@ -498,13 +551,36 @@ pub(crate) fn focus_enters_frame_of(rt: &mut Runtime, element: NodeId) -> VmResu
         return Ok(false);
     }
     let Some(Some(key)) = read(rt, |f| f.document_key(child))? else {
-        return Ok(false);
+        focus_enters_remote(rt, child)?;
+        return Ok(true);
     };
     let entered = state::switch_if_other(rt, key.raw())?;
     let result = focus_enters_current(rt);
     state::leave(rt, entered);
     result?;
     Ok(true)
+}
+
+/// `focus()` of a frame without a realm (a cross-origin `Window`): as
+/// [`focus_enters_current`], without the events of the frame's own window, which
+/// has no scripts here. Nothing for a frame that is gone (measured).
+pub(crate) fn focus_enters_remote(rt: &mut Runtime, frame: u32) -> VmResult<()> {
+    if !frame_alive(rt, frame)? {
+        return Ok(());
+    }
+    let Some(old) = read(rt, |f| f.focused_frame())? else {
+        return Ok(());
+    };
+    if old == frame {
+        return Ok(());
+    }
+    if let Some(Some(key)) = read(rt, |f| f.document_key(old))? {
+        let entered = state::switch_if_other(rt, key.raw())?;
+        let result = crate::html::focus::focus_leaves_document(rt);
+        state::leave(rt, entered);
+        result?;
+    }
+    state::with_registry_and_documents(rt, |frames, docs| frames.set_focused_frame(frame, docs))
 }
 
 /// True if the code that called the running native may navigate the frame of
@@ -525,6 +601,38 @@ pub(crate) fn caller_may_navigate(rt: &Runtime) -> VmResult<bool> {
     Ok(read(rt, |f| f.may_navigate(source, target))?.unwrap_or(true))
 }
 
+/// True if the document of frame `source` may navigate frame `target`.
+pub(crate) fn may_navigate(rt: &Runtime, source: u32, target: u32) -> VmResult<bool> {
+    Ok(read(rt, |f| f.may_navigate(source, target))?.unwrap_or(false))
+}
+
+/// Asks the page to navigate frame `target` to `url` when the task ends, for the
+/// document of frame `source`.
+pub(crate) fn request_navigation(
+    rt: &mut Runtime,
+    target: u32,
+    url: &str,
+    source: u32,
+) -> VmResult<()> {
+    state::with_registry_and_documents(rt, |frames, docs| {
+        frames.note_location_flags(target, docs);
+        frames.navigate_frame(target, url, source);
+    })
+}
+
+/// A script writes to the `location` of the current document's frame, for a
+/// navigation that the page starts after the task: it has the sandboxing flags of
+/// this moment (measured, case `xo-navigate-flags-at-the-write`).
+pub(crate) fn note_location_flags(rt: &mut Runtime) -> VmResult<()> {
+    let frame = state(rt)?.doc.frame;
+    if frame == 0 || no_frames(rt)? {
+        return Ok(());
+    }
+    state::with_registry_and_documents(rt, |frames, docs| {
+        frames.note_location_flags(frame, docs);
+    })
+}
+
 /// Where a `javascript:` URL of the current document goes.
 pub(crate) enum ScriptTarget {
     /// The current document.
@@ -532,7 +640,7 @@ pub(crate) enum ScriptTarget {
     /// Another document of this agent.
     Document(DocKey),
     /// Nowhere: no such frame, a frame that the rules refuse, a frame of another
-    /// origin (feature 13) or without scripts.
+    /// origin or without scripts.
     None,
 }
 

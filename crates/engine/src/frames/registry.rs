@@ -9,6 +9,7 @@
 //! state of a destroyed one) waits in [`AfterTask`].
 
 use std::cell::{Cell, RefCell};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -248,6 +249,17 @@ pub(crate) struct AfterTask {
     pub(crate) destroyed: Vec<(FrameId, Option<FrameId>)>,
     /// The frame that a script moved the page's focus to.
     pub(crate) focused: Option<FrameId>,
+    /// The navigations that scripts asked for through the `Location` of a frame
+    /// of another origin: one per frame, the last request.
+    pub(crate) navigations: BTreeMap<FrameId, CrossOriginNavigation>,
+}
+
+/// A navigation of a frame of another origin that a script asked for.
+#[derive(Debug)]
+pub(crate) struct CrossOriginNavigation {
+    pub(crate) url: Url,
+    /// The origin of the document that asked.
+    pub(crate) initiator: Option<Origin>,
 }
 
 /// The registry. See the module documentation.
@@ -512,6 +524,62 @@ impl FrameHost for FrameRegistry {
             FrameId::from_number(target),
             self.script_navigation_rule(),
         )
+    }
+
+    fn note_location_flags(&mut self, target: u32, docs: &mut dyn LentDocuments) {
+        let target = FrameId::from_number(target);
+        // Whatever an earlier write left goes: if this write finds no flags, its
+        // navigation reads them when it starts, and it never takes old ones.
+        let Some(noted) = self
+            .frames
+            .get_mut(target)
+            .map(|record| record.location_sandbox.take())
+        else {
+            return;
+        };
+        let Some((parent, container)) = self
+            .frames
+            .get(target)
+            .and_then(|record| Some((record.parent?, record.container?)))
+        else {
+            return;
+        };
+        let inherited = self
+            .frames
+            .get(parent)
+            .map(|record| record.sandbox)
+            .unwrap_or_default();
+        let Some(doc) = Self::document_mut(&mut self.frames, docs, parent) else {
+            return;
+        };
+        let generation = doc.dom().generation();
+        let flags = match noted {
+            Some((at, flags)) if at == generation => flags,
+            _ => {
+                let attr = doc.dom().element(container).and_then(|e| e.attr("sandbox"));
+                Sandbox::parse(attr).inherit(inherited)
+            }
+        };
+        if let Some(record) = self.frames.get_mut(target) {
+            record.location_sandbox = Some((generation, flags));
+        }
+    }
+
+    fn navigate_frame(&mut self, target: u32, url: &str, source: u32) {
+        let Ok(url) = Url::parse(url) else {
+            return;
+        };
+        let target = FrameId::from_number(target);
+        if self.frames.get(target).is_none() {
+            return;
+        }
+        let initiator = self
+            .frames
+            .get(FrameId::from_number(source))
+            .and_then(|frame| frame.origin.clone());
+        self.after_task
+            .navigations
+            .insert(target, CrossOriginNavigation { url, initiator });
     }
 
     fn focused_frame(&self) -> u32 {

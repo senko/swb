@@ -5344,7 +5344,11 @@ documents are documents of its runtime; `DocState` also has the frame number,
   document the entry made current. `convert::node`: an argument, `TypeError` for
   another document; an IDL argument with `[SwbAnyDocument]` is a `b::NodeRef`
   instead, which has the wrapper, the document and the node (ADR 0031, the
-  table of node arguments). `events::target::kind_of`, `events::mouse` (`related_target`
+  table of node arguments). `[SwbCrossOrigin]` on an attribute or an operation and
+  `[SwbCrossOriginSetter]` on an attribute (M9 feature 13a, ADR 0031 "Done (feature
+  13a)") make its native accept a cross-origin object as `this`
+  (`glue::this_platform_cross_origin`; the member asks `glue::is_cross_origin_this`) and list it in the generated `cross_origin_native`. `WebState` has
+  `cross_origin_functions`. `events::target::kind_of`, `events::mouse` (`related_target`
   and the target of a synthetic click), `events::misc` (`submitter`),
   `xhr::response_xml`: `b::node_here`, which gives no node for another
   document.

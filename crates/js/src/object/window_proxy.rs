@@ -1,7 +1,10 @@
 //! The slots of a `WindowProxy` exotic object (HTML §7.2.3,
 //! <https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-windowproxy-exotic-object>;
 //! ADR 0031 section 5): the host's frame id and an optional target, the
-//! global object of a realm of this runtime.
+//! global object of a realm of this runtime. A proxy without a target has
+//! room for one object of the host (its companion: the `Location` of a
+//! cross-origin frame), which dies with the proxy and goes when the target
+//! changes.
 //!
 //! A `WindowProxy` stores no properties and no elements. Its shape is the
 //! root shape of `null`, as for a proxy, and the heap's walks stop at it and
@@ -18,12 +21,17 @@ use crate::object::{Object, ObjectKind};
 /// target. (The slot must stay at 12 bytes: `ObjectKind` is 16 bytes.)
 const HAS_TARGET: u32 = 1 << 31;
 
+/// The value of [`WindowProxySlot::target`] without a target and without a
+/// companion: no object has this index.
+const NO_OBJECT: [u32; 2] = [u32::MAX, u32::MAX];
+
 /// The internal slots of a `WindowProxy`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WindowProxySlot {
     /// The frame id, with [`HAS_TARGET`].
     frame: u32,
-    /// The index and the generation of the target.
+    /// The index and the generation of the target, or without a target of the
+    /// companion, or [`NO_OBJECT`].
     target: [u32; 2],
 }
 
@@ -40,7 +48,7 @@ impl WindowProxySlot {
             },
             None => WindowProxySlot {
                 frame,
-                target: [0, 0],
+                target: NO_OBJECT,
             },
         })
     }
@@ -61,10 +69,19 @@ impl WindowProxySlot {
         Some(Gc::new(index, generation))
     }
 
-    /// Reports the target to the tracer.
+    /// The companion of a proxy without a target.
+    pub(crate) fn companion(self) -> Option<Gc<Object>> {
+        if self.frame & HAS_TARGET != 0 || self.target == NO_OBJECT {
+            return None;
+        }
+        let [index, generation] = self.target;
+        Some(Gc::new(index, generation))
+    }
+
+    /// Reports the target or the companion to the tracer.
     pub(crate) fn trace(self, tracer: &mut Tracer<'_>) {
-        if let Some(target) = self.target() {
-            tracer.object(target);
+        if let Some(object) = self.target().or(self.companion()) {
+            tracer.object(object);
         }
     }
 }
@@ -94,6 +111,23 @@ impl Heap {
             _ => Err(Error::invariant("a target of an object that is no proxy")),
         }
     }
+
+    /// Sets the companion of a `WindowProxy` without a target.
+    pub(crate) fn set_window_proxy_companion(
+        &mut self,
+        proxy: Gc<Object>,
+        companion: Gc<Object>,
+    ) -> Result<()> {
+        match &mut self.object_mut(proxy)?.kind {
+            ObjectKind::WindowProxy(slot) if slot.target().is_none() => {
+                slot.target = [companion.index(), companion.generation()];
+                Ok(())
+            }
+            _ => Err(Error::invariant(
+                "a companion of an object that is no proxy without a target",
+            )),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -109,6 +143,8 @@ mod tests {
         let remote = WindowProxySlot::new(7, None).unwrap();
         assert_eq!(remote.frame(), 7);
         assert_eq!(remote.target(), None);
+        assert_eq!(remote.companion(), None);
+        assert_eq!(local.companion(), None);
         assert!(WindowProxySlot::new(HAS_TARGET, None).is_err());
         assert_eq!(size_of::<WindowProxySlot>(), 12);
         assert_eq!(size_of::<ObjectKind>(), 16);

@@ -281,7 +281,9 @@ impl g::pop_state_event::PopStateEventImpl for WebState {
 /// constructor, measured).
 fn is_message_source(cx: &Cx<'_>, source: Gc<Object>) -> bool {
     let value = Value::Object(source);
-    cx.rt.implements(value, g::WINDOW) || cx.rt.implements(value, g::MESSAGE_PORT)
+    cx.rt.implements(value, g::WINDOW)
+        || cx.rt.implements(value, g::MESSAGE_PORT)
+        || crate::window_proxy::is_cross_origin_of(cx.rt, source, g::WINDOW)
 }
 
 impl g::message_event::MessageEventImpl for WebState {

@@ -81,7 +81,7 @@ fn get_href<H: LocationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
 
 fn set_href<H: LocationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Setter("Location", "href"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::LOCATION)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::LOCATION)?;
         let v = rt.arg(call, 0);
         let value = b::convert::usv_string(rt, v).map_err(b::Exception::nested)?;
         <H as LocationImpl>::set_href(&mut b::Cx::new(rt, call, super::LOCATION), this, value)?;
@@ -236,7 +236,7 @@ fn op_assign<H: LocationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCal
 
 fn op_replace<H: LocationImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Location", "replace"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::LOCATION)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::LOCATION)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
         let a0 = b::convert::usv_string(rt, v).map_err(|e| e.argument(0))?;
@@ -275,4 +275,14 @@ pub fn define<H: LocationImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_method(realm, template, "toString", 0, get_href::<H>, swb_js::Attributes { writable: false, enumerable: true, configurable: false })?;
     rt.end_interface(interface)?;
     Ok(interface)
+}
+
+/// The native of a member that a cross-origin object has, by the name of
+/// its function, with its `length`.
+pub fn cross_origin_native<H: LocationImpl>(name: &str) -> Option<(u32, swb_js::NativeFn)> {
+    match name {
+        "set href" => Some((1, set_href::<H> as swb_js::NativeFn)),
+        "replace" => Some((1, op_replace::<H> as swb_js::NativeFn)),
+        _ => None,
+    }
 }

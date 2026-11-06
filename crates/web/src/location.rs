@@ -12,6 +12,9 @@
 //! at once: the document's URL and `history.state` change in the task, and
 //! the page adds or replaces the entry afterwards.
 //!
+//! `w.location` of a frame of another origin is another object, with the rules
+//! of `window_proxy.rs`. `href` as a setter and `replace` accept it as `this`.
+//!
 //! Departures from Chromium: `Location.ancestorOrigins` does not exist
 //! (no frames); see the notes of ADR 0028 section 13. `history.length`
 //! counts at most 50 entries, as Chromium does.
@@ -111,15 +114,15 @@ fn document_url(cx: &Cx<'_>) -> b::Result<Url> {
 /// "encoding-parse a URL"; measured: `w.location.href = 'x'` from the parent
 /// resolves against the parent's base, also inside `w.eval`), as an absolute
 /// URL.
-fn parse_against_base(cx: &mut Cx<'_>, value: &str) -> b::Result<Option<Url>> {
-    let entered = if cx.rt.host_flag() {
-        let entry = crate::state::entry_key(cx.rt)?;
-        crate::state::switch_if_other(cx.rt, entry)?
+pub(crate) fn parse_against_base(rt: &mut swb_js::Runtime, value: &str) -> b::Result<Option<Url>> {
+    let entered = if rt.host_flag() {
+        let entry = crate::state::entry_key(rt)?;
+        crate::state::switch_if_other(rt, entry)?
     } else {
         crate::state::NO_SWITCH
     };
-    let parsed = engine_mut(cx.rt).map(|engine| engine.parse_url(value));
-    crate::state::leave(cx.rt, entered);
+    let parsed = engine_mut(rt).map(|engine| engine.parse_url(value));
+    crate::state::leave(rt, entered);
     Ok(parsed?.and_then(|text| Url::parse(&text).ok()))
 }
 
@@ -159,6 +162,8 @@ fn navigate(cx: &mut Cx<'_>, url: &Url, replace: bool) -> b::Result<()> {
         } else {
             navigated_within_document(cx.rt, None, Some((old, new)))?;
         }
+    } else {
+        crate::frames::note_location_flags(cx.rt)?;
     }
     Ok(())
 }
@@ -205,7 +210,10 @@ impl g::location::LocationImpl for WebState {
         Ok(engine(cx.rt)?.url())
     }
 
-    fn set_href(cx: &mut Cx<'_>, _this: Platform, value: String) -> b::Result<()> {
+    fn set_href(cx: &mut Cx<'_>, this: Platform, value: String) -> b::Result<()> {
+        if b::glue::is_cross_origin_this(this) {
+            return crate::window_proxy::navigate(cx.rt, this.object, &value);
+        }
         assign_url(cx, &value, false)
     }
 
@@ -288,7 +296,10 @@ impl g::location::LocationImpl for WebState {
         assign_url(cx, &url, false)
     }
 
-    fn replace(cx: &mut Cx<'_>, _this: Platform, url: String) -> b::Result<()> {
+    fn replace(cx: &mut Cx<'_>, this: Platform, url: String) -> b::Result<()> {
+        if b::glue::is_cross_origin_this(this) {
+            return crate::window_proxy::navigate(cx.rt, this.object, &url);
+        }
         assign_url(cx, &url, true)
     }
 
@@ -327,7 +338,7 @@ fn check_empty_host(cx: &mut Cx<'_>, value: &str) -> b::Result<()> {
 /// `location.href = value`, `assign` and `replace`: a URL parse that fails
 /// is a `SyntaxError`.
 fn assign_url(cx: &mut Cx<'_>, value: &str, replace: bool) -> b::Result<()> {
-    match parse_against_base(cx, value)? {
+    match parse_against_base(cx.rt, value)? {
         Some(url) => navigate(cx, &url, replace),
         None => Err(Exception::dom(
             "SyntaxError",

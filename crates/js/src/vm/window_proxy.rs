@@ -73,6 +73,9 @@ pub struct WindowProxyHooks {
     pub child_count: fn(&mut Runtime, Gc<Object>) -> VmResult<u32>,
     /// The `WindowProxy` of the child frame at an index, in tree order.
     pub child_frame: ChildFrameHook,
+    /// The error of an access that names no property, as
+    /// `Object.prototype.__lookupGetter__` makes one.
+    pub blocked: fn(&mut Runtime, Gc<Object>) -> VmError,
 }
 
 impl Runtime {
@@ -132,6 +135,61 @@ impl Runtime {
             return None;
         };
         Some(self.heap.window_proxy(object).ok()??.frame())
+    }
+
+    /// The companion of a `WindowProxy` without a target
+    /// ([`Runtime::set_window_proxy_companion`]).
+    pub fn window_proxy_companion(&self, proxy: Gc<Object>) -> Option<Gc<Object>> {
+        self.heap.window_proxy(proxy).ok()??.companion()
+    }
+
+    /// Stores an object of the host in a `WindowProxy` without a target. The
+    /// proxy keeps it alive, and a change of the target drops it. An error for
+    /// a proxy with a target.
+    pub fn set_window_proxy_companion(
+        &mut self,
+        proxy: Gc<Object>,
+        companion: Gc<Object>,
+    ) -> VmResult<()> {
+        Ok(self.heap.set_window_proxy_companion(proxy, companion)?)
+    }
+
+    /// True if `object` is a `WindowProxy` without a target: a cross-origin
+    /// object, whose internal methods are the hooks.
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn is_cross_origin_object(&self, object: Gc<Object>) -> bool {
+        matches!(self.heap.window_proxy(object), Ok(Some(slot)) if slot.target().is_none())
+    }
+
+    /// `HasOwnProperty` of a cross-origin object: its answers and errors are
+    /// those of `[[HasProperty]]` (measured, cases `xo-descriptors` and
+    /// `xo-keys-more`), not of `[[GetOwnProperty]]`.
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn cross_origin_has_own(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> VmResult<bool> {
+        let slot = self
+            .heap
+            .window_proxy(object)?
+            .ok_or(VmError::invariant("no WindowProxy"))?;
+        self.window_has(object, slot, key)
+    }
+
+    /// The error of [`WindowProxyHooks::blocked`].
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn cross_origin_blocked(&mut self, object: Gc<Object>) -> VmError {
+        match self.window_hooks() {
+            Ok(hooks) => {
+                self.heap.record(object);
+                (hooks.blocked)(self, object)
+            }
+            Err(error) => error,
+        }
     }
 
     /// Sets the internal methods of the `WindowProxy` objects without a

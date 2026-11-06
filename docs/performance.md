@@ -1496,6 +1496,46 @@ The BBC page (median of 7, alternating, the command of "BBC with hydration"):
 `load` 0.353 → 0.352 s, hydrated 2.822 → 2.799 s, 61 % of the budget of 4.60 s,
 RSS 378.9 → 385.1 MiB.
 
+### The cross-origin `Window` and `Location` (M9 feature 13a)
+
+ADR 0031 "Done (feature 13a)". Release, callgrind, base ff8d3da.
+
+Hacker News, `--bench 3`, JavaScript on, three alternating runs: base 396.94, 396.96,
+397.02 M, new 396.87, 397.24, 397.22 M (-0.018 %, +0.069 %, +0.052 %).
+
+`vm_bench --host-global`, callgrind, one run each: `window: read of window.x`
+9,134.37 → 9,134.39 M (+0.000 %), `global: 3 reads of globals` 16,334.35 → 16,334.37 M
+(+0.000 %). The path with a target has no new code: the changes in `js` are in the cold
+paths of a proxy.
+
+The natives that take a cross-origin `this` (the method of "Feature 12a" above: the
+difference of 25,000 and 5,000 iterations, by name, an empty loop included):
+
+| Binding | Base | New | Ratio |
+|---|---|---|---|
+| `window` | 826 | 830 | 1.005 |
+| `self` | 826 | 838 | 1.014 |
+| `top` | 978 | 1,030 | 1.053 |
+| `parent` | 1,080 | 1,122 | 1.039 |
+| `length` | 883 | 924 | 1.047 |
+| `closed` | 944 | 987 | 1.046 |
+| `window.location` | 1,562 | 1,582 | 1.012 |
+| `document`, a control | 902 | 911 | 1.009 |
+
+About 40 instructions more on `top`, `parent`, `length` and `closed`, which no target
+page reads in a loop. I did not look for the part of those 40 that the `Option` of the
+check costs.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration"):
+`load` 0.354 → 0.353 s, hydrated 2.823 → 2.825 s, 61 % of the budget of 4.60 s,
+RSS 385.1 → 385.4 MiB.
+
+The hostile cases (one run, release): 1,000,000 caught `SecurityError`s 0.50 s and
+130 MiB; the same-origin control, 1,000,000 caught `DOMException`s of
+`createElement('')`, 0.35 s and 78 MiB. Each message has the origin, which a read of
+the document gives. Every property of 1,000 frames in 20 rounds with descriptors 0.45 s
+and 327 MiB (the frames themselves). All functions of a realm: 11.4 KB of script heap.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

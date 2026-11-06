@@ -34,20 +34,55 @@ use crate::generated::types::{
 };
 use crate::state::{WebState, state, state_mut};
 
+/// The frame of `this` if it is a cross-origin `Window`.
+#[inline]
+fn remote_frame(cx: &Cx<'_>, this: Platform) -> Option<u32> {
+    if b::glue::is_cross_origin_this(this) {
+        crate::window_proxy::window_frame(cx.rt, this.object)
+    } else {
+        None
+    }
+}
+
+/// `window`, `self` and `frames`: the window as a proxy.
+fn self_window(cx: &Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+    if b::glue::is_cross_origin_this(this) {
+        return Ok(crate::window_proxy::self_window(cx.rt, this.object)?);
+    }
+    Ok(Some(this.object))
+}
+
+/// `postMessage`: to a cross-origin `Window` the checks only, until feature 14.
+fn post_message(
+    cx: &mut Cx<'_>,
+    this: Platform,
+    message: Value,
+    target_origin: &str,
+    transfer: &[Gc<Object>],
+) -> b::Result<()> {
+    if b::glue::is_cross_origin_this(this) {
+        return crate::messaging::post_to_remote(cx, message, target_origin, transfer);
+    }
+    crate::messaging::post(cx, message, target_origin, transfer)
+}
+
 impl g::window::WindowImpl for WebState {
-    fn window(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
-        Ok(this.object)
+    fn window(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        self_window(cx, this)
     }
 
-    fn self_(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
-        Ok(this.object)
+    fn self_(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        self_window(cx, this)
     }
 
     fn document(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<NodeId> {
         Ok(NodeId::DOCUMENT)
     }
 
-    fn location(cx: &mut Cx<'_>, _this: Platform) -> b::Result<Gc<Object>> {
+    fn location(cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
+        if b::glue::is_cross_origin_this(this) {
+            return Ok(crate::window_proxy::location_of(cx.rt, this.object)?);
+        }
         crate::location::location_object(cx)
     }
 
@@ -110,37 +145,46 @@ impl g::window::WindowImpl for WebState {
     /// `postMessage(message, targetOrigin, transfer)` (`messaging.rs`).
     fn post_message_1(
         cx: &mut Cx<'_>,
-        _this: Platform,
+        this: Platform,
         message: Value,
         target_origin: String,
         transfer: Vec<Gc<Object>>,
     ) -> b::Result<()> {
-        crate::messaging::post(cx, message, &target_origin, &transfer)
+        post_message(cx, this, message, &target_origin, &transfer)
     }
 
     /// `postMessage(message, options)`.
     fn post_message_2(
         cx: &mut Cx<'_>,
-        _this: Platform,
+        this: Platform,
         message: Value,
         options: crate::generated::types::WindowPostMessageOptions,
     ) -> b::Result<()> {
-        crate::messaging::post(cx, message, &options.target_origin, &options.transfer)
+        post_message(cx, this, message, &options.target_origin, &options.transfer)
     }
 
-    fn frames(_cx: &mut Cx<'_>, this: Platform) -> b::Result<Gc<Object>> {
-        Ok(this.object)
+    fn frames(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        self_window(cx, this)
     }
 
-    fn length(cx: &mut Cx<'_>, _this: Platform) -> b::Result<u32> {
+    fn length(cx: &mut Cx<'_>, this: Platform) -> b::Result<u32> {
+        if let Some(frame) = remote_frame(cx, this) {
+            return Ok(crate::frames::child_count_of_frame(cx.rt, frame)?);
+        }
         Ok(crate::frames::length(cx.rt)?)
     }
 
     fn top(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        if let Some(frame) = remote_frame(cx, this) {
+            return Ok(crate::frames::top_of_remote(cx.rt, this.object, frame)?);
+        }
         Ok(crate::frames::top(cx.rt, this.object)?)
     }
 
     fn parent(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
+        if let Some(frame) = remote_frame(cx, this) {
+            return Ok(crate::frames::parent_of_remote(cx.rt, this.object, frame)?);
+        }
         Ok(crate::frames::parent(cx.rt, this.object)?)
     }
 
@@ -175,8 +219,18 @@ impl g::window::WindowImpl for WebState {
         Ok(crate::frames::set_name(cx.rt, &value)?)
     }
 
-    fn closed(cx: &mut Cx<'_>, _this: Platform) -> b::Result<bool> {
+    fn closed(cx: &mut Cx<'_>, this: Platform) -> b::Result<bool> {
+        if let Some(frame) = remote_frame(cx, this) {
+            return Ok(!crate::frames::frame_alive(cx.rt, frame)?);
+        }
         Ok(crate::frames::closed(cx.rt)?)
+    }
+
+    /// `window.close()`: does nothing, because no script opened a window (swb
+    /// has no auxiliary browsing contexts; measured, also for a frame's window).
+    fn close(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        log::debug!("window.close(): only a window that a script opened can close");
+        Ok(())
     }
 
     /// `self.origin`: the serialized origin of the document (`"null"` for an
@@ -286,7 +340,10 @@ impl g::window::WindowImpl for WebState {
     }
 
     /// `window.focus()`: the page's focus comes to this window (measured).
-    fn focus(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+    fn focus(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
+        if let Some(frame) = remote_frame(cx, this) {
+            return Ok(crate::frames::focus_enters_remote(cx.rt, frame)?);
+        }
         Ok(crate::html::focus::focus_window(cx.rt)?)
     }
 

@@ -14,7 +14,7 @@
 //! - A `data:` document throws `SecurityError` ("Cookies are disabled
 //!   inside 'data:' URLs."), as Chromium does for the opaque origin of a
 //!   `data:` URL. The spec lets every opaque origin throw; a sandboxed frame
-//!   document has no realm until feature 13, which writes its rule.
+//!   document has no realm until feature 13b, which writes its rule.
 
 use crate::bindings::{self as b, Cx, Exception};
 use crate::state::{engine, engine_mut};

@@ -32,6 +32,8 @@ use swb_engine::{
 use swb_net::{CookieJar, Fetcher, Headers, NetError, Request, Response};
 
 mod common;
+#[path = "frames/cross_origin.rs"]
+mod cross_origin;
 #[path = "frames/input.rs"]
 mod input;
 #[path = "frames/nodes.rs"]
@@ -58,11 +60,11 @@ const QUERIES_LATER: &[(&str, &str)] = &[
     ),
     (
         "cookies-frames",
-        "document.cookie, fetch() and postMessage in frames: features 13 and 14",
+        "document.cookie, fetch() and postMessage in frames: features 13b and 14",
     ),
     (
         "sandbox",
-        "the script of a frame with an opaque origin, postMessage, the message of a SecurityError: feature 13",
+        "the script of a frame with an opaque origin, postMessage: feature 13b",
     ),
 ];
 
@@ -200,7 +202,13 @@ fn case_resource(name: &str, path: &str) -> Res {
         .find(|c| c["name"] == name)
         .unwrap();
     let r = &case["resources"][path];
-    let mut res = Res::html(&r["text"].as_str().unwrap().replace("$FOLDER", "case"));
+    let mut res = Res::html(
+        &r["text"]
+            .as_str()
+            .unwrap()
+            .replace("$FOLDER", "case")
+            .replace("$ORIGIN", MAIN),
+    );
     res.delay_ms = r["delay_ms"].as_u64().unwrap_or(0);
     if let Some(headers) = r["headers"].as_object() {
         for (name, value) in headers {

@@ -985,6 +985,20 @@ impl Runtime {
         self.new_native_function(realm, name, 0, func)
     }
 
+    /// [`Runtime::new_host_function`] with a `length`: a function that a
+    /// script reads as a property (the functions of cross-origin objects, HTML
+    /// §7.2.3.5). `func` can be a native of a generated binding, so the
+    /// function behaves as that member does, in the realm `realm`.
+    pub fn new_host_method(
+        &mut self,
+        realm: u32,
+        name: &str,
+        length: u32,
+        func: NativeFn,
+    ) -> VmResult<Gc<Object>> {
+        self.new_native_function(realm, name, length, func)
+    }
+
     /// `[[PromiseIsHandled]]` of a promise: whether it has (or had) a
     /// handler; `None` for a value that is not a promise. HTML checks it
     /// before it fires `unhandledrejection`.

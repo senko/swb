@@ -861,7 +861,7 @@ fn page_frames_lists_the_frame_tree() {
 
 /// `page.evaluate` and `page.consoleMessages` with a `frameId` and scripts in
 /// the frame (M9 feature 12b1). A frame of another origin has no scripts until
-/// feature 13.
+/// feature 13b.
 #[test]
 fn evaluate_and_console_take_a_frame_id() {
     let dir = std::env::temp_dir().join(format!(

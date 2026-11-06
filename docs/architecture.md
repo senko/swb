@@ -424,6 +424,11 @@ same objects with a new host word, and what holds the old id follows
 `DocState::moved`. Mutation observers belong to the agent. An error goes to the
 window of the function's realm (`errors::report_callback`), and the document of
 the caller is `state::caller_key` or `entry_key` (ADR 0031, "Done (feature 12b2)").
+Feature 13a (`crates/web/src/window_proxy.rs`): a frame of another origin has a
+`WindowProxy` without a target, whose internal methods are the hooks of that module:
+the cross-origin `Window` and `Location` of HTML, from the frame tree alone. A
+navigation through such a `Location` waits in `AfterTask`, and the page starts it after
+the task. Such a frame runs no scripts until feature 13b.
 Feature 5c (ADR 0028 section 8): the
 runtime drives the parse of its document (`EngineHost::parse_step`, one
 step per `script` end tag), runs inline scripts at their place, waits for

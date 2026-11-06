@@ -388,6 +388,28 @@ impl Page {
         self.navigate_frame_with(id, target, None, None)
     }
 
+    /// A navigation of frame `id` that a script's write to its `location` asked for
+    /// in the task that ended: it has the sandboxing flags of the write.
+    pub(super) fn navigate_frame_by_location(
+        &mut self,
+        id: FrameId,
+        url: Url,
+        initiator: Option<Origin>,
+    ) {
+        let flags = self
+            .frames
+            .get_mut(id)
+            .and_then(|frame| frame.location_sandbox.take())
+            .map(|(_, flags)| flags);
+        let started = self.navigate_frame_with(id, FrameTarget::Url(url), None, initiator);
+        if started
+            && let Some(flags) = flags
+            && let Some(frame) = self.frames.get_mut(id)
+        {
+            frame.pending_sandbox = flags;
+        }
+    }
+
     /// [`Page::navigate_frame`] with a `POST` body, and the origin of the
     /// document that asks (the parent's if `None`).
     pub(super) fn navigate_frame_with(
@@ -470,8 +492,8 @@ impl Page {
     /// A `javascript:` URL in a frame runs as a task in the frame's realm; a
     /// string result does not replace the document (ADR 0031 section 2). An
     /// empty one does nothing and needs no realm (measured, core-js's
-    /// `src = "javascript:"`). A frame of another origin runs nothing until
-    /// feature 13.
+    /// `src = "javascript:"`). A frame of another origin runs nothing (HTML
+    /// "navigate to a javascript: URL"; measured).
     pub(super) fn run_frame_javascript_url(&mut self, id: FrameId, url: &str) {
         if url.len() <= "javascript:".len()
             || !self

@@ -9,11 +9,11 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `Window`.
 pub trait WindowImpl: b::Host {
-    /// `readonly attribute WindowProxy window`.
-    fn window(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+    /// `readonly attribute WindowProxy? window`.
+    fn window(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
-    /// `readonly attribute WindowProxy self`.
-    fn self_(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+    /// `readonly attribute WindowProxy? self`.
+    fn self_(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `readonly attribute Document document`.
     fn document(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<b::NodeId>;
@@ -27,8 +27,8 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute Navigator navigator`.
     fn navigator(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-    /// `readonly attribute WindowProxy frames`.
-    fn frames(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+    /// `readonly attribute WindowProxy? frames`.
+    fn frames(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `readonly attribute unsigned long length`.
     fn length(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<u32>;
@@ -119,6 +119,9 @@ pub trait WindowImpl: b::Host {
 
     /// `readonly attribute Storage sessionStorage`.
     fn session_storage(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
+    /// `undefined close()`.
+    fn close(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
 
     /// `undefined focus()`.
     fn focus(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
@@ -217,17 +220,17 @@ pub trait WindowImpl: b::Host {
 
 fn get_window<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "window"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::window(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
-        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
 fn get_self<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "self"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::self_(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
-        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
@@ -250,7 +253,7 @@ fn get_document<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
 
 fn get_location<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "location"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::location(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
@@ -258,7 +261,7 @@ fn get_location<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCa
 
 fn set_location<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Setter("Window", "location"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let _ = this;
         let this = rt.this_or_global(call)?;
         b::glue::put_forwards(rt, call, this, "location", "href")
@@ -283,9 +286,9 @@ fn get_navigator<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
 
 fn get_frames<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "frames"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::frames(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
-        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 
@@ -300,7 +303,7 @@ fn set_frames<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
 
 fn get_length<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "length"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::length(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
     })
@@ -317,7 +320,7 @@ fn set_length<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
 
 fn get_top<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "top"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::top(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
@@ -325,7 +328,7 @@ fn get_top<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -
 
 fn get_parent<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "parent"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::parent(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
@@ -342,7 +345,7 @@ fn set_parent<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
 
 fn get_opener<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "opener"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::opener(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::VmResult::Ok(result)?)
     })
@@ -378,7 +381,7 @@ fn set_name<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) 
 
 fn get_closed<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Getter("Window", "closed"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         let result = <H as WindowImpl>::closed(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
@@ -2505,9 +2508,17 @@ fn get_session_storage<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn op_close<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "close"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
+        <H as WindowImpl>::close(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_focus<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "focus"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         <H as WindowImpl>::focus(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::Value::Undefined)
     })
@@ -2515,7 +2526,7 @@ fn op_focus<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) 
 
 fn op_blur<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "blur"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         <H as WindowImpl>::blur(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
         Ok(swb_js::Value::Undefined)
     })
@@ -2644,7 +2655,7 @@ fn op_fetch<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) 
 
 fn op_post_message<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "postMessage"), super::DOM_EXCEPTION, |rt| {
-        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        let this = b::glue::this_platform_cross_origin(rt, call, super::WINDOW)?;
         b::glue::require_arguments(call, 1)?;
         match call.argc().min(3) {
             1 => {
@@ -3061,6 +3072,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "cancelIdleCallback", 1, op_cancel_idle_callback::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearInterval", 0, op_clear_interval::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "clearTimeout", 0, op_clear_timeout::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "close", 0, op_close::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "confirm", 0, op_confirm::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "fetch", 1, op_fetch::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "focus", 0, op_focus::<H>, swb_js::Attributes::MEMBER)?;
@@ -3081,4 +3093,26 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "structuredClone", 1, op_structured_clone::<H>, swb_js::Attributes::MEMBER)?;
     rt.end_interface(interface)?;
     Ok(interface)
+}
+
+/// The native of a member that a cross-origin object has, by the name of
+/// its function, with its `length`.
+pub fn cross_origin_native<H: WindowImpl>(name: &str) -> Option<(u32, swb_js::NativeFn)> {
+    match name {
+        "get window" => Some((0, get_window::<H> as swb_js::NativeFn)),
+        "get self" => Some((0, get_self::<H> as swb_js::NativeFn)),
+        "get location" => Some((0, get_location::<H> as swb_js::NativeFn)),
+        "set location" => Some((1, set_location::<H> as swb_js::NativeFn)),
+        "get frames" => Some((0, get_frames::<H> as swb_js::NativeFn)),
+        "get length" => Some((0, get_length::<H> as swb_js::NativeFn)),
+        "get top" => Some((0, get_top::<H> as swb_js::NativeFn)),
+        "get parent" => Some((0, get_parent::<H> as swb_js::NativeFn)),
+        "get opener" => Some((0, get_opener::<H> as swb_js::NativeFn)),
+        "get closed" => Some((0, get_closed::<H> as swb_js::NativeFn)),
+        "close" => Some((0, op_close::<H> as swb_js::NativeFn)),
+        "focus" => Some((0, op_focus::<H> as swb_js::NativeFn)),
+        "blur" => Some((0, op_blur::<H> as swb_js::NativeFn)),
+        "postMessage" => Some((1, op_post_message::<H> as swb_js::NativeFn)),
+        _ => None,
+    }
 }

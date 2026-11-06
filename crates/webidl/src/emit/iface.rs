@@ -110,6 +110,7 @@ impl Gen<'_> {
         }
         out.push_str(&glue);
         self.define_fn(iface, &groups, &factories, &mut out)?;
+        cross_origin_natives(iface, &groups, &mut out);
         Ok(out)
     }
 
@@ -132,6 +133,16 @@ impl Gen<'_> {
         };
         format!(
             "let this = b::glue::{check}(rt, call, super::{})?;",
+            constant(&iface.name)
+        )
+    }
+
+    /// [`Gen::this_check`] of a member that a cross-origin object has
+    /// (`[SwbCrossOrigin]`, ADR 0031 section 5): `this` can also be such an
+    /// object.
+    fn cross_origin_this_check(iface: &Iface) -> String {
+        format!(
+            "let this = b::glue::this_platform_cross_origin(rt, call, super::{})?;",
             constant(&iface.name)
         )
     }
@@ -206,11 +217,15 @@ impl Gen<'_> {
                 attr.name
             );
             let value = self.rust_to_js(&attr.ty, "result", "call.realm()", true, 0);
+            let check = if attr.ext_attrs.has("SwbCrossOrigin") {
+                Self::cross_origin_this_check(iface)
+            } else {
+                self.this_check(iface)
+            };
             let _ = writeln!(
                 glue,
-                "fn get_{getter}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {}\n        let result = <H as {}Impl>::{fn_name}({}, this)?;\n        Ok({value}?)\n    }})\n}}\n",
+                "fn get_{getter}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {check}\n        let result = <H as {}Impl>::{fn_name}({}, this)?;\n        Ok({value}?)\n    }})\n}}\n",
                 iface.name,
-                self.this_check(iface),
                 iface.name,
                 cx(iface)
             );
@@ -235,10 +250,14 @@ impl Gen<'_> {
             literal(&attr.name)
         );
         let set_fn = format!("set_{getter}");
-        let head = format!(
-            "fn {set_fn}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {}\n",
-            iface.name,
+        let check = if attr.ext_attrs.has("SwbCrossOriginSetter") {
+            Self::cross_origin_this_check(iface)
+        } else {
             self.this_check(iface)
+        };
+        let head = format!(
+            "fn {set_fn}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {check}\n",
+            iface.name,
         );
         if attr.ext_attrs.has("Replaceable") {
             let _ = writeln!(
@@ -651,7 +670,16 @@ impl Gen<'_> {
             iface.name
         );
         if !constructor && !group.is_static {
-            let _ = writeln!(glue, "        {}", self.this_check(iface));
+            let cross_origin = group
+                .overloads
+                .iter()
+                .any(|op| op.ext_attrs.has("SwbCrossOrigin"));
+            let check = if cross_origin {
+                Self::cross_origin_this_check(iface)
+            } else {
+                self.this_check(iface)
+            };
+            let _ = writeln!(glue, "        {check}");
         }
         if group.factory.is_some() {
             // Web IDL §3.7.2: a factory function needs `new` (Chromium's
@@ -951,6 +979,62 @@ impl Gen<'_> {
         }
         false
     }
+}
+
+/// The function `cross_origin_native` of an interface with members that a
+/// cross-origin object has: the natives by the names of their functions, with
+/// their `length`. The hooks of the cross-origin objects make functions of the
+/// caller's realm from them (ADR 0031 section 5).
+fn cross_origin_natives(iface: &Iface, groups: &[OpGroup<'_>], out: &mut String) {
+    let mut arms = String::new();
+    for member in &iface.members {
+        let Member::Attribute(attr) = member else {
+            continue;
+        };
+        let getter = snake(&attr.name);
+        if attr.ext_attrs.has("SwbCrossOrigin") {
+            let _ = writeln!(
+                arms,
+                "        {} => Some((0, get_{getter}::<H> as swb_js::NativeFn)),",
+                literal(&format!("get {}", attr.name))
+            );
+        }
+        if attr.ext_attrs.has("SwbCrossOriginSetter") {
+            let _ = writeln!(
+                arms,
+                "        {} => Some((1, set_{getter}::<H> as swb_js::NativeFn)),",
+                literal(&format!("set {}", attr.name))
+            );
+        }
+    }
+    for group in groups.iter().filter(|g| !g.name.is_empty()) {
+        if group
+            .overloads
+            .iter()
+            .any(|op| op.ext_attrs.has("SwbCrossOrigin"))
+        {
+            let length = group
+                .overloads
+                .iter()
+                .map(|op| required_count(op))
+                .min()
+                .unwrap_or(0);
+            let _ = writeln!(
+                arms,
+                "        {} => Some(({length}, {}::<H> as swb_js::NativeFn)),",
+                literal(&group.name),
+                op_fn(iface, group)
+            );
+        }
+    }
+    if arms.is_empty() {
+        return;
+    }
+    let _ = writeln!(
+        out,
+        "\n/// The native of a member that a cross-origin object has, by the name of\n/// its function, with its `length`.\npub fn cross_origin_native<H: {}Impl>(name: &str) -> Option<(u32, swb_js::NativeFn)> {{\n    match name {{\n{arms}        _ => None,\n    }}\n}}",
+        iface.name
+    );
 }
 
 /// The object and the attributes of a member's property: the prototype

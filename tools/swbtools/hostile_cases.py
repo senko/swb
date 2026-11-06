@@ -6451,3 +6451,170 @@ def nodes_error_listener_throws_across_windows_js_on() -> Page:
         "document.title = 'done';</script>"
     )
     return Page(doc("<iframe></iframe>" + script))
+
+
+XO_NAMES = (
+    "['window', 'self', 'location', 'closed', 'frames', 'length', 'top', 'opener', 'parent', "
+    "'blur', 'close', 'focus', 'postMessage', 'then']"
+)
+XO_FRAMES = (
+    "const ws = []; for (let i = 0; i < 1000; i++) { const f = document.createElement('iframe'); "
+    "f.sandbox = ''; document.body.appendChild(f); ws.push(f.contentWindow); } "
+)
+
+
+@case(
+    "Every property of the cross-origin windows of 1,000 frames, read in a loop with their "
+    "descriptors (M9 feature 13a): the functions are one per name and realm, so the memory stays",
+    swb_args=("--js",),
+    time_limit_s=1.5,
+    rss_limit_mib=1000,
+)
+def cross_origin_all_properties_js_on() -> Page:
+    script = (
+        f"<script>{XO_FRAMES}const names = {XO_NAMES}; let n = 0; "
+        "for (let round = 0; round < 20; round++) for (const w of ws) for (const k of names) { "
+        "if (w[k] !== undefined) n++; Object.getOwnPropertyDescriptor(w, k); } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "A loop that catches the SecurityError of a cross-origin window 1,000,000 times (M9 feature "
+    "13a): each makes a DOMException and its message",
+    swb_args=("--js",),
+    time_limit_s=1.5,
+    rss_limit_mib=400,
+)
+def cross_origin_security_error_loop_js_on() -> Page:
+    script = (
+        "<script>const f = document.createElement('iframe'); f.sandbox = ''; "
+        "document.body.appendChild(f); const w = f.contentWindow; let n = 0; "
+        "for (let i = 0; i < 1000000; i++) { try { w.document; } catch (e) { n++; } } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "The control of cross-origin-security-error-loop-js-on: a same-origin DOMException in a loop "
+    "of 1,000,000",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=300,
+)
+def same_origin_dom_exception_loop_js_on() -> Page:
+    script = (
+        "<script>let n = 0; for (let i = 0; i < 1000000; i++) { "
+        "try { document.createElement(''); } catch (e) { n++; } } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "w.location.href = x in a loop in one task, and in a timer for each of 200 tasks, on one "
+    "cross-origin frame (M9 feature 13a): one navigation per task, and the limit of 64 navigations "
+    "of a frame in 10 s of page time (ADR 0031 section 11)",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=5,
+    rss_limit_mib=290,
+    expect_log="navigated 64 times",
+)
+def cross_origin_location_loop_one_frame_js_on() -> Page:
+    script = (
+        "<script>const f = document.createElement('iframe'); f.sandbox = ''; "
+        "document.body.appendChild(f); const w = f.contentWindow; "
+        "for (let i = 0; i < 100000; i++) w.location.href = 'data:text/html,a' + i; "
+        "let n = 0; function step() { if (n++ < 200) { w.location.href = 'data:text/html,b' + n; "
+        "setTimeout(step, 1); } } step();</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "w.location = x 200,000 times on a frame with a sandbox attribute of about 900 KB (M9 feature "
+    "13a): the flags of the write are parsed once per change of the parent's DOM",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=230,
+)
+def cross_origin_location_loop_big_sandbox_js_on() -> Page:
+    script = (
+        "<script>const f = document.createElement('iframe'); "
+        "f.setAttribute('sandbox', 'allow-scripts '.repeat(64000)); "
+        "document.body.appendChild(f); const w = f.contentWindow; "
+        "for (let i = 0; i < 200000; i++) w.location = 'data:text/html,a'; "
+        "document.title = 'done';</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "w.location.href = x for each of 1,000 cross-origin frames, in three tasks (M9 feature 13a): "
+    "a request of a navigation per frame after each task",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=4,
+    rss_limit_mib=950,
+)
+def cross_origin_location_1000_frames_js_on() -> Page:
+    script = (
+        f"<script>{XO_FRAMES}let round = 0; function step() {{ "
+        "for (let k = 0; k < 20; k++) for (const w of ws) "
+        "w.location.href = 'data:text/html,a' + round; "
+        "if (++round < 3) setTimeout(step, 50); } step();</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "A cross-origin window in the prototype chain of objects, a chain of 10,000 with it at the "
+    "end, and Proxy objects whose target is it, read in loops (M9 feature 13a)",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=320,
+)
+def cross_origin_in_prototype_chains_js_on() -> Page:
+    script = (
+        "<script>const f = document.createElement('iframe'); f.sandbox = ''; "
+        "document.body.appendChild(f); const w = f.contentWindow; let n = 0; "
+        "const E = g => { try { g(); } catch (e) { n++; } }; "
+        "const o = Object.create(w); const q = Object.setPrototypeOf({own: 1}, w); "
+        "let long = w; for (let i = 0; i < 10000; i++) long = Object.create(long); "
+        "let pp = w; for (let i = 0; i < 2000; i++) pp = new Proxy(pp, {}); "
+        "for (let i = 0; i < 20000; i++) { E(() => o.x); E(() => q.x = 1); E(() => 'x' in o); "
+        "if (o.closed === false) n++; } "
+        "for (let i = 0; i < 300; i++) { E(() => long.x); E(() => 'x' in long); "
+        "E(() => pp.closed); "
+        "E(() => pp.x); E(() => Object.keys(pp)); E(() => String(long)); "
+        "E(() => { for (const k in long) n++; }); } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "The functions of cross-origin objects read from 256 realms, kept and called with every kind "
+    "of this (M9 feature 13a): the table has at most 16 per realm, for the life of the runtime",
+    swb_args=("--js",),
+    time_limit_s=1,
+    rss_limit_mib=800,
+    expect_log="realms, the limit",
+)
+def cross_origin_functions_of_many_realms_js_on() -> Page:
+    script = (
+        "<script>const x = document.createElement('iframe'); x.sandbox = ''; "
+        "document.body.appendChild(x); const w = x.contentWindow; const kept = []; const names = "
+        f"{XO_NAMES}; "
+        "for (let i = 0; i < 300; i++) { const f = document.createElement('iframe'); "
+        "document.body.appendChild(f); if (!f.contentDocument) continue; "
+        "const r = f.contentWindow; "
+        "const read = r.eval('(o, k) => o[k]'); for (const k of names) kept.push(read(w, k)); "
+        "kept.push(read(w.location, 'replace')); } let n = 0; "
+        "for (const g of kept) if (typeof g === 'function') "
+        "for (const t of [w, window, {}, 1, undefined]) "
+        "{ try { if (g.name !== 'replace') g.call(t); } catch (e) { n++; } } "
+        "document.title = String(n);</script>"
+    )
+    return Page(doc(script))

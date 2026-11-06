@@ -8692,6 +8692,1888 @@
      "value": "top+yn"
     }
    ]
+  },
+  {
+   "name": "cross-origin",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => w.document), E(() => w.location.href), E(() => w.foo), E(() => w.name), E(() => f.contentDocument), E(() => w.length), E(() => w.closed), E(() => w.top === window), E(() => w.parent === window), E(() => w.frames === w), E(() => w.self === w), E(() => w.window === w), E(() => typeof w.postMessage), E(() => typeof w.close), E(() => typeof w.focus), E(() => typeof w.blur), E(() => w.opener), E(() => { w.foo = 1; return 'assigned'; }), E(() => w.location.replace), E(() => typeof w.location.replace), E(() => Object.getPrototypeOf(w)), E(() => w.postMessage === w.postMessage), E(() => Object.keys(w).join()), E(() => w[0]), E(() => w.toString()), E(() => String(w)), E(() => w.location.toString()), E(() => 'document' in w), E(() => w.then), E(() => w[Symbol.toStringTag]), E(() => w.location.then), E(() => Object.prototype.toString.call(w)), E(() => w instanceof Window), E(() => typeof w), E(() => w.location === w.location), E(() => Object.isFrozen(w)), E(() => delete w.foo)]; })()",
+     "value": [
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'name' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "0",
+      "false",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "function",
+      "function",
+      "function",
+      "function",
+      "null",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "function replace() { [native code] }",
+      "function",
+      "null",
+      "true",
+      "",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toString' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toString' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "undefined",
+      "undefined",
+      "undefined",
+      "[object Object]",
+      "false",
+      "object",
+      "true",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => Object.getOwnPropertyNames(w).join()), E(() => Reflect.ownKeys(w).map(String).join()), E(() => Object.getOwnPropertyNames(w.location).join()), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'postMessage'), (k, v) => typeof v === 'function' ? 'fn' : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'location'), (k, v) => typeof v === 'function' ? 'fn:' + v.name : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w.location, 'href'), (k, v) => typeof v === 'function' ? 'fn:' + v.name : v)), E(() => JSON.stringify(Object.getOwnPropertyDescriptor(w, 'foo'))), E(() => Object.defineProperty(w, 'foo', {value: 1})), E(() => Object.setPrototypeOf(w, null)), E(() => Object.preventExtensions(w)), E(() => w.postMessage.call(window, 'x', '*'))]; })()",
+     "value": [
+      "window,self,location,closed,frames,length,top,opener,parent,blur,close,focus,postMessage,then",
+      "window,self,location,closed,frames,length,top,opener,parent,blur,close,focus,postMessage,then,Symbol(Symbol.toStringTag),Symbol(Symbol.hasInstance),Symbol(Symbol.isConcatSpreadable)",
+      "href,replace,then",
+      "{\"value\":\"fn\",\"writable\":false,\"enumerable\":false,\"configurable\":true}",
+      "{\"get\":\"fn:get location\",\"set\":\"fn:set location\",\"enumerable\":false,\"configurable\":true}",
+      "{\"set\":\"fn:set href\",\"enumerable\":false,\"configurable\":true}",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "undefined"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const p = new Promise(r => addEventListener('message', function h(e) { if (e.data[0] === 'fromchild') { removeEventListener('message', h); r(e.data); } })); f.contentWindow.postMessage('report', '*'); return (await p).map(n); })()",
+     "value": [
+      "fromchild",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"X\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"X\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"X\" from accessing a cross-origin frame.",
+      "1",
+      "function",
+      "O/",
+      "null",
+      "O",
+      "true",
+      "SecurityError: Failed to set a named property 'hash' on 'Location': Blocked a frame with origin \"X\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const p = new Promise(r => f.onload = r); const s = E(() => { w.location.href = X('child2.html'); return 'set'; }); await Promise.race([p, W(1000)]); return [s, E(() => w.location.href), w === f.contentWindow, n(location.hash)]; })()",
+     "value": [
+      "set",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      true,
+      ""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "document-domain",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const out = {top: window.originAgentCluster, dom: document.domain}; const reports = []; await Promise.race([W(3000), new Promise(r => { const h = e => { if (e.data && e.data.who) { reports.push(e.data); if (reports.length === 2) { removeEventListener('message', h); r(); } } }; addEventListener('message', h); fx.src = S('x.a.localhost'); fy.src = S('y.a.localhost'); })]); reports.sort((a, b) => a.who < b.who ? -1 : 1); out.reports = reports.map(x => x.who + ' ' + JSON.stringify(x.r)); const p = new Promise(r => addEventListener('message', function h(e) { if (e.data && e.data.probe) { removeEventListener('message', h); r(e.data.probe); } })); fy.contentWindow.postMessage('probe', '*'); out.probe = String(await Promise.race([p, W(2000).then(() => 'timeout')])); return JSON.stringify(out).replace(/:\\d{2,5}/g, ':P'); })()",
+     "value": "{\"top\":true,\"dom\":\"127.0.0.1\",\"reports\":[\"x {\\\"before\\\":\\\"x.a.localhost\\\",\\\"oac\\\":true,\\\"set\\\":\\\"ok\\\",\\\"after\\\":\\\"x.a.localhost\\\"}\",\"y {\\\"before\\\":\\\"y.a.localhost\\\",\\\"oac\\\":true,\\\"set\\\":\\\"ok\\\",\\\"after\\\":\\\"y.a.localhost\\\"}\"],\"probe\":\"SecurityError: Failed to read a named property 'mark' from 'Window': Blocked a frame with origin \\\"http://y.a.localhost:P\\\" from accessing a cross-origin frame.\"}"
+    }
+   ]
+  },
+  {
+   "name": "document-domain-setter",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => { addEventListener('message', e => r(JSON.stringify(e.data).replace(/:\\d{2,5}/g, ':P'))); fx.src = S('x.a.localhost'); setTimeout(() => r('timeout'), 3000); })",
+     "value": "[\"x.a.localhost\",true,\"ok:x.a.localhost\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'localhost' is a top-level domain.\",\"SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain.\",\"ok:x.a.localhost\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'x.a.localhost.' is not a suffix of 'x.a.localhost'.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'b.localhost' is not a suffix of 'x.a.localhost'.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'a.localhost.' is not a suffix of 'x.a.localhost'.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'xa.localhost' is not a suffix of 'x.a.localhost'.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'a.localhost:P' could not be parsed properly.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'http://a.localhost' could not be parsed properly.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'a..localhost' is not a suffix of 'x.a.localhost'.\",\"SecurityError: Failed to set the 'domain' property on 'Document': 'a%20localhost' is not a suffix of 'x.a.localhost'.\",\"x.a.localhost\"]"
+    }
+   ]
+  },
+  {
+   "name": "nested-origins",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const m = frames[0]; return [E(() => m.length), E(() => m.frames[0].document.title), E(() => m.frames[0].parent === m), E(() => m.frames[0].top === window), E(() => m.leafname === m.frames[0]), E(() => m.leafname.document.title), E(() => m.frames[0].frameElement), E(() => m.document)]; })",
+     "value": [
+      "1",
+      "leaf",
+      "true",
+      "true",
+      "true",
+      "leaf",
+      "null",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-descriptors",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [DS(w, 'window'), DS(w, 'self'), DS(w, 'location'), DS(w, 'closed'), DS(w, 'frames'), DS(w, 'length'), DS(w, 'top'), DS(w, 'opener'), DS(w, 'parent'), DS(w, 'blur'), DS(w, 'close'), DS(w, 'focus'), DS(w, 'postMessage'), DS(w, 'then'), DS(w, Symbol.toStringTag), DS(w, Symbol.hasInstance), DS(w, Symbol.isConcatSpreadable), DS(w, Symbol.iterator), DS(w, Symbol.toPrimitive), DS(w, Symbol()), DS(w, 'foo'), DS(w, 0), DS(w, '0'), DS(w, ''), DS(w, 'name'), DS(w, 'document'), DS(w, 'constructor'), DS(w, '__proto__')]; })()",
+     "value": [
+      "get=fn:get window:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get self:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get location:0,set=fn:set location:1,enumerable=false,configurable=true",
+      "get=fn:get closed:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get frames:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get length:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get top:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get opener:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get parent:0,set=U,enumerable=false,configurable=true",
+      "value=fn:blur:0,writable=false,enumerable=false,configurable=true",
+      "value=fn:close:0,writable=false,enumerable=false,configurable=true",
+      "value=fn:focus:0,writable=false,enumerable=false,configurable=true",
+      "value=fn:postMessage:1,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'name' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'constructor' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '__proto__' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const d = k => Object.getOwnPropertyDescriptor(w, k); return [E(() => d('window').value === d('window').value && d('window').get === d('window').get && d('window').set === d('window').set), E(() => d('self').value === d('self').value && d('self').get === d('self').get && d('self').set === d('self').set), E(() => d('location').value === d('location').value && d('location').get === d('location').get && d('location').set === d('location').set), E(() => d('closed').value === d('closed').value && d('closed').get === d('closed').get && d('closed').set === d('closed').set), E(() => d('frames').value === d('frames').value && d('frames').get === d('frames').get && d('frames').set === d('frames').set), E(() => d('length').value === d('length').value && d('length').get === d('length').get && d('length').set === d('length').set), E(() => d('top').value === d('top').value && d('top').get === d('top').get && d('top').set === d('top').set), E(() => d('opener').value === d('opener').value && d('opener').get === d('opener').get && d('opener').set === d('opener').set), E(() => d('parent').value === d('parent').value && d('parent').get === d('parent').get && d('parent').set === d('parent').set), E(() => d('blur').value === d('blur').value && d('blur').get === d('blur').get && d('blur').set === d('blur').set), E(() => d('close').value === d('close').value && d('close').get === d('close').get && d('close').set === d('close').set), E(() => d('focus').value === d('focus').value && d('focus').get === d('focus').get && d('focus').set === d('focus').set), E(() => d('postMessage').value === d('postMessage').value && d('postMessage').get === d('postMessage').get && d('postMessage').set === d('postMessage').set), E(() => d('then').value === d('then').value && d('then').get === d('then').get && d('then').set === d('then').set), E(() => d('postMessage').value === w.postMessage), E(() => d('focus').value === w.focus), E(() => d('then').value), E(() => Object.getOwnPropertyDescriptors(w).length), E(() => Object.keys(Object.getOwnPropertyDescriptors(w)).length), E(() => Object.getOwnPropertySymbols(w).map(String).join()), E(() => Object.getOwnPropertyNames(w).length)]; })()",
+     "value": [
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "undefined",
+      "[object Object]",
+      "14",
+      "Symbol(Symbol.toStringTag),Symbol(Symbol.hasInstance),Symbol(Symbol.isConcatSpreadable)",
+      "14"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => w.closed), E(() => w.length), E(() => w.window === w), E(() => w.self === w), E(() => w.frames === w), E(() => w.top === window), E(() => w.parent === window), E(() => w.opener), E(() => typeof w.location), E(() => w.then), E(() => typeof w.blur), E(() => typeof w.close), E(() => typeof w.focus), E(() => typeof w.postMessage), E(() => w[Symbol.toStringTag]), E(() => w[Symbol.hasInstance]), E(() => w[Symbol.isConcatSpreadable]), E(() => w[Symbol.iterator]), E(() => w[Symbol.toPrimitive]), E(() => w[Symbol.asyncIterator]), E(() => w[Symbol()]), E(() => w[Symbol.for('q')]), E(() => w.foo), E(() => w[0]), E(() => w['0']), E(() => w[1.5]), E(() => w['']), E(() => w.name), E(() => w.document), E(() => w.constructor), E(() => w.__proto__), E(() => w.toString), E(() => w.valueOf), E(() => w.hasOwnProperty), E(() => w.top.document === document)]; })()",
+     "value": [
+      "false",
+      "0",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "null",
+      "object",
+      "undefined",
+      "function",
+      "function",
+      "function",
+      "function",
+      "undefined",
+      "undefined",
+      "undefined",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.asyncIterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[q]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '1.5' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'name' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'constructor' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '__proto__' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toString' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'valueOf' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'hasOwnProperty' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; 'use strict'; return [E(() => (() => { 'use strict'; w.foo = 1; return 'strict set'; })()), E(() => (() => { w.foo = 1; return 'sloppy set'; })()), E(() => (() => { 'use strict'; w.closed = 1; return 'set'; })()), E(() => (() => { w.closed = 1; return 'set'; })()), E(() => (() => { w.length = 1; return 'set'; })()), E(() => (() => { w.top = 1; return 'set'; })()), E(() => (() => { w.opener = 1; return 'set'; })()), E(() => (() => { w.postMessage = 1; return 'set'; })()), E(() => (() => { w.then = 1; return 'set'; })()), E(() => (() => { w[0] = 1; return 'set'; })()), E(() => (() => { w[Symbol.iterator] = 1; return 'set'; })()), E(() => (() => { w[Symbol.toStringTag] = 1; return 'set'; })()), E(() => (() => { w.name = 1; return 'set'; })()), E(() => Reflect.set(w, 'foo', 1)), E(() => Reflect.set(w, 'closed', 1)), E(() => Reflect.set(w, 'foo', 1, {})), E(() => Reflect.set(w, 'closed', 1, {}))]; })()",
+     "value": [
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'closed' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'closed' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'length' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'top' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'opener' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'postMessage' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'then' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set an indexed property [0] on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property '[Symbol.iterator]' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property '[Symbol.toStringTag]' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'name' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'closed' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'closed' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => 'x' in w), E(() => 'closed' in w), E(() => 'location' in w), E(() => 0 in w), E(() => Symbol.iterator in w), E(() => Symbol.toStringTag in w), E(() => Reflect.has(w, 'x')), E(() => Reflect.has(w, 'closed')), E(() => delete w.x), E(() => delete w.closed), E(() => delete w.location), E(() => delete w[0]), E(() => delete w[Symbol.iterator]), E(() => Reflect.deleteProperty(w, 'x')), E(() => Reflect.deleteProperty(w, 'closed')), E(() => (() => { 'use strict'; return delete w.x; })()), E(() => Object.defineProperty(w, 'x', {value: 1})), E(() => Object.defineProperty(w, 'closed', {value: 1})), E(() => Object.defineProperty(w, 0, {value: 1})), E(() => Object.defineProperty(w, Symbol.iterator, {value: 1})), E(() => Reflect.defineProperty(w, 'x', {value: 1})), E(() => Object.defineProperties(w, {x: {value: 1}})), E(() => Object.__proto__.__proto__.__defineGetter__.call(w, 'x', () => 1)), E(() => Object.__proto__.__proto__.__lookupGetter__.call(w, 'closed')), E(() => Object.getPrototypeOf(w)), E(() => Reflect.getPrototypeOf(w)), E(() => Object.setPrototypeOf(w, null)), E(() => Object.setPrototypeOf(w, {})), E(() => Reflect.setPrototypeOf(w, null)), E(() => Reflect.setPrototypeOf(w, {})), E(() => Object.getOwnPropertyDescriptor(Object.prototype, '__proto__').get.call(w)), E(() => Object.getOwnPropertyDescriptor(Object.prototype, '__proto__').set.call(w, null)), E(() => Object.getOwnPropertyDescriptor(Object.prototype, '__proto__').set.call(w, {})), E(() => Object.prototype.isPrototypeOf.call(w, {})), E(() => Object.prototype.isPrototypeOf.call({}, w)), E(() => Object.preventExtensions(w)), E(() => Reflect.preventExtensions(w)), E(() => Object.freeze(w)), E(() => Object.seal(w)), E(() => Object.isExtensible(w)), E(() => Reflect.isExtensible(w)), E(() => Object.isFrozen(w)), E(() => Object.isSealed(w))]; })()",
+     "value": [
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "null",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "false",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => Object.prototype.toString.call(w)), E(() => typeof w), E(() => w instanceof Window), E(() => w instanceof Object), E(() => String(w)), E(() => w + ''), E(() => `${w}`), E(() => Number(w)), E(() => +w), E(() => JSON.stringify(w)), E(() => JSON.stringify({a: w})), E(() => JSON.stringify([w])), E(() => Object.keys(w).join()), E(() => Object.values(w).length), E(() => Object.entries(w).length), E(() => Object.assign({}, w)), E(() => ({...w})), E(() => (() => { const r = []; for (const k in w) r.push(k); return r.join(); })()), E(() => w == w), E(() => w === w), E(() => w != null), E(() => w == window), E(() => !!w), E(() => Array.isArray(w)), E(() => [].concat(w).length), E(() => [].concat(w)[0] === w), E(() => Array.prototype.concat.call(w).length), E(() => Array.from(w)), E(() => Array.prototype.slice.call(w).length), E(() => Array.prototype.join.call(w)), E(() => Array.prototype.push.call(w, 1)), E(() => new Map([[w, 1]]).get(w)), E(() => new WeakMap([[w, 1]]).get(w)), E(() => new Set([w, w]).size), E(() => new WeakRef(w).deref() === w), E(() => structuredClone(w)), E(() => structuredClone({w})), E(() => postMessage(w, '*')), E(() => w()), E(() => new w()), E(() => class A extends w {}), E(() => ({}) instanceof w), E(() => w instanceof w), E(() => null[w]), E(() => ({})[w]), E(() => [...w]), E(() => Function.prototype.call.call(w)), E(() => Object.prototype.hasOwnProperty.call(w, 'closed')), E(() => Object.prototype.hasOwnProperty.call(w, 'x')), E(() => Object.hasOwn(w, 'closed')), E(() => Object.hasOwn(w, 'x')), E(() => Object.prototype.propertyIsEnumerable.call(w, 'closed')), E(() => Object.prototype.propertyIsEnumerable.call(w, 'x')), E(() => Object.prototype.valueOf.call(w) === w), E(() => Object(w) === w), E(() => console.log(w)), E(() => new Proxy(w, {}) !== w)]; })()",
+     "value": [
+      "[object Object]",
+      "object",
+      "false",
+      "false",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "",
+      "0",
+      "0",
+      "[object Object]",
+      "[object Object]",
+      "",
+      "true",
+      "true",
+      "true",
+      "false",
+      "true",
+      "false",
+      "1",
+      "true",
+      "1",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "0",
+      "",
+      "SecurityError: Failed to set an indexed property [0] on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "1",
+      "1",
+      "1",
+      "true",
+      "DataCloneError: Failed to execute 'structuredClone' on 'Window': [object Object] could not be cloned.",
+      "DataCloneError: Failed to execute 'structuredClone' on 'Window': [object Object] could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': [object Object] could not be cloned.",
+      "TypeError: w is not a function",
+      "TypeError: w is not a constructor",
+      "TypeError: Class extends value [object Object] is not a constructor or null",
+      "TypeError: Right-hand side of 'instanceof' is not callable",
+      "TypeError: Right-hand side of 'instanceof' is not callable",
+      "TypeError: Cannot read properties of null",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "TypeError: Function.prototype.call was called on [object Object], which is an object and not a function",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "undefined",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const o = Object.create(w); const q = Object.setPrototypeOf({own: 1}, w); const p = new Proxy(w, {}); const t = new Proxy(w, {get(a, k, r) { return r === t ? 'trap' : 'other'; }, has() { return true; }, ownKeys() { return ['a']; }, getOwnPropertyDescriptor() { return {value: 1, configurable: true}; }}); return [E(() => Object.getPrototypeOf(o) === w), E(() => o.x), E(() => o.closed), E(() => o.length), E(() => o.window), E(() => o.postMessage === w.postMessage), E(() => o.then), E(() => o[Symbol.toStringTag]), E(() => o[0]), E(() => 'x' in o), E(() => 'closed' in o), E(() => 'own' in q), E(() => q.own), E(() => q.x), E(() => (q.y = 1, Object.hasOwn(q, 'y'))), E(() => (q.closed = 1, Object.hasOwn(q, 'closed'))), E(() => o.location), E(() => Object.keys(q).join()), E(() => (() => { const r = []; for (const k in q) r.push(k); return r.join(); })()), E(() => String(o)), E(() => o + ''), E(() => o instanceof Window), E(() => Object.prototype.toString.call(o)), E(() => JSON.stringify(o)), E(() => Object.setPrototypeOf(Object.create(null), w) instanceof Object), E(() => typeof p), E(() => p.x), E(() => p.closed), E(() => p.length), E(() => p.window === w), E(() => p.postMessage === w.postMessage), E(() => 'x' in p), E(() => 'closed' in p), E(() => Object.keys(p).join()), E(() => Object.getOwnPropertyNames(p).length), E(() => Object.getPrototypeOf(p)), E(() => delete p.x), E(() => p.x = 1), E(() => Object.isExtensible(p)), E(() => Object.preventExtensions(p)), E(() => Object.setPrototypeOf(p, null)), E(() => Object.setPrototypeOf(p, {})), E(() => String(p)), E(() => JSON.stringify(p)), E(() => Object.prototype.toString.call(p)), E(() => p instanceof Window), E(() => t.x), E(() => t.closed), E(() => 'x' in t), E(() => Object.keys(t).join()), E(() => Object.getOwnPropertyDescriptor(t, 'a').value)]; })()",
+     "value": [
+      "true",
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "0",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "undefined",
+      "undefined",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "1",
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'y' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'closed' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "own",
+      "own",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "[object Object]",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "object",
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "0",
+      "true",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "",
+      "14",
+      "null",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'x' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "[object Object]",
+      "false",
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "trap",
+      "true",
+      "SecurityError: Failed to read a named property 'a' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'a' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-functions",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, g2 = g.contentWindow, sw = s.contentWindow; const viaS = sw.eval('(o, k) => o[k]'); const proto = v => Object.getPrototypeOf(v) === Function.prototype ? 'top' : Object.getPrototypeOf(v) === sw.Function.prototype ? 's' : 'other'; return [E(() => w.focus === w.focus), E(() => w.focus === g2.focus), E(() => w.close === g2.close), E(() => viaS(w, 'focus') === w.focus), E(() => viaS(w, 'focus') === viaS(w, 'focus')), E(() => viaS(w, 'focus') === viaS(g2, 'focus')), E(() => proto(w.focus)), E(() => proto(viaS(w, 'focus'))), E(() => sw.Reflect.get(w, 'focus') === viaS(w, 'focus')), E(() => Reflect.get(w, 'focus') === w.focus), E(() => sw.Object.getOwnPropertyDescriptor(w, 'focus').value === viaS(w, 'focus')), E(() => proto(sw.Reflect.get(w, 'focus'))), E(() => proto(sw.Object.getOwnPropertyDescriptor(w, 'focus').value)), E(() => sw.Function.prototype.call.call(Reflect.get, null, w, 'focus') === w.focus), E(() => proto(dv(w, 'closed').get)), E(() => proto(sw.Object.getOwnPropertyDescriptor(w, 'closed').get)), E(() => dv(w, 'closed').get === dv(g2, 'closed').get), E(() => dv(w, 'closed').get === sw.Object.getOwnPropertyDescriptor(w, 'closed').get), E(() => dv(w, 'location').get === dv(w, 'location').get), E(() => dv(w, 'location').set === dv(g2, 'location').set), E(() => w.focus.name), E(() => w.focus.length), E(() => w.blur.name), E(() => w.blur.length), E(() => w.close.name), E(() => w.close.length), E(() => w.postMessage.name), E(() => w.postMessage.length), E(() => dv(w, 'closed').get.name), E(() => dv(w, 'closed').get.length), E(() => dv(w, 'location').set.name), E(() => dv(w, 'location').set.length), E(() => w.focus.toString()), E(() => Function.prototype.toString.call(dv(w, 'location').get)), E(() => Function.prototype.toString.call(dv(w, 'location').set)), E(() => new w.focus()), E(() => Object.getOwnPropertyNames(w.focus).join()), E(() => w.focus.hasOwnProperty('prototype')), E(() => (w.focus.expando = 5, w.focus.expando)), E(() => Object.getOwnPropertyDescriptor(w.focus, 'name').writable), E(() => Object.getOwnPropertyDescriptor(w.focus, 'length').configurable), E(() => w.focus.bind(w).name), E(() => typeof w.focus.bind(w)), E(() => (() => { try { w.document; } catch (e) { return [e instanceof DOMException, e instanceof sw.DOMException, e.code, e.name, Object.prototype.toString.call(e), e.constructor === DOMException, n(String(e.stack).split('\\n')[0])].join(); } })()), E(() => (() => { try { viaS(w, 'document'); } catch (e) { return [e instanceof DOMException, e instanceof sw.DOMException, e.code, e.name].join(); } })()), E(() => (() => { try { sw.Reflect.get(w, 'document'); } catch (e) { return [e instanceof DOMException, e instanceof sw.DOMException, e.code, e.name].join(); } })()), E(() => (() => { try { sw.Object.getPrototypeOf(w); return 'null ok'; } catch (e) { return e.name; } })()), E(() => (() => { try { sw.Object.setPrototypeOf(w, {}); } catch (e) { return [e instanceof DOMException, e instanceof sw.DOMException, e.name].join(); } })()), E(() => (() => { try { 'x' in w; } catch (e) { return [e instanceof DOMException, e.code, e.name].join(); } })()), E(() => (() => { try { sw.Reflect.has(w, 'x'); } catch (e) { return [e instanceof DOMException, e instanceof sw.DOMException, e.name].join(); } })())]; })()",
+     "value": [
+      "true",
+      "true",
+      "true",
+      "false",
+      "true",
+      "true",
+      "top",
+      "s",
+      "true",
+      "true",
+      "true",
+      "s",
+      "s",
+      "true",
+      "top",
+      "s",
+      "true",
+      "false",
+      "true",
+      "true",
+      "focus",
+      "0",
+      "blur",
+      "0",
+      "close",
+      "0",
+      "postMessage",
+      "1",
+      "get closed",
+      "0",
+      "set location",
+      "1",
+      "function focus() { [native code] }",
+      "function get location() { [native code] }",
+      "function set location() { [native code] }",
+      "TypeError: w.focus is not a constructor",
+      "length,name",
+      "false",
+      "5",
+      "false",
+      "true",
+      "bound focus",
+      "function",
+      "true,false,18,SecurityError,[object DOMException],true,SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false,true,18,SecurityError",
+      "false,true,18,SecurityError",
+      "null ok",
+      "false,true,SecurityError",
+      "true,18,SecurityError",
+      "false,true,SecurityError"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, g2 = g.contentWindow, sw = s.contentWindow; const viaS = sw.eval('(o, k) => o[k]'); const get = k => dv(w, k).get; return [E(() => get('closed').call(w)), E(() => get('closed').call(g2)), E(() => get('closed').call(window)), E(() => get('closed').call(sw)), E(() => get('closed').call(undefined)), E(() => get('closed').call(null)), E(() => get('closed').call({})), E(() => get('closed').call(1)), E(() => get('closed').call(Object.create(w))), E(() => get('closed').call(new Proxy(w, {}))), E(() => get('closed').call(new Proxy(window, {}))), E(() => get('closed').call(Object.create(window))), E(() => get('length').call(w)), E(() => get('length').call(window)), E(() => get('length').call(sw)), E(() => get('length').call({})), E(() => get('length').call(undefined)), E(() => get('window').call(w) === w), E(() => get('window').call(g2) === g2), E(() => get('window').call(window) === window), E(() => get('window').call(sw) === sw), E(() => get('window').call(undefined) === window), E(() => get('window').call({})), E(() => get('self').call(g2) === g2), E(() => get('frames').call(g2) === g2), E(() => get('top').call(g2) === window), E(() => get('top').call(sw) === window), E(() => get('top').call({})), E(() => get('parent').call(g2) === window), E(() => get('parent').call(window) === window), E(() => get('parent').call(1)), E(() => get('opener').call(g2)), E(() => get('opener').call(window)), E(() => get('opener').call({})), E(() => get('location').call(w) === w.location), E(() => get('location').call(g2) === g2.location), E(() => get('location').call(window) === location), E(() => get('location').call(sw) === sw.location), E(() => get('location').call(undefined) === location), E(() => get('location').call({})), E(() => dv(w, 'location').set.call({}, 'x')), E(() => dv(w, 'location').set.length), E(() => w.focus.call({})), E(() => w.focus.call(1)), E(() => w.focus.call(null)), E(() => w.focus.call(undefined)), E(() => w.blur.call({})), E(() => w.close.call({})), E(() => w.close.call(1)), E(() => w.close.call(window)), E(() => w.close.call(undefined)), E(() => w.close.call(sw)), E(() => w.close.call(g2)), E(() => w.postMessage.call({}, 'x', '*')), E(() => w.postMessage.call(1, 'x', '*')), E(() => w.blur.call(window)), E(() => w.blur.call(sw)), E(() => w.blur.call(g2)), E(() => window.focus.call(w)), E(() => window.blur.call(w)), E(() => window.close.call(w)), E(() => window.postMessage.call(w, 'x', '*')), E(() => sw.focus.call(w)), E(() => Object.getOwnPropertyDescriptor(Window.prototype, 'window')), E(() => Object.getOwnPropertyDescriptor(window, 'closed').get.call(w)), E(() => Object.getOwnPropertyDescriptor(window, 'length').get.call(w)), E(() => Object.getOwnPropertyDescriptor(window, 'top').get.call(w) === window), E(() => Object.getOwnPropertyDescriptor(window, 'parent').get.call(w) === window), E(() => Object.getOwnPropertyDescriptor(window, 'window').get.call(w) === w), E(() => Object.getOwnPropertyDescriptor(window, 'location').get.call(w) === w.location), E(() => Object.getOwnPropertyDescriptor(window, 'document').get.call(w)), E(() => Object.getOwnPropertyDescriptor(window, 'name').get.call(w)), E(() => Object.getOwnPropertyDescriptor(window, 'innerWidth').get.call(w)), E(() => Object.getOwnPropertyDescriptor(window, 'frameElement').get.call(w)), E(() => EventTarget.prototype.addEventListener.call(w, 'x', () => 0)), E(() => setTimeout.call(w, () => 0, 0)), E(() => getComputedStyle.call(w, document.body)), E(() => Location.prototype), E(() => Object.getOwnPropertyDescriptor(Document.prototype, 'title').get.call(w)), E(() => Node.prototype.contains.call(document, w)), E(() => document.body.append(w)), E(() => new Event('x', w)), E(() => getComputedStyle(w)), E(() => new MouseEvent('x', {view: w}).view === w), E(() => new UIEvent('x', {view: w}).view === w), E(() => new MessageEvent('x', {source: w}).source === w)]; })()",
+     "value": [
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "0",
+      "3",
+      "0",
+      "TypeError: Illegal invocation",
+      "3",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "TypeError: Illegal invocation",
+      "true",
+      "true",
+      "true",
+      "true",
+      "TypeError: Illegal invocation",
+      "true",
+      "true",
+      "TypeError: Illegal invocation",
+      "null",
+      "null",
+      "TypeError: Illegal invocation",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "1",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "undefined",
+      "undefined",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "TypeError: Illegal invocation",
+      "TypeError: Illegal invocation",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "false",
+      "0",
+      "true",
+      "true",
+      "true",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "[object Location]",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "TypeError: Failed to execute 'contains' on 'Node': parameter 1 is not of type 'Node'.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'bubbles' from 'Window': Failed to read the 'bubbles' property from 'EventInit': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.",
+      "true",
+      "true",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const sw = s.contentWindow, w = f.contentWindow; const got = []; const h = t => e => got.push(t + ':' + e.data); addEventListener('message', h('top')); sw.addEventListener('message', h('s')); w.postMessage.call(window, 'a', '*'); w.postMessage.call(sw, 'b', '*'); w.postMessage.call(undefined, 'c', '*'); await W(100); return got; })()",
+     "value": [
+      "top:a",
+      "s:b",
+      "top:c"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-post-message",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => w.postMessage()), E(() => w.postMessage('x')), E(() => w.postMessage('x', 'foo')), E(() => w.postMessage('x', '')), E(() => w.postMessage('x', '/')), E(() => w.postMessage('x', '*')), E(() => w.postMessage('x', 'http://a.test/path')), E(() => w.postMessage('x', {targetOrigin: 'foo'})), E(() => w.postMessage('x', {targetOrigin: '/'})), E(() => w.postMessage('x', {})), E(() => w.postMessage('x', null)), E(() => w.postMessage('x', 1)), E(() => w.postMessage('x', undefined)), E(() => w.postMessage(() => 1, '*')), E(() => w.postMessage(Symbol('s'), '*')), E(() => w.postMessage(document.body, '*')), E(() => w.postMessage(w, '*')), E(() => w.postMessage(window, '*')), E(() => w.postMessage('x', '*', [1])), E(() => w.postMessage('x', '*', null)), E(() => w.postMessage('x', '*', 1)), E(() => w.postMessage('x', '*', {})), E(() => (() => { const b = new ArrayBuffer(8); w.postMessage(b, '*', [b]); return b.byteLength; })()), E(() => (() => { const b = new ArrayBuffer(8); w.postMessage(b, '*', [b, b]); return b.byteLength; })()), E(() => (() => { const b = new ArrayBuffer(8); w.postMessage(1, {transfer: [b]}); return b.byteLength; })()), E(() => (() => { const b = new ArrayBuffer(8); try { w.postMessage(() => 1, '*', [b]); } catch (e) { return e.name + b.byteLength; } })()), E(() => (() => { const b = new ArrayBuffer(8); try { w.postMessage(1, 'foo', [b]); } catch (e) { return e.name + b.byteLength; } })()), E(() => (() => { const b = new ArrayBuffer(8); try { postMessage(1, 'foo', [b]); } catch (e) { return e.name + b.byteLength; } })()), E(() => (() => { const b = new ArrayBuffer(8); try { s.contentWindow.postMessage(1, 'foo', [b]); } catch (e) { return e.name + b.byteLength; } })()), E(() => (() => { const c = new MessageChannel(); w.postMessage(1, '*', [c.port2]); return E(() => { w.postMessage(1, '*', [c.port2]); return 'again'; }); })()), E(() => (() => { const log = []; w.postMessage({get a() { log.push('get'); return 1; }}, {get targetOrigin() { log.push('origin'); return '*'; }}); return log.join(); })()), E(() => (() => { const log = []; w.postMessage('x', {toString() { log.push('ts'); return '*'; }}); return log.join(); })())]; })()",
+     "value": [
+      "TypeError: Failed to execute 'postMessage' on 'Window': 1 argument required, but only 0 present.",
+      "undefined",
+      "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+      "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '' in a call to 'postMessage'.",
+      "undefined",
+      "undefined",
+      "undefined",
+      "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+      "undefined",
+      "undefined",
+      "undefined",
+      "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin '1' in a call to 'postMessage'.",
+      "undefined",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': Symbol(s) could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': HTMLBodyElement object could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': [object Object] could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': #<Window> could not be cloned.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': Failed to convert value to 'object'.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': The provided value cannot be converted to a sequence.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': The provided value cannot be converted to a sequence.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': The object must have a callable @@iterator property.",
+      "0",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': ArrayBuffer at index 1 is a duplicate of an earlier ArrayBuffer.",
+      "0",
+      "DataCloneError8",
+      "SyntaxError0",
+      "SyntaxError0",
+      "SyntaxError0",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': Port at index 0 is already neutered.",
+      "origin,get",
+      ""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-location",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, g2 = g.contentWindow, sw = s.contentWindow; const viaS = sw.eval('(o, k) => o[k]'); const l = w.location, m = g2.location; return [E(() => l === w.location), E(() => l === m), E(() => viaS(w, 'location') === l), E(() => sw.Reflect.get(w, 'location') === l), E(() => viaS(w, 'location') === viaS(w, 'location')), E(() => l.replace === l.replace), E(() => l.replace === m.replace), E(() => viaS(l, 'replace') === l.replace), E(() => viaS(l, 'replace') === viaS(l, 'replace')), E(() => Object.getPrototypeOf(viaS(l, 'replace')) === sw.Function.prototype), E(() => Object.getPrototypeOf(l.replace) === Function.prototype), E(() => Object.getPrototypeOf(sw.Reflect.get(l, 'replace')) === sw.Function.prototype), E(() => dv(l, 'href').set === dv(l, 'href').set), E(() => dv(l, 'href').set === dv(m, 'href').set), E(() => l.replace.name), E(() => l.replace.length), E(() => dv(l, 'href').set.name), E(() => dv(l, 'href').set.length), E(() => l.replace.toString()), E(() => dv(l, 'href').set.toString()), E(() => Object.getOwnPropertyNames(l.replace).join()), E(() => new l.replace('x')), E(() => Object.getOwnPropertyNames(l).join()), E(() => Reflect.ownKeys(l).map(String).join()), E(() => Object.keys(l).join()), E(() => Object.getOwnPropertySymbols(l).map(String).join()), E(() => (() => { const r = []; for (const k in l) r.push(k); return r.join(); })()), E(() => DS(l, 'href')), E(() => DS(l, 'replace')), E(() => DS(l, 'then')), E(() => DS(l, Symbol.toStringTag)), E(() => DS(l, Symbol.hasInstance)), E(() => DS(l, Symbol.isConcatSpreadable)), E(() => DS(l, Symbol.iterator)), E(() => DS(l, 'x')), E(() => DS(l, 'hash')), E(() => DS(l, 'assign')), E(() => DS(l, 0)), E(() => l.href), E(() => l.hash), E(() => l.origin), E(() => l.protocol), E(() => l.host), E(() => l.hostname), E(() => l.port), E(() => l.pathname), E(() => l.search), E(() => l.assign), E(() => l.reload), E(() => l.toString), E(() => l.valueOf), E(() => l.ancestorOrigins), E(() => l.then), E(() => l[Symbol.toStringTag]), E(() => l[Symbol.hasInstance]), E(() => l[Symbol.isConcatSpreadable]), E(() => l[Symbol.iterator]), E(() => l[Symbol.toPrimitive]), E(() => l[0]), E(() => l.x), E(() => String(l)), E(() => l + ''), E(() => JSON.stringify(l)), E(() => Object.prototype.toString.call(l)), E(() => typeof l), E(() => l instanceof Location), E(() => l instanceof Object), E(() => Object.getPrototypeOf(l)), E(() => Object.setPrototypeOf(l, null)), E(() => Object.setPrototypeOf(l, {})), E(() => Reflect.setPrototypeOf(l, null)), E(() => Object.preventExtensions(l)), E(() => Reflect.preventExtensions(l)), E(() => Object.isExtensible(l)), E(() => Object.isFrozen(l)), E(() => Object.freeze(l)), E(() => 'href' in l), E(() => 'x' in l), E(() => delete l.href), E(() => delete l.x), E(() => Object.defineProperty(l, 'x', {value: 1})), E(() => Object.defineProperty(l, 'href', {value: 1})), E(() => (() => { l.x = 1; return 'set'; })()), E(() => (() => { l.hash = 'x'; return 'set'; })()), E(() => (() => { l.protocol = 'x'; return 'set'; })()), E(() => (() => { l.search = 'x'; return 'set'; })()), E(() => (() => { l.replace = 1; return 'set'; })()), E(() => (() => { l.then = 1; return 'set'; })()), E(() => (() => { l[0] = 1; return 'set'; })()), E(() => (() => { l[Symbol.iterator] = 1; return 'set'; })()), E(() => Object.create(l).x), E(() => Object.create(l).replace === l.replace), E(() => new Proxy(l, {}).x), E(() => new Proxy(l, {}).replace === l.replace), E(() => structuredClone(l)), E(() => l == l), E(() => [].concat(l).length), E(() => new Map([[l, 1]]).get(l)), E(() => new WeakMap([[l, 1]]).get(l))]; })()",
+     "value": [
+      "true",
+      "false",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "false",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "replace",
+      "1",
+      "set href",
+      "1",
+      "function replace() { [native code] }",
+      "function set href() { [native code] }",
+      "length,name",
+      "TypeError: l.replace is not a constructor",
+      "href,replace,then",
+      "href,replace,then,Symbol(Symbol.toStringTag),Symbol(Symbol.hasInstance),Symbol(Symbol.isConcatSpreadable)",
+      "",
+      "Symbol(Symbol.toStringTag),Symbol(Symbol.hasInstance),Symbol(Symbol.isConcatSpreadable)",
+      "",
+      "get=U,set=fn:set href:1,enumerable=false,configurable=true",
+      "value=fn:replace:1,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "value=U,writable=false,enumerable=false,configurable=true",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'hash' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'assign' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'hash' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'origin' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'protocol' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'host' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'hostname' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'port' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'pathname' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'search' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'assign' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'reload' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toString' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'valueOf' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'ancestorOrigins' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "[object Object]",
+      "object",
+      "false",
+      "false",
+      "null",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'x' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'hash' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'protocol' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'search' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'replace' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'then' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set an indexed property [0] on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property '[Symbol.iterator]' on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "DataCloneError: Failed to execute 'structuredClone' on 'Window': Location object could not be cloned.",
+      "true",
+      "1",
+      "1",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-navigate",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const l = w.location; const p = L(f); const r = E(() => { l.href = 'same2.html'; return 'set'; }); const sync = E(() => w.document); await p; const out = [r, sync, E(() => w === f.contentWindow), E(() => w.document.title), E(() => w.location.pathname.replace(/.*\\//, '')), E(() => w.location === l), E(() => l.href), E(() => l.hash), E(() => l.replace === l.replace), E(() => typeof l.replace), E(() => typeof l.assign), E(() => Object.getOwnPropertyNames(l).join()), E(() => Object.getPrototypeOf(l)), E(() => String(l)), E(() => w.location.href.replace(/.*\\//, '')), E(() => w.x)]; return out; })()",
+     "value": [
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "same2",
+      "same2.html",
+      "false",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'hash' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "true",
+      "function",
+      "SecurityError: Failed to read a named property 'assign' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "href,replace,then",
+      "null",
+      "SecurityError: Failed to read a named property from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "same2.html",
+      "same2-x"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const l = w.location; const p = L(f); const r = E(() => { w.location = X('plain.html'); return 'set'; }); await p; const out = [r, E(() => w === f.contentWindow), E(() => w.document), E(() => w.x), E(() => w.location === l), E(() => n(l.href)), E(() => l.pathname), E(() => n(String(l))), E(() => Object.getPrototypeOf(l) === Location.prototype), E(() => Object.getPrototypeOf(w)), E(() => Object.getOwnPropertyNames(l).length), E(() => l.replace === Location.prototype.replace), E(() => typeof l.replace)]; return out; })()",
+     "value": [
+      "set",
+      "true",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "O/case-5/same2.html",
+      "/case-5/same2.html",
+      "O/case-5/same2.html",
+      "false",
+      "null",
+      "15",
+      "false",
+      "function"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const p = L(f); const r = E(() => { w.location.replace('same.html'); return 'set'; }); await p; const out = [r, E(() => w.document.title), E(() => w.x)]; const q = L(f); const r2 = E(() => { w.location.replace(X('plain.html')); return 'set'; }); await q; out.push(r2, E(() => w.document), E(() => w.closed)); return out; })()",
+     "value": [
+      "set",
+      "same",
+      "same-x",
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const out = []; let p = L(f); out.push(E(() => Reflect.set(w, 'location', 'same.html'))); await p; out.push(E(() => w.document.title)); p = L(f); out.push(E(() => { Object.getOwnPropertyDescriptor(f.contentWindow, 'location').value; return 'read'; })); w.location.href = X('plain.html'); await p; p = L(f); out.push(E(() => Object.getOwnPropertyDescriptor(w, 'location').set.call(w, 'same2.html'))); await p; out.push(E(() => w.document.title)); p = L(f); w.location.replace(X('plain.html')); await p; p = L(f); out.push(E(() => Object.getOwnPropertyDescriptor(w.location, 'href').set.call(w.location, 'same.html'))); await p; out.push(E(() => w.document.title)); p = L(f); w.location.replace(X('plain.html')); await p; out.push(E(() => w.document)); return out; })()",
+     "value": [
+      "true",
+      "same",
+      "read",
+      "undefined",
+      "same2",
+      "undefined",
+      "same",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const l = w.location; const seen = []; return [E(() => (() => { l.href = 'http://[/'; return 'set'; })()), E(() => l.replace('http://[/')), E(() => (() => { w.location = 'http://[/'; return 'set'; })()), E(() => (() => { l.href = {toString() { throw new RangeError('conv'); }}; return 'set'; })()), E(() => l.replace({toString() { throw new RangeError('conv'); }})), E(() => (() => { w.location = {toString() { throw new RangeError('conv'); }}; return 'set'; })()), E(() => (() => { l.href = Symbol('s'); return 'set'; })()), E(() => l.replace(Symbol('s')))]; })()",
+     "value": [
+      "SyntaxError: Failed to set a named property 'href' on 'Location': 'http://[/' is not a valid URL.",
+      "SyntaxError: Failed to execute 'replace' on 'Location': 'http://[/' is not a valid URL.",
+      "SyntaxError: Failed to set a named property 'href' on 'Location': 'http://[/' is not a valid URL.",
+      "RangeError: conv",
+      "RangeError: conv",
+      "RangeError: conv",
+      "TypeError: Failed to set a named property 'href' on 'Location': Cannot convert a Symbol value to a string",
+      "TypeError: Failed to execute 'replace' on 'Location': Cannot convert a Symbol value to a string"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const seen = []; const p = L(f); const r = E(() => { w.location = {toString() { seen.push('ts'); return 'same.html'; }}; return 'set'; }); await p; const a = E(() => w.document.title); const q = L(f); w.location.replace(X('plain.html')); await q; return [r, seen.join(), a]; })()",
+     "value": [
+      "set",
+      "ts",
+      "same"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; let loads = 0; f.onload = () => loads++; const a = E(() => { w.location.href = X('plain.html#a'); return 'set'; }); await W(300); const b = loads; const c = E(() => { w.location.href = X('plain.html'); return 'set'; }); await W(300); f.onload = null; return [a, b, c, loads]; })()",
+     "value": [
+      "set",
+      1,
+      "set",
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-javascript-url",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow, sw = s.contentWindow; let loads = 0; f.onload = () => loads++; const r = [E(() => { w.location.href = \"javascript:parent.postMessage('href', '*')\"; return 'set'; }), E(() => { w.location.replace(\"javascript:parent.postMessage('replace', '*')\"); return 'set'; }), E(() => { w.location = \"javascript:parent.postMessage('assign', '*')\"; return 'set'; }), E(() => { sw.location.href = \"javascript:parent.postMessage('control', '*')\"; return 'set'; }), E(() => { f.src = \"javascript:parent.postMessage('src', '*')\"; return 'set'; })]; await W(300); return [r, log.join(), loads, E(() => w.document)]; })()",
+     "value": [
+      [
+       "SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'javascript:parent.postMessage('href', '*')'.",
+       "SecurityError: Failed to execute 'replace' on 'Location': The current window does not have permission to navigate the target frame to 'javascript:parent.postMessage('replace', '*')'.",
+       "SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'javascript:parent.postMessage('assign', '*')'.",
+       "set",
+       "set"
+      ],
+      "control",
+      0,
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-navigate-rules",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const sbw = sb.contentWindow, sw = s.contentWindow; const leaf = m.contentWindow[0]; const ev = (t, code) => t.eval(code); window.tf = f.contentWindow; const v = code => [E(() => sw.eval(code)), E(() => sbw.eval(code)), E(() => leaf.eval(code))]; return v(\"(() => { top.tf.location.href = 'http://[/'; return 'set'; })()\").concat(v(\"(() => { top.tf.foo; })()\"), v(\"(() => { return frameElement === null; })()\")); })",
+     "value": [
+      "SyntaxError: Failed to set a named property 'href' on 'Location': 'http://[/' is not a valid URL.",
+      "SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'http://[/'.",
+      "SyntaxError: Failed to set a named property 'href' on 'Location': 'http://[/' is not a valid URL.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "false",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const sbw = sb.contentWindow; const code = \"(() => { try { top.tf.location.href = 'same2.html'; return 'set'; } catch (e) { return e.name + ': ' + e.message.split(location.origin).join('O'); } })()\"; const r = n(sbw.eval(code)); await W(200); return [r, E(() => f.contentWindow.document)]; })()",
+     "value": [
+      "SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navigate the target frame to 'O/case-7/same2.html'.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const leaf = m.contentWindow[0]; const code = \"(() => { try { parent.location.href = 'same2.html'; return 'set'; } catch (e) { return e.name + ': ' + e.message.split(location.origin).join('O'); } })()\"; const p = L(m); const r = n(leaf.eval(code)); await p; return [r, E(() => m.contentWindow.document.title)]; })()",
+     "value": [
+      "set",
+      "same2"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const sw = s.contentWindow; const code = \"(() => { try { top.tf.location.replace('same2.html'); return 'set'; } catch (e) { return e.name + ': ' + e.message; } })()\"; const p = L(f); const r = n(sw.eval(code)); await p; return [r, E(() => f.contentWindow.document.title), E(() => f.contentWindow.location.pathname.replace(/.*\\//, ''))]; })()",
+     "value": [
+      "set",
+      "same2",
+      "same2.html"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const ow = o.contentWindow; const out = [E(() => ow.document), E(() => o.contentDocument), E(() => ow.closed), E(() => ow.length), E(() => ow.parent === window), E(() => ow.location.href), E(() => Object.getOwnPropertyNames(ow).length), E(() => Object.getPrototypeOf(ow)), E(() => typeof ow.postMessage), E(() => ow.foo = 1)]; const p = L(o); out.push(E(() => { ow.location.href = 'same2.html'; return 'set'; })); await p; out.push(E(() => ow.document), E(() => ow.location.href), E(() => o.contentDocument)); return out; })()",
+     "value": [
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "false",
+      "0",
+      "true",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "14",
+      "null",
+      "function",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-children",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => { const w = f.contentWindow; return [E(() => w.length), E(() => Object.getOwnPropertyNames(w).join()), E(() => Reflect.ownKeys(w).map(String).join()), E(() => Object.keys(w).join()), E(() => { const r = []; for (const k in w) r.push(k); return r.join(); }), DS(w, 0), DS(w, '0'), DS(w, 13), DS(w, 14), DS(w, 'kid'), DS(w, 'dup'), DS(w, 'self'), DS(w, 'location'), DS(w, 'then'), DS(w, 'document'), DS(w, '7'), DS(w, '9000'), DS(w, ''), DS(w, '__proto__'), DS(w, 'hidden'), DS(w, 'leaf')]; })",
+     "value": [
+      "14",
+      "0,1,2,3,4,5,6,7,8,9,10,11,12,13,window,self,location,closed,frames,length,top,opener,parent,blur,close,focus,postMessage,then",
+      "0,1,2,3,4,5,6,7,8,9,10,11,12,13,window,self,location,closed,frames,length,top,opener,parent,blur,close,focus,postMessage,then,Symbol(Symbol.toStringTag),Symbol(Symbol.hasInstance),Symbol(Symbol.isConcatSpreadable)",
+      "0,1,2,3,4,5,6,7,8,9,10,11,12,13",
+      "",
+      "value=[object Window],writable=false,enumerable=true,configurable=true",
+      "value=[object Window],writable=false,enumerable=true,configurable=true",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [14] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "get=fn:get self:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get location:0,set=fn:set location:1,enumerable=false,configurable=true",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [9000] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "value=[object Window],writable=false,enumerable=false,configurable=true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; return [E(() => w[0] === w.leaf), E(() => w[0] === w.frames[0]), E(() => w['0'] === w[0]), E(() => w[1] === w.frames[1]), E(() => w[1] === w.kid), E(() => w[2] === w.kid), E(() => w[3] === w.dup), E(() => w[4] === w.dup), E(() => w[5] === w.self), E(() => w.self === w), E(() => w.location === w[6]), E(() => w.then === w[7]), E(() => typeof w.then), E(() => w.document === w[8]), E(() => w[9] === w['7']), E(() => w[7] === w['7']), E(() => w['9000'] === w[10]), E(() => w['9000']), E(() => w[''] ), E(() => w.__proto__ === w[12]), E(() => w[13] === w.hidden), E(() => w[14]), E(() => w['00']), E(() => w['1.5']), E(() => w[-1]), E(() => w[4294967295]), E(() => w[4294967294]), E(() => 'kid' in w), E(() => 0 in w), E(() => 1 in w), E(() => 14 in w), E(() => delete w.kid), E(() => delete w[0]), E(() => delete w[14]), E(() => (() => { w.kid = 1; return 'set'; })()), E(() => (() => { w[0] = 1; return 'set'; })()), E(() => (() => { w[14] = 1; return 'set'; })()), E(() => Object.defineProperty(w, 'kid', {value: 1})), E(() => Object.defineProperty(w, 0, {value: 1})), E(() => Object.defineProperty(w, 14, {value: 1})), E(() => Object.prototype.hasOwnProperty.call(w, 'kid')), E(() => Object.prototype.hasOwnProperty.call(w, 0)), E(() => Object.prototype.hasOwnProperty.call(w, 14)), E(() => Object.prototype.propertyIsEnumerable.call(w, 0)), E(() => Object.prototype.propertyIsEnumerable.call(w, 'kid')), E(() => Object.values(w).length), E(() => Object.entries(w).map(e => e[0]).join()), E(() => Object.assign({}, w)[0] === w[0]), E(() => Object.keys(Object.assign({}, w)).length), E(() => Array.from(w)), E(() => Array.prototype.slice.call(w).length), E(() => Array.prototype.slice.call(w)[0] === w[0]), E(() => [].concat(w).length), E(() => Array.prototype.map.call(w, x => 1).join()), E(() => Array.prototype.indexOf.call(w, w[1])), E(() => JSON.stringify(w)), E(() => Object.create(w)[0] === w[0]), E(() => new Proxy(w, {})[0] === w[0]), E(() => new Proxy(w, {}).kid === w.kid), E(() => w[0].document.title), E(() => w[0].parent === w), E(() => w[0].top === window), E(() => w[0].frameElement), E(() => w.leaf.document.title), E(() => w[0].parent.parent === window), E(() => w[4].document.title), E(() => w[1].document), E(() => w[1].parent === w), E(() => w[1].top === window), E(() => w[1].length), E(() => w[1][0]), E(() => w.frames.frames.kid === w.kid), E(() => w[0].parent.kid === w.kid), E(() => w[0].name), E(() => w[1].name), E(() => frames.length), E(() => frames[0] === w), E(() => frames[0][0] === w[0])]; })()",
+     "value": [
+      "true",
+      "true",
+      "true",
+      "true",
+      "false",
+      "true",
+      "true",
+      "false",
+      "false",
+      "true",
+      "false",
+      "true",
+      "object",
+      "true",
+      "false",
+      "true",
+      "SecurityError: Failed to read an indexed property [9000] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [9000] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "SecurityError: Failed to read an indexed property [14] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '00' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '1.5' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '-1' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '4294967295' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [4294967294] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "SecurityError: Failed to read an indexed property [14] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'kid' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set an indexed property [0] on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set an indexed property [14] on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Failed to read an indexed property [14] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "14",
+      "0,1,2,3,4,5,6,7,8,9,10,11,12,13",
+      "true",
+      "14",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "14",
+      "true",
+      "1",
+      "1,1,1,1,1,1,1,1,1,1,1,1,1,1",
+      "1",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "true",
+      "same",
+      "true",
+      "true",
+      "null",
+      "same",
+      "true",
+      "same",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "0",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "leaf",
+      "SecurityError: Failed to read a named property 'name' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "1",
+      "true",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const leaf = w[0]; const out = []; out.push(E(() => w.renamed)); leaf.name = 'renamed'; out.push(E(() => w.renamed === leaf), E(() => w.leaf), E(() => Object.getOwnPropertyNames(w).includes('renamed')), E(() => Object.getOwnPropertyNames(w).includes('leaf'))); leaf.name = ''; out.push(E(() => w.renamed)); const e = leaf.document.createElement('iframe'); leaf.document.body.append(e); out.push(E(() => leaf.length), E(() => e.contentWindow.parent === leaf), E(() => e.contentWindow.top === window), E(() => e.contentWindow.parent.parent === w), E(() => e.contentWindow.parent.parent.foo)); return out; })()",
+     "value": [
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'leaf' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "false",
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "1",
+      "true",
+      "true",
+      "true",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-aba",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => frames[0][0].r.map(String))",
+     "value": [
+      "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "null",
+      "SecurityError: Failed to read a named property 'frameElement' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "1",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "top",
+      "true",
+      "true",
+      "true",
+      "function",
+      "false",
+      "true",
+      "true",
+      "SecurityError: Failed to set a named property 'x' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "null",
+      "SecurityError: Failed to read a named property 'name' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "null",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "2",
+      "2",
+      "set"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => frames[0].frameElement), E(() => frames[0][0].frameElement), E(() => frames[0][0].parent.frameElement), E(() => s.contentWindow[0].fe), E(() => s.contentWindow[0].pfe), E(() => s.contentWindow[0].tfe), E(() => s.contentWindow.frameElement === s), E(() => frames[0][0].eval('new Error().stack.length > 0')), E(() => frames[0][0].eval('window.frameElement')), E(() => frames[1].frameElement === s), E(() => frames[1][0].frameElement === s.contentDocument.getElementById('in')), E(() => frames[1][0].frameElement.ownerDocument === s.contentDocument)]",
+     "value": [
+      "SecurityError: Failed to read a named property 'frameElement' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "null",
+      "SecurityError: Failed to read a named property 'frameElement' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "in",
+      "s",
+      "null",
+      "true",
+      "true",
+      "null",
+      "true",
+      "true",
+      "true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-focus",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(5600); const w = f.contentWindow; const state = () => [document.hasFocus(), document.activeElement === document.body ? 'body' : document.activeElement.id].join(); const out = [state()]; out.push(E(() => w.focus())); out.push(state(), log.join()); log.length = 0; await W(200); out.push(state(), log.join()); log.length = 0; out.push(E(() => w.blur())); await W(200); out.push(state(), log.join()); log.length = 0; ti.focus(); await W(200); out.push(state(), log.join()); log.length = 0; out.push(E(() => w.focus())); await W(200); out.push(state(), log.join()); log.length = 0; out.push(E(() => f.focus())); await W(200); out.push(state(), log.join()); log.length = 0; ti.focus(); await W(200); log.length = 0; out.push(E(() => window.focus())); out.push(state(), log.join()); log.length = 0; return out; })()",
+     "value": [
+      "true,body",
+      "undefined",
+      "true,f",
+      "top blur",
+      "true,f",
+      "",
+      "undefined",
+      "true,f",
+      "",
+      "true,ti",
+      "top focus",
+      "undefined",
+      "true,f",
+      "top blur",
+      "undefined",
+      "true,f",
+      "top focus,top blur,iframe focus",
+      "undefined",
+      "true,ti",
+      ""
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(100).then(() => frameLog.join())",
+     "value": "frame focus,frame blur,frame focus,frame blur,frame focus,frame blur"
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const sw = s.contentWindow; const w = f.contentWindow; const state = () => [document.hasFocus(), document.activeElement === document.body ? 'body' : document.activeElement.id].join(); const out = [state(), E(() => sw.focus()), state(), log.join()]; log.length = 0; await W(200); out.push(log.join()); log.length = 0; out.push(E(() => w.focus.call(sw)), state(), log.join()); log.length = 0; out.push(E(() => w.blur.call(sw)), state(), log.join()); log.length = 0; out.push(E(() => w.focus.call(window)), state(), log.join()); log.length = 0; out.push(E(() => w.focus.call(undefined)), state(), log.join()); log.length = 0; return out; })()",
+     "value": [
+      "true,ti",
+      "undefined",
+      "true,s",
+      "top blur,s focus",
+      "",
+      "undefined",
+      "true,s",
+      "",
+      "undefined",
+      "true,s",
+      "",
+      "undefined",
+      "true,body",
+      "s blur,top focus",
+      "undefined",
+      "true,body",
+      ""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-close",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow, sw = s.contentWindow; const out = [E(() => w.close()), E(() => w.closed), E(() => f.isConnected), E(() => f.contentWindow === w), E(() => sw.close()), E(() => sw.closed), E(() => close.call(sw)), E(() => w.close.call(sw)), E(() => sw.closed), E(() => w.close.call(window)), E(() => window.closed), E(() => sw.close.call(window))]; await W(200); out.push(E(() => w.closed), E(() => sw.closed), E(() => f.contentWindow === w), E(() => s.contentWindow === sw), E(() => window.closed), E(() => frames.length)); return out; })()",
+     "value": [
+      "undefined",
+      "false",
+      "true",
+      "true",
+      "undefined",
+      "false",
+      "undefined",
+      "undefined",
+      "false",
+      "undefined",
+      "false",
+      "undefined",
+      "false",
+      "false",
+      "true",
+      "true",
+      "false",
+      "3"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-destroyed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const w = f.contentWindow, sw = s.contentWindow, kid = w[0], l = w.location; const focus = w.focus, closedGet = Object.getOwnPropertyDescriptor(w, 'closed').get; const viaS = sw.eval('(o, k) => o[k]'); const focusS = viaS(w, 'focus'); f.remove(); return [E(() => f.contentWindow), E(() => w.closed), E(() => w.length), E(() => w.top), E(() => w.parent), E(() => w.window === w), E(() => w.self === w), E(() => w.frames === w), E(() => w.opener), E(() => w.foo), E(() => w.document), E(() => w[0]), E(() => w.kid), E(() => typeof w.postMessage), E(() => w.focus === focus), E(() => viaS(w, 'focus') === focusS), E(() => w.focus()), E(() => w.blur()), E(() => w.close()), E(() => w.postMessage('x', '*')), E(() => w.location === l), E(() => typeof w.location), E(() => l.href), E(() => l.replace('same.html')), E(() => { l.href = 'same.html'; return 'set'; }), E(() => { w.location = 'same.html'; return 'set'; }), E(() => Object.getOwnPropertyDescriptor(w, 'closed').get === closedGet), E(() => closedGet.call(w)), E(() => Object.getOwnPropertyNames(w).join()), E(() => Object.keys(w).join()), E(() => 'x' in w), E(() => Object.getPrototypeOf(w)), E(() => kid.closed), E(() => kid.parent), E(() => kid.top), E(() => kid.length), E(() => kid.foo), E(() => Object.prototype.toString.call(w)), E(() => String(w)), E(() => { w.foo = 1; return 'set'; })]; })",
+     "value": [
+      "ReferenceError: f is not defined",
+      "true",
+      "0",
+      "null",
+      "null",
+      "false",
+      "false",
+      "false",
+      "null",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'kid' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "function",
+      "true",
+      "true",
+      "undefined",
+      "undefined",
+      "undefined",
+      "undefined",
+      "true",
+      "object",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "undefined",
+      "set",
+      "set",
+      "true",
+      "true",
+      "window,self,location,closed,frames,length,top,opener,parent,blur,close,focus,postMessage,then",
+      "",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "null",
+      "true",
+      "null",
+      "null",
+      "0",
+      "SecurityError: Failed to read a named property 'foo' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "[object Object]",
+      "SecurityError: Failed to read a named property from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to set a named property 'foo' on 'Window': An attempt was made to break through the security policy of the user agent."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const sw = s.contentWindow, l = sw.location; sw.y = 1; s.remove(); return [E(() => sw.closed), E(() => sw.length), E(() => sw.top), E(() => sw.parent), E(() => sw.y), E(() => typeof sw.document), E(() => typeof sw.location), E(() => sw.location === l), E(() => n(String(l)))]; })()",
+     "value": [
+      "true",
+      "0",
+      "null",
+      "null",
+      "1",
+      "object",
+      "object",
+      "true",
+      "O/case-12/same.html"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const e = document.createElement('iframe'); document.body.append(e); const ew = e.contentWindow; const g2 = g.contentWindow; const read = ew.eval('(w, k) => w[k]'); const a = E(() => read(g2, 'document')); const b = E(() => read(g2, 'closed')); const fn = read(g2, 'focus'); e.remove(); return [a, b, E(() => read(g2, 'document')), E(() => read(g2, 'closed')), E(() => read(g2, 'focus') === fn), E(() => read(g2, 'top') === window), E(() => read(g2.location, 'href')), E(() => read(g2, 'location') === read(g2, 'location')), E(() => { const set = ew.eval('(w, u) => { w.location = u; }'); set(g2, 'same.html'); return 'set'; }), E(() => ew.eval('1'))]; })()",
+     "value": [
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a restricted frame with origin \"O\" from accessing another frame.",
+      "false",
+      "true",
+      "true",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a restricted frame with origin \"O\" from accessing another frame.",
+      "true",
+      "set",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-stale-sites",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const read = o => o.x; const readV = o => o.v; const readClosed = o => o.closed; const readLen = o => o.length; const readTop = o => o.top; const readFocus = o => o.focus; const readLoc = o => o.location; const write = (o, a) => { o.y = a; }; const has = o => 'x' in o; const out = []; const all = () => [E(() => read(w)), E(() => readV(w)), E(() => readClosed(w)), E(() => readLen(w)), E(() => readTop(w) === window), E(() => typeof readFocus(w)), E(() => typeof readLoc(w)), E(() => write(w, 1)), E(() => has(w))]; for (let i = 0; i < 50; i++) all(); out.push(all()); let p = L(f); w.location.href = X('plain.html'); await p; for (let i = 0; i < 3; i++) all(); out.push(all()); p = L(f); w.location.href = 'same2.html'; await p; for (let i = 0; i < 50; i++) all(); out.push(all()); p = L(f); w.location.href = X('plain.html'); await p; out.push(all()); f.remove(); out.push(all()); return out; })()",
+     "value": [
+      [
+       "same-x",
+       "1",
+       "false",
+       "0",
+       "true",
+       "function",
+       "object",
+       "undefined",
+       "true"
+      ],
+      [
+       "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "SecurityError: Failed to read a named property 'v' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "false",
+       "0",
+       "true",
+       "function",
+       "object",
+       "SecurityError: Failed to set a named property 'y' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+      ],
+      [
+       "same2-x",
+       "undefined",
+       "false",
+       "0",
+       "true",
+       "function",
+       "object",
+       "undefined",
+       "true"
+      ],
+      [
+       "SecurityError: Failed to read a named property 'x' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "SecurityError: Failed to read a named property 'v' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "false",
+       "0",
+       "true",
+       "function",
+       "object",
+       "SecurityError: Failed to set a named property 'y' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+       "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame."
+      ],
+      [
+       "SecurityError: Failed to read a named property 'x' from 'Window': An attempt was made to break through the security policy of the user agent.",
+       "SecurityError: Failed to read a named property 'v' from 'Window': An attempt was made to break through the security policy of the user agent.",
+       "true",
+       "0",
+       "false",
+       "function",
+       "object",
+       "SecurityError: Failed to set a named property 'y' on 'Window': An attempt was made to break through the security policy of the user agent.",
+       "SecurityError: An attempt was made to break through the security policy of the user agent."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-location-this",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const out = []; out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call({}, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(undefined, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(1, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(w, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call({}, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(undefined, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(w, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace()); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(location)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(l, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace('http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((l.replace.call(location, '#lr'), location.hash)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((dv(l, 'href').set.call(location, '#sh'), location.hash)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(location, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(location, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(location, Symbol())); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace.call(location, Symbol())); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set.call(l, Symbol())); })); return out; })()",
+     "value": [
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "undefined -> undefined",
+      "undefined -> same.html",
+      "TypeError: Failed to execute 'replace' on 'Location': 1 argument required, but only 0 present. -> stayed",
+      "TypeError: Failed to execute 'replace' on 'Location': 1 argument required, but only 0 present. -> stayed",
+      "SyntaxError: Failed to set the 'href' property on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "undefined -> same.html",
+      "SyntaxError: Failed to execute 'replace' on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "#lr -> stayed",
+      "#sh -> stayed",
+      "SyntaxError: Failed to set the 'href' property on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "SyntaxError: Failed to execute 'replace' on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "TypeError: Failed to set the 'href' property on 'Location': Cannot convert a Symbol value to a string -> stayed",
+      "TypeError: Failed to execute 'replace' on 'Location': Cannot convert a Symbol value to a string -> stayed",
+      "TypeError: Failed to set the 'href' property on 'Location': Cannot convert a Symbol value to a string -> stayed"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const out = []; out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'href').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'hash').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'origin').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'href').set.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'href').set.call(l, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(location, 'hash').set.call(l, 'x')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.replace.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.replace.call(l, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.assign.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.reload.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.toString.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'closed').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'length').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'location').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'location').set.call(l, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'name').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'closed').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').get.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.focus.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.close.call(l)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.postMessage.call(l, 'x', '*')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (l.replace === location.replace); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(l, 'href').set === dv(location, 'href').set); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.focus === window.focus); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.blur === window.blur); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (w.postMessage === window.postMessage); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'closed').get === dv(window, 'closed').get); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').get === dv(window, 'location').get); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set === dv(window, 'location').set); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'location').set.length); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (new Event('x', l)); })); return out; })()",
+     "value": [
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "undefined -> same.html",
+      "SyntaxError: Failed to set the 'href' property on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "undefined -> same.html",
+      "SyntaxError: Failed to execute 'replace' on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "false -> stayed",
+      "1 -> stayed",
+      "SecurityError: Failed to read a named property 'bubbles' from 'Location': Failed to read the 'bubbles' property from 'EventInit': Blocked a frame with origin \"O\" from accessing a cross-origin frame. -> stayed"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const out = []; out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set.call(w, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(window, 'location').set.call(w, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set.call(w)); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (location.hash); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set.call({}, 'same.html')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set.call(w, 'http://[/')); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((() => { w.location = Symbol(); return 'set'; })()); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (dv(w, 'location').set.call(w, Symbol())); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((() => { w.location = {toString() { throw new RangeError('conv'); }}; return 'set'; })()); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (Reflect.set(l, 'href', 'same.html', {})); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (Reflect.set(w, 'location', 'same.html', {})); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((q.location = 'same.html', Object.hasOwn(q, 'location'))); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((r.href = 'same.html', Object.hasOwn(r, 'href'))); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (new Proxy(l, {}).href = 'same.html'); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return (new Proxy(w, {}).location = 'same.html'); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((() => { l.href = 'about:blank'; return 'set'; })()); })); out.push(await TRY(f, () => { const w = f.contentWindow; const l = w.location; const q = Object.setPrototypeOf({}, w); const r = Object.create(l); return ((() => { l.href = 'data:text/html,<title>d</title>'; return 'set'; })()); })); return out; })()",
+     "value": [
+      "undefined -> same.html",
+      "undefined -> same.html",
+      "undefined -> undefined",
+      "#sh -> stayed",
+      "TypeError: Illegal invocation -> stayed",
+      "SyntaxError: Failed to set a named property 'href' on 'Location': 'http://[/' is not a valid URL. -> stayed",
+      "TypeError: Failed to set a named property 'href' on 'Location': Cannot convert a Symbol value to a string -> stayed",
+      "TypeError: Failed to set a named property 'href' on 'Location': Cannot convert a Symbol value to a string -> stayed",
+      "RangeError: conv -> stayed",
+      "true -> same.html",
+      "true -> same.html",
+      "false -> same.html",
+      "false -> same.html",
+      "same.html -> same.html",
+      "same.html -> same.html",
+      "set -> blank",
+      "set -> stayed"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-keys-more",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const l = w.location; return [E(() => w[Symbol('s')]), E(() => w[Symbol('')]), E(() => w[Symbol.match]), E(() => w[Symbol.matchAll]), E(() => w[Symbol.replace]), E(() => w[Symbol.search]), E(() => w[Symbol.split]), E(() => w[Symbol.species]), E(() => w[Symbol.unscopables]), E(() => w[Symbol.asyncIterator]), E(() => l[Symbol('s')]), E(() => l[Symbol.toPrimitive]), E(() => l[Symbol.unscopables]), E(() => (() => { w[Symbol('s')] = 1; return 'set'; })()), E(() => (() => { w[Symbol()] = 1; return 'set'; })()), E(() => (() => { w[Symbol.toPrimitive] = 1; return 'set'; })()), E(() => (() => { w[''] = 1; return 'set'; })()), E(() => (() => { l[Symbol()] = 1; return 'set'; })()), E(() => (() => { l[''] = 1; return 'set'; })()), E(() => l['']), E(() => DS(w, Symbol.unscopables)), E(() => DS(w, Symbol('s'))), E(() => DS(l, Symbol.toPrimitive)), E(() => new Function('w', 'with (w) { return x; }')(w)), E(() => new Function('w', 'with (w) { return closed; }')(w)), E(() => new Function('w', 'with (w) { return typeof y; }')(w)), E(() => new Function('l', 'with (l) { return href; }')(l)), E(() => Promise.resolve(w) instanceof Promise), E(() => w.then === undefined), E(() => Object.prototype.__lookupSetter__.call(w, 'location')), E(() => Object.prototype.__lookupGetter__.call(l, 'href')), E(() => Object.prototype.__defineSetter__.call(l, 'x', () => 0)), E(() => Object.prototype.hasOwnProperty.call(w, 'then')), E(() => Object.prototype.propertyIsEnumerable.call(w, 'then')), E(() => Object.prototype.hasOwnProperty.call(l, 'then')), E(() => Object.prototype.hasOwnProperty.call(l, 'href')), E(() => Object.prototype.hasOwnProperty.call(l, 'x')), E(() => Object.prototype.hasOwnProperty.call(l, 0)), E(() => Object.hasOwn(l, 'x')), E(() => Object.prototype.propertyIsEnumerable.call(l, 'href')), E(() => Object.prototype.propertyIsEnumerable.call(l, 'x')), E(() => Object.prototype.isPrototypeOf.call(l, {})), E(() => Object.prototype.valueOf.call(l) === l), E(() => 0 in l), E(() => Symbol.toStringTag in l), E(() => Symbol.iterator in l), E(() => 'then' in w), E(() => 'then' in l), E(() => 'replace' in l), E(() => delete l[0]), E(() => delete l.replace), E(() => Reflect.deleteProperty(l, 'x')), E(() => Reflect.defineProperty(l, 'x', {value: 1})), E(() => Reflect.has(l, 'x')), E(() => Reflect.get(l, 'x')), E(() => Reflect.get(l, 'href')), E(() => Reflect.getOwnPropertyDescriptor(l, 'x')), E(() => Object.getOwnPropertyDescriptors(l).href.enumerable), E(() => Array.isArray(l)), E(() => Array.from(l)), E(() => [...l]), E(() => Object.assign({}, l)), E(() => console.log(w, l)), E(() => console.dir(w)), E(() => console.table(w)), E(() => String(new Error('x', {cause: w}).cause === w)), E(() => new Error('x', w).cause), E(() => structuredClone({l})), E(() => new Map([[l, 1]]).size), E(() => typeof w.location.replace), E(() => l.replace.bind(l).name)]; })()",
+     "value": [
+      "SecurityError: Failed to read a named property '[s]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.match]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.matchAll]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.replace]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.search]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.split]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.species]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.unscopables]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.asyncIterator]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[s]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.unscopables]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property '[s]' on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property on 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property on 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.unscopables]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[s]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.unscopables]' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.unscopables]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read an indexed property [0] from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "true",
+      "SecurityError: Failed to read an indexed property [0] from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'x' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "false",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property '[Symbol.iterator]' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "[object Object]",
+      "undefined",
+      "undefined",
+      "undefined",
+      "true",
+      "SecurityError: Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "DataCloneError: Failed to execute 'structuredClone' on 'Window': Location object could not be cloned.",
+      "1",
+      "function",
+      "bound replace"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow, l = w.location; const a = await Promise.resolve(w); const b = await Promise.resolve(l); const c = await new Promise(r => r(w)); return [a === w, b === l, c === w, await (async () => w)() === w]; })()",
+     "value": [
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-kept-location",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const l0 = w.location; const set0 = w.focus; let p = L(f); l0.href = X('plain2.html'); await p; const out = [E(() => w.location === l0), E(() => l0.href), E(() => w.document)]; p = L(f); l0.replace('same.html'); await p; out.push(E(() => w.document.title), E(() => w.location === l0), E(() => l0.href), E(() => w.focus === set0), E(() => typeof l0.replace), E(() => { l0.href = 'same2.html'; return 'set'; })); await W(200); out.push(E(() => w.document.title), E(() => l0.replace('same2.html'))); await W(200); out.push(E(() => w.document.title)); p = L(f); w.location.replace(X('plain.html')); await p; out.push(E(() => w.location === l0), E(() => l0.href), E(() => w.document), E(() => { l0.href = 'same2.html'; return 'set'; })); await W(200); out.push(E(() => w.document)); const l1 = w.location; out.push(E(() => l1 === l0), E(() => l1.href), E(() => l1.replace === l0.replace)); return out; })()",
+     "value": [
+      "false",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "true",
+      "function",
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "undefined",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "false",
+      "SecurityError: Failed to read a named property 'href' from 'Location': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const w = f.contentWindow; const g = dv(w, 'closed').get, m = w.postMessage; const before = dv(w, 'closed').get === g; let p = L(f); w.location.replace('same.html'); await p; const sl = w.location; const a = [before, E(() => w.focus === window.focus), E(() => w.closed), E(() => w.focus === m), E(() => dv(w, 'postMessage').value === m), E(() => m.call(w, 'x', '*')), E(() => g.call(w)), E(() => dv(w, 'closed').get === g), E(() => dv(w, 'closed').get === undefined), E(() => dv(w, 'closed') === undefined), E(() => Object.getOwnPropertyNames(w).length > 100), E(() => w.location === sl)]; p = L(f); w.location.replace(X('plain.html')); await p; a.push(E(() => w.location === sl), E(() => sl.href.replace(/.*\\//, '')), E(() => sl.pathname.replace(/.*\\//, '')), E(() => sl.replace('same2.html')), E(() => { sl.href = 'same2.html'; return 'set'; })); await W(200); a.push(E(() => w.document), E(() => dv(w, 'closed').get === g), E(() => w.postMessage === m), E(() => g.call(w)), E(() => m.call(w, 'x', '*'))); return a; })()",
+     "value": [
+      true,
+      "false",
+      "false",
+      "false",
+      "false",
+      "undefined",
+      "false",
+      "false",
+      "false",
+      "false",
+      "true",
+      "true",
+      "false",
+      "same.html",
+      "same.html",
+      "undefined",
+      "set",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "false",
+      "undefined"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-rename",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); const w = f.contentWindow; const leaf = w[0]; const out = []; out.push(E(() => w.leaf === leaf)); leaf.name = 'renamed'; out.push(E(() => w.renamed === leaf), E(() => w.leaf === leaf)); await W(300); out.push(E(() => w.renamed === leaf), E(() => w.leaf === leaf)); leaf.name = ''; await W(300); out.push(E(() => w.renamed === leaf), E(() => w[''] === leaf), E(() => w.kid === w[1])); return out; })()",
+     "value": [
+      "true",
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'leaf' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'leaf' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'renamed' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-gone-more",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const fe = f, w = fe.contentWindow, sw = s.contentWindow; fe.remove(); const out = [E(() => fe.contentWindow), E(() => w.window), E(() => w.self), E(() => w.frames), E(() => w.top), E(() => w.parent), E(() => w.opener), E(() => w.window === w), E(() => { const k = s.contentWindow; const e = document.createElement('iframe'); document.body.append(e); const c = e.contentWindow; e.remove(); return [c.window, c.self, c.frames, c.top, c.parent, c.length, c.closed].map(String).join(); }), E(() => dv(w, 'window').get.call(w)), E(() => dv(w, 'window').get.call(w) === w), E(() => dv(window, 'window').get.call(w)), E(() => dv(window, 'closed').get.call(w)), E(() => dv(window, 'length').get.call(w)), E(() => dv(window, 'location').get.call(w) === w.location), E(() => dv(window, 'document').get.call(w)), E(() => sw.focus.call(w)), DS(w, 'closed'), DS(w, 'location'), DS(w, 'focus'), DS(w, 'x'), DS(w, 0), E(() => delete w.x), E(() => Object.defineProperty(w, 'x', {value: 1})), E(() => Object.setPrototypeOf(w, null)), E(() => Object.preventExtensions(w)), E(() => 'closed' in w), E(() => 0 in w), E(() => Object.prototype.hasOwnProperty.call(w, 'x')), E(() => Object.keys(w).length), E(() => JSON.stringify(w))]; const re = document.createElement('iframe'); document.body.append(re); const rw = re.contentWindow; const read = rw.eval('(o, k) => o[k]'); re.remove(); out.push(E(() => read(w, 'document')), E(() => read(w, 'closed')), E(() => read(w, 'top')), E(() => read(w.location, 'href'))); return out; })()",
+     "value": [
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "false",
+      "[object Window],[object Window],[object Window],null,null,0,true",
+      "null",
+      "false",
+      "null",
+      "true",
+      "0",
+      "true",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "undefined",
+      "get=fn:get closed:0,set=U,enumerable=false,configurable=true",
+      "get=fn:get location:0,set=fn:set location:1,enumerable=false,configurable=true",
+      "value=fn:focus:0,writable=false,enumerable=false,configurable=true",
+      "SecurityError: Failed to read a named property 'x' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "true",
+      "SecurityError: Failed to read an indexed property [0] from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: An attempt was made to break through the security policy of the user agent.",
+      "0",
+      "SecurityError: Failed to read a named property 'toJSON' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': An attempt was made to break through the security policy of the user agent.",
+      "true",
+      "null",
+      "SecurityError: Failed to read a named property 'href' from 'Location': An attempt was made to break through the security policy of the user agent."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const gw = g.contentWindow; const re = document.createElement('iframe'); document.body.append(re); const rw = re.contentWindow; const set = rw.eval('(w, u) => { w.location = u; }'); const href = rw.eval('(l, u) => { l.href = u; }'); const repl = rw.eval('(l, u) => { l.replace(u); }'); const foc = rw.eval('w => w.focus()'); re.remove(); const out = []; const t = async fn => { out.push(E(fn)); await W(200); let v; try { v = gw.document.title; } catch (e) { v = 'stayed'; } out.push(v); if (v !== 'stayed') { const p = L(g); gw.location.replace(X('plain.html')); await p; } }; await t(() => set(gw, 'same.html')); await t(() => href(gw.location, 'same2.html')); await t(() => repl(gw.location, 'same.html')); await t(() => foc(gw)); out.push(document.activeElement === document.body ? 'body' : document.activeElement.id); return out; })()",
+     "value": [
+      "undefined",
+      "stayed",
+      "undefined",
+      "stayed",
+      "undefined",
+      "stayed",
+      "undefined",
+      "stayed",
+      "g"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-navigate-flags-at-the-write",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(() => r([a.contentDocument === null, b.contentDocument && b.contentDocument.title, c.contentDocument.title, String(window.ran3), d.contentDocument.title, String(window.ran4)]), 500))",
+     "value": [
+      true,
+      "s2",
+      "s3",
+      "undefined",
+      "s4",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-promise-natives",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const out = []; const t = (name, g) => { try { const v = g(); out.push(name + ':' + (v instanceof Promise ? 'promise' : String(v))); } catch (e) { out.push(name + ':' + e.name); } }; for (const [who, w] of [['same', window], ['other', f.contentWindow]]) { t(who + ' fetch', () => fetch.call(w, 'x.html')); t(who + ' scroll', () => scroll.call(w, 0, 0)); t(who + ' scrollTo', () => scrollTo.call(w, 0, 0)); t(who + ' scrollBy', () => scrollBy.call(w, 0, 0)); } return out; })()",
+     "value": [
+      "same fetch:promise",
+      "same scroll:undefined",
+      "same scrollTo:undefined",
+      "same scrollBy:undefined",
+      "other fetch:SecurityError",
+      "other scroll:SecurityError",
+      "other scrollTo:SecurityError",
+      "other scrollBy:SecurityError"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-navigate-flags-more",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(() => r([e.contentDocument.title, String(window.ran5), String(window.ran6), g.contentDocument.getElementById('n').contentDocument.title, String(window.ran8)]), 500))",
+     "value": [
+      "s6",
+      "undefined",
+      "1",
+      "s8",
+      "undefined"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-promise-natives-others",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(async (done) => { const out = []; const show = async (name, g) => { try { const v = g(); if (v instanceof Promise) { try { await v; out.push(name + ':resolved'); } catch (e) { out.push(name + ':rejected ' + e.name); } } else out.push(name + ':' + String(v)); } catch (e) { out.push(name + ':threw ' + e.name); } }; for (const [who, t] of [['other', f.contentWindow], ['location', f.contentWindow.location], ['plain', {}]]) { await show(who + ' Blob.text', () => Blob.prototype.text.call(t)); await show(who + ' Blob.arrayBuffer', () => Blob.prototype.arrayBuffer.call(t)); await show(who + ' Response.text', () => Response.prototype.text.call(t)); await show(who + ' Response.json', () => Response.prototype.json.call(t)); await show(who + ' Request.text', () => Request.prototype.text.call(t)); await show(who + ' Element.scrollTo', () => Element.prototype.scrollTo.call(t)); await show(who + ' Element.scroll', () => Element.prototype.scroll.call(t)); await show(who + ' Element.scrollBy', () => Element.prototype.scrollBy.call(t)); await show(who + ' Image.decode', () => HTMLImageElement.prototype.decode.call(t)); await show(who + ' Clipboard.readText', () => Clipboard.prototype.readText.call(t)); } done(out); })",
+     "value": [
+      "other Blob.text:threw SecurityError",
+      "other Blob.arrayBuffer:threw SecurityError",
+      "other Response.text:threw SecurityError",
+      "other Response.json:threw SecurityError",
+      "other Request.text:threw SecurityError",
+      "other Element.scrollTo:threw SecurityError",
+      "other Element.scroll:threw SecurityError",
+      "other Element.scrollBy:threw SecurityError",
+      "other Image.decode:threw SecurityError",
+      "other Clipboard.readText:threw SecurityError",
+      "location Blob.text:threw SecurityError",
+      "location Blob.arrayBuffer:threw SecurityError",
+      "location Response.text:threw SecurityError",
+      "location Response.json:threw SecurityError",
+      "location Request.text:threw SecurityError",
+      "location Element.scrollTo:threw SecurityError",
+      "location Element.scroll:threw SecurityError",
+      "location Element.scrollBy:threw SecurityError",
+      "location Image.decode:threw SecurityError",
+      "location Clipboard.readText:threw SecurityError",
+      "plain Blob.text:rejected TypeError",
+      "plain Blob.arrayBuffer:rejected TypeError",
+      "plain Response.text:rejected TypeError",
+      "plain Response.json:rejected TypeError",
+      "plain Request.text:rejected TypeError",
+      "plain Element.scrollTo:rejected TypeError",
+      "plain Element.scroll:rejected TypeError",
+      "plain Element.scrollBy:rejected TypeError",
+      "plain Image.decode:rejected TypeError",
+      "plain Clipboard.readText:rejected TypeError"
+     ]
+    }
+   ]
   }
  ]
 }
