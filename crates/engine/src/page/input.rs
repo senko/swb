@@ -336,8 +336,8 @@ impl Page {
     ) -> bool {
         self.input.modifiers = modifiers;
         let point = Point::new(x, y);
-        self.frames.activation = Some(std::time::Instant::now());
         let route = self.route_through_frames(point);
+        self.frames.note_activation(route.last().frame);
         if route.in_frame() {
             // The frame gets the press; its other buttons give only the events
             // of its scripts (no context menu in frames).
@@ -637,7 +637,8 @@ impl Page {
         // Escape is no user activation (measured, HTML "activation triggering
         // input event").
         if *key != Key::Escape {
-            self.frames.activation = Some(std::time::Instant::now());
+            let frame = self.focused_frame().unwrap_or(FrameId::TOP);
+            self.frames.note_activation(frame);
         }
         // A frame that holds the focus gets the key.
         if let Some(frame) = self.focused_frame() {

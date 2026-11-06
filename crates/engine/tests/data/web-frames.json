@@ -10574,6 +10574,718 @@
      ]
     }
    ]
+  },
+  {
+   "name": "agents-equal-keys",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => { document.getElementById('t').textContent = 'top'; return [document.getElementById('t').textContent, E(() => document.querySelector('iframe').contentDocument), window.mark === undefined, document.getElementById('o').textContent]; })",
+     "value": [
+      "top",
+      "null",
+      true,
+      ""
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[document.getElementById('t').textContent, document.getElementById('o').textContent, window.mark, document.title, document.querySelectorAll('*').length, E(() => parent.document).replace(/\"[^\"]*\"/, 'S')]",
+     "value": [
+      "frame",
+      "frame wrote",
+      "frame",
+      "frame",
+      8,
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "document.getElementById('t').textContent = 'frame 2'; document.body.append('x'); document.getElementById('o').textContent",
+     "value": "frame wrote"
+    },
+    {
+     "kind": "js",
+     "label": "[document.getElementById('t').textContent, document.body.textContent.includes('frame 2'), document.getElementById('o').textContent]",
+     "value": [
+      "top",
+      false,
+      ""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "agents-opaque-state",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => [String(b.contentDocument), String(n.contentDocument), q.contentDocument.body.firstChild.textContent])",
+     "value": [
+      "null",
+      "undefined",
+      "n"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, location.href.split('/').pop(), T(() => document.cookie), T(() => { document.cookie = 'o=1'; return 'set'; }), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => parent.document).replace(/\"[^\"]*\"/, 'S'), T(() => window.originAgentCluster), T(() => parent.length), T(() => top === parent), T(() => frameElement), document.referrer === '' ? 'empty' : 'other']; })()",
+     "value": [
+      "null",
+      "about:srcdoc",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to set the 'cookie' property on 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "true",
+      "3",
+      "true",
+      "null",
+      "other"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, location.href.split('/').pop(), T(() => document.cookie), T(() => { document.cookie = 'o=1'; return 'set'; }), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => parent.document).replace(/\"[^\"]*\"/, 'S'), T(() => window.originAgentCluster), T(() => parent.length), T(() => top === parent), T(() => frameElement), document.referrer === '' ? 'empty' : 'other']; })()",
+     "value": [
+      "null",
+      "n.html",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to set the 'cookie' property on 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "true",
+      "3",
+      "true",
+      "null",
+      "other"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[window.ran, origin === 'null']",
+     "value": [
+      1,
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message.replace(/\"[^\"]*\"/, 'S'); } }; const c = document.createElement('iframe'); document.body.append(c); const w = c.contentWindow; const r = [T(() => c.contentDocument === null), T(() => w.origin), T(() => w.document.URL), T(() => { w.x = 5; return w.x; }), T(() => w.parent === window)]; const s = document.createElement('iframe'); s.srcdoc = '<p>s'; document.body.append(s); return new Promise(res => { s.onload = () => { r.push(T(() => s.contentDocument === null), T(() => s.contentWindow.origin), T(() => s.contentDocument.body.textContent)); res(r); }; }); })()",
+     "value": [
+      "true",
+      "SecurityError: Failed to read a named property 'origin' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "SecurityError: Failed to set a named property 'x' on 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "true",
+      "true",
+      "SecurityError: Failed to read a named property 'origin' from 'Window': Blocked a frame with origin S from accessing a cross-origin frame.",
+      "TypeError: Cannot read properties of null (reading 'body')"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "agents-load-order",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(800).then(READ)",
+     "value": "top script;top DCL;frame script;frame DCL;frame load;iframe load;frame pageshow;top load;top pageshow;"
+    }
+   ]
+  },
+  {
+   "name": "agents-load-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(800).then(READ)",
+     "value": "top script;d load;d load at b;d pageshow;b load;f load;b pageshow;top load;"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; el.remove(); LOG('after ' + E(() => w.closed) + ' ' + String(el.contentWindow)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })",
+     "value": "before;b pagehide false false false visible;b unload false false false hidden;c pagehide false false false visible;c unload false false false hidden;after true null;timer;"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal-aba",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; const inner = w[0]; el.remove(); LOG('after ' + E(() => w.closed) + ' ' + E(() => inner.closed)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })",
+     "value": "before;b pagehide false false false visible;b unload false false false hidden;c pagehide false false false visible;c unload false false false hidden;after true true;timer;"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; el.remove(); LOG('after ' + E(() => w.closed)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })",
+     "value": "before;b pagehide false false false visible;b unload false false false hidden;c pagehide false false false visible;c unload false false false hidden;after true;timer;"
+    }
+   ]
+  },
+  {
+   "name": "agents-navigate-away",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => { READ(); const w = f.contentWindow; const keep = w; f.src = 's.html'; return W(400).then(() => [READ(), keep === f.contentWindow, E(() => keep.location.href === location.href.replace(/[^/]*$/, 's.html')), f.contentDocument.title]); })",
+     "value": [
+      "a pagehide;a unload;s script undefined;iframe load;",
+      true,
+      "true",
+      ""
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { READ(); const w = f.contentWindow; w.expando = 1; f.src = X('a.html'); return W(400).then(() => [READ(), w === f.contentWindow, E(() => w.expando), f.contentDocument === null]); })()",
+     "value": [
+      "iframe load;",
+      true,
+      "SecurityError: Failed to read a named property 'expando' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-top-click-href",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop(), history.length, [location.pathname.split('/').pop(), decodeURIComponent((document.cookie.match(/lg=([^;]*)/) || [])[1] || '').split(location.href.replace(/[^/]*$/, '')).join('').split(location.href.replace(/[^/]*$/, '').replace(/:[0-9]+/, ':P')).join('')][1]]",
+     "value": [
+      "t.html",
+      3,
+      "set;"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-top-click-replace",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[location.pathname.split('/').pop(), history.length, [location.pathname.split('/').pop(), decodeURIComponent((document.cookie.match(/lg=([^;]*)/) || [])[1] || '').split(location.href.replace(/[^/]*$/, '')).join('').split(location.href.replace(/[^/]*$/, '').replace(/:[0-9]+/, ':P')).join('')][1]]",
+     "value": [
+      "t.html",
+      2,
+      "set;"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "xo-top-site-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "xo-top-fresh-early",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "xo-top-fresh-late",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "agents-focus",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(5700).then(() => { ti.focus(); READ(); return 'ready'; })",
+     "value": "ready"
+    },
+    {
+     "kind": "js",
+     "label": "(() => { LOG('call'); f.contentWindow.focus(); LOG('back'); return W(100).then(() => [READ(), document.activeElement.id, document.hasFocus()]); })()",
+     "value": [
+      "call;ti blur;top blur;frame focus;back;",
+      "f",
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { LOG('call'); i.focus(); LOG('back ' + document.hasFocus() + ' ' + document.activeElement.id); return new Promise(r => setTimeout(() => r(document.activeElement.id), 100)); })()",
+     "value": "i"
+    },
+    {
+     "kind": "js",
+     "label": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])",
+     "value": [
+      "call;i focus;back true i;",
+      "f",
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { LOG('call'); ti.focus(); LOG('back'); return W(100).then(() => [READ(), document.activeElement.id, document.hasFocus()]); })()",
+     "value": [
+      "call;i blur;frame blur;top focus;ti focus;back;",
+      "ti",
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { LOG('call'); i.focus(); parent.focus(); LOG('back ' + document.hasFocus()); return new Promise(r => setTimeout(() => r(document.activeElement.id), 100)); })()",
+     "value": ""
+    },
+    {
+     "kind": "js",
+     "label": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])",
+     "value": [
+      "call;ti blur;top blur;frame focus;i focus;i blur;frame blur;top focus;back false;",
+      "",
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "agents-input-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])",
+     "value": [
+      "top mousedown;ti focus;top mouseup;top click;frame mousedown;ti blur;top blur;frame focus;i focus;frame mouseup;frame click;frame keydown;frame keyup;top mousedown;i blur;frame blur;top focus;ti focus;top mouseup;top click;",
+      "ti",
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "agents-animation-order",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(500).then(READ)",
+     "value": "top raf;frame raf;top raf;frame raf;top raf;frame raf;"
+    }
+   ]
+  },
+  {
+   "name": "agents-layout",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => { o.style.width = '600px'; return f.getBoundingClientRect().width; })",
+     "value": 300
+    },
+    {
+     "kind": "js",
+     "label": "[innerWidth, document.documentElement.clientWidth, document.getElementById('d').getBoundingClientRect().width, matchMedia('(width: 300px)').matches]",
+     "value": [
+      300,
+      300,
+      300,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sibling",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sibling-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-blank",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-own",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-ancestor",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-same-child",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-other-child",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-after-commit",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sandbox-parent",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sandbox-own",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "agents-file-state",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "",
+      "0",
+      "0",
+      "",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "",
+      "0",
+      "0",
+      "",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "",
+      "0",
+      "0",
+      "",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "",
+      "0",
+      "0",
+      "",
+      "false"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "",
+      "false"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "agents-data-state",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': Cookies are disabled inside 'data:' URLs.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': Storage is disabled inside 'data:' URLs.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': Storage is disabled inside 'data:' URLs.",
+      "",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "",
+      "true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "value": [
+      "null",
+      "SecurityError: Failed to read the 'cookie' property from 'Document': Cookies are disabled inside 'data:' URLs.",
+      "SecurityError: Failed to read the 'localStorage' property from 'Window': Storage is disabled inside 'data:' URLs.",
+      "SecurityError: Failed to read the 'sessionStorage' property from 'Window': Storage is disabled inside 'data:' URLs.",
+      "",
+      "true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-own-after-6000",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "t.html"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-after-commit-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "location.pathname.split('/').pop()",
+     "value": "m.html"
+    }
+   ]
   }
  ]
 }

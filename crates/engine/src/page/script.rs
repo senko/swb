@@ -3,8 +3,9 @@
 //! commits and dropped with it (a navigation, a reload, or a heap-limit stop).
 //! The page lends the document state to the runtime for each task and takes it
 //! back afterwards, which processes the DOM changes of the task. The frame
-//! documents of the page's origin are documents of the same runtime (ADR 0031
-//! section 5, [`Page::run_task_in`]).
+//! documents of the page's origin are documents of the same runtime; those of
+//! another origin have a runtime of their own (ADR 0031 section 5,
+//! `page/agents.rs`, [`Page::run_task_in`]).
 //!
 //! The runtime drives the parse of its document ([`Page::start_scripts`],
 //! feature 5c): the parser stops at each script, inline scripts run at
@@ -40,7 +41,8 @@ use swb_web::{
 
 use super::Page;
 use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
-use crate::frames::{FrameId, FrameTarget};
+use crate::frames::registry::RetiredElsewhere;
+use crate::frames::{AgentId, FrameId, FrameScript, FrameTarget};
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
 /// 60 Hz), so that the embedder's loop stays responsive.
@@ -87,12 +89,17 @@ impl Page {
     /// once. Called when a document commits.
     pub(super) fn start_scripts(&mut self) {
         self.script = None;
+        self.agents.reset();
         self.scripts_dropped = false;
         if self.scripts_allowed && self.document_has_scripting() {
             self.create_runtime();
         }
         if self.script.is_some() {
-            self.frames.top_mut().script = Some(swb_web::DocumentKey::FIRST);
+            self.agents.enabled = true;
+            self.frames.top_mut().script = Some(FrameScript::new(
+                self.agents.top,
+                swb_web::DocumentKey::FIRST,
+            ));
             self.run_task(ScriptRuntime::start_document);
             self.check_load_event();
         }
@@ -115,12 +122,14 @@ impl Page {
             started.elapsed(),
             runtime.heap_size()
         );
+        self.agents.shared = Some(runtime.shared());
+        self.agents.top = self.agents.new_id();
         self.script = Some(runtime);
     }
 
     /// Without a script runtime (JavaScript off, or a runtime that was
     /// dropped), a parse in steps runs to the end.
-    fn finish_parse_without_scripts(&mut self) {
+    pub(super) fn finish_parse_without_scripts(&mut self) {
         if self.script.is_none()
             && let Some(doc) = self.doc.as_deref_mut()
             && doc.is_parsing()
@@ -143,27 +152,20 @@ impl Page {
             Some(doc) => doc.take_arrived_scripts(),
             None => return,
         };
-        let Some(key) = self.script_key(frame) else {
+        if self.frame_runtime(frame).is_none() {
             return;
-        };
+        }
         for (node, script) in arrived {
             self.run_task_in(frame, |runtime| runtime.script_fetched(node, script));
         }
         if sheets_changed
             && self
-                .script
-                .as_ref()
-                .is_some_and(|s| s.waits_for_style_sheets_in(key))
+                .frame_runtime(frame)
+                .is_some_and(|(runtime, key)| runtime.waits_for_style_sheets_in(key))
         {
             self.run_task_in(frame, ScriptRuntime::style_sheets_changed);
         }
         self.check_load_event();
-    }
-
-    /// The key of the document of `frame` in the runtime, if it has a realm.
-    fn script_key(&self, frame: FrameId) -> Option<swb_web::DocumentKey> {
-        self.script.as_ref()?;
-        self.frames.get(frame)?.script
     }
 
     /// Hands the results of the `fetch()` calls that arrived to the
@@ -178,7 +180,7 @@ impl Page {
             Some(doc) => doc.take_arrived_api_fetches(),
             None => return,
         };
-        if self.script_key(frame).is_none() {
+        if self.frame_runtime(frame).is_none() {
             return;
         }
         for (id, result, kind, reservation) in arrived {
@@ -214,10 +216,11 @@ impl Page {
     /// script touched does not walk them for what only a realm gives.
     pub(super) fn frames_may_have_realms(&self) -> bool {
         self.frames.count() > 0
-            && self
-                .script
-                .as_ref()
-                .is_some_and(ScriptRuntime::has_several_documents)
+            && (!self.agents.others.is_empty()
+                || self
+                    .script
+                    .as_ref()
+                    .is_some_and(ScriptRuntime::has_several_documents))
     }
 
     /// Hands the `load` and `error` events of images and style sheets that
@@ -252,7 +255,7 @@ impl Page {
             None => return false,
         };
         // Without a realm nothing listens; the events go.
-        if self.script_key(frame).is_none() || events.is_empty() {
+        if self.frame_runtime(frame).is_none() || events.is_empty() {
             return false;
         }
         self.run_task_in(frame, |runtime| runtime.element_events(events));
@@ -360,11 +363,9 @@ impl Page {
         self.run_task_in(FrameId::TOP, task)
     }
 
-    /// [`Page::run_task`] with the document of `frame` as the current one.
-    ///
-    /// The runtime gets the top-level document and, in the registry, the
-    /// frame tree (ADR 0031 section 5). A native that reaches another document
-    /// borrows it from the registry; the page takes back what the task
+    /// [`Page::run_task`] with the document of `frame` as the current one, in the
+    /// runtime of its origin. A native that reaches another document of the
+    /// runtime borrows it from the registry; the page takes back what the task
     /// borrowed. So a task costs what it touches, not the number of documents
     /// with a realm. `None` if the document has no realm.
     pub(crate) fn run_task_in<R>(
@@ -372,7 +373,9 @@ impl Page {
         frame: FrameId,
         task: impl FnOnce(&mut ScriptRuntime) -> R,
     ) -> Option<R> {
-        self.script.as_ref()?;
+        if !self.agents.enabled {
+            return None;
+        }
         if self.active_frame != FrameId::TOP {
             // Inside `Page::in_frame`: `FrameId::TOP` means the active document,
             // as everything else there does.
@@ -381,25 +384,64 @@ impl Page {
                 page.run_task_in(frame, task)
             });
         }
-        let key = if frame == FrameId::TOP {
-            None
-        } else {
-            Some(self.frames.get(frame)?.script?)
-        };
+        let script = self.frames.get(frame)?.script?;
+        let agent = script.agent();
+        if frame == FrameId::TOP {
+            return self.run_agent_task(agent, task);
+        }
+        let key = script.key_in(agent)?;
+        self.run_agent_task(agent, |runtime| runtime.with_document(key, task))
+            .flatten()
+    }
+
+    /// Runs `task` in the runtime of `agent`, with the frame tree in the registry
+    /// (ADR 0031 section 5), then does what the task left for the page. The
+    /// top-level runtime gets the top-level document lent. In a task of another
+    /// runtime the top-level document is in its frame record, where layout across
+    /// documents finds it and the members of the registry that answer for the
+    /// agent do not: the same place as every other document of another runtime, so
+    /// that no path needs a case for it. A runtime that reached the heap limit is
+    /// dropped afterwards, alone. `None` without the runtime or a document.
+    pub(super) fn run_agent_task<R, F: FnOnce(&mut ScriptRuntime) -> R>(
+        &mut self,
+        agent: AgentId,
+        task: F,
+    ) -> Option<R> {
+        if self.active_frame != FrameId::TOP {
+            return self.outside_exchange(|page, _| page.run_agent_task(agent, task));
+        }
+        self.runtime_of(agent)?;
+        let top = agent == self.agents.top;
+        self.set_limits_for_task(agent);
         let state = self.take_document_state()?;
-        self.enter_registry();
-        let script = self.script.as_mut().expect("the runtime was checked above");
-        script.lend(state);
-        let result = match key {
-            None => Some(task(script)),
-            Some(key) => script.with_document(key, task),
-        };
-        let state = script.take_back();
+        if top {
+            if let Some(script) = self.script.as_mut() {
+                script.lend(state);
+            }
+        } else {
+            self.frames.top_mut().doc = Some(state);
+        }
+        self.enter_registry(agent);
+        let script = self
+            .runtime_of_mut(agent)
+            .expect("the runtime was checked above");
+        if !top {
+            script.borrow_current_document();
+        }
+        let result = task(script);
+        let state = if top { script.take_back() } else { None };
         let borrowed = script.take_back_documents();
         let after_task = self.leave_registry();
         let returned = self.file_borrowed_documents(borrowed);
-        self.made_in_task.extend(after_task.created.iter().copied());
-        if let Some(state) = state.and_then(|s| s.into_any().downcast::<DocumentState>().ok()) {
+        if let Some(after_task) = &after_task {
+            self.made_in_task.extend(after_task.created.iter().copied());
+        }
+        let state = if top {
+            state.and_then(|s| s.into_any().downcast::<DocumentState>().ok())
+        } else {
+            self.frames.top_mut().doc.take()
+        };
+        if let Some(state) = state {
             self.return_document_state(state);
         } else {
             // The bindings never give the state away; this is a bug. The
@@ -414,51 +456,61 @@ impl Page {
             self.update_frames(id);
             self.update_frame_charge(id);
         }
-        self.after_frame_changes(after_task);
-        if self.script.as_ref().is_some_and(ScriptRuntime::failed) {
-            log::warn!(
-                "the script runtime of the document reached the heap limit and is dropped; the page stays as it is"
-            );
-            self.script = None;
-            self.scripts_dropped = true;
-            self.finish_parse_without_scripts();
-            self.frames_lose_runtime();
+        if let Some(after_task) = after_task {
+            self.after_frame_changes(after_task, agent);
         }
-        self.finish_stopped_scripts();
+        if self.runtime_of(agent).is_some_and(ScriptRuntime::failed) {
+            self.drop_failed_agent(agent);
+        }
+        self.finish_stopped_scripts(agent);
+        self.check_page_long_tasks();
         self.act_on_script_requests();
         for id in returned {
             self.act_on_frame_requests(id);
         }
-        result
+        Some(result)
     }
 
-    /// Moves the frame tree into the registry, for the natives of a task.
-    fn enter_registry(&mut self) {
+    /// Moves the frame tree into the registry, for the natives of a task of the
+    /// runtime of `agent`.
+    fn enter_registry(&mut self, agent: AgentId) {
         let settings = self.frame_settings();
+        let frames = &self.frames;
+        let others = &self.agents.others;
+        let top = self.agents.top;
         let mut registry = self.registry.borrow_mut();
         registry.settings = settings;
+        registry.enter(agent, || {
+            if agent == top {
+                frames.top().origin.clone()
+            } else {
+                super::agents::origin_of_agent(others, agent)
+            }
+        });
         std::mem::swap(&mut self.frames, &mut registry.frames);
     }
 
-    /// Moves the frame tree back; what the task left for the page.
-    fn leave_registry(&mut self) -> crate::frames::registry::AfterTask {
+    /// Moves the frame tree back; what the task left for the page, if anything.
+    fn leave_registry(&mut self) -> Option<crate::frames::registry::AfterTask> {
         let mut registry = self.registry.borrow_mut();
         std::mem::swap(&mut self.frames, &mut registry.frames);
-        std::mem::take(&mut registry.after_task)
+        (!registry.after_task.is_empty()).then(|| std::mem::take(&mut registry.after_task))
     }
 
-    /// Calls `f` with the runtime and the frame tree in the registry, without
-    /// a task and without a lent document: an operation of the runtime that
-    /// reads or changes the tree.
+    /// Calls `f` with the runtime of `agent` and the frame tree in the registry,
+    /// without a task and without a lent document: an operation of the runtime
+    /// that reads or changes the tree.
     pub(super) fn with_registry<R>(
         &mut self,
+        agent: AgentId,
         f: impl FnOnce(&mut ScriptRuntime) -> R,
     ) -> Option<R> {
-        self.script.as_ref()?;
-        self.enter_registry();
-        let result = self.script.as_mut().map(f);
-        let after_task = self.leave_registry();
-        self.after_frame_changes(after_task);
+        self.runtime_of(agent)?;
+        self.enter_registry(agent);
+        let result = self.runtime_of_mut(agent).map(f);
+        if let Some(after_task) = self.leave_registry() {
+            self.after_frame_changes(after_task, agent);
+        }
         result
     }
 
@@ -483,12 +535,25 @@ impl Page {
         returned
     }
 
-    /// What a task left for the page: the input state of the frames that it
-    /// destroyed, and the attributes of those that it made.
-    fn after_frame_changes(&mut self, after_task: crate::frames::registry::AfterTask) {
+    /// What a task of the runtime of `agent` left for the page: the input state of
+    /// the frames that it destroyed, and the attributes of those that it made. What
+    /// must happen in another runtime runs here: a task never runs a script of
+    /// another runtime inside a native.
+    fn after_frame_changes(
+        &mut self,
+        after_task: crate::frames::registry::AfterTask,
+        agent: AgentId,
+    ) {
         for (id, parent) in after_task.destroyed {
             self.frame_destroyed = true;
             self.forget_frame_input(id, parent);
+            if !self.agents.others.is_empty() {
+                self.forget_frame_everywhere(id);
+            }
+        }
+        // A parent before its children (measured, case `agents-removal`).
+        for retired in after_task.retired_elsewhere.into_iter().rev() {
+            self.retire_elsewhere(retired);
         }
         for id in after_task.created {
             if self.frames.get(id).is_some() {
@@ -498,27 +563,46 @@ impl Page {
         self.made_in_task.clear();
         for (id, navigation) in after_task.navigations {
             log::info!("a script navigates {id}: {}", navigation.url);
-            self.navigate_frame_by_location(id, navigation.url, navigation.initiator);
+            if id == FrameId::TOP {
+                self.location_navigate(navigation.url, navigation.replace);
+            } else {
+                self.navigate_frame_by_location(id, navigation.url, navigation.initiator);
+            }
         }
         if let Some(focused) = after_task.focused {
             self.input.focus_frame = (focused != FrameId::TOP).then_some(focused);
             self.input.window_blurred = focused != FrameId::TOP;
             self.sync_window_focus();
+            self.finish_focus_across_agents(after_task.focus_moves, agent);
         }
     }
 
-    /// The runtime went away: the frame documents go on without scripts.
-    fn frames_lose_runtime(&mut self) {
-        for id in self.frames.tree_order() {
-            if let Some(frame) = self.frames.get_mut(id) {
-                frame.script = None;
-                if let Some(doc) = frame.doc.as_deref_mut() {
-                    doc.abandon_scripts();
-                    doc.finish_parse_without_scripts();
-                }
+    /// A task destroyed a frame whose document is in another runtime: its
+    /// `pagehide` and `unload` run now, in its own runtime, and then it retires. For
+    /// the task, the frame was gone at once.
+    fn retire_elsewhere(&mut self, retired: RetiredElsewhere) {
+        let RetiredElsewhere { script, doc, .. } = retired;
+        let agent = script.agent();
+        let Some(key) = script.key_in(agent) else {
+            return;
+        };
+        self.agents.dirty = true;
+        let Some(runtime) = self.runtime_of_mut(agent) else {
+            // An `unload` before this one ended that runtime at the heap limit:
+            // nothing can reach the document.
+            if let Some(mut doc) = doc {
+                self.loader.cancel_client(doc.client);
+                doc.release_own_fonts(&mut self.fonts);
             }
-            self.update_frames(id);
+            return;
+        };
+        if let Some(doc) = doc {
+            runtime.lend_document(key, doc);
         }
+        self.run_agent_task(agent, |runtime| {
+            runtime.with_document(key, ScriptRuntime::unload_document);
+            runtime.retire_document(key, None);
+        });
     }
 
     /// Does what the scripts of a frame document asked for in the task (see
@@ -657,15 +741,17 @@ impl Page {
     /// style sheet would never go on (ADR 0028 section 8). The document
     /// parses on without scripts: the runtime ends its load without
     /// events, the fetches of scripts are abandoned and the engine runs
-    /// the parser to the end. The same for each frame document with a realm.
-    fn finish_stopped_scripts(&mut self) {
-        let Some(script) = self.script.as_mut() else {
+    /// the parser to the end. The same for each frame document of the runtime of
+    /// `agent` with a realm.
+    pub(super) fn finish_stopped_scripts(&mut self, agent: AgentId) {
+        let top = agent == self.agents.top;
+        let Some(script) = self.runtime_of_mut(agent) else {
             return;
         };
         if !script.stopped() {
             return;
         }
-        if !script.document_loaded() {
+        if top && !script.document_loaded() {
             script.abort_document();
             if let Some(doc) = self.doc.as_deref_mut() {
                 doc.abandon_scripts();
@@ -678,10 +764,15 @@ impl Page {
             return;
         }
         for id in self.frames.tree_order().into_iter().skip(1) {
-            let Some(key) = self.frames.get(id).and_then(|f| f.script) else {
+            let Some(key) = self
+                .frames
+                .get(id)
+                .and_then(|f| f.script)
+                .and_then(|s| s.key_in(agent))
+            else {
                 continue;
             };
-            let Some(script) = self.script.as_mut() else {
+            let Some(script) = self.runtime_of_mut(agent) else {
                 return;
             };
             if script.document_loaded_in(key) {
@@ -703,6 +794,7 @@ impl Page {
     /// the headless runner and the automation server call it from their
     /// loops.
     pub fn pump(&mut self) -> Pump {
+        self.sweep_agents();
         let mut changed = self.process_network();
         let tasks = self.run_due_tasks();
         if changed || tasks > 0 {
@@ -735,6 +827,9 @@ impl Page {
     /// Runs the tasks that are due now (at most [`PUMP_BUDGET`]). Returns
     /// how many ran.
     pub(super) fn run_due_tasks(&mut self) -> usize {
+        if !self.agents.others.is_empty() {
+            return self.run_due_tasks_across_agents();
+        }
         if !self.task_due() {
             return 0;
         }
@@ -744,6 +839,31 @@ impl Page {
         // A task (the parser's) can make the load event due; it fires
         // before the next task when nothing delays it.
         self.check_load_event();
+        ran
+    }
+
+    /// [`Page::run_due_tasks`] with several runtimes (ADR 0031 section 6): the
+    /// task with the earliest due time, then the lowest sequence number, whatever
+    /// its runtime. A runtime runs its tasks up to the first task of another one.
+    fn run_due_tasks_across_agents(&mut self) -> usize {
+        let started = Instant::now();
+        let mut ran = 0;
+        while let Some((agent, before)) = self.first_due_agent(self.clock.now()) {
+            let budget = PUMP_BUDGET.saturating_sub(started.elapsed());
+            let done = self
+                .run_agent_task(agent, |runtime| {
+                    runtime.run_due_tasks_before(budget, before)
+                })
+                .unwrap_or(0);
+            ran += done;
+            // A task can make a load event due; it fires before the next task
+            // when nothing delays it.
+            self.check_frame_loads();
+            self.check_load_event();
+            if done == 0 || started.elapsed() >= PUMP_BUDGET {
+                break;
+            }
+        }
         ran
     }
 
@@ -778,15 +898,18 @@ impl Page {
         // The declarative refreshes of frame documents (also with
         // JavaScript off).
         let refresh = self.next_frame_refresh();
-        let Some(script) = self.script.as_ref() else {
+        if !self.agents.enabled {
             return refresh;
-        };
-        let tasks = script.next_task_time();
-        [self.frame_time(), self.idle_time(), refresh]
-            .into_iter()
-            .flatten()
-            .chain(tasks)
-            .reduce(f64::min)
+        }
+        [
+            self.frame_time(),
+            self.idle_time(),
+            refresh,
+            self.next_task_of_all(),
+        ]
+        .into_iter()
+        .flatten()
+        .reduce(f64::min)
     }
 
     /// When the next task of the document is due, in real time; in virtual
@@ -821,8 +944,8 @@ impl Page {
             return false;
         }
         let horizon = self.clock.now() + quiet.as_secs_f64() * 1000.0;
-        let tasks = self.script.as_ref().and_then(ScriptRuntime::next_task_time);
-        if tasks
+        if self
+            .next_task_of_all()
             .into_iter()
             .chain(self.frame_work_due())
             .chain(self.next_frame_refresh())
@@ -926,8 +1049,9 @@ impl Page {
     }
 
     /// [`Page::evaluate_with_timeout`] in the document of frame `id`
-    /// (`page.evaluate` with a `frameId`, `--eval-frame`). `None` if the frame
-    /// is gone or its document cannot have a realm in the page's runtime.
+    /// (`page.evaluate` with a `frameId`, `--eval-frame`), in the runtime of its
+    /// origin, which is made now if it has none. `None` if the frame is gone or
+    /// its document cannot have a realm.
     pub fn evaluate_in_frame(
         &mut self,
         id: FrameId,
@@ -939,11 +1063,8 @@ impl Page {
             return self.evaluate_with_timeout(source, form, timeout);
         }
         self.frames.get(id)?;
-        let number = id.number();
-        if self.frames.get(id)?.script.is_none() {
-            self.with_registry(|script| script.ensure_frame_window(number));
-        }
-        self.frames.get(id)?.script?;
+        self.ensure_frame_realm(id);
+        let agent = self.frames.get(id)?.script?.agent();
         let start = self.run_task_in(id, |script| script.start_evaluation(source, form))?;
         let id = match start {
             EvaluationStart::Done(evaluation) => return Some(evaluation),
@@ -951,11 +1072,11 @@ impl Page {
         };
         let mut result = None;
         self.run_until(None, timeout, |page| {
-            result = page.poll_evaluation(id, form);
+            result = page.poll_evaluation_in(agent, id, form);
             result.is_some()
         });
         Some(result.unwrap_or_else(|| {
-            if let Some(script) = self.script.as_mut() {
+            if let Some(script) = self.runtime_of_mut(agent) {
                 script.cancel_evaluation(id);
             }
             Evaluation::Error("Error: the promise did not settle in time".to_owned())
@@ -975,15 +1096,30 @@ impl Page {
     /// The result of a pending evaluation once its promise settled, else
     /// `None`. A document whose runtime went away gives an error.
     pub fn poll_evaluation(&mut self, id: EvaluationId, form: JsonForm) -> Option<Evaluation> {
-        if self.script.is_none() {
+        let agent = self
+            .frames
+            .get(self.active_frame)
+            .and_then(|f| f.script)
+            .map_or(self.agents.top, FrameScript::agent);
+        self.poll_evaluation_in(agent, id, form)
+    }
+
+    /// [`Page::poll_evaluation`] of an evaluation in the runtime of `agent`.
+    fn poll_evaluation_in(
+        &mut self,
+        agent: AgentId,
+        id: EvaluationId,
+        form: JsonForm,
+    ) -> Option<Evaluation> {
+        let Some(script) = self.runtime_of(agent) else {
             return Some(Evaluation::Error(DROPPED.to_owned()));
-        }
+        };
         // Lend the state only when there is a result to write (its getters
         // may read the DOM).
-        if !self.script.as_ref()?.evaluation_settled(id) {
+        if !script.evaluation_settled(id) {
             return None;
         }
-        self.run_task(|script| script.poll_evaluation(id, form))
+        self.run_agent_task(agent, |script| script.poll_evaluation(id, form))
             .flatten()
     }
 
@@ -1004,28 +1140,32 @@ impl Page {
         }))
     }
 
-    /// The console messages of the current document (at most the last
-    /// 1,000), empty without a script runtime.
+    /// The console messages of all documents of the page in the order in which
+    /// they were written (at most the last 1,000; each has the frame of its
+    /// document), empty without a script runtime.
     pub fn console_messages(&self) -> Vec<ConsoleMessage> {
-        self.script
+        self.agents
+            .shared
             .as_ref()
-            .map(ScriptRuntime::console_messages)
+            .map(swb_web::AgentShared::console_messages)
             .unwrap_or_default()
     }
 
-    /// True if the current document has a script runtime.
+    /// True if the top-level document has a script runtime. A frame of another
+    /// origin can have one without it (after a heap-limit stop of the top level's).
     pub fn has_script_runtime(&self) -> bool {
         self.script.is_some()
     }
 
-    /// The heap size of the current document's script runtime in bytes
-    /// (tests and measurements).
+    /// The heap size of the top-level document's script runtime in bytes (tests
+    /// and measurements); [`Page::script_heap_total`] is the sum of all runtimes.
     pub fn script_heap_size(&self) -> Option<usize> {
         self.script.as_ref().map(ScriptRuntime::heap_size)
     }
 
-    /// The script runtime of the current document, to change its limits
-    /// (tests and tools).
+    /// The script runtime of the top-level document, to change its limits (tests
+    /// and tools). The limits of the other runtimes of the page come from
+    /// [`Page::set_agent_limits`], which also rules this one on a page with several.
     pub fn script_runtime_mut(&mut self) -> Option<&mut ScriptRuntime> {
         self.script.as_mut()
     }

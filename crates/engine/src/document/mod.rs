@@ -178,6 +178,10 @@ pub struct DocumentState {
     /// True for a frame document. Its `@font-face` faces are its own
     /// ([`DocumentState::with_own_fonts`]).
     pub(crate) frame: bool,
+    /// True for a frame document whose sandbox has no `allow-same-origin`: its
+    /// origin is opaque because of the sandbox, not because of its URL (`file:`,
+    /// `data:`).
+    pub(crate) sandboxed_origin: bool,
     /// The frame of the document ([`crate::FrameId::TOP`] for the top-level
     /// document).
     pub(crate) frame_id: crate::frames::FrameId,
@@ -370,6 +374,7 @@ impl DocumentState {
             creator_url: init.creator_url,
             site_for_cookies: init.site_for_cookies,
             frame: init.frame,
+            sandboxed_origin: false,
             frame_id: crate::frames::FrameId::TOP,
             retired: false,
             node_room: init.node_room,
@@ -504,6 +509,10 @@ impl swb_web::EngineHost for DocumentState {
         if let Some(jar) = self.loader.cookie_jar() {
             jar.set_script_cookie(self.cookie_url(), line);
         }
+    }
+
+    fn sandboxed_origin(&self) -> bool {
+        self.sandboxed_origin
     }
 
     fn storage_url(&self) -> String {

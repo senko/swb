@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use serde_json::Value as Json;
 use swb_engine::{Evaluation, JsonForm, Page, Size};
 
-use super::{MAIN, OTHER, Res, Sim, case_html, case_resource, open, probe_file, results};
+use super::{MAIN, OTHER, Res, Sim, case_html, case_resource, open, open_at, probe_file, results};
 use crate::common::{new_page, on_page_thread};
 
 /// A row where swb departs on purpose: (case, query, path of the value, why).
@@ -134,7 +134,8 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "sandbox",
         0,
         "[0]",
-        "the script of a sandboxed frame with an opaque origin and postMessage: feature 13b",
+        "the log comes through postMessage: feature 14; the test \
+         `the_rows_that_report_through_messages` reads the same values in the frame",
     ),
 ];
 
@@ -208,7 +209,7 @@ fn differences(path: &str, swb: &Json, chromium: &Json, out: &mut Vec<(String, S
     }
 }
 
-fn evaluate(page: &mut Page, source: &str) -> Json {
+pub(super) fn evaluate(page: &mut Page, source: &str) -> Json {
     match page.evaluate(source, JsonForm::Strict) {
         Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
         Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
@@ -225,12 +226,44 @@ fn resources(name: &str) -> Vec<(String, Res)> {
         .iter()
         .find(|c| c["name"] == name)
         .unwrap();
-    case["resources"]
-        .as_object()
-        .unwrap()
-        .keys()
+    let Some(list) = case["resources"].as_object() else {
+        return Vec::new();
+    };
+    list.keys()
         .map(|path| (format!("/case/{path}"), case_resource(name, path)))
         .collect()
+}
+
+/// The `frame` of each query of a case of the probe file: `#id` of an `iframe` of
+/// the top-level document.
+fn query_frames(name: &str) -> Vec<Option<String>> {
+    let probe = probe_file();
+    let case = probe["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == name)
+        .unwrap();
+    case["measure"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| {
+            q["frame"]
+                .as_str()
+                .map(|f| f.trim_start_matches('#').to_owned())
+        })
+        .collect()
+}
+
+/// Evaluates `source` in the frame of the `iframe` `id` of the top-level document.
+pub(super) fn evaluate_in(page: &mut Page, id: &str, source: &str) -> Json {
+    let frame = super::frame(page, id);
+    match page.evaluate_in_frame(frame, source, JsonForm::Strict, Duration::from_secs(10)) {
+        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
+        Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
+        None => Json::String("no evaluation".to_owned()),
+    }
 }
 
 /// Opens a case with JavaScript on and compares each `js` query. Returns the
@@ -241,14 +274,24 @@ fn run_case(name: &str) -> Vec<String> {
 
 /// [`run_case`] with other departures: (case, query, path, why).
 pub(super) fn compare_case(name: &str, departures: &[(&str, usize, &str, &str)]) -> Vec<String> {
+    compare_case_at(&format!("{MAIN}/case/case.html"), name, departures)
+}
+
+/// [`compare_case`] with the page at the URL `top`.
+pub(super) fn compare_case_at(
+    top: &str,
+    name: &str,
+    departures: &[(&str, usize, &str, &str)],
+) -> Vec<String> {
     let owned = resources(name);
     let list: Vec<(&str, Res)> = owned.iter().map(|(p, r)| (p.as_str(), r.clone())).collect();
     let html = case_html(name)
         .replace("$OTHER", OTHER)
         .replace("$FOLDER", "case");
-    let (mut page, _sim) = open(&html, &list, true);
+    let (mut page, _sim) = open_at(top, &html, &list, true);
     let mut failures = Vec::new();
     let queries = results(name);
+    let frames = query_frames(name);
     for (query, result) in queries.iter().filter(|r| r["kind"] == "js").enumerate() {
         let source = result["label"].as_str().unwrap();
         let without = |value: Json| match value {
@@ -264,7 +307,11 @@ pub(super) fn compare_case(name: &str, departures: &[(&str, usize, &str, &str)])
             ),
             other => other,
         };
-        let swb = without(comparable(&evaluate(&mut page, source)));
+        let value = match frames.get(query).and_then(Option::as_deref) {
+            Some(id) => evaluate_in(&mut page, id, source),
+            None => evaluate(&mut page, source),
+        };
+        let swb = without(comparable(&value));
         let want = without(comparable(&result["value"]));
         let mut found = Vec::new();
         differences("", &swb, &want, &mut found);
@@ -333,45 +380,6 @@ fn a_frame_gets_its_realm_at_its_first_need() {
             Some(Evaluation::Value(r#"["about:srcdoc",3,true]"#.to_owned()))
         );
         assert!(page.frame_has_realm(b));
-    });
-}
-
-/// A frame of another origin and a sandbox without `allow-same-origin` run no
-/// scripts until feature 13b; their windows have no target.
-#[test]
-fn other_origins_have_no_realm() {
-    on_page_thread(|| {
-        let other = format!("{OTHER}/case/c.html");
-        let html = format!(
-            "<!DOCTYPE html><iframe id=x src='{other}'></iframe>\
-             <iframe id=o sandbox='allow-scripts' srcdoc='<script>window.ran = 1</script>'></iframe>"
-        );
-        let c = Res::html("<!DOCTYPE html><script>parent.ranOther = 1</script>");
-        let mut page = scripted_page(&html, &[("/case/c.html", c)]);
-        let value = evaluate(
-            &mut page,
-            "[typeof x.contentWindow, String(x.contentDocument), String(o.contentDocument), \
-             E2(() => x.contentWindow.document), E2(() => o.contentWindow.document), String(window.ranOther)]"
-                .replace("E2", "(g => { try { return String(g()); } catch (e) { return e.name; } })")
-                .as_str(),
-        );
-        assert_eq!(
-            value,
-            serde_json::json!([
-                "object",
-                "null",
-                "null",
-                "SecurityError",
-                "SecurityError",
-                "undefined"
-            ])
-        );
-        let x = super::frame(&page, "x");
-        assert!(!page.frame_has_realm(x));
-        assert_eq!(
-            page.evaluate_in_frame(x, "1", JsonForm::Strict, Duration::from_secs(1)),
-            None
-        );
     });
 }
 

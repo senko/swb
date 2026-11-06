@@ -6618,3 +6618,256 @@ def cross_origin_functions_of_many_realms_js_on() -> Page:
         "document.title = String(n);</script>"
     )
     return Page(doc(script))
+
+
+def origins_page(html: str, documents: dict[str, str]) -> Page:
+    """A replayed page at `http://hostile.test/index.html` with documents at other URLs."""
+    entries = [
+        {
+            "method": "GET",
+            "url": REPLAY_URL,
+            "status": 200,
+            "headers": [["content-type", "text/html; charset=utf-8"]],
+            "body": "files/index.html",
+        }
+    ]
+    files: dict[str, str | bytes] = {"files/index.html": html}
+    for index, (url, text) in enumerate(documents.items()):
+        entries.append(
+            {
+                "method": "GET",
+                "url": url,
+                "status": 200,
+                "headers": [["content-type", "text/html; charset=utf-8"]],
+                "body": f"files/d{index}.html",
+            }
+        )
+        files[f"files/d{index}.html"] = text
+    files["manifest.json"] = json.dumps({"version": 1, "entries": entries})
+    return Page(html, files)
+
+
+AGENT_ARGS = ("--js", "--replay", "{dir}", "--settle-ms", "1500")
+
+
+@case(
+    "40 frames of 40 origins, each with a script and a timer (M9 feature 13b): 32 runtimes, then "
+    "a document runs without scripts, with one warning (ADR 0031 section 11)",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=320,
+    expect_log="script runtimes, the limit",
+)
+def agents_40_origins_js_on() -> Page:
+    urls = [f"http://o{i}.hostile.test/x.html" for i in range(40)]
+    frames = "".join(f"<iframe src='{u}'></iframe>" for u in urls)
+    child = (
+        "<!doctype html><script>let n = 0; setInterval(() => { n++; }, 5); "
+        "console.log('frame ran');</script>"
+    )
+    end = "<script>addEventListener('load', () => console.log('end'));</script>"
+    return origins_page(doc(frames + end), dict.fromkeys(urls, child))
+
+
+ALLOCATE = (
+    "<script>const a = []; setTimeout(() => { for (;;) a.push(new Array(10000).fill(1)); "
+    "}, 10);</script>"
+)
+
+
+@case(
+    "A frame of another origin that allocates to its heap limit while the top document keeps "
+    "running (M9 feature 13b): its runtime goes alone",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=900,
+    expect_log="reached the heap limit",
+)
+def agents_frame_at_the_heap_limit_js_on() -> Page:
+    top = (
+        "<iframe src='http://o.hostile.test/x.html'></iframe><script>let t = 0; "
+        "setInterval(() => { t++; if (t === 100) console.log('top still runs'); }, "
+        "5);</script>"
+    )
+    return origins_page(doc(top), {"http://o.hostile.test/x.html": "<!doctype html>" + ALLOCATE})
+
+
+@case(
+    "Two frames of two origins, each allocating without end (M9 feature 13b): each task's limit "
+    "is what the other frames leave of the 256 MiB that the top level's runtime does not keep",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=960,
+    expect_log="reached the heap limit",
+)
+def agents_two_frames_at_the_page_cap_js_on() -> Page:
+    urls = ["http://o1.hostile.test/x.html", "http://o2.hostile.test/x.html"]
+    frames = "".join(f"<iframe src='{u}'></iframe>" for u in urls)
+    child = (
+        "<!doctype html><script>const a = []; setInterval(() => { for (let i = 0; i < 200; "
+        "i++) a.push(new Array(10000).fill(1)); }, 1);</script>"
+    )
+    timer = (
+        "<script>let t = 0; setInterval(() => { t++; if (t === 50) console.log('top still "
+        "runs'); }, 5);</script>"
+    )
+    top = frames + timer
+    return origins_page(doc(top), dict.fromkeys(urls, child))
+
+
+@case(
+    "A frame of another origin with an endless loop in each task (M9 feature 13b): the time limit "
+    "of a task, three times, stops that runtime; the top document goes on",
+    swb_args=("--js", "--replay", "{dir}", "--settle-ms", "16000"),
+    url=REPLAY_URL,
+    time_limit_s=40.0,
+    rss_limit_mib=220,
+    expect_log="reached a limit",
+)
+def agents_endless_loop_in_each_task_js_on() -> Page:
+    child = (
+        "<!doctype html><script>const go = () => { setTimeout(go, 1); for (;;); }; "
+        "setTimeout(go, 1);</script>"
+    )
+    top = (
+        "<iframe src='http://o.hostile.test/x.html'></iframe><script>let t = 0; "
+        "setInterval(() => { t++; if (t === 20) console.log('top still runs'); }, "
+        "5);</script>"
+    )
+    return origins_page(doc(top), {"http://o.hostile.test/x.html": child})
+
+
+@case(
+    "A frame of another origin that is removed while it runs a timer loop (M9 feature 13b)",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=220,
+)
+def agents_removed_in_a_timer_loop_js_on() -> Page:
+    child = (
+        "<!doctype html><script>let n = 0; const go = () => { n++; setTimeout(go, 0); }; "
+        "go();</script>"
+    )
+    top = (
+        "<iframe id=f src='http://o.hostile.test/x.html'></iframe><script>"
+        "setTimeout(() => { f.remove(); console.log('removed'); setTimeout(() => "
+        "console.log('end'), 10); }, 100);</script>"
+    )
+    return origins_page(doc(top), {"http://o.hostile.test/x.html": child})
+
+
+@case(
+    "A frame of another origin whose unload never ends, removed by its parent (M9 feature 13b): "
+    "the time limit of the task ends it, after the parent's task, and the top goes on",
+    swb_args=("--js", "--replay", "{dir}", "--settle-ms", "6500"),
+    url=REPLAY_URL,
+    time_limit_s=16.0,
+    rss_limit_mib=230,
+    expect_log="time limit",
+)
+def agents_unload_loops_js_on() -> Page:
+    child = "<!doctype html><script>addEventListener('unload', () => { for (;;); });</script>"
+    top = (
+        "<iframe id=f src='http://o.hostile.test/x.html'></iframe><script>"
+        "setTimeout(() => { f.remove(); console.log('removed'); setTimeout(() => "
+        "console.log('end'), 10); }, 100);</script>"
+    )
+    return origins_page(doc(top), {"http://o.hostile.test/x.html": child})
+
+
+@case(
+    "A chain of frames A > B > A > B to the depth limit (M9 feature 13b), each level with a "
+    "script that reads parent, top and frames: two runtimes",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=320,
+)
+def agents_chain_of_two_origins_js_on() -> Page:
+    script = (
+        "<script>let seen = 0; try { seen = window.parent.frames.length + "
+        "window.top.frames.length; } catch (e) { seen = -1; } "
+        "console.log('level ' + location.search + ' ' + seen);</script>"
+    )
+    documents = {}
+    for level in range(1, 40):
+        host = "o.hostile.test" if level % 2 else "hostile.test"
+        next_host = "hostile.test" if level % 2 else "o.hostile.test"
+        documents[f"http://{host}/c.html?{level}"] = (
+            f"<!doctype html>{script}<iframe src='http://{next_host}/c.html?{level + 1}'></iframe>"
+        )
+    top = "<iframe src='http://o.hostile.test/c.html?1'></iframe>"
+    return origins_page(doc(top), documents)
+
+
+@case(
+    "1,000 frames of one other origin, each with a script (M9 feature 13b): one runtime, and the "
+    "realm budget of 256 stops the scripts of the rest",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=7.0,
+    rss_limit_mib=1340,
+    expect_log="realms, the limit",
+)
+def agents_1000_frames_of_one_origin_js_on() -> Page:
+    child = "<!doctype html><script>window.m = 1;</script>"
+    frames = "<iframe src='http://o.hostile.test/x.html'></iframe>" * 1000
+    return origins_page(doc(frames), {"http://o.hostile.test/x.html": child})
+
+
+@case(
+    "A sandboxed frame with `allow-scripts` that makes frames with scripts in a loop (M9 feature "
+    "13b): each document has an opaque origin, so the budget of 32 runtimes acts",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=6.0,
+    rss_limit_mib=900,
+)
+def agents_sandbox_makes_many_frames_js_on() -> Page:
+    child = (
+        "<script>for (let i = 0; i < 900; i++) { const f = document.createElement('iframe'); "
+        "f.sandbox = 'allow-scripts'; f.srcdoc = '<scr' + 'ipt>window.m = 1;</scr' + 'ipt>'; "
+        "document.body.append(f); } console.log('made');</script>"
+    )
+    srcdoc = f"<!doctype html><body>{child}"
+    return Page(doc(f"<iframe sandbox='allow-scripts' srcdoc=\"{srcdoc}\"></iframe>"))
+
+
+@case(
+    "16 sandboxed frames, each with Blob URLs of 64 x 4 MiB (M9 feature 13b): the heaps stay "
+    "small, and the page's budget of 256 MiB of Blob URLs acts across the 16 runtimes",
+    swb_args=("--js", "--settle-ms", "1500"),
+    time_limit_s=5.0,
+    rss_limit_mib=1500,
+    expect_log="too many Blob URLs",
+)
+def agents_blob_urls_of_sandboxed_frames_js_on() -> Page:
+    child = (
+        "<script>const a = new Uint8Array(4 << 20); const keep = []; try { for (let i = 0; "
+        "i < 64; i++) keep.push(URL.createObjectURL(new Blob([a]))); } catch (e) { "
+        "console.log(e.name); } console.log('frame end ' + keep.length);</script>"
+    )
+    srcdoc = f"<!doctype html>{child}"
+    frame = f"<iframe sandbox='allow-scripts' srcdoc=\"{srcdoc}\"></iframe>"
+    return Page(doc(frame * 16))
+
+
+@case(
+    "A top-level navigation from a frame of another origin in a loop (M9 feature 13b): without "
+    "an activation each attempt throws, and it costs no memory",
+    swb_args=AGENT_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    rss_limit_mib=300,
+)
+def agents_top_navigation_in_a_loop_js_on() -> Page:
+    child = (
+        "<!doctype html><script>let n = 0; for (let i = 0; i < 100000; i++) { try { "
+        "top.location.href = 'http://hostile.test/index.html?' + i; } catch (e) { n++; } } "
+        "console.log('refused ' + n);</script>"
+    )
+    top = "<iframe src='http://o.hostile.test/x.html'></iframe>"
+    return origins_page(doc(top), {"http://o.hostile.test/x.html": child})

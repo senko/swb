@@ -3,7 +3,7 @@
 - Status: accepted (the owner approved the decisions on 2026-11-01:
   no joint session history, the page-wide limits of section 11, storage
   keyed by top-level site and origin, no top-level navigation from
-  cross-origin frames)
+  cross-origin frames without a user's activation)
 - Date: 2026-11-01
 - Replaces: ADR 0028 section 14 for frames (media playback stays there),
   and the statement of ADR 0028 section 4 that `window`, `self`,
@@ -317,8 +317,9 @@ these decisions and departures:
   parsed (`DOMTokenList.supports` exists) and ignored: they gate modals and
   downloads, which swb lacks in frames.
 - **Navigation of the top level from a frame**: a cross-origin frame without
-  a sandbox may not navigate `top` in M9 (logged). Chromium allows it only
-  after a user activation; swb has no activation tracking for it. A
+  a sandbox may navigate `top` after a user's activation of that frame: a press
+  or a key in it, in a frame inside it, or in a frame of its origin
+  (`Frames::note_activation`; "Done (feature 13b)", with the measurements). A
   sandbox's `allow-top-navigation` token allows it.
 - **CORS** of a frame's own requests uses the frame document's origin as
   the request's origin; nothing else changes.
@@ -669,7 +670,8 @@ function's realm.
 **Realm lifetime.** Realms are GC roots in `js` today, so a retired realm
 (its document unloaded or its frame removed) stays until its runtime is
 dropped. A runtime is dropped when its last document goes away (a
-cross-origin frame that navigates to another origin drops it at once).
+cross-origin frame that navigates to another origin drops it in the next
+turn of the event loop).
 The leak is bounded by a realm budget (section 11). Realm collection
 (a retired realm is marked only through its functions and objects, and
 swept when unreachable) is a `js` feature after M9's targets work.
@@ -909,7 +911,7 @@ cases, three equal runs); every value is compared in
   not count for that navigation either. Departure: a frame without `src` or `srcdoc`
   at its insertion that gets `src` and then a new `sandbox` in that same task has
   the flags at the end of the task. Without `allow-same-origin` the origin is
-  opaque: no realm until feature 13b.
+  opaque, and the document has a runtime of its own ("Done (feature 13b)").
 - *Cookies and storage of `about:` documents.* An `about:blank` or `about:srcdoc`
   frame document with its creator's origin has its creator's cookies and storage,
   also a nested one; a cookie with the `path` of the creator's URL shows, so the key
@@ -917,7 +919,8 @@ cases, three equal runs); every value is compared in
   `DocumentState::cookie_url`, `EngineHost::storage_url`). A document with an opaque
   origin keeps its own URL, so it has neither.
 - *Not in 12b1.* `document.referrer` of a frame document (feature 14: it is empty),
-  `document.open` on a frame document (feature 15), cross-origin frames (feature 13a and 13b).
+  `document.open` on a frame document (feature 15), cross-origin frames (features 13a and
+  13b below).
 - Costs: docs/performance.md, "Scripts in frames".
 
 **Done (feature 12b2).** Nodes across documents, the caller's document, the
@@ -1121,12 +1124,12 @@ Input with scripts in frames (section 8):
   4); a `focus` listener that hides or moves the `iframe` does not stop the element's
   own `focus`.
 - *User activation.* `allow-top-navigation-by-user-activation` allows a script's navigation
-  for five seconds after a press or a key other than Escape anywhere on the page
-  (`Frames::activation`; measured: in a listener, in a timer, after a click in the
-  parent, and cases `activation-escape-key`, `activation-other-key`). Chromium's
-  activation has more rules (consumption, other origins); no measured case needs them.
-  Without consumption, one press allows any number of top-level navigations for five
-  seconds, but the first replaces the page.
+  for five seconds after a press or a key other than Escape (measured: in a listener, in a
+  timer, after a click in a parent of the same origin, and cases `activation-escape-key`,
+  `activation-other-key`). The activation is per frame (`Frames::note_activation`, "Done
+  (feature 13b)"). Chromium's activation has more rules (consumption); no
+  measured case needs them. Without consumption, one press allows any number of top-level
+  navigations for five seconds, but the first replaces the page.
 - *Fonts.* A face holds its charge by id (`WebFonts::admit_face`), and the charge returns
   when the face goes, so a face that loads again is charged once.
 - *Tests.* `frame_input.rs` runs plain scripts; only the selection (no `getSelection`) and
@@ -1134,7 +1137,7 @@ Input with scripts in frames (section 8):
 - Costs: docs/performance.md, "Nodes across documents and input in frames".
 
 **Done (feature 13a).** The rules behind the hooks: a frame of another origin has
-real cross-origin objects. Such a frame still runs no scripts (13b). Measured in
+real cross-origin objects. Measured in
 Chromium 148 with the cases `cross-origin`, `nested-origins` and `xo-*` of
 `tools/probes/web-frames.json` (three equal runs apart from ports); every value is
 compared in `crates/engine/tests/frames/cross_origin.rs`, and a departure has a row
@@ -1232,8 +1235,7 @@ list below says where.
 - *`postMessage`.* The generated native converts the arguments, and `post_to_remote`
   serializes and transfers: measured, the transfer list detaches before the check of the
   target origin fails, also for a same-origin target, so `messaging::post` has that order
-  too. **The message goes nowhere until feature 14**, and a transferred port closes. No
-  script of the frame can see that until 13b, and 14 comes after it.
+  too. **The message goes nowhere until feature 14**, and a transferred port closes.
 - *Inline caches.* A proxy without a target never hits `SiteCache::WindowProperty`, which
   names its target by identity, and has no entry of its own: each read goes to the hooks
   (case `xo-stale-sites`: one site across same-origin, other origin, same-origin, other
@@ -1248,9 +1250,9 @@ list below says where.
   throws `Blocked a frame with origin "O" ...`. A departure that Chromium cannot show,
   because it has no budget (`a_frame_past_the_budget_of_realms_has_the_rules_of_another_origin`).
 - *`document.domain` and `originAgentCluster`.* The cases load the document in a frame of
-  another origin, whose script runs from 13b. The test runs the same document as the top
-  level at that host and compares what the frame reported in Chromium. The second half of
-  `document-domain` (one frame reads the other) waits for 13b.
+  another origin, which reports through `postMessage`. The test runs the same document as
+  the top level at that host and compares what the frame reported in Chromium. The second
+  half of `document-domain` (one frame reads the other): "Done (feature 13b)".
 - *Departures* (rows of `cross_origin.rs`). A frame that a script renames through a
   same-origin path is found by its new name; Chromium, through a cross-origin parent,
   finds it by no name. `f.focus()` while the frame holds the focus changes nothing;
@@ -1265,21 +1267,137 @@ list below says where.
 - *Memory.* All functions of a realm cost 11.4 KB of script heap (measured, with the atoms
   of their names), so at most 2.9 MiB at the budget of 256 realms, whatever the number of
   frames: 1,000 frames do not multiply them. A `Location` is an object without properties.
-- *What 13b needs.* A runtime per origin in the page; hooks that stay as they are, because
-  they read the frame tree and not the document. `Frames::in_agent` compares with the top
-  level's origin: it becomes per runtime, and so does `FrameHost::in_this_agent`.
-  `FrameRegistry` serves one runtime during a task; a task of another runtime needs it too.
-  `top` of a remote top level reaches `frames::top_of_remote`, and a navigation of a remote
-  top level reaches `navigate_frame_with`, which ignores a frame without a parent today: it
-  needs `location_navigate` and `replace`, which `navigate` drops now. `O` already comes
-  from the running code's document, so another origin's caller needs nothing. A retired
-  document's `Location` of `location.rs` stays as measured. The rows that name 13b in
-  `cross_origin.rs`, `scripted.rs` and `frames.rs` then run. Each runtime keeps its own
-  `window_proxies`, or `clear_frame_target`, which runs for a frame that a runtime knows,
-  misses the others. `focus_enters_remote` calls `switch_if_other` for the old holder's
-  document; when that holder lives in another runtime, its `blur` is lost, so the page has
-  to carry it. `FrameRegistry::document_mut` finds only documents of this runtime.
 - Costs: docs/performance.md, "The cross-origin `Window` and `Location`".
+
+**Done (feature 13b).** One script runtime per origin. Frames of another origin and
+with an opaque origin run their scripts. Measured in Chromium 148 with the cases
+`agents-*` and `xo-top-*` of `tools/probes/web-frames.json` (17 cases, three equal runs
+apart from ports; two ports of one host share cookies, so `document.cookie` carries a
+log between origins); every value is compared in `crates/engine/tests/frames/agents.rs`
+and `crates/automation/tests/frame_input.rs`, and a departure has a row there.
+
+- *The agents* (`engine/src/page/agents.rs`). `Page::script` stays the runtime of the
+  top-level document, and `Agents::others` holds one per other origin of a frame document
+  that has a script to run or a first need (an evaluation, a `javascript:` URL). A page
+  without a cross-origin frame stays on today's path: `others` is empty, one comparison.
+  `ScriptRuntime::for_frame` makes a runtime whose first document has the frame's number,
+  so key 0 and realm 0 exist in each runtime; the host flag of "several documents" is on,
+  because such a document's viewport and host come from the registry. An opaque origin is
+  unique. A child of a sandboxed frame gets a new opaque origin and so a runtime of its
+  own, also for `about:blank` and `about:srcdoc` (measured, case `agents-opaque-state`:
+  `contentDocument` is `null`); the child without a sandbox, with a clone of its creator's
+  origin, joins its runtime.
+- *A runtime's life.* It is made at the first need. It goes with the top-level document,
+  when it reaches the heap limit, and when no live frame has a document in it
+  (`Page::sweep_agents`, at the next turn of the event loop): only tasks run a runtime, and
+  the tasks of a retired document do not run. So the budget of 32 counts what can run, and
+  a page that replaces a sandboxed frame does not run out of runtimes, each of whose
+  documents has a new opaque origin. The nodes of its retired documents leave the page's
+  budget with it.
+- *The key stays with its runtime.* `Frame::script` is a `FrameScript`: an agent and a key,
+  which give the key only for that agent. `Page::frame_runtime` is the way from a frame to
+  a runtime and its key. An agent number is not used twice in a page.
+- *The registry per task.* The page's frames share one registry, and `enter_registry` tells
+  it the agent of the task. `document_key`, `take_document` (which also compares the key),
+  `set_document_key`, `document_loading`, `in_this_agent`, `name`, `set_name`, `container`,
+  `child_of_container`, `child_containers` and the writes of `set_focused_frame` answer for
+  that agent: another agent's frame has no key and no document there, and the answer is
+  "no document". The members that read the tree (`is_alive`, `parent`, `child_count`,
+  `child_at`, `child_named`, `subtree`, `may_navigate`, `choose_frame`) answer for all
+  frames, because the hooks of `window_proxy.rs` need them; the hooks did not change.
+- *The top-level document in a task of another runtime* is in its frame record for the
+  length of the task, as every other document of another runtime is in its record. So
+  layout across documents (`engine_laid_out`, `update_viewports`, `note_location_flags`)
+  finds it with no case of its own, and `take_document` does not give it. Rejected: a second
+  lent slot in the runtime, which would give the runtime a document with no key.
+- *Proxies.* Each runtime has its own `window_proxies`. A commit gives the frame's proxy a
+  target in the runtime of the document's origin and none in the others. Destruction
+  forgets the proxy in every runtime.
+- *A task never runs a script of another runtime inside a native.* What must happen there
+  waits in `AfterTask`, and the page runs it after the task: unloads, focus events, the
+  container's `load`, navigations.
+- *Budgets across runtimes* (section 11). The top level's runtime keeps a whole runtime's
+  share of the page's heap and long tasks, and the other runtimes share the rest, so that
+  frames cannot end the top level's scripts. The byte budgets that the heap limit does not
+  count (Blob URLs, blobs held by waiting operations, waiting messages, waiting mutation
+  records) have the same form (`crates/web/src/page_budget.rs`): one count for the top level's
+  runtime, and one that the frames' runtimes share. A runtime that goes gives its part back,
+  and the waiting mutation records of a runtime that stopped or went go at once, because the
+  sinks of its documents outlive it.
+- *The event loop* (`Page::run_due_tasks_across_agents`, section 6). A task's key is its due
+  time and a sequence number from a counter that the runtimes of a page share
+  (`AgentShared`). A runtime runs up to the first task of another one, with a checkpoint
+  after each task and the checks of `load` between the slices. `next_task_time`, the jump of
+  virtual time, the frames and the idle callbacks count all runtimes. The rendering update
+  runs per document in tree order, whatever the runtime (measured, case
+  `agents-animation-order`). The console buffer is shared too, so its messages keep their
+  order and `frameId`.
+- *Load* (measured, cases `agents-load-order`, `agents-load-nested`): frame `load`, the
+  container's `load`, frame `pageshow`, as inside one runtime. `frames::container_load`
+  finds a parent of another origin, and `pageshow` waits; the page fires the container's
+  `load` in the parent's runtime and then `ScriptRuntime::fire_waiting_pageshow`. A script
+  can observe the same order as in Chromium. A document that unloaded during its `load` shows
+  no page: no `pageshow` after `unload`, also in one runtime. Departure: when a frame goes in
+  such a `load`, Chromium fires the `load` of the documents around it and then, after the top
+  level's `pageshow`, the `pagehide` and `unload`; swb ends them at the removal, as in one
+  runtime (a review's cases; backlog).
+- *Removal* (cases `agents-removal*`). The removal holds at once for the remover. A frame of
+  another runtime has its `pagehide` and `unload` after the task, in its own runtime, a
+  parent before its child (measured), then it retires. Departures: Chromium runs them inside
+  `remove()`, so a log across origins differs; the frame is gone for its own unload (`closed`
+  true, `parent` and `top` `null`; Chromium: false and the windows). In one runtime swb still
+  fires children first, Chromium the parent first (backlog, row of `agents-removal-same`).
+- *Navigation of the top level by a frame of another origin* (section 3). `navigate_frame`
+  carries `replace`, and the page calls `location_navigate` for the top level (measured,
+  cases `xo-top-click-href`, `xo-top-click-replace`: a click adds an entry, `replace` none).
+  The activation is per frame (`Frames::note_activation`, HTML "activation notification"): a
+  press or a key other than Escape in a document reaches its frame, the ancestors, and all
+  frames of its origin (HTML says only descendants; Chromium also a sibling of that origin).
+  A cross-origin frame may navigate the top level once it has one. It does not expire, it
+  stays through a commit of the same origin, and a commit of another origin clears it (cases
+  `activation-xo-*`, three equal runs). So a click in the parent, in blank space or in a
+  sibling of another origin gives the frame nothing, and a click on a link with `target=_top`
+  in the frame navigates (`input-link-cross-origin-top`). A sandbox's
+  `allow-top-navigation-by-user-activation` token needs an activation of that frame within
+  five seconds. **Departures**: Chromium 148 also allows the navigation while the top level has
+  had no activation at all (cases `xo-top-fresh-early`, `xo-top-fresh-late`, cross-site, with
+  a top level that a script navigated to, so the probe gives it none), also from a sandbox with
+  the by-user-activation token. This is no effect of the test tools: the headless shell, headed
+  Chromium on a virtual display, a run without Playwright and without CDP, and a run with the
+  host names of two sites all navigate. swb refuses, by the owner's decision of 2026-11-01,
+  because a page cannot defend itself from an ad frame. A click in a frame's initial
+  `about:blank` document, then the first commit of another origin: Chromium keeps the
+  activation, and swb clears it, on the safe side.
+- *Focus* (cases `agents-focus`, `agents-input-click`). Input: `Page::set_focus_frame` runs
+  each document's task in its own runtime, and the whole order matches Chromium. A script's
+  focus across origins: `set_focused_frame` changes the documents of the agent and records
+  the moves (at most 16, so a loop costs no memory); after the task the page replays them for
+  the documents of other agents and fires their `blur` and `focus`. Departures: those events
+  come after the caller's task, Chromium's inside the call; of 20 moves in one task Chromium
+  shows 20 `focus` and `blur` pairs and swb 8, with the same end state.
+- *Input.* `Page::in_frame`, `script_input`, `outside_exchange` and `run_task_in` follow the
+  frame's runtime. The `c:` queries run, and `link_query` and `target_query` of
+  `frame_input.rs` went.
+- *`javascript:` URLs.* In `src` they run if the document that asks has the frame's origin,
+  in the runtime of that origin.
+- *An opaque origin* (measured, cases `agents-opaque-state`, `agents-data-state`,
+  `agents-file-state`). What counts is the sandbox and not the origin, because `file:` and
+  `data:` origins are opaque too: the commit records on the document that its sandbox has no
+  `allow-same-origin`. Such a document throws `SecurityError` for `document.cookie` and
+  `localStorage`, `sessionStorage` (`The document is sandboxed and lacks the 'allow-same-origin'
+  flag.`, with the prefix of the attribute), also at a `data:` URL; `document.domain` is empty;
+  `originAgentCluster` is true. A `data:` document without that sandbox keeps its own texts,
+  and `originAgentCluster` is true there too. A frame of a `file:` page reads as its page does.
+  Departure: `originAgentCluster` of a sandboxed frame of a `file:` page is false in Chromium.
+- *The rows that report through `postMessage`* (`cross-origin` query 2, `xo-focus` query 1,
+  `sandbox` query 0, the second half of `document-domain`): the scripts run, and the values
+  reach the page only in feature 14. Until then `agents.rs` evaluates the same expressions
+  in the frame and compares them with Chromium's values.
+- *What feature 14 needs.* `post_to_remote` holds the record and hands it to the page as an
+  `AfterTask` entry; `Task::Message` carries the id of its message; `AgentShared` is the place
+  for a page-wide message queue, and `Agents` finds the target's runtime. The ports registry
+  is per runtime (`WebState::ports`). `document.referrer` and storage keys of frames too.
+- Costs: docs/performance.md, "One runtime per origin".
 
 ### 6. The event loop with several runtimes
 
@@ -1306,7 +1424,9 @@ them).
 - **Time budgets**: the 5 s limit per task and the stop after three
   time-outs are per runtime. The 30 s budget of long tasks is per runtime,
   and all runtimes of a page share a cap of 60 s; past it, every runtime
-  of the page stops.
+  of the page stops. The top level's runtime keeps its 30 s. Before each task
+  another runtime's budget is the smaller of 30 s and what the other frames
+  leave of the other 30 s (`Page::set_limits_for_task`).
 - **Load event**: the runtime of a parent document asks the page whether
   its child frames have loaded before it fires `load` (section 2).
 - The page clock is shared: one time origin per document, as now.
@@ -1617,9 +1737,8 @@ departures:
   refused; without a sandbox, a frame whose document, or the document of one of
   whose ancestors, has the source's origin. So a frame with the top level's
   origin may navigate any frame, and a cross-origin frame may not navigate its
-  parent. Departure: a cross-origin frame navigates the top level after a click
-  in Chromium, which swb has no activation to allow; it refuses and logs (ADR
-  0031 section 3). A form in a sandbox without `allow-forms` does not submit.
+  parent, unless that is the top level just after a user's activation ("Done
+  (feature 13b)"). A form in a sandbox without `allow-forms` does not submit.
   What feature 12 must add: the by-user-activation token needs an activation
   when a script asks, and a script's `submit()` needs the forms check. The
   `target` of a link
@@ -1776,13 +1895,16 @@ has no further option (clicks by coordinates reach frames without it).
 | Nesting depth of frames | 32 (Chromium has no own limit below its frame count; 300 measured) | the frame is not created, a warning. Bounds the recursion of paint, raster and hit testing |
 | A URL that two ancestors' documents have | refused (Chromium, measured) | the frame stays `about:blank` |
 | Navigations of one frame | 64 per 10 s of page time (a frame that reloads itself, `meta refresh 0`) | later navigations are dropped with one warning |
-| Runtimes (origins with scripts) per page | 32 | a document of a further origin runs without scripts (scripting flag on, no runtime, as after a heap-limit stop), a warning |
+| Runtimes (origins with scripts) per page | 32, counting those with a live document (`MAX_AGENTS`) | a document of a further origin runs without scripts (scripting flag on, no runtime, as after a heap-limit stop), a warning |
 | Realms created per runtime over its life | 256 | the document runs without scripts, a warning (until realm collection exists) |
-| JavaScript heap | 256 MiB per runtime, 512 MiB for all runtimes of a page | before each task the runtime's limit is the smaller of 256 MiB and what the page has left; past it the task ends (termination), as now |
-| Long tasks | 30 s per runtime, 60 s per page | the runtime stops; past the page cap all runtimes stop |
-| Messages that wait (window and port), per page | 65,536 messages and 256 MiB of serialized bytes | `postMessage` drops the message with one warning per task (Chromium has no limit) |
+| JavaScript heap | 256 MiB per runtime, 512 MiB for all runtimes of a page | the top level's runtime keeps its 256 MiB, and frames cannot take it. Before each task another runtime's limit is the smaller of 256 MiB and what the other frames leave of the rest. Past it the task ends (termination) and the runtime is dropped alone: its frames go on without scripts, and its origin gets no new runtime until the next top-level document. Consequence: a frame whose limit fell below what it holds, because other frames grew, goes at its next allocation. After the top level's runtime the top-level document stays as it is, with the input of a page without JavaScript, and the other runtimes go on and have its share |
+| Long tasks | 30 s per runtime, 60 s per page | the top level's runtime keeps its 30 s, and the other runtimes share the rest. A runtime stops at its limit; past the page cap all runtimes stop |
+| Messages that wait (window and port) | 65,536 messages per runtime; 256 MiB of serialized bytes for the top level's runtime, and 256 MiB for the frames' runtimes together | `postMessage` drops the message with one warning per task (Chromium has no limit) |
+| Blob URLs | 16,384 per runtime; 256 MiB of bytes for the top level's runtime, and 256 MiB for the frames' runtimes together | `createObjectURL` throws `QuotaExceededError`, a warning |
+| Blobs that waiting requests and reads hold | 256 MiB for the top level's runtime, and 256 MiB for the frames' runtimes together | the request or the read fails, a warning |
+| Mutation records that wait | 131,072 per runtime; 128 MiB for the top level's runtime, and 128 MiB for the frames' runtimes together | later records are dropped, a warning |
 | One message | the structured clone limits of ADR 0028 section 16 | `DataCloneError` or `RangeError` as now |
-| Message ports per page | 65,536 | `new MessageChannel()` throws `RangeError`, a warning |
+| Message ports per runtime | 65,536 | `new MessageChannel()` throws `RangeError`, a warning |
 | Frame viewport | the viewport limits (`MAX_VIEWPORT_SIDE`) | clamped |
 | Source text of frame documents that are alive together, per page | 64 MiB (`MAX_SOURCE_BYTES`): the `srcdoc` text and the bodies of network documents. A document that replaces another pays the difference; a destroyed or navigated frame returns its bytes | checked before the parse; the document becomes an error document (it costs nothing), one warning per top-level document. The frame still exists and loads, so the load state ends |
 | DOM nodes of frame documents that are alive together, per page | 1 Mi (`MAX_NODES`, as many as the parser accepts for one document) | the parse of a frame document stops one node past the room that is left; a document that does not fit becomes an error document. After a rejection the parse of the next documents stops at 16 Ki nodes until 64 Ki nodes have gone since the last rejection, so that 1,000 documents that are just too big do not cost 1,000 parses. A document that reaches this limit also shows the error document, never its first nodes; so on a page that has passed the budget, a frame document of more than 16 Ki nodes fails even if it would fit |
@@ -1834,6 +1956,10 @@ measured the display lists and rasters of frames with 1,000 visible frames
 The top-level document keeps the per-document limits: it has no page-wide
 budget for images and style sheets, so a top-level document with 50 such
 PNGs takes the same 3.2 GiB (backlog).
+
+Some byte limits of scripts stay per document and so multiply with the documents:
+scripts that wait 256 MiB (`MAX_HELD_SCRIPT_BYTES`), the text of `document.write` that
+waits 64 MiB, the string handlers of timers 32 MiB (backlog).
 
 Hostile pages to add (`just hostile`): 1,100 frames created in a loop; a
 frame nested 100 deep through `srcdoc`; a page that embeds itself with a

@@ -168,6 +168,68 @@ impl Page {
         }
     }
 
+    /// A task of the runtime of `agent` moved the page's focus: `moves` (from, to).
+    /// The natives changed the documents of that runtime and fired their events;
+    /// here come the documents of other runtimes, each in its own task: a task runs
+    /// no script of another runtime. So the events of another origin come after the
+    /// task (a departure, ADR 0031 "Done (feature 13b)").
+    pub(super) fn finish_focus_across_agents(
+        &mut self,
+        moves: Vec<(FrameId, FrameId)>,
+        agent: crate::frames::AgentId,
+    ) {
+        if self.agents.others.is_empty() {
+            return;
+        }
+        for (from, to) in moves {
+            if from != to {
+                self.finish_focus_move(from, to, agent);
+            }
+        }
+    }
+
+    /// One move of [`Page::finish_focus_across_agents`].
+    fn finish_focus_move(&mut self, from: FrameId, to: FrameId, agent: crate::frames::AgentId) {
+        let elsewhere = |page: &Page, id: FrameId| {
+            page.frames
+                .get(id)
+                .and_then(|f| f.origin.as_ref())
+                .and_then(|origin| page.agent_of_origin(origin))
+                != Some(agent)
+        };
+        if elsewhere(self, from) {
+            self.in_frame(from, Page::blur_focused_element);
+            self.run_task_in(from, |s| s.window_focus(false));
+        }
+        let new_chain = self.frame_chain(to);
+        for id in self.frame_chain(from) {
+            if !new_chain.contains(&id) && elsewhere(self, id) {
+                self.in_frame(id, Page::drop_document_focus);
+            }
+        }
+        for (index, &id) in new_chain.iter().enumerate() {
+            if !elsewhere(self, id) {
+                continue;
+            }
+            let container = new_chain
+                .get(index + 1)
+                .and_then(|&next| self.frames.get(next))
+                .and_then(|f| f.container);
+            self.in_frame(id, |p| {
+                if container.is_some() {
+                    p.drop_document_focus();
+                }
+                if let Some(doc) = p.doc.as_deref_mut() {
+                    doc.frame_focus = container;
+                    doc.window_blurred = false;
+                }
+            });
+        }
+        if elsewhere(self, to) {
+            self.run_task_in(to, |s| s.window_focus(true));
+        }
+    }
+
     /// The focused element of the active document loses the focus, with its
     /// events if the document has scripts.
     fn blur_focused_element(&mut self) {

@@ -28,8 +28,8 @@ impl Page {
     /// The page time at which the next idle period can start, if idle
     /// callbacks wait. None after the scripts stopped.
     pub(super) fn idle_time(&self) -> Option<f64> {
-        let script = self.script.as_ref()?;
-        (self.frames_run() && script.has_idle_callbacks()).then_some(self.input.idle_next)
+        (self.any_runtime(swb_web::ScriptRuntime::has_idle_callbacks) && self.frames_run())
+            .then_some(self.input.idle_next)
     }
 
     /// True if idle callbacks wait that `horizon` (a page time) would see
@@ -44,13 +44,10 @@ impl Page {
     /// if a callback ran.
     pub(super) fn run_idle(&mut self) -> bool {
         let now = self.clock.now();
-        if self.idle_time().is_none_or(|time| time > now) || !self.script_input() {
+        if self.idle_time().is_none_or(|time| time > now) || self.lent {
             return false;
         }
-        let next_task = self
-            .script
-            .as_ref()
-            .and_then(swb_web::ScriptRuntime::next_task_time);
+        let next_task = self.next_task_of_all();
         if next_task.is_some_and(|time| time <= now)
             || !self.traversals.is_empty()
             || self.frame_time().is_some_and(|time| time <= now)
@@ -63,7 +60,12 @@ impl Page {
             .fold(now + swb_web::IDLE_PERIOD_MS, f64::min);
         self.input.idle_next = deadline;
         self.input.idle_streak += 1;
-        self.run_task(|script| script.run_idle_callbacks(deadline))
-            .is_some_and(|ran| ran > 0)
+        let mut ran = 0;
+        for agent in self.agent_ids() {
+            ran += self
+                .run_agent_task(agent, |script| script.run_idle_callbacks(deadline))
+                .unwrap_or(0);
+        }
+        ran > 0
     }
 }

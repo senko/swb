@@ -63,7 +63,7 @@ impl Page {
     /// Asks for a frame one frame length from now (if none is due
     /// earlier), for documents with scripts.
     pub(super) fn request_frame(&mut self) {
-        if self.script.is_some() && self.input.frame_due.is_none() {
+        if self.agents.enabled && self.input.frame_due.is_none() {
             self.input.frame_due = Some(self.clock.now() + FRAME_MS);
         }
     }
@@ -80,7 +80,7 @@ impl Page {
             .as_deref_mut()
             .map(|d| std::mem::take(&mut d.scrolled))
             .unwrap_or_default();
-        if self.script.is_none() {
+        if !self.agents.enabled {
             return;
         }
         for node in scrolled.into_iter().chain(element) {
@@ -130,11 +130,8 @@ impl Page {
     /// True if the observers need a frame: an observation was added, or
     /// something that changes an observation changed since the last frame.
     fn observers_due(&self) -> bool {
-        let Some(script) = self.script.as_ref() else {
-            return false;
-        };
-        script.has_observations()
-            && (script.observations_requested()
+        self.any_runtime(ScriptRuntime::has_observations)
+            && (self.any_runtime(ScriptRuntime::observations_requested)
                 || self
                     .observed_state()
                     .is_some_and(|now| self.input.observed.as_ref() != Some(&now)))
@@ -152,10 +149,10 @@ impl Page {
         }
     }
 
-    /// True if the document has a runtime whose scripts can run (not
-    /// stopped by the time limits): only then are frames due.
+    /// True if the page has a runtime whose scripts can run (not stopped by
+    /// the time limits): only then are frames due.
     pub(super) fn frames_run(&self) -> bool {
-        self.script.as_ref().is_some_and(|s| !s.stopped())
+        self.any_runtime(|s| !s.stopped())
     }
 
     /// The page time of the next frame, if one is needed. None after the
@@ -165,10 +162,7 @@ impl Page {
         if !self.frames_run() {
             return None;
         }
-        let callbacks = (self
-            .script
-            .as_ref()
-            .is_some_and(ScriptRuntime::has_animation_frame_callbacks)
+        let callbacks = (self.any_runtime(ScriptRuntime::has_animation_frame_callbacks)
             || self.observers_due()
             || self.lazy_due())
         .then(|| self.grid_frame_time());
@@ -199,7 +193,7 @@ impl Page {
         let Some(due) = self.frame_time() else {
             return false;
         };
-        if due > self.clock.now() || !self.script_input() {
+        if due > self.clock.now() || self.lent || self.active_frame != FrameId::TOP {
             return false;
         }
         self.input.frame_due = None;
@@ -233,11 +227,7 @@ impl Page {
         ran |= self.run_lazy_check();
         // Style and layout, then the observers (HTML "update the
         // rendering"): resize observers, then intersection observers.
-        if self
-            .script
-            .as_ref()
-            .is_some_and(ScriptRuntime::has_observations)
-        {
+        if self.any_runtime(ScriptRuntime::has_observations) {
             if !documents.is_empty() {
                 self.update_layout();
             }
@@ -267,26 +257,16 @@ impl Page {
     /// True if a frame document among `documents` reacts to a new size of its
     /// viewport.
     fn frames_watch_viewports(&self, documents: &[FrameId]) -> bool {
-        let Some(script) = self.script.as_ref() else {
-            return false;
-        };
         documents.iter().any(|&id| {
-            self.frames
-                .get(id)
-                .and_then(|f| f.script)
-                .is_some_and(|key| script.watches_viewport_in(key))
+            self.frame_runtime(id)
+                .is_some_and(|(script, key)| script.watches_viewport_in(key))
         })
     }
 
     /// True if the document of `frame` has animation frame callbacks.
     fn has_animation_frames_in(&self, frame: FrameId) -> bool {
-        let Some(script) = self.script.as_ref() else {
-            return false;
-        };
-        self.frames
-            .get(frame)
-            .and_then(|f| f.script)
-            .is_some_and(|key| script.has_animation_frames_in(key))
+        self.frame_runtime(frame)
+            .is_some_and(|(script, key)| script.has_animation_frames_in(key))
     }
 
     /// The steps of the rendering update for a frame document before layout:
@@ -326,12 +306,9 @@ impl Page {
     /// The observers of the document of `frame`, after layout. True if one
     /// ran.
     fn run_observers_in(&mut self, frame: FrameId, due: f64) -> bool {
-        let observing = self.script.as_ref().is_some_and(|script| {
-            self.frames
-                .get(frame)
-                .and_then(|f| f.script)
-                .is_some_and(|key| script.has_observations_in(key))
-        });
+        let observing = self
+            .frame_runtime(frame)
+            .is_some_and(|(script, key)| script.has_observations_in(key));
         if !observing {
             return false;
         }

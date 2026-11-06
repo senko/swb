@@ -1067,8 +1067,10 @@ fn a_scroll_of_a_frame_builds_no_new_list_for_the_parent() {
     });
 }
 
+/// A click is an activation (ADR 0031 section 3): the link of a frame of another
+/// origin navigates the top level, as in Chromium (case `input-link-cross-origin-top`).
 #[test]
-fn a_cross_origin_frame_does_not_navigate_the_top_level() {
+fn a_cross_origin_frame_navigates_the_top_level_after_a_click() {
     on_page_thread(|| {
         let parent = "<!doctype html><style>body{margin:0}</style>\
             <iframe id=f src='http://127.0.0.1:8001/case/l.html' style='position:absolute;left:100px;top:100px;width:300px;height:200px;border:0'></iframe>";
@@ -1085,9 +1087,7 @@ fn a_cross_origin_frame_does_not_navigate_the_top_level() {
         settle(&mut page);
         page.click(110.0, 110.0);
         settle(&mut page);
-        // Chromium navigates after the user's click; swb does not (ADR 0031
-        // section 3) and logs it.
-        assert_eq!(page.url().unwrap().path(), "/case/case.html");
+        assert_eq!(page.url().unwrap().path(), "/case/t.html");
     });
 }
 

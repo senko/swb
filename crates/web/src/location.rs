@@ -212,7 +212,7 @@ impl g::location::LocationImpl for WebState {
 
     fn set_href(cx: &mut Cx<'_>, this: Platform, value: String) -> b::Result<()> {
         if b::glue::is_cross_origin_this(this) {
-            return crate::window_proxy::navigate(cx.rt, this.object, &value);
+            return crate::window_proxy::navigate(cx.rt, this.object, &value, false);
         }
         assign_url(cx, &value, false)
     }
@@ -298,7 +298,7 @@ impl g::location::LocationImpl for WebState {
 
     fn replace(cx: &mut Cx<'_>, this: Platform, url: String) -> b::Result<()> {
         if b::glue::is_cross_origin_this(this) {
-            return crate::window_proxy::navigate(cx.rt, this.object, &url);
+            return crate::window_proxy::navigate(cx.rt, this.object, &url, true);
         }
         assign_url(cx, &url, true)
     }

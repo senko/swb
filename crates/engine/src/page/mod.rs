@@ -33,6 +33,7 @@
 //! frames of `iframe` elements, their documents, load state and viewports;
 //! ADR 0031).
 
+mod agents;
 mod events;
 mod forms;
 mod frame;
@@ -64,6 +65,7 @@ use crate::frames::{FrameId, Frames};
 use crate::history::{Commit, Entry, History, PostData};
 
 pub use crate::document::ElementScroll;
+pub use agents::{AgentLimits, MAX_AGENTS};
 pub(crate) use frames::clamp_viewport;
 pub use pipeline::{
     MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, ScreenshotError, ViewportError,
@@ -268,6 +270,9 @@ pub struct Page {
     /// The script runtime of the current document (JavaScript on); it is
     /// dropped with the document.
     script: Option<swb_web::ScriptRuntime>,
+    /// The other script runtimes of the page, one per origin (ADR 0031
+    /// section 5).
+    agents: agents::Agents,
     /// The page may run scripts ([`PageConfig::scripts_allowed`]).
     scripts_allowed: bool,
     /// True if the current document's runtime was dropped after it reached
@@ -379,6 +384,8 @@ impl Page {
                 view,
             },
             after_task: crate::frames::registry::AfterTask::default(),
+            agent: None,
+            origin: None,
         }));
         Page {
             loader,
@@ -392,6 +399,7 @@ impl Page {
             url: None,
             doc: None,
             script: None,
+            agents: agents::Agents::default(),
             scripts_allowed: config.scripts_allowed,
             scripts_dropped: false,
             clock: swb_web::PageClock::real(),

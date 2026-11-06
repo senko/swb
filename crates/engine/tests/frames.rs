@@ -31,6 +31,8 @@ use swb_engine::{
 };
 use swb_net::{CookieJar, Fetcher, Headers, NetError, Request, Response};
 
+#[path = "frames/agents.rs"]
+mod agents;
 mod common;
 #[path = "frames/cross_origin.rs"]
 mod cross_origin;
@@ -60,11 +62,11 @@ const QUERIES_LATER: &[(&str, &str)] = &[
     ),
     (
         "cookies-frames",
-        "document.cookie, fetch() and postMessage in frames: features 13b and 14",
+        "the frames report through postMessage: feature 14",
     ),
     (
         "sandbox",
-        "the script of a frame with an opaque origin, postMessage: feature 13b",
+        "the frame reports through postMessage: feature 14",
     ),
 ];
 
@@ -280,12 +282,22 @@ fn chromium_boxes(name: &str) -> Vec<(String, Rect)> {
 /// Opens `MAIN/case/case.html` with `html` and `resources` (paths under
 /// `/case/`), JavaScript as given, and waits until it loaded.
 fn open(html: &str, resources: &[(&str, Res)], javascript: bool) -> (Page, Arc<Sim>) {
+    open_at(
+        &format!("{MAIN}/case/case.html"),
+        html,
+        resources,
+        javascript,
+    )
+}
+
+/// [`open`] with the page at the URL `top`, whose path is `/case/case.html`.
+fn open_at(top: &str, html: &str, resources: &[(&str, Res)], javascript: bool) -> (Page, Arc<Sim>) {
     let mut all: Vec<(&str, Res)> = vec![("/case/case.html", Res::html(html))];
     all.extend(resources.iter().cloned());
     let sim = Sim::new(&all);
     let mut page = new_page(sim.clone(), 4, Size::new(800.0, 600.0));
     page.set_javascript(javascript);
-    page.navigate(url(&format!("{MAIN}/case/case.html")));
+    page.navigate(url(top));
     finish_loading(&mut page, Duration::from_secs(20));
     (page, sim)
 }

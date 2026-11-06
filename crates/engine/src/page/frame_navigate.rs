@@ -12,10 +12,9 @@
 //! and leaves the frame as it is), and a sandboxed frame without
 //! `allow-popups` does nothing (measured). A name is compared exactly; the
 //! keywords without ASCII case (measured). The rule that a document may
-//! navigate a frame is in [`crate::frames::Frames::may_navigate`]. Chromium lets a cross-origin
-//! frame navigate the top level after a user activation (measured, case
-//! `input-link-cross-origin-top`); swb does not track activation and refuses,
-//! with a log entry (ADR 0031 section 3). A navigation of a frame replaces its
+//! navigate a frame is in [`crate::frames::Frames::may_navigate`]: a cross-origin
+//! frame navigates the top level after a user's activation of that frame (measured,
+//! cases `activation-xo-*`; ADR 0031 section 3). A navigation of a frame replaces its
 //! entry in the session history (ADR 0031 section 2); one to a fragment of the
 //! frame's own document scrolls it.
 
@@ -107,7 +106,7 @@ impl Page {
         } else {
             Sandbox::top_navigation_allowed
         };
-        if url.scheme() == "javascript" && self.script.is_some() {
+        if url.scheme() == "javascript" && self.agents.enabled {
             return self.run_javascript_link(source, &url, target.as_deref(), allows);
         }
         let Chosen::Frame(chosen) = self.choose_navigable(source, target.as_deref(), allows) else {

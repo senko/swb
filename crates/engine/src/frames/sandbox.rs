@@ -106,10 +106,9 @@ impl Sandbox {
         !self.sandboxed || self.allow_popups
     }
 
-    /// True if a sandbox lets a script of the frame navigate the top level:
-    /// swb has no activation tracking, so the `by-user-activation` token
-    /// refuses (measured with no activation, case
-    /// `scripted-nav-top-sb-activation`).
+    /// True if a sandbox lets a script of the frame navigate the top level
+    /// without a recent activation: the `by-user-activation` token refuses
+    /// (measured with no activation, case `scripted-nav-top-sb-activation`).
     pub fn script_top_navigation_allowed(self) -> bool {
         !self.sandboxed || self.allow_top_navigation
     }

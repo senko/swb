@@ -5304,7 +5304,11 @@ measurements and the decisions.
 holds several documents. (Since feature 12b1 a page's same-origin frame
 documents are documents of its runtime; `DocState` also has the frame number,
 `retired`, the takeover of a window by the next document, `scripts_off`, and
-`WebState` the frame registry and the list of documents that a task borrowed.)
+`WebState` the frame registry and the list of documents that a task borrowed.
+Since feature 13b a page has one runtime per origin: the first document of a
+runtime can belong to any frame, the host flag is then on with one document, and
+the console, its count and the sequence counter of the tasks are `Rc`s that the
+runtimes of a page share, `AgentShared`; ADR 0031, "Done (feature 13b)".)
 
 - **The split** (`state.rs`). `DocState`: the lent `EngineHost`, wrappers, the
   side table, attribute objects, list and token caches, parsed documents, form

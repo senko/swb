@@ -160,8 +160,7 @@ pub(crate) fn post(
 /// sender, in Chromium's order (measured, case `xo-post-message`: the
 /// serialization and the transfer come before the check of the target origin).
 /// Feature 14 delivers the message; here it goes after the checks, and a
-/// transferred port closes. No script of the frame can observe that, because the
-/// frame runs none until feature 13b.
+/// transferred port closes. So a frame of another origin receives nothing yet.
 pub(crate) fn post_to_remote(
     cx: &mut Cx<'_>,
     message: Value,

@@ -350,6 +350,7 @@ impl Page {
         // The old document goes first, with its script runtime and its
         // frames: its web fonts leave the font context.
         self.script = None;
+        self.agents.reset();
         self.doc = None;
         self.reset_frames();
         self.lent = false;

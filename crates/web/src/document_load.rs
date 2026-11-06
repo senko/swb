@@ -198,12 +198,13 @@ impl ScriptRuntime {
             crate::performance::record(rt, Milestone::LoadEnd);
             fired.map_err(task_error)?;
             // The `load` event of the `iframe` element comes before
-            // `pageshow` (measured).
-            crate::frames::container_load(rt).map_err(task_error)?;
-            scripts_mut(rt).map_err(task_error)?.page_showing = true;
-            let pageshow = page_transition("pageshow");
-            crate::scripts::fire(rt, DispatchTarget::Window, &pageshow).map_err(task_error)?;
-            Ok(())
+            // `pageshow` (measured). A container in another runtime gets it
+            // from the page, after this task, and `pageshow` waits for that.
+            if crate::frames::container_load(rt).map_err(task_error)? {
+                scripts_mut(rt).map_err(task_error)?.pageshow_waits = true;
+                return Ok(());
+            }
+            fire_pageshow(rt).map_err(task_error)
         });
         if let Ok(scripts) = scripts_mut(&mut self.rt) {
             scripts.in_load_event = false;
@@ -215,6 +216,27 @@ impl ScriptRuntime {
                 crate::dialogs::run_when_loaded(rt).map_err(task_error)
             });
         }
+    }
+
+    /// True if `pageshow` of the document `key` waits for the `load` event of
+    /// its container in another runtime.
+    pub fn pageshow_waits_in(&self, key: crate::runtime::DocumentKey) -> bool {
+        crate::state::state(&self.rt)
+            .ok()
+            .and_then(|state| crate::state::document_ref(state, key.raw()))
+            .is_some_and(|record| record.scripts.pageshow_waits)
+    }
+
+    /// `pageshow` of the current document, after the `load` event of its
+    /// container in another runtime.
+    pub fn fire_waiting_pageshow(&mut self) {
+        let Ok(scripts) = scripts_mut(&mut self.rt) else {
+            return;
+        };
+        if !std::mem::take(&mut scripts.pageshow_waits) {
+            return;
+        }
+        let _ = self.task("pageshow", |rt| fire_pageshow(rt).map_err(task_error));
     }
 
     /// True once the `load` event of the document fired (or its load was
@@ -452,7 +474,7 @@ impl ScriptRuntime {
             Ok(())
         });
         if let Ok(state) = crate::state::state_mut(&mut self.rt) {
-            state.frame_load_due = state.doc.key != 0;
+            state.frame_load_due = state.doc.frame != 0;
         }
     }
 
@@ -576,6 +598,20 @@ fn set_readiness(
 
 /// HTML "fire a page transition event" with `persisted` false: it bubbles
 /// and can be canceled, with the legacy target override.
+/// `pageshow` at the window; the page counts as shown from here on.
+fn fire_pageshow(rt: &mut swb_js::Runtime) -> swb_js::VmResult<()> {
+    let scripts = scripts_mut(rt)?;
+    // A document that unloaded during its `load` shows no page: its frame went
+    // (measured, ADR 0031 "Done (feature 13b)").
+    if scripts.phase == Phase::Unloaded {
+        return Ok(());
+    }
+    scripts.page_showing = true;
+    let pageshow = page_transition("pageshow");
+    crate::scripts::fire(rt, DispatchTarget::Window, &pageshow)?;
+    Ok(())
+}
+
 fn page_transition(kind: &str) -> TrustedEvent {
     TrustedEvent {
         kind: kind.to_owned(),

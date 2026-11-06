@@ -61,6 +61,13 @@ impl Default for MutationState {
     }
 }
 
+impl Drop for MutationState {
+    /// The sinks of the documents outlive the runtime.
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 impl MutationState {
     /// The state of a document whose registry sets `request` when a record
     /// is queued ([`Runtime::host_signal_cell`]).
@@ -71,6 +78,18 @@ impl MutationState {
             kept: BTreeMap::new(),
             queued: false,
             notify_fn: None,
+        }
+    }
+
+    /// Counts the bytes of the waiting records in the budget of the page's frames.
+    pub(crate) fn join_page(&self, page: &Rc<Cell<u64>>) {
+        self.registry.borrow_mut().join_page(page);
+    }
+
+    /// The runtime stopped: see [`Registry::close`].
+    pub(crate) fn close(&self) {
+        if let Ok(mut registry) = self.registry.try_borrow_mut() {
+            registry.close();
         }
     }
 

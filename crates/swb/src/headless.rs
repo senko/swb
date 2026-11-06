@@ -175,9 +175,9 @@ fn evaluate(page: &mut Page, requests: &[EvalRequest], timeout: Duration) -> Res
     out.flush().context("cannot write to standard output")
 }
 
-/// The answer line for an expression in the frame of `path`: an error line
-/// for a path that finds no frame, and for a frame without scripts in this
-/// runtime (another origin: ADR 0031 section 14, feature 13b).
+/// The answer line for an expression in the frame of `path`, in the runtime of
+/// its origin: an error line for a path that finds no frame, and for a frame that
+/// cannot have a realm (past the budgets of ADR 0031 section 11).
 fn frame_answer_line(page: &mut Page, path: &str, expression: &str, timeout: Duration) -> String {
     let message = match swb_automation::resolve_frame(page, path) {
         Err(error) => format!("FrameError: {error}"),

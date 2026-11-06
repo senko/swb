@@ -7,6 +7,12 @@
 //! A native borrows the registry for one call and never across a call into
 //! script. What only the page can do (the navigation of a new frame, the input
 //! state of a destroyed one) waits in [`AfterTask`].
+//!
+//! The page's frames share one registry, and it knows the agent of the running
+//! task ([`FrameRegistry::enter`]). Each member answers for that agent: a frame of
+//! another agent has no key and no document here. When an agent or a key does not
+//! match, the answer is "no document"; it never forwards. The members that read
+//! the frame tree (the hooks of cross-origin objects) answer for every frame.
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -18,7 +24,9 @@ use swb_net::{ByteBudget, Loader, Origin, Url};
 use swb_text::FontContext;
 use swb_web::{DocumentKey, EngineHost, FrameHost, LentDocuments, NewFrame, RetiredFrame};
 
-use super::{Charge, FrameId, FrameTarget, Frames, MAX_DEPTH, MAX_FRAMES, Sandbox};
+use super::{
+    AgentId, Charge, FrameId, FrameScript, FrameTarget, Frames, MAX_DEPTH, MAX_FRAMES, Sandbox,
+};
 use crate::document::{DocumentInit, DocumentState, ScrollTarget, View};
 use crate::resources::Images;
 
@@ -58,6 +66,8 @@ pub(crate) struct FrameDocument {
     pub(crate) creator_url: Option<Url>,
     pub(crate) history: crate::document::HistoryInfo,
     pub(crate) node_room: Rc<Cell<usize>>,
+    /// The frame's sandbox has no `allow-same-origin`.
+    pub(crate) sandboxed_origin: bool,
 }
 
 impl DocumentMaker {
@@ -94,6 +104,7 @@ impl DocumentMaker {
             node_room: Some(init.node_room),
         }));
         doc.history = init.history;
+        doc.sandboxed_origin = init.sandboxed_origin;
         doc
     }
 }
@@ -227,6 +238,7 @@ impl Frames {
             creator_url: (!sandbox.opaque_origin()).then_some(init.creator_url),
             history: init.history,
             node_room: Rc::clone(&self.node_room),
+            sandboxed_origin: sandbox.opaque_origin(),
         });
         let id = self.insert(parent, init.container, doc, at)?;
         let frame = self.get_mut(id)?;
@@ -239,6 +251,10 @@ impl Frames {
     }
 }
 
+/// The most moves of the page's focus that the page replays after a task: a loop
+/// of `focus()` calls must cost no memory.
+const MAX_FOCUS_MOVES: usize = 16;
+
 /// What the page does after a task for the frames that the task made or
 /// destroyed.
 #[derive(Debug, Default)]
@@ -249,9 +265,41 @@ pub(crate) struct AfterTask {
     pub(crate) destroyed: Vec<(FrameId, Option<FrameId>)>,
     /// The frame that a script moved the page's focus to.
     pub(crate) focused: Option<FrameId>,
+    /// The moves of the page's focus (from, to) that the task made: the documents
+    /// of other runtimes get theirs after the task. At most [`MAX_FOCUS_MOVES`];
+    /// past that, the last one holds the end of the rest.
+    pub(crate) focus_moves: Vec<(FrameId, FrameId)>,
     /// The navigations that scripts asked for through the `Location` of a frame
     /// of another origin: one per frame, the last request.
     pub(crate) navigations: BTreeMap<FrameId, CrossOriginNavigation>,
+    /// The documents of other agents in the frames that the task destroyed: their
+    /// `pagehide` and `unload` run after the task, in their own runtimes, children
+    /// first; then they retire.
+    pub(crate) retired_elsewhere: Vec<RetiredElsewhere>,
+}
+
+impl AfterTask {
+    /// True if the task left nothing for the page, as most tasks do.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.created.is_empty()
+            && self.destroyed.is_empty()
+            && self.focused.is_none()
+            && self.navigations.is_empty()
+            && self.retired_elsewhere.is_empty()
+    }
+}
+
+/// A document of another agent in a frame that a task destroyed.
+pub(crate) struct RetiredElsewhere {
+    pub(crate) frame: FrameId,
+    pub(crate) script: FrameScript,
+    pub(crate) doc: Option<Box<DocumentState>>,
+}
+
+impl std::fmt::Debug for RetiredElsewhere {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RetiredElsewhere({})", self.frame)
+    }
 }
 
 /// A navigation of a frame of another origin that a script asked for.
@@ -260,6 +308,8 @@ pub(crate) struct CrossOriginNavigation {
     pub(crate) url: Url,
     /// The origin of the document that asked.
     pub(crate) initiator: Option<Origin>,
+    /// True for `location.replace()`.
+    pub(crate) replace: bool,
 }
 
 /// The registry. See the module documentation.
@@ -269,6 +319,10 @@ pub(crate) struct FrameRegistry {
     pub(crate) maker: Rc<DocumentMaker>,
     pub(crate) settings: FrameSettings,
     pub(crate) after_task: AfterTask,
+    /// The agent of the running task.
+    pub(crate) agent: Option<AgentId>,
+    /// The origin of [`FrameRegistry::agent`].
+    pub(crate) origin: Option<Origin>,
 }
 
 impl FrameRegistry {
@@ -276,19 +330,54 @@ impl FrameRegistry {
         self.frames.get(FrameId::from_number(number))
     }
 
-    /// The document of `frame`: the runtime's, or the record's.
+    /// The running task belongs to `agent`, of `origin`; `origin` gives the
+    /// origin when the agent differs from the last one, so that a page with one
+    /// runtime does not copy it for each task.
+    pub(crate) fn enter(&mut self, agent: AgentId, origin: impl FnOnce() -> Option<Origin>) {
+        if self.agent != Some(agent) {
+            self.agent = Some(agent);
+            self.origin = origin();
+        }
+    }
+
+    /// True if frame `id`'s document has the origin of the running agent.
+    fn has_agent_origin(&self, id: FrameId) -> bool {
+        let (Some(frame), Some(origin)) = (self.frames.get(id), self.origin.as_ref()) else {
+            return false;
+        };
+        frame.origin.as_ref() == Some(origin)
+    }
+
+    /// The document of `frame` for layout across documents and the attributes of
+    /// its elements, whatever its agent: the runtime's, or the record's. No script
+    /// of another runtime runs on it.
     fn document_mut<'a>(
         frames: &'a mut Frames,
         docs: &'a mut dyn LentDocuments,
+        agent: Option<AgentId>,
         frame: FrameId,
     ) -> Option<&'a mut DocumentState> {
         let record = frames.get_mut(frame)?;
         if let Some(doc) = record.doc.as_deref_mut() {
             return Some(doc);
         }
-        let key = record.script?;
+        let key = record.script?.key_in(agent?)?;
         let host: &mut dyn std::any::Any = docs.lent_host(key)?;
         host.downcast_mut::<DocumentState>()
+    }
+
+    /// The document of `frame` if it has the origin of the running agent; `None`
+    /// for another agent's.
+    fn own_document_mut<'a>(
+        &'a mut self,
+        docs: &'a mut dyn LentDocuments,
+        frame: FrameId,
+    ) -> Option<&'a mut DocumentState> {
+        if !self.has_agent_origin(frame) {
+            return None;
+        }
+        let agent = self.agent;
+        Self::document_mut(&mut self.frames, docs, agent, frame)
     }
 
     /// Lays out the document of `parent` and gives its child `child` the
@@ -302,7 +391,8 @@ impl FrameRegistry {
         let record = self.frames.get(child)?;
         let (container, old, old_serial) =
             (record.container?, record.viewport, record.viewport_serial);
-        let parent_doc = Self::document_mut(&mut self.frames, docs, parent)?;
+        let agent = self.agent;
+        let parent_doc = Self::document_mut(&mut self.frames, docs, agent, parent)?;
         parent_doc.script_layout_flush();
         let serial = parent_doc
             .fragments()
@@ -329,7 +419,7 @@ impl FrameRegistry {
         if let Some(has_box) = has_box {
             record.has_box = has_box;
         }
-        let child_doc = Self::document_mut(&mut self.frames, docs, child)?;
+        let child_doc = Self::document_mut(&mut self.frames, docs, agent, child)?;
         child_doc.set_view(view);
         Some(())
     }
@@ -364,6 +454,9 @@ impl FrameHost for FrameRegistry {
 
     fn child_of_container(&self, parent: u32, container: NodeId) -> Option<u32> {
         let parent = FrameId::from_number(parent);
+        if !self.has_agent_origin(parent) {
+            return None;
+        }
         Some(self.frames.by_container(parent, container)?.number())
     }
 
@@ -371,6 +464,9 @@ impl FrameHost for FrameRegistry {
         let Some(record) = self.frame(frame) else {
             return Vec::new();
         };
+        if !self.has_agent_origin(FrameId::from_number(frame)) {
+            return Vec::new();
+        }
         record
             .children
             .iter()
@@ -379,23 +475,34 @@ impl FrameHost for FrameRegistry {
     }
 
     fn container(&self, frame: u32) -> Option<NodeId> {
-        self.frame(frame)?.container
+        let record = self.frame(frame)?;
+        if !self.has_agent_origin(record.parent?) {
+            return None;
+        }
+        record.container
     }
 
     fn name(&self, frame: u32) -> String {
+        if !self.has_agent_origin(FrameId::from_number(frame)) {
+            return String::new();
+        }
         self.frame(frame)
             .map(|f| f.name.clone())
             .unwrap_or_default()
     }
 
     fn set_name(&mut self, frame: u32, name: &str) {
-        if let Some(record) = self.frames.get_mut(FrameId::from_number(frame)) {
+        let id = FrameId::from_number(frame);
+        if !self.has_agent_origin(id) {
+            return;
+        }
+        if let Some(record) = self.frames.get_mut(id) {
             name.clone_into(&mut record.name);
         }
     }
 
     fn in_this_agent(&self, frame: u32) -> bool {
-        self.frames.in_agent(FrameId::from_number(frame))
+        self.has_agent_origin(FrameId::from_number(frame))
     }
 
     fn scripts_allowed(&self, frame: u32) -> bool {
@@ -404,23 +511,37 @@ impl FrameHost for FrameRegistry {
     }
 
     fn document_key(&self, frame: u32) -> Option<DocumentKey> {
-        self.frame(frame)?.script
+        self.frame(frame)?.script?.key_in(self.agent?)
     }
 
     fn set_document_key(&mut self, frame: u32, key: Option<DocumentKey>) {
-        if let Some(record) = self.frames.get_mut(FrameId::from_number(frame)) {
-            record.script = key;
+        let id = FrameId::from_number(frame);
+        let Some(agent) = self.agent else {
+            return;
+        };
+        if !self.has_agent_origin(id) {
+            return;
+        }
+        if let Some(record) = self.frames.get_mut(id) {
+            record.script = key.map(|key| FrameScript::new(agent, key));
         }
     }
 
     fn document_loading(&self, frame: u32) -> bool {
+        if !self.has_agent_origin(FrameId::from_number(frame)) {
+            return false;
+        }
         self.frame(frame)
             .and_then(|f| f.doc.as_deref())
             .is_some_and(DocumentState::is_loading)
     }
 
-    fn take_document(&mut self, frame: u32) -> Option<Box<dyn EngineHost>> {
+    fn take_document(&mut self, frame: u32, key: DocumentKey) -> Option<Box<dyn EngineHost>> {
+        let agent = self.agent?;
         let record = self.frames.get_mut(FrameId::from_number(frame))?;
+        if !record.has_document(agent, key) {
+            return None;
+        }
         let doc: Box<dyn EngineHost> = record.doc.take()?;
         Some(doc)
     }
@@ -485,7 +606,7 @@ impl FrameHost for FrameRegistry {
                 self.maker.loader.cancel(*request);
             }
             let doc = record.doc.take();
-            if record.script.is_none() {
+            let Some(script) = record.script else {
                 // Nothing can reach the document: it goes now.
                 if let Some(mut doc) = doc {
                     self.maker.loader.cancel_client(doc.client);
@@ -497,11 +618,28 @@ impl FrameHost for FrameRegistry {
                     doc: None,
                 });
                 continue;
+            };
+            self.frames
+                .charge_retired(script.agent(), record.charge.nodes);
+            let key = self.agent.and_then(|agent| script.key_in(agent));
+            if key.is_none() {
+                // Another runtime's: the page runs its unload after the task. The
+                // removal holds for this task from here on.
+                self.after_task.retired_elsewhere.push(RetiredElsewhere {
+                    frame: one,
+                    script,
+                    doc,
+                });
+                retired.push(RetiredFrame {
+                    frame: one.number(),
+                    key: None,
+                    doc: None,
+                });
+                continue;
             }
-            self.frames.charge_retired(record.charge.nodes);
             retired.push(RetiredFrame {
                 frame: one.number(),
-                key: record.script,
+                key,
                 doc: doc.map(|d| {
                     let doc: Box<dyn EngineHost> = d;
                     doc
@@ -519,10 +657,11 @@ impl FrameHost for FrameRegistry {
     }
 
     fn may_navigate(&self, source: u32, target: u32) -> bool {
+        let source = FrameId::from_number(source);
         self.frames.may_navigate(
-            FrameId::from_number(source),
+            source,
             FrameId::from_number(target),
-            self.script_navigation_rule(),
+            self.script_navigation_rule(source),
         )
     }
 
@@ -549,7 +688,8 @@ impl FrameHost for FrameRegistry {
             .get(parent)
             .map(|record| record.sandbox)
             .unwrap_or_default();
-        let Some(doc) = Self::document_mut(&mut self.frames, docs, parent) else {
+        let agent = self.agent;
+        let Some(doc) = Self::document_mut(&mut self.frames, docs, agent, parent) else {
             return;
         };
         let generation = doc.dom().generation();
@@ -565,7 +705,7 @@ impl FrameHost for FrameRegistry {
         }
     }
 
-    fn navigate_frame(&mut self, target: u32, url: &str, source: u32) {
+    fn navigate_frame(&mut self, target: u32, url: &str, source: u32, replace: bool) {
         let Ok(url) = Url::parse(url) else {
             return;
         };
@@ -577,9 +717,14 @@ impl FrameHost for FrameRegistry {
             .frames
             .get(FrameId::from_number(source))
             .and_then(|frame| frame.origin.clone());
-        self.after_task
-            .navigations
-            .insert(target, CrossOriginNavigation { url, initiator });
+        self.after_task.navigations.insert(
+            target,
+            CrossOriginNavigation {
+                url,
+                initiator,
+                replace,
+            },
+        );
     }
 
     fn focused_frame(&self) -> u32 {
@@ -594,10 +739,11 @@ impl FrameHost for FrameRegistry {
 
     fn set_focused_frame(&mut self, frame: u32, docs: &mut dyn LentDocuments) {
         let new = FrameId::from_number(frame);
-        let old_chain = self.frames.chain(self.frames.focused);
+        let old = self.frames.focused;
+        let old_chain = self.frames.chain(old);
         let new_chain = self.frames.chain(new);
         for &id in old_chain.iter().filter(|id| !new_chain.contains(id)) {
-            if let Some(doc) = Self::document_mut(&mut self.frames, docs, id) {
+            if let Some(doc) = self.own_document_mut(docs, id) {
                 doc.frame_focus = None;
                 doc.script_set_focus(None, false);
             }
@@ -607,7 +753,7 @@ impl FrameHost for FrameRegistry {
                 .get(index + 1)
                 .and_then(|&next| self.frames.get(next))
                 .and_then(|record| record.container);
-            if let Some(doc) = Self::document_mut(&mut self.frames, docs, id) {
+            if let Some(doc) = self.own_document_mut(docs, id) {
                 if container.is_some() {
                     doc.script_set_focus(None, false);
                 }
@@ -616,6 +762,12 @@ impl FrameHost for FrameRegistry {
             }
         }
         self.frames.focused = new;
+        let moves = &mut self.after_task.focus_moves;
+        if moves.len() < MAX_FOCUS_MOVES {
+            moves.push((old, new));
+        } else if let Some(last) = moves.last_mut() {
+            last.1 = new;
+        }
         self.after_task.focused = Some(new);
     }
 
@@ -625,8 +777,9 @@ impl FrameHost for FrameRegistry {
         }
         // The arena has no parent of a dead frame; the page knows it from the
         // destruction, and until then the focus is nowhere.
+        // A top level of another agent: the page does this after the task.
         self.frames.focused = FrameId::TOP;
-        if let Some(doc) = Self::document_mut(&mut self.frames, docs, FrameId::TOP) {
+        if let Some(doc) = self.own_document_mut(docs, FrameId::TOP) {
             doc.frame_focus = None;
             doc.window_blurred = true;
         }
@@ -634,7 +787,7 @@ impl FrameHost for FrameRegistry {
 
     fn choose_frame(&self, source: u32, name: &str) -> Option<u32> {
         let source = FrameId::from_number(source);
-        let allows = self.script_navigation_rule();
+        let allows = self.script_navigation_rule(source);
         let chosen = if name.eq_ignore_ascii_case("_top") {
             FrameId::TOP
         } else if name.eq_ignore_ascii_case("_parent") {
@@ -671,11 +824,12 @@ impl FrameHost for FrameRegistry {
 }
 
 impl FrameRegistry {
-    /// The sandbox's rule for a navigation of the top level by a script: with a
-    /// recent input of the user, the token `allow-top-navigation-by-user-activation`
-    /// counts too (measured, cases `activation-*`).
-    fn script_navigation_rule(&self) -> fn(Sandbox) -> bool {
-        if self.frames.recently_activated() {
+    /// The sandbox's rule for a navigation of the top level by a script of `source`:
+    /// with a recent activation of that frame, the token
+    /// `allow-top-navigation-by-user-activation` counts too (measured, cases
+    /// `activation-*`).
+    fn script_navigation_rule(&self, source: FrameId) -> fn(Sandbox) -> bool {
+        if self.frames.has_transient_activation(source) {
             Sandbox::top_navigation_allowed
         } else {
             Sandbox::script_top_navigation_allowed

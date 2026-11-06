@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-06: M9 feature 13b: one script runtime per origin
+
+- Each origin of a page has a runtime of its own, made at its first need. Frames of
+  another origin and sandboxed frames run their scripts (ADR 0031 "Done (feature 13b)").
+- A key stays with its runtime by its type: `FrameScript` gives a document's key only for
+  its agent, and the registry answers for the agent of the running task. No script of
+  another runtime runs inside a native: unloads, focus events, the container's `load` and
+  navigations wait in `AfterTask`.
+- The event loop takes the earliest task across runtimes, with a page-wide sequence
+  counter. The rendering update runs per document in tree order, whatever the runtime.
+- Budgets: 32 runtimes; heap 256 MiB per runtime and 512 MiB per page; long tasks 30 s and
+  60 s. The top level's runtime keeps its share, so frames cannot end its scripts. A
+  runtime at the heap limit goes alone. A runtime with no live document goes at the next
+  turn.
+- Five reviews found no way across the boundary. They found, and this commit fixes:
+  - The activation was page-wide: a click anywhere let any frame navigate the top level.
+    It is per frame now, as measured: its own, from a frame inside it, or from its origin.
+  - A frame of a `file:` page got the sandbox's `SecurityError`, because `file:` origins are
+    opaque too. The commit now records the sandbox on the document.
+  - The Blob URL, held blob, message and mutation record budgets were per runtime: 12
+    sandboxed frames held 3,250 MiB with almost empty heaps. The frames share one budget
+    now, and the top level's runtime has its own, as with the heap. The waiting records of
+    a runtime that stopped or went stayed counted; they go at once now.
+  - `pageshow` fired after `unload`, also in one runtime.
+- Chromium 148 lets a frame navigate a top level that has had no activation at all, also
+  in a headed browser and without any test tool. swb refuses, by the owner's decision.
+- Scores unchanged. BBC has 3 runtimes and stays at 62 % of its budget. Its Sourcepoint
+  frame stays 0 x 0 (Chromium: 1280 x 800), most likely because no message reaches the parent
+  until feature 14; not measured.
+- Next: feature 14, messaging and storage across documents.
+
 ## 2026-11-06: M9 feature 13a: the cross-origin `Window` and `Location`
 
 - A proxy without a target has the real rules now: every internal method, with

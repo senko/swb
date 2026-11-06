@@ -27,7 +27,6 @@ use swb_layout::Point;
 use swb_web::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 
 use super::Page;
-use crate::frames::FrameId;
 use crate::input::{KeyInfo, Modifiers, MouseButton};
 
 /// The pointer id of the mouse in Chromium's pointer events.
@@ -124,13 +123,10 @@ impl Page {
     /// script runtime that is not busy and not stopped. After the time
     /// limits stopped the scripts, the input works as with JavaScript off.
     pub(super) fn script_input(&self) -> bool {
-        self.script.as_ref().is_some_and(|s| !s.stopped())
-            && !self.lent
-            && (self.active_frame == FrameId::TOP
-                || self
-                    .frames
-                    .get(self.active_frame)
-                    .is_some_and(|frame| frame.script.is_some()))
+        !self.lent
+            && self
+                .frame_runtime(self.active_frame)
+                .is_some_and(|(script, _)| !script.stopped())
     }
 
     /// True if `node` is in the document.

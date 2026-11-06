@@ -88,7 +88,8 @@ pub(crate) const MAX_PORTS: usize = 65_536;
 /// The most waiting messages (ports and window together).
 pub(crate) const MAX_WAITING: usize = 65_536;
 
-/// The most bytes of serialized messages that wait (256 MiB).
+/// The most bytes of serialized messages that wait (256 MiB): in the top level's
+/// runtime, and in the runtimes of the page's frames together.
 pub(crate) const MAX_BYTES: usize = 256 << 20;
 
 /// At the port limit, a collection is forced after this many new channels
@@ -126,7 +127,7 @@ pub(crate) struct Registry {
     /// The messages that wait in the queues of ports and in the queue of
     /// `window.postMessage()`.
     waiting: usize,
-    waiting_bytes: usize,
+    waiting_bytes: crate::page_budget::ByteShare,
     /// True after the warning about a full queue, until nothing waits.
     warned: bool,
     /// True after the warning about the port limit, until a channel fits
@@ -151,6 +152,11 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
+    /// Counts the waiting bytes in the budget of the page's frames.
+    pub(crate) fn join_page(&self, page: &Rc<Cell<u64>>) {
+        self.registry.borrow_mut().waiting_bytes.join(page);
+    }
+
     /// Removes the entries of the port objects that the collector freed.
     /// Called at the start of each operation, with no borrow held.
     fn reap(&self) {
@@ -296,26 +302,26 @@ impl Registry {
     /// Counts a message that is about to wait. False (with one warning per
     /// full queue) if a bound is reached: the caller drops the message.
     pub(crate) fn admit(&mut self, bytes: usize) -> bool {
-        if self.waiting >= MAX_WAITING || self.waiting_bytes.saturating_add(bytes) > MAX_BYTES {
+        if self.waiting >= MAX_WAITING || !self.waiting_bytes.fits(bytes as u64, MAX_BYTES as u64) {
             if !self.warned {
                 self.warned = true;
                 log::warn!(
                     "postMessage: {} messages ({} bytes) wait; further messages are dropped until none waits",
                     self.waiting,
-                    self.waiting_bytes
+                    self.waiting_bytes.mine()
                 );
             }
             return false;
         }
         self.waiting += 1;
-        self.waiting_bytes += bytes;
+        self.waiting_bytes.add(bytes as u64);
         true
     }
 
     /// Counts a message that no longer waits.
     pub(crate) fn release(&mut self, bytes: usize) {
         self.waiting = self.waiting.saturating_sub(1);
-        self.waiting_bytes = self.waiting_bytes.saturating_sub(bytes);
+        self.waiting_bytes.remove(bytes as u64);
         if self.waiting == 0 {
             self.warned = false;
         }
@@ -891,7 +897,7 @@ mod tests {
         registry.remove(2);
         assert!(!registry.entries.contains_key(&2));
         assert_eq!(registry.entries[&1].partner, None);
-        assert_eq!((registry.waiting, registry.waiting_bytes), (0, 0));
+        assert_eq!((registry.waiting, registry.waiting_bytes.mine()), (0, 0));
     }
 
     #[test]
@@ -984,7 +990,7 @@ mod tests {
         queue_message(&mut registry, 1, &[1]);
         registry.sweep();
         assert!(registry.entries.is_empty());
-        assert_eq!((registry.waiting, registry.waiting_bytes), (0, 0));
+        assert_eq!((registry.waiting, registry.waiting_bytes.mine()), (0, 0));
     }
 
     #[test]

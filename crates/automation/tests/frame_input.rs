@@ -11,8 +11,7 @@
 //! entries of the logs). Two things go through the engine API: the selection,
 //! because swb has no `getSelection` (the `eval` steps `log.push('slN:' + ...)`
 //! are snapshots, and the test pushes the string that Chromium's expression
-//! gives), and a cross-origin frame, which has no realm until feature 13b.
-//! `DEPARTURES` lists the queries where swb's value differs on purpose, with the
+//! gives). `DEPARTURES` lists the queries where swb's value differs on purpose, with the
 //! reason.
 
 // Test helpers outside `#[test]` functions unwrap too.
@@ -39,6 +38,18 @@ type Departure = (&'static str, usize, &'static str, &'static str);
 
 const DEPARTURES: &[Departure] = &[
     (
+        "xo-top-click-href",
+        0,
+        "[\"t.html\",2,\"set;\"]",
+        "the session history starts with the first document in swb; Playwright's new page has an entry for about:blank, so Chromium's count is one more",
+    ),
+    (
+        "xo-top-click-replace",
+        0,
+        "[\"t.html\",1,\"set;\"]",
+        "as xo-top-click-href; location.replace adds no entry in both",
+    ),
+    (
         "input-focus-remove",
         0,
         "p:blur@win l1:BODY/false p:focus@win p:focus@p1 p:focusin@p1 l2:p1/true",
@@ -49,18 +60,6 @@ const DEPARTURES: &[Departure] = &[
         0,
         "p:focus@p1 p:focusin@p1 p:blur@p1 p:focusout@p1 p:blur@win l1:BODY/false p:focus@win p:focus@p1 p:focusin@p1 l2:p1/true",
         "as input-focus-remove: Chromium's next Tab gives `p2`, swb's starts at the first element",
-    ),
-    (
-        "input-link-cross-origin-top",
-        0,
-        "case.html / SecurityError | about:blank",
-        "Chromium lets a cross-origin frame navigate the top level after a user activation (the click); swb has no activation tracking and refuses it, with a log entry (ADR 0031 section 3)",
-    ),
-    (
-        "input-link-cross-origin-parent",
-        0,
-        "case.html / SecurityError | about:blank",
-        "as input-link-cross-origin-top: the parent is the top level",
     ),
     (
         "input-target-blank",
@@ -102,10 +101,15 @@ const DEPARTURES: &[Departure] = &[
 
 /// The simulated server of a case: its files under `/case/`.
 struct Sim {
+    jar: swb_net::CookieJar,
     files: HashMap<String, String>,
 }
 
 impl Fetcher for Sim {
+    fn cookie_jar(&self) -> Option<&swb_net::CookieJar> {
+        Some(&self.jar)
+    }
+
     fn fetch(&self, request: &Request) -> Result<Response, NetError> {
         let path = request.url.path();
         let (status, body) = match self.files.get(path) {
@@ -157,7 +161,10 @@ fn open(case: &Value) -> Page {
         }
     }
     let config = PageConfig {
-        fetcher: Arc::new(Sim { files }),
+        fetcher: Arc::new(Sim {
+            jar: swb_net::CookieJar::default(),
+            files,
+        }),
         notify: Arc::new(|| {}),
         network_threads: 2,
         scripts_allowed: true,
@@ -271,6 +278,18 @@ fn expected(name: &str) -> Vec<Value> {
         .collect()
 }
 
+/// The cases of a cross-origin frame's activation, which wait in real time and have a
+/// test of their own, so that they run beside the others.
+fn activation_case_names() -> Vec<String> {
+    probe_file()["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap().to_owned())
+        .filter(|n| n.starts_with("activation-xo-"))
+        .collect()
+}
+
 /// The cases that this test runs: `focus`, `wheel-scroll` and `input-*`.
 fn case_names() -> Vec<String> {
     probe_file()["cases"]
@@ -278,11 +297,15 @@ fn case_names() -> Vec<String> {
         .unwrap()
         .iter()
         .map(|c| c["name"].as_str().unwrap().to_owned())
+        .filter(|n| !n.starts_with("activation-xo-"))
         .filter(|n| {
             n.starts_with("input-")
                 || n.starts_with("activation-")
                 || n.starts_with("javascript-link-")
                 || n.starts_with("window-name-")
+                || n.starts_with("xo-top-click-")
+                || n == "xo-top-site-click"
+                || n == "agents-input-click"
                 || n == "focus"
                 || n == "wheel-scroll"
         })
@@ -312,19 +335,13 @@ fn check(name: &str) -> Vec<String> {
     for (index, q) in case["measure"].as_array().unwrap().iter().enumerate() {
         let source = q["js"].as_str().unwrap();
         let want = &want[index];
-        let got = match name {
-            // A cross-origin frame has no realm until feature 13b: the engine
-            // tells what the frame shows.
-            n if n.starts_with("input-link-cross-origin-") => link_query(&mut page),
-            n if n.starts_with("input-target-") && index == 0 => target_query(&mut page),
-            _ => normalize(&query(&mut page, source)),
-        };
+        let got = normalize(&query(&mut page, source));
         let want = normalize(want);
         let departure = DEPARTURES.iter().find(|d| d.0 == name && d.1 == index);
         match departure {
             Some(d) => {
                 // A departure that no longer happens is a failure too.
-                if got != Value::String(d.2.to_owned()) {
+                if got != Value::String(d.2.to_owned()) && format!("{got}") != d.2 {
                     failures.push(format!(
                         "{name} #{index}: expected the departure {:?} ({}), got {got}",
                         d.2, d.3
@@ -338,86 +355,6 @@ fn check(name: &str) -> Vec<String> {
         }
     }
     failures
-}
-
-/// swb's value of the query of the cases `input-link-cross-origin-*`: the state
-/// of the page and its frames after the click, as the probe's expression reads
-/// it (the location of a cross-origin frame is not readable).
-fn link_query(page: &mut Page) -> Value {
-    let top = FrameId::TOP;
-    let own = value(
-        page,
-        "location.pathname.split('/').pop() + location.search + location.hash",
-    );
-    let own = own.as_str().unwrap_or_default().to_owned();
-    let rest = match (frame_of(page, top, "f"), frame_of(page, top, "g")) {
-        (Some(f), Some(g)) => {
-            let f_doc = page.frame_document(f).unwrap();
-            let g_doc = page.frame_document(g).unwrap();
-            let last = |url: &Url| {
-                url.as_str()
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or_default()
-                    .to_owned()
-            };
-            let same = f_doc.origin_string() == page.frame_document(top).unwrap().origin_string();
-            let f_part = if same {
-                last(f_doc.url())
-            } else {
-                "SecurityError".to_owned()
-            };
-            format!("{f_part} | {}", last(g_doc.url()))
-        }
-        _ => "gone".to_owned(),
-    };
-    Value::String(format!("{own} / {rest}"))
-}
-
-/// The last part of the URL of `frame`, as a script of the page reads it:
-/// `SecurityError` if the frame's document has another origin.
-fn frame_location(page: &Page, frame: FrameId) -> String {
-    let doc = page.frame_document(frame).unwrap();
-    let top = page.frame_document(FrameId::TOP).unwrap();
-    if doc.origin_string() != top.origin_string() {
-        return "SecurityError".to_owned();
-    }
-    let url = doc.url();
-    url.as_str()
-        .rsplit('/')
-        .next()
-        .unwrap_or_default()
-        .to_owned()
-}
-
-/// swb's value of the first query of the cases `input-target-*`: the
-/// location of the page, of the frames `f` and `g` and their first children,
-/// and of the frame `k`.
-fn target_query(page: &mut Page) -> Value {
-    let top = FrameId::TOP;
-    let own = value(page, "location.pathname.split('/').pop() + location.search");
-    let own = own.as_str().unwrap_or_default().to_owned();
-    let Some(f) = frame_of(page, top, "f") else {
-        return Value::String(format!("{own} / gone"));
-    };
-    let g = frame_of(page, top, "g").unwrap();
-    let kid = |page: &Page, frame: FrameId| {
-        page.frame_children(frame)
-            .first()
-            .map_or("-".to_owned(), |&child| frame_location(page, child))
-    };
-    let k = frame_of(page, top, "k").map_or("-".to_owned(), |k| frame_location(page, k));
-    Value::String(
-        [
-            own,
-            frame_location(page, f),
-            kid(page, f),
-            frame_location(page, g),
-            kid(page, g),
-            k,
-        ]
-        .join(" | "),
-    )
 }
 
 /// Chromium's value with the page's file name of the probe (`case-13.html`)
@@ -462,6 +399,19 @@ fn input_cases_match_chromium() {
     });
 }
 
+/// A cross-origin frame navigates the top level with an activation of its own: a click
+/// in the parent, a sibling of another origin or blank space gives it none.
+#[test]
+fn the_activation_of_a_cross_origin_frame_matches_chromium() {
+    on_page_thread(|| {
+        let mut failures = Vec::new();
+        for name in activation_case_names() {
+            failures.extend(check(&name));
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
+
 #[test]
 fn every_case_has_chromium_values() {
     let data = chromium_file();
@@ -471,7 +421,7 @@ fn every_case_has_chromium_values() {
         .iter()
         .filter_map(|c| c["name"].as_str())
         .collect();
-    for name in case_names() {
+    for name in case_names().into_iter().chain(activation_case_names()) {
         assert!(have.contains(&name.as_str()), "no values for {name}");
     }
 }

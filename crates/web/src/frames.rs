@@ -12,7 +12,10 @@
 //! `WebState::window_proxies` until its frame is destroyed. A frame whose
 //! document has another origin, or that is past the budget of realms, gets a
 //! proxy without a target, whose hooks write the rules of cross-origin objects
-//! (`window_proxy.rs`; feature 13b gives other origins runtimes of their own).
+//! (`window_proxy.rs`). Each origin has a runtime of its own, so a document of
+//! another origin is out of reach here: the registry answers for the running
+//! runtime only, and what must happen in another runtime the page does after the
+//! task.
 //!
 //! *Retired documents.* When a frame is destroyed, or its document is
 //! replaced, a document with a realm stays in the runtime (`state.rs`,
@@ -423,24 +426,32 @@ fn fire_load_at(rt: &mut Runtime, element: NodeId) -> VmResult<()> {
 /// The `load` event of the current document's window has fired: its
 /// container's `load` fires next, before `pageshow` (measured, case
 /// `scripted-frame-document`).
-pub(crate) fn container_load(rt: &mut Runtime) -> VmResult<()> {
+///
+/// True if the parent's document is of another origin: a task runs no script of
+/// another runtime, so the page fires that `load` after this task, and `pageshow`
+/// waits for it.
+pub(crate) fn container_load(rt: &mut Runtime) -> VmResult<bool> {
     let frame = state(rt)?.doc.frame;
     if frame == 0 || state(rt)?.doc.retired {
-        return Ok(());
+        return Ok(false);
     }
     change(rt, |f| f.frame_loaded(frame))?;
-    let Some(Some((parent, container))) =
-        read(rt, |f| Some((f.parent(frame)?, f.container(frame)?)))?
-    else {
-        return Ok(());
+    let Some(Some(parent)) = read(rt, |f| f.parent(frame))? else {
+        return Ok(false);
+    };
+    if read(rt, |f| f.in_this_agent(parent))? != Some(true) {
+        return Ok(true);
+    }
+    let Some(Some(container)) = read(rt, |f| f.container(frame))? else {
+        return Ok(false);
     };
     let Some(Some(key)) = read(rt, |f| f.document_key(parent))? else {
-        return Ok(());
+        return Ok(false);
     };
     let entered = state::switch_if_other(rt, key.raw())?;
     let result = fire_load_at(rt, container);
     state::leave(rt, entered);
-    result
+    result.map(|()| false)
 }
 
 /// Before `node` (or, without `inclusive`, its children) leaves the current
@@ -561,9 +572,10 @@ pub(crate) fn focus_enters_frame_of(rt: &mut Runtime, element: NodeId) -> VmResu
     Ok(true)
 }
 
-/// `focus()` of a frame without a realm (a cross-origin `Window`): as
-/// [`focus_enters_current`], without the events of the frame's own window, which
-/// has no scripts here. Nothing for a frame that is gone (measured).
+/// `focus()` of a frame without a realm here (a cross-origin `Window`): as
+/// [`focus_enters_current`]. The frame's own window is in another runtime, and the
+/// page fires its events after the task. Nothing for a frame that is gone
+/// (measured).
 pub(crate) fn focus_enters_remote(rt: &mut Runtime, frame: u32) -> VmResult<()> {
     if !frame_alive(rt, frame)? {
         return Ok(());
@@ -613,10 +625,11 @@ pub(crate) fn request_navigation(
     target: u32,
     url: &str,
     source: u32,
+    replace: bool,
 ) -> VmResult<()> {
     state::with_registry_and_documents(rt, |frames, docs| {
         frames.note_location_flags(target, docs);
-        frames.navigate_frame(target, url, source);
+        frames.navigate_frame(target, url, source, replace);
     })
 }
 

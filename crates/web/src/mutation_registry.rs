@@ -43,7 +43,8 @@ use swb_dom::{Change, Document, MutationSink, NodeId, QualName};
 pub(crate) const MAX_RECORDS: usize = 131_072;
 
 /// The most bytes that the waiting records hold (old values, names, node
-/// lists, and a fixed cost per record), over all observers.
+/// lists, and a fixed cost per record), over all observers: in the top level's
+/// runtime, and in the runtimes of the page's frames together.
 pub(crate) const MAX_RECORD_BYTES: usize = 128 << 20;
 
 /// The fixed cost of a record in [`MAX_RECORD_BYTES`]: the Rust record and
@@ -152,9 +153,12 @@ pub(crate) struct Registry {
     /// that "notify mutation observers" visits, in creation order.
     notify: BTreeSet<u32>,
     waiting: usize,
-    waiting_bytes: usize,
+    waiting_bytes: crate::page_budget::ByteShare,
     /// The transient registered observers that exist.
     transients: usize,
+    /// True when the runtime stopped or went: a document's sink outlives it, and no
+    /// script can read a record any more.
+    closed: bool,
     warned: bool,
     warned_transients: bool,
     /// Work units since the host last charged them.
@@ -193,6 +197,22 @@ impl Registry {
             request,
             ..Registry::default()
         }
+    }
+
+    /// Counts the bytes of the waiting records in the budget of the page's frames.
+    pub(crate) fn join_page(&mut self, page: &Rc<Cell<u64>>) {
+        self.waiting_bytes.join(page);
+    }
+
+    /// No script can read records any more: those that wait go, and no more come.
+    pub(crate) fn close(&mut self) {
+        self.closed = true;
+        for entry in self.entries.values_mut() {
+            entry.records.clear();
+        }
+        self.notify.clear();
+        self.waiting = 0;
+        self.waiting_bytes.remove(self.waiting_bytes.mine());
     }
 
     /// The `observe()` algorithm of DOM §4.3.2, after the checks of its
@@ -269,7 +289,7 @@ impl Registry {
         }
         for record in &entry.records {
             self.waiting -= 1;
-            self.waiting_bytes -= record.cost();
+            self.waiting_bytes.remove(record.cost() as u64);
         }
         self.notify.remove(&observer);
     }
@@ -290,7 +310,7 @@ impl Registry {
         let records = std::mem::take(&mut entry.records);
         for record in &records {
             self.waiting -= 1;
-            self.waiting_bytes -= record.cost();
+            self.waiting_bytes.remove(record.cost() as u64);
         }
         if entry.transient_nodes.is_empty() {
             self.notify.remove(&observer);
@@ -318,7 +338,7 @@ impl Registry {
         let transient_nodes = std::mem::take(&mut entry.transient_nodes);
         for record in &records {
             self.waiting -= 1;
-            self.waiting_bytes -= record.cost();
+            self.waiting_bytes.remove(record.cost() as u64);
         }
         for node in transient_nodes {
             if let Some(list) = self.nodes.get_mut(&node) {
@@ -576,7 +596,14 @@ impl Registry {
 
     /// True if a record of `cost` fits in the limits; else warns once.
     fn has_room(&mut self, cost: usize) -> bool {
-        if self.waiting < MAX_RECORDS && self.waiting_bytes + cost <= MAX_RECORD_BYTES {
+        if self.closed {
+            return false;
+        }
+        if self.waiting < MAX_RECORDS
+            && self
+                .waiting_bytes
+                .fits(cost as u64, MAX_RECORD_BYTES as u64)
+        {
             return true;
         }
         if !self.warned {
@@ -600,7 +627,7 @@ impl Registry {
         };
         entry.records.push(record);
         self.waiting += 1;
-        self.waiting_bytes += cost;
+        self.waiting_bytes.add(cost as u64);
         self.notify.insert(observer);
         self.microtask_wanted = true;
         self.request.set(true);
@@ -843,8 +870,38 @@ mod tests {
         assert!(registry.has_notifications());
         registry.disconnect(1);
         assert_eq!(registry.waiting(), 0);
-        assert_eq!(registry.waiting_bytes, 0);
+        assert_eq!(registry.waiting_bytes.mine(), 0);
         assert_eq!(registry.take_notify_set(), Vec::<u32>::new());
+    }
+
+    /// A document's sink outlives its runtime: the records of a runtime that stopped or
+    /// went must not stay in the budget of the page's frames.
+    #[test]
+    fn a_closed_registry_gives_its_bytes_back_and_takes_no_more() {
+        let page = Rc::new(Cell::new(0));
+        let mut registry = Registry::default();
+        registry.join_page(&page);
+        let doc = Document::new();
+        registry.observe(
+            1,
+            (0, NodeId::DOCUMENT),
+            Options {
+                character_data: true,
+                ..Options::default()
+            },
+        );
+        let change = Change::Text {
+            node: NodeId::DOCUMENT,
+            old_value: None,
+        };
+        registry.change(0, &doc, &change);
+        assert_eq!(registry.waiting(), 1);
+        assert!(page.get() > 0);
+        registry.close();
+        assert_eq!((registry.waiting(), page.get()), (0, 0));
+        assert_eq!(registry.take_notify_set(), Vec::<u32>::new());
+        registry.change(0, &doc, &change);
+        assert_eq!((registry.waiting(), page.get()), (0, 0));
     }
 
     #[test]

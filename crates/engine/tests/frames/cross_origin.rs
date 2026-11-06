@@ -1,8 +1,8 @@
 //! The cross-origin `Window` and `Location` against Chromium (M9 feature 13a,
 //! ADR 0031 section 5): every query of the cases `cross-origin`, `nested-origins`
 //! and `xo-*` of `tools/probes/web-frames.json` with Chromium's values. A departure
-//! has a row with its reason. What needs a script in the other origin names
-//! feature 13b.
+//! has a row with its reason. A log that comes through `postMessage` names feature
+//! 14; `agents.rs` reads the same values in the frame.
 
 use std::time::Duration;
 
@@ -20,13 +20,13 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "cross-origin",
         2,
         "",
-        "the script of the child reports through postMessage: features 13b and 14",
+        "the child reports through postMessage: feature 14; agents.rs reads its values",
     ),
     (
         "xo-focus",
         1,
         "",
-        "the log of the frame: a script in the other origin, features 13b and 14",
+        "the frame's log comes through postMessage: feature 14; agents.rs reads it",
     ),
     (
         "xo-focus",
@@ -139,9 +139,9 @@ case_test!(
 
 /// `document.domain` and `originAgentCluster` of a document of a domain: the cases
 /// `document-domain` and `document-domain-setter` load it in a frame of another
-/// origin, whose script runs from feature 13b. Here the same document is the top
-/// level, so its script runs, and its values are compared with what the frame
-/// reported in Chromium. A departure of `domain.rs`: a value with a space.
+/// origin, which reports through `postMessage` (feature 14). Here the same document
+/// is the top level, and its values are compared with what the frame reported in
+/// Chromium. A departure of `domain.rs`: a value with a space.
 #[test]
 fn document_domain_as_the_frame_reported_it() {
     on_page_thread(|| {

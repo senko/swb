@@ -23,8 +23,10 @@
 //! callback"); not for the `error` event of an exception report, where
 //! Chromium runs the microtasks only after all listeners (measured).
 
+use std::cell::Cell;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 use swb_js::{Runtime, ScriptError, Tracer, Value, VmError, VmResult};
 
@@ -129,7 +131,9 @@ pub(crate) type TaskKey = (Due, u64);
 #[derive(Debug, Default)]
 pub(crate) struct TaskQueue {
     queue: BTreeMap<TaskKey, (DocKey, Task)>,
-    next_seq: u64,
+    /// The sequence counter, which the runtimes of a page share (ADR 0031
+    /// section 6): tasks of different runtimes run in the order of queuing.
+    next_seq: Rc<Cell<u64>>,
     /// The current document (the binding state keeps it up to date).
     document: DocKey,
 }
@@ -140,15 +144,21 @@ impl TaskQueue {
         self.document = document;
     }
 
+    /// Shares the sequence counter of the page.
+    pub(crate) fn set_counter(&mut self, counter: Rc<Cell<u64>>) {
+        self.next_seq = counter;
+    }
+
     /// The sequence number that the next task gets.
     pub(crate) fn next_seq(&self) -> u64 {
-        self.next_seq
+        self.next_seq.get()
     }
 
     /// Queues `task` to run at page time `due`; returns its key.
     pub(crate) fn push(&mut self, due: f64, task: Task) -> TaskKey {
-        let key = (Due(due), self.next_seq);
-        self.next_seq += 1;
+        let seq = self.next_seq.get();
+        let key = (Due(due), seq);
+        self.next_seq.set(seq + 1);
         self.queue.insert(key, (self.document, task));
         key
     }
@@ -163,10 +173,28 @@ impl TaskQueue {
         self.queue.first_key_value().map(|((due, _), _)| due.0)
     }
 
-    /// Takes the first task if it is due at `now`, with its document.
-    pub(crate) fn pop_due(&mut self, now: f64) -> Option<(DocKey, Task)> {
+    /// The key of the first task: its due time and its sequence number.
+    pub(crate) fn next_key(&self) -> Option<(f64, u64)> {
+        self.queue
+            .first_key_value()
+            .map(|((due, seq), _)| (due.0, *seq))
+    }
+
+    /// Takes the first task if it is due at `now` and comes before `before`
+    /// (the first task of another runtime), with its document.
+    pub(crate) fn pop_due(
+        &mut self,
+        now: f64,
+        before: Option<(f64, u64)>,
+    ) -> Option<(DocKey, Task)> {
         let entry = self.queue.first_entry()?;
-        if entry.key().0.0 > now {
+        let (due, seq) = *entry.key();
+        if due.0 > now {
+            return None;
+        }
+        if let Some((other_due, other_seq)) = before
+            && (due, seq) > (Due(other_due), other_seq)
+        {
             return None;
         }
         Some(entry.remove())

@@ -428,7 +428,16 @@ Feature 13a (`crates/web/src/window_proxy.rs`): a frame of another origin has a
 `WindowProxy` without a target, whose internal methods are the hooks of that module:
 the cross-origin `Window` and `Location` of HTML, from the frame tree alone. A
 navigation through such a `Location` waits in `AfterTask`, and the page starts it after
-the task. Such a frame runs no scripts until feature 13b.
+the task. Feature 13b (`crates/engine/src/page/agents.rs`): each origin has a script
+runtime of its own, an agent. `Page::script` is the top-level document's; `Agents::others`
+holds the others, made at the first need and dropped when no live frame has a document in
+them. `Frame::script` holds an agent and a key together, `Page::frame_runtime` gives both,
+and the registry answers for the agent of the running task: another runtime's document has
+no key and no document there. A task never runs a script of another runtime inside a
+native; what must happen there waits in `AfterTask`. The event loop takes the task with the
+earliest due time, then the lowest sequence number, across runtimes (`AgentShared` has the
+counter and the console); the heap and long-task limits of a runtime leave room for the
+page's caps. A failed runtime goes alone. ADR 0031 "Done (feature 13b)".
 Feature 5c (ADR 0028 section 8): the
 runtime drives the parse of its document (`EngineHost::parse_step`, one
 step per `script` end tag), runs inline scripts at their place, waits for

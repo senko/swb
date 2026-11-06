@@ -181,11 +181,33 @@ impl DocumentKey {
     }
 }
 
+/// What the runtimes of one page share (ADR 0031 sections 6 and 11): the console
+/// buffer, so that its messages keep their order across runtimes, the count of
+/// its lines for the log, the sequence counter of the tasks, and the byte budgets
+/// of the frames' runtimes, which the heap limit does not count.
+#[derive(Clone, Default)]
+pub struct AgentShared {
+    console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
+    console_logged: Rc<Cell<usize>>,
+    task_counter: Rc<Cell<u64>>,
+    budgets: crate::page_budget::PageBudgets,
+}
+
+impl AgentShared {
+    /// The console messages of all runtimes of the page (at most the last
+    /// 1,000).
+    pub fn console_messages(&self) -> Vec<ConsoleMessage> {
+        self.console.borrow().iter().cloned().collect()
+    }
+}
+
 /// The script runtime of an agent: its documents share one heap (ADR 0031
 /// section 5). A runtime starts with one document.
 pub struct ScriptRuntime {
     pub(crate) rt: Runtime,
     console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
+    /// What this runtime shares with the other runtimes of its page.
+    shared: AgentShared,
     /// The page clock (shared with the binding state).
     clock: PageClock,
     /// The time limit of a task.
@@ -238,6 +260,29 @@ impl ScriptRuntime {
         config: RuntimeConfig,
         clock: PageClock,
     ) -> Result<ScriptRuntime, ScriptError> {
+        ScriptRuntime::build(config, clock, TOP_FRAME, &AgentShared::default())
+    }
+
+    /// The runtime of another origin of a page: its first document belongs to
+    /// the frame `frame` (below 2^30), and it shares `shared` with the other
+    /// runtimes of the page (ADR 0031 section 5). The page lends it no
+    /// document: a task borrows them from the frame registry.
+    pub fn for_frame(
+        clock: PageClock,
+        frame: u32,
+        shared: &AgentShared,
+    ) -> Result<ScriptRuntime, ScriptError> {
+        let mut config = RuntimeConfig::default();
+        config.heap.limit = HEAP_LIMIT;
+        ScriptRuntime::build(config, clock, frame, shared)
+    }
+
+    fn build(
+        config: RuntimeConfig,
+        clock: PageClock,
+        frame: u32,
+        shared: &AgentShared,
+    ) -> Result<ScriptRuntime, ScriptError> {
         let mut rt = Runtime::new(config)?;
         let document_clock = DocumentClock::new(clock.clone());
         let setup = |rt: &mut Runtime| -> Result<(), VmError> {
@@ -246,7 +291,7 @@ impl ScriptRuntime {
             crate::window::define_class(rt)?;
             crate::window_proxy::install_hooks(rt);
             init_window(rt, 0)?;
-            crate::state::add_document(rt, 0, TOP_FRAME, document_clock)?;
+            crate::state::add_document(rt, 0, frame, document_clock)?;
             Ok(())
         };
         setup(&mut rt).map_err(|e| internal(&e))?;
@@ -258,6 +303,22 @@ impl ScriptRuntime {
             .pinned
             .push(serializer);
         let state = state_mut(&mut rt).map_err(|e| internal(&e))?;
+        state.console = Rc::clone(&shared.console);
+        state.console_logged = Rc::clone(&shared.console_logged);
+        state
+            .event_loop
+            .tasks
+            .set_counter(Rc::clone(&shared.task_counter));
+        // The top level's runtime keeps its own count of these bytes (ADR 0031
+        // section 11).
+        if frame != TOP_FRAME {
+            state.blob_urls.join_page(&shared.budgets.blob_urls);
+            state.held_blobs.join_page(&shared.budgets.held_blobs);
+            state.ports.join_page(&shared.budgets.messages);
+            state.mutation.join_page(&shared.budgets.mutation_records);
+        }
+        state.console_frame.set(frame);
+        let shared = shared.clone();
         let console = Rc::clone(&state.console);
         let logged = Rc::clone(&state.console_logged);
         let frame = Rc::clone(&state.console_frame);
@@ -269,6 +330,7 @@ impl ScriptRuntime {
         Ok(ScriptRuntime {
             rt,
             console,
+            shared,
             clock,
             time_limit: TASK_TIME_LIMIT,
             timeouts: 0,
@@ -293,6 +355,24 @@ impl ScriptRuntime {
     /// one).
     pub fn set_script_budget(&mut self, budget: Duration) {
         self.script_budget = budget;
+    }
+
+    /// What this runtime shares with the other runtimes of its page.
+    pub fn shared(&self) -> AgentShared {
+        self.shared.clone()
+    }
+
+    /// The real time of the long tasks of the runtime so far.
+    pub fn long_task_time(&self) -> Duration {
+        self.long_task_time
+    }
+
+    /// Stops the scripts of the runtime: the long tasks of the page used its
+    /// budget (ADR 0031 section 11).
+    pub fn stop_scripts(&mut self) {
+        if !self.stopped {
+            self.stop();
+        }
     }
 
     /// True if the document runs no more scripts: three tasks reached the
@@ -427,6 +507,13 @@ impl ScriptRuntime {
             crate::frames::window_of_frame(&mut self.rt, frame),
             Ok(Some(_))
         )
+    }
+
+    /// The current document gets its host from the registry if it has none. A
+    /// runtime whose documents the page does not lend calls it at the start of a
+    /// task, so that a native that runs in the current document finds it.
+    pub fn borrow_current_document(&mut self) {
+        crate::state::ensure_current_lent(&mut self.rt);
     }
 
     /// Takes back what the task borrowed besides the first document, which
@@ -566,6 +653,7 @@ impl ScriptRuntime {
         f: impl FnOnce(&mut ScriptRuntime) -> R,
     ) -> Option<R> {
         let entered = crate::state::switch_if_other(&mut self.rt, key.0).ok()?;
+        crate::state::ensure_current_lent(&mut self.rt);
         let result = f(self);
         crate::state::leave(&mut self.rt, entered);
         Some(result)
@@ -724,6 +812,13 @@ impl ScriptRuntime {
     /// the load event due ([`ScriptRuntime::load_event_due`]), so that the
     /// engine fires `load` before the next task when nothing delays it.
     pub fn run_due_tasks(&mut self, budget: Duration) -> usize {
+        self.run_due_tasks_before(budget, None)
+    }
+
+    /// [`ScriptRuntime::run_due_tasks`] up to the task `before` of another
+    /// runtime of the page, a due time and a sequence number
+    /// ([`ScriptRuntime::next_task_key`]; ADR 0031 section 6).
+    pub fn run_due_tasks_before(&mut self, budget: Duration, before: Option<(f64, u64)>) -> usize {
         let started = Instant::now();
         let mut ran = 0;
         let load_due = self.load_event_due();
@@ -734,7 +829,7 @@ impl ScriptRuntime {
             let now = self.clock.now();
             let task = state_mut(&mut self.rt)
                 .ok()
-                .and_then(|s| s.event_loop.tasks.pop_due(now));
+                .and_then(|s| s.event_loop.tasks.pop_due(now, before));
             let Some((document, task)) = task else {
                 break;
             };
@@ -770,6 +865,19 @@ impl ScriptRuntime {
             .event_loop
             .tasks
             .next_due()
+    }
+
+    /// The due time and the sequence number of the next task, or `None` if no
+    /// task waits or the scripts are stopped.
+    pub fn next_task_key(&self) -> Option<(f64, u64)> {
+        if self.stopped {
+            return None;
+        }
+        crate::state::state(&self.rt)
+            .ok()?
+            .event_loop
+            .tasks
+            .next_key()
     }
 
     /// The number of active timers.
@@ -1341,6 +1449,9 @@ impl ScriptRuntime {
     fn stop(&mut self) {
         self.stopped = true;
         self.rt.clear_jobs();
+        if let Ok(state) = state_mut(&mut self.rt) {
+            state.mutation.close();
+        }
     }
 }
 

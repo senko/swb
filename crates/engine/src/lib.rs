@@ -30,9 +30,9 @@ pub use frames::{
 pub use hit_test::HitResult;
 pub use input::{Key, Modifiers, MouseButton};
 pub use page::{
-    ElementScroll, FlushCounters, LoadState, MAX_SCALE, MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE,
-    Page, PageConfig, Pump, ScreenshotError, StageTimings, ViewportError, check_scale,
-    check_viewport_size, device_size,
+    AgentLimits, ElementScroll, FlushCounters, LoadState, MAX_AGENTS, MAX_SCALE,
+    MAX_SCREENSHOT_PIXELS, MAX_VIEWPORT_SIDE, Page, PageConfig, Pump, ScreenshotError,
+    StageTimings, ViewportError, check_scale, check_viewport_size, device_size,
 };
 pub use selection::{Selection, TextPosition};
 pub use swb_dom::NodeId;

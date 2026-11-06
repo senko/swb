@@ -115,6 +115,45 @@ impl std::fmt::Display for FrameId {
     }
 }
 
+/// An agent of the page: a script runtime (ADR 0031 section 5). A number is not
+/// used twice in a page, so a stale one finds no runtime.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub(crate) struct AgentId(u32);
+
+impl AgentId {
+    /// The agent with the number `number`.
+    pub(crate) fn new(number: u32) -> AgentId {
+        AgentId(number)
+    }
+}
+
+/// The place of a document in the page's runtimes: an agent and a key, which
+/// mean something only together. The key comes out only for its agent, so that
+/// no code can use it with another runtime.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FrameScript {
+    agent: AgentId,
+    key: DocumentKey,
+}
+
+impl FrameScript {
+    /// The document `key` of the runtime of `agent`.
+    pub(crate) fn new(agent: AgentId, key: DocumentKey) -> FrameScript {
+        FrameScript { agent, key }
+    }
+
+    /// The agent of the document.
+    pub(crate) fn agent(self) -> AgentId {
+        self.agent
+    }
+
+    /// The key of the document in the runtime of `agent`; `None` if the document
+    /// is in another runtime.
+    pub(crate) fn key_in(self, agent: AgentId) -> Option<DocumentKey> {
+        (self.agent == agent).then_some(self.key)
+    }
+}
+
 /// What a frame navigates to.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum FrameTarget {
@@ -154,9 +193,9 @@ pub(crate) struct Frame {
     pub(crate) name: String,
     /// The origin of the current document.
     pub(crate) origin: Option<Origin>,
-    /// The key of the current document in the script runtime, once it has a
+    /// The runtime of the current document and its key there, once it has a
     /// realm (ADR 0031 section 5).
-    pub(crate) script: Option<DocumentKey>,
+    pub(crate) script: Option<FrameScript>,
     /// True while a navigation that the insertion started can reuse the
     /// `Window` of the initial `about:blank` document (measured, case
     /// `scripted-initial-reuse`; HTML "initial about:blank").
@@ -176,7 +215,13 @@ pub(crate) struct Frame {
     /// write (measured, case `xo-navigate-flags-at-the-write`). With the generation
     /// of the parent's DOM at the parse, so that a loop of writes parses once.
     pub(crate) location_sandbox: Option<(u64, Sandbox)>,
-    /// The document; `None` for the top-level frame (the page holds it).
+    /// When the frame last got a user's activation ([`Frames::note_activation`]). It
+    /// stays through a commit of the same origin, and a commit of another origin
+    /// clears it (measured, cases `activation-xo-after-commit*`).
+    pub(crate) activation: Option<std::time::Instant>,
+    /// The document. For the top-level frame the page holds it (`Page::doc`), and
+    /// it is here only during a task of another runtime than the top level's,
+    /// which needs it for layout across documents (ADR 0031 section 5).
     pub(crate) doc: Option<Box<DocumentState>>,
     /// A navigation whose document has not arrived.
     pub(crate) pending: Option<PendingNavigation>,
@@ -225,6 +270,7 @@ impl Frame {
             sandbox: Sandbox::default(),
             pending_sandbox: Sandbox::default(),
             location_sandbox: None,
+            activation: None,
             doc: None,
             pending: None,
             viewport: DEFAULT_FRAME_VIEWPORT,
@@ -238,6 +284,12 @@ impl Frame {
             refresh: None,
             charge: Charge::default(),
         }
+    }
+
+    /// True if the current document of the frame is the document `key` of the
+    /// runtime of `agent`.
+    pub(crate) fn has_document(&self, agent: AgentId, key: DocumentKey) -> bool {
+        self.script.and_then(|s| s.key_in(agent)) == Some(key)
     }
 
     /// Records a navigation at page time `now`; false if the frame had
@@ -291,24 +343,55 @@ pub(crate) struct Frames {
     /// The nodes that the budget has room for, for the parser of a document
     /// that parses in steps.
     pub(crate) node_room: Rc<Cell<usize>>,
+    /// The nodes of the retired documents, by runtime: they stay in the budget
+    /// while their runtime lives.
+    retired_nodes: HashMap<AgentId, usize>,
     /// The frame that holds the page's focus: what `document.hasFocus()` and a
     /// script's `focus()` read during a task.
     pub(crate) focused: FrameId,
-    /// When the user last pressed a button or a key on the page: a sandbox's
-    /// `allow-top-navigation-by-user-activation` allows a script's navigation
-    /// for [`ACTIVATION`] after that (HTML "transient activation"; measured: also
-    /// in a timer, also after a click in the parent).
-    pub(crate) activation: Option<std::time::Instant>,
 }
 
-/// How long a user's input counts as an activation (HTML "transient activation
-/// duration"; Chromium's five seconds).
+/// How long a user's input counts as a transient activation (HTML "transient
+/// activation duration"; Chromium's five seconds).
 const ACTIVATION: std::time::Duration = std::time::Duration::from_secs(5);
 
 impl Frames {
-    /// True if the user's last input is recent.
-    pub(crate) fn recently_activated(&self) -> bool {
-        self.activation
+    /// The user pressed a button or a key in the document of `frame` (HTML
+    /// "activation notification"). The frame, its ancestors and the frames of its
+    /// origin get the activation. Chromium gives it to all frames of the origin,
+    /// not only to descendants (measured, case `activation-xo-sibling-same`).
+    pub(crate) fn note_activation(&mut self, frame: FrameId) {
+        let now = std::time::Instant::now();
+        let origin = self.get(frame).and_then(|f| f.origin.clone());
+        for id in self.chain(frame) {
+            if let Some(record) = self.get_mut(id) {
+                record.activation = Some(now);
+            }
+        }
+        let Some(origin) = origin else {
+            return;
+        };
+        for id in self.tree_order() {
+            if let Some(record) = self.get_mut(id)
+                && record.origin.as_ref() == Some(&origin)
+            {
+                record.activation = Some(now);
+            }
+        }
+    }
+
+    /// True if `frame` has had an activation (HTML "sticky activation").
+    fn has_sticky_activation(&self, frame: FrameId) -> bool {
+        self.get(frame).is_some_and(|f| f.activation.is_some())
+    }
+
+    /// True if the last activation of `frame` is recent (HTML "transient
+    /// activation"): a sandbox's `allow-top-navigation-by-user-activation` allows
+    /// a script's navigation then (measured: also in a timer, also after a click
+    /// in a parent of the same origin).
+    pub(crate) fn has_transient_activation(&self, frame: FrameId) -> bool {
+        self.get(frame)
+            .and_then(|f| f.activation)
             .is_some_and(|time| time.elapsed() <= ACTIVATION)
     }
 
@@ -322,7 +405,6 @@ impl Frames {
             free: Vec::new(),
             count: 0,
             focused: FrameId::TOP,
-            activation: None,
             clients: HashMap::new(),
             requests: HashMap::new(),
             containers: HashMap::new(),
@@ -331,6 +413,7 @@ impl Frames {
             budget: Budget::default(),
             count_cell: Rc::default(),
             node_room: Rc::new(Cell::new(MAX_NODES)),
+            retired_nodes: HashMap::new(),
         }
     }
 
@@ -344,6 +427,7 @@ impl Frames {
         self.count_warned = false;
         self.depth_warned = false;
         self.budget.reset();
+        self.retired_nodes.clear();
         self.node_room
             .set(self.budget.nodes_left(Charge::default()));
     }
@@ -382,14 +466,24 @@ impl Frames {
         }
     }
 
-    /// A retired document (ADR 0031 section 5) stays in memory while the
-    /// runtime lives, so its nodes stay in the budget until the next top-level
-    /// document. Its source text is gone.
-    pub(crate) fn charge_retired(&mut self, nodes: usize) {
+    /// A retired document (ADR 0031 section 5) stays in memory while its
+    /// runtime lives, so its nodes stay in the budget until then. Its source text
+    /// is gone.
+    pub(crate) fn charge_retired(&mut self, agent: AgentId, nodes: usize) {
         let charge = Charge { bytes: 0, nodes };
         self.budget.replace(Charge::default(), charge);
+        *self.retired_nodes.entry(agent).or_default() += nodes;
         self.node_room
             .set(self.budget.nodes_left(Charge::default()));
+    }
+
+    /// The runtime of `agent` has gone, with its retired documents.
+    pub(crate) fn release_retired(&mut self, agent: AgentId) {
+        if let Some(nodes) = self.retired_nodes.remove(&agent) {
+            self.budget.release(Charge { bytes: 0, nodes });
+            self.node_room
+                .set(self.budget.nodes_left(Charge::default()));
+        }
     }
 
     /// What the live frame documents cost together.
@@ -598,18 +692,9 @@ impl Frames {
         out
     }
 
-    /// The top-level frame's origin, which is the origin of the runtime
-    /// until feature 13b gives other origins runtimes of their own.
+    /// The top-level frame's origin.
     pub(crate) fn top_origin(&self) -> Option<&Origin> {
         self.top().origin.as_ref()
-    }
-
-    /// True if frame `id`'s document has the origin of the runtime.
-    pub(crate) fn in_agent(&self, id: FrameId) -> bool {
-        let (Some(frame), Some(top)) = (self.get(id), self.top_origin()) else {
-            return false;
-        };
-        frame.origin.as_ref() == Some(top)
     }
 
     /// The frames from the top level down to `frame`.
@@ -680,6 +765,13 @@ impl Frames {
         let sandbox = self.get(source).map(|f| f.sandbox).unwrap_or_default();
         if sandbox.sandboxed {
             return target == FrameId::TOP && sandbox_allows(sandbox);
+        }
+        // A cross-origin frame may navigate the top level after an activation of
+        // its own, also a late one (measured, cases `activation-xo-*`). Departure:
+        // Chromium also allows it while the top level has had no activation at all
+        // (`xo-top-fresh-*`); the owner's decision in ADR 0031 refuses that.
+        if target == FrameId::TOP && self.has_sticky_activation(source) {
+            return true;
         }
         let Some(origin) = self.get(source).and_then(|f| f.origin.as_ref()) else {
             return false;

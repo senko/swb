@@ -79,3 +79,54 @@ fn navigations_are_limited_per_window_of_page_time() {
     assert!(frame.note_navigation(NAVIGATION_WINDOW_MS));
     assert!(!frame.note_navigation(NAVIGATION_WINDOW_MS));
 }
+
+/// A frame has the document of one key in one runtime: an equal key of another runtime
+/// is another document (ADR 0031 section 5).
+#[test]
+fn a_key_of_another_runtime_names_no_document() {
+    let mut frame = Frame::new(Some(FrameId::TOP), None, 1);
+    let (one, two) = (AgentId::new(1), AgentId::new(2));
+    assert!(!frame.has_document(one, DocumentKey::FIRST));
+    frame.script = Some(FrameScript::new(one, DocumentKey::FIRST));
+    assert!(frame.has_document(one, DocumentKey::FIRST));
+    assert!(!frame.has_document(two, DocumentKey::FIRST));
+}
+
+/// HTML "activation notification", as Chromium measures (cases `activation-xo-*`): the
+/// frame, its ancestors and the frames of its origin; not a child or a sibling of
+/// another origin.
+#[test]
+fn an_activation_reaches_ancestors_and_the_origin() {
+    let origin = |host: &str| Url::parse(host).unwrap().origin();
+    let mut frames = Frames::new();
+    let add = |frames: &mut Frames, parent, depth, at: &str| {
+        let index = frames.slots.len() as u32;
+        let id = FrameId {
+            index,
+            generation: 0,
+        };
+        let mut frame = Frame::new(Some(parent), None, depth);
+        frame.origin = Some(origin(at));
+        frames.slots.push(Slot {
+            generation: 0,
+            frame: Some(frame),
+        });
+        frames.get_mut(parent).unwrap().children.push(id);
+        id
+    };
+    frames.get_mut(FrameId::TOP).unwrap().origin = Some(origin("http://top.test/"));
+    let clicked = add(&mut frames, FrameId::TOP, 1, "http://a.test/");
+    let same_child = add(&mut frames, clicked, 2, "http://a.test/");
+    let other_child = add(&mut frames, clicked, 2, "http://c.test/");
+    let same_sibling = add(&mut frames, FrameId::TOP, 1, "http://a.test/");
+    let other_sibling = add(&mut frames, FrameId::TOP, 1, "http://b.test/");
+    frames.note_activation(clicked);
+    for id in [FrameId::TOP, clicked, same_child, same_sibling] {
+        assert!(frames.has_sticky_activation(id), "{id}");
+        assert!(frames.has_transient_activation(id), "{id}");
+    }
+    for id in [other_child, other_sibling] {
+        assert!(!frames.has_sticky_activation(id), "{id}");
+        assert!(!frames.has_transient_activation(id), "{id}");
+    }
+}

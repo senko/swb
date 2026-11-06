@@ -479,9 +479,34 @@ fn borrow_document(state: &mut WebState, record: &mut DocState) {
         log::warn!("the frame registry is in use: a document is not available");
         return;
     };
-    if let Some(host) = frames.take_document(record.frame) {
+    let key = crate::runtime::DocumentKey::of(record.key);
+    if let Some(host) = frames.take_document(record.frame, key) {
         record.host = Some(host);
         state.lent.push(record.key);
+    }
+}
+
+/// The current document gets its host from the registry if it has none: a
+/// runtime other than the top level's has no document that the page lends, so
+/// a task that starts in the document that is already current borrows it here.
+pub(crate) fn ensure_current_lent(rt: &mut Runtime) {
+    let Ok(state) = state_mut(rt) else {
+        return;
+    };
+    if state.doc.host.is_some() || state.doc.retired {
+        return;
+    }
+    let (frame, key) = (state.doc.frame, state.doc.key);
+    let Some(frames) = state.frame_host.clone() else {
+        return;
+    };
+    let Ok(mut frames) = frames.try_borrow_mut() else {
+        log::warn!("the frame registry is in use: a document is not available");
+        return;
+    };
+    if let Some(host) = frames.take_document(frame, crate::runtime::DocumentKey::of(key)) {
+        state.doc.host = Some(host);
+        state.lent.push(key);
     }
 }
 
@@ -817,7 +842,10 @@ pub(crate) fn add_document(
     if let Some(slot) = state.realm_docs.get_mut(realm as usize) {
         *slot = key;
     }
-    let several = state.docs.len() > 1;
+    // A first document of another frame than the top level needs the paths of
+    // several documents too: its viewport comes from its parent, and its host
+    // comes from the registry.
+    let several = state.docs.len() > 1 || frame != 0;
     rt.set_host_flag(several);
     rt.set_global_this(realm, proxy)?;
     Ok(key)

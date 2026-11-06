@@ -860,8 +860,8 @@ fn page_frames_lists_the_frame_tree() {
 }
 
 /// `page.evaluate` and `page.consoleMessages` with a `frameId` and scripts in
-/// the frame (M9 feature 12b1). A frame of another origin has no scripts until
-/// feature 13b.
+/// the frame (M9 feature 12b1). A frame of another origin evaluates in a runtime
+/// of its own (feature 13b); the console has the messages of all runtimes.
 #[test]
 fn evaluate_and_console_take_a_frame_id() {
     let dir = std::env::temp_dir().join(format!(
@@ -899,11 +899,20 @@ fn evaluate_and_console_take_a_frame_id() {
     assert_eq!(console["messages"][0]["frameId"], s);
     let all = client.call("page.consoleMessages", Value::Null).unwrap();
     assert_eq!(all["messages"].as_array().unwrap().len(), 2);
-    let evaluate = json!({ "expression": "1", "frameId": x });
-    assert_eq!(
-        rpc_code(client.call("page.evaluate", evaluate)),
-        RpcError::FAILED
+    let evaluate = json!({ "expression": "console.log('from x'); typeof parent.document === 'undefined'", "frameId": x });
+    let answer = client.call("page.evaluate", evaluate).unwrap();
+    assert!(
+        answer["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("SecurityError"),
+        "{answer}"
     );
+    let console = client
+        .call("page.consoleMessages", json!({ "frameId": x }))
+        .unwrap();
+    assert_eq!(console["messages"][0]["text"], "from x");
+    assert_eq!(console["messages"][0]["frameId"], x);
     stop(client, thread);
 }
 

@@ -45,16 +45,25 @@ fn effective_domain(url: &str) -> Option<Host<String>> {
 
 /// `document.domain`: the host of the document's origin, or `""`.
 pub(crate) fn get(cx: &mut Cx<'_>) -> b::Result<String> {
-    let url = engine(cx.rt)?.url();
+    let host = engine(cx.rt)?;
+    if host.sandboxed_origin() {
+        return Ok(String::new());
+    }
+    let url = host.url();
     Ok(effective_domain(&url).map_or_else(String::new, |host| host.to_string()))
 }
 
-/// `window.originAgentCluster`: true for a document with a tuple origin
-/// (Chromium's origin-keyed agent clusters; false for `file:` and opaque
-/// origins).
+/// `window.originAgentCluster`: true for a document with a tuple origin, a `data:`
+/// document and a sandboxed frame document; false for `file:` (Chromium's
+/// origin-keyed agent clusters; measured, cases `agents-opaque-state`,
+/// `agents-data-state`, `agents-file-state`).
 pub(crate) fn origin_agent_cluster(cx: &mut Cx<'_>) -> b::Result<bool> {
-    let url = engine(cx.rt)?.url();
-    Ok(effective_domain(&url).is_some())
+    let host = engine(cx.rt)?;
+    if host.sandboxed_origin() {
+        return Ok(true);
+    }
+    let url = host.url();
+    Ok(url.starts_with("data:") || effective_domain(&url).is_some())
 }
 
 fn security(message: String) -> Exception {
@@ -69,8 +78,13 @@ pub(crate) fn set(cx: &mut Cx<'_>, has_context: bool, value: &str) -> b::Result<
             "A browsing context is required to set a domain.".to_owned(),
         ));
     }
-    let url = engine(cx.rt)?.url();
-    check(effective_domain(&url).as_ref(), value)
+    let host = engine(cx.rt)?;
+    let domain = if host.sandboxed_origin() {
+        None
+    } else {
+        effective_domain(&host.url())
+    };
+    check(domain.as_ref(), value)
 }
 
 /// The checks of the setter against the effective domain; `Ok` means that

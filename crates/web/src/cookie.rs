@@ -13,13 +13,20 @@
 //!   (measured, case `scripted-about-frame-state`).
 //! - A `data:` document throws `SecurityError` ("Cookies are disabled
 //!   inside 'data:' URLs."), as Chromium does for the opaque origin of a
-//!   `data:` URL. The spec lets every opaque origin throw; a sandboxed frame
-//!   document has no realm until feature 13b, which writes its rule.
+//!   `data:` URL. A frame document with an opaque origin (a sandbox without
+//!   `allow-same-origin`) throws with the text of the sandbox (measured, case
+//!   `agents-opaque-state`). The spec lets every opaque origin throw; a top-level
+//!   `about:blank` does not in Chromium.
 
 use crate::bindings::{self as b, Cx, Exception};
 use crate::state::{engine, engine_mut};
 
-/// What a document may do with cookies, from its URL.
+/// The text of a `SecurityError` of a document in a sandbox without
+/// `allow-same-origin` (measured).
+pub(crate) const SANDBOXED: &str =
+    "The document is sandboxed and lacks the 'allow-same-origin' flag.";
+
+/// What a document may do with cookies.
 enum Access {
     /// An `http:` or `https:` URL: the jar.
     Jar,
@@ -40,13 +47,22 @@ fn access(url: &str) -> Access {
     }
 }
 
+/// What the document may do with cookies: from its sandbox, then its URL (measured,
+/// case `agents-data-state`).
+fn access_of(host: &dyn crate::EngineHost) -> Access {
+    if host.sandboxed_origin() {
+        return Access::Denied(SANDBOXED);
+    }
+    access(&host.storage_url())
+}
+
 /// The getter. `is_main` is true for the document of the window.
 pub(crate) fn read(cx: &mut Cx<'_>, is_main: bool) -> b::Result<String> {
     if !is_main {
         return Ok(String::new());
     }
     let host = engine(cx.rt)?;
-    match access(&host.storage_url()) {
+    match access_of(host) {
         Access::Jar => Ok(host.cookie_string()),
         Access::Averse => Ok(String::new()),
         Access::Denied(message) => Err(Exception::dom("SecurityError", message)),
@@ -59,7 +75,7 @@ pub(crate) fn write(cx: &mut Cx<'_>, is_main: bool, value: &str) -> b::Result<()
         return Ok(());
     }
     let host = engine_mut(cx.rt)?;
-    match access(&host.storage_url()) {
+    match access_of(host) {
         Access::Jar => {
             host.set_cookie(value);
             Ok(())

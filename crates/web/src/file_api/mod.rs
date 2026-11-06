@@ -51,6 +51,7 @@
 mod form_data;
 mod reader;
 
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -59,6 +60,7 @@ use swb_js::{Gc, GenericData, HostData, Object, Runtime, Slots, Tracer, Value};
 use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::generated::types::{BlobPropertyBag, EndingType, FilePropertyBag};
+use crate::page_budget::ByteShare;
 use crate::state::{WebState, state_mut};
 
 pub(crate) use form_data::{
@@ -78,11 +80,12 @@ const MAX_PIECES: usize = 1024;
 /// uses and these are longer than this.
 const SLICE_COPY_MIN: u64 = 64 << 10;
 
-/// The most Blob URLs of a document.
+/// The most Blob URLs of a runtime.
 pub(crate) const MAX_BLOB_URLS: usize = 16_384;
 
-/// The most bytes that the Blob URLs of a document keep alive (the sizes of
-/// the vectors, [`BlobBytes::backing_len`]).
+/// The most bytes that Blob URLs keep alive (the sizes of the vectors,
+/// [`BlobBytes::backing_len`]): in the top level's runtime, and in the runtimes of
+/// the page's frames together.
 pub(crate) const MAX_BLOB_URL_BYTES: u64 = 256 << 20;
 
 /// A slice of a shared byte vector.
@@ -552,14 +555,19 @@ struct BlobUrlEntry {
     charge: u64,
 }
 
-/// The Blob URL store of a document.
+/// The Blob URL store of a runtime.
 #[derive(Debug, Default)]
 pub(crate) struct BlobUrls {
     entries: HashMap<String, BlobUrlEntry>,
-    bytes: u64,
+    bytes: ByteShare,
 }
 
 impl BlobUrls {
+    /// Counts in the budget of the page's frames.
+    pub(crate) fn join_page(&mut self, page: &Rc<Cell<u64>>) {
+        self.bytes.join(page);
+    }
+
     /// The bytes and the type of the entry for `url`.
     pub(crate) fn get(&self, url: &str) -> Option<(BlobBytes, String)> {
         let url = url.split('#').next().unwrap_or(url);
@@ -587,14 +595,14 @@ pub(crate) fn create_object_url(cx: &mut Cx<'_>, obj: Platform) -> b::Result<Str
         let uuid = crate::crypto::random_uuid()?;
         let url = format!("blob:{}/{uuid}", blob_origin(&document_url));
         let urls = &mut state_mut(cx.rt)?.blob_urls;
-        if urls.entries.len() >= MAX_BLOB_URLS || urls.bytes + charge > MAX_BLOB_URL_BYTES {
+        if urls.entries.len() >= MAX_BLOB_URLS || !urls.bytes.fits(charge, MAX_BLOB_URL_BYTES) {
             log::warn!("a document has too many Blob URLs");
             return Err(Exception::dom(
                 "QuotaExceededError",
                 "Too many Blob URLs are in use.",
             ));
         }
-        urls.bytes += charge;
+        urls.bytes.add(charge);
         urls.entries.insert(
             url.clone(),
             BlobUrlEntry {
@@ -612,7 +620,7 @@ pub(crate) fn revoke_object_url(cx: &mut Cx<'_>, url: &str) -> b::Result<()> {
     let urls = &mut state_mut(cx.rt)?.blob_urls;
     let key = url.split('#').next().unwrap_or(url);
     if let Some(entry) = urls.entries.remove(key) {
-        urls.bytes -= entry.charge;
+        urls.bytes.remove(entry.charge);
     }
     Ok(())
 }
@@ -620,7 +628,8 @@ pub(crate) fn revoke_object_url(cx: &mut Cx<'_>, url: &str) -> b::Result<()> {
 // ----- Blobs held by waiting operations -----
 
 /// The most bytes that the operations waiting for their task keep alive
-/// ([`HeldBlobs`]).
+/// ([`HeldBlobs`]): in the top level's runtime, and in the runtimes of the page's
+/// frames together.
 pub(crate) const MAX_HELD_BYTES: u64 = 256 << 20;
 
 /// The vectors that the operations waiting for their task hold: requests of
@@ -634,14 +643,19 @@ pub(crate) struct HeldBlobs {
     /// Each hold keeps a clone of the blob, so the vector stays alive and
     /// its address is not reused while it has an entry.
     vectors: HashMap<usize, (usize, u64)>,
-    bytes: u64,
+    bytes: ByteShare,
     /// True after the warning about a refused hold.
     warned: bool,
 }
 
 impl HeldBlobs {
+    /// Counts in the budget of the page's frames.
+    pub(crate) fn join_page(&mut self, page: &Rc<Cell<u64>>) {
+        self.bytes.join(page);
+    }
+
     /// Takes a hold on the vectors of `blob`. False, with one warning per
-    /// document, when the held bytes would pass [`MAX_HELD_BYTES`].
+    /// runtime, when the held bytes would pass [`MAX_HELD_BYTES`].
     pub(crate) fn hold(&mut self, blob: &BlobBytes) -> bool {
         let vectors = blob.vectors();
         let added: u64 = vectors
@@ -649,7 +663,7 @@ impl HeldBlobs {
             .filter(|(address, _)| !self.vectors.contains_key(address))
             .map(|(_, len)| *len)
             .sum();
-        if self.bytes + added > MAX_HELD_BYTES {
+        if !self.bytes.fits(added, MAX_HELD_BYTES) {
             if !self.warned {
                 self.warned = true;
                 log::warn!(
@@ -661,7 +675,7 @@ impl HeldBlobs {
         for (address, len) in vectors {
             self.vectors.entry(address).or_insert((0, len)).0 += 1;
         }
-        self.bytes += added;
+        self.bytes.add(added);
         true
     }
 
@@ -675,7 +689,7 @@ impl HeldBlobs {
             entry.0 = entry.0.saturating_sub(1);
             if entry.0 == 0 {
                 self.vectors.remove(&address);
-                self.bytes = self.bytes.saturating_sub(len);
+                self.bytes.remove(len);
             }
         }
     }
@@ -707,22 +721,22 @@ mod tests {
         // The same vector twice (also through a slice that shares it).
         assert!(held.hold(&big));
         assert!(held.hold(&big.slice(0, 90 << 20)));
-        assert_eq!(held.bytes, 100 << 20);
+        assert_eq!(held.bytes.mine(), 100 << 20);
         assert!(held.hold(&other));
-        assert_eq!(held.bytes, 200 << 20);
+        assert_eq!(held.bytes.mine(), 200 << 20);
         // A third vector of 100 MiB passes 256 MiB.
         let third = BlobBytes::from_vec(vec![0; 100 << 20]);
         assert!(!held.hold(&third));
-        assert_eq!(held.bytes, 200 << 20);
+        assert_eq!(held.bytes.mine(), 200 << 20);
         // A vector counts until its last hold is given up.
         held.release(&big);
-        assert_eq!(held.bytes, 200 << 20);
+        assert_eq!(held.bytes.mine(), 200 << 20);
         held.release(&big);
-        assert_eq!(held.bytes, 100 << 20);
+        assert_eq!(held.bytes.mine(), 100 << 20);
         assert!(held.hold(&third));
         held.release(&other);
         held.release(&third);
-        assert_eq!(held.bytes, 0);
+        assert_eq!(held.bytes.mine(), 0);
         assert!(held.vectors.is_empty());
     }
 

@@ -32,11 +32,12 @@
 //!   before a rendering; the rasterizer draws them in place of the `iframe`
 //!   contents (`crate::frames::paint`, `swb_paint`).
 //!
-//! A frame document of the page's origin that has a script gets a realm when
-//! it commits, and the runtime drives its parse as for the top-level document;
-//! one that no script touches costs no realm. With a script runtime, a task
-//! makes and destroys frames itself (`crate::frames::registry`); the page does
-//! what is left after the task ([`Page::run_task_in`]).
+//! A frame document that has a script gets a realm when it commits, in the
+//! runtime of its origin (`page/agents.rs`), and the runtime drives its parse as
+//! for the top-level document; one that no script touches costs no realm. With a
+//! script runtime, a task makes and destroys frames itself
+//! (`crate::frames::registry`); the page does what is left after the task
+//! ([`Page::run_task_in`]).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -45,7 +46,7 @@ use swb_css::ColorScheme;
 use swb_dom::{NodeId, QuirksMode};
 use swb_layout::Size;
 use swb_net::{Destination, NetError, Origin, Request, Response, Url, escape_html};
-use swb_web::{DispatchTarget, DocumentKey, ScriptRuntime, TrustedEvent};
+use swb_web::{DispatchTarget, ScriptRuntime, TrustedEvent};
 
 use super::loading::Parsed;
 use super::{MAX_VIEWPORT_SIDE, Page, about_blank, is_loadable, strip_fragment};
@@ -53,8 +54,8 @@ use crate::document::DocumentState;
 use crate::document::frames::iframes_in;
 use crate::frames::registry::{BLANK, ChildInit, FrameDocument, FrameSettings, attribute_target};
 use crate::frames::{
-    Charge, FrameId, FrameTarget, MAX_NAVIGATIONS, MAX_NODES, MAX_SOURCE_BYTES, PendingNavigation,
-    Sandbox,
+    Charge, FrameId, FrameScript, FrameTarget, MAX_NAVIGATIONS, MAX_NODES, MAX_SOURCE_BYTES,
+    PendingNavigation, Sandbox,
 };
 use crate::history::PostData;
 use crate::resources::{Images, Pending};
@@ -134,9 +135,10 @@ impl Page {
         Some(self.frames.get(id)?.sandbox)
     }
 
-    /// True if the document of frame `id` has a realm in the page's runtime.
+    /// True if the document of frame `id` has a realm, in the runtime of its
+    /// origin.
     pub fn frame_has_realm(&self, id: FrameId) -> bool {
-        self.script.is_some() && self.frames.get(id).is_some_and(|f| f.script.is_some())
+        self.frames.get(id).is_some_and(|f| f.script.is_some())
     }
 
     /// True while frame `id` has a navigation whose document has not
@@ -207,7 +209,7 @@ impl Page {
         // With a runtime the natives destroyed and made the frames of what
         // the task moved; the frame of an element that is in the document
         // again is the new one.
-        let scripted = self.script.is_some();
+        let scripted = self.frames.get(frame).is_some_and(|f| f.script.is_some());
         for node in changes.removed {
             if let Some(child) = self.frames.by_container(frame, node)
                 && !(scripted && self.in_frame_tree(frame, node))
@@ -438,7 +440,14 @@ impl Page {
             && url.scheme() == "javascript"
         {
             let url = url.to_string();
-            self.run_frame_javascript_url(id, &url);
+            let source = initiator
+                .clone()
+                .or_else(|| self.frames.get(parent).and_then(|p| p.origin.clone()));
+            if source.is_some()
+                && self.frames.get(id).and_then(|f| f.origin.as_ref()) == source.as_ref()
+            {
+                self.run_frame_javascript_url(id, &url);
+            }
             return false;
         }
         let target = match target {
@@ -492,8 +501,8 @@ impl Page {
     /// A `javascript:` URL in a frame runs as a task in the frame's realm; a
     /// string result does not replace the document (ADR 0031 section 2). An
     /// empty one does nothing and needs no realm (measured, core-js's
-    /// `src = "javascript:"`). A frame of another origin runs nothing (HTML
-    /// "navigate to a javascript: URL"; measured).
+    /// `src = "javascript:"`). The caller checked that the document that asks has
+    /// the frame's origin (HTML "navigate to a javascript: URL"; measured).
     pub(super) fn run_frame_javascript_url(&mut self, id: FrameId, url: &str) {
         if url.len() <= "javascript:".len()
             || !self
@@ -503,13 +512,8 @@ impl Page {
         {
             return;
         }
-        let number = id.number();
-        if self.frames.get(id).is_some_and(|f| f.script.is_none()) {
-            self.with_registry(|script| script.ensure_frame_window(number));
-        }
-        if self.frames.in_agent(id) {
-            self.run_task_in(id, |script| script.queue_javascript_url(url));
-        }
+        self.ensure_frame_realm(id);
+        self.run_task_in(id, |script| script.queue_javascript_url(url));
     }
 
     /// The target of a navigation of frame `id` (child of `parent`) to
@@ -598,20 +602,34 @@ impl Page {
                 self.loader.cancel_client(doc.client);
                 doc.release_own_fonts(&mut self.fonts);
             }
-            if let Some(script) = self.script.as_mut() {
-                script.forget_frame(id.number());
-                if let Some(key) = frame.script {
-                    let nodes = frame.doc.as_ref().map_or(0, |d| d.node_count());
-                    self.frames.charge_retired(nodes);
-                    let doc: Option<Box<dyn swb_web::EngineHost>> = match frame.doc.take() {
-                        Some(doc) => Some(doc),
-                        None => None,
-                    };
-                    script.retire_document(key, doc);
-                }
+            self.forget_frame_everywhere(id);
+            if let Some(script) = frame.script {
+                let nodes = frame.doc.as_ref().map_or(0, |d| d.node_count());
+                self.retire_in_agent(script, frame.doc.take(), nodes);
             }
             log::debug!("{id}: destroyed");
         }
+    }
+
+    /// The document `script` left its frame: it stays in its runtime while the
+    /// runtime lives (ADR 0031 section 5).
+    fn retire_in_agent(
+        &mut self,
+        script: FrameScript,
+        doc: Option<Box<DocumentState>>,
+        nodes: usize,
+    ) {
+        let agent = script.agent();
+        self.frames.charge_retired(agent, nodes);
+        self.agents.dirty = true;
+        let (Some(key), Some(runtime)) = (script.key_in(agent), self.runtime_of_mut(agent)) else {
+            return;
+        };
+        let doc: Option<Box<dyn swb_web::EngineHost>> = match doc {
+            Some(doc) => Some(doc),
+            None => None,
+        };
+        runtime.retire_document(key, doc);
     }
 
     /// The requests of all frames were cancelled ([`swb_net::Loader::cancel_all`]
@@ -889,17 +907,17 @@ impl Page {
         error_document("Too many frame documents on this page", self.javascript)
     }
 
-    /// True if a document of origin `origin` in frame `id` may run scripts:
-    /// the page has a runtime, the document has the runtime's origin, and
-    /// its sandbox has `allow-scripts`.
-    fn frame_runs_scripts(&self, id: FrameId, origin: &Origin) -> bool {
+    /// True if a document of origin `origin` in frame `id` may run scripts: the
+    /// top-level document has scripting on, its sandbox has `allow-scripts`, and
+    /// its origin has a runtime or can get one.
+    fn frame_runs_scripts(&mut self, id: FrameId, origin: &Origin) -> bool {
         self.javascript
-            && self.script.is_some()
-            && self.frames.top_origin() == Some(origin)
+            && self.agents.enabled
             && self
                 .frames
                 .get(id)
                 .is_some_and(|f| f.sandbox.scripts_allowed())
+            && self.may_host_scripts(origin)
     }
 
     /// Replaces the document of frame `id` with a new one: the old one
@@ -958,6 +976,10 @@ impl Page {
             creator_url,
             history,
             node_room: Rc::clone(&self.frames.node_room),
+            sandboxed_origin: self
+                .frames
+                .get(id)
+                .is_some_and(|f| f.sandbox.opaque_origin()),
         });
         doc.frame_id = id;
         let refresh = doc
@@ -969,8 +991,12 @@ impl Page {
         };
         let mut old = frame.doc.replace(doc);
         let old_key = frame.script.take();
-        let reuse = frame.reuse_window && frame.origin.as_ref() == Some(&origin);
+        let origin_stays = frame.origin.as_ref() == Some(&origin);
+        let reuse = frame.reuse_window && origin_stays;
         frame.reuse_window = false;
+        if !origin_stays {
+            frame.activation = None;
+        }
         frame.origin = Some(origin);
         // The new document has its own pointer and keyboard state; the
         // focus stays with the frame (measured: a navigated frame that
@@ -1015,76 +1041,73 @@ impl Page {
     fn retire_old_document(
         &mut self,
         old: Option<Box<DocumentState>>,
-        key: Option<DocumentKey>,
+        script: Option<FrameScript>,
         reuse: bool,
-    ) -> Option<DocumentKey> {
-        let (Some(key), Some(script)) = (key, self.script.as_mut()) else {
-            return None;
-        };
+    ) -> Option<FrameScript> {
+        let script = script?;
+        let agent = script.agent();
         let kept = if reuse {
-            script.reuse_window(key)
+            let key = script.key_in(agent)?;
+            self.runtime_of_mut(agent)?
+                .reuse_window(key)
+                .map(|kept| FrameScript::new(agent, kept))
         } else {
             None
         };
         let nodes = old.as_ref().map_or(0, |d| d.node_count());
-        let old: Option<Box<dyn swb_web::EngineHost>> = match old {
-            Some(old) => Some(old),
-            None => None,
-        };
-        script.retire_document(key, old);
-        self.frames.charge_retired(nodes);
+        self.retire_in_agent(script, old, nodes);
         kept
     }
 
     /// A new document of frame `id` starts. With a script to run it gets a
-    /// realm, and the runtime drives its parse. A script may hold the frame's
-    /// proxy, so the proxy needs a new target: a realm for a document of the
-    /// agent, none for another (ADR 0031 section 5). Else the document needs
-    /// no realm yet.
-    fn start_frame_document(&mut self, id: FrameId, kept: Option<DocumentKey>) {
+    /// realm in the runtime of its origin, which is made now if it has none, and
+    /// the runtime drives its parse. Each runtime that has seen the frame's proxy
+    /// holds it for a script, so the proxy needs a new target: a realm in the
+    /// runtime of the document's origin, none in the others (ADR 0031 section 5).
+    /// Else the document needs no realm yet.
+    fn start_frame_document(&mut self, id: FrameId, kept: Option<FrameScript>) {
         let number = id.number();
-        let parsing = self.doc_of(id).is_some_and(DocumentState::is_parsing);
-        let Some(script) = self.script.as_ref() else {
+        if !self.agents.enabled {
             self.finish_frame_parse(id);
             return;
-        };
-        let known = script.knows_frame(number);
-        let agent = self.frames.in_agent(id);
-        let key = if kept.is_some() {
-            kept
-        } else if parsing || (known && agent) {
-            self.with_registry(|s| s.add_frame_document(number))
+        }
+        let parsing = self.doc_of(id).is_some_and(DocumentState::is_parsing);
+        let origin = self.frames.get(id).and_then(|f| f.origin.clone());
+        let home = origin.as_ref().and_then(|o| self.agent_of_origin(o));
+        self.clear_frame_targets_except(id, home);
+        let known = home
+            .and_then(|agent| self.runtime_of(agent))
+            .is_some_and(|runtime| runtime.knows_frame(number));
+        let script = match (kept, home) {
+            (Some(kept), _) => Some(kept),
+            (None, Some(agent)) if parsing || known => self
+                .with_registry(agent, |s| s.add_frame_document(number))
                 .flatten()
-        } else {
-            None
+                .map(|key| FrameScript::new(agent, key)),
+            (None, None) if parsing => origin.and_then(|origin| self.make_agent(id, origin)),
+            (None, _) => None,
         };
         let scripts_off = !self
             .frames
             .get(id)
             .is_some_and(|f| f.sandbox.scripts_allowed());
         if let Some(frame) = self.frames.get_mut(id) {
-            frame.script = key;
+            frame.script = script;
         }
-        if let (Some(key), Some(script)) = (key, self.script.as_mut()) {
-            script.set_scripts_off(key, scripts_off);
+        if let Some((runtime, key)) = self.frame_runtime_mut(id) {
+            runtime.set_scripts_off(key, scripts_off);
         }
-        match key {
-            Some(_) if parsing => {
-                self.run_task_in(id, ScriptRuntime::start_document);
+        if script.is_none() {
+            self.finish_frame_parse(id);
+            if known && let Some(runtime) = home.and_then(|agent| self.runtime_of_mut(agent)) {
+                runtime.clear_frame_target(number);
             }
-            Some(key) => {
-                // Its `load` is to come: the window that a script holds gets
-                // it (measured, case `scripted-initial-reuse`).
-                if let Some(script) = self.script.as_mut() {
-                    script.adopt_complete_document(key, true);
-                }
-            }
-            None => {
-                self.finish_frame_parse(id);
-                if known && let Some(script) = self.script.as_mut() {
-                    script.clear_frame_target(number);
-                }
-            }
+        } else if parsing {
+            self.run_task_in(id, ScriptRuntime::start_document);
+        } else if let Some((runtime, key)) = self.frame_runtime_mut(id) {
+            // Its `load` is to come: the window that a script holds gets it
+            // (measured, case `scripted-initial-reuse`).
+            runtime.adopt_complete_document(key, true);
         }
     }
 
@@ -1264,8 +1287,9 @@ impl Page {
             {
                 continue;
             }
-            if let (Some(key), Some(script)) = (frame.script, self.script.as_ref()) {
-                if script.load_event_due_in(key) {
+            let script = frame.script;
+            if let Some((runtime, key)) = self.frame_runtime(id) {
+                if runtime.load_event_due_in(key) {
                     // Layout can find more resources (ADR 0031 section 2).
                     self.layout_frame_alone(id);
                     if self.doc_of(id).is_none_or(DocumentState::is_loading) {
@@ -1273,10 +1297,13 @@ impl Page {
                     }
                     self.run_task_in(id, ScriptRuntime::fire_load_event);
                     any = true;
-                    self.finish_load_after_limit(id, key);
+                    if let Some(script) = script {
+                        self.finish_load_across_agents(id, script);
+                        self.finish_load_after_limit(id, script);
+                    }
                     continue;
                 }
-                if !script.document_loaded_in(key) {
+                if !runtime.document_loaded_in(key) {
                     continue;
                 }
             }
@@ -1291,18 +1318,48 @@ impl Page {
     /// to come, and the page's `load` waits for the frame, so the frame is done
     /// here. A listener that navigated the frame left a pending navigation or
     /// another document.
-    fn finish_load_after_limit(&mut self, id: FrameId, key: DocumentKey) {
+    fn finish_load_after_limit(&mut self, id: FrameId, script: FrameScript) {
         let waiting = self
             .frames
             .get(id)
-            .is_some_and(|f| !f.load_fired && f.pending.is_none() && f.script == Some(key));
+            .is_some_and(|f| !f.load_fired && f.pending.is_none() && f.script == Some(script));
         if waiting
             && self
-                .script
-                .as_ref()
-                .is_some_and(|s| s.document_loaded_in(key))
+                .frame_runtime(id)
+                .is_some_and(|(runtime, key)| runtime.document_loaded_in(key))
         {
             self.mark_frame_loaded(id);
+        }
+    }
+
+    /// The `load` task of frame `id`'s document ended, and its container is in
+    /// another runtime, where no task of the frame can run a listener: the page
+    /// fires the container's `load` now, then the frame's `pageshow` (ADR 0031
+    /// section 6).
+    fn finish_load_across_agents(&mut self, id: FrameId, script: FrameScript) {
+        let waits = self
+            .frames
+            .get(id)
+            .is_some_and(|f| f.script == Some(script))
+            && self
+                .frame_runtime(id)
+                .is_some_and(|(runtime, key)| runtime.pageshow_waits_in(key));
+        if !waits {
+            return;
+        }
+        if let Some((parent, container)) = self
+            .frames
+            .get(id)
+            .and_then(|f| Some((f.parent?, f.container?)))
+        {
+            self.fire_container_load(id, parent, container);
+        }
+        if self
+            .frames
+            .get(id)
+            .is_some_and(|f| f.script == Some(script))
+        {
+            self.run_task_in(id, ScriptRuntime::fire_waiting_pageshow);
         }
     }
 
@@ -1327,9 +1384,7 @@ impl Page {
         if self.frames.by_container(parent, container) != Some(id) {
             return;
         }
-        let has_realm =
-            parent == FrameId::TOP || self.frames.get(parent).is_some_and(|f| f.script.is_some());
-        if self.script.is_some() && has_realm {
+        if self.frames.get(parent).is_some_and(|f| f.script.is_some()) {
             let event = TrustedEvent::new("load");
             self.run_task_in(parent, |script| {
                 script.dispatch_event(DispatchTarget::Node(container), &event)

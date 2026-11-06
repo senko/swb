@@ -364,7 +364,12 @@ pub(crate) fn location_of(rt: &mut Runtime, proxy: Gc<Object>) -> VmResult<Gc<Ob
 /// origin may ask, under `may_navigate`. A `Location` that its frame has left and
 /// a caller whose frame is gone do nothing, without an error. The URL resolves
 /// against the entry document, and the page navigates after the task.
-pub(crate) fn navigate(rt: &mut Runtime, location: Gc<Object>, text: &str) -> b::Result<()> {
+pub(crate) fn navigate(
+    rt: &mut Runtime,
+    location: Gc<Object>,
+    text: &str,
+    replace: bool,
+) -> b::Result<()> {
     let Some(Remote::Location(frame)) = remote(rt, location) else {
         return Err(Exception::Blocked(location));
     };
@@ -398,14 +403,15 @@ pub(crate) fn navigate(rt: &mut Runtime, location: Gc<Object>, text: &str) -> b:
             format!("'{text}' is not a valid URL."),
         ));
     };
-    crate::frames::request_navigation(rt, frame, url.as_str(), source)?;
+    crate::frames::request_navigation(rt, frame, url.as_str(), source, replace)?;
     Ok(())
 }
 
 /// `location.href = value` through the hooks: the conversion and the navigation
 /// have the prefix of a named property.
 fn set_href(rt: &mut Runtime, location: Gc<Object>, value: Value) -> VmResult<()> {
-    let result = b::convert::usv_string(rt, value).and_then(|text| navigate(rt, location, &text));
+    let result =
+        b::convert::usv_string(rt, value).and_then(|text| navigate(rt, location, &text, false));
     result.map_err(|exception| {
         let realm = rt.running_realm();
         throw_with_prefix(rt, realm, SET_HREF, g::DOM_EXCEPTION, exception)

@@ -217,9 +217,8 @@ fn frames(page: &mut Page) -> Value {
 /// Executes a method of a frame (`frameId` in the parameters): the `dom.*`
 /// methods and the input that takes a node act on the frame's document
 /// (node IDs, boxes and coordinates are the frame's). `page.evaluate` runs in
-/// the frame's document: an error for a frame of another origin, which has no
-/// scripts until feature 13b (ADR 0031 section 14). `page.consoleMessages` gives
-/// the messages of the frame.
+/// the frame's document, in the runtime of its origin (ADR 0031 section 5).
+/// `page.consoleMessages` gives the messages of the frame.
 fn execute_in_frame(page: &mut Page, frame: FrameId, method: &str, params: Value) -> Outcome {
     let mut params = params;
     if let Some(object) = params.as_object_mut() {
@@ -494,7 +493,7 @@ fn evaluate_in_frame(page: &mut Page, frame: FrameId, params: Value) -> MethodRe
     match page.evaluate_in_frame(frame, &params.expression, JsonForm::Strict, timeout) {
         Some(evaluation) => evaluation_result(Some(evaluation)),
         None => Err(RpcError::failed(
-            "the frame has no script runtime (a document of another origin)",
+            "the frame has no script runtime (JavaScript off, past a budget of the page, or its runtime reached the heap limit)",
         )),
     }
 }

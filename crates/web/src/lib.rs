@@ -116,6 +116,7 @@ mod mime;
 mod mutation_observer;
 mod mutation_registry;
 mod navigator;
+mod page_budget;
 mod performance;
 mod performance_observer;
 mod resize_observer;
@@ -143,8 +144,8 @@ pub use host::{
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{
-    ConsoleMessage, DocumentKey, EVALUATION_TIMEOUT, Evaluation, EvaluationId, EvaluationStart,
-    HEAP_LIMIT, JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
+    AgentShared, ConsoleMessage, DocumentKey, EVALUATION_TIMEOUT, Evaluation, EvaluationId,
+    EvaluationStart, HEAP_LIMIT, JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
 pub use scripts::{FetchedScript, ScriptFetchMode, is_javascript_mime_type};
 pub use storage::{

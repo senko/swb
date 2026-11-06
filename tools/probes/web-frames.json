@@ -5802,6 +5802,926 @@
      "js": "new Promise(async (done) => { const out = []; const show = async (name, g) => { try { const v = g(); if (v instanceof Promise) { try { await v; out.push(name + ':resolved'); } catch (e) { out.push(name + ':rejected ' + e.name); } } else out.push(name + ':' + String(v)); } catch (e) { out.push(name + ':threw ' + e.name); } }; for (const [who, t] of [['other', f.contentWindow], ['location', f.contentWindow.location], ['plain', {}]]) { await show(who + ' Blob.text', () => Blob.prototype.text.call(t)); await show(who + ' Blob.arrayBuffer', () => Blob.prototype.arrayBuffer.call(t)); await show(who + ' Response.text', () => Response.prototype.text.call(t)); await show(who + ' Response.json', () => Response.prototype.json.call(t)); await show(who + ' Request.text', () => Request.prototype.text.call(t)); await show(who + ' Element.scrollTo', () => Element.prototype.scrollTo.call(t)); await show(who + ' Element.scroll', () => Element.prototype.scroll.call(t)); await show(who + ' Element.scrollBy', () => Element.prototype.scrollBy.call(t)); await show(who + ' Image.decode', () => HTMLImageElement.prototype.decode.call(t)); await show(who + ' Clipboard.readText', () => Clipboard.prototype.readText.call(t)); } done(out); })"
     }
    ]
+  },
+  {
+   "name": "agents-equal-keys",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><p id=t>top</p><div id=o></div><iframe id=f></iframe><script>f.src = X('a.html')</script></body></html>",
+   "resources": {
+    "a.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><title>frame</title><p id=t>frame</p><div id=o></div><script>document.getElementById('o').textContent = 'frame wrote'; window.mark = 'frame';</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(() => { document.getElementById('t').textContent = 'top'; return [document.getElementById('t').textContent, E(() => document.querySelector('iframe').contentDocument), window.mark === undefined, document.getElementById('o').textContent]; })"
+    },
+    {
+     "js": "[document.getElementById('t').textContent, document.getElementById('o').textContent, window.mark, document.title, document.querySelectorAll('*').length, E(() => parent.document).replace(/\"[^\"]*\"/, 'S')]",
+     "frame": "#f"
+    },
+    {
+     "js": "document.getElementById('t').textContent = 'frame 2'; document.body.append('x'); document.getElementById('o').textContent",
+     "frame": "#f"
+    },
+    {
+     "js": "[document.getElementById('t').textContent, document.body.textContent.includes('frame 2'), document.getElementById('o').textContent]"
+    }
+   ]
+  },
+  {
+   "name": "agents-opaque-state",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=b sandbox='allow-scripts' srcdoc='<p>b</p>'></iframe><iframe id=n sandbox='allow-scripts' src=n.html></iframe><iframe id=q sandbox='allow-scripts allow-same-origin' src=n.html></iframe></body></html>",
+   "resources": {
+    "n.html": {
+     "text": "<!DOCTYPE html><p>n</p><script>window.ran = 1</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(() => [String(b.contentDocument), String(n.contentDocument), q.contentDocument.body.firstChild.textContent])"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, location.href.split('/').pop(), T(() => document.cookie), T(() => { document.cookie = 'o=1'; return 'set'; }), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => parent.document).replace(/\"[^\"]*\"/, 'S'), T(() => window.originAgentCluster), T(() => parent.length), T(() => top === parent), T(() => frameElement), document.referrer === '' ? 'empty' : 'other']; })()",
+     "frame": "#b"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, location.href.split('/').pop(), T(() => document.cookie), T(() => { document.cookie = 'o=1'; return 'set'; }), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => parent.document).replace(/\"[^\"]*\"/, 'S'), T(() => window.originAgentCluster), T(() => parent.length), T(() => top === parent), T(() => frameElement), document.referrer === '' ? 'empty' : 'other']; })()",
+     "frame": "#n"
+    },
+    {
+     "js": "[window.ran, origin === 'null']",
+     "frame": "#n"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message.replace(/\"[^\"]*\"/, 'S'); } }; const c = document.createElement('iframe'); document.body.append(c); const w = c.contentWindow; const r = [T(() => c.contentDocument === null), T(() => w.origin), T(() => w.document.URL), T(() => { w.x = 5; return w.x; }), T(() => w.parent === window)]; const s = document.createElement('iframe'); s.srcdoc = '<p>s'; document.body.append(s); return new Promise(res => { s.onload = () => { r.push(T(() => s.contentDocument === null), T(() => s.contentWindow.origin), T(() => s.contentDocument.body.textContent)); res(r); }; }); })()",
+     "frame": "#n"
+    }
+   ]
+  },
+  {
+   "name": "agents-load-order",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nLOG('top script'); addEventListener('DOMContentLoaded', () => LOG('top DCL')); addEventListener('load', () => LOG('top load')); addEventListener('pageshow', () => LOG('top pageshow'));</script></head><body><iframe id=f></iframe><script>f.onload = () => LOG('iframe load'); f.src = X('x.html')</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>LOG('frame script'); addEventListener('DOMContentLoaded', () => LOG('frame DCL')); addEventListener('load', () => LOG('frame load')); addEventListener('pageshow', () => LOG('frame pageshow'));</script><p>x"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(800).then(READ)"
+    }
+   ]
+  },
+  {
+   "name": "agents-load-nested",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nLOG('top script'); addEventListener('load', () => LOG('top load'));</script></head><body><iframe id=f></iframe><script>f.onload = () => LOG('f load'); f.src = X('b.html')</script></body></html>",
+   "resources": {
+    "b.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>addEventListener('load', () => LOG('b load')); addEventListener('pageshow', () => LOG('b pageshow'));</script><iframe id=c src='about:blank'></iframe><iframe id=d src=d.html></iframe><script>d.onload = () => LOG('d load at b');</script>"
+    },
+    "d.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>addEventListener('load', () => LOG('d load')); addEventListener('pageshow', () => LOG('d pageshow'));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(800).then(READ)"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f></iframe><script>f.src = X('b.html')</script></body></html>",
+   "resources": {
+    "b.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'b';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script><iframe id=c></iframe><script>c.src = location.href.replace(location.port, parent.length ? location.port : location.port).replace('b.html', 'c.html');</script>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'c';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; el.remove(); LOG('after ' + E(() => w.closed) + ' ' + String(el.contentWindow)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal-aba",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f></iframe><script>f.src = X('b.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 'c.html')))</script></body></html>",
+   "resources": {
+    "b.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'b';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script><iframe id=c></iframe><script>c.src = decodeURIComponent(location.hash.slice(1));</script>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'c';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; const inner = w[0]; el.remove(); LOG('after ' + E(() => w.closed) + ' ' + E(() => inner.closed)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })"
+    }
+   ]
+  },
+  {
+   "name": "agents-removal-same",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f src=b.html></iframe></body></html>",
+   "resources": {
+    "b.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'b';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script><iframe id=c src=c.html></iframe>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const NAME = 'c';for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG(NAME + ' ' + t + ' ' + E(() => window.closed) + ' ' + E(() => window.parent === null) + ' ' + E(() => window.top === null) + ' ' + E(() => document.visibilityState)));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(() => { READ(); LOG('before'); const el = f; const w = el.contentWindow; el.remove(); LOG('after ' + E(() => w.closed)); return new Promise(r => setTimeout(() => { LOG('timer'); r(READ()); }, 50)); })"
+    }
+   ]
+  },
+  {
+   "name": "agents-navigate-away",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f></iframe><script>f.onload = () => LOG('iframe load'); f.src = X('a.html')</script></body></html>",
+   "resources": {
+    "a.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>for (const t of ['pagehide', 'unload']) addEventListener(t, () => LOG('a ' + t));</script>"
+    },
+    "s.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>LOG('s script ' + E(() => parent.topvar));</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(() => { READ(); const w = f.contentWindow; const keep = w; f.src = 's.html'; return W(400).then(() => [READ(), keep === f.contentWindow, E(() => keep.location.href === location.href.replace(/[^/]*$/, 's.html')), f.contentDocument.title]); })"
+    },
+    {
+     "js": "(() => { READ(); const w = f.contentWindow; w.expando = 1; f.src = X('a.html'); return W(400).then(() => [READ(), w === f.contentWindow, E(() => w.expando), f.contentDocument === null]); })()"
+    }
+   ]
+  },
+  {
+   "name": "xo-top-click-href",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><script>f.src = X('x.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 't.html')))</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const T = decodeURIComponent(location.hash.slice(1)); addEventListener('click', () => { LOG(E(() => { top.location.href = T; return 'set'; })); });</script><p>x"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    }
+   },
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop(), history.length, [location.pathname.split('/').pop(), decodeURIComponent((document.cookie.match(/lg=([^;]*)/) || [])[1] || '').split(location.href.replace(/[^/]*$/, '')).join('').split(location.href.replace(/[^/]*$/, '').replace(/:[0-9]+/, ':P')).join('')][1]]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 6000
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "xo-top-click-replace",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><script>f.src = X('x.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 't.html')))</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>const T = decodeURIComponent(location.hash.slice(1)); addEventListener('click', () => { LOG(E(() => { top.location.replace(T); return 'set'; })); });</script><p>x"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    }
+   },
+   "measure": [
+    {
+     "js": "[location.pathname.split('/').pop(), history.length, [location.pathname.split('/').pop(), decodeURIComponent((document.cookie.match(/lg=([^;]*)/) || [])[1] || '').split(location.href.replace(/[^/]*$/, '')).join('').split(location.href.replace(/[^/]*$/, '').replace(/:[0-9]+/, ':P')).join('')][1]]"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 6000
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "xo-top-site-click",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><script>const L3 = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><div id=d style='position:absolute;left:400px;top:0;width:200px;height:200px'>d</div><script>f.src = L3('x.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 't.html'))); d.onclick = () => { window.parentClicked = 1; };</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><script>const T = decodeURIComponent(location.hash.slice(1)); window.res = []; const A = (label) => { let r; try { top.location.href = T; r = 'set'; } catch (e) { r = e.name + ': ' + e.message.split(T).join('T').replace(/\"[^\"]*\"/, 'S'); } res.push(label + ' ' + r); };addEventListener('click', () => A('click'));</script><p>x"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    }
+   },
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 6000
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ]
+  },
+  {
+   "name": "xo-top-fresh-early",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nlocation.replace('m.html');</script></head><body></body></html>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const L3 = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><div id=d style='position:absolute;left:400px;top:0;width:200px;height:200px'>d</div><script>f.src = L3('x.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 't.html'))); d.onclick = () => { window.parentClicked = 1; };</script>"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><script>const T = decodeURIComponent(location.hash.slice(1)); window.res = []; const A = (label) => { let r; try { top.location.href = T; r = 'set'; } catch (e) { r = e.name + ': ' + e.message.split(T).join('T').replace(/\"[^\"]*\"/, 'S'); } res.push(label + ' ' + r); };setTimeout(() => A('early'), 300);</script><p>x"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    }
+   },
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 1500
+    }
+   ]
+  },
+  {
+   "name": "xo-top-fresh-late",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nlocation.replace('m.html');</script></head><body></body></html>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const L3 = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><div id=d style='position:absolute;left:400px;top:0;width:200px;height:200px'>d</div><script>f.src = L3('x.html#' + encodeURIComponent(location.href.replace(/[^/]*$/, 't.html'))); d.onclick = () => { window.parentClicked = 1; };</script>"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><script>const T = decodeURIComponent(location.hash.slice(1)); window.res = []; const A = (label) => { let r; try { top.location.href = T; r = 'set'; } catch (e) { r = e.name + ': ' + e.message.split(T).join('T').replace(/\"[^\"]*\"/, 'S'); } res.push(label + ' ' + r); };setTimeout(() => A('late'), 6000);</script><p>x"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    }
+   },
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 7000
+    }
+   ]
+  },
+  {
+   "name": "agents-focus",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nfor (const t of ['focus', 'blur']) addEventListener(t, () => LOG('top ' + t)); </script></head><body><input id=ti><iframe id=f></iframe><script>ti.onfocus = () => LOG('ti focus'); ti.onblur = () => LOG('ti blur'); f.src = X('x.html');</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>for (const t of ['focus', 'blur']) addEventListener(t, () => LOG('frame ' + t));</script><input id=i><script>i.onfocus = () => LOG('i focus'); i.onblur = () => LOG('i blur');</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(5700).then(() => { ti.focus(); READ(); return 'ready'; })"
+    },
+    {
+     "js": "(() => { LOG('call'); f.contentWindow.focus(); LOG('back'); return W(100).then(() => [READ(), document.activeElement.id, document.hasFocus()]); })()"
+    },
+    {
+     "js": "(() => { LOG('call'); i.focus(); LOG('back ' + document.hasFocus() + ' ' + document.activeElement.id); return new Promise(r => setTimeout(() => r(document.activeElement.id), 100)); })()",
+     "frame": "#f"
+    },
+    {
+     "js": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])"
+    },
+    {
+     "js": "(() => { LOG('call'); ti.focus(); LOG('back'); return W(100).then(() => [READ(), document.activeElement.id, document.hasFocus()]); })()"
+    },
+    {
+     "js": "(() => { LOG('call'); i.focus(); parent.focus(); LOG('back ' + document.hasFocus()); return new Promise(r => setTimeout(() => r(document.activeElement.id), 100)); })()",
+     "frame": "#f"
+    },
+    {
+     "js": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])"
+    }
+   ]
+  },
+  {
+   "name": "agents-input-click",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nfor (const t of ['focus', 'blur']) addEventListener(t, () => LOG('top ' + t)); for (const t of ['mousedown', 'mouseup', 'click']) addEventListener(t, e => LOG('top ' + t));</script></head><body><input id=ti style='position:absolute;left:0;top:0;width:200px;height:30px'><iframe id=f style='position:absolute;left:0;top:50px;width:300px;height:200px;border:0'></iframe><script>ti.onfocus = () => LOG('ti focus'); ti.onblur = () => LOG('ti blur'); f.src = X('x.html');</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0}input{position:absolute;left:0;top:0;width:200px;height:30px}</style><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>for (const t of ['focus', 'blur']) addEventListener(t, () => LOG('frame ' + t)); for (const t of ['mousedown', 'mouseup', 'click', 'keydown', 'keyup']) addEventListener(t, e => LOG('frame ' + t));</script><input id=i><script>i.onfocus = () => LOG('i focus'); i.onblur = () => LOG('i blur');</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(50).then(() => [READ(), document.activeElement.id, document.hasFocus()])"
+    }
+   ],
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      10
+     ]
+    },
+    {
+     "click": [
+      50,
+      60
+     ]
+    },
+    {
+     "key": "a"
+    },
+    {
+     "click": [
+      50,
+      10
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ]
+  },
+  {
+   "name": "agents-animation-order",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\nlet c = 0; const tick = () => { LOG('top raf'); if (++c < 3) requestAnimationFrame(tick); }; </script></head><body><iframe id=f></iframe><script>f.onload = () => { requestAnimationFrame(tick); }; f.src = X('x.html');</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\n</script><script>let c = 0; const tick = () => { LOG('frame raf'); if (++c < 3) requestAnimationFrame(tick); }; requestAnimationFrame(tick);</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(500).then(READ)"
+    }
+   ]
+  },
+  {
+   "name": "agents-layout",
+   "html": "<!DOCTYPE html><html><head><script>\nconst D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1);\nconst X = f => '$OTHER' + D + f;\nconst n = s => String(s).split(location.origin).join('O').split('$OTHER').join('X');\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return n(e.name + ': ' + e.message); } };\nconst W = ms => new Promise(r => setTimeout(r, ms));\nconst LOG = s => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=' + (m ? m[1] : '') + encodeURIComponent(s + ';') + '; path=/'; };\nconst READ = () => { const m = document.cookie.match(/lg=([^;]*)/); document.cookie = 'lg=; path=/'; return m ? decodeURIComponent(m[1]) : ''; };\ndocument.cookie = 'lg=; path=/';\n</script></head><body><div id=o style='width:400px'><iframe id=f style='width:50%;height:100px;border:0'></iframe></div><script>f.src = X('x.html');</script></body></html>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0}</style><div id=d style='height:10px'></div>"
+    }
+   },
+   "measure": [
+    {
+     "js": "W(400).then(() => { o.style.width = '600px'; return f.getBoundingClientRect().width; })"
+    },
+    {
+     "js": "[innerWidth, document.documentElement.clientWidth, document.getElementById('d').getBoundingClientRect().width, matchMedia('(width: 300px)').matches]",
+     "frame": "#f"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-parent",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><div id=d style='position:absolute;left:400px;top:0;width:100px;height:100px'>d</div><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      450,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sibling",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script><iframe id=g style='position:absolute;left:0;top:200px;width:300px;height:100px;border:0'></iframe><script>g.src = L('g.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    },
+    "g.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      250
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sibling-same",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script><iframe id=g style='position:absolute;left:0;top:200px;width:300px;height:100px;border:0'></iframe><script>g.src = X('g.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    },
+    "g.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      250
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-blank",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><div id=d style='position:absolute;left:400px;top:0;width:100px;height:100px'>d</div><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      600,
+      400
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-own",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-ancestor",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<iframe id=c style='position:absolute;left:0;top:0;width:200px;height:80px;border:0'></iframe><script>c.src = '$OTHER'.replace('127.0.0.1', 'localhost') + location.pathname.replace('x.html', 'c.html');</script><script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-same-child",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<iframe id=c src=c.html style='position:absolute;left:0;top:50px;width:200px;height:40px;border:0'></iframe>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      20
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-other-child",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<iframe id=c style='position:absolute;left:0;top:50px;width:200px;height:40px;border:0'></iframe><script>c.src = '$OTHER'.replace('127.0.0.1', 'localhost') + location.pathname.replace('x.html', 'c.html');</script>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      20
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-after-commit",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>addEventListener('click', () => { location = 'y.html'; });</script>"
+    },
+    "y.html": {
+     "text": "<!DOCTYPE html><script>setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 400);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sandbox-parent",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><div id=d style='position:absolute;left:400px;top:0;width:100px;height:100px'>d</div><iframe id=f sandbox='allow-scripts allow-top-navigation-by-user-activation' style='position:absolute;left:0;top:0;width:300px;height:100px;border:0' src=x.html></iframe></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = '$ORIGIN/$FOLDER/t.html'; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      450,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-sandbox-own",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f; const L = f => '$OTHER'.replace('127.0.0.1', 'localhost') + D + f;</script></head><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-top-navigation-by-user-activation' style='position:absolute;left:0;top:0;width:300px;height:100px;border:0' src=x.html></iframe></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>setTimeout(() => { top.location = '$ORIGIN/$FOLDER/t.html'; }, 1200);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 500
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 1300
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "agents-file-state",
+   "html": "<!DOCTYPE html><iframe id=f srcdoc='<p>x'></iframe><iframe id=g></iframe><iframe id=s sandbox='allow-scripts allow-same-origin' srcdoc='<p>x'></iframe><iframe id=t sandbox='allow-scripts' srcdoc='<p>x'></iframe>",
+   "measure": [
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#f"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#g"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#s"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#t"
+    }
+   ]
+  },
+  {
+   "name": "agents-data-state",
+   "html": "<!DOCTYPE html><iframe id=d src='data:text/html,<p>d'></iframe><iframe id=e sandbox='allow-scripts' src='data:text/html,<p>e'></iframe><iframe id=q sandbox='allow-scripts allow-same-origin' src='data:text/html,<p>q'></iframe>",
+   "resources": {
+    "x.txt": {
+     "text": "x"
+    }
+   },
+   "measure": [
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#d"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#e"
+    },
+    {
+     "js": "(() => { const T = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } }; return [origin, T(() => document.cookie), T(() => localStorage.length), T(() => sessionStorage.length), T(() => document.domain), T(() => window.originAgentCluster)]; })()",
+     "frame": "#q"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-own-after-6000",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>addEventListener('click', () => { setTimeout(() => { top.location = new URL('t.html', location.href).href; }, 6000); });</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 6400
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
+  },
+  {
+   "name": "activation-xo-after-commit-cross",
+   "html": "<!DOCTYPE html><script>location.replace('m.html');</script>",
+   "resources": {
+    "m.html": {
+     "text": "<!DOCTYPE html><html><head><script>const D = location.pathname.slice(0, location.pathname.lastIndexOf('/') + 1); const X = f => '$OTHER' + D + f;</script></head><body style='margin:0'><iframe id=f style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><script>f.src = X('x.html');</script></body></html>"
+    },
+    "t.html": {
+     "text": "<!DOCTYPE html><title>t</title><p>target"
+    },
+    "x.html": {
+     "text": "<!DOCTYPE html><style>body{margin:0;height:300px}</style><p>x<script>addEventListener('click', () => { location = '$OTHER'.replace('127.0.0.1', 'localhost') + location.pathname.replace('x.html', 'y.html'); });</script>"
+    },
+    "y.html": {
+     "text": "<!DOCTYPE html><script>setTimeout(() => { top.location = location.origin.replace('localhost', '127.0.0.1') + location.pathname.replace('y.html', 't.html'); }, 400);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 300
+    },
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 1000
+    }
+   ],
+   "measure": [
+    {
+     "js": "location.pathname.split('/').pop()"
+    }
+   ]
   }
  ]
 }

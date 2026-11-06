@@ -356,7 +356,12 @@ pub(crate) fn storage_object(cx: &mut Cx<'_>, kind: StorageKind) -> b::Result<Gc
     {
         return Ok(object);
     }
-    let url = engine(cx.rt)?.storage_url();
+    let host = engine(cx.rt)?;
+    if host.sandboxed_origin() {
+        // Measured, case `agents-opaque-state`.
+        return Err(Exception::dom("SecurityError", crate::cookie::SANDBOXED));
+    }
+    let url = host.storage_url();
     let origin = origin_of(&url).map_err(|message| Exception::dom("SecurityError", message))?;
     let data = cx.rt.alloc_host_data(StorageData {
         kind,

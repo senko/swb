@@ -120,8 +120,8 @@ struct Args {
     /// evaluate in: CSS selectors of `iframe` elements from the top-level
     /// document, joined by ` >> ` (`#a >> #b`). An empty PATH is the
     /// top-level document again. A path that finds no frame, and a frame
-    /// without scripts (scripts in frames are not supported yet), give an
-    /// error line.
+    /// without a script runtime (past a budget of the page, or its runtime
+    /// reached the heap limit), give an error line.
     #[arg(
         long = "eval-frame",
         value_name = "PATH",

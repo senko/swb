@@ -378,6 +378,12 @@ pub trait EngineHost: Any {
         self.url()
     }
 
+    /// True if the document is a frame document whose sandbox has no
+    /// `allow-same-origin`, whatever its URL.
+    fn sandboxed_origin(&self) -> bool {
+        false
+    }
+
     /// The document base URL, serialized (`baseURI`). It reflects the
     /// `base` elements of the DOM as it is now, also after changes of this
     /// task.
@@ -1159,13 +1165,15 @@ pub trait FrameHost {
     fn child_named(&self, frame: u32, name: &str) -> Option<u32>;
 
     /// The child frame of the `iframe` element `container` of the document of
-    /// `parent`.
+    /// `parent`, which has the origin of the running runtime.
     fn child_of_container(&self, parent: u32, container: NodeId) -> Option<u32>;
 
-    /// The child frames with their containers.
+    /// The child frames with their containers, if the frame's document has the
+    /// origin of the running runtime.
     fn child_containers(&self, frame: u32) -> Vec<(u32, NodeId)>;
 
-    /// The `iframe` element of the frame, in its parent's document.
+    /// The `iframe` element of the frame, if its parent's document has the
+    /// origin of the running runtime: a `NodeId` means nothing elsewhere.
     fn container(&self, frame: u32) -> Option<NodeId>;
 
     /// The name of the frame (`window.name`).
@@ -1175,14 +1183,14 @@ pub trait FrameHost {
     fn set_name(&mut self, frame: u32, name: &str);
 
     /// True if the document of the frame can have a realm in this runtime: it
-    /// has the origin of the runtime. Feature 13b gives other origins runtimes
-    /// of their own.
+    /// has the origin of the runtime. Each origin has a runtime of its own.
     fn in_this_agent(&self, frame: u32) -> bool;
 
     /// True if the document of the frame may run scripts (its sandbox).
     fn scripts_allowed(&self, frame: u32) -> bool;
 
-    /// The key of the frame's document in the runtime, if it has a realm.
+    /// The key of the frame's document in the running runtime, if it has a
+    /// realm there. A document of another runtime has no key here.
     fn document_key(&self, frame: u32) -> Option<crate::runtime::DocumentKey>;
 
     /// Records the key of the frame's document.
@@ -1193,8 +1201,13 @@ pub trait FrameHost {
     fn document_loading(&self, frame: u32) -> bool;
 
     /// Takes the frame's document out of the registry for the rest of the
-    /// task; the page takes it back after the task.
-    fn take_document(&mut self, frame: u32) -> Option<Box<dyn EngineHost>>;
+    /// task, if `key` is its key in the running runtime; the page takes it
+    /// back after the task.
+    fn take_document(
+        &mut self,
+        frame: u32,
+        key: crate::runtime::DocumentKey,
+    ) -> Option<Box<dyn EngineHost>>;
 
     /// An `iframe` element of the document of `parent` (`parent_doc`) was
     /// connected (HTML "the iframe post-connection steps"): makes the frame
@@ -1227,9 +1240,10 @@ pub trait FrameHost {
 
     /// The page navigates frame `target` to `url` when the task ends, for the
     /// document of frame `source`: a write to the `Location` of a frame of
-    /// another origin, whose document no task can borrow. A later request for
-    /// the same frame replaces an earlier one.
-    fn navigate_frame(&mut self, target: u32, url: &str, source: u32);
+    /// another origin, whose document no task can borrow. With `replace` the
+    /// navigation replaces the entry of the session history. A later request
+    /// for the same frame replaces an earlier one.
+    fn navigate_frame(&mut self, target: u32, url: &str, source: u32, replace: bool);
 
     /// The frame that the browsing context name `name` (`_parent`, `_top` or a
     /// frame's name) means for frame `source`, if `source` may navigate it. `None`

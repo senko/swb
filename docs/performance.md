@@ -1536,6 +1536,42 @@ The hostile cases (one run, release): 1,000,000 caught `SecurityError`s 0.50 s a
 the document gives. Every property of 1,000 frames in 20 rounds with descriptors 0.45 s
 and 327 MiB (the frames themselves). All functions of a realm: 11.4 KB of script heap.
 
+### One runtime per origin (M9 feature 13b)
+
+ADR 0031 "Done (feature 13b)". Release, callgrind, base 471b585.
+
+A page with one runtime. Hacker News, `--bench 3`, JavaScript on, two alternating runs on
+the final code: base 397.30, 397.02 M, new 396.89, 396.83 M (within 0.2 %, and within the
+variation of the base). A page without frames, 10 ms interval: a timer task,
+difference of 1,000 ticks, base 8,607 and 8,889, new 9,188 and 8,682, the noise of the
+method. 2,000 `mouse_move`s in one run: 189.83 → 189.89 M in all, +28 instructions per
+move. A first version paid about 600 per move, in `AfterTask` (a larger struct, moved and
+dropped per task) and in chained iterators on the paths of each turn: a task that leaves
+nothing now skips `after_frame_changes`, and `any_runtime` and the limit checks take one
+comparison.
+
+The pages, `--bench 3`, two alternating runs, total instructions: Ars Technica 7,798 and
+7,781 M → 7,720 and 7,788 M, which has no second runtime (its safeframe is not in the
+fixture); BBC 5,016 and 4,914 M → 4,926 and 4,925 M, with two more runtimes: both vary from
+run to run more than the difference. I did not separate the share of the new runtimes.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration", quiet
+machine, final code): `load` 0.351 → 0.353 s, hydrated 2.840 → 2.854 s, 62 % of the budget of
+4.60 s, RSS 383.4 → 385.7 MiB. The Optimizely frame and the Sourcepoint frame now run their
+scripts.
+
+A page of 32 frames (10×10 px) of 32 origins, each with an inline script, and a 10 ms
+interval in the top document: `load` 0.031 → 0.063 s, RSS 63.5 → 92.5 MiB (31 runtimes:
+about 1 ms and 0.9 MiB each); a timer task 67,767 → 119,866 instructions, because each turn
+asks each runtime for its next task and its frame work, and the limits add up the others;
+a `mouse_move` 93,406 → 124,010.
+
+The hostile cases `agents-*` (one run, release; each page also waits for its 1.5 s of
+settling): 1,000 frames of one origin 2.26 s and 444 MiB, two frames that allocate without
+end 319 MiB, a frame at its heap limit 306 MiB, 16 sandboxed frames with Blob URLs 491 MiB
+(the frames share 256 MiB; a review measured 3,250 MiB for 12 frames with a budget per
+runtime).
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

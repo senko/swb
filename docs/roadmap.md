@@ -4414,9 +4414,11 @@ Steps:
          proxies without a target, as measured. Frames of another origin still
          run no scripts. JS off: snapshot identical. JS on: `compare --js`
          unchanged.
-       - 13b. One script runtime per origin: frames of another origin and with
-         an opaque origin run their scripts; the event loop, budgets, load
-         events and input across runtimes.
+       - 13b. Done 2026-11-06: one script runtime per origin. Frames of another
+         origin and with an opaque origin run their scripts; the event loop,
+         budgets, load events and input across runtimes. JS off: snapshot
+         identical. JS on: `compare --js` unchanged. BBC's Sourcepoint frame stays
+         0 x 0 (Chromium: 1280 x 800), most likely until feature 14; not measured.
    14. Messaging and storage across documents (`implementer`; ADR 0031
        feature 6), and `document.referrer` of frame documents (empty since
        12b1; measured in Chromium: the parent's URL for `src` and `about:blank`
@@ -4470,6 +4472,37 @@ Steps:
   `w.location = 'about:srcdoc'` gives `about:blank`; a retired document's `Location`
   error lacks the prefix that names the property. `console.log(w)` prints `<Revoked
   Proxy>` and `throw w` prints no text (not compared with Chromium).
+- Runtimes per origin (feature 13b; rows in `crates/engine/tests/frames/agents.rs` and
+  ADR 0031 "Done (feature 13b)"). Found in its reviews, older than it or small:
+  - A same-origin removal fires `pagehide` and `unload` at the children first; Chromium at
+    the parent first. A frame of another runtime unloads after the remover's task, and
+    sees itself gone; Chromium inside `remove()`.
+  - A frame removed from a `load` listener: Chromium fires `load` and `pageshow` around it,
+    and `pagehide` and `unload` after the top level's `pageshow`; swb ends them at the
+    removal, without `pagehide` when the container's listener removes it.
+  - The initial `about:blank` document that a commit of another origin replaces gets
+    `unload` without `pagehide`.
+  - A node of a retired document gives the frame at the same node index of the new
+    document: `old.contentWindow === null` is false, in Chromium true. Same origin only.
+    Feature 14 must not let a retired document's node give a window.
+  - A press in a frame and a release in the top level: swb sends the frame's `mouseout`
+    before the top's, Chromium after. `mouseenter` and `mouseleave` reach a capturing
+    listener of the window in swb, not in Chromium.
+  - A `setInterval` whose callback ended at the time limit does not repeat, so a frame with
+    an endless loop in an interval costs one task of 5 s and not three (not compared with
+    Chromium).
+  - Byte limits per document multiply with the documents: scripts that wait, the text of
+    `document.write`, the string handlers of timers (ADR 0031 section 11).
+  - Message ports: `Registry` ids start at 1 in each runtime, so a record with ports cannot
+    cross a runtime as it is (feature 14).
+  - `iframe.focus()` from the parent does not send keys to the frame (Chromium does);
+    `f.contentWindow.focus()` and `Tab` do.
+  - `document.domain` and `originAgentCluster` of an `about:` document in a frame of a
+    tuple origin give `""` and false (Chromium: the host and true; feature 14 reads
+    the same URL); an `about:blank` child of a `data:` frame has the `data:` texts (Chromium:
+    "Access is denied for this document.").
+  - The `frame_input` test waits 70 s in real time (`wait` steps); a page clock for these
+    steps would make it short.
 - Retired documents (found in the review of 13a, older than it): a retired same-origin
   document stays scriptable: its `Function` runs (`fn.constructor('return x')()`),
   `getElementById` finds its nodes, and its `History` works. Chromium: `TypeError: no

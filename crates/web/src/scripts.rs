@@ -300,6 +300,9 @@ pub(crate) struct Scripts {
     /// True while the `load` event is dispatched: the document is not
     /// "completely loaded" yet (HTML "completely finished loading").
     pub(crate) in_load_event: bool,
+    /// True while `pageshow` waits for the `load` event of a container in
+    /// another runtime, which the page fires.
+    pub(crate) pageshow_waits: bool,
     /// The reasons (bits of `document_write::Reason`) for which a call of
     /// `document.write()` or `open()` that swb does not run was logged as a
     /// warning (later ones are debug lines).
@@ -332,6 +335,7 @@ impl Default for Scripts {
             parse_end_deferred: false,
             page_showing: false,
             in_load_event: false,
+            pageshow_waits: false,
             ignored_write_logged: 0,
             written_scripts_run: 0,
         }
