@@ -81,7 +81,8 @@ def classify(case: Case, run: RunResult) -> str:
         return ERROR
     if case.forbid_log is not None and case.forbid_log in run.log:
         return ERROR
-    if case.expect_log is not None and case.expect_log not in run.log:
+    expected = (case.expect_log,) if isinstance(case.expect_log, str) else case.expect_log
+    if expected is not None and any(text not in run.log for text in expected):
         return INACTIVE
     return OK
 

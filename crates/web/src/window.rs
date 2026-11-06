@@ -52,7 +52,7 @@ fn self_window(cx: &Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
     Ok(Some(this.object))
 }
 
-/// `postMessage`: to a cross-origin `Window` the checks only, until feature 14.
+/// `postMessage`: a cross-origin `Window` is in another runtime.
 fn post_message(
     cx: &mut Cx<'_>,
     this: Platform,
@@ -60,8 +60,8 @@ fn post_message(
     target_origin: &str,
     transfer: &[Gc<Object>],
 ) -> b::Result<()> {
-    if b::glue::is_cross_origin_this(this) {
-        return crate::messaging::post_to_remote(cx, message, target_origin, transfer);
+    if let Some(frame) = remote_frame(cx, this) {
+        return crate::messaging::post_across_runtimes(cx, frame, message, target_origin, transfer);
     }
     crate::messaging::post(cx, message, target_origin, transfer)
 }

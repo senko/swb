@@ -1235,7 +1235,7 @@ list below says where.
 - *`postMessage`.* The generated native converts the arguments, and `post_to_remote`
   serializes and transfers: measured, the transfer list detaches before the check of the
   target origin fails, also for a same-origin target, so `messaging::post` has that order
-  too. **The message goes nowhere until feature 14**, and a transferred port closes.
+  too. The message goes to the other runtime as "Done (feature 14a)" says.
 - *Inline caches.* A proxy without a target never hits `SiteCache::WindowProperty`, which
   names its target by identity, and has no entry of its own: each read goes to the hooks
   (case `xo-stale-sites`: one site across same-origin, other origin, same-origin, other
@@ -1250,9 +1250,8 @@ list below says where.
   throws `Blocked a frame with origin "O" ...`. A departure that Chromium cannot show,
   because it has no budget (`a_frame_past_the_budget_of_realms_has_the_rules_of_another_origin`).
 - *`document.domain` and `originAgentCluster`.* The cases load the document in a frame of
-  another origin, which reports through `postMessage`. The test runs the same document as
-  the top level at that host and compares what the frame reported in Chromium. The second
-  half of `document-domain` (one frame reads the other): "Done (feature 13b)".
+  another origin, which reports through `postMessage`, and `messages.rs` compares what the
+  frame reports (feature 14a).
 - *Departures* (rows of `cross_origin.rs`). A frame that a script renames through a
   same-origin path is found by its new name; Chromium, through a cross-origin parent,
   finds it by no name. `f.focus()` while the frame holds the focus changes nothing;
@@ -1389,14 +1388,9 @@ and `crates/automation/tests/frame_input.rs`, and a departure has a row there.
   `originAgentCluster` is true. A `data:` document without that sandbox keeps its own texts,
   and `originAgentCluster` is true there too. A frame of a `file:` page reads as its page does.
   Departure: `originAgentCluster` of a sandboxed frame of a `file:` page is false in Chromium.
-- *The rows that report through `postMessage`* (`cross-origin` query 2, `xo-focus` query 1,
-  `sandbox` query 0, the second half of `document-domain`): the scripts run, and the values
-  reach the page only in feature 14. Until then `agents.rs` evaluates the same expressions
-  in the frame and compares them with Chromium's values.
-- *What feature 14 needs.* `post_to_remote` holds the record and hands it to the page as an
-  `AfterTask` entry; `Task::Message` carries the id of its message; `AgentShared` is the place
-  for a page-wide message queue, and `Agents` finds the target's runtime. The ports registry
-  is per runtime (`WebState::ports`). `document.referrer` and storage keys of frames too.
+- *What feature 14 needs.* Messages and ports: "Done (feature 14a)". Left for 14b:
+  `document.referrer` and storage keys of frames, `storage` events, the same-site rule of
+  `document.cookie` in a frame.
 - Costs: docs/performance.md, "One runtime per origin".
 
 ### 6. The event loop with several runtimes
@@ -1430,6 +1424,12 @@ them).
 - **Load event**: the runtime of a parent document asks the page whether
   its child frames have loaded before it fires `load` (section 2).
 - The page clock is shared: one time origin per document, as now.
+- **Messages between runtimes** (section 7): a message has its due time and sequence number
+  from the call. The sender's slice ends after the task that left it, the page hands it over
+  between tasks, and it runs at its place by that key. So a slice never runs past a message
+  with an earlier number, and what asks whether there is work (`next_task_time`,
+  `wait_until_idle`) sees it, because nothing is in hand between two operations of the page.
+  On a page with one runtime this is one comparison per task.
 
 ### 7. Messaging
 
@@ -1450,10 +1450,10 @@ overload (HTML §9.4.3; cases `post-message`, `message-channel`):
    could not be cloned.`, `ArrayBuffer at index 1 is a duplicate of an
    earlier ArrayBuffer.`; a non-object in the transfer list is a
    `TypeError`).
-3. The page queues a task on the posted message source of the target's
-   runtime with the record, the source frame and the source origin. A
-   message to a document in the same runtime also goes through the
-   record (HTML requires a copy).
+3. A task on the posted message source of the target's runtime gets the
+   record, the source frame and the source origin (the page hands them over
+   between tasks; "Done (feature 14a)"). A message to a document in the same
+   runtime also goes through the record (HTML requires a copy).
 4. In the task: if `targetOrigin` is not `*` and is not the target
    document's origin at that time, the message is dropped (measured:
    silently for the script; Chromium logs a console error, swb logs the
@@ -1468,10 +1468,10 @@ origins).
 
 **`MessageChannel` and `MessagePort`** (HTML §9.5):
 
-- A page-level port registry: each port has an id, its entangled port,
-  its owner (runtime and realm), its message queue, and whether its
-  queue is enabled. A port object is a host object of its realm with the
-  port id.
+- A page-level port hub: each port has an id, its entangled port, its
+  home (a runtime), its message queue, and whether its queue is enabled. A
+  port object is a host object of its realm with the port id, in a table of
+  its runtime.
 - `postMessage(message, transfer)` and the options form serialize as
   above and append to the entangled port's queue. The queue delivers
   when enabled: by `start()`, or by setting `onmessage` (measured: with
@@ -1509,13 +1509,8 @@ for an opaque origin), `source` the window itself, `ports` empty and
 call past a bound drops its message with one warning until the queue
 is empty, and does not detach its transfer list; hostile case
 `post-message-flood-to-self-js-on`). `Task::Message` has no payload: the
-task takes the oldest message of its runtime's queue. Feature 6 of
-section 14 extends these functions: `post` gets a target window (a frame
-proxy) and a source `WindowProxy`, the queue moves to the page, and the
-ports travel in the transfer list. With a page-wide queue,
-`Task::Message` carries the id of its message, so that each runtime
-takes its own message and the order does not depend on how the event
-loop interleaves the runtimes' tasks. `document.domain` returns the host of
+task takes the first message of its document's queue. "Done (feature 14a)"
+extends these functions. `document.domain` returns the host of
 the origin; its setter runs the checks of the standard and returns (the
 origin-keyed agent cluster), with Chromium's messages; `originAgentCluster`
 is true for a tuple origin. Probe cases: `tools/probes/web-small-gaps.json`
@@ -1530,11 +1525,12 @@ moves it to the page. Design:
 
 - *Registry.* Each port has an id (a counter that never reuses a value)
   and an entry in the registry: the entangled port's id, the queue of
-  waiting messages (`Serialized` records), the enabled flag, the realm,
-  the port object (`None` while the port travels), and the number of
-  tasks in the event loop. The port object is a host object of its realm
-  whose `EventTarget` data holds `PortState` (the id and a share of the
-  registry). A closed port has no entry.
+  waiting messages (`Serialized` records), the enabled flag, the home
+  (`None` while the port travels), and the number of tasks in the event
+  loop. The port object is a host object of its realm whose `EventTarget`
+  data holds `PortState` (the id and a share of the runtime's `Ports`); the
+  table of `Ports` holds the object and the realm. A closed port has no
+  entry. Feature 14a moved the registry to the page.
 - *Transfer.* `structured.rs` takes `MessagePort`s of the transfer list as
   items of the record (`Item::Port`, `Serialized::ports`); the sender's
   object is neutered (`PortState::detached`; every call does nothing) and
@@ -1604,7 +1600,9 @@ moves it to the page. Design:
 - *Closed and neutered ports.* `postMessage()` on a closed or neutered port
   returns before the checks and before the transfer (the buffer stays
   attached: measured); on a port whose partner is closed it serializes
-  and transfers, and the message is dropped. A message that was queued
+  and transfers, and the message is dropped, except for a port that started
+  and whose partner closed in an earlier task ("Done (feature 14a)"). A
+  message that was queued
   before `close()` of the sender is delivered; `close()` of the receiver
   drops its queue.
 - *Errors.* `Port at index N contains the source port.`, `Message port at
@@ -1623,12 +1621,144 @@ moves it to the page. Design:
   `null`.
 - *Budget.* The messages of ports and of `window.postMessage()` count
   together: at most 65,536 waiting messages and 256 MiB of serialized bytes
-  for the runtime; a message past a bound is dropped with one warning until
-  nothing waits (hostile cases `message-port-flood-without-listener-js-on`,
+  for the runtime that sent them; a message past a bound is dropped with one
+  warning until nothing waits (hostile cases
+  `message-port-flood-without-listener-js-on`,
   `post-message-flood-to-self-js-on`).
 - *Departures.* The limits above (Chromium has none); no `BroadcastChannel`;
   `messageerror` fires only when deserialization fails (only a heap limit
   does today).
+
+**Done (feature 14a, `crates/web/src/messaging.rs`, `message_port.rs`,
+`crates/engine/src/page/agents.rs`).** `window.postMessage` and `MessagePort` across
+runtimes. Measured in Chromium 148 with the cases `msg-*` and `port-*` of
+`tools/probes/web-frames.json` (80 cases, three equal runs apart from ports, each order
+case in the forms same origin, same site and cross site); every value is compared in
+`crates/engine/tests/frames/messages.rs`, and a departure has a row there. The three forms
+gave the same values, also for cross site: Playwright's Chromium runs all frames of these
+cases in one process, so it says nothing about the order between processes.
+
+- *How a message crosses.* What crosses is plain data that owns itself. A `Serialized`
+  record holds its items, and port ids that are unique in the page; no `Gc`, no realm, no
+  document key. `Posted` adds the target origin, the serialized origin of the sender's
+  document, the number of the sender's frame, the sequence number of the call and a
+  `Charge`. The sender's task leaves it as a `Mail` in the page's `PortHub`. That ends the
+  slice of the runtime (`run_due_tasks_before`, one comparison per task). At the end of each
+  task, before the page acts on the frames that the task destroyed, `Page::hand_over_mail`
+  finds the runtime of the frame's current document and gives it the mail. There the
+  message waits in the queue of that document, at its place by number, with a `Task::Message`
+  at its place by the key of the call. The target's task checks `targetOrigin` against the
+  document at that time, deserializes the record in the document's realm and fires the
+  event. The simplest form: `Task::Message` stays without a payload, because the tasks of a
+  window run in the order of their numbers, so the task takes the first of the queue, and
+  a message that comes late is inserted by number. Rejected: a page-wide queue with ids,
+  which costs a lookup per message on a page with one runtime.
+- *`source` and `origin`.* `origin` comes from the sender's document at the call
+  (`"null"` for opaque). `source` is the sender's `WindowProxy` in the target's runtime:
+  the handover takes the proxy that the runtime has for that frame and keeps it in the message
+  (traced), so `e.source === held` also when the frame went before the delivery (measured).
+  A runtime that has no proxy yet gets it at the delivery; if the frame is gone by then, a
+  new closed proxy. So a sender that a frame removed or navigated still has the origin of
+  the call and the same proxy (cases `msg-sender-*`, `port-sender-removed-*`). `/` is the
+  sender's origin; an opaque sender's `/` reaches only its own runtime (cases `msg-sandbox*`,
+  `msg-data-frame`).
+- *A target that is gone.* A message goes with the document that it was sent to: a frame
+  without a document in a runtime gets nothing at the handover (a frame that a task removed,
+  a document without a realm, a runtime that went or stopped), and a document that retires
+  drops what waits for it, also with `*` (measured, cases `msg-target-navigates*`: a message
+  posted while the commit of a navigation is pending reaches neither document). The initial
+  `about:blank` passes its window with its messages on (case `msg-initial-reuse*`). A call on
+  a proxy of a removed frame serializes and detaches the transfer list, does not look at
+  `targetOrigin` (no `SyntaxError`), and goes nowhere (measured, cases
+  `msg-target-removed-*`, `msg-kept-window-removed`; so also in one runtime). Code of a removed
+  frame can still send (case `msg-caller-removed`). `Posted` has a `Drop` that gives its bytes
+  back and closes the ports of its record, so no path can forget them.
+- *How a port crosses.* A page-wide hub of plain data (`PortHub`, in `AgentShared`), with the
+  ids, the partners, the queues, the enabled flags and the tag of the runtime that holds the
+  object. Each runtime has `Ports`: the table from an id to its object and realm, which is the
+  only way from an id to a `Gc`, and its budget. So a port id means the same in each runtime, a
+  record crosses as it is, and when a port moves nothing moves but its home: the queue stays
+  in its entry, however deep the ports in it nest, and moves, drops and sweeps stay worklists.
+  Rejected: a registry per runtime with a port that leaves one and enters another with its queue
+  as owned data. That needs a page-wide address for each partner anyway, because a message can
+  meet a partner that has moved, and owned records nest. A message to a port of another runtime
+  goes to its queue at once, and the sender leaves a `Mail` for the task of the port. A port's
+  task belongs to the document of its realm, not to the sender's (case
+  `port-sender-removed-same`: a frame that goes does not take its messages along). A task of a
+  port that has moved finds no object and does nothing, and the transfer resets the count of
+  tasks.
+- *What frees what.* A runtime's collector sees only its objects. A port holds its partner
+  strongly when both are in its heap, as before. A port stays alive if it has a task, or if it
+  is enabled and its partner is not in its heap: it travels, or it is in another runtime. A
+  port object that its collector frees leaves the table and dooms its id; the hub removes the
+  entry at its next operation or the next task, disentangles the partner wherever it is, drops
+  its queue and closes the travelling ports in it. So a port without a listener goes, and its
+  partner follows at the next collection of its own heap (test
+  `a_port_without_a_listener_goes_and_frees_its_partner`). When a runtime goes, its heap
+  drops all its port objects, which takes the same path, and the page settles the hub at once
+  (heap limit, sweep; a new top-level document drops the hub). The same for a retired window:
+  its ports close (measured, cases `port-retired-realm`, `port-peer-removed-later-*`), and a
+  window that goes on with another document keeps them. A runtime whose scripts stopped closes
+  its ports and drops its messages, because no task of it will run.
+- *When a port sees that its partner closed* (measured, cases `port-partner-closed-*`): a port
+  that has started and whose partner closed in an earlier task does nothing in `postMessage`,
+  also no transfer. In the same task, also in a microtask, and for a port that has not started
+  at any time, the call serializes and transfers, and the message goes nowhere.
+- *A message that does not fit.* The objects of a record may be larger than the heap of the
+  target has room for, and a message from another runtime must not end its scripts. A message
+  may fill the heap up to 7/8 of its limit: a collection that leaves more than 90 % ends the
+  scripts, and the listener needs room. The estimate of a record decides first; it is not a
+  bound (reviewed: up to 1.09 times the estimate, and the size before a collection is not
+  exact), so near that end a collection with the deserialized objects measures it. A message
+  that does not fit gives the target `messageerror` (HTML, "message port post message steps";
+  for a window with `source` and `origin`), `data` is `null`, and the ports of the record
+  close. A message with an estimate of at most 64 KiB always comes in and forces no
+  collection: the channels of a page's scheduler keep working near the limit. A larger one
+  forces a collection only if an eighth of the heap was allocated or deserialized from large
+  messages since the last, as in the collector's own rule: a collection in a listener measures
+  a message as live, and it is garbage after its task. So a frame gets no collection of the top
+  level per message from messages that do not come in (hostile case
+  `messages-near-the-heap-limit-js-on`). The time
+  of a large message's deserialization and its collections does not count in the long tasks of
+  its target (test `the_deserialization_of_a_message_is_no_long_task_of_its_target`). Tests
+  `a_window_message_near_the_limit_leaves_the_top_level_running` and the port form.
+- *Budgets* (section 11). A message counts for the runtime that sent it until it is delivered
+  or dropped (`Charge`, its `Drop`): a flood from a frame uses up the budget of the frames (one
+  count of 256 MiB, 65,536 messages per runtime), and the top level's own count is its own, so
+  its messages go on (test `a_flood_of_a_frame_leaves_the_budget_of_the_top_level`). A port
+  counts for the runtime that made it, wherever it is now (test
+  `ports_sent_to_the_top_level_count_for_the_frame_that_made_them`). What waits for a runtime
+  that goes goes with it and gives its bytes back to its senders (test
+  `a_runtime_that_goes_gives_back_what_waits_for_it`); what a runtime that went has sent stays
+  counted for it until it is delivered or dropped. `Serialized::message_bytes` counts the
+  properties and entries of a record, which `byte_size` does not: an array of a million
+  numbers is not a few bytes. The budget adds 512 bytes per message for what is not in the
+  record (reviewed: about 430 bytes), so that messages without a payload reach it: 30 frames
+  with 65,536 such messages each had 929 MiB of RSS and counted no bytes. A call past a bound
+  returns normally and drops the message, with one warning; Chromium has no limit, so no
+  measurement can give another answer. So a frame that fills the frames' budget makes the posts
+  of the other frames drop, and a port that the top level gave to a frame that never
+  starts it can fill the top level's count (backlog).
+- *Time.* Each message is a task of the target's runtime and counts as its own long task. A
+  ping-pong between two origins runs through the page's loop, which gives timers and frames
+  their turns by the key of each task (hostile cases).
+- *Departures* (rows of `messages.rs` and the tests named here). A pair with listeners on both
+  sides that no script reaches stays until a side closes or a runtime goes, bounded by
+  `MAX_PORTS`; Chromium collects it (test `a_pair_with_listeners_on_both_sides_stays_until_a_side_goes`).
+  swb parses the start of a document at its commit, so a message that waited for a reused
+  window can reach a listener of the document's first script; Chromium runs the message first
+  (row of `msg-initial-reuse-late`). The network completion of a navigation is handled at the
+  start of a turn of the page's loop, so a message posted just after the response came still
+  reaches the old document; only one that the task before the turn posted is dropped. The top
+  level's messages to a port of a frame that never starts count for the top level, so a frame
+  could fill that budget with the top level's help, and then the top level's own messages are
+  dropped (backlog). Limits above, as before.
+- *BBC.* 30 messages cross between the top level, the Optimizely frame and the Sourcepoint
+  frame. Sourcepoint's rendering app now runs on `sp.loadMessage` and stops in DOMPurify at
+  `document.createNodeIterator`, which swb lacks (not `document.open`, feature 15). It reports
+  `sp.renderingAppError`, so no dialog comes and the pixels stay as they were. The three console
+  errors that this leaves are a row of `crates/automation/tests/bbc.rs`
+  (`CONSENT_FRAME_ERRORS`).
 
 **`BroadcastChannel`** is out (section 13) unless the diagnosis shows
 that a target needs it.
@@ -1899,12 +2029,12 @@ has no further option (clicks by coordinates reach frames without it).
 | Realms created per runtime over its life | 256 | the document runs without scripts, a warning (until realm collection exists) |
 | JavaScript heap | 256 MiB per runtime, 512 MiB for all runtimes of a page | the top level's runtime keeps its 256 MiB, and frames cannot take it. Before each task another runtime's limit is the smaller of 256 MiB and what the other frames leave of the rest. Past it the task ends (termination) and the runtime is dropped alone: its frames go on without scripts, and its origin gets no new runtime until the next top-level document. Consequence: a frame whose limit fell below what it holds, because other frames grew, goes at its next allocation. After the top level's runtime the top-level document stays as it is, with the input of a page without JavaScript, and the other runtimes go on and have its share |
 | Long tasks | 30 s per runtime, 60 s per page | the top level's runtime keeps its 30 s, and the other runtimes share the rest. A runtime stops at its limit; past the page cap all runtimes stop |
-| Messages that wait (window and port) | 65,536 messages per runtime; 256 MiB of serialized bytes for the top level's runtime, and 256 MiB for the frames' runtimes together | `postMessage` drops the message with one warning per task (Chromium has no limit) |
+| Messages that wait (window and port) | 65,536 messages for each sender; 256 MiB (serialized bytes and 512 bytes per message) for the top level's runtime as a sender, and 256 MiB for the frames' runtimes together. A message counts for its sender until it is delivered or dropped, also while it waits in another runtime | `postMessage` drops the message with one warning until nothing waits (Chromium has no limit) |
 | Blob URLs | 16,384 per runtime; 256 MiB of bytes for the top level's runtime, and 256 MiB for the frames' runtimes together | `createObjectURL` throws `QuotaExceededError`, a warning |
 | Blobs that waiting requests and reads hold | 256 MiB for the top level's runtime, and 256 MiB for the frames' runtimes together | the request or the read fails, a warning |
 | Mutation records that wait | 131,072 per runtime; 128 MiB for the top level's runtime, and 128 MiB for the frames' runtimes together | later records are dropped, a warning |
 | One message | the structured clone limits of ADR 0028 section 16 | `DataCloneError` or `RangeError` as now |
-| Message ports per runtime | 65,536 | `new MessageChannel()` throws `RangeError`, a warning |
+| Message ports per runtime | 65,536 that it made and that live, wherever they are now | `new MessageChannel()` throws `RangeError`, a warning |
 | Frame viewport | the viewport limits (`MAX_VIEWPORT_SIDE`) | clamped |
 | Source text of frame documents that are alive together, per page | 64 MiB (`MAX_SOURCE_BYTES`): the `srcdoc` text and the bodies of network documents. A document that replaces another pays the difference; a destroyed or navigated frame returns its bytes | checked before the parse; the document becomes an error document (it costs nothing), one warning per top-level document. The frame still exists and loads, so the load state ends |
 | DOM nodes of frame documents that are alive together, per page | 1 Mi (`MAX_NODES`, as many as the parser accepts for one document) | the parse of a frame document stops one node past the room that is left; a document that does not fit becomes an error document. After a rejection the parse of the next documents stops at 16 Ki nodes until 64 Ki nodes have gone since the last rejection, so that 1,000 documents that are just too big do not cost 1,000 parses. A document that reaches this limit also shows the error document, never its first nodes; so on a page that has passed the budget, a frame document of more than 16 Ki nodes fails even if it would fit |
@@ -1970,6 +2100,7 @@ transfer of 10,000 ports; 40 frames of 40 origins; a frame that creates
 and removes `about:blank` frames in a loop (realm budget); a cross-origin
 frame that allocates to its heap limit (the top document keeps running).
 Each case ends within the set's limits and logs the limit that acted.
+Feature 14a added ten cases of messages and ports across runtimes (docs/testing.md).
 Feature 10a's review added `frames-1000-big-srcdoc-js-on`,
 `frames-1000-dense-srcdoc-js-on`, `frames-1000-big-documents`,
 `frames-100-big-images`, `frames-200-big-style-sheets` and

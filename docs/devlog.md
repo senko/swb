@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-06: M9 feature 14a: messages and ports across runtimes
+
+- `window.postMessage` and `MessagePort` work across runtimes (ADR 0031 "Done (feature
+  14a)"). A message is plain data: a `Serialized` record, the sender's origin text and
+  frame number, and its number from the page-wide counter. The sender's task leaves it
+  in a page-wide hub, which ends the runtime's slice, and the page hands it to the
+  runtime of the target's document between tasks. The target's task checks `targetOrigin`
+  and deserializes.
+- A port id is unique in the page. The hub holds ports' queues as plain data, and each
+  runtime has a table of its port objects.
+- A message counts for its sender until it is delivered or dropped, and a port for the
+  runtime that made it. So a frame cannot use up the top level's budgets.
+- `contentWindow` and `contentDocument` of a node of a retired document are null.
+- Chromium 148: 80 new cases, three equal runs each. Eleven new hostile pages.
+- Three reviews found no way across the boundary and no panic, and in the cases that they
+  measured the order of messages between runtimes equals Chromium's. They found, and this
+  commit fixes:
+  - A frame could end the top level's scripts with a message: the estimate of a record is
+    no bound, and the heap may hold at most 90 % after a collection. A message may now fill
+    the heap to 7/8 of its limit, a collection measures it near that end, and one that does
+    not fit gives `messageerror`.
+  - Empty messages counted no bytes: 30 frames held 929 MiB in them. The budget adds 512 bytes
+    per message.
+  - The hostile cases could not fail on a script that stopped early. They check end markers
+    now, which found two cases that did not reach their end.
+- My own first two fixes for the heap were wrong, and only tests showed it: a test that passed
+  on the old code, and a rule that refused later large messages. The commit has the third form.
+  Time that a frame's large messages take to deserialize no longer counts in the target's long
+  tasks.
+- BBC: 30 messages cross in one load. Sourcepoint's rendering app now runs and stops in
+  `DOMPurify` at `document.createNodeIterator`, which swb lacks, so feature 15 gets this
+  item. Scores are unchanged, and the BBC test has a row for the three console errors of
+  this path.
+- Next: feature 14b, storage keys, `storage` events, `document.referrer`, and the
+  Craigslist favorites.
+
 ## 2026-11-06: M9 feature 13b: one script runtime per origin
 
 - Each origin of a page has a runtime of its own, made at its first need. Frames of

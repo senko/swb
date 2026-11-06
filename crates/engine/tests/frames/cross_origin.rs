@@ -1,17 +1,14 @@
 //! The cross-origin `Window` and `Location` against Chromium (M9 feature 13a,
 //! ADR 0031 section 5): every query of the cases `cross-origin`, `nested-origins`
 //! and `xo-*` of `tools/probes/web-frames.json` with Chromium's values. A departure
-//! has a row with its reason. A log that comes through `postMessage` names feature
-//! 14; `agents.rs` reads the same values in the frame.
-
-use std::time::Duration;
+//! has a row with its reason.
 
 use serde_json::Value as Json;
-use swb_engine::{Evaluation, JsonForm, Page, Size};
+use swb_engine::{Evaluation, JsonForm, Page};
 
 use super::scripted::compare_case;
-use super::{OTHER, Res, Sim, case_resource, js_value, open};
-use crate::common::{finish_loading, new_page, on_page_thread};
+use super::{OTHER, Res, open};
+use crate::common::on_page_thread;
 
 /// A row where swb departs on purpose: (case, query, path of the value, why).
 /// An empty path is the whole value of the query.
@@ -19,14 +16,14 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     (
         "cross-origin",
         2,
-        "",
-        "the child reports through postMessage: feature 14; agents.rs reads its values",
+        "[6]",
+        "document.referrer of a frame document: feature 14b",
     ),
     (
-        "xo-focus",
-        1,
-        "",
-        "the frame's log comes through postMessage: feature 14; agents.rs reads it",
+        "cross-origin",
+        2,
+        "[8]",
+        "Location lacks ancestorOrigins (ADR 0028 section 13)",
     ),
     (
         "xo-focus",
@@ -34,6 +31,13 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "[16]",
         "f.focus() when the frame holds the focus: Chromium's top window gets focus and blur \
          first; swb has no change of the holder",
+    ),
+    (
+        "xo-focus",
+        1,
+        "",
+        "the frame's log: as the row above, that f.focus() gives the frame no further pair of \
+         events in swb",
     ),
     (
         "xo-aba",
@@ -136,65 +140,6 @@ case_test!(
     promise_natives_of_other_interfaces,
     "xo-promise-natives-others"
 );
-
-/// `document.domain` and `originAgentCluster` of a document of a domain: the cases
-/// `document-domain` and `document-domain-setter` load it in a frame of another
-/// origin, which reports through `postMessage` (feature 14). Here the same document
-/// is the top level, and its values are compared with what the frame reported in
-/// Chromium. A departure of `domain.rs`: a value with a space.
-#[test]
-fn document_domain_as_the_frame_reported_it() {
-    on_page_thread(|| {
-        let setter = js_value("document-domain-setter", 0);
-        let setter: Json = serde_json::from_str(setter.as_str().unwrap()).unwrap();
-        let mut page = page_at(
-            "http://x.a.localhost:8001/case/dd.html",
-            "document-domain-setter",
-        );
-        let got = evaluate(&mut page, "r.join('|').replace(/:\\d{2,5}/g, ':P')");
-        let got: Vec<String> = got
-            .as_str()
-            .unwrap()
-            .split('|')
-            .map(str::to_owned)
-            .collect();
-        let want = setter.as_array().unwrap();
-        assert_eq!(got.len(), want.len());
-        for (index, (got, want)) in got.iter().zip(want).enumerate() {
-            let want = match want {
-                Json::String(text) => text.clone(),
-                other => other.to_string(),
-            };
-            if index != 13 {
-                assert_eq!(got, &want, "row {index}");
-            }
-        }
-        assert!(got[13].starts_with("SecurityError"));
-
-        let domain = js_value("document-domain", 0);
-        let domain: Json = serde_json::from_str(domain.as_str().unwrap()).unwrap();
-        assert_eq!(domain["top"], true);
-        for (who, host) in [(0, "x"), (1, "y")] {
-            let url = format!("http://{host}.a.localhost:8001/case/dd.html");
-            let mut page = page_at(&url, "document-domain");
-            let own = evaluate(&mut page, "JSON.stringify(r)");
-            assert_eq!(
-                format!("{host} {}", own.as_str().unwrap()),
-                domain["reports"][who].as_str().unwrap()
-            );
-        }
-    });
-}
-
-/// The document `dd.html` of `case` at `url`, as the top level.
-fn page_at(url: &str, case: &str) -> Page {
-    let sim = Sim::new(&[("/case/dd.html", case_resource(case, "dd.html"))]);
-    let mut page = new_page(sim, 4, Size::new(800.0, 600.0));
-    page.set_javascript(true);
-    page.navigate(super::url(url));
-    finish_loading(&mut page, Duration::from_secs(20));
-    page
-}
 
 fn evaluate(page: &mut Page, source: &str) -> Json {
     match page.evaluate(source, JsonForm::Strict) {

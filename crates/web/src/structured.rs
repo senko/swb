@@ -169,6 +169,8 @@ pub struct Serialized {
     root: Val,
     /// The bytes of strings and buffers that the items hold.
     bytes: usize,
+    /// The properties and entries of the items.
+    slots: usize,
     /// The ids of the `MessagePort`s of the transfer list, in its order
     /// (HTML "transferred ports"; `message_port.rs`). The record owns them
     /// until a realm adopts them.
@@ -182,6 +184,7 @@ impl Serialized {
             items: Vec::new(),
             root: Val::Null,
             bytes: 0,
+            slots: 0,
             ports: Vec::new(),
         }
     }
@@ -191,6 +194,11 @@ impl Serialized {
         &self.ports
     }
 
+    /// A realm adopted the ports of the record: it no longer holds them.
+    pub(crate) fn forget_ports(&mut self) {
+        self.ports.clear();
+    }
+
     /// A record of `null` that carries the ports `ids` (tests).
     #[cfg(test)]
     pub(crate) fn with_ports(mut self, ids: Vec<u64>) -> Serialized {
@@ -198,9 +206,24 @@ impl Serialized {
         self
     }
 
-    /// An estimate of the bytes that the record holds.
+    /// An estimate of the bytes that the record holds, without its properties and
+    /// entries.
     pub fn byte_size(&self) -> usize {
         self.items.len() * size_of::<Item>() + self.bytes + self.ports.len() * size_of::<u64>()
+    }
+
+    /// The bytes that the record holds, as a message that waits counts them.
+    pub(crate) fn message_bytes(&self) -> usize {
+        self.byte_size()
+            .saturating_add(self.slots.saturating_mul(size_of::<(Key, Val)>()))
+    }
+
+    /// An estimate of the bytes that the objects of the record take in a heap: its
+    /// buffers and strings once, and its structure in the size of objects and properties,
+    /// which is about three times the size in the record.
+    pub(crate) fn heap_estimate(&self) -> usize {
+        let structure = self.message_bytes().saturating_sub(self.bytes);
+        self.bytes.saturating_add(structure.saturating_mul(3))
     }
 }
 
@@ -238,6 +261,7 @@ struct Serializer {
     memory: HashMap<Gc<Object>, u32>,
     stack: Vec<Frame>,
     bytes: usize,
+    slots: usize,
     /// The ports of the transfer list: the object and the id.
     ports: Vec<(Gc<Object>, u64)>,
 }
@@ -598,6 +622,7 @@ impl Serializer {
     fn finish(&mut self) {
         match self.stack.pop() {
             Some(Frame::Props { item, props, .. }) => {
+                self.slots += props.len();
                 if let Some(Item::Object(slot) | Item::Array { props: slot, .. }) =
                     self.items.get_mut(item as usize)
                 {
@@ -605,11 +630,13 @@ impl Serializer {
                 }
             }
             Some(Frame::Map { item, done, .. }) => {
+                self.slots += done.len();
                 if let Some(slot) = self.items.get_mut(item as usize) {
                     *slot = Item::Map(done);
                 }
             }
             Some(Frame::Set { item, done, .. }) => {
+                self.slots += done.len();
                 if let Some(slot) = self.items.get_mut(item as usize) {
                     *slot = Item::Set(done);
                 }
@@ -652,6 +679,7 @@ fn serialize_with(
         memory: HashMap::new(),
         stack: Vec::new(),
         bytes: 0,
+        slots: 0,
         ports,
     };
     let root = serializer.visit(rt, value)?;
@@ -660,6 +688,7 @@ fn serialize_with(
         items: serializer.items,
         root,
         bytes: serializer.bytes,
+        slots: serializer.slots,
         ports: serializer.ports.iter().map(|&(_, id)| id).collect(),
     })
 }

@@ -7,8 +7,10 @@ decorate it with `@case(...)`. The name of the function is the name of the
 case (with `_` as `-`).
 
 The description names the limit and the ADR. `expect_log` is a part of the
-warning that swb logs when the limit acts; the case fails with `inactive`
-if the warning is missing, so that a changed limit does not go unnoticed.
+warning that swb logs when the limit acts, or several; the case fails with
+`inactive` if one is missing, so that a changed limit does not go unnoticed. The
+set runs at the log level `warn`: a page that shows that its script reached
+its end uses `console.warn`.
 Generated pages stay below `MAX_PAGE_BYTES`.
 """
 
@@ -47,7 +49,7 @@ class Case:
     rss_limit_mib: float = 1024
     known_failure: str | None = None
     """The reason, if swb has a known bug that this case shows."""
-    expect_log: str | None = None
+    expect_log: str | tuple[str, ...] | None = None
     swb_args: tuple[str, ...] = ()
     """Options for swb; `{dir}` stands for the directory of the case."""
     url: str | None = None
@@ -71,7 +73,7 @@ def case(
     time_limit_s: float = 5.0,
     rss_limit_mib: float = 1024,
     known_failure: str | None = None,
-    expect_log: str | None = None,
+    expect_log: str | tuple[str, ...] | None = None,
     swb_args: tuple[str, ...] = (),
     url: str | None = None,
     server: str | None = None,
@@ -6692,6 +6694,281 @@ def agents_frame_at_the_heap_limit_js_on() -> Page:
         "5);</script>"
     )
     return origins_page(doc(top), {"http://o.hostile.test/x.html": "<!doctype html>" + ALLOCATE})
+
+
+FRAME_A = "http://a.hostile.test/x.html"
+FRAME_B = "http://b.hostile.test/x.html"
+MESSAGE_ARGS = ("--js", "--replay", "{dir}", "--settle-ms", "1500")
+
+
+def in_a_frame(child: str, top: str = "") -> Page:
+    """A top level with a frame of another origin that runs `child`, a script."""
+    return origins_page(
+        doc(f"<iframe id=f src='{FRAME_A}'></iframe><script>{top}</script>"),
+        {FRAME_A: f"<!doctype html><script>{child}</script>"},
+    )
+
+
+@case(
+    "A frame that floods its parent with postMessage in a loop (M9 feature 14a): the budget of the "
+    "sender stops it; the listener and a timer of the top level go on",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=6.0,
+    expect_log=("messages (", "flood end", "top still runs"),
+    rss_limit_mib=420,
+)
+def post_message_flood_of_the_parent_js_on() -> Page:
+    child = (
+        "let n = 0; const go = () => { for (let i = 0; i < 200000; i++) parent.postMessage(i,"
+        " '*'); if (++n < 5) setTimeout(go, 0); else console.warn('flood end'); }; go();"
+    )
+    top = (
+        "let got = 0, ticks = 0; addEventListener('message', () => { got++; }); setInterval(("
+        ") => { if (++ticks === 50) console.warn('top still runs'); }, 5);"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "Two frames of two origins in an endless ping-pong, with a timer of the top that must go on "
+    "(M9 feature 14a)",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("ping-pong runs", "top still runs"),
+    rss_limit_mib=400,
+)
+def post_message_ping_pong_of_two_origins_js_on() -> Page:
+    child = (
+        "let n = 0; addEventListener('message', e => { if (++n === 1000) console.warn('ping-po"
+        "ng runs'); (e.data === 1 ? parent.frames[1] : e.source).postMessage(0, '*'); });"
+    )
+    top = (
+        "let ticks = 0; addEventListener('load', () => frames[0].postMessage(1, '*')); setInt"
+        "erval(() => { if (++ticks === 100) console.warn('top still runs'); }, 5);"
+    )
+    page = f"<!doctype html><script>{child}</script>"
+    return origins_page(
+        doc(
+            f"<iframe src='{FRAME_A}'></iframe><iframe src='{FRAME_B}'></iframe>"
+            f"<script>{top}</script>"
+        ),
+        {FRAME_A: page, FRAME_B: page},
+    )
+
+
+@case(
+    "A transfer of 10,000 ports to a frame of another origin (M9 feature 14a)",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("got 10000", "all ports answered"),
+    rss_limit_mib=340,
+)
+def transfer_of_10000_ports_to_another_runtime_js_on() -> Page:
+    child = (
+        "addEventListener('message', e => { for (const p of e.ports) p.postMessage(1); consol"
+        "e.warn('got ' + e.ports.length); });"
+    )
+    top = (
+        "addEventListener('load', () => { const ports = []; const keep = []; let n = 0; for ("
+        "let i = 0; i < 10000; i++) { const c = new MessageChannel(); ports.push(c.port2); ke"
+        "ep.push(c.port1); c.port1.onmessage = () => { if (++n === 10000) console.warn('all po"
+        "rts answered'); }; } f.contentWindow.postMessage(0, '*', ports); });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "An endless port ping-pong across runtimes (M9 feature 14a): timers and frames get their turns",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("ping-pong runs", "top still runs"),
+    rss_limit_mib=360,
+)
+def port_ping_pong_across_runtimes_js_on() -> Page:
+    child = (
+        "addEventListener('message', e => { const p = e.ports[0]; p.onmessage = () => p.postM"
+        "essage(0); });"
+    )
+    top = (
+        "addEventListener('load', () => { const c = new MessageChannel(); let n = 0, ticks = "
+        "0; c.port1.onmessage = () => { if (++n === 1000) console.warn('ping-pong runs'); c.po"
+        "rt1.postMessage(0); }; f.contentWindow.postMessage(0, '*', [c.port2]); c.port1.postM"
+        "essage(0); setInterval(() => { if (++ticks === 100) console.warn('top still runs'); }"
+        ", 5); });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "200,000 channels, each with one end sent to another runtime and dropped (M9 feature "
+    "14a): the port budget of the runtime that makes them stops it, and the collector and the "
+    "sweep free them",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log="channels end",
+    rss_limit_mib=560,
+)
+def channels_with_one_end_in_another_runtime_js_on() -> Page:
+    child = (
+        "let made = 0, refused = 0; const go = () => { for (let i = 0; i < 20000; i++) { try "
+        "{ const c = new MessageChannel(); parent.postMessage(0, '*', [c.port2]); made++; } c"
+        "atch (e) { refused++; } } if (made + refused < 200000) setTimeout(go, 0); else cons"
+        "ole.warn('channels end ' + (made + refused)); }; go();"
+    )
+    top = "addEventListener('message', () => {});"
+    return in_a_frame(child, top)
+
+
+@case(
+    "Ports sent through each other's queues across two runtimes in a chain of 100,000 (M9 feature "
+    "14a): moves, drops and sweeps have no recursion",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("chain end", "dropped"),
+    rss_limit_mib=400,
+)
+def ports_in_queues_in_a_long_chain_across_runtimes_js_on() -> Page:
+    child = (
+        "let keep = null, n = 0, refused = 0; addEventListener('message', e => { for (let i ="
+        " 0; i < 25000; i++) { try { const c = new MessageChannel(); if (keep) c.port1.postMe"
+        "ssage(0, [keep]); keep = c.port2; n++; } catch (x) { refused++; } } if (n + refused "
+        "< 100000) { parent.postMessage(0, '*', [keep]); keep = null; } else { parent.postMes"
+        "sage('close', '*', [keep]); console.warn('chain end ' + (n + refused)); } });"
+    )
+    top = (
+        "let n = 0; addEventListener('load', () => f.contentWindow.postMessage(0, '*')); addE"
+        "ventListener('message', e => { window.last = e.ports[0]; if (e.data === 'close') { w"
+        "indow.last = null; console.warn('dropped'); } else { f.contentWindow.postMessage(0, '"
+        "*'); } });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "A large message close to the budget to a frame in a loop (M9 feature 14a)",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("frame got", "large end"),
+    rss_limit_mib=2000,
+)
+def large_message_to_a_frame_in_a_loop_js_on() -> Page:
+    child = (
+        "let n = 0; addEventListener('message', e => { if (++n === 3) console.warn('frame got "
+        "' + e.data.byteLength); });"
+    )
+    top = (
+        "addEventListener('load', () => { let i = 0; const go = () => { f.contentWindow.postM"
+        "essage(new Uint8Array(200 << 20), '*'); if (++i < 12) setTimeout(go, 20); else conso"
+        "le.warn('large end'); }; go(); });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "A flood to a frame that navigates in a loop (M9 feature 14a): the messages of a document that "
+    "left go with it, with their bytes",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log="flood end",
+    rss_limit_mib=870,
+)
+def flood_of_a_frame_that_navigates_in_a_loop_js_on() -> Page:
+    child = (
+        "addEventListener('load', () => { location.href = location.pathname === '/x.html' ? '"
+        "/y.html' : '/x.html'; });"
+    )
+    top = (
+        "let n = 0; addEventListener('load', () => { const go = () => { const w = f.contentWi"
+        "ndow; for (let i = 0; i < 20000; i++) w.postMessage(new Uint8Array(1024), '*'); if ("
+        "++n === 20) console.warn('flood end'); else if (n < 20) setTimeout(go, 5); }; go();"
+        " });"
+    )
+    return origins_page(
+        doc(f"<iframe id=f src='{FRAME_A}'></iframe><script>{top}</script>"),
+        {
+            FRAME_A: f"<!doctype html><script>{child}</script>",
+            "http://a.hostile.test/y.html": f"<!doctype html><script>{child}</script>",
+        },
+    )
+
+
+@case(
+    "A flood to a frame that is removed (M9 feature 14a): the messages go with it",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log="flood end",
+    rss_limit_mib=300,
+)
+def flood_of_a_frame_that_is_removed_js_on() -> Page:
+    child = "let n = 0; addEventListener('message', () => { n++; });"
+    top = (
+        "let rounds = 0; addEventListener('load', () => { const go = () => { const old = docu"
+        "ment.querySelector('iframe'); const w = old.contentWindow; for (let i = 0; i < 60000"
+        "; i++) w.postMessage(i, '*'); const c = new MessageChannel(); w.postMessage(0, '*', "
+        "[c.port2]); old.remove(); const b = document.createElement('iframe'); b.src = 'http:"
+        "//a.hostile.test/x.html'; document.body.append(b); if (++rounds === 20) console.warn("
+        "'flood end'); else b.onload = go; }; go(); });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "Messages to a top level whose heap is near the room for messages (M9 feature 14a): those "
+    "that do not fit give messageerror and force no collection of the large heap each",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log="near end 299",
+    rss_limit_mib=800,
+)
+def messages_near_the_heap_limit_js_on() -> Page:
+    child = (
+        "const b = new Uint8Array(6 << 20); addEventListener('message', e => { parent.postMes"
+        "sage(b, '*'); });"
+    )
+    top = (
+        "let n = 0, errors = 0; const next = () => { if (++n === 300) console.warn('near end "
+        "' + errors); else f.contentWindow.postMessage(0, '*'); }; addEventListener('message"
+        "', next); addEventListener('messageerror', () => { errors++; next(); }); addEventLis"
+        "tener('load', () => { window.fill = Array.from({length: 1040000}, () => ({})); windo"
+        "w.keep = 'x'.repeat(95000000); keep.charCodeAt(1); next(); });"
+    )
+    return in_a_frame(child, top)
+
+
+@case(
+    "A frame whose runtime reaches the heap limit while messages and ports wait for it (M9 feature "
+    "14a): they go with the runtime, and the top level's budget is free again",
+    swb_args=MESSAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=5.0,
+    expect_log=("reached the heap limit", "top still runs"),
+    rss_limit_mib=1100,
+)
+def runtime_at_the_heap_limit_with_waiting_messages_js_on() -> Page:
+    child = (
+        "addEventListener('message', e => { window.p = e.ports[0]; for (const q of e.ports) w"
+        "indow.q = q; const a = []; setTimeout(() => { for (;;) a.push(new Array(10000).fill("
+        "1)); }, 10); });"
+    )
+    top = (
+        "addEventListener('load', () => { const c = new MessageChannel(); window.c = c; f.con"
+        "tentWindow.postMessage(0, '*', [c.port2]); const fill = () => { const b = new Uint8A"
+        "rray(1 << 20); for (let i = 0; i < 50; i++) c.port1.postMessage(b); }; fill(); setTi"
+        "meout(() => { fill(); const d = new MessageChannel(); for (let i = 0; i < 50; i++) d"
+        ".port1.postMessage(new Uint8Array(1 << 20)); console.warn('top still runs'); }, 1000)"
+        "; });"
+    )
+    return in_a_frame(child, top)
 
 
 @case(

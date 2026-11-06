@@ -143,6 +143,7 @@ pub use host::{
     Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
+pub use messaging::{Mail, MailTarget};
 pub use runtime::{
     AgentShared, ConsoleMessage, DocumentKey, EVALUATION_TIMEOUT, Evaluation, EvaluationId,
     EvaluationStart, HEAP_LIMIT, JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,

@@ -161,9 +161,11 @@ pub(crate) struct WebState {
     pub(crate) held_blobs: crate::file_api::HeldBlobs,
     /// True after the warning about a failed `FileReader` read.
     pub(crate) reader_warned: bool,
-    /// The registry of the message ports and the budget of the waiting
-    /// messages (`message_port.rs`).
-    pub(crate) ports: Rc<crate::message_port::Shared>,
+    /// The message ports of the runtime and the budget of the messages that it sent
+    /// (`message_port.rs`).
+    pub(crate) ports: Rc<crate::message_port::Ports>,
+    /// What large messages cost this runtime (`messaging.rs`).
+    pub(crate) message_cost: crate::messaging::MessageCost,
 }
 
 /// The binding state of one document and its `Window`.
@@ -416,6 +418,7 @@ impl DocState {
         }
         self.fetches.trace(tracer);
         self.cssom.trace(tracer);
+        self.messages.trace(tracer);
         for reader in self.readers.values() {
             tracer.object(*reader);
         }
@@ -511,7 +514,7 @@ pub(crate) fn ensure_current_lent(rt: &mut Runtime) {
 }
 
 /// The document of a realm.
-fn document_of_realm(state: &WebState, realm: u32) -> DocKey {
+pub(crate) fn document_of_realm(state: &WebState, realm: u32) -> DocKey {
     state
         .realm_docs
         .get(realm as usize)
@@ -916,7 +919,9 @@ pub(crate) fn reuse_window(rt: &mut Runtime, old_key: DocKey) -> VmResult<DocKey
 /// another document. With `doc`, the engine hands over the document, which it
 /// no longer holds; else the document is lent and stays here. What waits to
 /// run goes: its tasks are dropped when their time comes, its timers and
-/// callbacks here. The document stays readable while the realm lives.
+/// callbacks here, its messages and the ports of its window (a window that went on
+/// with another document took them along, `reuse_window`). The document stays readable
+/// while the realm lives.
 pub(crate) fn retire_document(
     rt: &mut Runtime,
     key: DocKey,
@@ -924,6 +929,7 @@ pub(crate) fn retire_document(
 ) -> VmResult<()> {
     let state = state_mut(rt)?;
     state.lent.retain(|&k| k != key);
+    let ports = Rc::clone(&state.ports);
     let Some(record) = document_mut(state, key) else {
         return Ok(());
     };
@@ -931,6 +937,10 @@ pub(crate) fn retire_document(
         record.host = Some(doc);
     }
     record.retired = true;
+    if record.forward.is_none() {
+        ports.close_realm(record.realm);
+    }
+    record.messages = crate::messaging::Messages::default();
     record.timers.retire();
     record.idle = crate::idle_callbacks::IdleCallbacks::default();
     record.animation_frames = crate::animation_frames::AnimationFrames::default();
@@ -994,6 +1004,13 @@ pub(crate) fn origin_of_document(rt: &mut Runtime, key: DocKey) -> VmResult<Stri
         .and_then(|record| record.host.as_deref())
         .map(EngineHost::origin_text)
         .ok_or(VmError::type_error(NO_DOCUMENT))
+}
+
+/// The number of the frame of the document `key`.
+pub(crate) fn frame_of_document(rt: &Runtime, key: DocKey) -> VmResult<u32> {
+    document_ref(state(rt)?, key)
+        .map(|record| record.frame)
+        .ok_or(VmError::type_error("a document key without a document"))
 }
 
 /// The document of the realm of the code that called the running native.

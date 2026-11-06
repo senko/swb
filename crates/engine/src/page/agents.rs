@@ -20,7 +20,8 @@
 //! runtime and its key. The registry answers for the agent of the running task
 //! (`crate::frames::registry`). A task never runs a script of another runtime
 //! inside a native: what must happen there waits in `AfterTask`, and the page runs
-//! it after the task.
+//! it after the task. What goes from one runtime to another is plain data
+//! ([`swb_web::Mail`]), and the page hands it over between tasks.
 //!
 //! *Budgets.* At most [`MAX_AGENTS`] runtimes; a further origin's document runs
 //! without scripts. The top level's runtime keeps a whole runtime's share of the
@@ -33,7 +34,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use swb_net::Origin;
-use swb_web::{AgentShared, DocumentKey, HEAP_LIMIT, SCRIPT_BUDGET, ScriptRuntime};
+use swb_web::{AgentShared, DocumentKey, HEAP_LIMIT, MailTarget, SCRIPT_BUDGET, ScriptRuntime};
 
 use super::Page;
 use crate::frames::{AgentId, FrameId, FrameScript};
@@ -370,6 +371,87 @@ impl Page {
         }
     }
 
+    /// Hands what the last task left for other runtimes to them (ADR 0031 section 7): a
+    /// task only queues, and no script runs here. A message whose target has no document
+    /// in a runtime goes, with its bytes and the ports in it. A page without such a
+    /// message pays one comparison.
+    #[inline]
+    pub(super) fn hand_over_mail(&mut self) {
+        if self
+            .agents
+            .shared
+            .as_ref()
+            .is_some_and(AgentShared::has_mail)
+        {
+            self.hand_over_all_mail();
+        }
+    }
+
+    #[cold]
+    fn hand_over_all_mail(&mut self) {
+        let Some(shared) = self.agents.shared.clone() else {
+            return;
+        };
+        for mail in shared.take_mail() {
+            match mail.target() {
+                MailTarget::Frame(number) => {
+                    if let Some((runtime, key)) =
+                        self.frame_runtime_mut(FrameId::from_number(number))
+                    {
+                        runtime.receive_mail(Some(key), mail);
+                    }
+                }
+                MailTarget::Runtime(tag) => {
+                    if let Some(runtime) = self.all_runtimes_mut().find(|r| r.mail_tag() == tag) {
+                        runtime.receive_mail(None, mail);
+                    }
+                }
+            }
+        }
+        shared.settle_ports();
+    }
+
+    /// A runtime went: its heap dropped its port objects, and its queues dropped their
+    /// messages. What was entangled with them is told, and what they held in budgets goes
+    /// back.
+    fn settle_ports(&self) {
+        if let Some(shared) = &self.agents.shared {
+            shared.settle_ports();
+        }
+    }
+
+    /// The messages that wait in the page and their bytes: for each runtime what it sent
+    /// (tests and measurements).
+    pub fn waiting_messages_by_runtime(&self) -> Vec<(usize, u64)> {
+        self.all_runtimes()
+            .map(|r| (r.waiting_messages(), r.waiting_message_bytes()))
+            .collect()
+    }
+
+    /// The live message ports of the page (tests and measurements).
+    pub fn live_message_ports(&self) -> usize {
+        self.agents
+            .shared
+            .as_ref()
+            .map_or(0, AgentShared::live_message_ports)
+    }
+
+    /// The bytes of the waiting messages that the runtimes of frames sent (tests and
+    /// measurements).
+    pub fn frames_message_bytes(&self) -> u64 {
+        self.agents
+            .shared
+            .as_ref()
+            .map_or(0, AgentShared::frames_message_bytes)
+    }
+
+    /// Runs a full collection in each runtime of the page (tests).
+    pub fn collect_all_runtimes(&mut self) {
+        for runtime in self.all_runtimes_mut() {
+            runtime.collect();
+        }
+    }
+
     /// Frame `frame` is destroyed: each runtime forgets its proxy.
     pub(super) fn forget_frame_everywhere(&mut self, frame: FrameId) {
         let number = frame.number();
@@ -492,6 +574,7 @@ impl Page {
         self.agents.lowered = true;
         self.frames.release_retired(agent);
         self.frames_lose_runtime(agent);
+        self.settle_ports();
     }
 
     fn remember_gone(&mut self, origin: Origin) {
@@ -556,6 +639,9 @@ impl Page {
         self.agents.spent = spent;
         if !gone.is_empty() {
             self.agents.lowered = true;
+        }
+        if !gone.is_empty() {
+            self.settle_ports();
         }
         for agent in gone {
             log::debug!("a script runtime of the page has no document left");

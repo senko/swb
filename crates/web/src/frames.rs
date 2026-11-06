@@ -148,7 +148,13 @@ pub(crate) fn content_window(rt: &mut Runtime, container: NodeId) -> VmResult<Op
     if no_frames(rt)? {
         return Ok(None);
     }
-    let parent = state(rt)?.doc.frame;
+    let parent_doc = &state(rt)?.doc;
+    // A node of a retired document has no frame: the number of the node can be that of
+    // a container of the frame's document now (measured, case `msg-retired-node`).
+    if parent_doc.retired {
+        return Ok(None);
+    }
+    let parent = parent_doc.frame;
     let Some(Some(child)) = read(rt, |f| f.child_of_container(parent, container))? else {
         return Ok(None);
     };

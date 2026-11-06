@@ -130,13 +130,6 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "[1]",
         "document.write on a frame document: feature 15",
     ),
-    (
-        "sandbox",
-        0,
-        "[0]",
-        "the log comes through postMessage: feature 14; the test \
-         `the_rows_that_report_through_messages` reads the same values in the frame",
-    ),
 ];
 
 /// Entries of a log that differ by the timing of a load, not by a rule: (case,

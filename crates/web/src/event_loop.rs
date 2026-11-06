@@ -91,8 +91,8 @@ pub(crate) enum Task {
         /// `newURL`.
         new_url: String,
     },
-    /// Deliver the oldest message that `window.postMessage()` queued (the
-    /// posted message task source, `messaging.rs`).
+    /// Deliver the first message that waits for the window of the task's document
+    /// (the posted message task source, `messaging.rs`).
     Message,
     /// Deliver the next message of the `MessagePort` with this id (the posted
     /// message task source of a port, `message_port.rs`).
@@ -154,13 +154,25 @@ impl TaskQueue {
         self.next_seq.get()
     }
 
+    /// Takes a sequence number from the counter of the page.
+    pub(crate) fn take_seq(&mut self) -> u64 {
+        let seq = self.next_seq.get();
+        self.next_seq.set(seq + 1);
+        seq
+    }
+
     /// Queues `task` to run at page time `due`; returns its key.
     pub(crate) fn push(&mut self, due: f64, task: Task) -> TaskKey {
-        let seq = self.next_seq.get();
+        let seq = self.take_seq();
         let key = (Due(due), seq);
-        self.next_seq.set(seq + 1);
         self.queue.insert(key, (self.document, task));
         key
+    }
+
+    /// Queues `task` of the document `document` at the place that the due time `due` and
+    /// the number `seq` ([`TaskQueue::take_seq`]) give.
+    pub(crate) fn push_for(&mut self, document: DocKey, due: f64, seq: u64, task: Task) {
+        self.queue.insert((Due(due), seq), (document, task));
     }
 
     /// Removes the task of `key` (a cleared timer).

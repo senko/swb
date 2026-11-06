@@ -38,6 +38,8 @@ mod common;
 mod cross_origin;
 #[path = "frames/input.rs"]
 mod input;
+#[path = "frames/messages.rs"]
+mod messages;
 #[path = "frames/nodes.rs"]
 mod nodes;
 #[path = "frames/paint.rs"]
@@ -55,20 +57,10 @@ const LOCAL: &str = "http://localhost:8001";
 /// The queries of the covered cases that need scripts in frames or other
 /// later features, with the feature. The input cases (`focus`, `input-*`)
 /// run in `crates/automation/tests/frame_input.rs`.
-const QUERIES_LATER: &[(&str, &str)] = &[
-    (
-        "about-blank",
-        "document.open, write and close on a frame document: feature 15",
-    ),
-    (
-        "cookies-frames",
-        "the frames report through postMessage: feature 14",
-    ),
-    (
-        "sandbox",
-        "the frame reports through postMessage: feature 14",
-    ),
-];
+const QUERIES_LATER: &[(&str, &str)] = &[(
+    "about-blank",
+    "document.open, write and close on a frame document: feature 15",
+)];
 
 // ----- The simulated server -----
 
@@ -139,6 +131,18 @@ impl Fetcher for Sim {
             .lock()
             .unwrap()
             .push((request.url.to_string(), cookie, request.clone()));
+        // A `data:` URL as the fetchers of the browser answer it.
+        if request.url.scheme() == "data" {
+            let text = request.url.as_str();
+            let body = text.split_once(',').map_or("", |(_, body)| body);
+            return Ok(Response {
+                url: request.url.clone(),
+                status: 200,
+                headers: [("content-type", "text/html")].into_iter().collect(),
+                body: swb_net::percent_decode(body.as_bytes()),
+                redirected: false,
+            });
+        }
         let Some(res) = self.resources.get(request.url.path()) else {
             return Ok(Response {
                 url: request.url.clone(),
@@ -209,7 +213,8 @@ fn case_resource(name: &str, path: &str) -> Res {
             .as_str()
             .unwrap()
             .replace("$FOLDER", "case")
-            .replace("$ORIGIN", MAIN),
+            .replace("$ORIGIN", MAIN)
+            .replace("$OTHER", OTHER),
     );
     res.delay_ms = r["delay_ms"].as_u64().unwrap_or(0);
     if let Some(headers) = r["headers"].as_object() {
@@ -288,6 +293,28 @@ fn open(html: &str, resources: &[(&str, Res)], javascript: bool) -> (Page, Arc<S
         resources,
         javascript,
     )
+}
+
+/// Opens the case `name` of the probe file with its resources and JavaScript on.
+fn open_case(name: &str) -> (Page, Arc<Sim>) {
+    let probe = probe_file();
+    let case = probe["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == name)
+        .unwrap();
+    let owned: Vec<(String, Res)> = case["resources"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .map(|(path, _)| (format!("/case/{path}"), case_resource(name, path)))
+        .collect();
+    let list: Vec<(&str, Res)> = owned.iter().map(|(p, r)| (p.as_str(), r.clone())).collect();
+    let html = case_html(name)
+        .replace("$OTHER", OTHER)
+        .replace("$FOLDER", "case");
+    open(&html, &list, true)
 }
 
 /// [`open`] with the page at the URL `top`, whose path is `/case/case.html`.

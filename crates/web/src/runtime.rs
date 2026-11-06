@@ -181,16 +181,18 @@ impl DocumentKey {
     }
 }
 
-/// What the runtimes of one page share (ADR 0031 sections 6 and 11): the console
+/// What the runtimes of one page share (ADR 0031 sections 6, 7 and 11): the console
 /// buffer, so that its messages keep their order across runtimes, the count of
-/// its lines for the log, the sequence counter of the tasks, and the byte budgets
-/// of the frames' runtimes, which the heap limit does not count.
+/// its lines for the log, the sequence counter of the tasks, the byte budgets
+/// of the frames' runtimes, which the heap limit does not count, and the message ports
+/// with what the page has to hand from one runtime to another.
 #[derive(Clone, Default)]
 pub struct AgentShared {
     console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
     console_logged: Rc<Cell<usize>>,
     task_counter: Rc<Cell<u64>>,
     budgets: crate::page_budget::PageBudgets,
+    port_hub: Rc<crate::message_port::PortHub>,
 }
 
 impl AgentShared {
@@ -198,6 +200,35 @@ impl AgentShared {
     /// 1,000).
     pub fn console_messages(&self) -> Vec<ConsoleMessage> {
         self.console.borrow().iter().cloned().collect()
+    }
+
+    /// True if a task left something for another runtime.
+    #[inline]
+    pub fn has_mail(&self) -> bool {
+        self.port_hub.has_mail()
+    }
+
+    /// What the tasks left for other runtimes, in the order of the calls. The page gives
+    /// each to its runtime ([`ScriptRuntime::receive_mail`]) or drops it.
+    pub fn take_mail(&self) -> VecDeque<crate::messaging::Mail> {
+        self.port_hub.take_mail()
+    }
+
+    /// Does what the runtimes that went and the messages that were dropped left to do:
+    /// disentangles and closes their ports.
+    pub fn settle_ports(&self) {
+        self.port_hub.reap();
+    }
+
+    /// The bytes of the waiting messages that the frames' runtimes sent (tests and
+    /// measurements).
+    pub fn frames_message_bytes(&self) -> u64 {
+        self.budgets.messages.get()
+    }
+
+    /// The live message ports of the page (tests and measurements).
+    pub fn live_message_ports(&self) -> usize {
+        self.port_hub.live()
     }
 }
 
@@ -309,6 +340,7 @@ impl ScriptRuntime {
             .event_loop
             .tasks
             .set_counter(Rc::clone(&shared.task_counter));
+        state.ports = Rc::new(crate::message_port::Ports::new(Rc::clone(&shared.port_hub)));
         // The top level's runtime keeps its own count of these bytes (ADR 0031
         // section 11).
         if frame != TOP_FRAME {
@@ -847,11 +879,35 @@ impl ScriptRuntime {
             ran += 1;
             let frame_load =
                 state_mut(&mut self.rt).is_ok_and(|s| std::mem::take(&mut s.frame_load_due));
-            if started.elapsed() >= budget || frame_load || (!load_due && self.load_event_due()) {
+            // A message for another runtime has an earlier number than the next task of
+            // this one: the page hands it over first.
+            if self.shared.has_mail()
+                || started.elapsed() >= budget
+                || frame_load
+                || (!load_due && self.load_event_due())
+            {
                 break;
             }
         }
         ran
+    }
+
+    /// The tag of this runtime in [`crate::Mail`].
+    pub fn mail_tag(&self) -> u32 {
+        crate::state::state(&self.rt).map_or(u32::MAX, |s| s.ports.tag())
+    }
+
+    /// The page hands `mail` to this runtime, between tasks: for the document `document`
+    /// if it is a window message. A stopped runtime runs no task, so the mail goes: its
+    /// bytes go back and the ports in it close.
+    pub fn receive_mail(&mut self, document: Option<DocumentKey>, mail: crate::Mail) {
+        if self.stopped {
+            return;
+        }
+        let document = document.map(DocumentKey::raw);
+        if let Err(error) = crate::messaging::receive(&mut self.rt, document, mail) {
+            log::warn!("cannot queue a message of another runtime: {error:?}");
+        }
     }
 
     /// The page time (milliseconds) of the next task, or `None` if no task
@@ -1331,16 +1387,22 @@ impl ScriptRuntime {
         self.rt.heap().heap_size()
     }
 
-    /// The number of live message ports of the document: those that were
+    /// The number of live message ports of the page: those that were
     /// made and not closed or collected (for tests and measurements).
     pub fn live_message_ports(&self) -> usize {
         crate::state::state(&self.rt).map_or(0, |s| s.ports.live())
     }
 
-    /// The number of messages that wait in the queues of the ports and of
-    /// `window.postMessage()` (for tests and measurements).
+    /// The number of messages that this runtime sent and that wait in the queues of the
+    /// ports and of `window.postMessage()` (for tests and measurements).
     pub fn waiting_messages(&self) -> usize {
         crate::state::state(&self.rt).map_or(0, |s| s.ports.waiting())
+    }
+
+    /// The bytes of the messages that this runtime sent and that wait (for tests and
+    /// measurements).
+    pub fn waiting_message_bytes(&self) -> u64 {
+        crate::state::state(&self.rt).map_or(0, |s| s.ports.waiting_bytes())
     }
 
     /// Runs a full collection (for tests).
@@ -1363,6 +1425,7 @@ impl ScriptRuntime {
         if self.stopped {
             return Err(STOPPED);
         }
+        self.shared.port_hub.next_task();
         let started = Instant::now();
         let remaining = self.script_budget.saturating_sub(self.long_task_time) + LONG_TASK;
         self.rt
@@ -1388,7 +1451,11 @@ impl ScriptRuntime {
             log::warn!("cannot queue a finalization cleanup: {error:?}");
         }
         self.rt.set_deadline(None);
-        self.count_time(started.elapsed());
+        // Another runtime can send messages that take long to deserialize: they do not use
+        // up the budget of this one.
+        let messages =
+            state_mut(&mut self.rt).map_or(Duration::ZERO, |state| state.message_cost.take_time());
+        self.count_time(started.elapsed().saturating_sub(messages));
         result
     }
 
@@ -1445,12 +1512,18 @@ impl ScriptRuntime {
         }
     }
 
-    /// Stops the document's scripts: no task, job or callback runs again.
+    /// Stops the document's scripts: no task, job or callback runs again. So what waits
+    /// for a task goes, with the bytes that it holds in the budget of other runtimes.
     fn stop(&mut self) {
         self.stopped = true;
         self.rt.clear_jobs();
         if let Ok(state) = state_mut(&mut self.rt) {
             state.mutation.close();
+            state.doc.messages = crate::messaging::Messages::default();
+            for doc in state.docs.iter_mut().flatten() {
+                doc.messages = crate::messaging::Messages::default();
+            }
+            state.ports.close_all();
         }
     }
 }

@@ -1,10 +1,9 @@
 //! One script runtime per origin against Chromium (M9 feature 13b, ADR 0031
 //! sections 5, 6 and 11): the cases `agents-*` and `xo-top-*` of
 //! `tools/probes/web-frames.json` with Chromium's values, which carry a log between
-//! origins in a cookie (two ports of one host share cookies); the rows of older
-//! cases whose log comes through `postMessage` (feature 14), read in the frame; and
-//! what no probe can show: which runtime holds a document, the budgets across
-//! runtimes, the order of tasks. A departure has a row with its reason.
+//! origins in a cookie (two ports of one host share cookies); and what no probe can
+//! show: which runtime holds a document, the budgets across runtimes, the order of
+//! tasks. A departure has a row with its reason.
 
 use std::fmt::Write as _;
 use std::time::Duration;
@@ -13,7 +12,7 @@ use serde_json::{Value as Json, json};
 use swb_engine::{AgentLimits, FrameId, MAX_AGENTS, Page};
 
 use super::scripted::{compare_case, compare_case_at, evaluate_in};
-use super::{MAIN, OTHER, Res, frame, js_value, open};
+use super::{MAIN, OTHER, Res, frame, open};
 use crate::common::on_page_thread;
 
 /// A row where swb departs on purpose: (case, query, path of the value, why).
@@ -244,55 +243,6 @@ fn a_b_a_prime_is_in_two_runtimes() {
             "[f.contentWindow[0].t, f.contentWindow[0].frameElement]",
         );
         assert_eq!(value, json!(["top", null]));
-    });
-}
-
-/// `cross-origin` query 2, `sandbox` query 0, the second half of `document-domain`:
-/// Chromium's values come through `postMessage` (feature 14). The scripts run now, so
-/// the test reads the same expressions in the frame.
-#[test]
-fn the_rows_that_report_through_messages() {
-    on_page_thread(|| {
-        // cross-origin, query 2.
-        let child = "<!DOCTYPE html><script>
-            const E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };
-            </script>";
-        let (mut page, _) = page_with_frame(child);
-        let source = "[E(() => parent.document), E(() => parent.location.href), E(() => top.foo), E(() => parent.length), E(() => typeof parent.postMessage), E(() => window.frameElement), E(() => parent.frames[0] === window), E(() => { parent.location.hash = 'x'; return 'hash set'; })]";
-        let got = evaluate_in(&mut page, "f", source);
-        let want = js_value("cross-origin", 2);
-        let want = want.as_array().unwrap();
-        let picked: Vec<String> = [1usize, 2, 3, 4, 5, 7, 9, 10]
-            .iter()
-            .map(|&i| want[i].as_str().unwrap().replace('X', OTHER))
-            .collect();
-        assert_eq!(got, json!(picked));
-
-        // sandbox, query 0: `b null SecurityError SecurityError SecurityError`.
-        let html = "<!DOCTYPE html><iframe id=b sandbox='allow-scripts' srcdoc=\"<script>window.report = 'b ' + origin + ' ' + (() => { try { return String(parent.document); } catch (e) { return e.name; } })() + ' ' + (() => { try { localStorage.x = 1; return 'ls'; } catch (e) { return e.name; } })() + ' ' + (() => { try { return 'cookie:' + document.cookie; } catch (e) { return e.name; } })()</script>\"></iframe>";
-        let (mut page, _) = open(html, &[], true);
-        let got = evaluate_in(&mut page, "b", "window.report");
-        let want = js_value("sandbox", 0);
-        let want = want[0].as_str().unwrap();
-        assert_eq!(format!("{} from null true", got.as_str().unwrap()), want);
-        assert_eq!(page.runtime_count(), 2);
-
-        // document-domain, the probe of one frame into the other.
-        let dd = "<!DOCTYPE html><script>window.mark = 'here';</script>";
-        let html = "<!DOCTYPE html><iframe id=fx src='http://x.a.localhost:8001/case/dd.html'></iframe><iframe id=fy src='http://y.a.localhost:8001/case/dd.html'></iframe>";
-        let (mut page, _) = open(html, &[("/case/dd.html", Res::html(dd))], true);
-        assert_eq!(page.runtime_count(), 3);
-        let got = evaluate_in(
-            &mut page,
-            "fy",
-            "(() => { try { return String(parent.frames[0].mark); } catch (err) { return err.name + ': ' + err.message; } })()",
-        );
-        let want: Json =
-            serde_json::from_str(js_value("document-domain", 0).as_str().unwrap()).unwrap();
-        assert_eq!(
-            got.as_str().unwrap().replace(":8001", ":P"),
-            want["probe"].as_str().unwrap()
-        );
     });
 }
 

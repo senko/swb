@@ -1572,6 +1572,39 @@ end 319 MiB, a frame at its heap limit 306 MiB, 16 sandboxed frames with Blob UR
 (the frames share 256 MiB; a review measured 3,250 MiB for 12 frames with a budget per
 runtime).
 
+### Messages across runtimes (M9 feature 14a)
+
+ADR 0031 "Done (feature 14a)". Release, callgrind, base af59c34, on the final code.
+
+A page with one runtime. Hacker News, `--bench 3`, JavaScript on, two alternating runs: base
+397.17, 397.10 M, new 396.95, 396.87 M (within 0.1 %, the noise of the method). The cost on
+such a page is one load and one comparison after each task, and one more per message.
+
+Loop pages, 5,000 and 15,000 messages, the difference per message, two runs:
+
+| Page | Base | New |
+|---|---|---|
+| `MessageChannel` in one runtime | 15,305 and 15,297 | 14,407 and 14,407 |
+| `postMessage` to self | 15,817 and 15,816 | 15,916 and 15,913 (+0.6 %) |
+| `postMessage` across runtimes, per message of a round trip | | 30,750 |
+| `MessagePort` across runtimes, per message of a round trip | | 18,510 |
+
+The channel got faster: the port ids hash with one multiplication. A window message across
+runtimes costs twice one in a runtime: each is a slice of its own through `run_agent_task`. A
+port message pays less, because its record stays in the hub and only its task crosses.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration", quiet machine):
+`load` 0.360 → 0.360 s, hydrated 2.914 → 3.042 s (+4.4 %), 66 % of the budget of 4.60 s, RSS
+387.4 → 383.7 MiB. The 30 messages of a load cost about 1 M instructions, so the rest is most
+likely the work of the Sourcepoint app that now runs; not measured separately.
+
+The hostile cases (one run, release; each page also waits for its 1.5 s of settling): a flood
+of the parent 1.81 s and 150 MiB, a ping-pong of two origins 127 MiB, 10,000 ports 113 MiB, a
+port ping-pong across runtimes 127 MiB, 200,000 channels with one end sent away 170 MiB, a chain
+of 100,000 ports in queues 136 MiB, a message of 200 MiB in a loop 675 MiB, a flood of a frame
+that navigates in a loop 253 MiB, of a frame that is removed 95 MiB, messages to a top level
+near the room for messages 317 MiB, a runtime at the heap limit with waiting messages 359 MiB.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

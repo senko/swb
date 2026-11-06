@@ -11286,6 +11286,3577 @@
      "value": "m.html"
     }
    ]
+  },
+  {
+   "name": "msg-order-timers-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage('a', '*'); setTimeout(() => LOG('t1'), 0); LOG('sync'); return W(200).then(OUT); })",
+     "value": [
+      "sync;t0;peer m:a;t1;",
+      [
+       "sync",
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:a"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); parent.postMessage('b', '*'); setTimeout(() => LOG('f t1'), 0); LOG('f sync'); W(200).then(OUT)",
+     "value": [
+      "f sync;f t0;top m:b O f;f t1;",
+      [
+       "f sync",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "top m:b O f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage({do: \"LOG('f got'); setTimeout(() => LOG('f t0'), 0); e.source.postMessage('r', '*'); setTimeout(() => LOG('f t1'), 0);\"}, '*'); setTimeout(() => LOG('t1'), 0); return W(200).then(OUT); })()",
+     "value": [
+      "t0;f got;t1;f t0;top m:r O f;f t1;",
+      [
+       "t0",
+       "t1",
+       "top m:r O f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "f got",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-order-timers-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage('a', '*'); setTimeout(() => LOG('t1'), 0); LOG('sync'); return W(200).then(OUT); })",
+     "value": [
+      "sync;t0;peer m:a;t1;",
+      [
+       "sync",
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:a"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); parent.postMessage('b', '*'); setTimeout(() => LOG('f t1'), 0); LOG('f sync'); W(200).then(OUT)",
+     "value": [
+      "f sync;f t0;top m:b X f;f t1;",
+      [
+       "f sync",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "top m:b X f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage({do: \"LOG('f got'); setTimeout(() => LOG('f t0'), 0); e.source.postMessage('r', '*'); setTimeout(() => LOG('f t1'), 0);\"}, '*'); setTimeout(() => LOG('t1'), 0); return W(200).then(OUT); })()",
+     "value": [
+      "t0;f got;t1;f t0;top m:r X f;f t1;",
+      [
+       "t0",
+       "t1",
+       "top m:r X f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "f got",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-order-timers-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage('a', '*'); setTimeout(() => LOG('t1'), 0); LOG('sync'); return W(200).then(OUT); })",
+     "value": [
+      "sync;t0;t1;",
+      [
+       "sync",
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:a"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); parent.postMessage('b', '*'); setTimeout(() => LOG('f t1'), 0); LOG('f sync'); W(200).then(OUT)",
+     "value": [
+      "",
+      [
+       "f sync",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "top m:b L f;",
+      [
+       "top m:b L f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { setTimeout(() => LOG('t0'), 0); f.contentWindow.postMessage({do: \"LOG('f got'); setTimeout(() => LOG('f t0'), 0); e.source.postMessage('r', '*'); setTimeout(() => LOG('f t1'), 0);\"}, '*'); setTimeout(() => LOG('t1'), 0); return W(200).then(OUT); })()",
+     "value": [
+      "t0;t1;top m:r L f;",
+      [
+       "t0",
+       "t1",
+       "top m:r L f"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "f got",
+       "f t0",
+       "f t1"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-microtask-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; Promise.resolve().then(() => { w.postMessage('micro', '*'); LOG('in micro'); }); w.postMessage('sync', '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "in micro;peer m:sync;t0;peer m:micro;",
+      [
+       "in micro",
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:sync",
+       "peer m:micro"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-microtask-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; Promise.resolve().then(() => { w.postMessage('micro', '*'); LOG('in micro'); }); w.postMessage('sync', '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "in micro;peer m:sync;t0;peer m:micro;",
+      [
+       "in micro",
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:sync",
+       "peer m:micro"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-microtask-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; Promise.resolve().then(() => { w.postMessage('micro', '*'); LOG('in micro'); }); w.postMessage('sync', '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "in micro;t0;",
+      [
+       "in micro",
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:sync",
+       "peer m:micro"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-burst-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) w.postMessage(i, '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "peer m:1;peer m:2;peer m:3;t0;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:1",
+       "peer m:2",
+       "peer m:3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) { w.postMessage('f' + i, '*'); v.postMessage('g' + i, '*'); } return W(200).then(OUT); })()",
+     "value": [
+      "peer m:f1;peer2 m:g1;peer m:f2;peer2 m:g2;peer m:f3;peer2 m:g3;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:f1",
+       "peer m:f2",
+       "peer m:f3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:g1",
+       "peer2 m:g2",
+       "peer2 m:g3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 100; i++) { w.postMessage(i, '*'); if (i % 2) v.postMessage(i, '*'); if (i === 50) setTimeout(() => LOG('t0'), 0); } return W(300).then(OUT); })()",
+     "value": [
+      "peer m:1;peer2 m:1;peer m:2;peer m:3;peer2 m:3;peer m:4;peer m:5;peer2 m:5;peer m:6;peer m:7;peer2 m:7;peer m:8;peer m:9;peer2 m:9;peer m:10;peer m:11;peer2 m:11;peer m:12;peer m:13;peer2 m:13;peer m:14;peer m:15;peer2 m:15;peer m:16;peer m:17;peer2 m:17;peer m:18;peer m:19;peer2 m:19;peer m:20;peer m:21;peer2 m:21;peer m:22;peer m:23;peer2 m:23;peer m:24;peer m:25;peer2 m:25;peer m:26;peer m:27;peer2 m:27;peer m:28;peer m:29;peer2 m:29;peer m:30;peer m:31;peer2 m:31;peer m:32;peer m:33;peer2 m:33;peer m:34;peer m:35;peer2 m:35;peer m:36;peer m:37;peer2 m:37;peer m:38;peer m:39;peer2 m:39;peer m:40;peer m:41;peer2 m:41;peer m:42;peer m:43;peer2 m:43;peer m:44;peer m:45;peer2 m:45;peer m:46;peer m:47;peer2 m:47;peer m:48;peer m:49;peer2 m:49;peer m:50;t0;peer m:51;peer2 m:51;peer m:52;peer m:53;peer2 m:53;peer m:54;peer m:55;peer2 m:55;peer m:56;peer m:57;peer2 m:57;peer m:58;peer m:59;peer2 m:59;peer m:60;peer m:61;peer2 m:61;peer m:62;peer m:63;peer2 m:63;peer m:64;peer m:65;peer2 m:65;peer m:66;peer m:67;peer2 m:67;peer m:68;peer m:69;peer2 m:69;peer m:70;peer m:71;peer2 m:71;peer m:72;peer m:73;peer2 m:73;peer m:74;peer m:75;peer2 m:75;peer m:76;peer m:77;peer2 m:77;peer m:78;peer m:79;peer2 m:79;peer m:80;peer m:81;peer2 m:81;peer m:82;peer m:83;peer2 m:83;peer m:84;peer m:85;peer2 m:85;peer m:86;peer m:87;peer2 m:87;peer m:88;peer m:89;peer2 m:89;peer m:90;peer m:91;peer2 m:91;peer m:92;peer m:93;peer2 m:93;peer m:94;peer m:95;peer2 m:95;peer m:96;peer m:97;peer2 m:97;peer m:98;peer m:99;peer2 m:99;peer m:100;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r.join(',') === Array.from({length: 100}, (_, i) => 'peer m:' + (i + 1)).join(',')]; })()",
+     "value": [
+      100,
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r[0], r[49]]; })()",
+     "value": [
+      50,
+      "peer2 m:1",
+      "peer2 m:99"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { for (let i = 1; i <= 100; i++) parent.postMessage(i, '*'); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const r = L.slice(); L.length = 0; READ(); return [r.length, r[0], r[99]]; })",
+     "value": [
+      100,
+      "top m:1 O f",
+      "top m:100 O f"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-burst-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) w.postMessage(i, '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "peer m:1;peer m:2;peer m:3;t0;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:1",
+       "peer m:2",
+       "peer m:3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) { w.postMessage('f' + i, '*'); v.postMessage('g' + i, '*'); } return W(200).then(OUT); })()",
+     "value": [
+      "peer m:f1;peer2 m:g1;peer m:f2;peer2 m:g2;peer m:f3;peer2 m:g3;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:f1",
+       "peer m:f2",
+       "peer m:f3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:g1",
+       "peer2 m:g2",
+       "peer2 m:g3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 100; i++) { w.postMessage(i, '*'); if (i % 2) v.postMessage(i, '*'); if (i === 50) setTimeout(() => LOG('t0'), 0); } return W(300).then(OUT); })()",
+     "value": [
+      "peer m:1;peer2 m:1;peer m:2;peer m:3;peer2 m:3;peer m:4;peer m:5;peer2 m:5;peer m:6;peer m:7;peer2 m:7;peer m:8;peer m:9;peer2 m:9;peer m:10;peer m:11;peer2 m:11;peer m:12;peer m:13;peer2 m:13;peer m:14;peer m:15;peer2 m:15;peer m:16;peer m:17;peer2 m:17;peer m:18;peer m:19;peer2 m:19;peer m:20;peer m:21;peer2 m:21;peer m:22;peer m:23;peer2 m:23;peer m:24;peer m:25;peer2 m:25;peer m:26;peer m:27;peer2 m:27;peer m:28;peer m:29;peer2 m:29;peer m:30;peer m:31;peer2 m:31;peer m:32;peer m:33;peer2 m:33;peer m:34;peer m:35;peer2 m:35;peer m:36;peer m:37;peer2 m:37;peer m:38;peer m:39;peer2 m:39;peer m:40;peer m:41;peer2 m:41;peer m:42;peer m:43;peer2 m:43;peer m:44;peer m:45;peer2 m:45;peer m:46;peer m:47;peer2 m:47;peer m:48;peer m:49;peer2 m:49;peer m:50;t0;peer m:51;peer2 m:51;peer m:52;peer m:53;peer2 m:53;peer m:54;peer m:55;peer2 m:55;peer m:56;peer m:57;peer2 m:57;peer m:58;peer m:59;peer2 m:59;peer m:60;peer m:61;peer2 m:61;peer m:62;peer m:63;peer2 m:63;peer m:64;peer m:65;peer2 m:65;peer m:66;peer m:67;peer2 m:67;peer m:68;peer m:69;peer2 m:69;peer m:70;peer m:71;peer2 m:71;peer m:72;peer m:73;peer2 m:73;peer m:74;peer m:75;peer2 m:75;peer m:76;peer m:77;peer2 m:77;peer m:78;peer m:79;peer2 m:79;peer m:80;peer m:81;peer2 m:81;peer m:82;peer m:83;peer2 m:83;peer m:84;peer m:85;peer2 m:85;peer m:86;peer m:87;peer2 m:87;peer m:88;peer m:89;peer2 m:89;peer m:90;peer m:91;peer2 m:91;peer m:92;peer m:93;peer2 m:93;peer m:94;peer m:95;peer2 m:95;peer m:96;peer m:97;peer2 m:97;peer m:98;peer m:99;peer2 m:99;peer m:100;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r.join(',') === Array.from({length: 100}, (_, i) => 'peer m:' + (i + 1)).join(',')]; })()",
+     "value": [
+      100,
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r[0], r[49]]; })()",
+     "value": [
+      50,
+      "peer2 m:1",
+      "peer2 m:99"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { for (let i = 1; i <= 100; i++) parent.postMessage(i, '*'); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const r = L.slice(); L.length = 0; READ(); return [r.length, r[0], r[99]]; })",
+     "value": [
+      100,
+      "top m:1 X f",
+      "top m:100 X f"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-burst-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) w.postMessage(i, '*'); setTimeout(() => LOG('t0'), 0); return W(200).then(OUT); })",
+     "value": [
+      "t0;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:1",
+       "peer m:2",
+       "peer m:3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 3; i++) { w.postMessage('f' + i, '*'); v.postMessage('g' + i, '*'); } return W(200).then(OUT); })()",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:f1",
+       "peer m:f2",
+       "peer m:f3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:g1",
+       "peer2 m:g2",
+       "peer2 m:g3"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow, v = g.contentWindow; for (let i = 1; i <= 100; i++) { w.postMessage(i, '*'); if (i % 2) v.postMessage(i, '*'); if (i === 50) setTimeout(() => LOG('t0'), 0); } return W(300).then(OUT); })()",
+     "value": [
+      "t0;",
+      [
+       "t0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r.join(',') === Array.from({length: 100}, (_, i) => 'peer m:' + (i + 1)).join(',')]; })()",
+     "value": [
+      100,
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const r = OUT()[1]; return [r.length, r[0], r[49]]; })()",
+     "value": [
+      50,
+      "peer2 m:1",
+      "peer2 m:99"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { for (let i = 1; i <= 100; i++) parent.postMessage(i, '*'); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const r = L.slice(); L.length = 0; READ(); return [r.length, r[0], r[99]]; })",
+     "value": [
+      100,
+      "top m:1 L f",
+      "top m:100 L f"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = U('next.html'); return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late top', location.origin); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); w.postMessage('before *', '*'); w.postMessage('before old', U('next.html')); w.location.href = U('peer.html'); return seen.then(() => W(200)).then(OUT); })()",
+     "value": [
+      "next m:before *;next m:before old;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "peer",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = U('next.html'); return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late top', location.origin); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); w.postMessage('before *', '*'); w.postMessage('before old', U('next.html')); w.location.href = U('peer.html'); return seen.then(() => W(200)).then(OUT); })()",
+     "value": [
+      "next m:before *;next m:before old;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "peer",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = U('next.html'); return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late top', location.origin); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); w.postMessage('before *', '*'); w.postMessage('before old', U('next.html')); w.location.href = U('peer.html'); return seen.then(() => W(200)).then(OUT); })()",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "peer",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-other-origin-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.other = U('next.html').startsWith(location.origin) ? X('next.html') : location.origin + D + 'next.html'; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = other; return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late new', other); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-other-origin-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.other = U('next.html').startsWith(location.origin) ? X('next.html') : location.origin + D + 'next.html'; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = other; return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late new', other); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-navigates-other-origin-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; window.other = U('next.html').startsWith(location.origin) ? X('next.html') : location.origin + D + 'next.html'; window.seen = new Promise(r => f.addEventListener('load', r, {once: true})); f.contentWindow.location.href = other; return 1; })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = f.contentWindow; BUSY(600); w.postMessage('late *', '*'); w.postMessage('late old', U('peer.html')); w.postMessage('late new', other); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[WHO, OUT()]",
+     "value": [
+      "next",
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-removed-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('rm', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(300).then(() => rows); })",
+     "value": [
+      "rm O object true",
+      "after O object true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => held.closed), E(() => rows[1] && 1)]",
+     "value": [
+      "true",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-removed-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('rm', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(300).then(() => rows); })",
+     "value": [
+      "rm X object true",
+      "after X object true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => held.closed), E(() => rows[1] && 1)]",
+     "value": [
+      "true",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-removed-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('rm', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(300).then(() => rows); })",
+     "value": [
+      "rm L object true",
+      "after L object true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => held.closed), E(() => rows[1] && 1)]",
+     "value": [
+      "true",
+      "1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-navigated-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('go', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(500).then(() => rows); })",
+     "value": [
+      "go O object true",
+      "after O object true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-navigated-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('go', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(500).then(() => rows); })",
+     "value": [
+      "go X object true",
+      "after X object true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sender-navigated-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; f.contentWindow.postMessage({do: \"e.source.postMessage('go', '*'); e.source.postMessage('after', '*');\"}, '*'); return W(500).then(() => rows); })",
+     "value": [
+      "go L object true",
+      "after L object true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-caller-removed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { window.held = f.contentWindow; const send = held.eval(\"m => { const r = []; for (const [w, o] of m) { try { w.postMessage('from gone', o); r.push('ok'); } catch (e) { r.push(e.name); } } return r; }\"); const tw = window, xw = x.contentWindow; f.remove(); const r = send([[tw, '*'], [xw, '*'], [tw, '/'], [tw, 'foo']]); return W(200).then(() => [r, rows]); })",
+     "value": [
+      [
+       "ok",
+       "ok",
+       "ok",
+       "SyntaxError"
+      ],
+      [
+       "from gone O object true",
+       "from gone O object true"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "peer m:from gone;",
+      [
+       "peer m:from gone"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-removed-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; window.held = w; const c = new MessageChannel(); c.port1.onmessage = e => LOG('port1 ' + e.data); w.postMessage('gone?', '*', [c.port2]); f.remove(); c.port1.postMessage('x'); window.c = c; return W(200).then(OUT); })",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = held; const b = new ArrayBuffer(8); const b2 = new ArrayBuffer(8); const b3 = new ArrayBuffer(8); const c = new MessageChannel(); c.port1.onmessage = e => LOG('p ' + e.data); return [E(() => w.postMessage('x', '*')), E(() => w.postMessage('x', 'foo')), E(() => w.postMessage(() => 1, '*')), E(() => { w.postMessage(b, '*', [b]); return b.byteLength; }), E(() => { try { w.postMessage(b2, 'foo', [b2]); return 'none' + b2.byteLength; } catch (e) { return e.name + b2.byteLength; } }), E(() => { w.postMessage(1, '/', [b3]); return b3.byteLength; }), E(() => { w.postMessage(1, '*', [c.port2]); c.port1.postMessage('after'); return 'sent'; })]; })()",
+     "value": [
+      "undefined",
+      "undefined",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+      "0",
+      "none0",
+      "0",
+      "sent"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(100).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-removed-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; window.held = w; const c = new MessageChannel(); c.port1.onmessage = e => LOG('port1 ' + e.data); w.postMessage('gone?', '*', [c.port2]); f.remove(); c.port1.postMessage('x'); window.c = c; return W(200).then(OUT); })",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = held; const b = new ArrayBuffer(8); const b2 = new ArrayBuffer(8); const b3 = new ArrayBuffer(8); const c = new MessageChannel(); c.port1.onmessage = e => LOG('p ' + e.data); return [E(() => w.postMessage('x', '*')), E(() => w.postMessage('x', 'foo')), E(() => w.postMessage(() => 1, '*')), E(() => { w.postMessage(b, '*', [b]); return b.byteLength; }), E(() => { try { w.postMessage(b2, 'foo', [b2]); return 'none' + b2.byteLength; } catch (e) { return e.name + b2.byteLength; } }), E(() => { w.postMessage(1, '/', [b3]); return b3.byteLength; }), E(() => { w.postMessage(1, '*', [c.port2]); c.port1.postMessage('after'); return 'sent'; })]; })()",
+     "value": [
+      "undefined",
+      "undefined",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+      "0",
+      "none0",
+      "0",
+      "sent"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(100).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-target-removed-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const w = f.contentWindow; window.held = w; const c = new MessageChannel(); c.port1.onmessage = e => LOG('port1 ' + e.data); w.postMessage('gone?', '*', [c.port2]); f.remove(); c.port1.postMessage('x'); window.c = c; return W(200).then(OUT); })",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = held; const b = new ArrayBuffer(8); const b2 = new ArrayBuffer(8); const b3 = new ArrayBuffer(8); const c = new MessageChannel(); c.port1.onmessage = e => LOG('p ' + e.data); return [E(() => w.postMessage('x', '*')), E(() => w.postMessage('x', 'foo')), E(() => w.postMessage(() => 1, '*')), E(() => { w.postMessage(b, '*', [b]); return b.byteLength; }), E(() => { try { w.postMessage(b2, 'foo', [b2]); return 'none' + b2.byteLength; } catch (e) { return e.name + b2.byteLength; } }), E(() => { w.postMessage(1, '/', [b3]); return b3.byteLength; }), E(() => { w.postMessage(1, '*', [c.port2]); c.port1.postMessage('after'); return 'sent'; })]; })()",
+     "value": [
+      "undefined",
+      "undefined",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+      "0",
+      "none0",
+      "0",
+      "sent"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "W(100).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-loading-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.createElement('iframe'); window.f = f; f.src = U('peer.html'); f.id = 'f'; h.append(f); const w = f.contentWindow; const blank = E(() => w.location.href); w.postMessage('at once', '*'); let onload; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); setTimeout(() => w.postMessage('timer 0', '*'), 0); setTimeout(() => w.postMessage('timer 300', '*'), 300); return seen.then(() => { w.postMessage('at load', '*'); return W(500); }).then(() => [blank === 'about:blank' ? 'blank' : blank, OUT()]); })()",
+     "value": [
+      "blank",
+      [
+       "peer m:at load;peer m:timer 300;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:at load",
+       "peer m:timer 300"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { f.remove(); const l = document.createElement('iframe'); l.id = 'l'; window.l = l; l.src = U('late.html'); const seen = new Promise(r => l.addEventListener('load', r, {once: true})); h.append(l); return seen.then(() => { l.contentWindow.postMessage('before the listener', '*'); return W(350); }).then(() => { l.contentWindow.postMessage('after the listener', '*'); return W(100); }).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "peer m:after the listener;",
+      [
+       "peer m:after the listener"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-loading-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.createElement('iframe'); window.f = f; f.src = U('peer.html'); f.id = 'f'; h.append(f); const w = f.contentWindow; const blank = E(() => w.location.href); w.postMessage('at once', '*'); let onload; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); setTimeout(() => w.postMessage('timer 0', '*'), 0); setTimeout(() => w.postMessage('timer 300', '*'), 300); return seen.then(() => { w.postMessage('at load', '*'); return W(500); }).then(() => [blank === 'about:blank' ? 'blank' : blank, OUT()]); })()",
+     "value": [
+      "blank",
+      [
+       "peer m:at load;peer m:timer 300;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:at load",
+       "peer m:timer 300"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { f.remove(); const l = document.createElement('iframe'); l.id = 'l'; window.l = l; l.src = U('late.html'); const seen = new Promise(r => l.addEventListener('load', r, {once: true})); h.append(l); return seen.then(() => { l.contentWindow.postMessage('before the listener', '*'); return W(350); }).then(() => { l.contentWindow.postMessage('after the listener', '*'); return W(100); }).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "peer m:after the listener;",
+      [
+       "peer m:after the listener"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-loading-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.createElement('iframe'); window.f = f; f.src = U('peer.html'); f.id = 'f'; h.append(f); const w = f.contentWindow; const blank = E(() => w.location.href); w.postMessage('at once', '*'); let onload; const seen = new Promise(r => f.addEventListener('load', r, {once: true})); setTimeout(() => w.postMessage('timer 0', '*'), 0); setTimeout(() => w.postMessage('timer 300', '*'), 300); return seen.then(() => { w.postMessage('at load', '*'); return W(500); }).then(() => [blank === 'about:blank' ? 'blank' : blank, OUT()]); })()",
+     "value": [
+      "blank",
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:at load",
+       "peer m:timer 300"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { f.remove(); const l = document.createElement('iframe'); l.id = 'l'; window.l = l; l.src = U('late.html'); const seen = new Promise(r => l.addEventListener('load', r, {once: true})); h.append(l); return seen.then(() => { l.contentWindow.postMessage('before the listener', '*'); return W(350); }).then(() => { l.contentWindow.postMessage('after the listener', '*'); return W(100); }).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:after the listener"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-initial-reuse",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.createElement('iframe'); f.id = 'f'; window.f = f; f.src = U('peer.html'); h.append(f); const w = f.contentWindow; const r = []; w.addEventListener('message', e => r.push('blank listener ' + e.data + ' ' + (w.document.URL.split('/').pop()))); w.postMessage('at once', '*'); const seen = new Promise(res => f.addEventListener('load', res, {once: true})); return seen.then(() => { w.postMessage('at load', '*'); return W(200); }).then(() => [r, w === f.contentWindow]); })()",
+     "value": [
+      [
+       "blank listener at once about:blank",
+       "blank listener at load peer.html"
+      ],
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "peer m:at load;",
+      [
+       "peer m:at load"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-initial-reuse-late",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.createElement('iframe'); f.id = 'f'; window.f = f; f.src = U('peer.html'); h.append(f); window.w = f.contentWindow; window.r = []; w.addEventListener('message', e => r.push('blank listener ' + e.data + ' ' + (w.document.URL.split('/').pop()))); window.seen = new Promise(res => f.addEventListener('load', res, {once: true})); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { BUSY(600); w.postMessage('late', '*'); return 1; })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "seen.then(() => W(200)).then(() => [r, w === f.contentWindow])",
+     "value": [
+      [
+       "blank listener late peer.html"
+      ],
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sandbox",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => rows.map(n))",
+     "value": [
+      "srcdoc * null false",
+      "sb * null true",
+      "sb own null true",
+      "sb loc null true",
+      "sb top null true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "origin null"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const w = s.contentWindow; w.postMessage('to *', '*'); w.postMessage('to /', '/'); w.postMessage('to mine', location.origin); w.postMessage('to loc', location.href); w.postMessage('to x', new URL(X('')).origin); return W(200).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:to *"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(r => { rows.length = 0; s.contentWindow.postMessage({do: \"e.source.postMessage('back ' + (e.source === parent) + ' ' + e.origin.replace(/\\\\d+/g, 'N'), '*');\"}, '*'); setTimeout(() => r(rows.map(n)), 200); })",
+     "value": [
+      "back true http://N.N.N.N:N null true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-sandbox-pair",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { a.contentWindow.postMessage({do: \"const o = parent.frames[1]; o.postMessage('a to b *', '*'); o.postMessage('a to b /', '/'); o.postMessage({do: \\\"LOG('from ' + e.origin + ' ' + (e.source === parent.frames[0]))\\\"}, '*');\"}, '*'); return W(200).then(() => 1); })",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "b m:a to b *",
+       "from null true"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-data-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const w = d.contentWindow; w.postMessage('to *', '*'); w.postMessage('to /', '/'); w.postMessage('to mine', location.origin); return W(200).then(() => rows); })",
+     "value": [
+      "data * null true",
+      "echo to * null true"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "L",
+     "value": [
+      "to * http://N.N.N.N:N true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-scripts-off",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const b = new ArrayBuffer(8); const c = new MessageChannel(); const r = []; c.port1.onmessage = e => r.push(e.data); o.contentWindow.postMessage('x', '*', [b, c.port2]); p.contentWindow.postMessage('y', '*'); c.port1.postMessage('z'); return W(100).then(() => [b.byteLength, r]); })",
+     "value": [
+      0,
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-source-identity-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { f.contentWindow.postMessage({do: \"LOG(['got', e.source === parent, e.source === top, e.source === window, n(e.origin), typeof e.source].join(' ')); parent.postMessage('ping', '*'); top.postMessage('via top', '*'); e.source.postMessage('via source', '*'); window.held = e.source;\"}, '*'); return W(200).then(() => rows); })",
+     "value": [
+      "ping true true false O",
+      "via top true true false O",
+      "via source true true false O"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "got true true false O object;peer m:pong from top;",
+      [
+       "got true true false O object",
+       "peer m:pong from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[held === parent, held === top, typeof held.postMessage]",
+     "value": [
+      true,
+      true,
+      "function"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-source-identity-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { f.contentWindow.postMessage({do: \"LOG(['got', e.source === parent, e.source === top, e.source === window, n(e.origin), typeof e.source].join(' ')); parent.postMessage('ping', '*'); top.postMessage('via top', '*'); e.source.postMessage('via source', '*'); window.held = e.source;\"}, '*'); return W(200).then(() => rows); })",
+     "value": [
+      "ping true true false X",
+      "via top true true false X",
+      "via source true true false X"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "got true true false T object;peer m:pong from top;",
+      [
+       "got true true false T object",
+       "peer m:pong from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[held === parent, held === top, typeof held.postMessage]",
+     "value": [
+      true,
+      true,
+      "function"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-source-identity-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { f.contentWindow.postMessage({do: \"LOG(['got', e.source === parent, e.source === top, e.source === window, n(e.origin), typeof e.source].join(' ')); parent.postMessage('ping', '*'); top.postMessage('via top', '*'); e.source.postMessage('via source', '*'); window.held = e.source;\"}, '*'); return W(200).then(() => rows); })",
+     "value": [
+      "ping true true false L",
+      "via top true true false L",
+      "via source true true false L"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "got true true false T object",
+       "peer m:pong from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[held === parent, held === top, typeof held.postMessage]",
+     "value": [
+      true,
+      true,
+      "function"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-chain",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(600).then(() => { const b = f.contentWindow; const a = b.frames[0]; const c = a.frames[0]; b.postMessage('top to b', '*'); a.postMessage('top to aprime', '*'); c.postMessage('top to c', '*'); return W(200).then(() => [a.document.title, a.frameElement, E(() => a.parent.document).slice(0, 13)]); })",
+     "value": [
+      "",
+      null,
+      "SecurityError"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const a = f.contentWindow.frames[0]; const c = a.frames[0]; a.postMessage({do: \"parent.postMessage('aprime to parent', '*'); top.postMessage('aprime to top', '*'); frames[0].postMessage('aprime to child', '*');\"}, '*'); c.postMessage({do: \"parent.postMessage('c to parent', '*'); top.postMessage('c to top', '*'); parent.parent.postMessage('c to b', '*');\"}, '*'); f.contentWindow.postMessage({do: \"parent.postMessage('b to parent', '*'); frames[0].postMessage('b to child', '*'); frames[0].frames[0].postMessage('b to grandchild', '*');\"}, '*'); return W(300).then(() => [rows, a.rec]); })()",
+     "value": [
+      [
+       "aprime to top from O src:grandchild",
+       "c to top from L src:ggchild",
+       "b to parent from X src:child"
+      ],
+      [
+       "top to aprime from O src:top",
+       "c to parent from L src:child",
+       "b to child from X src:parent"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "rec",
+     "value": [
+      "top to b from T src:parent",
+      "aprime to parent from T src:child",
+      "c to b from L src:other"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-retired-node",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(400).then(() => { window.old = f.contentDocument.getElementById('g'); window.oldw = old.contentWindow; return [E(() => oldw.who), old.isConnected]; })",
+     "value": [
+      "Q",
+      true
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "f.src = 'p2.html'; W(400).then(() => [old.isConnected, E(() => old.contentWindow === null), E(() => old.contentDocument === null), E(() => oldw.who), E(() => oldw.closed), E(() => f.contentDocument.getElementById('g2').contentWindow.who)])",
+     "value": [
+      true,
+      "true",
+      "true",
+      "Q",
+      "true",
+      "Q2"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const a = f.contentDocument.getElementById('g2'); window.gone = f.contentDocument; a.remove(); return [E(() => a.contentWindow === null), E(() => a.contentDocument === null)]; })()",
+     "value": [
+      "true",
+      "true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-basic-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data + ' ' + e.origin + ' ' + (e.source === null) + ' ' + e.ports.length + ' ' + (e.target === c.port1)); c.port1.postMessage('queued 1'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('queued 2'); const after = [E(() => c.port2.postMessage('dead')), c.port2 instanceof MessagePort]; return W(200).then(() => [after, OUT()]); })",
+     "value": [
+      [
+       "undefined",
+       true
+      ],
+      [
+       "peer m:take;peer port:queued 1::true:0;peer port:queued 2::true:0;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:queued 1::true:0",
+       "peer port:queued 2::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('reply'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "p1 reply  true 0 true;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "p1 reply  true 0 true"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-basic-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data + ' ' + e.origin + ' ' + (e.source === null) + ' ' + e.ports.length + ' ' + (e.target === c.port1)); c.port1.postMessage('queued 1'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('queued 2'); const after = [E(() => c.port2.postMessage('dead')), c.port2 instanceof MessagePort]; return W(200).then(() => [after, OUT()]); })",
+     "value": [
+      [
+       "undefined",
+       true
+      ],
+      [
+       "peer m:take;peer port:queued 1::true:0;peer port:queued 2::true:0;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:queued 1::true:0",
+       "peer port:queued 2::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('reply'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "p1 reply  true 0 true;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "p1 reply  true 0 true"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-basic-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { READ(); L.length = 0; const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data + ' ' + e.origin + ' ' + (e.source === null) + ' ' + e.ports.length + ' ' + (e.target === c.port1)); c.port1.postMessage('queued 1'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('queued 2'); const after = [E(() => c.port2.postMessage('dead')), c.port2 instanceof MessagePort]; return W(200).then(() => [after, OUT()]); })",
+     "value": [
+      [
+       "undefined",
+       true
+      ],
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:queued 1::true:0",
+       "peer port:queued 2::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('reply'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "p1 reply  true 0 true;",
+      [
+       "p1 reply  true 0 true"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-not-enabled-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.postMessage('before transfer'); c.port2.onmessage = () => LOG('wrong'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('after transfer'); return W(150).then(OUT); })",
+     "value": [
+      "peer m:take;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].addEventListener('message', m => LOG('listener ' + m.data)); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].start(); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "listener before transfer;listener after transfer;",
+      [
+       "listener before transfer",
+       "listener after transfer"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "c.port1.postMessage('later'); W(100).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "listener later;",
+      [
+       "listener later"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-not-enabled-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.postMessage('before transfer'); c.port2.onmessage = () => LOG('wrong'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('after transfer'); return W(150).then(OUT); })",
+     "value": [
+      "peer m:take;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].addEventListener('message', m => LOG('listener ' + m.data)); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].start(); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "listener before transfer;listener after transfer;",
+      [
+       "listener before transfer",
+       "listener after transfer"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "c.port1.postMessage('later'); W(100).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "listener later;",
+      [
+       "listener later"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-not-enabled-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.postMessage('before transfer'); c.port2.onmessage = () => LOG('wrong'); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('after transfer'); return W(150).then(OUT); })",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].addEventListener('message', m => LOG('listener ' + m.data)); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].start(); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      [
+       "listener before transfer",
+       "listener after transfer"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "c.port1.postMessage('later'); W(100).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "listener later"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-close-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('a'); c.port1.postMessage('b'); c.port1.close(); const b = new ArrayBuffer(8); const r = E(() => c.port1.postMessage('c', [b])); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      8,
+      [
+       "peer m:take;peer port:a::true:0;peer port:b::true:0;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('to closed'); const b = new ArrayBuffer(8); keep[0].postMessage('with buffer', [b]); new Promise(r => setTimeout(r, 100)).then(() => [b.byteLength, OUT()])",
+     "value": [
+      8,
+      [
+       "",
+       [
+        "peer m:take",
+        "peer port:a::true:0",
+        "peer port:b::true:0"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const d = new MessageChannel(); window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [d.port2]); return W(100).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "keep[1].postMessage('x'); keep[1].postMessage('y'); keep[1].close(); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const b = new ArrayBuffer(8); d.port1.postMessage('z', [b]); return W(100).then(() => [b.byteLength, OUT()]); })()",
+     "value": [
+      8,
+      [
+       "peer m:take;d1 x;d1 y;",
+       [
+        "d1 x",
+        "d1 y"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-close-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('a'); c.port1.postMessage('b'); c.port1.close(); const b = new ArrayBuffer(8); const r = E(() => c.port1.postMessage('c', [b])); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      8,
+      [
+       "peer m:take;peer port:a::true:0;peer port:b::true:0;",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('to closed'); const b = new ArrayBuffer(8); keep[0].postMessage('with buffer', [b]); new Promise(r => setTimeout(r, 100)).then(() => [b.byteLength, OUT()])",
+     "value": [
+      8,
+      [
+       "",
+       [
+        "peer m:take",
+        "peer port:a::true:0",
+        "peer port:b::true:0"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const d = new MessageChannel(); window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [d.port2]); return W(100).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "keep[1].postMessage('x'); keep[1].postMessage('y'); keep[1].close(); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const b = new ArrayBuffer(8); d.port1.postMessage('z', [b]); return W(100).then(() => [b.byteLength, OUT()]); })()",
+     "value": [
+      8,
+      [
+       "peer m:take;d1 x;d1 y;",
+       [
+        "d1 x",
+        "d1 y"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-close-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); c.port1.postMessage('a'); c.port1.postMessage('b'); c.port1.close(); const b = new ArrayBuffer(8); const r = E(() => c.port1.postMessage('c', [b])); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      8,
+      [
+       "",
+       []
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('to closed'); const b = new ArrayBuffer(8); keep[0].postMessage('with buffer', [b]); new Promise(r => setTimeout(r, 100)).then(() => [b.byteLength, OUT()])",
+     "value": [
+      8,
+      [
+       "",
+       [
+        "peer m:take",
+        "peer port:a::true:0",
+        "peer port:b::true:0"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const d = new MessageChannel(); window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [d.port2]); return W(100).then(() => 1); })()",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "keep[1].postMessage('x'); keep[1].postMessage('y'); keep[1].close(); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const b = new ArrayBuffer(8); d.port1.postMessage('z', [b]); return W(100).then(() => [b.byteLength, OUT()]); })()",
+     "value": [
+      8,
+      [
+       "d1 x;d1 y;",
+       [
+        "d1 x",
+        "d1 y"
+       ]
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-chain-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('one'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('from f'); parent.postMessage('sent back', '*', [p]);\"}, '*'); c.port1.postMessage('two'); return W(150).then(() => { c.port1.postMessage('three'); back[0].postMessage('from top'); return W(100).then(OUT); }); }); })",
+     "value": [
+      "peer m:take;peer port:one::true:0;p1 from f;top m:sent back O f;back port:two;back port:three;p1 from top;",
+      [
+       "p1 from f",
+       "top m:sent back O f",
+       "back port:two",
+       "back port:three",
+       "p1 from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:one::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const c = new MessageChannel(); window.d = c; c.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('q1'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('f says'); parent.frames[1].postMessage('take', '*', [p]);\"}, '*'); c.port1.postMessage('q2'); return W(150).then(() => { c.port1.postMessage('q3'); return W(100).then(OUT); }); }); })()",
+     "value": [
+      "peer m:take;peer port:q1::true:0;d1 f says;peer2 m:take;peer2 port:q2::true:0;peer2 port:q3::true:0;",
+      [
+       "d1 f says"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:q1::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:take",
+       "peer2 port:q2::true:0",
+       "peer2 port:q3::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('g says'); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "d1 g says;",
+      [
+       "d1 g says"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-chain-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('one'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('from f'); parent.postMessage('sent back', '*', [p]);\"}, '*'); c.port1.postMessage('two'); return W(150).then(() => { c.port1.postMessage('three'); back[0].postMessage('from top'); return W(100).then(OUT); }); }); })",
+     "value": [
+      "peer m:take;peer port:one::true:0;p1 from f;top m:sent back X f;back port:two;back port:three;p1 from top;",
+      [
+       "p1 from f",
+       "top m:sent back X f",
+       "back port:two",
+       "back port:three",
+       "p1 from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:one::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const c = new MessageChannel(); window.d = c; c.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('q1'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('f says'); parent.frames[1].postMessage('take', '*', [p]);\"}, '*'); c.port1.postMessage('q2'); return W(150).then(() => { c.port1.postMessage('q3'); return W(100).then(OUT); }); }); })()",
+     "value": [
+      "peer m:take;peer port:q1::true:0;d1 f says;peer2 m:take;peer2 port:q2::true:0;peer2 port:q3::true:0;",
+      [
+       "d1 f says"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:q1::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:take",
+       "peer2 port:q2::true:0",
+       "peer2 port:q3::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('g says'); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "d1 g says;",
+      [
+       "d1 g says"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-chain-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('one'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('from f'); parent.postMessage('sent back', '*', [p]);\"}, '*'); c.port1.postMessage('two'); return W(150).then(() => { c.port1.postMessage('three'); back[0].postMessage('from top'); return W(100).then(OUT); }); }); })",
+     "value": [
+      "p1 from f;top m:sent back L f;back port:two;back port:three;p1 from top;",
+      [
+       "p1 from f",
+       "top m:sent back L f",
+       "back port:two",
+       "back port:three",
+       "p1 from top"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:one::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const c = new MessageChannel(); window.d = c; c.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { c.port1.postMessage('q1'); f.contentWindow.postMessage({do: \"const p = keep.pop(); p.postMessage('f says'); parent.frames[1].postMessage('take', '*', [p]);\"}, '*'); c.port1.postMessage('q2'); return W(150).then(() => { c.port1.postMessage('q3'); return W(100).then(OUT); }); }); })()",
+     "value": [
+      "d1 f says;",
+      [
+       "d1 f says"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:q1::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer2 m:take",
+       "peer2 port:q2::true:0",
+       "peer2 port:q3::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[0].postMessage('g says'); new Promise(r => setTimeout(r, 100)).then(() => 1)",
+     "value": 1
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "d1 g says;",
+      [
+       "d1 g says"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-in-port-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { d.port1.postMessage('queued in d2'); c.port1.postMessage('carrying', [d.port2]); return W(150).then(OUT); }); })",
+     "value": [
+      "peer m:take;peer port:carrying::true:1;peer port2:queued in d2;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:carrying::true:1",
+       "peer port2:queued in d2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const e = new MessageChannel(); const g = new MessageChannel(); window.e1 = e; window.g1 = g; e.port1.postMessage('in e2', [g.port2]); g.port1.onmessage = m => LOG('g1 ' + m.data); g.port1.postMessage('in g2'); f.contentWindow.postMessage('take', '*', [e.port2]); return W(150).then(OUT); })()",
+     "value": [
+      "peer m:take;peer port:in e2::true:1;peer port2:in g2;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[keep.length - 1].postMessage('x'); keep[keep.length - 2].postMessage('from a nested port'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "g1 x;",
+      [
+       "peer m:take",
+       "peer port:in e2::true:1",
+       "peer port2:in g2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "g1 x"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-in-port-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { d.port1.postMessage('queued in d2'); c.port1.postMessage('carrying', [d.port2]); return W(150).then(OUT); }); })",
+     "value": [
+      "peer m:take;peer port:carrying::true:1;peer port2:queued in d2;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:carrying::true:1",
+       "peer port2:queued in d2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const e = new MessageChannel(); const g = new MessageChannel(); window.e1 = e; window.g1 = g; e.port1.postMessage('in e2', [g.port2]); g.port1.onmessage = m => LOG('g1 ' + m.data); g.port1.postMessage('in g2'); f.contentWindow.postMessage('take', '*', [e.port2]); return W(150).then(OUT); })()",
+     "value": [
+      "peer m:take;peer port:in e2::true:1;peer port2:in g2;",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[keep.length - 1].postMessage('x'); keep[keep.length - 2].postMessage('from a nested port'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "g1 x;",
+      [
+       "peer m:take",
+       "peer port:in e2::true:1",
+       "peer port2:in g2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "g1 x"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-in-port-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; window.d = d; d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { d.port1.postMessage('queued in d2'); c.port1.postMessage('carrying', [d.port2]); return W(150).then(OUT); }); })",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:carrying::true:1",
+       "peer port2:queued in d2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(() => { const e = new MessageChannel(); const g = new MessageChannel(); window.e1 = e; window.g1 = g; e.port1.postMessage('in e2', [g.port2]); g.port1.onmessage = m => LOG('g1 ' + m.data); g.port1.postMessage('in g2'); f.contentWindow.postMessage('take', '*', [e.port2]); return W(150).then(OUT); })()",
+     "value": [
+      "",
+      []
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "keep[keep.length - 1].postMessage('x'); keep[keep.length - 2].postMessage('from a nested port'); new Promise(r => setTimeout(r, 100)).then(OUT)",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:in e2::true:1",
+       "peer port2:in g2"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "g1 x;",
+      [
+       "g1 x"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"keep[0].postMessage('before removal 1'); keep[0].postMessage('before removal 2');\"}, '*'); return W(100); }).then(() => { const r = OUT(); f.remove(); c.port1.postMessage('after removal'); const b = new ArrayBuffer(8); const d = new MessageChannel(); d.port1.onmessage = e => LOG('d1 ' + e.data); c.port1.postMessage('with', [b, d.port2]); d.port1.postMessage('to a lost port'); return W(150).then(() => [r, b.byteLength, OUT()]); }); })",
+     "value": [
+      [
+       "peer m:take;p1 before removal 1;p1 before removal 2;",
+       [
+        "p1 before removal 1",
+        "p1 before removal 2"
+       ]
+      ],
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"keep[0].postMessage('before removal 1'); keep[0].postMessage('before removal 2');\"}, '*'); return W(100); }).then(() => { const r = OUT(); f.remove(); c.port1.postMessage('after removal'); const b = new ArrayBuffer(8); const d = new MessageChannel(); d.port1.onmessage = e => LOG('d1 ' + e.data); c.port1.postMessage('with', [b, d.port2]); d.port1.postMessage('to a lost port'); return W(150).then(() => [r, b.byteLength, OUT()]); }); })",
+     "value": [
+      [
+       "peer m:take;p1 before removal 1;p1 before removal 2;",
+       [
+        "p1 before removal 1",
+        "p1 before removal 2"
+       ]
+      ],
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"keep[0].postMessage('before removal 1'); keep[0].postMessage('before removal 2');\"}, '*'); return W(100); }).then(() => { const r = OUT(); f.remove(); c.port1.postMessage('after removal'); const b = new ArrayBuffer(8); const d = new MessageChannel(); d.port1.onmessage = e => LOG('d1 ' + e.data); c.port1.postMessage('with', [b, d.port2]); d.port1.postMessage('to a lost port'); return W(150).then(() => [r, b.byteLength, OUT()]); }); })",
+     "value": [
+      [
+       "p1 before removal 1;p1 before removal 2;",
+       [
+        "p1 before removal 1",
+        "p1 before removal 2"
+       ]
+      ],
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-sender-removed-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"parent.postMessage('rm', '*'); keep[0].postMessage('after rm 1'); parent.postMessage('after rm w', '*'); keep[0].postMessage('after rm 2');\"}, '*'); return W(200).then(OUT); }); })",
+     "value": [
+      "peer m:take;top m:rm O f;removed;p1 after rm 1;top m:after rm w O other;p1 after rm 2;",
+      [
+       "top m:rm O f",
+       "removed",
+       "p1 after rm 1",
+       "top m:after rm w O other",
+       "p1 after rm 2"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-sender-removed-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"parent.postMessage('rm', '*'); keep[0].postMessage('after rm 1'); parent.postMessage('after rm w', '*'); keep[0].postMessage('after rm 2');\"}, '*'); return W(200).then(OUT); }); })",
+     "value": [
+      "peer m:take;top m:rm X f;removed;p1 after rm 1;top m:after rm w X other;p1 after rm 2;",
+      [
+       "top m:rm X f",
+       "removed",
+       "p1 after rm 1",
+       "top m:after rm w X other",
+       "p1 after rm 2"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-sender-removed-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); return W(100).then(() => { f.contentWindow.postMessage({do: \"parent.postMessage('rm', '*'); keep[0].postMessage('after rm 1'); parent.postMessage('after rm w', '*'); keep[0].postMessage('after rm 2');\"}, '*'); return W(200).then(OUT); }); })",
+     "value": [
+      "top m:rm L f;removed;p1 after rm 1;top m:after rm w L other;p1 after rm 2;",
+      [
+       "top m:rm L f",
+       "removed",
+       "p1 after rm 1",
+       "top m:after rm w L other",
+       "p1 after rm 2"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-target-removed-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const b = new ArrayBuffer(8); f.contentWindow.postMessage('take', '*', [c.port2, b]); f.remove(); c.port1.postMessage('to lost'); const r = E(() => c.port2.postMessage('x')); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-target-removed-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const b = new ArrayBuffer(8); f.contentWindow.postMessage('take', '*', [c.port2, b]); f.remove(); c.port1.postMessage('to lost'); const r = E(() => c.port2.postMessage('x')); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-target-removed-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const b = new ArrayBuffer(8); f.contentWindow.postMessage('take', '*', [c.port2, b]); f.remove(); c.port1.postMessage('to lost'); const r = E(() => c.port2.postMessage('x')); return W(150).then(() => [r, b.byteLength, OUT()]); })",
+     "value": [
+      "undefined",
+      0,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-order-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const w = f.contentWindow; w.postMessage('take', '*', [c.port2]); return W(100).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); c.port1.postMessage('p1'); w.postMessage('w2', '*'); c.port1.postMessage('p3'); w.postMessage('w4', '*'); setTimeout(() => LOG('t1'), 0); c.port1.postMessage('p5'); return W(150).then(OUT); }); })",
+     "value": [
+      "t0;peer port:p1::true:0;peer m:w2;peer m:w4;t1;peer port:p3::true:0;peer port:p5::true:0;",
+      [
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:p1::true:0",
+       "peer m:w2",
+       "peer m:w4",
+       "peer port:p3::true:0",
+       "peer port:p5::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); keep[0].postMessage('p1'); parent.postMessage('w2', '*'); keep[0].postMessage('p3'); parent.postMessage('w4', '*'); setTimeout(() => LOG('f t1'), 0); new Promise(r => setTimeout(r, 150)).then(OUT)",
+     "value": [
+      "f t0;p1 p1;top m:w2 O f;top m:w4 O f;f t1;p1 p3;",
+      [
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "p1 p1",
+       "top m:w2 O f",
+       "top m:w4 O f",
+       "p1 p3"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-order-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const w = f.contentWindow; w.postMessage('take', '*', [c.port2]); return W(100).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); c.port1.postMessage('p1'); w.postMessage('w2', '*'); c.port1.postMessage('p3'); w.postMessage('w4', '*'); setTimeout(() => LOG('t1'), 0); c.port1.postMessage('p5'); return W(150).then(OUT); }); })",
+     "value": [
+      "t0;peer port:p1::true:0;peer m:w2;peer m:w4;t1;peer port:p3::true:0;peer port:p5::true:0;",
+      [
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:p1::true:0",
+       "peer m:w2",
+       "peer m:w4",
+       "peer port:p3::true:0",
+       "peer port:p5::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); keep[0].postMessage('p1'); parent.postMessage('w2', '*'); keep[0].postMessage('p3'); parent.postMessage('w4', '*'); setTimeout(() => LOG('f t1'), 0); new Promise(r => setTimeout(r, 150)).then(OUT)",
+     "value": [
+      "f t0;p1 p1;top m:w2 X f;top m:w4 X f;f t1;p1 p3;",
+      [
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "p1 p1",
+       "top m:w2 X f",
+       "top m:w4 X f",
+       "p1 p3"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-order-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); const w = f.contentWindow; w.postMessage('take', '*', [c.port2]); return W(100).then(() => { READ(); L.length = 0; setTimeout(() => LOG('t0'), 0); c.port1.postMessage('p1'); w.postMessage('w2', '*'); c.port1.postMessage('p3'); w.postMessage('w4', '*'); setTimeout(() => LOG('t1'), 0); c.port1.postMessage('p5'); return W(150).then(OUT); }); })",
+     "value": [
+      "t0;t1;",
+      [
+       "t0",
+       "t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "peer m:take",
+       "peer port:p1::true:0",
+       "peer m:w2",
+       "peer m:w4",
+       "peer port:p3::true:0",
+       "peer port:p5::true:0"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "setTimeout(() => LOG('f t0'), 0); keep[0].postMessage('p1'); parent.postMessage('w2', '*'); keep[0].postMessage('p3'); parent.postMessage('w4', '*'); setTimeout(() => LOG('f t1'), 0); new Promise(r => setTimeout(r, 150)).then(OUT)",
+     "value": [
+      "",
+      [
+       "f t0",
+       "f t1"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "p1 p1;top m:w2 L f;top m:w4 L f;p1 p3;",
+      [
+       "p1 p1",
+       "top m:w2 L f",
+       "top m:w4 L f",
+       "p1 p3"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-received-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; const b = new ArrayBuffer(4); const d = new MessageChannel(); c.port1.onmessage = e => LOG('p1 ' + JSON.stringify(e.data) + ' ' + e.ports.length + ' ' + e.ports.every(p => p instanceof MessagePort) + ' ' + Object.isFrozen(e.ports) + ' ' + (e.ports === e.ports) + ' ' + e.isTrusted); f.contentWindow.postMessage({do: \"const p = e.ports[0]; window.pp = p; const q = e.ports[1]; LOG([e.ports.length, p instanceof MessagePort, q instanceof MessagePort, p.onmessage, Object.prototype.toString.call(p), Object.isFrozen(e.ports), e.isTrusted, n(e.origin)].join(' ')); p.onmessage = m => { LOG('onmessage ' + m.data + ' ' + (m.currentTarget === p) + ' ' + m.origin + ' ' + m.source); }; p.postMessage({x: 1}, [q]);\"}, '*', [c.port2, d.port2]); c.port1.postMessage('hello'); return W(200).then(OUT); })",
+     "value": [
+      "2 true true  [object MessagePort] true true O;peer port:hello::true:0;p1 {\"x\":1} 1 true true true true;",
+      [
+       "p1 {\"x\":1} 1 true true true true"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "2 true true  [object MessagePort] true true O",
+       "peer port:hello::true:0"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-received-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; const b = new ArrayBuffer(4); const d = new MessageChannel(); c.port1.onmessage = e => LOG('p1 ' + JSON.stringify(e.data) + ' ' + e.ports.length + ' ' + e.ports.every(p => p instanceof MessagePort) + ' ' + Object.isFrozen(e.ports) + ' ' + (e.ports === e.ports) + ' ' + e.isTrusted); f.contentWindow.postMessage({do: \"const p = e.ports[0]; window.pp = p; const q = e.ports[1]; LOG([e.ports.length, p instanceof MessagePort, q instanceof MessagePort, p.onmessage, Object.prototype.toString.call(p), Object.isFrozen(e.ports), e.isTrusted, n(e.origin)].join(' ')); p.onmessage = m => { LOG('onmessage ' + m.data + ' ' + (m.currentTarget === p) + ' ' + m.origin + ' ' + m.source); }; p.postMessage({x: 1}, [q]);\"}, '*', [c.port2, d.port2]); c.port1.postMessage('hello'); return W(200).then(OUT); })",
+     "value": [
+      "2 true true  [object MessagePort] true true T;peer port:hello::true:0;p1 {\"x\":1} 1 true true true true;",
+      [
+       "p1 {\"x\":1} 1 true true true true"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "2 true true  [object MessagePort] true true T",
+       "peer port:hello::true:0"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-received-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(() => { const c = new MessageChannel(); window.c = c; const b = new ArrayBuffer(4); const d = new MessageChannel(); c.port1.onmessage = e => LOG('p1 ' + JSON.stringify(e.data) + ' ' + e.ports.length + ' ' + e.ports.every(p => p instanceof MessagePort) + ' ' + Object.isFrozen(e.ports) + ' ' + (e.ports === e.ports) + ' ' + e.isTrusted); f.contentWindow.postMessage({do: \"const p = e.ports[0]; window.pp = p; const q = e.ports[1]; LOG([e.ports.length, p instanceof MessagePort, q instanceof MessagePort, p.onmessage, Object.prototype.toString.call(p), Object.isFrozen(e.ports), e.isTrusted, n(e.origin)].join(' ')); p.onmessage = m => { LOG('onmessage ' + m.data + ' ' + (m.currentTarget === p) + ' ' + m.origin + ' ' + m.source); }; p.postMessage({x: 1}, [q]);\"}, '*', [c.port2, d.port2]); c.port1.postMessage('hello'); return W(200).then(OUT); })",
+     "value": [
+      "p1 {\"x\":1} 1 true true true true;",
+      [
+       "p1 {\"x\":1} 1 true true true true"
+      ]
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "OUT()",
+     "value": [
+      "",
+      [
+       "2 true true  [object MessagePort] true true T",
+       "peer port:hello::true:0"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-timing-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const d = new MessageChannel(); d.port1.close(); const a = buf(); d.port2.postMessage(a, [a]); out.push('same task ' + a.byteLength); const e1 = new MessageChannel(); e1.port1.close(); await null; const c1 = buf(); e1.port2.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const g = new MessageChannel(); g.port1.close(); await W(0); const t = buf(); g.port2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const h = new MessageChannel(); h.port1.close(); await W(50); const l = buf(); h.port2.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-timing-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const d = new MessageChannel(); d.port1.close(); const a = buf(); d.port2.postMessage(a, [a]); out.push('same task ' + a.byteLength); const e1 = new MessageChannel(); e1.port1.close(); await null; const c1 = buf(); e1.port2.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const g = new MessageChannel(); g.port1.close(); await W(0); const t = buf(); g.port2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const h = new MessageChannel(); h.port1.close(); await W(50); const l = buf(); h.port2.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-timing-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const d = new MessageChannel(); d.port1.close(); const a = buf(); d.port2.postMessage(a, [a]); out.push('same task ' + a.byteLength); const e1 = new MessageChannel(); e1.port1.close(); await null; const c1 = buf(); e1.port2.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const g = new MessageChannel(); g.port1.close(); await W(0); const t = buf(); g.port2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const h = new MessageChannel(); h.port1.close(); await W(50); const l = buf(); h.port2.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 0",
+      "timer 0 0",
+      "50 ms 0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-started-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const pair = () => { const d = new MessageChannel(); d.port2.onmessage = () => {}; d.port1.close(); return d.port2; }; const p0 = pair(); const a = buf(); p0.postMessage(a, [a]); out.push('same task ' + a.byteLength); const p1 = pair(); await null; const c1 = buf(); p1.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const p2 = pair(); await W(0); const t = buf(); p2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const p3 = pair(); await W(50); const l = buf(); p3.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); const s = new MessageChannel(); s.port2.addEventListener('message', () => {}); s.port2.start(); s.port1.close(); await W(50); const v = buf(); s.port2.postMessage(v, [v]); out.push('start 50 ms ' + v.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 8",
+      "50 ms 8",
+      "start 50 ms 8"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; c.port1.onmessage = () => {}; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 8",
+      "timer 0 8",
+      "50 ms 8"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-started-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const pair = () => { const d = new MessageChannel(); d.port2.onmessage = () => {}; d.port1.close(); return d.port2; }; const p0 = pair(); const a = buf(); p0.postMessage(a, [a]); out.push('same task ' + a.byteLength); const p1 = pair(); await null; const c1 = buf(); p1.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const p2 = pair(); await W(0); const t = buf(); p2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const p3 = pair(); await W(50); const l = buf(); p3.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); const s = new MessageChannel(); s.port2.addEventListener('message', () => {}); s.port2.start(); s.port1.close(); await W(50); const v = buf(); s.port2.postMessage(v, [v]); out.push('start 50 ms ' + v.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 8",
+      "50 ms 8",
+      "start 50 ms 8"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; c.port1.onmessage = () => {}; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 8",
+      "timer 0 8",
+      "50 ms 8"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-partner-closed-started-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const out = []; const buf = () => new ArrayBuffer(8); const pair = () => { const d = new MessageChannel(); d.port2.onmessage = () => {}; d.port1.close(); return d.port2; }; const p0 = pair(); const a = buf(); p0.postMessage(a, [a]); out.push('same task ' + a.byteLength); const p1 = pair(); await null; const c1 = buf(); p1.postMessage(c1, [c1]); out.push('microtask ' + c1.byteLength); const p2 = pair(); await W(0); const t = buf(); p2.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); const p3 = pair(); await W(50); const l = buf(); p3.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); const s = new MessageChannel(); s.port2.addEventListener('message', () => {}); s.port2.start(); s.port1.close(); await W(50); const v = buf(); s.port2.postMessage(v, [v]); out.push('start 50 ms ' + v.byteLength); return out; })",
+     "value": [
+      "same task 0",
+      "microtask 0",
+      "timer 0 8",
+      "50 ms 8",
+      "start 50 ms 8"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const out = []; const c = new MessageChannel(); window.c = c; c.port1.onmessage = () => {}; f.contentWindow.postMessage('take', '*', [c.port2]); const on = e => { if (e.data !== 'closed') return; removeEventListener('message', on); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); out.push('reply ' + b.byteLength); setTimeout(() => { const t = new ArrayBuffer(8); c.port1.postMessage(t, [t]); out.push('timer 0 ' + t.byteLength); setTimeout(() => { const l = new ArrayBuffer(8); c.port1.postMessage(l, [l]); out.push('50 ms ' + l.byteLength); res(out); }, 50); }, 0); }; addEventListener('message', on); setTimeout(() => f.contentWindow.postMessage({do: \"keep[keep.length - 1].close(); parent.postMessage('closed', '*');\"}, '*'), 50); })",
+     "value": [
+      "reply 8",
+      "timer 0 8",
+      "50 ms 8"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-later-same",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); g.contentWindow.postMessage('take', '*', [d.port2]); await W(100); f.remove(); await W(100); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); const r = b.byteLength; const u = g.contentWindow; const seen = new Promise(s => g.addEventListener('load', s, {once: true})); u.location.href = U('peer.html') + '?n'; await seen; await W(100); const b2 = new ArrayBuffer(8); d.port1.postMessage(b2, [b2]); return [r, b2.byteLength, OUT()]; })",
+     "value": [
+      8,
+      8,
+      [
+       "peer m:take;peer2 m:take;",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-later-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); g.contentWindow.postMessage('take', '*', [d.port2]); await W(100); f.remove(); await W(100); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); const r = b.byteLength; const u = g.contentWindow; const seen = new Promise(s => g.addEventListener('load', s, {once: true})); u.location.href = U('peer.html') + '?n'; await seen; await W(100); const b2 = new ArrayBuffer(8); d.port1.postMessage(b2, [b2]); return [r, b2.byteLength, OUT()]; })",
+     "value": [
+      8,
+      8,
+      [
+       "peer m:take;peer2 m:take;",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-peer-removed-later-cross",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const c = new MessageChannel(); const d = new MessageChannel(); window.c = c; c.port1.onmessage = e => LOG('p1 ' + e.data); d.port1.onmessage = e => LOG('d1 ' + e.data); f.contentWindow.postMessage('take', '*', [c.port2]); g.contentWindow.postMessage('take', '*', [d.port2]); await W(100); f.remove(); await W(100); const b = new ArrayBuffer(8); c.port1.postMessage(b, [b]); const r = b.byteLength; const u = g.contentWindow; const seen = new Promise(s => g.addEventListener('load', s, {once: true})); u.location.href = U('peer.html') + '?n'; await seen; await W(100); const b2 = new ArrayBuffer(8); d.port1.postMessage(b2, [b2]); return [r, b2.byteLength, OUT()]; })",
+     "value": [
+      8,
+      8,
+      [
+       "",
+       []
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "port-retired-realm",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const w = f.contentWindow; const c = new w.MessageChannel(); window.c = c; const d = new MessageChannel(); window.d = d; const p = c.port1; p.onmessage = e => rows.push('p ' + e.data); c.port2.onmessage = e => rows.push('p2 ' + e.data); d.port1.onmessage = e => rows.push('d1 ' + e.data); w.postMessage('take', '*', [d.port2]); await W(100); c.port2.postMessage('before'); await W(50); f.remove(); c.port2.postMessage('after'); const b1 = new ArrayBuffer(8); p.postMessage(b1, [b1]); const v1 = b1.byteLength; await W(100); const b2 = new ArrayBuffer(8); p.postMessage(b2, [b2]); const b3 = new ArrayBuffer(8); d.port1.postMessage(b3, [b3]); return [rows, v1, b2.byteLength, b3.byteLength]; })",
+     "value": [
+      [
+       "p before"
+      ],
+      8,
+      8,
+      8
+     ]
+    }
+   ]
+  },
+  {
+   "name": "msg-kept-window-removed",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "W(300).then(async () => { const w = f.contentWindow; const l = []; w.addEventListener('message', e => l.push(e.data)); w.postMessage('queued', '*'); const c = new MessageChannel(); w.postMessage('port', '*', [c.port2]); f.remove(); const b = new ArrayBuffer(8); const b2 = new ArrayBuffer(8); const r = [E(() => w.postMessage('after', '*')), E(() => { w.postMessage(b, '*', [b]); return b.byteLength; }), E(() => { try { w.postMessage(b2, 'foo', [b2]); return 'none' + b2.byteLength; } catch (e) { return e.name + b2.byteLength; } })]; await W(100); return [r, l]; })",
+     "value": [
+      [
+       "undefined",
+       "0",
+       "none0"
+      ],
+      []
+     ]
+    }
+   ]
+  },
+  {
+   "name": "post-message",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => { const l = []; const h = e => { l.push('m:' + e.data + ':' + n(e.origin) + ':' + (e.source === window) + ':' + e.ports.length + ':' + e.isTrusted + ':' + e.bubbles + ':' + e.cancelable + ':' + e.eventPhase + ':' + (e.target === window) + ':' + e.lastEventId + ':' + Object.prototype.toString.call(e)); }; addEventListener('message', h); setTimeout(() => l.push('t0'), 0); postMessage('a', '*'); Promise.resolve().then(() => l.push('micro')); postMessage('b', '/'); postMessage('c', location.origin); postMessage('d', 'http://elsewhere.test'); postMessage('e'); postMessage('f', {targetOrigin: '/'}); l.push('sync'); setTimeout(() => { removeEventListener('message', h); r(l); }, 100); })",
+     "value": [
+      "sync",
+      "micro",
+      "t0",
+      "m:a:O:true:0:true:false:false:2:true::[object MessageEvent]",
+      "m:b:O:true:0:true:false:false:2:true::[object MessageEvent]",
+      "m:c:O:true:0:true:false:false:2:true::[object MessageEvent]",
+      "m:e:O:true:0:true:false:false:2:true::[object MessageEvent]",
+      "m:f:O:true:0:true:false:false:2:true::[object MessageEvent]"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[E(() => postMessage('x', 'foo')), E(() => postMessage(() => 1, '*')), E(() => postMessage('x', '*', [1])), E(() => { const b = new ArrayBuffer(8); postMessage(b, '*', [b, b]); }), E(() => postMessage(Symbol('s'), '*')), E(() => postMessage('x', '*', null)), E(() => postMessage.length), E(() => postMessage('x', 'http://a.test/path?q')), E(() => postMessage(document.body, '*')), E(() => postMessage(window, '*'))]",
+     "value": [
+      "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'foo' in a call to 'postMessage'.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': () => 1 could not be cloned.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': Failed to convert value to 'object'.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': ArrayBuffer at index 1 is a duplicate of an earlier ArrayBuffer.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': Symbol(s) could not be cloned.",
+      "TypeError: Failed to execute 'postMessage' on 'Window': The provided value cannot be converted to a sequence.",
+      "1",
+      "undefined",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': HTMLBodyElement object could not be cloned.",
+      "DataCloneError: Failed to execute 'postMessage' on 'Window': #<Window> could not be cloned."
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const out = []; const got = f => new Promise(r => addEventListener('message', function h(e) { if (e.source === f.contentWindow) { removeEventListener('message', h); r(e); } })); for (const f of [s, x]) { const buf = new ArrayBuffer(8); const p = got(f); f.contentWindow.postMessage({a: 1, d: new Date(0), m: new Map([[1, 2]]), b: buf, r: /x/g, u: undefined, big: 1n << 70n, nested: [[1], {z: null}]}, '*', [buf]); out.push(buf.byteLength); const e = await p; out.push(n(e.data.origin), e.source === f.contentWindow, n(e.origin), JSON.stringify(e.data, (k, v) => v instanceof Map ? [...v] : v instanceof ArrayBuffer ? 'AB' + v.byteLength : v instanceof RegExp ? String(v) : typeof v === 'bigint' ? String(v) + 'n' : v === undefined ? 'U' : v)); } return out; })()",
+     "value": [
+      0,
+      "O",
+      true,
+      "O",
+      "{\"echo\":{\"a\":1,\"d\":\"1970-01-01T00:00:00.000Z\",\"m\":[[1,2]],\"b\":\"AB8\",\"r\":\"/x/g\",\"u\":\"U\",\"big\":\"1180591620717411303424n\",\"nested\":[[1],{\"z\":null}]},\"origin\":\"http://127.0.0.1:44117\",\"ports\":0,\"isTrusted\":true,\"type\":\"[object Object]\",\"lastEventId\":\"\",\"srcIsParent\":true}",
+      0,
+      "O",
+      true,
+      "X",
+      "{\"echo\":{\"a\":1,\"d\":\"1970-01-01T00:00:00.000Z\",\"m\":[[1,2]],\"b\":\"AB8\",\"r\":\"/x/g\",\"u\":\"U\",\"big\":\"1180591620717411303424n\",\"nested\":[[1],{\"z\":null}]},\"origin\":\"http://127.0.0.1:44117\",\"ports\":0,\"isTrusted\":true,\"type\":\"[object Object]\",\"lastEventId\":\"\",\"srcIsParent\":true}"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const l = []; let k = 0; const done = new Promise(r => addEventListener('message', function h(e) { if (e.source !== x.contentWindow) return; l.push(e.data.echo); if (++k === 3) { removeEventListener('message', h); r(); } })); for (const i of [1, 2, 3]) x.contentWindow.postMessage(i, '*'); l.push('sync'); await done; return l; })()",
+     "value": [
+      "sync",
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const l = []; const h = e => { if (e.source === x.contentWindow) l.push(e.data.echo); }; addEventListener('message', h); x.contentWindow.postMessage('m', location.origin); x.contentWindow.postMessage('n', X('whatever.html')); x.contentWindow.postMessage('o', '/'); s.contentWindow.postMessage('p', '/'); await W(300); removeEventListener('message', h); return l; })()",
+     "value": [
+      "n"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "(async () => { const c = new MessageChannel(); const p = new Promise(r => c.port1.onmessage = e => r([e.data, e.origin, String(e.source), e.ports.length, e.target === c.port1, Object.prototype.toString.call(e), e.isTrusted])); x.contentWindow.postMessage('port', '*', [c.port2]); return await Promise.race([p, W(1000).then(() => 'timeout')]); })()",
+     "value": [
+      "via port",
+      "",
+      "null",
+      0,
+      true,
+      "[object MessageEvent]",
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "message-channel",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.onmessage = e => l.push('m' + e.data); setTimeout(() => l.push('t0'), 0); c.port2.postMessage(1); Promise.resolve().then(() => l.push('micro')); c.port2.postMessage(2); addEventListener('message', function h(e) { removeEventListener('message', h); l.push('win'); }); postMessage('w', '*'); c.port2.postMessage(3); l.push('sync'); setTimeout(() => r(l), 100); })",
+     "value": [
+      "sync",
+      "micro",
+      "t0",
+      "m1",
+      "win",
+      "m2",
+      "m3"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.addEventListener('message', e => l.push('a' + e.data)); c.port2.postMessage(1); setTimeout(() => { l.push('before start'); c.port1.start(); setTimeout(() => r(l), 50); }, 50); })",
+     "value": [
+      "before start",
+      "a1"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "[Object.getOwnPropertyNames(MessagePort.prototype).join(), Object.getOwnPropertyNames(MessageChannel.prototype).join(), MessageChannel.length, typeof MessagePort, E(() => new MessagePort()), E(() => MessageChannel()), Object.getPrototypeOf(MessagePort.prototype) === EventTarget.prototype, E(() => { const c = new MessageChannel(); c.port1.postMessage(1, [c.port1]); }), E(() => { const c = new MessageChannel(); const d = new MessageChannel(); c.port1.postMessage(1, [d.port1, d.port1]); }), E(() => { const c = new MessageChannel(); c.port1.close(); c.port1.postMessage(1); return 'ok'; }), typeof BroadcastChannel, E(() => structuredClone(new MessageChannel().port1)), E(() => { const c = new MessageChannel(); return structuredClone(c.port1, {transfer: [c.port1]}) instanceof MessagePort; }), E(() => { const c = new MessageChannel(); c.port1.postMessage(1, {transfer: []}); return 'opts'; }), String(new MessageChannel().port1.onmessage)]",
+     "value": [
+      "onmessage,onmessageerror,close,postMessage,start,constructor",
+      "port1,port2,constructor",
+      0,
+      "function",
+      "TypeError: Failed to construct 'MessagePort': Illegal constructor",
+      "TypeError: Failed to construct 'MessageChannel': Please use the 'new' operator, this DOM object constructor cannot be called as a function.",
+      true,
+      "DataCloneError: Failed to execute 'postMessage' on 'MessagePort': Port at index 0 contains the source port.",
+      "DataCloneError: Failed to execute 'postMessage' on 'MessagePort': Message port at index 1 is a duplicate of an earlier port.",
+      "ok",
+      "function",
+      "DataCloneError: Failed to execute 'structuredClone' on 'Window': A MessagePort could not be cloned because it was not transferred.",
+      "true",
+      "opts",
+      "null"
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(r => { const l = []; const c = new MessageChannel(); let k = 0; c.port1.onmessage = () => { k++; if (k < 1000) c.port2.postMessage(0); }; let t = 0; const tick = () => { t++; if (t < 1000) setTimeout(tick, 0); }; setTimeout(tick, 0); c.port2.postMessage(0); setTimeout(() => r([k, t]), 50); })",
+     "value": [
+      1000,
+      19
+     ]
+    },
+    {
+     "kind": "js",
+     "label": "new Promise(r => { const l = []; const c = new MessageChannel(); c.port1.onmessage = e => l.push('m' + e.data); c.port1.onclose = () => l.push('close'); c.port2.postMessage(1); c.port2.close(); setTimeout(() => r(l), 100); })",
+     "value": [
+      "m1"
+     ]
+    }
+   ]
   }
  ]
 }

@@ -456,6 +456,9 @@ impl Page {
             self.update_frames(id);
             self.update_frame_charge(id);
         }
+        // Before the scripts that wait after the task: their calls come later in the order
+        // of the page.
+        self.hand_over_mail();
         if let Some(after_task) = after_task {
             self.after_frame_changes(after_task, agent);
         }
