@@ -182,6 +182,11 @@ pub struct DocumentState {
     /// origin is opaque because of the sandbox, not because of its URL (`file:`,
     /// `data:`).
     pub(crate) sandboxed_origin: bool,
+    /// The partition of the document's storage key (`FirstParty` for the top-level
+    /// document).
+    pub(crate) storage_partition: swb_web::StoragePartition,
+    /// `document.referrer`: empty for the top-level document.
+    pub(crate) referrer: String,
     /// The frame of the document ([`crate::FrameId::TOP`] for the top-level
     /// document).
     pub(crate) frame_id: crate::frames::FrameId,
@@ -375,6 +380,8 @@ impl DocumentState {
             site_for_cookies: init.site_for_cookies,
             frame: init.frame,
             sandboxed_origin: false,
+            storage_partition: swb_web::StoragePartition::FirstParty,
+            referrer: String::new(),
             frame_id: crate::frames::FrameId::TOP,
             retired: false,
             node_room: init.node_room,
@@ -499,15 +506,22 @@ impl swb_web::EngineHost for DocumentState {
     /// `document.cookie`: the jar of the page's fetcher, without the
     /// `HttpOnly` cookies. A page without a jar (a test fetcher) has none.
     fn cookie_string(&self) -> String {
-        self.loader
-            .cookie_jar()
-            .map(|jar| jar.script_cookie_string(self.cookie_url()))
-            .unwrap_or_default()
+        let Some(jar) = self.loader.cookie_jar() else {
+            return String::new();
+        };
+        match &self.site_for_cookies {
+            Some(site) => jar.script_cookie_string_in(self.cookie_url(), site),
+            None => jar.script_cookie_string(self.cookie_url()),
+        }
     }
 
     fn set_cookie(&mut self, line: &str) {
-        if let Some(jar) = self.loader.cookie_jar() {
-            jar.set_script_cookie(self.cookie_url(), line);
+        let Some(jar) = self.loader.cookie_jar() else {
+            return;
+        };
+        match &self.site_for_cookies {
+            Some(site) => jar.set_script_cookie_in(self.cookie_url(), line, site),
+            None => jar.set_script_cookie(self.cookie_url(), line),
         }
     }
 
@@ -517,6 +531,14 @@ impl swb_web::EngineHost for DocumentState {
 
     fn storage_url(&self) -> String {
         self.cookie_url().to_string()
+    }
+
+    fn storage_partition(&self) -> swb_web::StoragePartition {
+        self.storage_partition.clone()
+    }
+
+    fn referrer(&self) -> String {
+        self.referrer.clone()
     }
 
     fn storage(&self) -> Option<swb_web::SharedStorage> {
@@ -923,11 +945,11 @@ impl swb_web::EngineHost for DocumentState {
         self.script_push_state(state, url, replace);
     }
 
-    fn request_navigation(&mut self, url: &str, replace: bool) -> bool {
+    fn request_navigation(&mut self, url: &str, replace: bool, caller: u32) -> bool {
         if self.retired {
             return false;
         }
-        self.script_request_navigation(url, replace)
+        self.script_request_navigation(url, replace, caller)
     }
 
     fn request_reload(&mut self) {

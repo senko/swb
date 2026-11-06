@@ -3739,7 +3739,10 @@ equal Chromium runs each):
   4c1), so `localStorage.x = 1`, `'x' in localStorage`, `delete
   localStorage.x`, `Object.keys` and `JSON.stringify` work. The data is a
   `StorageStore` that the `Page` owns and lends to each document
-  (`EngineHost::storage`): both kinds per origin, in memory;
+  (`EngineHost::storage`): both kinds per key, in memory (since feature
+  14b the key is the origin and, for third-party frames, the top-level
+  site: ADR 0031 section 3 and "Done (feature 14b)"; a top-level document
+  has the origin alone, as before);
   `localStorage` for the process and `sessionStorage` for the page; both
   survive navigations. The origin is that of an `http:` or `https:` URL;
   all `file:` documents share `file://` (Chromium's `file:` pages have
@@ -4631,7 +4634,8 @@ cross-origin frames. The Craigslist posting has a hidden same-origin
 frame that keeps `localStorage` in step across Craigslist's
 subdomains; the page posts to it inside `try`, and in Chromium the
 page renders the same when the frame does not load (measured: same
-elements, no errors).
+elements, no errors). (Update: the frame loads and the favorites work since
+M9 feature 14b, ADR 0031.)
 
 Media playback is out of scope too (ADR 0020 stays: no media is
 fetched). With scripting on, `HTMLMediaElement` has its attributes

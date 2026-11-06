@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-06: M9 feature 14b: storage keys, `storage` events, cookies and referrer of frames
+
+- A frame's `localStorage` and `sessionStorage` are partitioned by top-level site. The key is
+  one string: the origin, and for a third party NUL and the site. A cross-site ancestor
+  counts, so A > B > A' has an area of its own. A key that cannot be computed gives
+  `SecurityError`, and so does a `Storage` object of a retired document.
+- A change of an area queues one `storage` task for every other document of its key. Those
+  documents have one origin and so one runtime, and nothing crosses runtimes. Waiting events
+  count in the writer's message budget.
+- `document.cookie` in a frame follows the site for cookies of the frame's requests.
+  `document.referrer` of a frame has a value. `about:` frames have the creator's
+  `document.domain`.
+- The Craigslist favorites work through the site's hidden storage frame: favorite, unfavorite,
+  favorite again and a reload give Chromium's 17 records. Geometry 0.9804 to 1.0000: the 5
+  extra boxes were the favorites item, which the page hides when the frame answers.
+- Playwright starts Chromium with third-party storage partitioning off, so the probe showed
+  none at first. `CHROMIUM_ARGS` repeats Playwright's list without that feature. A run of all
+  of `web-frames.json` with the new switch shows no older value that depends on it. Compare
+  the list when Playwright changes (docs/testing.md).
+- Three reviews found no way to read the area of another key. They found, and this commit
+  fixes:
+  - A commit could hang: a listener that writes through another frame's `Storage` object makes
+    new events for its own document for ever, and the flush before a commit had no bound. It
+    now fires what waits at its start, for at most 100 ms.
+  - A frame of another origin that went to `about:blank` left a document that its parent could
+    read, whose referrer was the frame's full URL with its query. New measurements showed the
+    rule wrong in more forms: only the initial document of a frame gets a URL.
+  - A downgrade from `https:` gave the origin. The spec gives nothing.
+  - No test covered the whole chain of ancestors, and the hostile case of the 64 MiB total
+    passed through the quota of an area. Each test now fails under its mutation.
+- Limits are in the backlog of the roadmap. The ones to know: `referrerpolicy` is not read, an
+  `about:blank` that another origin navigates to keeps the parent's origin (older), and
+  `c.a.localhost` under `a.localhost` counts as cross-site, which Chromium does not do.
+- Next: feature 15, BBC's consent dialog, which starts with `createNodeIterator`.
+
 ## 2026-11-06: M9 feature 14a: messages and ports across runtimes
 
 - `window.postMessage` and `MessagePort` work across runtimes (ADR 0031 "Done (feature

@@ -193,6 +193,11 @@ pub(crate) struct Frame {
     pub(crate) name: String,
     /// The origin of the current document.
     pub(crate) origin: Option<Origin>,
+    /// The site of the current document for storage keys ([`storage_site_of`]).
+    pub(crate) storage_site: Option<Rc<str>>,
+    /// The URL of the document that started the navigation that waits for its document,
+    /// for `document.referrer`; `None`: the parent's (ADR 0031 "Done (feature 14b)").
+    pub(crate) pending_source: Option<Url>,
     /// The runtime of the current document and its key there, once it has a
     /// realm (ADR 0031 section 5).
     pub(crate) script: Option<FrameScript>,
@@ -256,6 +261,26 @@ pub(crate) struct Frame {
     pub(crate) charge: Charge,
 }
 
+/// The site of a document for storage keys: the scheme and registrable domain of its
+/// origin, or `file://` for a `file:` document (all of them share one area, as one site).
+/// `None` for a document whose origin is opaque otherwise, and for a document whose
+/// sandbox has no `allow-same-origin`: it has no storage. `storage_url` is the URL that
+/// gives the document its storage (the creator's for an `about:` document with its
+/// creator's origin).
+pub(crate) fn storage_site_of(
+    origin: &Origin,
+    storage_url: &Url,
+    sandboxed: bool,
+) -> Option<Rc<str>> {
+    if sandboxed {
+        return None;
+    }
+    if let Some(site) = swb_net::site_text(origin) {
+        return Some(Rc::from(site));
+    }
+    (storage_url.scheme() == "file").then(|| Rc::from("file://"))
+}
+
 impl Frame {
     fn new(parent: Option<FrameId>, container: Option<NodeId>, depth: u32) -> Frame {
         Frame {
@@ -264,6 +289,8 @@ impl Frame {
             children: Vec::new(),
             name: String::new(),
             origin: None,
+            storage_site: None,
+            pending_source: None,
             script: None,
             reuse_window: false,
             resized: false,
@@ -737,6 +764,39 @@ impl Frames {
             top.clone()
         } else {
             Origin::new_opaque()
+        }
+    }
+
+    /// The partition of the storage key of a document of site `own` in a child of
+    /// `parent` (ADR 0031 section 3, "Done (feature 14b)"): the key is the origin alone
+    /// if the top-level document, the ancestors and the document are all of one site,
+    /// else the origin and the site of the top-level document. Without a site of the
+    /// document or of the top level the key cannot be computed.
+    pub(crate) fn storage_partition(
+        &self,
+        parent: FrameId,
+        own: Option<&str>,
+    ) -> swb_web::StoragePartition {
+        use swb_web::StoragePartition;
+        let (Some(own), Some(top)) = (own, self.top().storage_site.clone()) else {
+            return StoragePartition::Unavailable;
+        };
+        let mut frame = Some(parent);
+        let mut first_party = &*top == own;
+        while first_party && let Some(id) = frame {
+            if id == FrameId::TOP {
+                break;
+            }
+            first_party = self
+                .get(id)
+                .and_then(|f| f.storage_site.as_deref())
+                .is_some_and(|site| site == own);
+            frame = self.get(id).and_then(|f| f.parent);
+        }
+        if first_party {
+            StoragePartition::FirstParty
+        } else {
+            StoragePartition::Top(top)
         }
     }
 

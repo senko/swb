@@ -691,9 +691,8 @@ fn what_the_frames_report_about_cookies() {
         let want = super::js_value("cookies-frames", 0);
         let want: Json = serde_json::from_str(want[0].as_str().unwrap()).unwrap();
         for host in ["localhost", "127.0.0.1"] {
-            // `hsa`: `document.hasStorageAccess` does not exist in swb, and the rows of
-            // `cookie` belong to the rules of `document.cookie` in a frame (feature 14b).
-            for key in ["host", "ls"] {
+            // `hsa`: `document.hasStorageAccess` does not exist in swb.
+            for key in ["host", "cookie", "ls"] {
                 assert_eq!(got[host][key], want[host][key], "{host} {key}");
             }
         }

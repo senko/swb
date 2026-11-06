@@ -46,6 +46,8 @@ mod nodes;
 mod paint;
 #[path = "frames/scripted.rs"]
 mod scripted;
+#[path = "frames/storage.rs"]
+mod storage;
 #[path = "frames/window_proxy.rs"]
 mod window_proxy;
 use common::{finish_loading, new_page, on_page_thread, value};

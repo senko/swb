@@ -40,6 +40,7 @@ use swb_web::{
 };
 
 use super::Page;
+use super::frames::Initiator;
 use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
 use crate::frames::registry::RetiredElsewhere;
 use crate::frames::{AgentId, FrameId, FrameScript, FrameTarget};
@@ -569,7 +570,15 @@ impl Page {
             if id == FrameId::TOP {
                 self.location_navigate(navigation.url, navigation.replace);
             } else {
-                self.navigate_frame_by_location(id, navigation.url, navigation.initiator);
+                // The origin is that of the asking document when it asked; the URL is
+                // that of its document now.
+                let initiator = self.initiator_of(navigation.source).map(|mut i| {
+                    if let Some(origin) = navigation.initiator {
+                        i.origin = origin;
+                    }
+                    i
+                });
+                self.navigate_frame_by_location(id, navigation.url, initiator);
             }
         }
         if let Some(focused) = after_task.focused {
@@ -661,8 +670,12 @@ impl Page {
                     log::info!("{id}: the sandbox has no `allow-forms`: not submitting");
                 }
             }
-            Some(ScriptNavigation::Location { url, .. }) => {
-                let initiator = self.doc_of(id).map(DocumentState::origin);
+            Some(ScriptNavigation::Location { url, caller, .. }) => {
+                // The caller's document starts the navigation (a sibling can write to
+                // the `location` of a frame of its origin).
+                let initiator = self
+                    .initiator_of(FrameId::from_number(caller))
+                    .or_else(|| self.initiator_of(id));
                 self.navigate_frame_by_location(id, url, initiator);
             }
             Some(ScriptNavigation::Reload) => self.reload_frame(id),
@@ -689,7 +702,17 @@ impl Page {
             "about:srcdoc" => FrameTarget::Srcdoc,
             _ => FrameTarget::Url(doc.url().clone()),
         };
-        self.navigate_frame(id, target);
+        // The reloaded document is the source of its own referrer (measured, cases
+        // `referrer-initiator`). `about:blank` gives nothing, so a reload gives it
+        // nothing (measured, case `referrer-about-blank`).
+        let initiator = self.initiator_of(id).map(|initiator| match target {
+            FrameTarget::Blank => Initiator {
+                url: super::about_blank(),
+                ..initiator
+            },
+            _ => initiator,
+        });
+        self.navigate_frame_with(id, target, None, initiator);
     }
 
     /// Does what the scripts of the task asked for: the scroll into view of
@@ -722,7 +745,7 @@ impl Page {
                 log::info!("a script submits a form: {}", request.url);
                 self.navigate_from_input(request.url, request.post, request.target);
             }
-            Some(ScriptNavigation::Location { url, replace }) => {
+            Some(ScriptNavigation::Location { url, replace, .. }) => {
                 self.location_navigate(url, replace);
             }
             Some(ScriptNavigation::Reload) => self.reload(),

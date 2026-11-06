@@ -60,5 +60,5 @@ pub use request::{
     CredentialsMode, Destination, Method, RedirectMode, Request, RequestMode, Tainting,
 };
 pub use response::{ContentType, Response};
-pub use site::{is_top_level_domain, same_site};
+pub use site::{is_downgrade, is_top_level_domain, same_site, site_text};
 pub use url::{Origin, Url};

@@ -31,5 +31,8 @@ window.__s=()=>{const mp=document.querySelector('.leaflet-map-pane');return JSON
  menu:document.querySelectorAll('.share-menu li').length,
  body:document.body.className,
  copied:document.body.innerText.includes('URL copied'),
- msgs:[...document.querySelectorAll('div')].filter(e=>e.children.length==0&&/copied/.test(e.textContent)).map(e=>e.className+'|'+e.textContent)})};
+ msgs:[...document.querySelectorAll('div')].filter(e=>e.children.length==0&&/copied/.test(e.textContent)).map(e=>e.className+'|'+e.textContent),
+ fav:[...document.querySelectorAll('.favorites,.favlink,.fav-number,.fave,.unfave')].map(e=>e.className+'|'+getComputedStyle(e).display+'|'+e.textContent.trim().replace(/\s+/g,' ')),
+ favStore:Object.keys(localStorage).sort().map(k=>/Synch/.test(k)?k:k+'='+localStorage.getItem(k)),
+ favFrames:[...document.querySelectorAll('iframe')].map(f=>(f.getAttribute('src')||'')+'|'+f.contentDocument.referrer+'|'+f.contentDocument.readyState)})};
 return 1})()

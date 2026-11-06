@@ -124,6 +124,7 @@ mod runtime;
 mod scripts;
 mod state;
 mod storage;
+mod storage_events;
 mod structured;
 mod svg;
 mod text_codec;
@@ -151,7 +152,7 @@ pub use runtime::{
 pub use scripts::{FetchedScript, ScriptFetchMode, is_javascript_mime_type};
 pub use storage::{
     AREA_COST_BYTES, AREA_QUOTA_UNITS, KEY_COST_BYTES, MAX_KEYS_PER_AREA, QuotaExceeded,
-    SharedStorage, StorageKind, StorageStore, TOTAL_LIMIT_BYTES,
+    SharedStorage, StorageKey, StorageKind, StoragePartition, StorageStore, TOTAL_LIMIT_BYTES,
 };
 pub use structured::Serialized;
 pub use swb_js::{ConsoleLevel, ScriptError};

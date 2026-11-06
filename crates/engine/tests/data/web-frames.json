@@ -14857,6 +14857,536 @@
      ]
     }
    ]
+  },
+  {
+   "name": "storage-key-partition",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.result",
+     "value": [
+      "127.0.0.1:2 underA ls=null ss=null",
+      "127.0.0.1:2 underB ls=null ss=null",
+      "127.0.0.1:2 first ls=null ss=null",
+      "127.0.0.1:2 A2 ls=underA ss=underA",
+      "127.0.0.1:2 B2 ls=underB ss=underB",
+      "127.0.0.1:2 first2 ls=first ss=first"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-key-same-site",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.result",
+     "value": [
+      "a.localhost:2 frameA2 ls=null ss=null",
+      "a.localhost:2 topA2 ls=frameA2 ss=frameA2",
+      "a.localhost:2 topA2w ls=frameA2 ss=frameA2",
+      "a.localhost:2 frameA2r ls=topA2w ss=topA2w",
+      "a.localhost:2 abaRead ls=null ss=null",
+      "a.localhost:2 abaWrite ls=null ss=null",
+      "a.localhost:2 frameA2r2 ls=topA2w ss=topA2w",
+      "a.localhost:2 topA2r ls=topA2w ss=topA2w"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-key-same-origin-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.result",
+     "value": [
+      "127.0.0.1:1 frameL1 ls=null ss=null",
+      "127.0.0.1:1 topL1 ls=frameL1 ss=frameL1",
+      "127.0.0.1:2 frameL2 ls=null ss=null",
+      "127.0.0.1:2 topL2 ls=frameL2 ss=frameL2",
+      "127.0.0.1:1 viaA ls=null ss=null",
+      "127.0.0.1:1 topL1b ls=frameL1 ss=frameL1"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-basic",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); localStorage.clear(); sessionStorage.clear(); await W(60); const out = [];\nout.push(await step('top set a=1', () => localStorage.setItem('a', '1')));\nout.push(await step('top set a=1 again', () => localStorage.setItem('a', '1')));\nout.push(await step('top set a=2', () => localStorage.setItem('a', '2')));\nout.push(await step('top remove zz', () => localStorage.removeItem('zz')));\nout.push(await step('top remove a', () => localStorage.removeItem('a')));\nout.push(await step('top clear empty', () => localStorage.clear()));\nout.push(await step('top set b,c then clear', () => { localStorage.setItem('b', '1'); localStorage.setItem('c', '2'); localStorage.clear(); }));\nout.push(await step('f1 set d', () => f1.contentWindow.localStorage.setItem('d', 'x')));\nout.push(await step('f2 remove d', () => f2.contentWindow.localStorage.removeItem('d')));\nout.push(await step('top session set s', () => sessionStorage.setItem('s', '1')));\nout.push(await step('f2 session set s=2', () => f2.contentWindow.sessionStorage.setItem('s', '2')));\nout.push(await step('f1 session clear', () => f1.contentWindow.sessionStorage.clear()));\nout.push(await step('x set e', () => x.contentWindow.postMessage('w', '*')));\nout.push(await step('top set empty key and value', () => localStorage.setItem('', '')));\nout.push(await step('top named set', () => { localStorage.nm = 'v'; }));\nout.push(await step('top named delete', () => { delete localStorage.nm; }));\nout.push(await step('top set with fragment url', () => { history.replaceState(null, '', '#frag'); localStorage.setItem('u', '1'); }));\nlocalStorage.clear(); sessionStorage.clear();\nreturn out; })()",
+     "value": [
+      "top set a=1 undefined => f1:storage:\"a\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"a\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "top set a=1 again undefined => ",
+      "top set a=2 undefined => f1:storage:\"a\":\"1\":\"2\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"a\":\"1\":\"2\":O/case/case.html:L:StorageEvent:false:false:true",
+      "top remove zz undefined => ",
+      "top remove a undefined => f1:storage:\"a\":\"2\":null:O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"a\":\"2\":null:O/case/case.html:L:StorageEvent:false:false:true",
+      "top clear empty undefined => ",
+      "top set b,c then clear undefined => f1:storage:\"b\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f1:storage:\"c\":null:\"2\":O/case/case.html:L:StorageEvent:false:false:true | f1:storage:null:null:null:O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"b\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"c\":null:\"2\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:null:null:null:O/case/case.html:L:StorageEvent:false:false:true",
+      "f1 set d undefined => f2:storage:\"d\":null:\"x\":O/case/l.html?n=f1:L:StorageEvent:false:false:true | top:storage:\"d\":null:\"x\":O/case/l.html?n=f1:L:StorageEvent:false:false:true",
+      "f2 remove d undefined => f1:storage:\"d\":\"x\":null:O/case/l.html?n=f2:L:StorageEvent:false:false:true | top:storage:\"d\":\"x\":null:O/case/l.html?n=f2:L:StorageEvent:false:false:true",
+      "top session set s undefined => f1:storage:\"s\":null:\"1\":O/case/case.html:S:StorageEvent:false:false:true | f2:storage:\"s\":null:\"1\":O/case/case.html:S:StorageEvent:false:false:true",
+      "f2 session set s=2 undefined => f1:storage:\"s\":\"1\":\"2\":O/case/l.html?n=f2:S:StorageEvent:false:false:true | top:storage:\"s\":\"1\":\"2\":O/case/l.html?n=f2:S:StorageEvent:false:false:true",
+      "f1 session clear undefined => f2:storage:null:null:null:O/case/l.html?n=f1:S:StorageEvent:false:false:true | top:storage:null:null:null:O/case/l.html?n=f1:S:StorageEvent:false:false:true",
+      "x set e undefined => ",
+      "top set empty key and value undefined => f1:storage:\"\":null:\"\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"\":null:\"\":O/case/case.html:L:StorageEvent:false:false:true",
+      "top named set undefined => f1:storage:\"nm\":null:\"v\":O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"nm\":null:\"v\":O/case/case.html:L:StorageEvent:false:false:true",
+      "top named delete undefined => f1:storage:\"nm\":\"v\":null:O/case/case.html:L:StorageEvent:false:false:true | f2:storage:\"nm\":\"v\":null:O/case/case.html:L:StorageEvent:false:false:true",
+      "top set with fragment url undefined => f1:storage:\"u\":null:\"1\":O/case/case.html#frag:L:StorageEvent:false:false:true | f2:storage:\"u\":null:\"1\":O/case/case.html#frag:L:StorageEvent:false:false:true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-order",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); const out = []; const order = [];\nconst f = f1.contentWindow;\nf.addEventListener('message', () => order.push('f1-message'));\naddEventListener('storage', e => order.push('top-storage-' + e.key));\nf.addEventListener('storage', e => order.push('f1-storage-' + e.key));\nf.setTimeout(() => order.push('f1-timer0'), 0);\nsetTimeout(() => order.push('top-timer0'), 0);\nf.postMessage('m0', '*');\nPromise.resolve().then(() => order.push('micro'));\nlocalStorage.setItem('o', '1');\norder.push('after-write');\nf.postMessage('m1', '*');\nf.setTimeout(() => order.push('f1-timer0b'), 0);\nf.setTimeout(() => order.push('f1-timer1'), 1);\nawait W(100);\nout.push(order.join(','));\n// A listener added after the write in the same task.\nconst late = []; localStorage.setItem('o', '2'); f.addEventListener('storage', e => late.push('late-' + e.newValue)); await W(60); out.push(late.join(','));\n// A listener removed after the write.\nconst gone = []; const h = e => gone.push('gone-' + e.newValue); f.addEventListener('storage', h); localStorage.setItem('o', '3'); f.removeEventListener('storage', h); await W(60); out.push(gone.join(','));\nlocalStorage.clear(); return out; })()",
+     "value": [
+      "after-write,micro,f1-timer0,top-timer0,f1-message,f1-message,f1-timer0b,f1-storage-o,f1-timer1",
+      "late-2",
+      ""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-handlers",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); const out = [];\nout.push(await step('set k', () => localStorage.setItem('k', 'v')));\nout.push(await step('set k again', () => localStorage.setItem('k', 'w')));\nlocalStorage.clear();\nconst e = new StorageEvent('storage', {key: 'a', oldValue: 'b', newValue: 'c', url: 'http://x.test/p', storageArea: localStorage, bubbles: true});\nout.push([e.type, e.key, e.oldValue, e.newValue, e.url, e.storageArea === localStorage, e.bubbles, e.cancelable, e.isTrusted].join(':'));\nconst d = new StorageEvent('x');\nout.push([d.key, d.oldValue, d.newValue, d.url, d.storageArea, StorageEvent.length, typeof d.initStorageEvent, Object.getPrototypeOf(StorageEvent) === Event].join(':'));\nconst i = document.createEvent('StorageEvent'); i.initStorageEvent('storage', true, false, 'k', 'o', 'n', 'http://z.test/', sessionStorage);\nout.push([i.type, i.key, i.oldValue, i.newValue, i.url, i.storageArea === sessionStorage, i.bubbles].join(':'));\nout.push(T(() => new StorageEvent('x', {storageArea: {}})));\nout.push(T(() => new StorageEvent('x', {storageArea: null}).storageArea));\n// Dispatching one by hand reaches the listeners.\nconst seen = []; addEventListener('storage', ev => seen.push(ev.key + ':' + ev.isTrusted), {once: true}); dispatchEvent(new StorageEvent('storage', {key: 'hand'}));\nout.push(seen.join());\nreturn out; })()",
+     "value": [
+      "set k undefined => body-attr:k:true | handler:k | listener-first:k | listener-last:k | win-handler-2:k",
+      "set k again undefined => body-attr:k:true | handler:k | listener-first:k | listener-last:k | win-handler-2:k",
+      "storage:a:b:c:http://x.test/p:true:true:false:false",
+      ":::::1:function:true",
+      "storage:k:o:n:http://z.test/:true:true",
+      "TypeError: Failed to construct 'StorageEvent': Failed to read the 'storageArea' property from 'StorageEventInit': Failed to convert value to 'Storage'.",
+      "null",
+      "hand:false"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-retire",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); const out = [];\nout.push(await step('write then remove f2', () => { localStorage.setItem('r1', '1'); f2.remove(); }));\nout.push(await step('write then navigate f3 to another origin (pending)', () => { localStorage.setItem('r2', '1'); f3.src = X('l.html?n=f3b'); }));\nawait W(200);\nout.push(await step('write then replace f4 same origin', () => { localStorage.setItem('r3', '1'); f4.contentWindow.location.replace('l.html?n=f4b'); }));\nawait W(200);\nout.push(await step('after: write', () => localStorage.setItem('r4', '1')));\nlocalStorage.clear();\nreturn out; })()",
+     "value": [
+      "write then remove f2 undefined => f1:storage:\"r1\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f3:storage:\"r1\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f4:storage:\"r1\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "write then navigate f3 to another origin (pending) undefined => f1:storage:\"r2\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f3:storage:\"r2\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f4:storage:\"r2\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "write then replace f4 same origin undefined => f1:storage:\"r3\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f4:storage:\"r3\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "after: write undefined => f1:storage:\"r4\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | f4b:storage:\"r4\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [];\nout.push(await step('top set', () => localStorage.setItem('n', '1')));\nout.push(await step('nested g1 sets', () => f1.contentWindow.g1.contentWindow.localStorage.setItem('n', '2')));\nout.push(await step('sandbox without same-origin sets', () => s2.contentWindow.postMessage('set', '*')));\nout.push(T(() => s2.contentWindow.document.title));\n// document.domain: top and the other port set it; storage events follow the key.\ndocument.domain = '127.0.0.1';\np2.contentWindow.postMessage('domain', '*');\nawait W(100);\nout.push(await step('top set after document.domain', () => localStorage.setItem('n', '3')));\nout.push(await step('p2 (other port, same document.domain) sets', () => p2.contentWindow.postMessage('set', '*')));\nlocalStorage.clear();\nreturn out; })()",
+     "value": [
+      "top set undefined => f1:storage:\"n\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | g1:storage:\"n\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true | s1:storage:\"n\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "nested g1 sets undefined => f1:storage:\"n\":\"1\":\"2\":O/case/l.html?n=g1:L:StorageEvent:false:false:true | s1:storage:\"n\":\"1\":\"2\":O/case/l.html?n=g1:L:StorageEvent:false:false:true | top:storage:\"n\":\"1\":\"2\":O/case/l.html?n=g1:L:StorageEvent:false:false:true",
+      "sandbox without same-origin sets undefined => s2 set: SecurityError: Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.",
+      "SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"O\" from accessing a cross-origin frame.",
+      "top set after document.domain undefined => f1:storage:\"n\":\"2\":\"3\":O/case/case.html:L:StorageEvent:false:false:true | g1:storage:\"n\":\"2\":\"3\":O/case/case.html:L:StorageEvent:false:false:true | s1:storage:\"n\":\"2\":\"3\":O/case/case.html:L:StorageEvent:false:false:true",
+      "p2 (other port, same document.domain) sets undefined => "
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-event-cross-origin",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [];\nout.push(await step('x1 sets', () => x1.contentWindow.postMessage('w', '*')));\nout.push(await step('y sets', () => y.contentWindow.postMessage('w', '*')));\nout.push(await step('top sets', () => localStorage.setItem('c', '1')));\nout.push(await step('x2 session', () => x2.contentWindow.postMessage('s', '*')));\nlocalStorage.clear();\nreturn out; })()",
+     "value": [
+      "x1 sets undefined => x2:storage:\"xc\":null:\"127.0.0.1\":O/case/l.html?n=x1:L:StorageEvent:false:false:true",
+      "y sets undefined => ",
+      "top sets undefined => f1:storage:\"c\":null:\"1\":O/case/case.html:L:StorageEvent:false:false:true",
+      "x2 session undefined => x1:storage:\"xs\":null:\"1\":O/case/l.html?n=x2:S:StorageEvent:false:false:true"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-retired-write",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(300); localStorage.clear(); const out = [];\nconst w1 = f1.contentWindow, w2 = f2.contentWindow, w3 = f3.contentWindow;\nconst l1 = w1.localStorage, l2 = w2.localStorage, l3 = w3.localStorage, s3 = w3.sessionStorage;\nl1.setItem('held', 'before');\nf1.remove();\nout.push(T(() => l1.setItem('held', 'after-removal')) + ' ' + T(() => l1.getItem('held')) + ' ' + T(() => l1.length) + ' top sees ' + localStorage.getItem('held'));\nf2.src = X('l.html?n=f2b');\nawait W(300);\nout.push(T(() => l2.setItem('held2', 'after-cross-origin-nav')) + ' top sees ' + localStorage.getItem('held2') + ' own ' + T(() => l2.getItem('held2')));\nf3.contentWindow.location.replace('l.html?n=f3b');\nawait W(300);\nout.push(T(() => l3.setItem('held3', 'after-same-origin-nav')) + ' top sees ' + localStorage.getItem('held3') + ' same object ' + (f3.contentWindow.localStorage === l3));\nout.push(T(() => s3.setItem('held4', 'x')) + ' ' + sessionStorage.getItem('held4'));\nlocalStorage.clear(); sessionStorage.clear();\nreturn out; })()",
+     "value": [
+      "SecurityError: Failed to execute 'setItem' on 'Storage': Access is denied for this document. SecurityError: Failed to execute 'getItem' on 'Storage': Access is denied for this document. SecurityError: Failed to read the 'length' property from 'Storage': Access is denied for this document. top sees before",
+      "SecurityError: Failed to execute 'setItem' on 'Storage': Access is denied for this document. top sees null own SecurityError: Failed to execute 'getItem' on 'Storage': Access is denied for this document.",
+      "SecurityError: Failed to execute 'setItem' on 'Storage': Access is denied for this document. top sees null same object false",
+      "SecurityError: Failed to execute 'setItem' on 'Storage': Access is denied for this document. null"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-basic",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(700); const out = [];\nfor (const k of ['a', 'b', 'c', 'd', 'e', 'g', 'g1', 'g2', 'h', 'h1', 'h2']) out.push(await report(k, 100));\nconst r = blank.contentDocument.referrer; out.push('blank: ' + r.startsWith('file:///') + ' ' + r.split('/').pop().replace(/case-\\d+/, 'case'));\nout.push('top: ' + n(JSON.stringify(document.referrer)));\nreturn out; })()",
+     "value": [
+      "a <- \"O/case/case.html\"",
+      "b <- \"O/\"",
+      "c <- \"O/\"",
+      "d <- \"O/\"",
+      "e <- \"O/\"",
+      "g <- \"O/case/case.html\"",
+      "g1 <- \"O/case/nest.html?n=g\"",
+      "g2 <- \"O/\"",
+      "h <- \"O/\"",
+      "h1 <- \"X/case/nest.html?n=h\"",
+      "h2 <- \"X/\"",
+      "blank: false case.html",
+      "top: \"\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-url",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(900); const out = [where]; for (const k of ['same', 'cross', 'dyn-same', 'dyn-cross']) out.push(await report(k, 100) + ' url ' + n((log.filter(m => m.n === k).pop() || {}).url)); return out; })()",
+     "value": [
+      "O/case/hop.html?q=1#frag",
+      "same <- \"O/case/hop.html?q=1\" url O/case/ctl.html?n=same",
+      "cross <- \"O/\" url O/case/ctl.html?n=cross",
+      "dyn-same <- \"O/case/hop.html?q=2\" url O/case/ctl.html?n=dyn-same",
+      "dyn-cross <- \"O/\" url O/case/ctl.html?n=dyn-cross"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-initiator",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [];\nlet i = 0;\nconst next = async (label, action, expect) => { log.length = 0; action(); out.push(label + ' => ' + await report(expect, 700) + log.filter(m => m.n === 'error').map(m => ' ERROR ' + m.ref).join('')); };\nawait next('fa href same', () => go('fa', 'href', 'ctl.html?n=fa1'), 'fa1');\nawait next('fa replace same', () => go('fa', 'replace', 'ctl.html?n=fa2'), 'fa2');\nawait next('fa assign same', () => go('fa', 'assign', 'ctl.html?n=fa3'), 'fa3');\nawait next('fa link same', () => go('fa', 'link', 'ctl.html?n=fa4'), 'fa4');\nawait next('fa form same', () => go('fa', 'form', 'ctl.html?n=fa5'), 'fa5');\nawait next('fa form post same', () => go('fa', 'form-post', 'ctl.html?n=fa6'), 'fa6');\nawait next('fa href to X', () => go('fa', 'href', X('ctl.html?n=fa7')), 'fa7');\nawait next('fa(X now) href to X', () => go('fa', 'href', X('ctl.html?n=fa8')), 'fa8');\nawait next('fa(X now) link to main', () => go('fa', 'link', new URL('ctl.html?n=fa9', location.href).href), 'fa9');\nawait next('fa(main now) href to Y', () => go('fa', 'href', Y('ctl.html?n=fa10')), 'fa10');\nawait next('fb(X) href to X', () => go('fb', 'href', X('ctl.html?n=fb1')), 'fb1');\nawait next('fb(X) href to main', () => go('fb', 'href', new URL('ctl.html?n=fb2', location.href).href), 'fb2');\nawait next('fb(main now) link to X', () => go('fb', 'link', X('ctl.html?n=fb3')), 'fb3');\nawait next('fc(Y) form to Y', () => go('fc', 'form', Y('ctl.html?n=fc1')), 'fc1');\n// Siblings set another frame's location. fb is of X (or main) and fg of X.\nawait next('fb(X now) sets fg(X) by frames[5]', () => go('fb', 'target', X('ctl.html?n=sib0'), {index: 5}), 'sib0');\nawait next('fb(X now) sets fg(X) by frames[5] to main', () => go('fb', 'target', new URL('ctl.html?n=sib1', location.href).href, {index: 5}), 'sib1');\nawait next('fe(main) sets fd by frames[3]', () => go('fe', 'target', new URL('ctl.html?n=sib2', location.href).href, {index: 3}), 'sib2');\nawait next('fe(main) sets fd by frames[3] to X', () => go('fe', 'target', X('ctl.html?n=sib3'), {index: 3}), 'sib3');\nawait next('fc(Y) sets frames[3] (fd) to Y', () => go('fc', 'target', Y('ctl.html?n=sib4'), {index: 3}), 'sib4');\nawait next('top sets fd location', () => { fd.contentWindow.location = 'ctl.html?n=top1'; }, 'top1');\nawait next('top sets fd location href to X', () => { fd.contentWindow.location.href = X('ctl.html?n=top2'); }, 'top2');\nawait next('top sets fd location back to main', () => { fd.contentWindow.location.replace(new URL('ctl.html?n=top3', location.href).href); }, 'top3');\n// The src attribute set by the script of another frame.\nawait next('fe(main) sets #fd.src through parent.document', () => go('fe', 'element', X('ctl.html?n=el1'), {id: 'fd'}), 'el1');\nawait next('fe(main) sets #fd.src to main', () => go('fe', 'element', new URL('ctl.html?n=el1b', location.href).href, {id: 'fd'}), 'el1b');\nawait next('fc(Y) sets #fd.src through parent.document', () => go('fc', 'element', X('ctl.html?n=el1c'), {id: 'fd'}), 'el1c');\nawait next('top sets fd.src', () => { fd.src = new URL('ctl.html?n=el2', location.href).href; }, 'el2');\nawait next('top sets fd.src to X', () => { fd.src = X('ctl.html?n=el3'); }, 'el3');\nawait next('fd(X) reload', () => go('fd', 'reload', '-'), 'el3');\n// A reload keeps the referrer of the document.\nawait next('fd(X) reload', () => go('fd', 'reload', '-'), 'el3');\nlog.length = 0;\nfe.contentWindow.location.reload();\nawait W(100);\nout.push('top reloads fe: ' + await report('fe0', 500));\nlog.length = 0;\ngo('fe', 'reload', '-');\nawait W(100);\nout.push('fe reloads itself: ' + await report('fe0', 500));\nlog.length = 0;\ngo('fe', 'href', X('ctl.html?n=fe1'));\nawait W(300);\nlog.length = 0;\nfe.contentWindow.postMessage({go: '-', how: 'reload'}, '*');\nawait W(100);\nout.push('fe(X) reloads: ' + await report('fe1', 500));\nreturn out; })()",
+     "value": [
+      "fa href same => fa1 <- \"O/case/ctl.html?n=fa0\"",
+      "fa replace same => fa2 <- \"O/case/ctl.html?n=fa1\"",
+      "fa assign same => fa3 <- \"O/case/ctl.html?n=fa2\"",
+      "fa link same => fa4 <- \"O/case/ctl.html?n=fa3\"",
+      "fa form same => fa5 <- \"O/case/ctl.html?n=fa4\"",
+      "fa form post same => fa6 <- \"O/case/ctl.html?n=fa5\"",
+      "fa href to X => fa7 <- \"O/\"",
+      "fa(X now) href to X => fa8 <- \"X/case/ctl.html?n=fa7\"",
+      "fa(X now) link to main => fa9 <- \"X/\"",
+      "fa(main now) href to Y => fa10 <- \"O/\"",
+      "fb(X) href to X => fb1 <- \"X/case/ctl.html?n=fb0\"",
+      "fb(X) href to main => fb2 <- \"X/\"",
+      "fb(main now) link to X => fb3 <- \"O/\"",
+      "fc(Y) form to Y => fc1 <- \"L/case/ctl.html?n=fc0\"",
+      "fb(X now) sets fg(X) by frames[5] => sib0 <- \"X/case/ctl.html?n=fb3\"",
+      "fb(X now) sets fg(X) by frames[5] to main => sib1 <- \"X/\"",
+      "fe(main) sets fd by frames[3] => sib2 <- \"O/case/ctl.html?n=fe0\"",
+      "fe(main) sets fd by frames[3] to X => sib3 <- \"O/\"",
+      "fc(Y) sets frames[3] (fd) to Y => sib4 <- (none) ERROR SecurityError",
+      "top sets fd location => top1 <- \"O/case/case.html\"",
+      "top sets fd location href to X => top2 <- \"O/\"",
+      "top sets fd location back to main => top3 <- \"O/case/case.html\"",
+      "fe(main) sets #fd.src through parent.document => el1 <- \"O/\"",
+      "fe(main) sets #fd.src to main => el1b <- \"O/case/case.html\"",
+      "fc(Y) sets #fd.src through parent.document => el1c <- (none) ERROR SecurityError",
+      "top sets fd.src => el2 <- \"O/case/case.html\"",
+      "top sets fd.src to X => el3 <- \"O/\"",
+      "fd(X) reload => el3 <- \"X/case/ctl.html?n=el3\"",
+      "fd(X) reload => el3 <- \"X/case/ctl.html?n=el3\"",
+      "top reloads fe: fe0 <- \"O/case/ctl.html?n=fe0\"",
+      "fe reloads itself: fe0 <- \"O/case/ctl.html?n=fe0\"",
+      "fe(X) reloads: fe1 <- \"X/case/ctl.html?n=fe1\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-file",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [location.protocol]; for (const k of ['d', 'data']) out.push(await report(k, 100)); const r = blank.contentDocument.referrer; out.push('blank: ' + r.startsWith('file:///') + ' ' + r.split('/').pop().replace(/case-\\d+/, 'case')); return out; })()",
+     "value": [
+      "file:",
+      "d <- \"\"",
+      "data <- \"\"",
+      "blank: true case.html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-sandbox",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = []; for (const k of ['s1', 's2', 's3', 's4', 's5']) out.push(await report(k, 100)); return out; })()",
+     "value": [
+      "s1 <- \"O/case/case.html\"",
+      "s2 <- \"O/case/case.html\"",
+      "s3 <- \"O/\"",
+      "s4 <- \"O/\"",
+      "s5 <- \"O/\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-policy",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(700); const out = []; for (let i = 0; i < 10; i++) { out.push(await report('p' + i, 100)); out.push(await report('q' + i, 100)); } return out; })()",
+     "value": [
+      "p0 <- \"O/case/case.html?x=1\"",
+      "q0 <- \"O/\"",
+      "p1 <- \"\"",
+      "q1 <- \"\"",
+      "p2 <- \"O/case/case.html?x=1\"",
+      "q2 <- \"O/case/case.html?x=1\"",
+      "p3 <- \"O/case/case.html?x=1\"",
+      "q3 <- \"\"",
+      "p4 <- \"O/\"",
+      "q4 <- \"O/\"",
+      "p5 <- \"O/\"",
+      "q5 <- \"O/\"",
+      "p6 <- \"O/case/case.html?x=1\"",
+      "q6 <- \"O/\"",
+      "p7 <- \"O/case/case.html?x=1\"",
+      "q7 <- \"O/\"",
+      "p8 <- \"O/case/case.html?x=1\"",
+      "q8 <- \"O/case/case.html?x=1\"",
+      "p9 <- \"O/case/case.html?x=1\"",
+      "q9 <- \"O/\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-policy-header",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(600); const out = []; for (const k of ['a', 'b', 'c1']) out.push(await report(k, 100)); return out; })()",
+     "value": [
+      "a <- \"\"",
+      "b <- \"\"",
+      "c1 <- \"O/case/hdr2.html\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "domain-about-frames",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [];\nout.push('top ' + probe(window).join(' | '));\nout.push('blank ' + probe(b.contentWindow).join(' | '));\nout.push('srcdoc ' + probe(s.contentWindow).join(' | '));\nout.push('same-origin src ' + probe(x.contentWindow).join(' | '));\nfor (const m of log) for (const k of ['data', 'blank', 'srcdoc']) if (m && m[k]) out.push('in data frame: ' + k + ' ' + m[k].join(' | '));\nreturn out.map(s => s.replace(/127\\.0\\.0\\.1:\\d+/g, 'H')); })()",
+     "value": [
+      "top \"127.0.0.1\" | true | \"\" | 0 | 0 | \"set\" | \"http://H\" | \"\"",
+      "blank \"127.0.0.1\" | true | \"\" | 0 | 0 | \"set\" | \"http://H\" | \"http://H/case-1/case-1.html\"",
+      "srcdoc \"127.0.0.1\" | true | \"\" | 0 | 0 | \"set\" | \"http://H\" | \"http://H/\"",
+      "same-origin src \"127.0.0.1\" | true | \"\" | 0 | 0 | \"set\" | \"http://H\" | \"http://H/case-1/case-1.html\"",
+      "in data frame: data \"\" | true | SecurityError: Failed to read the 'cookie' property from 'Document': Cookies are disabled inside 'data:' URLs. | SecurityError: Failed to read the 'localStorage' property from 'Window': Storage is disabled inside 'data:' URLs. | SecurityError: Failed to read the 'sessionStorage' property from 'Window': Storage is disabled inside 'data:' URLs. | SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain. | \"null\" | \"http://H/\"",
+      "in data frame: blank \"\" | true | SecurityError: Failed to read the 'cookie' property from 'Document': Access is denied for this document. | SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document. | SecurityError: Failed to read the 'sessionStorage' property from 'Window': Access is denied for this document. | SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain. | \"null\" | \"data:text/html,%3Cbo\"",
+      "in data frame: srcdoc \"\" | true | SecurityError: Failed to read the 'cookie' property from 'Document': Access is denied for this document. | SecurityError: Failed to read the 'localStorage' property from 'Window': Access is denied for this document. | SecurityError: Failed to read the 'sessionStorage' property from 'Window': Access is denied for this document. | SecurityError: Failed to set the 'domain' property on 'Document': '' is an empty domain. | \"null\" | \"\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cookies-frames-script",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(async () => { await W(500); const out = [];\nconst show = r => JSON.stringify(r);\ndocument.cookie = 'ck_top=1' + P;\nfor (const [frame, name] of [[fx, 'fx'], [fl, 'fl'], [fn, 'fn1'], [fm, 'fm1']]) out.push(name + ' set ' + show(await ask(frame, 'set', name)));\nout.push('top ' + document.cookie.split('; ').filter(c => c.startsWith('ck_') || c.startsWith('f')).sort().join(';'));\nfor (const [frame, name] of [[fx, 'fx'], [fl, 'fl'], [fn, 'fn1'], [fm, 'fm1']]) out.push(name + ' read ' + show(await ask(frame, 'read', name)));\nreturn out; })()",
+     "value": [
+      "fx set {\"n\":\"fx\",\"host\":\"127.0.0.1\",\"before\":\"ck_top=1\",\"after\":\"ck_top=1;fx_a=1;fx_b=1;fx_c=1;fx_d=1\"}",
+      "fl set {\"n\":\"fl\",\"host\":\"localhost\",\"before\":\"\",\"after\":\"fl_b=1\"}",
+      "fn1 set {\"n\":\"fn1\",\"host\":\"127.0.0.1\",\"before\":\"fx_b=1\",\"after\":\"fn1_b=1;fx_b=1\"}",
+      "fm1 set {\"n\":\"fm1\",\"host\":\"localhost\",\"before\":\"fl_b=1\",\"after\":\"fl_b=1;fm1_b=1\"}",
+      "top ck_top=1;fn1_b=1;fx_a=1;fx_b=1;fx_c=1;fx_d=1",
+      "fx read {\"n\":\"fx\",\"host\":\"127.0.0.1\",\"read\":\"ck_top=1;fn1_b=1;fx_a=1;fx_b=1;fx_c=1;fx_d=1\"}",
+      "fl read {\"n\":\"fl\",\"host\":\"localhost\",\"read\":\"fl_b=1;fm1_b=1\"}",
+      "fn1 read {\"n\":\"fn1\",\"host\":\"127.0.0.1\",\"read\":\"fn1_b=1;fx_b=1\"}",
+      "fm1 read {\"n\":\"fm1\",\"host\":\"localhost\",\"read\":\"fl_b=1;fm1_b=1\"}"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-about-blank",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.run()",
+     "value": [
+      "initial, no src => \"O/case/case.html?top=1#h\" at \"about:blank\"",
+      "src=about:blank at insertion => \"O/case/case.html?top=1#h\" at \"about:blank\"",
+      "src=about:blank#x at insertion => \"\" at \"about:blank#x\"",
+      "src=about:blank?x at insertion => \"O/case/case.html?top=1#h\" at \"about:blank?x\"",
+      "initial, sandbox allow-same-origin => \"O/case/case.html?top=1#h\" at \"about:blank\"",
+      "parent sets src on a same-origin doc => \"O/\" at \"about:blank\"",
+      "parent sets src on the initial doc => \"O/\" at \"about:blank\"",
+      "parent sets src with a fragment on the initial doc => \"O/case/case.html?top=1#h\" at \"about:blank#x\"",
+      "parent sets src with a query on the initial doc => \"O/\" at \"about:blank?x\"",
+      "parent sets location of a same-origin doc => \"O/\" at \"about:blank\"",
+      "parent sets location of the initial doc => \"O/\" at \"about:blank\"",
+      "reload of the initial doc => \"\" at \"about:blank\"",
+      "reload of a navigated blank => \"\" at \"about:blank\"",
+      "same-origin doc sets its own location => \"O/\" at \"about:blank\"",
+      "same-origin doc clicks a link => \"O/\" at \"about:blank\"",
+      "same-origin sibling sets location => \"O/\" at \"about:blank\"",
+      "same-origin doc replaces its location => \"O/\" at \"about:blank\"",
+      "cross-origin doc sets its own location => TypeError at SecurityError",
+      "cross-origin sibling sets location => \"O/case/case.html?top=1\" at \"O/case/c.html?victim=2\"",
+      "srcdoc => \"O/\"",
+      "reload of a srcdoc doc => \"O/\" at \"about:srcdoc\"",
+      "initial child of an initial doc => \"about:blank\"",
+      "initial child of a srcdoc doc => \"about:srcdoc\"",
+      "initial child after replaceState => \"O/case/c.html?changed=1#c\"",
+      "initial child of a frame => \"O/case/p.html?page=1#pf\"",
+      "grand parent sets location => \"O/\"",
+      "grand parent sets src => \"O/\""
+     ]
+    }
+   ]
+  },
+  {
+   "name": "referrer-about-blank-file",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.run()",
+     "value": [
+      "file:",
+      "initial, no src => \"F/case.html\" at \"about:blank\"",
+      "src=about:blank at insertion => \"F/case.html\" at \"about:blank\"",
+      "parent sets src on the initial doc => TypeError at SecurityError",
+      "parent sets location of the initial doc => TypeError at SecurityError"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "storage-key-chain",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "window.result",
+     "value": [
+      "a.localhost:1 topA ls=null ss=null",
+      "a.localhost:1 deep ls=null ss=null",
+      "a.localhost:2 deep2 ls=null ss=null",
+      "a.localhost:1 same-site-chain ls=topA ss=topA"
+     ]
+    }
+   ]
   }
  ]
 }

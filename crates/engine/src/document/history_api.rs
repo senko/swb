@@ -109,7 +109,12 @@ impl DocumentState {
     /// `location.href = url`, `assign()` and `replace()`. Returns true for
     /// a navigation to a fragment of this document, which happens at once;
     /// else the page navigates when the task ends.
-    pub(crate) fn script_request_navigation(&mut self, url: &str, replace: bool) -> bool {
+    pub(crate) fn script_request_navigation(
+        &mut self,
+        url: &str,
+        replace: bool,
+        caller: u32,
+    ) -> bool {
         let Ok(url) = Url::parse(url) else {
             return false;
         };
@@ -120,7 +125,11 @@ impl DocumentState {
         let same_document =
             url.fragment().is_some() && strip_fragment(&url) == strip_fragment(&self.url);
         if !same_document {
-            self.script_requests.navigation = Some(ScriptNavigation::Location { url, replace });
+            self.script_requests.navigation = Some(ScriptNavigation::Location {
+                url,
+                replace,
+                caller,
+            });
             return false;
         }
         let scroll = self.scroll;

@@ -7148,3 +7148,183 @@ def agents_top_navigation_in_a_loop_js_on() -> Page:
     )
     top = "<iframe src='http://o.hostile.test/x.html'></iframe>"
     return origins_page(doc(top), {"http://o.hostile.test/x.html": child})
+
+
+# --- storage keys and `storage` events (M9 feature 14b, ADR 0031 section 11) ---
+
+SAME_ORIGIN_FRAME = "http://hostile.test/x.html"
+STORAGE_ARGS = ("--js", "--replay", "{dir}", "--settle-ms", "2500")
+LISTENER = "<!doctype html><script>let n = 0; addEventListener('storage', () => { n++; });</script>"
+
+
+def listening_frames(count: int) -> str:
+    """`count` same-origin frames that listen for `storage` events."""
+    return "".join(f"<iframe src='{SAME_ORIGIN_FRAME}'></iframe>" for _ in range(count))
+
+
+@case(
+    "A frame that writes localStorage in a loop (200,000 writes) while 100 same-origin frames "
+    "listen (M9 feature 14b): the events that wait stop at the budget of waiting messages and "
+    "events of the writer's runtime, with one warning, and the writes go on",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=1500,
+    expect_log=("further storage events are dropped", "writer end"),
+)
+def storage_events_flood_with_100_listening_frames_js_on() -> Page:
+    writer = (
+        "<!doctype html><script>addEventListener('load', () => { for (let i = 0; i < 200000; "
+        "i++) localStorage.setItem('k', String(i)); console.warn('writer end ' + "
+        "localStorage.getItem('k')); });</script>"
+    )
+    return origins_page(
+        doc(listening_frames(100) + "<iframe src='http://hostile.test/w.html'></iframe>"),
+        {SAME_ORIGIN_FRAME: LISTENER, "http://hostile.test/w.html": writer},
+    )
+
+
+@case(
+    "One key with a value at the quota (5 Mi units), written and removed in a loop with three "
+    "frames that listen (M9 feature 14b): the bytes of the waiting events stop at the budget, "
+    "and the strings are shared by the receivers of one write",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=1500,
+    expect_log=("further storage events are dropped", "quota end"),
+)
+def storage_value_at_the_quota_in_a_loop_with_listeners_js_on() -> Page:
+    top = (
+        "<script>addEventListener('load', () => { const v = 'x'.repeat((5 << 20) - 8); "
+        "for (let i = 0; i < 100; i++) { localStorage.setItem('k', v); localStorage.removeItem"
+        "('k'); } console.warn('quota end ' + localStorage.length); });</script>"
+    )
+    return origins_page(
+        doc(listening_frames(3) + top),
+        {SAME_ORIGIN_FRAME: LISTENER},
+    )
+
+
+@case(
+    "clear() in a loop (400,000 calls on an area with one key) with five frames that listen "
+    "(M9 feature 14b): every call changes the area and queues events until the budget",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=1500,
+    expect_log=("further storage events are dropped", "clear end"),
+)
+def storage_clear_in_a_loop_with_listeners_js_on() -> Page:
+    top = (
+        "<script>addEventListener('load', () => { for (let i = 0; i < 400000; i++) { "
+        "localStorage.setItem('a', 'b'); localStorage.clear(); } console.warn('clear end'); "
+        "});</script>"
+    )
+    return origins_page(doc(listening_frames(5) + top), {SAME_ORIGIN_FRAME: LISTENER})
+
+
+@case(
+    "30 frames of 30 origins that each write 4 MiB, under the quota of an area (M9 feature 14b): "
+    "the total of 64 MiB over all keys stops them with QuotaExceededError, in 30 runtimes besides "
+    "the top level's",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=1800,
+    expect_log="total reached",
+)
+def storage_total_over_30_origins_js_on() -> Page:
+    urls = [f"http://s{i}.hostile.test/x.html" for i in range(30)]
+    child = (
+        "<!doctype html><script>let full = false; for (let i = 0; i < 4 && !full; i++) { "
+        "try { localStorage.setItem('k' + i, 'x'.repeat(1 << 20)); } catch (e) { full = "
+        "e.name === 'QuotaExceededError'; } } parent.postMessage(full ? 'full' : 'ok', '*');"
+        "</script>"
+    )
+    frames = "".join(f"<iframe src='{u}'></iframe>" for u in urls)
+    top = (
+        "<script>let got = 0, full = 0; addEventListener('message', (e) => { got++; if "
+        "(e.data === 'full') full++; if (got === 30) console.warn(full > 0 ? 'total reached' : "
+        "'total not reached'); });</script>"
+    )
+    return origins_page(doc(frames + top), dict.fromkeys(urls, child))
+
+
+@case(
+    "A frame that navigates in a loop while the top level writes localStorage in a loop "
+    "(M9 feature 14b): the events that wait for a document that retires go with it",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=800,
+    expect_log="storage end",
+)
+def storage_events_for_a_frame_that_navigates_in_a_loop_js_on() -> Page:
+    child = (
+        "addEventListener('storage', () => {}); addEventListener('load', () => { location.href"
+        " = location.pathname === '/x.html' ? '/y.html' : '/x.html'; });"
+    )
+    top = (
+        "let n = 0; addEventListener('load', () => { const go = () => { for (let i = 0; i < "
+        "5000; i++) localStorage.setItem('k', String(i)); if (++n === 20) console.warn('storage "
+        "end'); else setTimeout(go, 5); }; go(); });"
+    )
+    return origins_page(
+        doc(f"<iframe id=f src='{SAME_ORIGIN_FRAME}'></iframe><script>{top}</script>"),
+        {
+            SAME_ORIGIN_FRAME: f"<!doctype html><script>{child}</script>",
+            "http://hostile.test/y.html": f"<!doctype html><script>{child}</script>",
+        },
+    )
+
+
+@case(
+    "A Storage object of a frame document that retired, written through in a loop "
+    "(M9 feature 14b): every call throws SecurityError, and the area of the top level stays empty",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=10.0,
+    rss_limit_mib=500,
+    expect_log="retired end 200000 0",
+)
+def storage_object_of_a_retired_document_js_on() -> Page:
+    top = (
+        "<script>addEventListener('load', () => { const held = f.contentWindow.localStorage; "
+        "const held2 = f.contentWindow.sessionStorage; f.remove(); let denied = 0; for (let i = "
+        "0; i < 100000; i++) { try { held.setItem('k' + i, 'v'); } catch (e) { if (e.name === "
+        "'SecurityError') denied++; } try { held2.clear(); } catch (e) { if (e.name === "
+        "'SecurityError') denied++; } } console.warn('retired end ' + denied + ' ' + "
+        "localStorage.length); });</script>"
+    )
+    return origins_page(
+        doc(f"<iframe id=f src='{SAME_ORIGIN_FRAME}'></iframe>{top}"),
+        {SAME_ORIGIN_FRAME: LISTENER},
+    )
+
+
+@case(
+    "A chain of 30 nested same-origin frames that all listen for storage events while the top "
+    "level writes in a loop (M9 feature 14b): the events reach each document as tasks, up to the "
+    "budget",
+    swb_args=STORAGE_ARGS,
+    url=REPLAY_URL,
+    time_limit_s=15.0,
+    rss_limit_mib=1500,
+    expect_log="chain end",
+)
+def storage_events_in_a_chain_of_nested_frames_js_on() -> Page:
+    depth = 30
+    documents = {}
+    for i in range(depth):
+        inner = ""
+        if i + 1 < depth:
+            inner = f"<iframe src='http://hostile.test/n{i + 1}.html'></iframe>"
+        documents[f"http://hostile.test/n{i}.html"] = (
+            "<!doctype html><script>addEventListener('storage', () => {});</script>" + inner
+        )
+    top = (
+        "<script>addEventListener('load', () => { for (let i = 0; i < 100000; i++) "
+        "localStorage.setItem('k', String(i)); console.warn('chain end'); });</script>"
+    )
+    return origins_page(doc("<iframe src='http://hostile.test/n0.html'></iframe>" + top), documents)

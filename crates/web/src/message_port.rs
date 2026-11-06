@@ -144,9 +144,9 @@ type IdBuild = BuildHasherDefault<IdHasher>;
 // ----- The budget -----
 
 /// What one runtime has sent or made and what is still there: the messages that wait
-/// and the live ports. The counts live as long as something counts in them, which can
-/// be longer than the runtime: a message that waits in another runtime stays counted
-/// until it is delivered or dropped.
+/// (with the `storage` events that it wrote, `storage_events.rs`) and the live ports. The
+/// counts live as long as something counts in them, which can be longer than the runtime:
+/// a message that waits in another runtime stays counted until it is delivered or dropped.
 #[derive(Debug, Default)]
 pub(crate) struct MessageBudget {
     waiting: Cell<usize>,
@@ -160,12 +160,19 @@ pub(crate) struct MessageBudget {
 impl MessageBudget {
     /// Counts a message that is about to wait. False (with one warning per full queue)
     /// if a bound is reached: the caller drops the message.
+    #[cfg(test)]
     fn admit(&self, bytes: usize) -> bool {
+        self.admit_as(bytes, "message")
+    }
+
+    /// [`MessageBudget::admit`] for something else that waits in the same budget (`what`
+    /// names it in the warning).
+    fn admit_as(&self, bytes: usize, what: &str) -> bool {
         let mut share = self.bytes.borrow_mut();
         if self.waiting.get() >= MAX_WAITING || !share.fits(bytes as u64, MAX_BYTES as u64) {
             if !self.warned.replace(true) {
                 log::warn!(
-                    "postMessage: {} messages ({} bytes) wait; further messages are dropped until none waits",
+                    "{} messages ({} bytes) wait; further {what}s are dropped until none waits",
                     self.waiting.get(),
                     share.mine()
                 );
@@ -576,8 +583,14 @@ impl Ports {
     /// Counts a message of `bytes` that this runtime is about to leave waiting; `None`
     /// if the budget is full (the caller drops the message).
     pub(crate) fn admit(&self, bytes: usize) -> Option<Charge> {
+        self.admit_as(bytes, "message")
+    }
+
+    /// [`Ports::admit`] for something else that waits in the same budget (a `storage`
+    /// event); `what` names it in the warning.
+    pub(crate) fn admit_as(&self, bytes: usize, what: &str) -> Option<Charge> {
         let bytes = bytes.saturating_add(WAITING_OVERHEAD);
-        self.budget.admit(bytes).then(|| Charge {
+        self.budget.admit_as(bytes, what).then(|| Charge {
             budget: Rc::clone(&self.budget),
             bytes,
             settled: false,

@@ -2284,7 +2284,8 @@ Steps:
      `iframe` whose script sends `localStorage` data to the page with
      `postMessage`). Frames stay out of M8 (owner, 2026-10-30): in swb
      the "favorites" item of the navigation bar stays visible and the
-     favorite button does nothing (a departure).
+     favorite button does nothing (a departure, which M9 feature 14b
+     removes).
      Load-time budget: the `load` event within 3.65 s on the legacy
      path (three times Chromium's jitless task time on that path,
      1.217 s, plus the JS-off pipeline time, 2 ms; measured on
@@ -4094,7 +4095,7 @@ Steps:
      video in the cards (no media playback). Load-time budget: the
      `load` event within 4.60 s.
    - Craigslist posting (M8 target): the favorites button works through
-     the site's storage frame (the M8 departure goes).
+     the site's storage frame (the M8 departure goes). Done in feature 14b.
 
    Features:
 
@@ -4424,15 +4425,13 @@ Steps:
          `MessagePort` across runtimes; `contentWindow` of a node of a retired
          document is null. BBC's frames get their messages: 30 cross in one load.
          JS off: snapshot identical. JS on: `compare --js` unchanged.
-       - 14b (`implementer`): storage keys of frames (top-level site, origin),
-         `storage` events across documents, `document.cookie` of a cross-site
-         frame, and `document.referrer` of frame documents (empty since 12b1;
-         measured in Chromium: the parent's URL for `src` and `about:blank` frames,
-         the parent's origin for `about:srcdoc` frames). `document.domain`
-         (`domain.rs`) reads the document's URL, so a same-origin `about:` frame
-         document counts as opaque there; the origin
-         (`EngineHost::origin_text`) is right; measure first. Exit: the Craigslist
-         favorites work.
+       - 14b (`implementer`). Done 2026-11-06: storage keys of frames (top-level
+         site, origin), `storage` events across documents, `document.cookie` of a
+         cross-site frame, `document.referrer` of frame documents, and
+         `document.domain` of `about:` frames. The Craigslist favorites work through
+         the site's storage frame. JS off: snapshot identical. JS on: `compare --js`
+         for Craigslist goes to geometry 1.0000, pixels 0.9992; the others are
+         unchanged.
    15. BBC's consent dialog (`implementer`; ADR 0031 feature 7).
        `document.createNodeIterator`, `NodeIterator` and `NodeFilter` (DOM section
        6): Sourcepoint's rendering app runs since 14a and stops there, in
@@ -4501,10 +4500,6 @@ Steps:
     `document.write`, the string handlers of timers (ADR 0031 section 11).
   - `iframe.focus()` from the parent does not send keys to the frame (Chromium does);
     `f.contentWindow.focus()` and `Tab` do.
-  - `document.domain` and `originAgentCluster` of an `about:` document in a frame of a
-    tuple origin give `""` and false (Chromium: the host and true; feature 14 reads
-    the same URL); an `about:blank` child of a `data:` frame has the `data:` texts (Chromium:
-    "Access is denied for this document.").
   - The `frame_input` test waits 70 s in real time (`wait` steps); a page clock for these
     steps would make it short.
 - Messages across runtimes (feature 14a; rows in `crates/engine/tests/frames/messages.rs` and
@@ -4529,6 +4524,60 @@ Steps:
   - A message that waited for a reused window reaches a listener of the first script of
     the new document; Chromium's does not see it.
   - `document.hasStorageAccess` and `TreeWalker` do not exist.
+- Storage, cookies and the referrer of frames (feature 14b; rows in
+  `crates/engine/tests/frames/storage.rs` and ADR 0031 "Done (feature 14b)"):
+  - The `referrerpolicy` attribute of `iframe` and the `Referrer-Policy` header are not read
+    (Chromium's values: cases `referrer-policy*`).
+  - `document.referrer` of a top-level document that a frame opens (`target=_top`, a form,
+    `window.open`) is empty; Chromium gives the frame's URL. A window that `window.open` in a
+    frame makes did not report to its opener in the review's page; not looked at further.
+  - The initial `about:blank` of a frame under a `blob:` document has `""` as its referrer; not
+    measured.
+  - An `about:blank` that a frame of another origin navigates to has the parent's origin, so
+    the parent can read it; Chromium gives it the frame's origin. In a `file:` page a
+    navigated `about:blank` keeps the origin of the page; Chromium gives it another opaque
+    origin. Its referrer has only the frame's origin, so no URL leaks.
+  - swb has no `about:blank` URL with a fragment or a query (`location.href` says
+    `about:blank`). A `src` set in the task that inserted the frame counts as at the
+    insertion; in Chromium it is a navigation.
+  - An `about:blank` child of a `data:` frame has `""` as its referrer; Chromium gives the
+    `data:` URL, cut.
+  - The URL of a navigation's source is read after the task: a `replaceState` in the same
+    task after the call shows in the referrer. Chromium reads it at the call. The two URLs
+    have one origin.
+  - A redirect from the source's origin through another origin and back gives the full URL;
+    Chromium gives the origin. `Response` has no redirect chain.
+  - Credentials in the URL of a navigation: Chromium drops them from the document's URL, swb
+    keeps them, and `replaceState` on such a page throws.
+  - The order of the receivers of `storage` events is the document table's (Chromium: it
+    changes between runs), and the event comes 0.5 ms after the write (Chromium: an IPC).
+  - A commit fires the events that wait for the old document for at most 100 ms, and drops the
+    rest. In case `storage-event-retire` Chromium fires them before the commit; a long queue
+    is not measured.
+  - `has_peers` counts retired documents, so a page that made and removed frames pays a scan
+    with no result at each write.
+  - A write past the budget of waiting events still costs 7 to 10 microseconds with 10 to 250
+    same-origin frames, and a receiver with no listener costs what a listening one costs. A
+    listener added later in the task gets the event, so a check must come at the task.
+  - The `Storage` objects of a reused initial `about:blank` window do not stay with the window.
+  - A frame under a `file:` top level with a `data:` frame has no key (it fails closed);
+    Chromium's value is not measured.
+  - `a.localhost` and `c.a.localhost` are other sites in swb and one site in Chromium (a host
+    under `localhost` has no registrable domain, `crates/net/src/site.rs`). A frame of
+    `c.a.localhost` under `a.localhost` loses its cookie writes, and its area is partitioned.
+    The base kept three of those writes. Hosts under other unknown top-level domains are not
+    measured. `SameSite=None; Secure` from `http://*.localhost` is refused, as documented in
+    `site.rs`.
+  - The total of 64 MiB over all keys (ADR 0028 section 16) lets frames take the top level's
+    room: 15 of 20 origins with 4 MiB each fit, and the top level's own 4 MiB does not.
+    Chromium accepted all of them in the same page.
+  - The message of a `SecurityError` of a retired `Storage` object differs for `delete S.k`
+    and `JSON.stringify(S)`; the name is the same. A lone surrogate in a value is U+FFFD in
+    the event (Chromium keeps it), because the store holds UTF-8.
+  - Found in the review, older than 14b: `target=_blank` gives the new window an `opener`
+    (Chromium: none); `history.back()` to an earlier document of a frame does not run that
+    document again; a `<meta http-equiv=refresh>` in a frame with a later script is not
+    followed.
 - Retired documents (found in the review of 13a, older than it): a retired same-origin
   document stays scriptable: its `Function` runs (`fn.constructor('return x')()`),
   `getElementById` finds its nodes, and its `History` works. Chromium: `TypeError: no

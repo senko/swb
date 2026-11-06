@@ -15,6 +15,7 @@ mod hit_test;
 mod image_source;
 mod input;
 mod page;
+mod referrer;
 mod resources;
 mod scrollers;
 mod selection;

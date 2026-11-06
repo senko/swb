@@ -68,6 +68,10 @@ pub(crate) struct FrameDocument {
     pub(crate) node_room: Rc<Cell<usize>>,
     /// The frame's sandbox has no `allow-same-origin`.
     pub(crate) sandboxed_origin: bool,
+    /// The partition of the storage key ([`Frames::storage_partition`]).
+    pub(crate) storage_partition: swb_web::StoragePartition,
+    /// `document.referrer` ([`crate::referrer`]).
+    pub(crate) referrer: String,
 }
 
 impl DocumentMaker {
@@ -105,6 +109,8 @@ impl DocumentMaker {
         }));
         doc.history = init.history;
         doc.sandboxed_origin = init.sandboxed_origin;
+        doc.storage_partition = init.storage_partition;
+        doc.referrer = init.referrer;
         doc
     }
 }
@@ -117,6 +123,8 @@ pub(crate) struct ChildInit {
     pub(crate) base_url: Url,
     /// The URL of the cookies and the storage of the parent's document.
     pub(crate) creator_url: Url,
+    /// `document.referrer` of the initial document if it has the origin of its creator.
+    pub(crate) initial_referrer: String,
     /// What the attributes ask for at the insertion.
     pub(crate) target: Option<FrameTarget>,
     pub(crate) history: crate::document::HistoryInfo,
@@ -133,6 +141,7 @@ impl ChildInit {
             sandbox_attr: element.attr("sandbox").map(str::to_owned),
             base_url: doc.base_url().clone(),
             creator_url: doc.cookie_url().clone(),
+            initial_referrer: crate::referrer::initial_referrer(doc.url()),
             target: attribute_target(doc, container),
             history: doc.history.clone(),
         })
@@ -222,6 +231,15 @@ impl Frames {
             record.origin.clone()?
         };
         let site = Some(self.site_for_cookies(parent, Some(&origin)));
+        let storage_site =
+            super::storage_site_of(&origin, &init.creator_url, sandbox.opaque_origin());
+        let storage_partition = self.storage_partition(parent, storage_site.as_deref());
+        // With an opaque origin no script can read it.
+        let referrer = if sandbox.opaque_origin() {
+            String::new()
+        } else {
+            init.initial_referrer
+        };
         let parsed = swb_dom::parse_html_with(BLANK, settings.javascript);
         let doc = maker.make(FrameDocument {
             dom: parsed,
@@ -239,12 +257,15 @@ impl Frames {
             history: init.history,
             node_room: Rc::clone(&self.node_room),
             sandboxed_origin: sandbox.opaque_origin(),
+            storage_partition,
+            referrer,
         });
         let id = self.insert(parent, init.container, doc, at)?;
         let frame = self.get_mut(id)?;
         frame.name = init.name;
         frame.sandbox = sandbox;
         frame.origin = Some(origin);
+        frame.storage_site = storage_site;
         frame.reuse_window = matches!(init.target, Some(FrameTarget::Srcdoc | FrameTarget::Url(_)));
         log::debug!("{id}: made for an iframe of {parent}");
         Some(id)
@@ -306,6 +327,8 @@ impl std::fmt::Debug for RetiredElsewhere {
 #[derive(Debug)]
 pub(crate) struct CrossOriginNavigation {
     pub(crate) url: Url,
+    /// The frame of the document that asked.
+    pub(crate) source: FrameId,
     /// The origin of the document that asked.
     pub(crate) initiator: Option<Origin>,
     /// True for `location.replace()`.
@@ -713,14 +736,16 @@ impl FrameHost for FrameRegistry {
         if self.frames.get(target).is_none() {
             return;
         }
+        let source = FrameId::from_number(source);
         let initiator = self
             .frames
-            .get(FrameId::from_number(source))
+            .get(source)
             .and_then(|frame| frame.origin.clone());
         self.after_task.navigations.insert(
             target,
             CrossOriginNavigation {
                 url,
+                source,
                 initiator,
                 replace,
             },

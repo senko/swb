@@ -1605,6 +1605,41 @@ of 100,000 ports in queues 136 MiB, a message of 200 MiB in a loop 675 MiB, a fl
 that navigates in a loop 253 MiB, of a frame that is removed 95 MiB, messages to a top level
 near the room for messages 317 MiB, a runtime at the heap limit with waiting messages 359 MiB.
 
+### Storage keys and `storage` events (M9 feature 14b)
+
+ADR 0031 "Done (feature 14b)". Release, callgrind, base 2776872, on the final code.
+
+A page with one runtime and one document. Hacker News, `--bench 3`, JavaScript on, two alternating
+runs: base 397.03, 397.04 M, new 397.15, 396.98 M (within 0.03 %, the noise of the method). A write
+of an area pays one comparison (`docs.len() > 1`).
+
+A loop of `localStorage.setItem` and `getItem` (20,000 and 60,000 iterations, the difference per
+iteration, two runs): base 16,671 and 16,678, new 16,649 and 16,638 (−0.2 %). A first version with a
+key of two strings (origin and site) cost +2.9 % here: a lookup hashed three fields instead of one.
+The key is one string now (the origin, and for a third party NUL and the site).
+
+The same loop with 10 same-origin frames that listen for `storage` events: base 18,757; new 21,289
+per iteration (+13.5 %; earlier runs of the same code gave 20,594 and 21,342: the 60,000-iteration run
+varies by 1 %). This is the saturated regime: after 65,536 waiting events each write fires nothing,
+but it still scans the document table of the runtime (at most 256 realms), reads the old value and
+makes the URL text before the budget refuses. The first 65,536 events cost about 17,500 instructions
+each (the `Storage` object, the event, the dispatch). In wall time (the review, 10,000 writes in a
+`load` listener) this is 7 to 10 microseconds per write with 10 to 250 same-origin frames, and a
+receiver with no listener costs almost what a listening one costs. A single write costs nothing
+measurable at any of these frame counts.
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration", quiet machine): `load`
+0.362 → 0.362 s, hydrated 3.049 → 3.053 s, 66 % of the budget of 4.60 s, RSS 385.3 → 389.2 MiB. The
+Craigslist page (`load`, budget 3.65 s, with the storage frame now loading): 2.482 → 2.456 s, RSS
+272.3 → 275.2 MiB.
+
+The hostile cases (one run, release; each page also waits for its 2.5 s of settling): 100 listening
+frames and 200,000 writes 2.91 s and 213 MiB, a value at the quota written and removed 100 times with
+three listeners 5.07 s and 361 MiB, 400,000 `clear()` calls with five listeners 2.91 s and 112 MiB, 30
+origins that each write 4 MiB until the total of 64 MiB stops them 2.96 s and 179 MiB, a frame that
+navigates in a loop 2.61 s and 151 MiB, a `Storage` object of a retired document 2.71 s and 112 MiB, 30
+nested frames that listen 2.66 s and 158 MiB.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

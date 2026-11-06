@@ -4,7 +4,9 @@
 //! ADR 0031 section 5, M9 feature 1).
 //!
 //! The getter gives the host of the document's origin (the effective
-//! domain), `""` for an opaque origin and for `file:` URLs. The setter runs
+//! domain), `""` for an opaque origin and for `file:` URLs. An `about:` document
+//! with its creator's origin has the creator's (`EngineHost::storage_url`; measured,
+//! case `domain-about-frames`). The setter runs
 //! the checks of the standard and then does nothing: Chromium keys its agent
 //! clusters by origin, so `originAgentCluster` is true for a document with a
 //! tuple origin and the setter returns at step 6 ("if the surrounding
@@ -49,7 +51,7 @@ pub(crate) fn get(cx: &mut Cx<'_>) -> b::Result<String> {
     if host.sandboxed_origin() {
         return Ok(String::new());
     }
-    let url = host.url();
+    let url = host.storage_url();
     Ok(effective_domain(&url).map_or_else(String::new, |host| host.to_string()))
 }
 
@@ -62,7 +64,7 @@ pub(crate) fn origin_agent_cluster(cx: &mut Cx<'_>) -> b::Result<bool> {
     if host.sandboxed_origin() {
         return Ok(true);
     }
-    let url = host.url();
+    let url = host.storage_url();
     Ok(url.starts_with("data:") || effective_domain(&url).is_some())
 }
 
@@ -82,7 +84,7 @@ pub(crate) fn set(cx: &mut Cx<'_>, has_context: bool, value: &str) -> b::Result<
     let domain = if host.sandboxed_origin() {
         None
     } else {
-        effective_domain(&host.url())
+        effective_domain(&host.storage_url())
     };
     check(domain.as_ref(), value)
 }

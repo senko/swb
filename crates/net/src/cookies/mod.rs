@@ -51,7 +51,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use log::{Level, debug, log};
-use url::Url;
+use url::{Origin, Url};
 
 use crate::headers::Headers;
 use crate::request::Request;
@@ -160,7 +160,7 @@ impl SameSiteContext {
 
     /// True if the initiator of a request of the top-level document is
     /// same-site with the request URL.
-    fn initiator_same_site(request: &Request, initiator: Option<&url::Origin>) -> bool {
+    fn initiator_same_site(request: &Request, initiator: Option<&Origin>) -> bool {
         match initiator {
             // Only the user starts requests without an initiator, and the
             // user starts only navigations. A subresource request without
@@ -221,6 +221,31 @@ impl CookieJar {
     /// rejected cookie is ignored with a debug message.
     pub fn set_script_cookie(&self, url: &Url, line: &str) {
         self.set_script_cookie_at(url, line, unix_now());
+    }
+
+    /// [`CookieJar::script_cookie_string`] for a document of a frame: `site_for_cookies`
+    /// is the site that the frame's requests have ([`Request::site_for_cookies`]). A
+    /// frame whose site for cookies is not same-site with `url` sees only
+    /// `SameSite=None` cookies (ADR 0031 section 3).
+    pub fn script_cookie_string_in(&self, url: &Url, site_for_cookies: &Origin) -> String {
+        if !has_cookies(url) {
+            return String::new();
+        }
+        let access = script_access_in(url, site_for_cookies, unix_now());
+        self.lock().header(&access).unwrap_or_default()
+    }
+
+    /// [`CookieJar::set_script_cookie`] for a document of a frame, as
+    /// [`CookieJar::script_cookie_string_in`]: a cross-site frame sets only
+    /// `SameSite=None` cookies.
+    pub fn set_script_cookie_in(&self, url: &Url, line: &str, site_for_cookies: &Origin) {
+        if !has_cookies(url) {
+            return;
+        }
+        let access = script_access_in(url, site_for_cookies, unix_now());
+        if let Err(reason) = self.lock().set(line, &access) {
+            debug!("{url}: script cookie {} rejected: {reason}", log_name(line));
+        }
     }
 
     /// Returns all cookies that have not expired, oldest first.
@@ -313,6 +338,23 @@ fn script_access(url: &Url, now: i64) -> Access<'_> {
         safe_method: true,
         now,
         non_http: true,
+    }
+}
+
+/// The access of a script of a frame document at `url`: same-site if the frame's site for
+/// cookies is, else cross-site (the same rule as for the frame's requests).
+fn script_access_in<'a>(url: &'a Url, site_for_cookies: &Origin, now: i64) -> Access<'a> {
+    let same = match (Site::of_origin(site_for_cookies), Site::of_url(url)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    };
+    Access {
+        context: if same {
+            SameSiteContext::SameSite
+        } else {
+            SameSiteContext::CrossSite
+        },
+        ..script_access(url, now)
     }
 }
 

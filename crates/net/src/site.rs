@@ -119,6 +119,13 @@ impl Site {
     }
 }
 
+/// The site of `origin` as text, for keys: the scheme, `://` and the registrable domain
+/// (or the host). `None` for an opaque origin. Two origins are same-site exactly when
+/// their texts are equal.
+pub fn site_text(origin: &Origin) -> Option<String> {
+    Site::of_origin(origin).map(|site| format!("{}://{}", site.scheme, site.host))
+}
+
 /// True if two origins are same-site (schemeful; HTML "same site"). An
 /// opaque origin is same-site with nothing here, not even with itself: the
 /// site for cookies of frames uses this (ADR 0031 section 3).
@@ -168,6 +175,17 @@ pub(crate) fn is_loopback(url: &Url) -> bool {
         Some(Host::Ipv6(address)) => address.is_loopback(),
         None => false,
     }
+}
+
+/// True if a document at `source` gives a document at `target` no referrer under the
+/// default policy: `source` is potentially trustworthy and `target` is an `http:` URL that
+/// is not. `*.localhost` counts as trustworthy here, as the Secure Contexts spec allows; no
+/// request depends on it. This rests on the spec: the probe has no `https:` page.
+///
+/// <https://w3c.github.io/webappsec-referrer-policy/#referrer-policy-strict-origin-when-cross-origin>
+pub fn is_downgrade(source: &Url, target: &Url) -> bool {
+    let trustworthy = |url: &Url| is_secure(url) || is_loopback(url);
+    target.scheme() == "http" && trustworthy(source) && !trustworthy(target)
 }
 
 #[cfg(test)]

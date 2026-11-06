@@ -709,6 +709,7 @@ impl ScriptRuntime {
             && let Some(doc) = crate::state::document_mut(state, key.0)
         {
             doc.host = Some(host);
+            doc.note_storage_key();
         }
     }
 
@@ -1124,6 +1125,32 @@ impl ScriptRuntime {
         }
     }
 
+    /// Fires the `storage` events that wait for the current document now, before a
+    /// navigation replaces it: Chromium's events come before a pending navigation commits
+    /// (measured, case `storage-event-retire`), and a document that is gone gets none.
+    /// Only the events that wait at the call, and for at most [`MAX_STORAGE_FLUSH`]: a
+    /// listener can queue new ones for ever. The commit drops the rest.
+    pub fn flush_storage_events(&mut self) {
+        let started = Instant::now();
+        for _ in 0..crate::storage_events::waiting(&self.rt) {
+            if self.stopped || started.elapsed() >= MAX_STORAGE_FLUSH {
+                return;
+            }
+            // Errors are reported.
+            let _ = self.storage_event_task();
+        }
+    }
+
+    /// The task of one `storage` event of the current document.
+    fn storage_event_task(&mut self) -> Result<(), ScriptError> {
+        self.task("the event 'storage'", |rt| {
+            set_listener_checkpoints(rt, true);
+            let result = crate::storage_events::deliver(rt).map_err(task_error);
+            set_listener_checkpoints(rt, false);
+            result
+        })
+    }
+
     fn run_task(&mut self, task: Task) -> Result<(), ScriptError> {
         match task {
             Task::Timer { id, handle } => {
@@ -1178,6 +1205,7 @@ impl ScriptRuntime {
                 set_listener_checkpoints(rt, false);
                 result
             }),
+            Task::Storage => self.storage_event_task(),
             Task::PortMessage(id) => self.task("the event 'message'", |rt| {
                 set_listener_checkpoints(rt, true);
                 let result = crate::message_port::deliver(rt, id).map_err(task_error);
@@ -1531,6 +1559,10 @@ impl ScriptRuntime {
 /// The time of a task from which it counts against the document's budget
 /// (the threshold of a long task in the Long Tasks API).
 const LONG_TASK: Duration = Duration::from_millis(50);
+
+/// The longest that the `storage` events of a document hold up the commit that replaces
+/// it, apart from the listener that runs when the time ends.
+const MAX_STORAGE_FLUSH: Duration = Duration::from_millis(100);
 
 /// The longest that [`ScriptRuntime::evaluate`] waits for a promise.
 pub const EVALUATION_TIMEOUT: Duration = Duration::from_secs(30);

@@ -53,7 +53,14 @@ fn access_of(host: &dyn crate::EngineHost) -> Access {
     if host.sandboxed_origin() {
         return Access::Denied(SANDBOXED);
     }
-    access(&host.storage_url())
+    match access(&host.storage_url()) {
+        // An `about:` document of a `data:` document's origin: the text of a document
+        // that is not itself a `data:` one (measured, case `domain-about-frames`).
+        Access::Denied(_) if !host.url().starts_with("data:") => {
+            Access::Denied(crate::storage::DENIED)
+        }
+        other => other,
+    }
 }
 
 /// The getter. `is_main` is true for the document of the window.

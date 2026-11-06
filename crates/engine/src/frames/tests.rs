@@ -92,6 +92,60 @@ fn a_key_of_another_runtime_names_no_document() {
     assert!(!frame.has_document(two, DocumentKey::FIRST));
 }
 
+/// The storage key of a frame has the top-level site only if some document from the top
+/// level down to the frame is of another site (measured, cases `storage-key-*`); a top
+/// level or a frame without a site has no key.
+#[test]
+fn the_storage_partition_follows_the_chain_of_sites() {
+    use swb_web::StoragePartition::{FirstParty, Top, Unavailable};
+    let site = |text: &str| -> Option<Rc<str>> { Some(Rc::from(text)) };
+    let mut frames = Frames::new();
+    let add = |frames: &mut Frames, parent, depth, at: &str| {
+        let index = frames.slots.len() as u32;
+        let id = FrameId {
+            index,
+            generation: 0,
+        };
+        let mut frame = Frame::new(Some(parent), None, depth);
+        frame.storage_site = site(at);
+        frames.slots.push(Slot {
+            generation: 0,
+            frame: Some(frame),
+        });
+        frames.get_mut(parent).unwrap().children.push(id);
+        id
+    };
+    frames.get_mut(FrameId::TOP).unwrap().storage_site = site("http://a.test");
+    // Under the top level: its own site, or another one.
+    assert_eq!(
+        frames.storage_partition(FrameId::TOP, Some("http://a.test")),
+        FirstParty
+    );
+    assert_eq!(
+        frames.storage_partition(FrameId::TOP, Some("http://l.test")),
+        Top("http://a.test".into())
+    );
+    // A > B > A': the cross-site document between counts.
+    let b = add(&mut frames, FrameId::TOP, 1, "http://b.test");
+    assert_eq!(
+        frames.storage_partition(b, Some("http://a.test")),
+        Top("http://a.test".into())
+    );
+    // A > A'' > A''': all of one site.
+    let a2 = add(&mut frames, FrameId::TOP, 1, "http://a.test");
+    assert_eq!(
+        frames.storage_partition(a2, Some("http://a.test")),
+        FirstParty
+    );
+    // A document without a site, and a top level without one.
+    assert_eq!(frames.storage_partition(a2, None), Unavailable);
+    frames.get_mut(FrameId::TOP).unwrap().storage_site = None;
+    assert_eq!(
+        frames.storage_partition(a2, Some("http://a.test")),
+        Unavailable
+    );
+}
+
 /// HTML "activation notification", as Chromium measures (cases `activation-xo-*`): the
 /// frame, its ancestors and the frames of its origin; not a child or a sibling of
 /// another origin.

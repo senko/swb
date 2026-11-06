@@ -72,7 +72,313 @@
   "menu": 0,
   "body": "posting desktop w1024",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites off|none|0 favorites",
+   "favlink|inline|0 favorites",
+   "fav-number|inline|0",
+   "fave|block|favorite",
+   "unfave|none|favorite"
+  ],
+  "favStore": [
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 1 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [
+   "mousedown false 291,85 b0 d1",
+   "mouseup false 291,85 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024 fav",
+  "copied": false,
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 1 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [
+   "mousedown false 291,85 b0 d1",
+   "mouseup false 291,85 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024",
+  "copied": false,
+  "msgs": [],
+  "fav": [
+   "favorites off|none|0 favorites",
+   "favlink|inline|0 favorites",
+   "fav-number|inline|0",
+   "fave|block|favorite",
+   "unfave|none|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 1 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [
+   "mousedown false 291,85 b0 d1",
+   "mouseup false 291,85 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024 fav",
+  "copied": false,
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -146,12 +452,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -226,12 +552,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -304,12 +650,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -386,12 +752,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -470,12 +856,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -550,12 +956,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -628,12 +1054,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -704,12 +1150,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -784,12 +1250,32 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
   "p": [],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -864,99 +1350,35 @@
    "flag-action action",
    "action share-action"
   ],
-  "e": [],
-  "p": [
-   "bp",
-   "ap"
-  ],
-  "menu": 0,
-  "body": "posting desktop w1024",
-  "copied": false,
-  "msgs": []
- },
- {
-  "timeago": [
-   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
-   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
-   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
-  ],
-  "versions": [
-   "3.7.1",
-   "1.9.4"
-  ],
-  "orientation": "landscape-primary",
-  "media": [
-   false,
-   false,
-   true,
-   true,
-   false
-  ],
-  "imageText": "image 2 of 4",
-  "slides": [
-   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
-   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
-   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
-   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
-  ],
-  "thumbs": [
-   "thumb",
-   "thumb",
-   "thumb",
-   "thumb"
-  ],
-  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
-  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
-  "tiles": 4,
-  "tileLoaded": 0,
-  "layers": [
-   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
-   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
-  ],
-  "panes": [
-   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
-   "leaflet-pane leaflet-tile-pane|",
-   "leaflet-pane leaflet-overlay-pane|",
-   "leaflet-pane leaflet-shadow-pane|",
-   "leaflet-pane leaflet-marker-pane|",
-   "leaflet-pane leaflet-tooltip-pane|",
-   "leaflet-pane leaflet-popup-pane|"
-  ],
-  "svg": [
-   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
-   "g ",
-   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
-  ],
-  "srcs": [
-   "//map4.craigslist.org/t09/14/2620/6334.png",
-   "//map5.craigslist.org/t09/14/2620/6335.png",
-   "//map5.craigslist.org/t09/14/2621/6334.png",
-   "//map6.craigslist.org/t09/14/2621/6335.png"
-  ],
-  "ev": [
-   "mousedown false 509,76 b0 d1",
-   "mouseup false 509,76 b0 d1"
-  ],
-  "flaps": 0,
-  "reply": [
-   "reply-button js-only",
-   "reply-info js-only",
-   "fave-unfave action",
-   "banish-unbanish action",
-   "flag-action action",
-   "action share-action"
-  ],
   "e": [
+   "unhandled ProgressEvent: undefined",
    "unhandled ProgressEvent: undefined"
   ],
   "p": [
    "bp",
    "ap"
   ],
-  "menu": 7,
-  "body": "posting desktop w1024",
+  "menu": 0,
+  "body": "posting desktop w1024 fav",
   "copied": false,
-  "msgs": []
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
  },
  {
   "timeago": [
@@ -1018,8 +1440,8 @@
    "//map6.craigslist.org/t09/14/2621/6335.png"
   ],
   "ev": [
-   "mousedown false 591,287 b0 d1",
-   "mouseup false 591,287 b0 d1"
+   "mousedown false 440,84 b0 d1",
+   "mouseup false 440,84 b0 d1"
   ],
   "flaps": 0,
   "reply": [
@@ -1032,6 +1454,111 @@
   ],
   "e": [
    "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined"
+  ],
+  "p": [
+   "bp",
+   "ap"
+  ],
+  "menu": 7,
+  "body": "posting desktop w1024 fav",
+  "copied": false,
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 2 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(-600px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(-121px, -67px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 0,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 16; transform: translate3d(210px, 163px, 0px) scale(0.25);",
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(-121px, -67px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(89px, 37px, 0px); viewBox=89 37 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M-160.5873422222212,83.9298984487541a199,199 0 1,0 398,0 a199,199 0 1,0 -398,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map4.craigslist.org/t09/14/2620/6334.png",
+   "//map5.craigslist.org/t09/14/2620/6335.png",
+   "//map5.craigslist.org/t09/14/2621/6334.png",
+   "//map6.craigslist.org/t09/14/2621/6335.png"
+  ],
+  "ev": [
+   "mousedown false 522,287 b0 d1",
+   "mouseup false 522,287 b0 d1"
+  ],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined",
+   "unhandled ProgressEvent: undefined",
    "unhandled NotAllowedError: Failed to execute 'writeText' on 'Clipboard': Write permission denied.",
    "unhandled ProgressEvent: undefined"
   ],
@@ -1040,10 +1567,119 @@
    "ap"
   ],
   "menu": 0,
-  "body": "posting desktop w1024",
+  "body": "posting desktop w1024 fav",
   "copied": true,
   "msgs": [
    "message|URL copied"
+  ],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
+  ]
+ },
+ {
+  "timeago": [
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "about a month ago|2026-09-09 13:26|2026-09-09T13:26:03-0700",
+   "17 minutes ago|2026-10-22 12:10|2026-10-22T12:10:35-0700"
+  ],
+  "versions": [
+   "3.7.1",
+   "1.9.4"
+  ],
+  "orientation": "landscape-primary",
+  "media": [
+   false,
+   false,
+   true,
+   true,
+   false
+  ],
+  "imageText": "image 1 of 4",
+  "slides": [
+   "width: 600px; left: 0px; transition-duration: 0ms; transform: translate(0px, 0px);",
+   "width: 600px; left: -600px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1200px; transition-duration: 0ms; transform: translate(600px, 0px);",
+   "width: 600px; left: -1800px; transition-duration: 0ms; transform: translate(-600px, 0px);"
+  ],
+  "thumbs": [
+   "thumb",
+   "thumb",
+   "thumb",
+   "thumb"
+  ],
+  "mapPane": "transform: translate3d(0px, 0px, 0px);",
+  "mapClass": "viewposting leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom",
+  "tiles": 4,
+  "tileLoaded": 4,
+  "layers": [
+   "leaflet-tile-container leaflet-zoom-animated|z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"
+  ],
+  "panes": [
+   "leaflet-pane leaflet-map-pane|transform: translate3d(0px, 0px, 0px);",
+   "leaflet-pane leaflet-tile-pane|",
+   "leaflet-pane leaflet-overlay-pane|",
+   "leaflet-pane leaflet-shadow-pane|",
+   "leaflet-pane leaflet-marker-pane|",
+   "leaflet-pane leaflet-tooltip-pane|",
+   "leaflet-pane leaflet-popup-pane|"
+  ],
+  "svg": [
+   "svg class=leaflet-zoom-animated height=360 pointer-events=none style=transform: translate3d(-32px, -30px, 0px); viewBox=-32 -30 382 360 width=382",
+   "g ",
+   "path class=leaflet-interactive d=M60.2063288888894,150.46494922437705a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0  fill-opacity=0.1 fill-rule=evenodd fill=#770091 stroke-linecap=round stroke-linejoin=round stroke-opacity=1 stroke-width=1 stroke=#770091"
+  ],
+  "srcs": [
+   "//map5.craigslist.org/t09/13/1309/3166.png",
+   "//map6.craigslist.org/t09/13/1309/3167.png",
+   "//map6.craigslist.org/t09/13/1310/3166.png",
+   "//map7.craigslist.org/t09/13/1310/3167.png"
+  ],
+  "ev": [],
+  "flaps": 0,
+  "reply": [
+   "reply-button js-only",
+   "reply-info js-only",
+   "fave-unfave action",
+   "banish-unbanish action",
+   "flag-action action",
+   "action share-action"
+  ],
+  "e": [],
+  "p": [],
+  "menu": 0,
+  "body": "posting desktop w1024 fav",
+  "copied": false,
+  "msgs": [],
+  "fav": [
+   "favorites|inline-block|1 favorites",
+   "favlink|inline|1 favorites",
+   "fav-number|inline|1",
+   "fave|none|favorite",
+   "unfave|block|favorite"
+  ],
+  "favStore": [
+   "banished_1={}",
+   "cl_ux_config={\"viewMode\":{},\"paneLayoutMetrics\":{\"results-posting\":[500,500]},\"showSearchFilters\":true,\"showMap\":false,\"lastCategorySearched\":\"jjj\",\"lastNonmapViewMode\":\"gallery\",\"gridViewWhenNarrow\":false,\"showPostingInPane\":true,\"allowMapResultsPaned\":true}",
+   "faves_1={\"7963671465\":\"u\"}",
+   "lastFaveSynch_1",
+   "logged_v1={}"
+  ],
+  "favFrames": [
+   "https://www.craigslist.org/static/www/localStorage-092e9f9e2f09450529e744902aa7cdb3a5cc868d.html|https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH|complete"
   ]
  }
 ]

@@ -282,6 +282,15 @@ pub(super) fn compare_case_at(
         .replace("$OTHER", OTHER)
         .replace("$FOLDER", "case");
     let (mut page, _sim) = open_at(top, &html, &list, true);
+    compare_queries(&mut page, name, departures)
+}
+
+/// Compares each `js` query of the case `name` in `page` with Chromium's value.
+pub(super) fn compare_queries(
+    page: &mut Page,
+    name: &str,
+    departures: &[(&str, usize, &str, &str)],
+) -> Vec<String> {
     let mut failures = Vec::new();
     let queries = results(name);
     let frames = query_frames(name);
@@ -301,8 +310,8 @@ pub(super) fn compare_case_at(
             other => other,
         };
         let value = match frames.get(query).and_then(Option::as_deref) {
-            Some(id) => evaluate_in(&mut page, id, source),
-            None => evaluate(&mut page, source),
+            Some(id) => evaluate_in(page, id, source),
+            None => evaluate(page, source),
         };
         let swb = without(comparable(&value));
         let want = without(comparable(&result["value"]));

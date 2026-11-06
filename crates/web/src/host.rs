@@ -378,6 +378,13 @@ pub trait EngineHost: Any {
         self.url()
     }
 
+    /// The partition of the document's storage key (ADR 0031 section 3): empty for a
+    /// top-level document and for a frame whose ancestors are all of its site, else the
+    /// top-level site. The default is the empty partition.
+    fn storage_partition(&self) -> crate::storage::StoragePartition {
+        crate::storage::StoragePartition::FirstParty
+    }
+
     /// True if the document is a frame document whose sandbox has no
     /// `allow-same-origin`, whatever its URL.
     fn sandboxed_origin(&self) -> bool {
@@ -1085,9 +1092,10 @@ pub trait EngineHost: Any {
     /// to a fragment: the document's URL and the history length change at
     /// once, the page adds the entry and scrolls when the task ends, and
     /// the call returns true; the caller fires `popstate` and
-    /// `hashchange`.
-    fn request_navigation(&mut self, url: &str, replace: bool) -> bool {
-        let _ = (url, replace);
+    /// `hashchange`. `caller` is the frame of the document whose script asked: it is the
+    /// source of the new document's referrer.
+    fn request_navigation(&mut self, url: &str, replace: bool, caller: u32) -> bool {
+        let _ = (url, replace, caller);
         false
     }
 

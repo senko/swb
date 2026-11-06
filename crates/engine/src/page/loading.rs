@@ -395,7 +395,9 @@ impl Page {
         if !doc.is_loading() {
             log::info!("loaded {}", self.url.as_ref().map_or("", Url::as_str));
         }
-        self.frames.top_mut().origin = Some(doc.origin());
+        let top = self.frames.top_mut();
+        top.origin = Some(doc.origin());
+        top.storage_site = crate::frames::storage_site_of(&doc.origin(), doc.cookie_url(), false);
         self.doc = Some(Box::new(doc));
         self.start_scripts();
         self.update_frames(super::FrameId::TOP);

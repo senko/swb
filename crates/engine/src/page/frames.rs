@@ -60,7 +60,33 @@ use crate::frames::{
 use crate::history::PostData;
 use crate::resources::{Images, Pending};
 
+/// The document that starts a navigation of a frame: its origin, which the request
+/// carries as its initiator, and the URL that gives it that origin, which is the source of
+/// the referrer of the new document ([`crate::referrer`]).
+#[derive(Clone, Debug)]
+pub(super) struct Initiator {
+    pub(super) origin: Origin,
+    pub(super) url: Url,
+}
+
+/// What a committed frame document has of its surroundings ([`Page::surroundings_of_commit`]).
+struct Surroundings {
+    sandboxed: bool,
+    storage_site: Option<Rc<str>>,
+    storage_partition: swb_web::StoragePartition,
+    referrer: String,
+}
+
 impl Page {
+    /// The document of `frame` as the initiator of a navigation.
+    pub(super) fn initiator_of(&self, frame: FrameId) -> Option<Initiator> {
+        let doc = self.doc_of(frame)?;
+        Some(Initiator {
+            origin: doc.origin(),
+            url: doc.cookie_url().clone(),
+        })
+    }
+
     // ----- The frame tree for tests and tools -----
 
     /// The frames of the page in tree order, the top-level frame first.
@@ -396,7 +422,7 @@ impl Page {
         &mut self,
         id: FrameId,
         url: Url,
-        initiator: Option<Origin>,
+        initiator: Option<Initiator>,
     ) {
         let flags = self
             .frames
@@ -419,7 +445,7 @@ impl Page {
         id: FrameId,
         target: FrameTarget,
         post: Option<PostData>,
-        initiator: Option<Origin>,
+        initiator: Option<Initiator>,
     ) -> bool {
         let now = self.clock.now();
         let Some(frame) = self.frames.get_mut(id) else {
@@ -441,7 +467,8 @@ impl Page {
         {
             let url = url.to_string();
             let source = initiator
-                .clone()
+                .as_ref()
+                .map(|i| i.origin.clone())
                 .or_else(|| self.frames.get(parent).and_then(|p| p.origin.clone()));
             if source.is_some()
                 && self.frames.get(id).and_then(|f| f.origin.as_ref()) == source.as_ref()
@@ -458,10 +485,12 @@ impl Page {
             target => target,
         };
         self.cancel_frame_navigation(id);
+        let source_url = initiator.as_ref().map(|i| i.url.clone());
         let pending = match target {
             FrameTarget::Url(url) => {
-                let initiator =
-                    initiator.or_else(|| self.doc_of(parent).map(DocumentState::origin));
+                let initiator = initiator
+                    .map(|i| i.origin)
+                    .or_else(|| self.doc_of(parent).map(DocumentState::origin));
                 let site = Some(self.frames.site_for_cookies(parent, None));
                 let request = match post {
                     Some(post) => Request::post(
@@ -491,6 +520,7 @@ impl Page {
         let sandbox = self.container_flags(id);
         if let Some(frame) = self.frames.get_mut(id) {
             frame.pending = Some(pending);
+            frame.pending_source = source_url;
             frame.pending_sandbox = sandbox;
             frame.load_fired = false;
             frame.refresh = None;
@@ -932,9 +962,7 @@ impl Page {
         images: Images,
         charge: Charge,
     ) {
-        if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
-            self.run_task_in(id, ScriptRuntime::unload_document);
-        }
+        self.unload_for_commit(id);
         let Some(frame) = self.frames.get(id) else {
             return;
         };
@@ -945,22 +973,18 @@ impl Page {
         for child in frame.children.clone() {
             self.destroy_frame(child);
         }
-        let creator = (url.scheme() == "about")
-            .then(|| self.doc_of(parent))
-            .flatten();
-        let fallback_base = creator.map(|d| d.base_url().clone());
-        let same_origin = self
-            .frames
-            .get(parent)
-            .is_some_and(|p| p.origin.as_ref() == Some(&origin));
-        let creator_url = creator
-            .filter(|_| same_origin)
-            .map(|d| d.cookie_url().clone());
+        let (fallback_base, creator_url) = self.creator_of_commit(parent, &url, &origin);
         let history = self
             .doc
             .as_deref()
             .map(|d| d.history.clone())
             .unwrap_or_default();
+        let Surroundings {
+            sandboxed,
+            storage_site,
+            storage_partition,
+            referrer,
+        } = self.surroundings_of_commit(id, parent, &url, &origin, creator_url.as_ref());
         let mut doc = self.maker.make(FrameDocument {
             dom: parsed.dom,
             parser: parsed.parser,
@@ -976,10 +1000,9 @@ impl Page {
             creator_url,
             history,
             node_room: Rc::clone(&self.frames.node_room),
-            sandboxed_origin: self
-                .frames
-                .get(id)
-                .is_some_and(|f| f.sandbox.opaque_origin()),
+            sandboxed_origin: sandboxed,
+            storage_partition,
+            referrer,
         });
         doc.frame_id = id;
         let refresh = doc
@@ -998,6 +1021,7 @@ impl Page {
             frame.activation = None;
         }
         frame.origin = Some(origin);
+        frame.storage_site = storage_site;
         // The new document has its own pointer and keyboard state; the
         // focus stays with the frame (measured: a navigated frame that
         // held the focus keeps it, with no focused element in it).
@@ -1032,6 +1056,91 @@ impl Page {
         );
         self.start_frame_document(id, kept);
         self.update_frames(id);
+    }
+
+    /// The old document of frame `id` unloads before a commit replaces it. The `storage`
+    /// events that wait for it come first: Chromium's come before a pending navigation
+    /// commits (measured, case `storage-event-retire`).
+    fn unload_for_commit(&mut self, id: FrameId) {
+        if self.frames.get(id).is_some_and(|f| f.script.is_some()) {
+            self.run_task_in(id, |script| {
+                script.flush_storage_events();
+                script.unload_document();
+            });
+        }
+    }
+
+    /// The creator of an `about:` document that a child of `parent` commits at `url` with
+    /// `origin`: the fallback base URL, and the creator's URL of the cookies and storage
+    /// (when the origin is the parent's).
+    fn creator_of_commit(
+        &self,
+        parent: FrameId,
+        url: &Url,
+        origin: &Origin,
+    ) -> (Option<Url>, Option<Url>) {
+        let creator = (url.scheme() == "about")
+            .then(|| self.doc_of(parent))
+            .flatten();
+        let fallback_base = creator.map(|d| d.base_url().clone());
+        let same_origin = self
+            .frames
+            .get(parent)
+            .is_some_and(|p| p.origin.as_ref() == Some(origin));
+        let creator_url = creator
+            .filter(|_| same_origin)
+            .map(|d| d.cookie_url().clone());
+        (fallback_base, creator_url)
+    }
+
+    /// What the document that frame `id` commits at `url` has of its surroundings: whether
+    /// its sandbox gives it an opaque origin, its site and storage partition, and its
+    /// referrer.
+    fn surroundings_of_commit(
+        &mut self,
+        id: FrameId,
+        parent: FrameId,
+        url: &Url,
+        origin: &Origin,
+        creator_url: Option<&Url>,
+    ) -> Surroundings {
+        let sandboxed = self
+            .frames
+            .get(id)
+            .is_some_and(|f| f.sandbox.opaque_origin());
+        let storage_site =
+            crate::frames::storage_site_of(origin, creator_url.unwrap_or(url), sandboxed);
+        let storage_partition = self
+            .frames
+            .storage_partition(parent, storage_site.as_deref());
+        let referrer = self.referrer_of_commit(id, parent, url);
+        Surroundings {
+            sandboxed,
+            storage_site,
+            storage_partition,
+            referrer,
+        }
+    }
+
+    /// `document.referrer` of the document that frame `id` commits at `url`
+    /// ([`crate::referrer`]): the source is the document that started the navigation, else
+    /// the parent.
+    fn referrer_of_commit(&mut self, id: FrameId, parent: FrameId, url: &Url) -> String {
+        let started_by = self
+            .frames
+            .get_mut(id)
+            .and_then(|f| f.pending_source.take());
+        let Some(source) =
+            started_by.or_else(|| self.doc_of(parent).map(|d| d.cookie_url().clone()))
+        else {
+            return String::new();
+        };
+        let target = match url.as_str() {
+            "about:srcdoc" => crate::referrer::Target::Srcdoc,
+            _ if url.scheme() == "about" => crate::referrer::Target::Blank,
+            _ => crate::referrer::Target::Url(url),
+        };
+        crate::referrer::referrer(&source, target)
     }
 
     /// The document that a commit replaced: with a realm it stays in the

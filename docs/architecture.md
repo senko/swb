@@ -297,12 +297,16 @@ Rules:
   `Cookie` header and the fixtures have no `Set-Cookie` (ADR 0012, ADR 0028
   section 12).
 - **Web Storage** (`web`, `engine`): `StorageStore` (`web/src/storage.rs`)
-  holds the `localStorage` and `sessionStorage` areas by origin, in memory.
-  The `Page` creates one and lends a handle to each document
-  (`EngineHost::storage`), so the data outlives the documents of the
+  holds the `localStorage` and `sessionStorage` areas by `StorageKey` (the
+  origin and, for a frame under another site or a cross-site frame, the site
+  of the top-level document; `engine/src/frames/mod.rs` computes the
+  partition), in memory. The `Page` creates one and lends a handle to each
+  document (`EngineHost::storage`), so the data outlives the documents of the
   page. swb has one `Page` per process, so `localStorage` lives for the
   process; with several pages its areas must move to a store that the
-  pages share. Quota and bounds: ADR 0028 section 16.
+  pages share. A change fires a `storage` event as a task at the other
+  documents of the key in the writer's runtime (`web/src/storage_events.rs`).
+  Quota and bounds: ADR 0028 section 16, ADR 0031 section 11.
 
 ## Units
 
@@ -820,7 +824,10 @@ the `canvas` size hint. No script runs yet. See ADR 0028 section 15.
   frame delays its parent's `load`; the container's `load` event), the
   viewports (the content boxes of the containers after the parent's
   layout), and what a rendering needs (`prepare_frames`: display lists and
-  canvases).
+  canvases). Feature 14b: the `Initiator` of a navigation (the origin and the URL of the
+  document that starts it), the source of `document.referrer` (`referrer.rs`: the value for
+  a target), and the storage partition of a committed document
+  (`Frames::storage_partition`).
 - `document/frames.rs`: what a document tells the page about its frames:
   the `iframe` changes of the drain, the content boxes of the `iframe`
   boxes, the declarative refresh, the used color schemes, and the subresource

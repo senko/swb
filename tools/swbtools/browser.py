@@ -41,6 +41,17 @@ CHROMIUM_ARGS = [
     # Grayscale anti-aliasing and plain sRGB output, as swb renders.
     "--disable-lcd-text",
     "--force-color-profile=srgb",
+    # Playwright starts Chromium with `--disable-features=` and a list that includes
+    # ThirdPartyStoragePartitioning, so that third-party frames share `localStorage`
+    # and `sessionStorage` with the first-party origin. A later switch replaces the
+    # earlier one. This is Playwright's list without that feature; with it, a third-party
+    # frame has an area per top-level site (both measured, M9 feature 14b). Compare the
+    # list with Playwright's when you upgrade it (docs/testing.md).
+    "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,"
+    "BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,"
+    "DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,"
+    "PaintHolding,Translate,AutoDeElevate,RenderDocument,OptimizationHints,"
+    "msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion",
 ]
 
 # Rendering settings added to the bundled fonts.conf. fontconfig's default

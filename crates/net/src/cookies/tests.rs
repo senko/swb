@@ -510,7 +510,7 @@ fn same_site_context_of_frames() {
     // the frame is cross-site with the top level) is not.
     let sub = Request::get(url("http://localhost:8001/x1.txt"), Destination::Other)
         .with_initiator(Some(url("http://localhost:8001/").origin()))
-        .with_site_for_cookies(Some(url::Origin::new_opaque()));
+        .with_site_for_cookies(Some(Origin::new_opaque()));
     assert_eq!(context(&sub), SameSiteContext::CrossSite);
     // The jar: from a cross-site frame document only `SameSite=None;
     // Secure` cookies are set (localhost is a secure host).
@@ -757,6 +757,51 @@ fn script_sets_and_reads_cookies() {
     assert_eq!(script_read(&jar, "file:///tmp/x.html"), "");
     script_set(&jar, "data:text/html,x", "d=1");
     assert_eq!(jar.cookies().len(), 2);
+}
+
+/// The script of a frame document reads and sets only `SameSite=None` cookies when its
+/// site for cookies is not same-site with its URL (ADR 0031 section 3); a same-site frame
+/// reads and sets all, as the top level does.
+#[test]
+fn script_cookies_of_a_frame_follow_its_site_for_cookies() {
+    let jar = CookieJar::new();
+    let page = url("https://example.com/dir/page.html");
+    let same = url("https://sub.example.com/").origin();
+    let other = url("https://example.org/").origin();
+    let opaque = Origin::new_opaque();
+    jar.set_script_cookie_in(&page, "plain=1; Path=/", &same);
+    jar.set_script_cookie_in(&page, "lax=1; SameSite=Lax; Path=/", &same);
+    jar.set_script_cookie_in(&page, "none=1; SameSite=None; Secure; Path=/", &same);
+    jar.set_script_cookie_in(&page, "insecure=1; SameSite=None; Path=/", &same);
+    assert_eq!(
+        jar.script_cookie_string_in(&page, &same),
+        "plain=1; lax=1; none=1"
+    );
+    assert_eq!(
+        script_read(&jar, "https://example.com/"),
+        "plain=1; lax=1; none=1"
+    );
+    for (cross, before) in [(&other, "none=1"), (&opaque, "none=1; x_none=1")] {
+        assert_eq!(jar.script_cookie_string_in(&page, cross), before);
+        jar.set_script_cookie_in(&page, "x_plain=1; Path=/", cross);
+        jar.set_script_cookie_in(&page, "x_strict=1; SameSite=Strict; Path=/", cross);
+        jar.set_script_cookie_in(&page, "x_none=1; SameSite=None; Secure; Path=/", cross);
+        jar.set_script_cookie_in(&page, "x_insecure=1; SameSite=None; Path=/", cross);
+        assert_eq!(
+            jar.script_cookie_string_in(&page, cross),
+            "none=1; x_none=1"
+        );
+    }
+    // The top level sees what the frames set, as one jar.
+    assert_eq!(
+        script_read(&jar, "https://example.com/"),
+        "plain=1; lax=1; none=1; x_none=1"
+    );
+    // Only `http:` and `https:` documents have a jar.
+    assert_eq!(
+        jar.script_cookie_string_in(&url("file:///tmp/x.html"), &same),
+        ""
+    );
 }
 
 #[test]

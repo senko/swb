@@ -151,7 +151,8 @@ fn navigate(cx: &mut Cx<'_>, url: &Url, replace: bool) -> b::Result<()> {
     // and `load` handlers replace; a task after the `load` event pushes.
     let replace = replace || !scripts(cx.rt)?.completely_loaded();
     let old = engine(cx.rt)?.url();
-    if engine_mut(cx.rt)?.request_navigation(url.as_str(), replace) {
+    let caller = crate::state::caller_document(cx.rt)?.frame;
+    if engine_mut(cx.rt)?.request_navigation(url.as_str(), replace, caller) {
         let new = engine(cx.rt)?.url();
         if old == new {
             // HTML "navigate": the URL of the document is a replacement,

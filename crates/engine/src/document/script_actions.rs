@@ -33,8 +33,13 @@ pub(crate) enum ScriptNavigation {
     /// Submit a form.
     Form(FormRequest),
     /// `location.href = url`, `assign()` (`replace` false) and `replace()`
-    /// to a URL that is not a fragment of this document.
-    Location { url: Url, replace: bool },
+    /// to a URL that is not a fragment of this document. `caller` is the frame of the
+    /// document whose script asked.
+    Location {
+        url: Url,
+        replace: bool,
+        caller: u32,
+    },
     /// `location.reload()`.
     Reload,
 }

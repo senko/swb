@@ -283,6 +283,13 @@ pub(crate) struct DocState {
     /// The window's `localStorage` and `sessionStorage` objects (in the
     /// order of `StorageKind`), made at the first access (`storage.rs`).
     pub(crate) storage_objects: [Option<Gc<Object>>; 2],
+    /// The key of the document's storage areas, or the text of the `SecurityError` of a
+    /// document without storage. Computed when the document's host first arrives, so
+    /// that the writer of an area can find the other documents of its key
+    /// (`storage_events.rs`).
+    pub(crate) storage_key: Option<Result<Rc<crate::storage::StorageKey>, &'static str>>,
+    /// The `storage` events that wait for the document (`storage_events.rs`).
+    pub(crate) storage_events: crate::storage_events::StorageEvents,
     /// The script elements and the script lists of the window's document.
     pub(crate) scripts: crate::scripts::Scripts,
     /// The declaration blocks of the `style` attributes that scripts read
@@ -360,6 +367,15 @@ impl HostState for WebState {
 }
 
 impl DocState {
+    /// Computes the storage key from the host, once (`storage.rs`).
+    pub(crate) fn note_storage_key(&mut self) {
+        if self.storage_key.is_none()
+            && let Some(host) = self.host.as_deref()
+        {
+            self.storage_key = Some(crate::storage::document_key(host));
+        }
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         for wrapper in self.wrappers.iter().flatten() {
             tracer.object(*wrapper);
@@ -485,6 +501,7 @@ fn borrow_document(state: &mut WebState, record: &mut DocState) {
     let key = crate::runtime::DocumentKey::of(record.key);
     if let Some(host) = frames.take_document(record.frame, key) {
         record.host = Some(host);
+        record.note_storage_key();
         state.lent.push(record.key);
     }
 }
@@ -509,6 +526,7 @@ pub(crate) fn ensure_current_lent(rt: &mut Runtime) {
     };
     if let Some(host) = frames.take_document(frame, crate::runtime::DocumentKey::of(key)) {
         state.doc.host = Some(host);
+        state.doc.note_storage_key();
         state.lent.push(key);
     }
 }
@@ -893,7 +911,6 @@ pub(crate) fn reuse_window(rt: &mut Runtime, old_key: DocKey) -> VmResult<DocKey
         history_state: old.history_state.take(),
         screen: old.screen.take(),
         screen_orientation: old.screen_orientation.take(),
-        storage_objects: std::mem::take(&mut old.storage_objects),
         animation_frames: std::mem::take(&mut old.animation_frames),
         media_queries: std::mem::take(&mut old.media_queries),
         media_query_count: old.media_query_count,
@@ -941,6 +958,7 @@ pub(crate) fn retire_document(
         ports.close_realm(record.realm);
     }
     record.messages = crate::messaging::Messages::default();
+    record.storage_events = crate::storage_events::StorageEvents::default();
     record.timers.retire();
     record.idle = crate::idle_callbacks::IdleCallbacks::default();
     record.animation_frames = crate::animation_frames::AnimationFrames::default();

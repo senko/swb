@@ -16,12 +16,6 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     (
         "cross-origin",
         2,
-        "[6]",
-        "document.referrer of a frame document: feature 14b",
-    ),
-    (
-        "cross-origin",
-        2,
         "[8]",
         "Location lacks ancestorOrigins (ADR 0028 section 13)",
     ),
@@ -38,12 +32,6 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "",
         "the frame's log: as the row above, that f.focus() gives the frame no further pair of \
          events in swb",
-    ),
-    (
-        "xo-aba",
-        0,
-        "[27]",
-        "document.referrer of a frame document: feature 14",
     ),
     (
         "xo-children",

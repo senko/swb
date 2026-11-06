@@ -20,8 +20,13 @@
 //! `SharedWorker` and `Intl` deleted, ran the steps of [`groups`] (with
 //! the wheel at 120; the mouse moves as single moves, a 300 ms pause
 //! after each step, then the group's waits) and evaluated the setup
-//! script and `window.__s()` after the load and after each group; the 13
-//! records are in `data/craigslist-posting-chromium.json`. `swbtools
+//! script and `window.__s()` after the load and after each group; the 17
+//! records are in `data/craigslist-posting-chromium.json` (three runs of
+//! the tool gave equal files). M9 feature 14b added the groups "favorite",
+//! "unfavorite" and "favorite again" at the start, and "reload" at the end
+//! (the reload drops `window.__s`, so the group evaluates the setup script
+//! again), and the record keys `fav`, `favStore` and `favFrames`: the
+//! favorites work through the site's hidden storage frame. `swbtools
 //! --no-shared-worker --no-intl replay craigslist-posting --steps
 //! crates/automation/tests/data/craigslist-posting-steps.json --setup
 //! crates/automation/tests/data/craigslist-posting.js --record
@@ -103,10 +108,24 @@ fn craigslist_posting_works_with_javascript_on() {
         let setup = include_str!("data/craigslist-posting.js");
         assert_eq!(value(&mut page, setup), 1);
 
-        let mut problems = differences("load", &record(&mut page), &expected[0], &[]);
+        let start = record(&mut page);
+        let at_start = favorites_state(&start);
+        assert!(
+            at_start.contains(&"favorites off|none|0 favorites".to_owned()),
+            "{at_start:?}"
+        );
+        assert!(
+            at_start.contains(&"fave|block|favorite".to_owned()),
+            "{at_start:?}"
+        );
+        let mut problems = differences("load", &start, &expected[0], &[]);
         let groups = groups();
         assert_eq!(groups.len() + 1, expected.len());
         for (index, (name, steps)) in groups.iter().enumerate() {
+            if name == "reload" {
+                // The reload starts a new page with its own console.
+                check_script_errors(&page);
+            }
             run_steps(&mut page, steps).unwrap();
             // The mouse events: see the module comment.
             let skip: &[&str] = if matches!(name.as_str(), "double click" | "context menu") {
@@ -115,23 +134,91 @@ fn craigslist_posting_works_with_javascript_on() {
                 &["ev"]
             };
             let got = record(&mut page);
+            check_favorites(name, &favorites_state(&got));
             problems.extend(differences(name, &got, &expected[index + 1], skip));
         }
         assert!(problems.is_empty(), "{}", problems.join("\n"));
-
-        // The script errors after the steps are those of Chromium: the
-        // page's own `console.error` for the missing `bfp3-concat.min.js`,
-        // and the three unhandled rejections that the record's `e` lists
-        // (the share requests that the fixture lacks, `writeText` without
-        // the clipboard permission). Chromium's other errors are failed
-        // requests.
-        let errors = console_errors(&page);
-        assert_eq!(errors.len(), 4, "{errors:?}");
-        assert!(errors[0].contains("svs-boot-injectJs-error"), "{errors:?}");
-        assert!(
-            errors[1..]
-                .iter()
-                .all(|e| e.starts_with("Uncaught (in promise)"))
-        );
+        // After the reload the page is clean: the record's `e` is compared above.
+        assert_eq!(console_errors(&page), Vec::<String>::new());
     });
+}
+
+/// The script errors after the steps are those of Chromium: the page's own
+/// `console.error` for the missing `bfp3-concat.min.js`, and the unhandled
+/// rejections that the record's `e` lists (the share and favorite requests that the
+/// fixture lacks, `writeText` without the clipboard permission). Chromium's other
+/// errors are failed requests.
+fn check_script_errors(page: &Page) {
+    let errors = console_errors(page);
+    let own = errors
+        .iter()
+        .filter(|e| e.contains("svs-boot-injectJs-error"))
+        .count();
+    assert_eq!(own, 1, "{errors:?}");
+    assert!(
+        errors
+            .iter()
+            .filter(|e| !e.contains("svs-boot-injectJs-error"))
+            .all(|e| e.starts_with("Uncaught (in promise)")),
+        "{errors:?}"
+    );
+}
+
+/// The states of the favorites in a record: the header item, the two buttons and the
+/// stored favorites.
+fn favorites_state(record: &Value) -> Vec<String> {
+    let list = |key: &str| -> Vec<String> {
+        record[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect()
+    };
+    let mut out = list("fav");
+    out.extend(
+        list("favStore")
+            .into_iter()
+            .filter(|k| k.starts_with("faves")),
+    );
+    out
+}
+
+/// The favorites work through the site's hidden storage frame: a same-origin `iframe`
+/// whose script reads `document.referrer` for the page's origin, reads `localStorage`
+/// and sends it to the page with `postMessage`, and stores what the page sends back.
+/// Chromium's records for the groups "favorite", "unfavorite", "favorite again" and
+/// "reload" are compared in the test; this names the states, so that a record that was
+/// wrong in Chromium too would show.
+fn check_favorites(group: &str, state: &[String]) {
+    let has = |text: &str| state.iter().any(|s| s == text);
+    let faved = |on: bool| {
+        assert_eq!(
+            has("favorites|inline-block|1 favorites"),
+            on,
+            "{group}: {state:?}"
+        );
+        assert_eq!(has("fave|none|favorite"), on, "{group}: {state:?}");
+        assert_eq!(has("unfave|block|favorite"), on, "{group}: {state:?}");
+        assert_eq!(has("fave|block|favorite"), !on, "{group}: {state:?}");
+        assert_eq!(
+            has("favorites off|none|0 favorites"),
+            !on,
+            "{group}: {state:?}"
+        );
+    };
+    match group {
+        "favorite" | "favorite again" | "reload" => {
+            faved(true);
+            assert!(
+                state.iter().any(|k| k.starts_with("faves_1={\"")),
+                "{group}: {state:?}"
+            );
+        }
+        "unfavorite" => {
+            faved(false);
+            assert!(has("faves_1={}"), "{group}: {state:?}");
+        }
+        _ => {}
+    }
 }

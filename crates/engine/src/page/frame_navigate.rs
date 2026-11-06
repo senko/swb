@@ -20,8 +20,8 @@
 
 use swb_net::{Origin, Url};
 
+use super::frames::Initiator;
 use super::{HistoryHandling, Page, is_loadable, strip_fragment};
-use crate::document::DocumentState;
 use crate::frames::{FrameId, FrameTarget, Sandbox};
 use crate::history::PostData;
 
@@ -112,9 +112,9 @@ impl Page {
         let Chosen::Frame(chosen) = self.choose_navigable(source, target.as_deref(), allows) else {
             return false;
         };
-        let initiator = self.doc_of(source).map(DocumentState::origin);
+        let initiator = self.initiator_of(source);
         if chosen == FrameId::TOP {
-            return self.navigate_top_as(&url, post, initiator);
+            return self.navigate_top_as(&url, post, initiator.map(|i| i.origin));
         }
         self.navigate_frame_as(chosen, url, post, initiator)
     }
@@ -207,7 +207,7 @@ impl Page {
         id: FrameId,
         url: Url,
         post: Option<PostData>,
-        initiator: Option<Origin>,
+        initiator: Option<Initiator>,
     ) -> bool {
         if !is_loadable(&url) {
             log::info!("{id}: ignoring a link with the scheme {}:", url.scheme());

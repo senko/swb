@@ -283,27 +283,28 @@ these decisions and departures:
 - **Cookies** (RFC 6265bis §5.2, "site for cookies"): a request of a frame
   document, and the subresources and `document.cookie` of a frame, are
   same-site only if the frame's origin and all its ancestors' origins are
-  same-site with the top-level origin. Measured (case `cookies-frames`):
-  in a cross-site frame only `SameSite=None; Secure` cookies are set (from
-  the response and from `document.cookie`) and sent; a same-site frame
-  sets and sends all. Third-party cookies stay allowed (ADR 0012, as in
-  Chromium's test settings). Replay sends no cookies (ADR 0012).
+  same-site with the top-level origin. Measured (cases `cookies-frames`,
+  `cookies-frames-script`): in a cross-site frame only `SameSite=None;
+  Secure` cookies are set (from the response and from `document.cookie`) and
+  sent; a same-site frame sets and sends all; a frame of the top level's site
+  under a cross-site frame counts as cross-site. Third-party cookies stay
+  allowed (ADR 0012, as in Chromium's test settings). Replay sends no cookies
+  (ADR 0012).
 - **`document.referrer`** of a frame (Referrer Policy, default
-  `strict-origin-when-cross-origin`; measured, case `referrer`): the
-  parent's URL for a same-origin document and for the initial
-  `about:blank`, the parent's origin with `/` for a cross-origin one and
-  for `about:srcdoc`. swb sends no `Referer` header (unchanged); only the
-  document property is set. The Craigslist storage frame needs it.
-- **Storage** (case `storage-frames`): a same-origin frame shares
-  `localStorage` and `sessionStorage` with its parent; a cross-origin one
-  has its own. The `storage` event reaches the other documents with the
-  same storage area as a task, with `key`, `oldValue`, `newValue`, `url`
-  (the writer's URL) and `storageArea` (measured). The storage key becomes
-  (top-level site, origin): Chromium partitions the storage of
-  third-party frames by the top-level site (its documented behaviour; the
-  probe cannot open a cross-site top level). For first-party documents
-  the key is the same as now. The quotas of ADR 0028 section 16 apply per
-  key.
+  `strict-origin-when-cross-origin`; measured, cases `referrer-*`): the
+  document that starts a navigation is its source. The value is the source's
+  URL without fragment and credentials for a target of the source's origin,
+  the source's origin with `/` for another one. "Done (feature 14b)" has the
+  rules. swb sends no `Referer` header (unchanged); only the document property
+  is set. The Craigslist storage frame needs it.
+- **Storage** (cases `storage-key-*`, `storage-event-*`): a same-origin frame
+  shares `localStorage` and `sessionStorage` with its parent; a cross-origin
+  one has its own. The key of an area is the origin and, for a frame under
+  another site or under a cross-site frame, the site of the top-level document.
+  The `storage` event reaches the other documents of the key as a task, with
+  `key`, `oldValue`, `newValue`, `url` (the writer's URL) and `storageArea`
+  (measured). "Done (feature 14b)" has the measurements. The quotas of ADR 0028
+  section 16 apply per key.
 - **`sandbox`** (case `sandbox`): without `allow-same-origin` the
   document has an opaque origin (`origin` is `"null"`,
   `contentDocument` is `null`, `localStorage` and `document.cookie` throw
@@ -346,7 +347,128 @@ the scripts of the document (feature 12b1). The flags are read at
 each navigation. The origin of `about:blank` and `about:srcdoc` documents
 is the parent document's; a frame document whose request failed shows an
 error document with an opaque origin. `document.referrer` and storage keys
-of frames come with feature 14.
+of frames: "Done (feature 14b)", below.
+
+**Done (feature 14b).** Storage keys, `storage` events, `document.cookie` and
+`document.referrer` of frames, and the Craigslist favorites. Measured in Chromium 148
+with the cases `storage-key-*`, `storage-event-*`, `storage-retired-write`,
+`cookies-frames-script`, `referrer-*` and `domain-about-frames` of
+`tools/probes/web-frames.json` (19 cases, three equal runs apart from ports); every value
+is compared in `crates/engine/tests/frames/storage.rs`, and a departure has a row there.
+
+- *The probe tool and partitioning.* Playwright starts Chromium with
+  `--disable-features=...ThirdPartyStoragePartitioning`: a third-party frame then shares
+  `localStorage` and `sessionStorage` with the first-party origin (measured: the frame
+  of `127.0.0.1:2` under `a.localhost` and under `b.localhost` and the top level of
+  `127.0.0.1:2` read one area). Chromium enables the feature by default, and
+  `tools/swbtools/browser.py` restores that with a later `--disable-features` that lacks it.
+  `*.localhost` hosts give the probe more than two sites. A real Chromium partitions, so
+  this is the behaviour that swb follows; the earlier case `cookies-frames` has the same
+  values with it.
+- *The key* (`web/src/storage.rs`, `engine/src/frames/mod.rs`): the origin, and a partition
+  `Top(site)` when the documents from the top level to the frame are not all of one site, else
+  none. Measured: a frame of origin L under site A, under site B and the top level L have three
+  areas (`localStorage` and `sessionStorage`); a same-site frame (`a.localhost:2` under
+  `a.localhost:1`) shares with the top level of its origin; so does a frame of the top level's
+  own origin; the chain A > B > A' gives A' an area of its own (not the top level's A' area),
+  and L1 > A1 > L1 likewise. So the cross-site ancestor counts, as for cookies. The site is the
+  scheme and registrable domain (`swb_net::site_text`); all `file:` documents are one site. A
+  top level without a site (a `data:` page) gives its frames no key: `SecurityError`, the
+  fail-closed rule. A sandbox without `allow-same-origin` has none, as before. An `about:blank`
+  or `srcdoc` frame has its creator's key. The key is computed once per document, when its host
+  first arrives in its runtime (`DocState::storage_key`), and the `Storage` object holds it: after
+  the document retires, or if the key differs, every call throws `SecurityError` (measured, case
+  `storage-retired-write`: the held `Storage` of a removed frame, of a frame that navigated to
+  another origin and to the same origin all throw `Access is denied for this document.`). The
+  initial `about:blank` window that a navigation reuses does not carry its `Storage` objects.
+  Quotas count per key and the total of 64 MiB over all keys and both kinds.
+- *Events* (`web/src/storage_events.rs`). A change of an area (`setItem` with another value,
+  `removeItem` of a present key, `clear` of a full area) queues one task for every other document
+  of the runtime with the same key and kind. Measured: the writer gets none; `setItem` with the same
+  value, `removeItem` of a missing key and `clear` of an empty area fire nothing; `clear` has `key`,
+  `oldValue` and `newValue` null; the `url` is the writer's document URL with its fragment, and the
+  writer is the document of the `Storage` object (`f.localStorage.setItem()` from the top level fires
+  at the top level, not at `f`); `storageArea` is the receiver's own object; the event is trusted,
+  does not bubble and cannot be canceled; a named set and `delete` fire like `setItem` and
+  `removeItem`; `onstorage` on the window and on `<body>`, and listeners, fire in registration order,
+  and a second `onstorage` assignment replaces the first; a listener that the writer adds after the
+  write gets the event, a removed one does not; a document that is removed gets none; a document with a
+  pending navigation (to another origin, or `location.replace` in the same origin) still gets it, because
+  the event is faster than the commit. Departure in the mechanism, same result: swb flushes the waiting
+  events of a document before a navigation commits (`ScriptRuntime::flush_storage_events`), with a bound:
+  the events that wait at the start, for at most 100 ms and the listener that runs when that time ends. A
+  listener can write through the object of another frame and so make new events for its own document for
+  ever, and the commit drops those and what the bound leaves. Sandboxed
+  frames with `allow-same-origin` and nested frames get events; a sandbox without it has no storage and
+  gets none; `document.domain` changes nothing (the key is the origin; a frame of the other port that
+  also set it gets none). Documents of one key have one origin, and a page has one runtime per origin
+  (section 5), so all receivers are in the writer's runtime (test
+  `documents_of_one_key_share_a_runtime`); the writer finds them in the runtime's document table (at most
+  256 realms). The task has a due time 0.5 ms after the write: Chromium's events come after a message
+  and a timer of 0 ms that the writer queued after the write and before a timer of 1 ms (measured, case
+  `storage-event-order`). The order among the receivers is not fixed in Chromium (it changed between
+  runs); the probe sorts it, swb uses the order of the document table.
+- *The budget of waiting events.* An event that waits counts in the message budget of the runtime that
+  wrote it (section 11, `message_port.rs`): 65,536 waiting and 256 MiB, the frames' runtimes together for
+  the bytes, with the bytes of the strings of the event (key, old and new value, URL) and 512 for each
+  receiver. A write past the budget fires nothing at the receivers that have no room, with one warning
+  ("further storage events are dropped") until nothing waits. The strings are shared by the receivers
+  of one write, but counted for each, so the bound on the memory is conservative. A runtime with one
+  document pays one comparison per write. A document that retires drops its queue and gives the bytes back.
+- *`document.cookie`* of a frame follows the site for cookies of the frame's requests
+  (`CookieJar::script_cookie_string_in`, `set_script_cookie_in`): in a frame whose site for cookies is
+  not same-site with its URL only `SameSite=None; Secure` cookies are read and set. Measured (case
+  `cookies-frames-script`): a same-site frame sets `a`, `b`, `c`, `d` (not `e`, `SameSite=None` without
+  `Secure`) and reads all cookies of its host; a cross-site frame, and a frame of the top level's site
+  under a cross-site frame, set `b` only and read only the `SameSite=None` cookies; the top level
+  reads all, also those that a cross-site-chain frame of its host set.
+- *`document.referrer`* (`engine/src/referrer.rs`). The initial `about:blank` of a frame is no navigation:
+  it has the URL of its creator as the creator has it at that moment, with its fragment, also `file:`,
+  `about:blank` and `about:srcdoc` (measured, cases `referrer-about-blank*`). For a navigation, the source
+  is the document that starts it: the parent for `srcdoc` and for the `src` attribute (the container's node
+  document: a script of a sibling that sets `parent.document.getElementById(id).src` still gives the
+  parent's URL, case `referrer-initiator` `el1b`); the document itself for a link, a form (`GET` and
+  `POST`), `location.href`, `assign`, `replace` and a reload (the frame's own URL); the caller's document
+  for a write to the `location` of a frame that it may navigate (`fe.location` from a sibling gives the
+  sibling's URL; a top-level write gives the top level's). A target of the source's origin gets the stripped
+  URL (no fragment, no credentials: the URL of a changed state counts, `referrer-url`). An `http:` target
+  that is not potentially trustworthy gets `""` from a source that is (the spec: the probe has no `https:`
+  page). Another origin, a `data:` document, `srcdoc` and a navigation to `about:blank` get the origin and
+  `/`, also when they have the source's origin; a reload of `about:blank` gets `""`, and a reload of `srcdoc`
+  the origin and `/`. A source with an opaque origin gets `""` (a `file:` page's `srcdoc` and `data:` frames,
+  case `referrer-file`). The origin of the response does not count: a sandboxed frame
+  whose URL is of the parent's origin gets the full URL (case `referrer-sandbox`). Not read, and in the
+  backlog with Chromium's values (cases `referrer-policy`, `referrer-policy-header`): the `referrerpolicy`
+  attribute (`no-referrer` gives `""`; `origin` and `strict-origin` the origin; `same-origin` the URL for the
+  same origin and `""` for another; `unsafe-url` and `no-referrer-when-downgrade` the URL also across
+  origins; `origin-when-cross-origin` the URL for the same origin) and the `Referrer-Policy` header of the
+  parent (`no-referrer` gives `""` to its frames). The Craigslist frame needs the default policy only.
+  Departures: credentials in a document URL stay in swb's `location.href` (Chromium drops them from the
+  URL of a navigation); an `about:blank` child of a `data:` frame has the `data:` URL as its referrer in
+  Chromium, `""` in swb; an `about:blank` that a frame of another origin navigates to has the parent's
+  origin (older than this feature; Chromium: the frame's), so the parent reads a referrer with the frame's
+  origin and no more; swb has no `about:blank` URL with a fragment or a query, and a `src` set in the task
+  that inserted the frame counts as at the insertion (rows of `referrer-about-blank*`). Measured by the
+  review, in the backlog: the source's URL is read after the task, not at the call (Chromium; a
+  `replaceState` in the same task shows), and a redirect through another origin back to the source's origin
+  gives the full URL (Chromium: the origin; `Response` has no redirect chain). Neither gives a URL to
+  another origin.
+- *`document.domain` and `originAgentCluster` of `about:` frames* (`web/src/domain.rs`): an `about:blank`,
+  `about:srcdoc` or same-origin document reads the host of its creator (`storage_url`), and
+  `originAgentCluster` is true (measured, case `domain-about-frames`). An `about:blank` child of a `data:`
+  frame gives `Access is denied for this document.` for `document.cookie`, `localStorage` and
+  `sessionStorage` (the `data:` document itself: `Cookies are disabled inside 'data:' URLs.` and
+  `Storage is disabled inside 'data:' URLs.`). The 13b backlog row goes.
+- *The Craigslist favorites.* The hidden frame (`localStorage-092e...html`, a page of the site) reads
+  `document.referrer` for `https://www.craigslist.org`, tests `localStorage`, sends the stored keys to
+  its parent with `postMessage` (`init`) and applies `set`, `remove`, `update` and `clear` messages from a
+  `*.craigslist.org` origin. With the referrer, the storage in a frame and the messages across documents
+  of one runtime it works as in Chromium: `crates/automation/tests/craigslist_posting.rs` runs the groups
+  "favorite", "unfavorite", "favorite again" and, after the last group, "reload" of
+  `data/craigslist-posting-steps.json` and compares 17 records with Chromium's (three equal runs of
+  `swbtools replay`): the header item (`favorites`, `1 favorites`), the button states, `localStorage`
+  (`faves_1`, `banished_1`; `lastFaveSynch_1` by key only, it carries the time), the frame's referrer; the
+  reload keeps the favorite. The M8 departure goes.
 
 ### 4. Rendering
 
@@ -1388,9 +1510,9 @@ and `crates/automation/tests/frame_input.rs`, and a departure has a row there.
   `originAgentCluster` is true. A `data:` document without that sandbox keeps its own texts,
   and `originAgentCluster` is true there too. A frame of a `file:` page reads as its page does.
   Departure: `originAgentCluster` of a sandboxed frame of a `file:` page is false in Chromium.
-- *What feature 14 needs.* Messages and ports: "Done (feature 14a)". Left for 14b:
-  `document.referrer` and storage keys of frames, `storage` events, the same-site rule of
-  `document.cookie` in a frame.
+- *What feature 14 needs.* Messages and ports: "Done (feature 14a)". `document.referrer` and
+  storage keys of frames, `storage` events, the same-site rule of `document.cookie` in a frame:
+  "Done (feature 14b)" (section 3).
 - Costs: docs/performance.md, "One runtime per origin".
 
 ### 6. The event loop with several runtimes
@@ -2029,7 +2151,7 @@ has no further option (clicks by coordinates reach frames without it).
 | Realms created per runtime over its life | 256 | the document runs without scripts, a warning (until realm collection exists) |
 | JavaScript heap | 256 MiB per runtime, 512 MiB for all runtimes of a page | the top level's runtime keeps its 256 MiB, and frames cannot take it. Before each task another runtime's limit is the smaller of 256 MiB and what the other frames leave of the rest. Past it the task ends (termination) and the runtime is dropped alone: its frames go on without scripts, and its origin gets no new runtime until the next top-level document. Consequence: a frame whose limit fell below what it holds, because other frames grew, goes at its next allocation. After the top level's runtime the top-level document stays as it is, with the input of a page without JavaScript, and the other runtimes go on and have its share |
 | Long tasks | 30 s per runtime, 60 s per page | the top level's runtime keeps its 30 s, and the other runtimes share the rest. A runtime stops at its limit; past the page cap all runtimes stop |
-| Messages that wait (window and port) | 65,536 messages for each sender; 256 MiB (serialized bytes and 512 bytes per message) for the top level's runtime as a sender, and 256 MiB for the frames' runtimes together. A message counts for its sender until it is delivered or dropped, also while it waits in another runtime | `postMessage` drops the message with one warning until nothing waits (Chromium has no limit) |
+| Messages and `storage` events that wait (window and port) | 65,536 for each sender; 256 MiB (serialized bytes and 512 bytes per message) for the top level's runtime as a sender, and 256 MiB for the frames' runtimes together. A message counts for its sender until it is delivered or dropped, also while it waits in another runtime. A `storage` event counts for the runtime that wrote, once for each receiver, with the bytes of its strings (key, old and new value, URL) and 512 bytes | `postMessage` drops the message with one warning until nothing waits (Chromium has no limit); a write fires nothing at the receivers that have no room, with the warning "further storage events are dropped" |
 | Blob URLs | 16,384 per runtime; 256 MiB of bytes for the top level's runtime, and 256 MiB for the frames' runtimes together | `createObjectURL` throws `QuotaExceededError`, a warning |
 | Blobs that waiting requests and reads hold | 256 MiB for the top level's runtime, and 256 MiB for the frames' runtimes together | the request or the read fails, a warning |
 | Mutation records that wait | 131,072 per runtime; 128 MiB for the top level's runtime, and 128 MiB for the frames' runtimes together | later records are dropped, a warning |
@@ -2149,6 +2271,10 @@ replaced and destroyed documents return their bytes).
 - `credentialless`, fenced frames, `document.domain` effects (a no-op as
   in Chromium), process isolation (all runtimes run on the page thread),
   rendering throttling of hidden frames.
+- The `referrerpolicy` attribute of `iframe` and the `Referrer-Policy` header: the default
+  policy only (no target needs more; Chromium's values are in the cases `referrer-policy`
+  and `referrer-policy-header`, "Done (feature 14b)"). The `document.referrer` of a
+  top-level document that a link opened stays empty.
 
 ### 14. Features
 

@@ -18,18 +18,6 @@ use crate::common::on_page_thread;
 /// A row where swb departs on purpose: (case, query, path of the value, why).
 const DEPARTURES: &[(&str, usize, &str, &str)] = &[
     (
-        "agents-opaque-state",
-        1,
-        "[12]",
-        "document.referrer of a frame document: feature 14",
-    ),
-    (
-        "agents-opaque-state",
-        2,
-        "[12]",
-        "document.referrer of a frame document: feature 14",
-    ),
-    (
         "agents-file-state",
         4,
         "[5]",
