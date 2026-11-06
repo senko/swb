@@ -6799,6 +6799,1899 @@
      ]
     }
    ]
+  },
+  {
+   "name": "nodes-move-wrapper",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "before": [
+       2,
+       0
+      ],
+      "ret": true,
+      "owner": [
+       true,
+       true,
+       true,
+       true,
+       true
+      ],
+      "lists": [
+       1,
+       1,
+       true,
+       true
+      ],
+      "proto": [
+       "parent",
+       true,
+       true,
+       false,
+       true,
+       false
+      ],
+      "same": [
+       true,
+       true,
+       true,
+       true,
+       true,
+       true,
+       true
+      ],
+      "sameProto": [
+       "parent",
+       "parent",
+       "parent",
+       "parent",
+       "parent",
+       "parent",
+       "parent"
+      ],
+      "expando": 1,
+      "clicks": [
+       [
+        "listener",
+        true,
+        true,
+        false,
+        true,
+        true
+       ],
+       "onclick"
+      ],
+      "style": [
+       "color: red;",
+       "rgb(255, 0, 0)",
+       "rgb(255, 0, 0)"
+      ],
+      "className": "a b c",
+      "dataset": [
+       "x",
+       "v"
+      ],
+      "attrs": [
+       5,
+       true,
+       true,
+       "mv"
+      ],
+      "id": [
+       "mv2",
+       true,
+       null,
+       null
+      ],
+      "childLists": [
+       2,
+       1,
+       "inner"
+      ],
+      "childLists2": [
+       3,
+       2
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-move-realms",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "children": [
+       "parent",
+       "parent",
+       "parent",
+       "parent"
+      ],
+      "new": {
+       "childNodes": "parent",
+       "children": "parent",
+       "style": "parent",
+       "classList": "parent",
+       "dataset": "parent",
+       "attributes": "parent",
+       "qsa": "parent",
+       "byTag": "parent",
+       "byClass": "parent",
+       "rect": "parent",
+       "rects": "parent",
+       "clone": "parent",
+       "cloneChild": "parent",
+       "attr": "parent",
+       "computedByParent": "parent",
+       "computedByFrame": "frame",
+       "owner": "frame",
+       "names": "parent"
+      },
+      "frameCall": {
+       "firstChild": "parent",
+       "viaFrameQsa": "parent",
+       "viaFrameByTag": "parent",
+       "viaFrameRect": "parent"
+      },
+      "fromFrame": {
+       "el": "frame",
+       "child": "frame",
+       "list": "frame",
+       "style": "frame",
+       "clone": "frame",
+       "qsa": "frame",
+       "ownerIsTop": true
+      },
+      "backAndForth": [
+       "frame",
+       true,
+       "frame"
+      ],
+      "textMoves": [
+       true,
+       true,
+       "parent",
+       "parent",
+       "t",
+       "c",
+       true
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-insertions",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "insertBefore": [
+       true,
+       true,
+       true
+      ],
+      "replaceChild": [
+       true,
+       true,
+       null,
+       true
+      ],
+      "append": [
+       true,
+       true,
+       "str",
+       true,
+       "parent"
+      ],
+      "prepend": [
+       true,
+       true
+      ],
+      "before": [
+       true,
+       true
+      ],
+      "after": [
+       true,
+       true
+      ],
+      "replaceWith": [
+       true,
+       true,
+       null
+      ],
+      "replaceChildren": [
+       true,
+       true,
+       1
+      ],
+      "insertAdjacent": [
+       true,
+       true,
+       true
+      ],
+      "fragment": [
+       true,
+       true,
+       true,
+       0,
+       true,
+       "parent"
+      ],
+      "fragmentFromFrame": [
+       true,
+       true,
+       true
+      ],
+      "subtree": [
+       true,
+       null,
+       true
+      ],
+      "template": [
+       true,
+       true,
+       false,
+       false,
+       "tc",
+       true,
+       "parent",
+       "parent",
+       null
+      ],
+      "intoTemplate": [
+       true,
+       false
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-insertion-errors",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "childOfOther": [
+       "NotFoundError: Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.",
+       true,
+       true
+      ],
+      "removeOther": "NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+      "replaceOtherChild": [
+       "NotFoundError: Failed to execute 'replaceChild' on 'Node': The node to be replaced is not a child of this node.",
+       true,
+       true
+      ],
+      "replaceChildFromOther": [
+       "NotFoundError: Failed to execute 'replaceChild' on 'Node': The node to be replaced is not a child of this node.",
+       true
+      ],
+      "document": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type '#document' may not be inserted inside nodes of type 'BODY'.",
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type '#document' may not be inserted inside nodes of type 'BODY'.",
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type '#document' may not be inserted inside nodes of type '#document'."
+      ],
+      "textParent": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': This node type does not support this method.",
+       true
+      ],
+      "oneElement": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Only one element on document allowed.",
+       true,
+       true
+      ],
+      "textInDoc": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type '#text' may not be inserted inside nodes of type '#document'.",
+       true
+      ],
+      "fragInDoc": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Only one element on document allowed.",
+       2,
+       true
+      ],
+      "doctype": [
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Nodes of type 'html' may not be inserted inside nodes of type 'BODY'.",
+       "HierarchyRequestError: Failed to execute 'appendChild' on 'Node': Can't insert a doctype after the root element.",
+       true
+      ],
+      "doctypeInto": [
+       null,
+       true,
+       true,
+       true,
+       null
+      ],
+      "ancestorAcross": [
+       true,
+       true
+      ],
+      "inArg": [
+       true,
+       "z"
+      ],
+      "afterNode": [
+       true,
+       true,
+       false
+      ],
+      "beforeSkip": [
+       true,
+       true
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-adopt-import",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "adopt": [
+       true,
+       true,
+       null,
+       1,
+       true,
+       "parent",
+       false,
+       false,
+       "parent",
+       true
+      ],
+      "adoptBack": [
+       true,
+       true,
+       null,
+       null
+      ],
+      "adoptDocument": [
+       "NotSupportedError: Failed to execute 'adoptNode' on 'Document': The node provided is of type '#document', which may not be adopted.",
+       "NotSupportedError: Failed to execute 'adoptNode' on 'Document': The node provided is of type '#document', which may not be adopted.",
+       "NotSupportedError: Failed to execute 'adoptNode' on 'Document': The node provided is of type '#document', which may not be adopted."
+      ],
+      "adoptFragment": [
+       true,
+       true,
+       true,
+       true
+      ],
+      "adoptText": [
+       true,
+       "parent"
+      ],
+      "adoptDoctype": [
+       true,
+       true,
+       "frame"
+      ],
+      "adoptIntoCreated": [
+       true,
+       true,
+       null,
+       "frame",
+       true,
+       true
+      ],
+      "createdToFrame": [
+       true,
+       true,
+       null,
+       "frame"
+      ],
+      "importFromParent": [
+       "frame",
+       true,
+       null,
+       null,
+       "b",
+       "x",
+       "frame",
+       true
+      ],
+      "importListeners": true,
+      "importShallow": [
+       0,
+       "frame"
+      ],
+      "importFromFrame": [
+       "parent",
+       true,
+       "parent",
+       "y"
+      ],
+      "importByFrameScript": [
+       "frame",
+       true
+      ],
+      "importCallParentFn": [
+       "frame",
+       true
+      ],
+      "importCallFrameFn": [
+       "parent",
+       true
+      ],
+      "importDocument": [
+       "NotSupportedError: Failed to execute 'importNode' on 'Document': The node provided is a document, which may not be imported.",
+       "NotSupportedError: Failed to execute 'importNode' on 'Document': The node provided is a document, which may not be imported."
+      ],
+      "importFragment": [
+       2,
+       true,
+       2,
+       "frame"
+      ],
+      "cloneParentCall": [
+       "frame",
+       true
+      ],
+      "cloneFrameCall": [
+       "frame",
+       true
+      ],
+      "cloneFrameFn": [
+       "parent",
+       true
+      ],
+      "importInput": [
+       "typed",
+       null
+      ],
+      "ranScript": 1,
+      "importStartedScript": 1,
+      "ranImported": false,
+      "importNotStarted": false,
+      "importTemplate": [
+       1,
+       false,
+       true,
+       "frame",
+       "frame"
+      ],
+      "importTemplateContent": [
+       1,
+       true
+      ],
+      "fromParser": [
+       true,
+       null,
+       "parent",
+       true
+      ],
+      "fromFrameParser": [
+       true,
+       "frame",
+       "frame"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-reads-across",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "contains": [
+       false,
+       false,
+       false,
+       false,
+       true,
+       false
+      ],
+      "compare": [
+       1,
+       32,
+       1,
+       32,
+       true,
+       true,
+       33
+      ],
+      "same": [
+       false,
+       true,
+       false,
+       false
+      ],
+      "equal": [
+       true,
+       true,
+       false,
+       false
+      ],
+      "related": [
+       true,
+       true,
+       true,
+       true
+      ],
+      "dispatch": [
+       true,
+       true
+      ],
+      "dispatchLog": [
+       [
+        "frame node",
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        "parent",
+        5
+       ],
+       [
+        "frame node",
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        "frame",
+        5
+       ]
+      ],
+      "redispatch": [
+       [
+        "t",
+        "f"
+       ],
+       true
+      ],
+      "windowDispatch": [
+       [
+        true,
+        false,
+        true
+       ],
+       [
+        "top",
+        true
+       ]
+      ],
+      "formData": [
+       [
+        [
+         "a",
+         "1"
+        ]
+       ],
+       [
+        [
+         "a",
+         "1"
+        ],
+        [
+         "b",
+         "2"
+        ]
+       ],
+       "parent",
+       [
+        [
+         "a",
+         "1"
+        ]
+       ]
+      ],
+      "formDataOtherSubmitter": [
+       "NotFoundError: Failed to construct 'FormData': The specified element is not owned by this form element.",
+       "NotFoundError: Failed to execute 'requestSubmit' on 'HTMLFormElement': The specified element is not owned by this form element."
+      ],
+      "computed": [
+       "block",
+       "parent",
+       "block",
+       "frame"
+      ],
+      "active": [
+       true,
+       true
+      ],
+      "sub": true,
+      "observers": [
+       true,
+       true
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-other-arguments",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "caption": [
+       true,
+       true,
+       true
+      ],
+      "thead": [
+       true,
+       true
+      ],
+      "tfoot": [
+       true,
+       true
+      ],
+      "selectAdd": [
+       true,
+       2,
+       true
+      ],
+      "optionsAdd": [
+       true,
+       3
+      ],
+      "selectSet": [
+       true,
+       true
+      ],
+      "optionsSet": [
+       true,
+       true
+      ],
+      "selectBeforeOther": [
+       "NotFoundError: Failed to execute 'add' on 'HTMLSelectElement': The node before which the new node is to be inserted is not a child of this node.",
+       true
+      ],
+      "bodySet": [
+       true,
+       true,
+       null
+      ],
+      "bodySetToOtherArena": [
+       true,
+       true
+      ],
+      "ioUnobserve": "ok",
+      "ro": [
+       "ro",
+       true,
+       "parent"
+      ],
+      "io": [
+       [
+        "io",
+        true,
+        "parent"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-mutation-observers",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "waitingTarget": 0,
+      "m1BeforeMove": [
+       [
+        "attributes",
+        "e",
+        0,
+        0,
+        false,
+        false,
+        "a",
+        "parent",
+        "parent"
+       ]
+      ],
+      "m2Move": [
+       [
+        "childList",
+        "pbody",
+        0,
+        1,
+        false,
+        true,
+        null,
+        "parent",
+        "parent"
+       ]
+      ],
+      "m3Move": [
+       [
+        "childList",
+        "fbody",
+        1,
+        0,
+        true,
+        false,
+        null,
+        "parent",
+        "parent"
+       ]
+      ],
+      "m4Before": [
+       [
+        "attributes",
+        "e",
+        0,
+        0,
+        false,
+        false,
+        "a",
+        "parent",
+        "parent"
+       ]
+      ],
+      "m1After": [
+       [
+        "attributes",
+        "e",
+        0,
+        0,
+        false,
+        false,
+        "b",
+        "parent",
+        "parent"
+       ],
+       [
+        "attributes",
+        "?",
+        0,
+        0,
+        false,
+        false,
+        "c",
+        "parent",
+        "parent"
+       ],
+       [
+        "childList",
+        "e",
+        1,
+        0,
+        false,
+        false,
+        null,
+        "parent",
+        "parent"
+       ]
+      ],
+      "m4After": [
+       [
+        "attributes",
+        "e",
+        0,
+        0,
+        false,
+        false,
+        "b",
+        "parent",
+        "parent"
+       ]
+      ],
+      "m3After": [
+       [
+        "childList",
+        "e",
+        1,
+        0,
+        false,
+        false,
+        null,
+        "parent",
+        "parent"
+       ]
+      ],
+      "m2After": [
+       [
+        "childList",
+        "e",
+        1,
+        0,
+        false,
+        false,
+        null,
+        "parent",
+        "parent"
+       ]
+      ],
+      "addedNotSeen": [
+       1,
+       true,
+       1,
+       true,
+       true,
+       2,
+       true
+      ],
+      "transientAcross": [
+       1
+      ],
+      "transientMoved": [
+       true
+      ],
+      "async": [
+       [
+        1,
+        true,
+        true,
+        "parent"
+       ],
+       [
+        1,
+        true,
+        true,
+        "parent"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-live-state",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "preLen": [
+       2,
+       2,
+       1,
+       2
+      ],
+      "moved": {
+       "staticLen": 2,
+       "staticFirst": true,
+       "staticOwner": true,
+       "byTag": [
+        2,
+        true,
+        "parent"
+       ],
+       "byClass": [
+        1
+       ],
+       "pDoc": 0,
+       "unseenSame": true
+      },
+      "grow": [
+       3,
+       2
+      ],
+      "controls": {
+       "value": "typed",
+       "attr": null,
+       "sel": [
+        1,
+        3
+       ],
+       "checked": true,
+       "area": "area",
+       "index": 1,
+       "opt": "so",
+       "open": true
+      },
+      "formBefore": [
+       true,
+       1,
+       true
+      ],
+      "form": [
+       true,
+       1,
+       true,
+       true,
+       true,
+       "parent"
+      ],
+      "formAttr": [
+       true,
+       1
+      ],
+      "formAttrAfter": [
+       null,
+       0
+      ],
+      "labelsBefore": [
+       1,
+       true
+      ],
+      "labelsAfter": [
+       0,
+       null,
+       "parent"
+      ],
+      "anchor": [
+       true,
+       true,
+       true
+      ],
+      "lazyHandlerAttr": null,
+      "handler2": "frame",
+      "handlerNeverCompiled": "frame",
+      "handler3": "parent",
+      "handlerCompiledBefore": [
+       "parent",
+       true,
+       "parent"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-focus",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "before": [
+       true,
+       true,
+       false
+      ],
+      "after": [
+       true,
+       true,
+       false,
+       [
+        "focus",
+        "blur"
+       ]
+      ],
+      "refocus": [
+       true,
+       true,
+       true,
+       true,
+       true,
+       [
+        "focus",
+        "blur",
+        "focus"
+       ]
+      ],
+      "back": [
+       true,
+       false,
+       false,
+       [
+        "focus",
+        "blur",
+        "focus",
+        "blur"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-frames-in-subtree",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "before": [
+       1,
+       true,
+       "object"
+      ],
+      "after": [
+       2,
+       false,
+       true,
+       false,
+       null,
+       true,
+       1,
+       1,
+       true,
+       null,
+       null,
+       true,
+       true
+      ],
+      "nested": [
+       true,
+       true,
+       true,
+       true
+      ],
+      "fromFrame": [
+       true,
+       true,
+       true,
+       true,
+       "frame"
+      ],
+      "adoptedFrame": [
+       null,
+       false
+      ],
+      "inCreated": [
+       null
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-scripts-in-subtree",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 500); })",
+     "value": {
+      "unstarted": [
+       [
+        "unstarted",
+        "frame",
+        "framedoc",
+        true
+       ]
+      ],
+      "started": true,
+      "inDiv": [
+       [
+        "unstarted",
+        "frame",
+        "framedoc",
+        true
+       ],
+       [
+        "ran",
+        "parent"
+       ],
+       [
+        "in a div",
+        "frame"
+       ]
+      ],
+      "createdNoRun": 3,
+      "fromCreated": [
+       [
+        "unstarted",
+        "frame",
+        "framedoc",
+        true
+       ],
+       [
+        "ran",
+        "parent"
+       ],
+       [
+        "in a div",
+        "frame"
+       ]
+      ],
+      "styleBefore": [
+       "rgb(4, 5, 6)",
+       1,
+       0
+      ],
+      "styleAfter": [
+       "rgb(0, 0, 0)",
+       "rgb(1, 2, 3)",
+       0,
+       1,
+       false,
+       true,
+       null,
+       "parent",
+       2
+      ],
+      "extLoad": [
+       [
+        "ext",
+        "frame"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-attr",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "inUse": [
+       "InUseAttributeError: Failed to execute 'setAttributeNode' on 'Element': The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned.",
+       "InUseAttributeError: Failed to execute 'setAttributeNodeNS' on 'Element': The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned.",
+       "InUseAttributeError: Failed to execute 'setNamedItem' on 'NamedNodeMap': The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned.",
+       "InUseAttributeError: Failed to execute 'setNamedItemNS' on 'NamedNodeMap': The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned.",
+       "InUseAttributeError: Failed to execute 'setAttributeNode' on 'Element': The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned."
+      ],
+      "removeOther": [
+       "NotFoundError: Failed to execute 'removeAttributeNode' on 'Element': The node provided is owned by another element.",
+       "NotFoundError: Failed to execute 'removeAttributeNode' on 'Element': The node provided is owned by another element.",
+       true,
+       true
+      ],
+      "detachedAcross": [
+       null,
+       "v",
+       true,
+       true,
+       "parent",
+       true
+      ],
+      "detachedFromFrame": [
+       null,
+       "w",
+       true,
+       true,
+       "frame"
+      ],
+      "moved": [
+       true,
+       true,
+       true,
+       "parent"
+      ],
+      "write": "x",
+      "removeAfterMove": [
+       true,
+       null,
+       "x",
+       true
+      ],
+      "frameAttrMoved": [
+       true,
+       true,
+       "frame"
+      ],
+      "removedAttrStays": [
+       true,
+       "1"
+      ],
+      "replace": [
+       true,
+       null,
+       "old",
+       "new",
+       true
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-retired",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "retiredToParent": [
+       [
+        true,
+        true,
+        true,
+        "other"
+       ]
+      ],
+      "parentToRetired": [
+       [
+        true,
+        true,
+        true,
+        null,
+        true,
+        "parent"
+       ]
+      ],
+      "adoptIntoRetired": [
+       true,
+       true
+      ],
+      "importIntoRetired": [
+       true
+      ],
+      "scriptInRetired": true,
+      "andBack": [
+       true
+      ],
+      "frameInRetired": [
+       null
+      ],
+      "onlyNode": [
+       true,
+       true,
+       null,
+       true
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "nodes-sandbox-script",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })",
+     "value": {
+      "moved": [],
+      "movedBack": [],
+      "madeIn": [
+       "made in sandbox"
+      ],
+      "control": [
+       "made in sandbox",
+       "fresh"
+      ],
+      "handler": [
+       "made in sandbox",
+       "fresh"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "errors-callbacks",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 600); })",
+     "value": {
+      "log": [
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: report by frame",
+       "top onerror Uncaught Error: report by top",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "frame onerror Uncaught Error: frame fn",
+       "frame onerror Uncaught Error: string timer",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn",
+       "top onerror Uncaught Error: parent fn",
+       "top onerror Uncaught Error: parent fn",
+       "frame onerror Uncaught Error: frame fn"
+      ],
+      "unh": [],
+      "retiredCall": [
+       "frame fn",
+       true,
+       false
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "errors-promises",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 500); })",
+     "value": {
+      "log": [],
+      "unh": [
+       "top Promise.reject",
+       "top parent then",
+       "top top async",
+       "frame w.Promise.reject",
+       "frame reject.call",
+       "frame frame async",
+       "frame new w.Promise",
+       "frame frame fn",
+       "frame then.call on a frame promise",
+       "frame frame async after await",
+       "frame finally",
+       "frame w.all rejects",
+       "frame frame error",
+       "frame all.call"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "caller-urls",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 450); })",
+     "value": {
+      "frameUrl": "F/frame.html",
+      "image": "/nowhere/sub2.txt",
+      "locationOfTopByFrameFn": "F/frame.html",
+      "baseURI": [
+       "/nowhere/",
+       true
+      ],
+      "anchor": "/nowhere/q.html",
+      "urlCtor": "F/q.html",
+      "xhrTop": "F/sub2.txt",
+      "fetch": "/nowhere/sub2.txt",
+      "xhr": "/nowhere/sub2.txt",
+      "stringTimer": "frame",
+      "pushState": "/nowhere/pushed.html",
+      "replaceState": "/nowhere/replaced.html",
+      "fromSub": "F/one.html",
+      "selfNavigation": "F/one.html",
+      "child": [
+       "F/one.html",
+       "F/one.html",
+       "F/one.html"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "caller-messages",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 350); })",
+     "value": {
+      "top": [
+       [
+        "t to top by slash",
+        "t",
+        true,
+        true,
+        false
+       ],
+       [
+        "top to itself",
+        "top",
+        true,
+        true,
+        false
+       ],
+       [
+        "from blank",
+        "b",
+        true,
+        true,
+        false
+       ],
+       [
+        "frame fn on top",
+        "top",
+        true,
+        true,
+        false
+       ]
+      ],
+      "sub": [
+       [
+        "s got from top",
+        "top",
+        true
+       ],
+       [
+        "s got t to s, called by top",
+        "t",
+        true
+       ],
+       [
+        "t got top to t by slash",
+        "top",
+        true
+       ],
+       [
+        "t got top to t by origin",
+        "top",
+        true
+       ],
+       [
+        "t got parent fn on t",
+        "top",
+        true
+       ],
+       [
+        "s got eval in t to s",
+        "t",
+        true
+       ],
+       [
+        "s got s to itself",
+        "s",
+        true
+       ]
+      ],
+      "blank": [],
+      "bad": "SyntaxError: Failed to execute 'postMessage' on 'Window': Invalid target origin 'bad' in a call to 'postMessage'.",
+      "port": [
+       "by port",
+       true,
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "caller-javascript-links",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 450); })",
+     "value": {
+      "ran": [
+       "parent link in t",
+       "parent form in t",
+       "link self in t",
+       "link _parent in top",
+       "link _top in top",
+       "form _parent in top",
+       "sandbox top-nav link _top",
+       "link sibling in u"
+      ],
+      "sync": [],
+      "docAfter": [
+       "replaced",
+       "replaced"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "focus-by-script",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 150); })",
+     "value": {
+      "start": "BODY,BODY,BODY,true,false,false",
+      "a": [
+       "p:focus@p",
+       "p,BODY,BODY,true,false,false"
+      ],
+      "b": [
+       "p:blur@p p:blur@win c:focus@cwin c:focus@c",
+       "f,c,BODY,true,true,false"
+      ],
+      "c": [
+       "c:blur@c c:focus@c2",
+       "f,c2,BODY,true,true,false"
+      ],
+      "d": [
+       "c:blur@c2 c:blur@cwin c:focus@cwin c:focus@c",
+       "g,BODY,c,true,false,true"
+      ],
+      "e": [
+       "c:blur@c c:blur@cwin p:focus@win p:focus@p",
+       "p,BODY,BODY,true,false,false"
+      ],
+      "frameScriptFocusesParent": "p,BODY,BODY,true,false,false",
+      "f": "c:blur@c c:blur@cwin p:focus@win p:focus@p",
+      "blur": [
+       "c:blur@c",
+       "f,BODY,BODY,true,true,false"
+      ],
+      "windowFocus": [
+       "p:blur@p p:blur@win c:focus@cwin",
+       "f,BODY,BODY,true,true,false"
+      ],
+      "topWindowFocus": [
+       "c:blur@cwin p:focus@win",
+       "BODY,BODY,BODY,true,false,false"
+      ],
+      "windowBlur": [
+       "",
+       "BODY,BODY,BODY,true,false,false"
+      ],
+      "iframeFocus": [
+       "p:blur@p p:blur@win c:focus@cwin p:focus@f",
+       "f,BODY,BODY,true,true,false"
+      ],
+      "removed": [
+       "",
+       "BODY,false,false"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "focus-by-script-nested",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(function (r) { setTimeout(function () { r(R); }, 150); })",
+     "value": {
+      "intoNested": [
+       "p:blur@p p:blur@win k:focus@win k:focus@c",
+       "f,k,c,true,true,true"
+      ],
+      "toMiddle": [
+       "k:blur@c k:blur@win m:focus@win m:focus@m",
+       "f,m,BODY,true,true,false"
+      ],
+      "backToTop": [
+       "k:blur@c k:blur@win p:focus@win p:focus@p",
+       "p,BODY,BODY,true,false,false"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "activation-script-navigates-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop()]",
+     "value": [
+      "done",
+      "done.html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-key-navigates-top",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop()]",
+     "value": [
+      "done",
+      "done.html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-timer-after-click",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop()]",
+     "value": [
+      "done",
+      "done.html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-parent-click-not-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? 'gone' : R]",
+     "value": [
+      "done",
+      "done.html",
+      "gone"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-clicked-in-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "R.slice().sort()",
+     "value": [
+      "in frame",
+      "top link in top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "window-name-target",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[f.contentDocument.title, g.contentDocument.title, f.contentWindow.name, g.contentWindow.name, location.pathname.split('/').pop().split('.').pop()]",
+     "value": [
+      "done",
+      "done",
+      "renamed",
+      "second",
+      "html"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-escape-key",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? '-' : R]",
+     "value": [
+      "",
+      "case-1.html",
+      "SecurityError"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "activation-other-key",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? '-' : R]",
+     "value": [
+      "done",
+      "done.html",
+      "-"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-hidden-in-frame",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join()",
+     "value": "entity,tab,self"
+    }
+   ]
+  },
+  {
+   "name": "input-leave-order",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "log.join(' ')",
+     "value": "P:mouseover@f< P:mouseenter@#document< P:mouseenter@HTML< P:mouseenter@BODY< P:mouseenter@f< F:mouseover@x< F:mouseenter@#document< F:mouseenter@HTML< F:mouseenter@BODY< F:mouseenter@x< F:mouseout@x< F:mouseleave@x< F:mouseleave@BODY< F:mouseleave@HTML< F:mouseleave@#document< P:mouseout@f<b P:mouseleave@f<b P:mouseover@b<f P:mouseenter@b<f P:mouseout@b<f P:mouseleave@b<f P:mouseover@f<b P:mouseenter@f<b F:mouseover@x< F:mouseenter@#document< F:mouseenter@HTML< F:mouseenter@BODY< F:mouseenter@x< F:mouseout@x< F:mouseleave@x< F:mouseleave@BODY< F:mouseleave@HTML< F:mouseleave@#document< P:mouseout@f<BODY P:mouseleave@f<BODY P:mouseover@BODY<f"
+    }
+   ]
+  },
+  {
+   "name": "focus-iframe-then-inner",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(() => r(R), 100))",
+     "value": {
+      "afterFrame": [
+       false,
+       "f",
+       "BODY"
+      ],
+      "afterInner": [
+       false,
+       true,
+       "f",
+       "c"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "errors-promises-grouped",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(r => setTimeout(() => { const side = s => log.filter(x => x[0] === s); r({p: side('P'), f: side('F'), changes: log.filter((x, i) => i > 0 && x[0] !== log[i - 1][0]).length}); }, 300))",
+     "value": {
+      "p": [
+       "P:p1",
+       "P:p2"
+      ],
+      "f": [
+       "F:f1",
+       "F:f2"
+      ],
+      "changes": 1
+     }
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-origin-of-source",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "[document.title, ...['s', 'y', 'z'].map(i => document.getElementById(i).contentDocument.title)]",
+     "value": [
+      "top",
+      "s+ys",
+      "t",
+      "t"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-origin-of-child",
+   "viewport": [
+    800,
+    600
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "document.title",
+     "value": "top+yn"
+    }
+   ]
   }
  ]
 }

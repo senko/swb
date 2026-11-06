@@ -201,7 +201,7 @@ fn call_callback(
         Err(error @ (ScriptError::Terminated(_) | ScriptError::Internal(_))) => Err(error),
         Err(error) => {
             let site = crate::errors::Site::named("a PerformanceObserver callback");
-            crate::errors::report(rt, &site, &error).map_err(task_error)
+            crate::errors::report_callback(rt, callback, &site, &error).map_err(task_error)
         }
     }
 }

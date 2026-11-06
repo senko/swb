@@ -423,6 +423,16 @@ impl Runtime {
         }
     }
 
+    /// The realm of the script at the bottom of the stack, HTML's "entry" realm
+    /// (the running code's realm without a script).
+    pub fn entry_realm(&self) -> u32 {
+        match (self.vm.first_frame_realm, self.vm.frames.first()) {
+            (Some(realm), _) => realm,
+            (None, Some(frame)) => frame.realm,
+            (None, None) => self.current_realm(),
+        }
+    }
+
     /// `[[GlobalThisValue]]` of a realm.
     pub fn global_this(&self, realm: u32) -> VmResult<Gc<Object>> {
         self.vm

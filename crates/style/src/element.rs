@@ -481,7 +481,7 @@ impl<'a> StateSet<'a> {
         if self.focus_chain.contains(&id) {
             state |= ElementState::FOCUS_WITHIN;
         }
-        if self.focus == Some(id) {
+        if self.focus == Some(id) && !self.is_iframe(id) {
             state |= ElementState::FOCUS;
             if self.focus_visible || self.takes_text_input(id) {
                 state |= ElementState::FOCUS_VISIBLE;
@@ -491,6 +491,16 @@ impl<'a> StateSet<'a> {
             state |= ElementState::TARGET;
         }
         state
+    }
+
+    /// True for an `iframe`: the focus that it gets goes into its frame, so it
+    /// matches `:focus-within` and neither `:focus` nor `:focus-visible` (measured:
+    /// after `focus()` by script, with and without a key before it, case
+    /// `focus-iframe-then-inner`).
+    fn is_iframe(&self, id: NodeId) -> bool {
+        self.doc
+            .element(id)
+            .is_some_and(|e| e.is_html_named(&local_name!("iframe")))
     }
 }
 

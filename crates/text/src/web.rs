@@ -127,6 +127,15 @@ impl Default for WebFontFace {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WebFaceId(u32);
 
+impl WebFaceId {
+    /// An id for tests of code in other crates that only stores ids.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn for_tests(raw: u32) -> Self {
+        Self(raw)
+    }
+}
+
 /// The loading state of a web face.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum WebState {

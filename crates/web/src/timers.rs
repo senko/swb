@@ -305,7 +305,13 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
                 clear(rt, id).map_err(crate::runtime::task_error)?;
                 return result;
             }
-            _ => crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)?,
+            _ => match &handler {
+                Handler::Function(function) => {
+                    crate::errors::report_callback(rt, *function, &site, error)
+                }
+                Handler::Code(_) => crate::errors::report(rt, &site, error),
+            }
+            .map_err(crate::runtime::task_error)?,
         }
     }
     // HTML "clean up after running script": the microtasks of the

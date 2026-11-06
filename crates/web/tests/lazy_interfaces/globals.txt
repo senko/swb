@@ -266,6 +266,7 @@ localStorage:aec
 sessionStorage:aec
 alert:dwec
 atob:dwec
+blur:dwec
 btoa:dwec
 cancelAnimationFrame:dwec
 cancelIdleCallback:dwec
@@ -273,6 +274,7 @@ clearInterval:dwec
 clearTimeout:dwec
 confirm:dwec
 fetch:dwec
+focus:dwec
 getComputedStyle:dwec
 matchMedia:dwec
 postMessage:dwec

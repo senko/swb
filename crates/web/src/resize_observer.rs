@@ -123,6 +123,16 @@ pub(crate) struct RoState {
 }
 
 impl RoState {
+    /// The element `node` went to another document. Departure (ADR 0031 "Done
+    /// (feature 12b2)"): its observations end; Chromium keeps them.
+    pub(crate) fn forget_target(&mut self, node: NodeId) {
+        for observer in self.observers.values_mut() {
+            if observer.remove(node) {
+                self.targets = self.targets.saturating_sub(1);
+            }
+        }
+    }
+
     /// True if an observation was added since the last run of the loop.
     pub(crate) fn requested(&self) -> bool {
         self.requested
@@ -158,12 +168,19 @@ impl GenericData for ObserverData {
 
 /// The host data of a `ResizeObserverEntry`.
 struct EntryData {
+    /// The key of the document of the target.
+    document: u32,
     target: NodeId,
     sizes: Sizes,
     content_rect: Option<Gc<Object>>,
 }
 
 impl GenericData for EntryData {
+    /// The ids of the object mean the arena of its document.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, NodeId::DOCUMENT))
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         if let Some(rect) = self.content_rect {
             tracer.object(rect);
@@ -522,6 +539,7 @@ pub(crate) fn broadcast(
         shallowest = shallowest.min(depth_of(rt, target.node));
         let data = rt
             .alloc_host_data(EntryData {
+                document: crate::state::document_key(rt).map_err(task)?,
                 target: target.node,
                 sizes,
                 content_rect: None,
@@ -560,7 +578,7 @@ pub(crate) fn broadcast(
         Err(error @ (ScriptError::Terminated(_) | ScriptError::Internal(_))) => return Err(error),
         Err(error) => {
             let site = crate::errors::Site::named("a ResizeObserver callback");
-            crate::errors::report(rt, &site, &error).map_err(task)?;
+            crate::errors::report_callback(rt, callback, &site, &error).map_err(task)?;
         }
     }
     Ok(shallowest)

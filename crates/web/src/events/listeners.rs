@@ -181,8 +181,7 @@ impl Listeners {
     }
 
     /// The number of listeners.
-    #[cfg(test)]
-    fn len(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.by_type.values().map(|list| list.live).sum()
     }
 
@@ -246,7 +245,7 @@ mod tests {
         assert!(list.add("x", listener(o[0], true)));
         assert!(list.add("y", listener(o[0], false)));
         assert!(list.add("x", listener(o[1], false)));
-        assert_eq!(list.len(), 4);
+        assert_eq!(list.count(), 4);
         let clone = list.of_type("x");
         assert_eq!(clone.len(), 3);
         assert!(list.remove("x", o[0], true));
@@ -310,7 +309,7 @@ mod tests {
         for &object in &o[150..] {
             assert!(list.remove("x", object, false));
         }
-        assert_eq!(list.len(), 0);
+        assert_eq!(list.count(), 0);
         assert!(list.by_type.is_empty());
     }
 }

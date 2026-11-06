@@ -10,7 +10,7 @@ use crate::bindings as b;
 /// The hand-written behaviour of `FormData`.
 pub trait FormDataImpl: b::Host {
     /// `constructor(optional HTMLFormElement form, optional HTMLElement? submitter)`.
-    fn constructor(cx: &mut b::Cx<'_>, form: Option<b::NodeId>, submitter: Option<b::NodeId>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+    fn constructor(cx: &mut b::Cx<'_>, form: Option<b::NodeRef>, submitter: Option<b::NodeRef>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `undefined append(USVString name, USVString value)`.
     fn append_1(cx: &mut b::Cx<'_>, this: b::Platform, name: String, value: String) -> b::Result<()>;
@@ -45,9 +45,9 @@ pub trait FormDataImpl: b::Host {
 pub(super) fn construct<H: FormDataImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Constructor("FormData"), super::DOM_EXCEPTION, |rt| {
         let v = rt.arg(call, 0);
-        let a0 = if v.is_undefined() { None } else { Some(b::convert::node(rt, v, super::HTML_FORM_ELEMENT, "HTMLFormElement").map_err(|e| e.argument(0))?) };
+        let a0 = if v.is_undefined() { None } else { Some(b::convert::node_ref(rt, v, super::HTML_FORM_ELEMENT, "HTMLFormElement").map_err(|e| e.argument(0))?) };
         let v = rt.arg(call, 1);
-        let a1 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.argument(1))? };
+        let a1 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.argument(1))? };
         let result = <H as FormDataImpl>::constructor(&mut b::Cx::new(rt, call, super::FORM_DATA), a0, a1)?;
         Ok(swb_js::Value::Object(result))
     })

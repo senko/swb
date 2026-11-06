@@ -135,10 +135,11 @@ mod xhr;
 pub use clock::{ClockMode, PageClock};
 pub use events::{DispatchTarget, EventInterface, TrustedEvent, UserEvent, UserKind, modifiers};
 pub use host::{
-    ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins, FormDataEntry, FormDataValue,
-    FrameHost, ImageInfo, LentDocuments, NavigationInfo, NavigationKind, NewFrame, ObservedBox,
-    ObservedPosition, OffsetMetrics, RangeTextMode, RetiredFrame, ScrollAlign, ScrollMetrics,
-    ScrollRequest, SelectionKey, SelectionRange, Viewport,
+    ControlSnapshot, ControlValidity, ControlWrite, DomRect, EngineHost, EventOrigins,
+    FormDataEntry, FormDataValue, FrameHost, ImageInfo, LentDocuments, NavigationInfo,
+    NavigationKind, NewFrame, ObservedBox, ObservedPosition, OffsetMetrics, RangeTextMode,
+    RetiredFrame, ScrollAlign, ScrollMetrics, ScrollRequest, SelectionKey, SelectionRange,
+    Viewport,
 };
 pub use idle_callbacks::IDLE_PERIOD_MS;
 pub use runtime::{

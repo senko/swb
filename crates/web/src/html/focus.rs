@@ -157,6 +157,20 @@ pub(crate) fn window_focus(rt: &mut Runtime, gained: bool) -> VmResult<()> {
     Ok(())
 }
 
+/// The page's focus leaves the current document for another document of the
+/// runtime: its focused element and then its window get `blur`.
+pub(crate) fn focus_leaves_document(rt: &mut Runtime) -> VmResult<()> {
+    move_focus(rt, None, false)?;
+    window_focus(rt, false)
+}
+
+/// `window.focus()` (HTML "run the focusing steps" for the window's document):
+/// the page's focus comes to this window; the focused element of its document
+/// stays as it is.
+pub(crate) fn focus_window(rt: &mut Runtime) -> VmResult<()> {
+    crate::frames::focus_enters_current(rt)
+}
+
 /// HTML "focus()": the focusing steps of `node`, unless it is locked for
 /// focus. With `prevent_scroll` false, an element that gets the focus is
 /// scrolled into view at once (a layout flush); one that has it already
@@ -174,6 +188,17 @@ pub(crate) fn focus_with(
         if !focusable(rt, node)? {
             return Ok(());
         }
+        if crate::frames::focus_enters_frame_of(rt, node)? {
+            // The window of the frame has the focus. The element matches `:focus`
+            // and gets its events (measured), unless it has the focus already.
+            if focused(rt)? == Some(node) {
+                return Ok(());
+            }
+            engine_mut(rt)?.set_focus(Some(node), visible);
+            fire(rt, "focus", node, None, false)?;
+            return fire(rt, "focusin", node, None, true);
+        }
+        crate::frames::focus_enters_current(rt)?;
         let before = focused(rt)?;
         move_focus(rt, Some(node), visible)?;
         if before != Some(node) && focused(rt)? == Some(node) && !prevent_scroll {
@@ -287,5 +312,11 @@ pub(crate) fn active_element(cx: &mut Cx<'_>, document: NodeId) -> b::Result<Opt
 /// window has the focus (the engine tells: Tab left the page, or the
 /// focused frame was removed).
 pub(crate) fn has_focus(cx: &mut Cx<'_>, document: NodeId) -> b::Result<bool> {
-    Ok(document == NodeId::DOCUMENT && engine(cx.rt)?.window_has_focus())
+    if document != NodeId::DOCUMENT {
+        return Ok(false);
+    }
+    if crate::state::state(cx.rt)?.doc.frame != 0 {
+        return Ok(crate::frames::holds_focus(cx.rt)?);
+    }
+    Ok(engine(cx.rt)?.window_has_focus())
 }

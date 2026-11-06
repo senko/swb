@@ -5314,7 +5314,7 @@ documents are documents of its runtime; `DocState` also has the frame number,
   active timers") and "in error reporting mode" of the window, performance,
   idle callbacks, every `[SameObject]` object of the window, the print flags,
   `history.state`, scripts, style blocks, CSSOM wrappers, animation frames,
-  media query lists, mutation, intersection and resize observers, abort
+  media query lists, intersection and resize observers, abort
   timeouts, `fetch()` calls and the XHRs in flight, readers, beacon bytes, the
   window's posted messages, `img.decode()` promises. `WebState` (the agent):
   the glue (its tables have realm keys), pinned values, the class of
@@ -5322,26 +5322,29 @@ documents are documents of its runtime; `DocState` also has the frame number,
   the task queue and the checkpoint state, the store of a runtime without a
   lent one, Blob URLs and held blobs (same-origin documents resolve each
   other's), the registry of the message ports, the table of the `WindowProxy`
-  objects, the realm to document table.
+  objects, the realm to document table, and since feature 12b2 the mutation
+  observers (HTML has one microtask per agent; a place in the registry is a
+  document and a node), the event handler marker, and the receiver: the realm
+  of `this` while it differs from the realm of the document, because a moved
+  wrapper makes objects of its own realm (ADR 0031, "Done (feature 12b2)").
 - **The switch.** `state.doc` is the current record, a `Box`; `docs` holds the
   others by key, with an empty entry for the current one. A switch swaps two
-  boxes. `run` and `run_promise` of the glue, the hooks of legacy platform
-  objects and of `WindowProperties`, and the mutation observer microtask switch
-  at their entry and back at their exit, also on an error, so a nested native
-  restores what it found. `ScriptRuntime::with_document` does it for the host.
-  The documents share the cell that says a mutation registry asks for attention,
-  and the reader asks the current document only. So a switch first queues the
-  microtask that the leaving document asked for
-  (`mutation_observer::before_switch`). A hook ends without a look at the cell,
-  so without this its request would go to the next native's document. A
-  termination clears the queue of the agent, so it resets every document's flag.
+  boxes. `run` and `run_promise` of the glue and the hooks of legacy platform
+  objects and of `WindowProperties` switch at their entry and back at their exit,
+  also on an error, so a nested native restores what it found.
+  `ScriptRuntime::with_document` does it for the host. An object with generic data
+  that names a node (a list, a token list, a style declaration, an `Attr`) has its
+  document in its data (`GenericData::host_word`). The entry settles it through
+  `DocState::moved` once its node has moved.
 - **Node conversions.** The word of a wrapper holds the key
   (`b::node_data_in`). The word of `SVGAnimatedString`, `ValidityState`,
   `StyleSheetList` and `DOMImplementation` is the same word of their node.
   `this_node`, `legacy::node`, `svg::this_element`, `validation`,
   `cssom_sheets::is_window_document`, `implementation::document_of`: `this`, whose
   document the entry made current. `convert::node`: an argument, `TypeError` for
-  another document. `events::target::kind_of`, `events::mouse` (`related_target`
+  another document; an IDL argument with `[SwbAnyDocument]` is a `b::NodeRef`
+  instead, which has the wrapper, the document and the node (ADR 0031, the
+  table of node arguments). `events::target::kind_of`, `events::mouse` (`related_target`
   and the target of a synthetic click), `events::misc` (`submitter`),
   `xhr::response_xml`: `b::node_here`, which gives no node for another
   document.
@@ -5352,8 +5355,7 @@ documents are documents of its runtime; `DocState` also has the frame number,
 - **Literal realms.** The bindings passed realm 0 in about 35 places (objects
   of the engine's events and of observers). They use `state::doc_realm` now.
   `wrap_node` ignores the realm of its caller: a wrapper is made in the realm
-  of its document. Feature 12b decides `importNode` (measured: the caller's
-  prototypes).
+  of the current document, or of `this` when it differs (`Cx::realm`; measured).
 - **Tests.** `crates/web/tests/documents.rs`: two documents of one runtime,
   normal and in the GC stress mode.
 

@@ -233,8 +233,8 @@ impl g::element::ElementImpl for WebState {
         cx: &mut Cx<'_>,
         this: NodeId,
         where_: String,
-        element: NodeId,
-    ) -> b::Result<Option<NodeId>> {
+        element: b::NodeRef,
+    ) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
         markup::insert_adjacent_element(cx, this, &where_, element)
     }
 

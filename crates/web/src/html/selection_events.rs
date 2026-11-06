@@ -63,6 +63,22 @@ pub(crate) struct SelectionEvents {
     owner: Option<NodeId>,
 }
 
+impl SelectionEvents {
+    /// The controls among `pairs` (old id, new id) went to another document:
+    /// their events go.
+    pub(crate) fn forget(&mut self, pairs: &[(NodeId, NodeId)]) {
+        if self.pending.is_empty() && self.owner.is_none() {
+            return;
+        }
+        let gone: HashSet<NodeId> = pairs.iter().map(|&(old, _)| old).collect();
+        self.pending.retain(|(node, _)| !gone.contains(node));
+        self.changes.retain(|node| !gone.contains(node));
+        if self.owner.is_some_and(|owner| gone.contains(&owner)) {
+            self.owner = None;
+        }
+    }
+}
+
 /// Queues one event for the control.
 fn push(rt: &mut Runtime, node: NodeId, select: bool) -> VmResult<()> {
     let connected = dom(rt)?.is_connected(node);

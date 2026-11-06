@@ -15,6 +15,7 @@
 
 #[macro_use]
 mod macros;
+pub(crate) mod adopt;
 mod attrs;
 mod character_data;
 mod document;
@@ -276,23 +277,46 @@ impl g::node::NodeImpl for WebState {
         clone(cx, this, this, subtree)
     }
 
-    fn is_equal_node(cx: &mut Cx<'_>, this: NodeId, other: Option<NodeId>) -> b::Result<bool> {
-        Ok(other.is_some_and(|other| dom(cx.rt).is_ok_and(|d| d.is_equal_node(this, other))))
+    fn is_equal_node(cx: &mut Cx<'_>, this: NodeId, other: Option<b::NodeRef>) -> b::Result<bool> {
+        let Some(other) = other else {
+            return Ok(false);
+        };
+        if let Some(here) = other.here(cx.rt) {
+            return Ok(dom(cx.rt)?.is_equal_node(this, here));
+        }
+        crate::state::ensure_lent(cx.rt, other.document)?;
+        let other_dom = crate::state::dom_of(cx.rt, other.document)?;
+        Ok(dom(cx.rt)?.is_equal_to(this, other_dom, other.node))
     }
 
-    fn is_same_node(_cx: &mut Cx<'_>, this: NodeId, other: Option<NodeId>) -> b::Result<bool> {
-        Ok(other == Some(this))
+    fn is_same_node(cx: &mut Cx<'_>, this: NodeId, other: Option<b::NodeRef>) -> b::Result<bool> {
+        Ok(other.is_some_and(|other| other.here(cx.rt) == Some(this)))
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-comparedocumentposition>
-    fn compare_document_position(cx: &mut Cx<'_>, this: NodeId, other: NodeId) -> b::Result<u16> {
-        Ok(dom(cx.rt)?.compare_position(this, other))
+    fn compare_document_position(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        other: b::NodeRef,
+    ) -> b::Result<u16> {
+        use swb_dom::position::{DISCONNECTED, FOLLOWING, IMPLEMENTATION_SPECIFIC, PRECEDING};
+        if let Some(here) = other.here(cx.rt) {
+            return Ok(dom(cx.rt)?.compare_position(this, here));
+        }
+        // Nodes of two arenas are in two trees; the order is the implementation's,
+        // and consistent: by document key.
+        let order = if other.document < crate::state::document_key(cx.rt)? {
+            PRECEDING
+        } else {
+            FOLLOWING
+        };
+        Ok(DISCONNECTED | IMPLEMENTATION_SPECIFIC | order)
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-contains>: `other` is an
     /// inclusive descendant of this node.
-    fn contains(cx: &mut Cx<'_>, this: NodeId, other: Option<NodeId>) -> b::Result<bool> {
-        let Some(other) = other else {
+    fn contains(cx: &mut Cx<'_>, this: NodeId, other: Option<b::NodeRef>) -> b::Result<bool> {
+        let Some(other) = other.and_then(|other| other.here(cx.rt)) else {
             return Ok(false);
         };
         let dom = dom(cx.rt)?;
@@ -341,36 +365,44 @@ impl g::node::NodeImpl for WebState {
     fn insert_before(
         cx: &mut Cx<'_>,
         this: NodeId,
-        node: NodeId,
-        child: Option<NodeId>,
-    ) -> b::Result<NodeId> {
-        tree_ops::pre_insert(cx, this, node, child)?;
-        Ok(node)
+        node: b::NodeRef,
+        child: Option<b::NodeRef>,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        tree_ops::pre_insert_ref(cx, this, node, child)?;
+        Ok(node.object)
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-appendchild>: DOM "append",
     /// then the steps of inserted script elements (they run now, or start
     /// their fetch).
-    fn append_child(cx: &mut Cx<'_>, this: NodeId, node: NodeId) -> b::Result<NodeId> {
-        tree_ops::pre_insert(cx, this, node, None)?;
-        Ok(node)
+    fn append_child(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        node: b::NodeRef,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        tree_ops::pre_insert_ref(cx, this, node, None)?;
+        Ok(node.object)
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-replacechild>
     fn replace_child(
         cx: &mut Cx<'_>,
         this: NodeId,
-        node: NodeId,
-        child: NodeId,
+        node: b::NodeRef,
+        child: b::NodeRef,
     ) -> b::Result<NodeId> {
-        tree_ops::replace(cx, this, node, child)?;
-        Ok(child)
+        tree_ops::replace_ref(cx, this, node, child)
     }
 
     /// <https://dom.spec.whatwg.org/#dom-node-removechild>
-    fn remove_child(cx: &mut Cx<'_>, this: NodeId, child: NodeId) -> b::Result<NodeId> {
-        tree_ops::pre_remove(cx, this, child)?;
-        Ok(child)
+    fn remove_child(cx: &mut Cx<'_>, this: NodeId, child: b::NodeRef) -> b::Result<NodeId> {
+        let Some(here) = child.here(cx.rt) else {
+            return Err(tree_ops::not_found(
+                "The node to be removed is not a child of this node.",
+            ));
+        };
+        tree_ops::pre_remove(cx, this, here)?;
+        Ok(here)
     }
 }
 

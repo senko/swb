@@ -78,6 +78,14 @@ pub(crate) struct StyleBlocks {
     limit: usize,
 }
 
+impl StyleBlocks {
+    /// The element `node` left the arena; the block comes back from the
+    /// attribute at the next read in its new document.
+    pub(crate) fn forget(&mut self, node: NodeId) {
+        self.map.remove(&node);
+    }
+}
+
 /// The number of blocks kept before those of elements that are not
 /// connected go.
 const MIN_BLOCKS: usize = 4096;
@@ -121,12 +129,25 @@ impl Target {
 /// The data of a `CSSStyleDeclaration`: its element and what it shows, or
 /// the wrapper of its style rule.
 struct StyleData {
+    /// The key of the document of the element.
+    document: u32,
     element: NodeId,
     target: Target,
     rule: Option<Gc<Object>>,
 }
 
 impl GenericData for StyleData {
+    fn host_word(&self) -> Option<u64> {
+        (self.target != Target::Rule).then(|| b::word_of(self.document, self.element))
+    }
+
+    fn set_host_word(&mut self, word: u64) {
+        if let Some((document, element)) = b::word_parts(word) {
+            self.document = document;
+            self.element = element;
+        }
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         if let Some(rule) = self.rule {
             tracer.object(rule);
@@ -142,7 +163,9 @@ impl GenericData for StyleData {
 pub(crate) fn style(cx: &mut Cx<'_>, element: NodeId) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
     Ok(same_object(cx.rt, element, Slot::Style, |rt| {
+        let document = crate::state::document_key(rt)?;
         let data = rt.alloc_host_data(StyleData {
+            document,
             element,
             target: Target::Inline,
             rule: None,
@@ -156,6 +179,7 @@ pub(crate) fn style(cx: &mut Cx<'_>, element: NodeId) -> b::Result<Gc<Object>> {
 pub(crate) fn rule_style(cx: &mut Cx<'_>, rule: Gc<Object>) -> b::Result<Gc<Object>> {
     let realm = cx.realm();
     let data = cx.rt.alloc_host_data(StyleData {
+        document: 0,
         element: NodeId::DOCUMENT,
         target: Target::Rule,
         rule: Some(rule),
@@ -169,12 +193,14 @@ pub(crate) fn rule_style(cx: &mut Cx<'_>, rule: Gc<Object>) -> b::Result<Gc<Obje
 /// style of `element` or of the pseudo-element that `pseudo` names.
 pub(crate) fn computed_style(
     cx: &mut Cx<'_>,
+    realm: u32,
     element: NodeId,
     pseudo: Option<&str>,
 ) -> b::Result<Gc<Object>> {
-    let realm = cx.realm();
     let target = pseudo.map_or(Target::Computed(None), pseudo_target);
+    let document = crate::state::document_key(cx.rt)?;
     let data = cx.rt.alloc_host_data(StyleData {
+        document,
         element,
         target,
         rule: None,

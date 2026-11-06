@@ -193,7 +193,7 @@ pub(crate) fn run(rt: &mut Runtime, handle: u32, deadline: Option<f64>) -> Resul
         Ok(()) | Err(ScriptError::Terminated(_) | ScriptError::Internal(_)) => result,
         Err(error) => {
             let site = crate::errors::Site::named("an idle callback");
-            crate::errors::report(rt, &site, &error).map_err(task_error)
+            crate::errors::report_callback(rt, entry.callback, &site, &error).map_err(task_error)
         }
     }
 }

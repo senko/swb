@@ -107,12 +107,20 @@ fn document_url(cx: &Cx<'_>) -> b::Result<Url> {
         .map_err(|_| Exception::dom("SecurityError", "The document has no valid URL."))
 }
 
-/// `value` parsed against the document base URL (HTML "encoding-parse a
-/// URL"), as an absolute URL.
+/// `value` parsed against the base URL of the entry settings object (HTML
+/// "encoding-parse a URL"; measured: `w.location.href = 'x'` from the parent
+/// resolves against the parent's base, also inside `w.eval`), as an absolute
+/// URL.
 fn parse_against_base(cx: &mut Cx<'_>, value: &str) -> b::Result<Option<Url>> {
-    Ok(engine_mut(cx.rt)?
-        .parse_url(value)
-        .and_then(|text| Url::parse(&text).ok()))
+    let entered = if cx.rt.host_flag() {
+        let entry = crate::state::entry_key(cx.rt)?;
+        crate::state::switch_if_other(cx.rt, entry)?
+    } else {
+        crate::state::NO_SWITCH
+    };
+    let parsed = engine_mut(cx.rt).map(|engine| engine.parse_url(value));
+    crate::state::leave(cx.rt, entered);
+    Ok(parsed?.and_then(|text| Url::parse(&text).ok()))
 }
 
 /// HTML "Location-object navigate": asks the page to navigate when the
@@ -388,7 +396,10 @@ fn push_or_replace(
     // stays).
     let new_url = match url.filter(|text| !text.is_empty()) {
         Some(text) => {
-            let parsed = parse_against_base(cx, &text)?;
+            // Against this window's document (measured, unlike `location.href`).
+            let parsed = engine_mut(cx.rt)?
+                .parse_url(&text)
+                .and_then(|absolute| Url::parse(&absolute).ok());
             match parsed {
                 Some(parsed) if may_change_to(&document, &parsed) => Some(parsed),
                 // Chromium names the URL as it parsed it; swb, when the

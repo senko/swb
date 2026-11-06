@@ -77,12 +77,19 @@ struct Config {
 
 /// The host data of an `IntersectionObserver`.
 struct ObserverData {
+    /// The key of the document of the root.
+    document: u32,
     id: u32,
     callback: Gc<Object>,
     config: Config,
 }
 
 impl GenericData for ObserverData {
+    /// The ids of the object mean the arena of its document.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, NodeId::DOCUMENT))
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         tracer.object(self.callback);
     }
@@ -137,6 +144,18 @@ pub(crate) struct IoState {
 }
 
 impl IoState {
+    /// The element `node` went to another document. Departure (ADR 0031 "Done
+    /// (feature 12b2)"): its observations end; Chromium keeps them.
+    pub(crate) fn forget_target(&mut self, node: NodeId) {
+        for observer in self.observers.values_mut() {
+            if let Some(seq) = observer.index.remove(&node) {
+                observer.targets.remove(&seq);
+                self.targets = self.targets.saturating_sub(1);
+            }
+            observer.queue.retain(|entry| entry.target != node);
+        }
+    }
+
     /// Reports the handles that the state holds.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for observer in self.observers.values() {
@@ -157,6 +176,8 @@ impl IoState {
 
 /// The host data of an `IntersectionObserverEntry`.
 struct EntryData {
+    /// The key of the document of the target.
+    document: u32,
     entry: Entry,
     root_bounds: Option<Gc<Object>>,
     bounding: Option<Gc<Object>>,
@@ -164,6 +185,11 @@ struct EntryData {
 }
 
 impl GenericData for EntryData {
+    /// The ids of the object mean the arena of its document.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, NodeId::DOCUMENT))
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         for rect in [self.root_bounds, self.bounding, self.intersection]
             .into_iter()
@@ -356,7 +382,9 @@ impl g::intersection_observer::IntersectionObserverImpl for WebState {
         let io = &mut state_mut(cx.rt)?.doc.io;
         io.next_id += 1;
         let id = io.next_id;
+        let document = crate::state::document_key(cx.rt)?;
         let data = cx.rt.alloc_host_data(ObserverData {
+            document,
             id,
             callback: callback.0,
             config,
@@ -513,7 +541,9 @@ fn entries_to_js(rt: &mut Runtime, entries: &[Entry]) -> VmResult<Vec<Gc<Object>
     let mut objects = Vec::with_capacity(entries.len());
     for &entry in entries {
         rt.check_time()?;
+        let document = crate::state::document_key(rt)?;
         let data = rt.alloc_host_data(EntryData {
+            document,
             entry,
             root_bounds: None,
             bounding: None,
@@ -853,7 +883,8 @@ pub(crate) fn deliver(rt: &mut Runtime) -> Result<(), ScriptError> {
             }
             Err(error) => {
                 let site = crate::errors::Site::named("an IntersectionObserver callback");
-                crate::errors::report(rt, &site, &error).map_err(crate::runtime::task_error)?;
+                crate::errors::report_callback(rt, callback, &site, &error)
+                    .map_err(crate::runtime::task_error)?;
             }
         }
         crate::event_loop::microtask_checkpoint(rt)?;

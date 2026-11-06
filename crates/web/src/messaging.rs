@@ -76,6 +76,9 @@ pub(crate) struct Posted {
     target: Target,
     /// The serialized origin of the sender (`MessageEvent.origin`).
     origin: String,
+    /// The document of the code that called `postMessage`: HTML's incumbent
+    /// settings object (`MessageEvent.source`, measured).
+    source: crate::state::DocKey,
 }
 
 /// The messages that wait, in the order of the calls (each has a
@@ -84,12 +87,6 @@ pub(crate) struct Posted {
 #[derive(Debug, Default)]
 pub(crate) struct Messages {
     queue: VecDeque<Posted>,
-}
-
-/// The origin of the window's document.
-fn document_origin(rt: &Runtime) -> VmResult<Origin> {
-    let url = engine(rt)?.url();
-    Ok(Url::parse(&url).map_or_else(|_| Origin::new_opaque(), |url| url.origin()))
 }
 
 /// Step 5 to 7 of the window postMessage steps: `*`, `/`, or the origin of
@@ -125,7 +122,8 @@ pub(crate) fn post(
         return Ok(());
     }
     let record = serialize_for_transfer(cx.rt, message, transfer, None)?;
-    let origin = document_origin(cx.rt)?.ascii_serialization();
+    let source = crate::state::caller_key(cx.rt)?;
+    let origin = crate::state::origin_of_document(cx.rt, source)?;
     let bytes = record.byte_size();
     if !message_port::admit(cx.rt, bytes)? {
         return Ok(());
@@ -142,6 +140,7 @@ pub(crate) fn post(
         bytes,
         target,
         origin,
+        source,
     });
     queue_task(cx.rt, Task::Message)?;
     Ok(())
@@ -158,8 +157,13 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
     message_port::release(rt, posted.bytes);
     message_port::unhold_for_window(rt, posted.record.ports());
     let delivered = match &posted.target {
-        Target::Any | Target::Own => true,
-        Target::Origin(origin) => *origin == document_origin(rt)?,
+        Target::Any => true,
+        Target::Own => posted.origin == engine(rt)?.origin_text(),
+        // The document's origin: a same-origin `about:` frame has its creator's.
+        // An opaque origin equals no other.
+        Target::Origin(origin) => {
+            origin.is_tuple() && origin.ascii_serialization() == engine(rt)?.origin_text()
+        }
     };
     if !delivered {
         log::debug!(
@@ -180,11 +184,12 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
     };
     b::keep(rt, data);
     let window = crate::state::window_proxy(rt)?;
+    let source = crate::state::window_proxy_of(rt, posted.source)?;
     let other = Other::Message {
         data,
         origin: posted.origin,
         last_event_id: String::new(),
-        source: Some(window),
+        source: Some(source),
         ports,
         frozen: None,
     };

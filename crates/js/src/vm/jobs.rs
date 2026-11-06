@@ -103,8 +103,9 @@ pub(crate) struct QueuedJob {
 pub(crate) struct JobQueue {
     queue: VecDeque<QueuedJob>,
     /// The promises rejected without a handler since the host took the
-    /// list (HTML's "about-to-be-notified rejected promises list").
-    rejected: Vec<Gc<Object>>,
+    /// list (HTML's "about-to-be-notified rejected promises list"), each with
+    /// the realm of its rejection.
+    rejected: Vec<(Gc<Object>, u32)>,
     /// The length of `rejected` after its last prune.
     pruned: usize,
     /// The promises that the host took last; they stay alive until it
@@ -117,7 +118,10 @@ impl JobQueue {
         for queued in &self.queue {
             queued.job.trace(tracer);
         }
-        for promise in self.rejected.iter().chain(&self.taken) {
+        for (promise, _) in &self.rejected {
+            tracer.object(*promise);
+        }
+        for promise in &self.taken {
             tracer.object(*promise);
         }
     }
@@ -125,7 +129,8 @@ impl JobQueue {
     /// The bytes of the queue and the lists (counted as live heap memory).
     pub(crate) fn bytes(&self) -> usize {
         self.queue.capacity() * size_of::<QueuedJob>()
-            + (self.rejected.capacity() + self.taken.capacity()) * size_of::<Gc<Object>>()
+            + self.rejected.capacity() * size_of::<(Gc<Object>, u32)>()
+            + self.taken.capacity() * size_of::<Gc<Object>>()
     }
 
     /// The number of jobs in the queue.
@@ -165,14 +170,51 @@ impl Runtime {
         if tracker.rejected.len() >= 64 && tracker.rejected.len() >= 2 * tracker.pruned {
             self.prune_rejections();
         }
-        self.heap.charge(size_of::<Gc<Object>>());
-        self.vm.jobs.rejected.push(promise);
+        let realm = if self.vm.realms.len() > 1 {
+            self.rejection_realm(promise)
+        } else {
+            self.vm.base_realm
+        };
+        self.heap.charge(size_of::<(Gc<Object>, u32)>());
+        self.vm.jobs.rejected.push((promise, realm));
+    }
+
+    /// The realm of a rejection in a runtime with several realms.
+    #[cold]
+    fn rejection_realm(&self, promise: Gc<Object>) -> u32 {
+        if let Some(realm) = self.vm.rejecting_handler_realm {
+            return realm;
+        }
+        // The realm of the promise: its prototype chain has the `%Promise%`
+        // prototype of a realm (a subclass adds a step).
+        let mut at = Some(promise);
+        for _ in 0..16 {
+            let Some(object) = at else {
+                break;
+            };
+            let Ok(proto) = self.heap.get_prototype_of(object) else {
+                break;
+            };
+            for realm in 0..self.vm.realms.len() {
+                let realm = realm as u32;
+                if proto.is_some()
+                    && self
+                        .intrinsic(realm, crate::vm::Intrinsic::PromisePrototype)
+                        .ok()
+                        == proto
+                {
+                    return realm;
+                }
+            }
+            at = proto;
+        }
+        self.current_realm()
     }
 
     /// Drops the promises that got a handler from the tracker's list.
     fn prune_rejections(&mut self) {
         let mut rejected = std::mem::take(&mut self.vm.jobs.rejected);
-        rejected.retain(|&promise| {
+        rejected.retain(|&(promise, _)| {
             self.promise_state(promise)
                 .is_ok_and(|state| !state.is_handled)
         });
@@ -184,12 +226,20 @@ impl Runtime {
     /// none, in the order of their rejection; the list starts again empty.
     /// They stay alive until the next call.
     pub(crate) fn take_rejections(&mut self) -> Vec<Gc<Object>> {
+        self.take_rejections_by_realm()
+            .into_iter()
+            .map(|(promise, _)| promise)
+            .collect()
+    }
+
+    /// [`Self::take_rejections`] with the realm of each rejection.
+    pub(crate) fn take_rejections_by_realm(&mut self) -> Vec<(Gc<Object>, u32)> {
         self.prune_rejections();
         let rejected = std::mem::take(&mut self.vm.jobs.rejected);
         self.vm.jobs.pruned = 0;
-        // A new vector, not `clone_from`, so that a long list taken earlier
-        // does not keep its capacity.
-        self.vm.jobs.taken = Vec::from(rejected.as_slice());
+        // A new vector, so that a long list taken earlier does not keep its
+        // capacity.
+        self.vm.jobs.taken = rejected.iter().map(|&(promise, _)| promise).collect();
         rejected
     }
 
@@ -213,6 +263,18 @@ impl Runtime {
         self.vm.jobs.queue = VecDeque::new();
     }
 
+    /// A reaction job rejects its capability. Only a promise of `%Promise%` takes
+    /// the realm of the handler that threw (`rejecting_handler_realm`).
+    #[cold]
+    fn reject_after_handler(&mut self, capability: &Capability, reason: Value) -> VmResult<()> {
+        if !matches!(capability, Capability::Intrinsic(_)) {
+            self.vm.rejecting_handler_realm = None;
+        }
+        let rejected = self.capability_reject(capability, reason);
+        self.vm.rejecting_handler_realm = None;
+        rejected
+    }
+
     /// Runs one job. A thrown value that no capability takes is the job's
     /// error; the host reports it.
     pub(crate) fn run_job(&mut self, job: Job, realm: Option<u32>) -> VmResult<()> {
@@ -230,7 +292,11 @@ impl Runtime {
                     },
                     Handler::Function(function) => {
                         let result = self.call(function, Value::Undefined, &[argument]);
-                        self.completion(result)?
+                        let completion = self.completion(result)?;
+                        if completion.is_err() {
+                            self.vm.rejecting_handler_realm = self.function_realm_of(function);
+                        }
+                        completion
                     }
                     Handler::Internal(continuation) => {
                         let result = (continuation.func)(self, continuation.data, kind, argument);
@@ -239,11 +305,16 @@ impl Runtime {
                 };
                 match (capability, result) {
                     (Some(capability), Ok(value)) => self.capability_resolve(&capability, value),
-                    (Some(capability), Err(reason)) => self.capability_reject(&capability, reason),
+                    (Some(capability), Err(reason)) => {
+                        self.reject_after_handler(&capability, reason)
+                    }
                     (None, Ok(_)) => Ok(()),
                     // Step 1.f asserts a normal completion: only a host
                     // continuation without a capability can get here.
-                    (None, Err(reason)) => Err(VmError::Throw(reason)),
+                    (None, Err(reason)) => {
+                        self.vm.rejecting_handler_realm = None;
+                        Err(VmError::Throw(reason))
+                    }
                 }
             }
             Job::ResolveThenable {
@@ -270,7 +341,12 @@ fn call_without_arguments(
     _kind: ReactionKind,
     _argument: Value,
 ) -> VmResult<Value> {
-    rt.call(callback, Value::Undefined, &[])
+    let result = rt.call(callback, Value::Undefined, &[]);
+    if result.is_err() {
+        // The host reports the exception to the window of the function.
+        rt.vm.failed_job_realm = rt.function_realm_of(callback);
+    }
+    result
 }
 
 #[cfg(test)]

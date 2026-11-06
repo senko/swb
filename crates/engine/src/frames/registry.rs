@@ -246,6 +246,8 @@ pub(crate) struct AfterTask {
     pub(crate) created: Vec<FrameId>,
     /// Destroyed frames with their parents.
     pub(crate) destroyed: Vec<(FrameId, Option<FrameId>)>,
+    /// The frame that a script moved the page's focus to.
+    pub(crate) focused: Option<FrameId>,
 }
 
 /// The registry. See the module documentation.
@@ -508,8 +510,84 @@ impl FrameHost for FrameRegistry {
         self.frames.may_navigate(
             FrameId::from_number(source),
             FrameId::from_number(target),
-            Sandbox::script_top_navigation_allowed,
+            self.script_navigation_rule(),
         )
+    }
+
+    fn focused_frame(&self) -> u32 {
+        self.frames.focused.number()
+    }
+
+    fn holds_focus(&self, frame: u32) -> bool {
+        self.frames
+            .chain(self.frames.focused)
+            .contains(&FrameId::from_number(frame))
+    }
+
+    fn set_focused_frame(&mut self, frame: u32, docs: &mut dyn LentDocuments) {
+        let new = FrameId::from_number(frame);
+        let old_chain = self.frames.chain(self.frames.focused);
+        let new_chain = self.frames.chain(new);
+        for &id in old_chain.iter().filter(|id| !new_chain.contains(id)) {
+            if let Some(doc) = Self::document_mut(&mut self.frames, docs, id) {
+                doc.frame_focus = None;
+                doc.script_set_focus(None, false);
+            }
+        }
+        for (index, &id) in new_chain.iter().enumerate() {
+            let container = new_chain
+                .get(index + 1)
+                .and_then(|&next| self.frames.get(next))
+                .and_then(|record| record.container);
+            if let Some(doc) = Self::document_mut(&mut self.frames, docs, id) {
+                if container.is_some() {
+                    doc.script_set_focus(None, false);
+                }
+                doc.frame_focus = container;
+                doc.window_blurred = false;
+            }
+        }
+        self.frames.focused = new;
+        self.after_task.focused = Some(new);
+    }
+
+    fn focus_after_disconnect(&mut self, docs: &mut dyn LentDocuments) {
+        if self.frames.get(self.frames.focused).is_some() {
+            return;
+        }
+        // The arena has no parent of a dead frame; the page knows it from the
+        // destruction, and until then the focus is nowhere.
+        self.frames.focused = FrameId::TOP;
+        if let Some(doc) = Self::document_mut(&mut self.frames, docs, FrameId::TOP) {
+            doc.frame_focus = None;
+            doc.window_blurred = true;
+        }
+    }
+
+    fn choose_frame(&self, source: u32, name: &str) -> Option<u32> {
+        let source = FrameId::from_number(source);
+        let allows = self.script_navigation_rule();
+        let chosen = if name.eq_ignore_ascii_case("_top") {
+            FrameId::TOP
+        } else if name.eq_ignore_ascii_case("_parent") {
+            self.frames.get(source)?.parent.unwrap_or(source)
+        } else if name.eq_ignore_ascii_case("_blank") {
+            return None;
+        } else {
+            // The first frame in tree order with the name that `source` may
+            // navigate (as `Page::frame_named`).
+            return self
+                .frames
+                .tree_order()
+                .into_iter()
+                .skip(1)
+                .filter(|&id| self.frames.get(id).is_some_and(|f| f.name == name))
+                .find(|&id| self.frames.may_navigate(source, id, allows))
+                .map(FrameId::number);
+        };
+        self.frames
+            .may_navigate(source, chosen, allows)
+            .then(|| chosen.number())
     }
 
     fn update_viewports(&mut self, frame: u32, docs: &mut dyn LentDocuments) {
@@ -520,6 +598,19 @@ impl FrameHost for FrameRegistry {
             {
                 return;
             }
+        }
+    }
+}
+
+impl FrameRegistry {
+    /// The sandbox's rule for a navigation of the top level by a script: with a
+    /// recent input of the user, the token `allow-top-navigation-by-user-activation`
+    /// counts too (measured, cases `activation-*`).
+    fn script_navigation_rule(&self) -> fn(Sandbox) -> bool {
+        if self.frames.recently_activated() {
+            Sandbox::top_navigation_allowed
+        } else {
+            Sandbox::script_top_navigation_allowed
         }
     }
 }

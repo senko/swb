@@ -186,25 +186,36 @@ fn entry_value(entry: &FormEntry, rt: &Runtime) -> FileOrUsvString {
     }
 }
 
+/// The entry list of `form` of the current document.
+fn form_entries(
+    cx: &mut Cx<'_>,
+    form: NodeId,
+    submitter: Option<b::NodeRef>,
+) -> b::Result<Vec<FormEntry>> {
+    let submitter = crate::html::activation::submitter_here(cx.rt, submitter)?;
+    crate::html::activation::check_submitter(cx, form, submitter)?;
+    let realm = cx.realm();
+    build_entry_list(cx.rt, realm, form, submitter)?.ok_or_else(|| {
+        Exception::dom(
+            "InvalidStateError",
+            "The form is already being constructed.",
+        )
+    })
+}
+
 impl g::form_data::FormDataImpl for WebState {
     fn constructor(
         cx: &mut Cx<'_>,
-        form: Option<NodeId>,
-        submitter: Option<NodeId>,
+        form: Option<b::NodeRef>,
+        submitter: Option<b::NodeRef>,
     ) -> b::Result<Gc<Object>> {
         let entries = match form {
             Some(form) => {
-                crate::html::activation::check_submitter(cx, form, submitter)?;
-                let realm = cx.realm();
-                match build_entry_list(cx.rt, realm, form, submitter)? {
-                    Some(entries) => entries,
-                    None => {
-                        return Err(Exception::dom(
-                            "InvalidStateError",
-                            "The form is already being constructed.",
-                        ));
-                    }
-                }
+                // The entries come from the form's document (measured).
+                let entered = crate::state::switch_if_other(cx.rt, form.document)?;
+                let entries = form_entries(cx, form.node, submitter);
+                crate::state::leave(cx.rt, entered);
+                entries?
             }
             None => Vec::new(),
         };

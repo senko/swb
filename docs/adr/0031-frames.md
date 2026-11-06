@@ -658,10 +658,8 @@ its own arena (section 2), so a node is (document, `NodeId`):
   an element of the parent's realm keeps `HTMLElement.prototype` of the
   parent in the frame's document, listeners and `onclick` stay, and a
   node moved from the frame to the parent keeps the frame's prototype).
-  Departures: the form control state and the mutation observer
-  registrations of moved nodes are not carried over (rare; logged at
-  `debug!`). `importNode` clones into the target arena with the caller's
-  prototypes (measured).
+  `importNode` clones into the target arena with the prototypes of the
+  realm of its `this` (measured; "Done (feature 12b2)").
 
 **Event handlers, timers and the realm of callbacks**: a timer belongs to
 the `Window` whose `setTimeout` was called (measured: `w.setTimeout` from
@@ -740,20 +738,9 @@ each page's runtime; no page changes its behaviour.
   non-configurable global property gives the `TypeError` of ECMA-262 §19.2.1.3;
   V8 gives a `SyntaxError` (the fourth row). Objects that a native makes with a
   `this` of another document are in that document's realm (`Cx::realm`), the
-  function's realm only with one document. The mutation observer microtask is
-  per document, not per agent: the order between two documents' observers
-  in one checkpoint follows the order in which their microtasks were queued.
-- **Known gaps that only several documents reach (feature 12b2).** A native
-  switches to the document of its `this` and forgets the caller's, so
-  `other.postMessage()` takes `source` and `origin` from the receiver (Chromium:
-  the sender), and relative URLs of `location.href`, `open` and `fetch` have the
-  same problem (HTML "incumbent" and "entry" settings objects). `setAttributeNode`,
-  `removeAttributeNode` and `setNamedItem` read the owner's `NodeId` from an
-  `Attr` without the document check; no panic, and `eB.setAttributeNode(aOfA)`
-  does nothing (Chromium: `InUseAttributeError`).
-  An `AbortSignal` of one document cannot remove a listener from a node of
-  another (`remove_listener` ignores it). `WebState::blob_urls` is per agent
-  but a document's unload does not revoke yet.
+  function's realm only with one document.
+- **A known gap that only several documents reach.** `WebState::blob_urls` is per
+  agent but a document's unload does not revoke yet.
 - Costs: docs/performance.md, "`WindowProxy` and the split of the binding
   state".
 
@@ -815,9 +802,7 @@ cases, three equal runs); every value is compared in
   `scripted-window-members`), so `FrameChanges::names` went. `frameElement` and
   `contentDocument` have the IDL type `object?` and `getComputedStyle` takes
   `any`, because a generated node conversion looks in the current document.
-  `getComputedStyle` of an element of another document works (measured); its
-  declaration belongs to the element's realm (departure: Chromium's to the
-  caller's; `instanceof` shows it).
+  `getComputedStyle` of an element of another document works (measured).
 - *Geometry across documents.* `state::engine_laid_out` is the path of each
   geometry query in `web`: with several documents, `FrameHost::update_viewports`
   lays out the documents above the frame, top first, and gives each frame its
@@ -889,11 +874,10 @@ cases, three equal runs); every value is compared in
   come; `check_frame_loads` does it at once, because nothing else may wake the page
   (`finish_load_after_limit`).
 - *Navigations by script.* `location` writes check `FrameHost::may_navigate` with
-  the caller's frame (`Runtime::caller_realm`, which is only for this; the
-  incumbent settings object is 12b2) and throw Chromium's `SecurityError`. A
+  the caller's frame (`Runtime::caller_realm`) and throw Chromium's `SecurityError`. A
   sandboxed frame needs `allow-top-navigation` (`Sandbox::script_top_navigation_allowed`);
-  `allow-top-navigation-by-user-activation` refuses a script (measured, without an
-  activation). `form.submit()` in a sandbox needs `allow-forms`. A `javascript:`
+  `allow-top-navigation-by-user-activation` refuses a script without an activation
+  (measured; with one: "Done (feature 12b2)"). `form.submit()` in a sandbox needs `allow-forms`. A `javascript:`
   URL in `src` runs as a task in the frame's realm; an empty one does nothing.
   The session history stays at the top level: a frame's `pushState` changes its
   document's URL and no entry.
@@ -932,17 +916,222 @@ cases, three equal runs); every value is compared in
   is that URL, not the origin (measured, case `scripted-about-frame-state`;
   `DocumentState::cookie_url`, `EngineHost::storage_url`). A document with an opaque
   origin keeps its own URL, so it has neither.
-- *Not in 12b1.* `appendChild` and other node arguments across documents (12b2), the
-  incumbent document (`postMessage`'s `source` and `origin`, relative URLs through
-  another window), the window that gets an error (12b2: an exception of a function
-  of another window goes to the current document's window, Chromium's goes to the
-  window of the function; `unhandledrejection` goes to one window per task), a
-  `javascript:` link or form with a `target` that names another frame (12b2: it runs
-  nothing, Chromium runs it in the target), input events to frame listeners
-  (`Page::in_frame` still takes the runtime out), `document.referrer` of a frame
-  document (feature 14: it is empty), `document.open` on a frame document (feature
-  15), cross-origin frames (feature 13).
+- *Not in 12b1.* `document.referrer` of a frame document (feature 14: it is empty),
+  `document.open` on a frame document (feature 15), cross-origin frames (feature 13).
 - Costs: docs/performance.md, "Scripts in frames".
+
+**Done (feature 12b2).** Nodes across documents, the caller's document, the
+window of an error, and input with scripts in frames. Measured in Chromium 148 with
+the cases `nodes-*`, `errors-*`, `caller-*`, `focus-by-script*`, `activation-*`,
+`javascript-link-clicked-in-frame` and `window-name-target` of
+`tools/probes/web-frames.json` (three equal runs; `errors-promises` differs between
+runs only in the order of the two windows); every value is compared in
+`crates/engine/tests/frames/nodes.rs` and `crates/automation/tests/frame_input.rs`,
+and a departure has a row there.
+
+- *The transplant* (`swb_dom::Document::take_subtree`, `put_subtree`; `web/dom/adopt.rs`).
+  A move into another arena checks the room of the target first, runs the removal
+  steps in the source document (frames in the subtree go, a focused element gets
+  `blur`; a script can run, and the move goes on from where the node is then), takes
+  the subtree (iterative, with template contents), and puts a copy into the target.
+  A taken node stays in the old arena as an empty detached comment, because a `NodeId`
+  stays valid for the life of an arena: what still holds the old id reads nothing of the
+  moved node. So a move adds nodes to the target arena; a subtree that moves back and
+  forth in a loop ends at the node limit of the arena (a departure: Chromium has no
+  such end; no target does this). Rejected: a free list of ids (every structure that
+  holds a `NodeId` would have to know that an id came back into use). The room is
+  checked before the removal steps, so a move that cannot fit leaves the node in its
+  place, and again right before the take, because a script in those steps can fill
+  the arena; from that check to the put no script runs, and the check and the put
+  use one formula (`SubtreeSize`, with template contents and inert documents). So a
+  subtree is never out of both arenas: a move that does not fit ends the task and
+  leaves the subtree whole in its document.
+- *The wrappers* (`state::move_node_state`). Each wrapper of a moved node gets its new
+  word `(key << 32) | index` (`Runtime::set_host_word`) and stays the same object, with
+  expandos, listeners, handlers and `[SameObject]` objects. Tables keyed by node
+  (`side`, `listeners`, `handlers`, `attr_objects`, the script state, `decodes`,
+  `indeterminate`, `output_defaults`) go only for nodes with a wrapper: without one a
+  node has nothing in them, except the script state, which goes for every node.
+- *What holds an old id.* `DocState::moved` maps each taken id to its new place.
+  `wrap_node` follows it, so a static list and a mutation record read the moved node
+  (measured). An object with generic data that names a node (`NodeList`,
+  `HTMLCollection`, `DOMTokenList`, `DOMStringMap`, `NamedNodeMap`, `Attr`,
+  `CSSStyleDeclaration`) has the document and the node in its data
+  (`GenericData::host_word`), and the entry of a native settles them through `moved`
+  at its first use (`state::settle_generic`). So no walk of the heap and no registry of
+  lists is needed, and a live list of a moved root stays live (measured). A node that
+  moved many times has a chain in `moved`; the first read of a stale id walks it and
+  points each id on the way at the place now (`state::settled`). The objects
+  whose ids mean one arena for good (static lists, `MutationRecord`, sheets, observer
+  entries) name the document node of their document. This also closes a gap of 12b1: a
+  list of an initial `about:blank` document no longer reads the arena of the document
+  that took over its window, which could panic on an index out of range.
+- *The realm of what a native makes* (measured, cases `nodes-move-realms`,
+  `nodes-adopt-import`). A moved wrapper keeps its prototype, and everything made through
+  it is of its realm, not of its document's and not of the called function's:
+  `e.firstChild`, `e.childNodes`, `e.cloneNode()`, `w.Element.prototype.querySelectorAll.call(e)`.
+  `fd.importNode(x)` gives objects of the realm of `fd`. So `Cx::realm` is the realm of
+  `this` (`WebState::receiver`, set at the entry only when it differs from the realm of the
+  document). `getComputedStyle` gives a declaration of the window's realm.
+- *Mutation observers* (`mutation_registry.rs`). The registry belongs to the agent, as
+  HTML's one microtask does; a place is `(document, node)`, each document has a sink
+  that names its key, and a record names its document. A move rekeys the registrations
+  and the transient ones of the moved nodes, and installs the sink of the target
+  (measured: they go on working). `before_switch` went. One departure: a record of an
+  observer of the frame's realm that the parent reads has the observer's realm; Chromium
+  gives the parent's.
+- *Script elements.* `already_started` goes with the element. A script whose fetch runs
+  in the old document stays in that document's lists and ends there without running and
+  without an event (measured, HTML "execute the script element" step 2). In a sandbox
+  `prepare` sets `already_started`, so it does not run there or after a move back
+  (measured).
+- *Form controls.* The dirty value, the selection, the checkedness, the selectedness of
+  an option and the custom validity go as `ControlSnapshot`s through `EngineHost`
+  (`take_control_snapshots`, `put_control_snapshot`), and `importNode` copies them.
+- *Style sheets.* The old document processes its changes before the nodes go, so a
+  `style` element leaves with its sheet: the sheet object stays with `ownerNode` null,
+  and the element has a new sheet in the new document (measured).
+- *Handlers.* `WebState::handler_marker` is one marker per agent, so that the listener of a
+  moved handler can be removed. A handler attribute that was not compiled compiles in
+  the new document's realm (measured).
+
+Node arguments. An IDL argument with `[SwbAnyDocument]` arrives as a `NodeRef` (the
+wrapper, its document, its node); a plain one fails with `TypeError` for a node of
+another document, so a new native cannot read the wrong arena by accident.
+
+| Native | A node of another document |
+| --- | --- |
+| `appendChild`, `insertBefore`, `replaceChild` (node), `append`, `prepend`, `before`, `after`, `replaceWith`, `replaceChildren`, `insertAdjacentElement`, `adoptNode` | moves, after the checks in both arenas with Chromium's messages; a fragment stays in its document and gives its children (measured); `adoptNode` of a fragment moves it |
+| `insertBefore`, `replaceChild`, `removeChild` (child) | `NotFoundError` (measured) |
+| `document.body =`, `table.caption`, `tHead`, `tFoot`, `select.add`, `options.add`, `select[i] =`, `options[i] =` | moves (measured); `add` with a `before` of another document: `NotFoundError` |
+| `importNode` | copies through `Subtree`, with the cloning steps |
+| `contains` | false |
+| `compareDocumentPosition` | `DISCONNECTED`, `IMPLEMENTATION_SPECIFIC` and an order by document key |
+| `isSameNode` | compares the document and the node |
+| `isEqualNode` | reads both arenas (`Document::is_equal_to`) |
+| `getComputedStyle` | reads in the element's document |
+| `MutationObserver.observe` | registers (agent registry) |
+| `FormData(form)` | the entries of the form's document |
+| `FormData(form, submitter)`, `requestSubmit(submitter)` | `NotFoundError`: not owned by the form (measured) |
+| `SubmitEvent` `submitter`, `MouseEvent` and `FocusEvent` `relatedTarget` | hold the wrapper (measured) |
+| `setAttributeNode`, `setAttributeNodeNS`, `setNamedItem`, `setNamedItemNS` | `InUseAttributeError` for an `Attr` with an owner in another document (measured); a detached one moves to the element |
+| `removeAttributeNode` | `NotFoundError` (measured) |
+| `dispatchEvent`, `addEventListener` and the other members | `this` chooses the document (feature 12a) |
+| `IntersectionObserver.observe`, `unobserve`, `root`; `ResizeObserver.observe`, `unobserve` | departure: `TypeError`, and a target that moves away ends its observations (Chromium keeps them). An observer's state is per document, its implicit root would be the top level, and no target page observes across documents |
+| `Range`, `Selection`, `NodeIterator`, `TreeWalker`, `adoptedStyleSheets` | do not exist in swb |
+
+- *Departures.* `Attr.ownerDocument` does not exist (an `Attr` is no `Node`, ADR 0028
+  section 3); the rows above. The rows of `nodes.rs` have the reasons.
+
+The caller's document:
+
+- *`postMessage`* (`messaging.rs`). `source` is the window of the code that called it, and
+  `origin` that document's origin (`EngineHost::origin_text`, so a same-origin `about:`
+  frame has its creator's). The caller is HTML's incumbent: measured, `t.send()` with
+  `s.postMessage` inside gives `t`; `t.postMessage.call(window)` from the top gives the
+  top. A target origin compares with the receiver's origin text.
+- *URLs through another window* (measured, case `caller-urls`, with a `base` in the
+  frame). `location.href =`, `assign` and `replace` resolve against the base URL of the
+  **entry** document (the bottom of the stack: `Runtime::entry_realm`; also inside
+  `w.eval`). `w.fetch`, `new w.XMLHttpRequest().open`, `new w.Image().src`,
+  `history.pushState` and `replaceState` resolve against the window's own document, which
+  the switch by `this` gives. `w.setTimeout('code')` runs in the frame. `window.open` and
+  workers do not exist.
+- *`javascript:` with a `target`* (`html/activation.rs`, `frames::script_target`, measured,
+  case `caller-javascript-links`). A link or a form runs the script in the frame that the
+  name means, under the rules of `may_navigate` and the target's scripts: `_parent`,
+  `_top`, a sibling's name. A new context (`_blank`, a name without a frame) and a target
+  without scripts run nothing. `may_have_script` also looks for `javascript:`, so a frame
+  whose only script is a link has a realm. A link whose bytes hide the scheme
+  (`java&#115;cript:`, a tab in the word) has no such sign; its click finds the URL and
+  runs it in a realm made then (`Page::run_javascript_link`; measured, case
+  `javascript-link-hidden-in-frame`). That path has the same rules, because a frame
+  of another origin takes it too: the source and the target have one origin (HTML
+  "navigate to a javascript: URL"), the source's sandbox allows scripts, and a new
+  context or a modified click runs nothing (measured, cases
+  `javascript-link-origin-of-source` and `javascript-link-origin-of-child`, with
+  same-origin controls; the second is the one where only the rule of the origin
+  stops the script, because a frame may navigate its own child). A departure stays:
+  the string result does not replace the document (ADR 0028).
+
+The window of an error:
+
+- *Callbacks* (`errors::report_callback`). An exception goes to the window of the function's
+  realm (Web IDL "invoke a callback function"; measured, case `errors-callbacks`): timers,
+  listeners (for an object, its `handleEvent`), handlers, animation frames, idle callbacks,
+  microtasks (`Runtime::take_failed_job_realm`), the three observers. `window.event` is
+  also the event of the listener function's window (measured). A window whose frame is
+  gone gets no event: its functions report nowhere (measured); the console line stays.
+- *Rejections* (`Runtime::take_unhandled_rejections_by_realm`). `unhandledrejection` goes per
+  promise. Measured (case `errors-promises`), neither rule of the brief alone gives
+  Chromium's values. The realm of the promise gives them except for one path:
+  `w.Promise.resolve().then(parentFn)` reports at the parent and
+  `Promise.resolve().then(frameFn)` at the frame, while
+  `Promise.prototype.then.call(w.Promise.resolve(), parentFn)` reports at the frame. This
+  is what the current realm at the rejection gives when the derived promise is rejected
+  directly, and a resolving function of `w.Promise` otherwise. swb has the same two
+  paths (`Capability::Intrinsic`, `Capability::Record`): a reaction job that rejects an
+  intrinsic capability after its handler threw takes the handler's realm; every other
+  rejection takes the realm of the promise, which `rejection_realm` finds from its
+  prototype chain, only with several realms. So `PromiseState` needs no field and a
+  runtime with one realm pays one comparison. A retired window gets no event (measured).
+  The events of one task come grouped by window, in the order of the rejections inside
+  a window (measured, case `errors-promises-grouped`; the order of the windows varies
+  in Chromium). Departure: the prototype chain is not the rule, only a way to find it
+  that fits what pages do. After `Object.setPrototypeOf` to the `Promise.prototype` of
+  another window, swb reports at that window and Chromium at the promise's own (measured
+  in the review of 12b2); the exact rule needs a realm in `PromiseState`, and so a cost
+  on each promise. `rejectionhandled` never fires (backlog; also without frames).
+
+Input with scripts in frames (section 8):
+
+- *The exchange stays.* `Page::in_frame` no longer takes the runtime out. A frame with a
+  realm takes the paths of a page with scripts (`script_input`); one without takes the
+  paths of JavaScript off. A task inside the exchange undoes it for its length
+  (`Page::outside_exchange`), because the runtime and the registry see the documents in
+  their own places. If a listener destroys the frame, the rest of the input finds no
+  document (`doc` is `None`).
+- *Pointer.* Moves, presses, releases, clicks and the wheel fire in the innermost
+  document; the documents above see the boundary events of the `iframe`, as before.
+  A frame that the pointer left gets its leave events before the documents above it
+  get theirs (measured, case `input-leave-order`). A press that moves and selects
+  nothing keeps its click at the common ancestor (measured, case
+  `input-press-in-frame`; the rule holds for all documents). Departures, measured in
+  the review of 12b2: `screenX` and `screenY` of an event in a frame are the frame's
+  (Chromium: the page's); a second wheel event over a frame that reached its end goes
+  to the frame (Chromium: to the parent).
+- *Keys.* `key_down_events` and `key_up_here` run in the focused frame.
+- *Focus* (`set_focus_frame`, `frames::focus_enters_current`; measured, cases `focus`,
+  `input-tab-*`, `focus-by-script*`). The page's focus has one holder. When it moves, the
+  old holder's element gets `blur` and its window `blur`, the new holder's window `focus`,
+  then the element its `focus`; windows between them get nothing. A script's `focus()`
+  does this inside the call, also from the other direction; `window.focus()` moves the
+  focus to the window (new member), `window.blur()` does nothing (measured); `f.focus()`
+  of an `iframe` moves it into the frame and fires `focus` at the element.
+  `document.hasFocus()` of a frame document is true while its frame holds the focus or
+  has a frame that does (`Frames::focused`). An `iframe` never matches `:focus` or
+  `:focus-visible`; after `f.focus()` it and its ancestors match `:focus-within`, also
+  while an element in the frame has the focus, and after a click or Tab into the frame
+  they do not (measured, case `focus-iframe-then-inner`). Departures, measured in the
+  review of 12b2: after `f.focus()` a click in another frame fires `blur` and `focusout`
+  at `f`, and the parent's `activeElement` is the other frame (Chromium: no events, and
+  `f`); Chromium ignores a focus change that a `blur` or `focus` listener asks for while
+  a change runs, and swb carries it out, so extra events fire, and two windows whose
+  `blur` listeners focus each other end at the depth limit after 818 events (Chromium:
+  4); a `focus` listener that hides or moves the `iframe` does not stop the element's
+  own `focus`.
+- *User activation.* `allow-top-navigation-by-user-activation` allows a script's navigation
+  for five seconds after a press or a key other than Escape anywhere on the page
+  (`Frames::activation`; measured: in a listener, in a timer, after a click in the
+  parent, and cases `activation-escape-key`, `activation-other-key`). Chromium's
+  activation has more rules (consumption, other origins); no measured case needs them.
+  Without consumption, one press allows any number of top-level navigations for five
+  seconds, but the first replaces the page.
+- *Fonts.* A face holds its charge by id (`WebFonts::admit_face`), and the charge returns
+  when the face goes, so a face that loads again is charged once.
+- *Tests.* `frame_input.rs` runs plain scripts; only the selection (no `getSelection`) and
+  cross-origin frames (feature 13) still go through the engine API.
+- Costs: docs/performance.md, "Nodes across documents and input in frames".
 
 ### 6. The event loop with several runtimes
 
@@ -1226,15 +1415,14 @@ departures:
   same code with the frame's document in that place: `Page::in_frame`
   exchanges the document, the pointer and keyboard state of the frame
   (`Page::frame_inputs`), the viewport and the font faces of the frame with
-  the page's, takes the page's script runtime out (so the frame's code takes
-  the paths of a page without JavaScript), runs the code and undoes the
-  exchange. It is not nested: the routing (hit test, focus chain, scroll
+  the page's, runs the code and undoes the exchange. A frame without a realm
+  takes the paths of a page without JavaScript. The exchange is not nested: the routing (hit test, focus chain, scroll
   chain) runs in the page's own context and calls it once per document on
   the path. What changes the page (a navigation) is deferred until the
   exchange is undone. Reason: the input code is large and per document;
   the alternative, a `FrameId` argument on every function, touches hundreds
-  of calls. Feature 12 gives `in_frame` the frame's runtime in place of
-  `None`.
+  of calls. Feature 12b2 keeps the runtime in place during the exchange
+  ("Done (feature 12b2)").
 - *Hit test.* `DisplayItem::Frame` has `interactive` (false for
   `pointer-events: none`). `DisplayList::hit_test_with` reports the topmost of
   the regions and the frames: a `Hit::Frame` has the point and the content
@@ -1352,12 +1540,9 @@ departures:
   parent scrolls or changes its layout during the press, so a drag is off by
   that distance. `:focus-within` of the ancestors
   of a frame that holds the focus is not set. The keyboard modality of
-  `:focus-visible` is per document. A `javascript:` link in a frame does
-  nothing. The events of a frame's own scripts (the `c:` entries of the
-  cases), `contentDocument.activeElement` as a script reads it, and the
-  `focus()` of a frame's element from a script (which moves the page's focus
-  into the frame in Chromium) are feature 12. Frame documents have no
-  `hasFocus` of their own yet beyond the engine API.
+  `:focus-visible` is per document. The events of a frame's own scripts, a
+  `javascript:` link in a frame, the `focus()` of a frame's element from a
+  script and `hasFocus` of a frame document: "Done (feature 12b2)".
 
 ### 9. JavaScript off
 

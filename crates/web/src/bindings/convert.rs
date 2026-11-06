@@ -296,8 +296,10 @@ pub fn buffer(rt: &mut Runtime, value: Value, name: &'static str) -> Result<Gc<O
 }
 
 /// An interface type that inherits from `Node`: the node of a wrapper of
-/// `class` or of a subclass. A node of another document fails here (ADR 0031
-/// section 5: its `NodeId` means another arena; feature 12b handles it).
+/// `class` or of a subclass, for a native that has no use for a node of
+/// another document. Such a node fails here (ADR 0031 section 5: its `NodeId`
+/// means another arena); the arguments with `[AnyDocument]` in the IDL take
+/// [`node_ref`].
 pub fn node(
     rt: &Runtime,
     value: Value,
@@ -311,6 +313,25 @@ pub fn node(
         if node_here(rt, data).is_none() {
             return Err(VmError::type_error("a node of another document").into());
         }
+        return Ok(node);
+    }
+    Err(Exception::NotOfType(name.into()))
+}
+
+/// An interface type that inherits from `Node`, as an argument with
+/// `[AnyDocument]`: the wrapper of `class` or of a subclass, with the document
+/// and the node that it names now.
+pub fn node_ref(
+    rt: &Runtime,
+    value: Value,
+    class: swb_js::ClassId,
+    name: &'static str,
+) -> Result<super::NodeRef> {
+    if let Value::Object(object) = value
+        && rt.implements(value, class)
+        && let Some((_, data)) = rt.host_object(value)
+        && let Some(node) = super::NodeRef::of(object, data)
+    {
         return Ok(node);
     }
     Err(Exception::NotOfType(name.into()))

@@ -286,6 +286,8 @@ pub(crate) fn remove_attribute(
 
 /// The data of an `Attr` object.
 pub(super) struct AttrData {
+    /// The key of the document of the owner; without an owner, of the last one.
+    pub(super) document: u32,
     /// The element that has the attribute, or none.
     pub(super) owner: Option<NodeId>,
     /// The name, with its prefix.
@@ -295,6 +297,22 @@ pub(super) struct AttrData {
 }
 
 impl GenericData for AttrData {
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(
+            self.document,
+            self.owner.unwrap_or(NodeId::DOCUMENT),
+        ))
+    }
+
+    fn set_host_word(&mut self, word: u64) {
+        if let Some((document, owner)) = b::word_parts(word) {
+            self.document = document;
+            if self.owner.is_some() {
+                self.owner = Some(owner);
+            }
+        }
+    }
+
     fn trace(&self, _tracer: &mut Tracer<'_>) {}
 
     fn heap_size(&self) -> usize {
@@ -344,7 +362,13 @@ pub(super) fn new_attr(
     name: QualName,
     value: String,
 ) -> VmResult<Gc<Object>> {
-    let data = rt.alloc_host_data(AttrData { owner, name, value })?;
+    let document = crate::state::document_key(rt)?;
+    let data = rt.alloc_host_data(AttrData {
+        document,
+        owner,
+        name,
+        value,
+    })?;
     rt.new_host_object(realm, g::ATTR, data)
 }
 
@@ -380,13 +404,30 @@ fn existing_attr(
 }
 
 /// The `Attr` object that an argument names (it is not a node, so the
-/// glue passes it as a platform object).
-fn attr_argument(
-    rt: &Runtime,
-    attr: Platform,
-) -> b::Result<(Gc<Object>, QualName, Option<NodeId>)> {
+/// glue passes it as a platform object): the object, the name, and the owner if
+/// it has one in the current document. An owner in another document is
+/// [`AttrOwner::Other`].
+fn attr_argument(rt: &mut Runtime, attr: Platform) -> b::Result<(Gc<Object>, QualName, AttrOwner)> {
+    if let HostData::Generic(handle) = attr.data {
+        crate::state::settle_generic(rt, handle)?;
+    }
+    let current = crate::state::document_key(rt)?;
     let data = data_of(rt, attr)?;
-    Ok((attr.object, data.name.clone(), data.owner))
+    let owner = match data.owner {
+        None => AttrOwner::None,
+        Some(owner) if data.document == current => AttrOwner::Here(owner),
+        Some(_) => AttrOwner::Other,
+    };
+    Ok((attr.object, data.name.clone(), owner))
+}
+
+/// The owner element of an `Attr` argument.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AttrOwner {
+    None,
+    Here(NodeId),
+    /// An element of another document of the runtime.
+    Other,
 }
 
 /// DOM "set an attribute": puts the detached `attr` on `element`. Returns
@@ -398,10 +439,10 @@ pub(super) fn set_attribute_node(
     attr: Platform,
 ) -> b::Result<Option<Gc<Object>>> {
     let (object, name, owner) = attr_argument(cx.rt, attr)?;
-    if owner == Some(element) {
+    if owner == AttrOwner::Here(element) {
         return Ok(Some(object));
     }
-    if owner.is_some() {
+    if owner != AttrOwner::None {
         return Err(Exception::dom(
             "InUseAttributeError",
             "The node provided is an attribute node that is already an attribute of another Element; attribute nodes must be explicitly cloned.",
@@ -431,7 +472,9 @@ pub(super) fn set_attribute_node(
     set_attribute(cx.rt, element, &stored, &value)?;
     let key = (element, stored.ns.clone(), stored.local.clone());
     state_mut(cx.rt)?.doc.attr_objects.insert(key, object);
+    let document = crate::state::document_key(cx.rt)?;
     let data = attr_data_mut(cx.rt, object)?;
+    data.document = document;
     data.owner = Some(element);
     data.name = stored;
     data.value = String::new();
@@ -445,7 +488,7 @@ pub(super) fn remove_attribute_node(
     attr: Platform,
 ) -> b::Result<Gc<Object>> {
     let (object, name, owner) = attr_argument(cx.rt, attr)?;
-    if owner != Some(element) {
+    if owner != AttrOwner::Here(element) {
         return Err(not_found("The node provided is owned by another element."));
     }
     remove_attribute(cx.rt, element, &name)?;
@@ -614,7 +657,8 @@ pub(super) fn new_named_node_map(
     realm: u32,
     element: NodeId,
 ) -> VmResult<Gc<Object>> {
-    let data = rt.alloc_host_data(MapData { element })?;
+    let document = crate::state::document_key(rt)?;
+    let data = rt.alloc_host_data(MapData { document, element })?;
     rt.new_host_object(realm, g::NAMED_NODE_MAP, data)
 }
 
@@ -707,10 +751,23 @@ impl g::attr::AttrImpl for WebState {
 
 /// The data of a `NamedNodeMap`: the element.
 struct MapData {
+    /// The key of the document of the element.
+    document: u32,
     element: NodeId,
 }
 
 impl GenericData for MapData {
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, self.element))
+    }
+
+    fn set_host_word(&mut self, word: u64) {
+        if let Some((document, element)) = b::word_parts(word) {
+            self.document = document;
+            self.element = element;
+        }
+    }
+
     fn trace(&self, _tracer: &mut Tracer<'_>) {}
 
     fn heap_size(&self) -> usize {

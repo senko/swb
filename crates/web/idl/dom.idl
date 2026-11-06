@@ -168,8 +168,8 @@ interface Node : EventTarget {
   [CEReactions] undefined normalize();
 
   [CEReactions, NewObject] Node cloneNode(optional boolean subtree = false);
-  boolean isEqualNode(Node? otherNode);
-  boolean isSameNode(Node? otherNode); // legacy alias of ===
+  boolean isEqualNode([SwbAnyDocument] Node? otherNode);
+  boolean isSameNode([SwbAnyDocument] Node? otherNode); // legacy alias of ===
 
   const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
   const unsigned short DOCUMENT_POSITION_PRECEDING = 0x02;
@@ -177,17 +177,17 @@ interface Node : EventTarget {
   const unsigned short DOCUMENT_POSITION_CONTAINS = 0x08;
   const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
   const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20;
-  unsigned short compareDocumentPosition(Node other);
-  boolean contains(Node? other);
+  unsigned short compareDocumentPosition([SwbAnyDocument] Node other);
+  boolean contains([SwbAnyDocument] Node? other);
 
   DOMString? lookupPrefix(DOMString? namespace);
   DOMString? lookupNamespaceURI(DOMString? prefix);
   boolean isDefaultNamespace(DOMString? namespace);
 
-  [CEReactions] Node insertBefore(Node node, Node? child);
-  [CEReactions] Node appendChild(Node node);
-  [CEReactions] Node replaceChild(Node node, Node child);
-  [CEReactions] Node removeChild(Node child);
+  [CEReactions] object insertBefore([SwbAnyDocument] Node node, [SwbAnyDocument] Node? child);
+  [CEReactions] object appendChild([SwbAnyDocument] Node node);
+  [CEReactions] Node replaceChild([SwbAnyDocument] Node node, [SwbAnyDocument] Node child);
+  [CEReactions] Node removeChild([SwbAnyDocument] Node child);
 };
 
 dictionary GetRootNodeOptions {
@@ -215,8 +215,8 @@ interface Document : Node {
   [NewObject] Text createTextNode(DOMString data);
   [NewObject] Comment createComment(DOMString data);
 
-  [CEReactions, NewObject] Node importNode(Node node, optional boolean subtree = false);
-  [CEReactions] Node adoptNode(Node node);
+  [CEReactions, NewObject] Node importNode([SwbAnyDocument] Node node, optional boolean subtree = false);
+  [CEReactions] object adoptNode([SwbAnyDocument] Node node);
 
   [NewObject] Attr createAttribute(DOMString localName);
   [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString qualifiedName);
@@ -274,9 +274,9 @@ interface mixin ParentNode {
   readonly attribute Element? lastElementChild;
   readonly attribute unsigned long childElementCount;
 
-  [CEReactions] undefined prepend((Node or DOMString)... nodes);
-  [CEReactions] undefined append((Node or DOMString)... nodes);
-  [CEReactions] undefined replaceChildren((Node or DOMString)... nodes);
+  [CEReactions] undefined prepend(([SwbAnyDocument] Node or DOMString)... nodes);
+  [CEReactions] undefined append(([SwbAnyDocument] Node or DOMString)... nodes);
+  [CEReactions] undefined replaceChildren(([SwbAnyDocument] Node or DOMString)... nodes);
 
   Element? querySelector(DOMString selectors);
   [NewObject] NodeList querySelectorAll(DOMString selectors);
@@ -293,9 +293,9 @@ Element includes NonDocumentTypeChildNode;
 CharacterData includes NonDocumentTypeChildNode;
 
 interface mixin ChildNode {
-  [CEReactions] undefined before((Node or DOMString)... nodes);
-  [CEReactions] undefined after((Node or DOMString)... nodes);
-  [CEReactions] undefined replaceWith((Node or DOMString)... nodes);
+  [CEReactions] undefined before(([SwbAnyDocument] Node or DOMString)... nodes);
+  [CEReactions] undefined after(([SwbAnyDocument] Node or DOMString)... nodes);
+  [CEReactions] undefined replaceWith(([SwbAnyDocument] Node or DOMString)... nodes);
   [CEReactions] undefined remove();
 };
 DocumentType includes ChildNode;
@@ -354,7 +354,7 @@ interface Element : Node {
   HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
 
-  [CEReactions] Element? insertAdjacentElement(DOMString where, Element element); // legacy
+  [CEReactions] object? insertAdjacentElement(DOMString where, [SwbAnyDocument] Element element); // legacy
   undefined insertAdjacentText(DOMString where, DOMString data); // legacy
 
   // From DOM Parsing and Serialization.
@@ -440,7 +440,7 @@ callback MutationCallback = undefined (sequence<MutationRecord> mutations, Mutat
 interface MutationObserver {
   constructor(MutationCallback callback);
 
-  undefined observe(Node target, optional MutationObserverInit options = {});
+  undefined observe([SwbAnyDocument] Node target, optional MutationObserverInit options = {});
   undefined disconnect();
   sequence<MutationRecord> takeRecords();
 };

@@ -116,7 +116,8 @@ pub(crate) fn run(rt: &mut Runtime, handle: u32, now: f64) -> Result<(), swb_js:
         }
         Err(error) => {
             let site = crate::errors::Site::named("an animation frame callback");
-            crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)
+            crate::errors::report_callback(rt, callback, &site, error)
+                .map_err(crate::runtime::task_error)
         }
     }
 }

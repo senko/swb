@@ -430,33 +430,87 @@ fn hooks_of_platform_objects_read_their_own_document() {
 }
 
 #[test]
-fn a_node_of_another_document_fails_as_an_argument() {
+fn a_node_of_another_document_moves_as_an_argument() {
     both_modes(|stress| {
         let (mut rt, key) = two_documents(stress);
-        // Feature 12b2 adopts the node. Here the conversion refuses it, and
-        // no arena sees a `NodeId` of another one. `getComputedStyle` works
-        // in the element's document.
+        // The ids of the two arenas overlap: the wrapper names the arena, and
+        // a move gives it a new id there.
         assert_eq!(
             first(
                 &mut rt,
                 "const E = g => { try { return String(g()); } catch (e) { return e.name + ': ' + e.message; } };
-                 [E(() => document.body.appendChild(other.document.body)),
-                  E(() => document.body.contains(other.document.body)),
+                 const b = other.document.getElementById('b');
+                 const list = b.childNodes, classes = b.classList, styles = b.style, map = b.attributes;
+                 b.expando = 7;
+                 let clicks = 0;
+                 b.addEventListener('click', () => clicks++);
+                 [E(() => document.body.contains(other.document.body)),
                   E(() => other.document.body.contains(document.body)),
-                  E(() => document.body.insertBefore(other.document.createElement('p'), null)),
-                  E(() => typeof getComputedStyle(other.document.body)),
+                  document.body.appendChild(b) === b, b.ownerDocument === document, b.expando,
+                  other.document.getElementById('b'), document.getElementById('b') === b,
+                  b.childNodes === list, b.classList === classes, b.style === styles,
+                  b.attributes === map, list.length, list[0].data, map.id.value,
+                  b instanceof other.HTMLElement, b instanceof HTMLElement,
+                  (b.click(), clicks), E(() => typeof getComputedStyle(other.document.body)),
                   other.document.body.parentNode === other.document.documentElement,
                   document.body.childNodes.length, other.document.body.childNodes.length]"
             ),
             expected(
-                r#"["TypeError: a node of another document", "TypeError: a node of another document",
-                    "TypeError: a node of another document", "TypeError: a node of another document",
-                    "object", true, 2, 2]"#
+                r#"["false", "false", true, true, 7, null, true, true, true, true, true, 1, "text of b",
+                    "b", true, false, 1, "object", true, 3, 1]"#
             )
         );
         assert_eq!(
             second(&mut rt, key, "document.body.childNodes.length"),
+            expected("1")
+        );
+        // Back and forth: the same object, whatever arena it is in; old ids
+        // do not read a node of the other arena.
+        assert_eq!(
+            first(
+                &mut rt,
+                "const c = document.createElement('section');
+                 c.innerHTML = '<i>x</i><u>y</u>';
+                 const seen = c.querySelectorAll('i, u');
+                 const live = c.getElementsByTagName('i');
+                 const kids = c.children;
+                 for (let i = 0; i < 25; i++) {
+                     other.document.body.appendChild(c);
+                     document.body.appendChild(c);
+                 }
+                 other.document.adoptNode(c);
+                 [seen.length, seen[0].tagName, seen[1].textContent, live.length, live[0].textContent,
+                  kids.length, kids[1].tagName, c.ownerDocument === other.document,
+                  seen[0].ownerDocument === other.document, c.parentNode]"
+            ),
+            expected(r#"[2, "I", "y", 1, "x", 2, "U", true, true, null]"#)
+        );
+    });
+}
+
+#[test]
+fn a_list_of_an_old_document_keeps_its_arena_after_a_takeover() {
+    both_modes(|stress| {
+        let (mut rt, key) = two_documents(stress);
+        // The objects that name a node keep their document, also when another
+        // document took over the realm's window.
+        assert_eq!(
+            first(
+                &mut rt,
+                "var kept = other.document.body.childNodes; var oldBody = other.document.body; kept.length"
+            ),
             expected("2")
+        );
+        let new_key = rt.reuse_window(key).unwrap();
+        rt.lend_document(
+            new_key,
+            Box::new(TestDocument::parsing(
+                "<!DOCTYPE html><body><p>one</p><p>two</p><p>three</p><p>four</p>",
+            )),
+        );
+        assert_eq!(
+            first(&mut rt, "[kept.length, kept[0].id, oldBody.id]"),
+            expected(r#"[2, "b", "body-b"]"#)
         );
     });
 }

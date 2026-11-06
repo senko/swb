@@ -285,9 +285,27 @@ pub(crate) struct Frames {
     /// The nodes that the budget has room for, for the parser of a document
     /// that parses in steps.
     pub(crate) node_room: Rc<Cell<usize>>,
+    /// The frame that holds the page's focus: what `document.hasFocus()` and a
+    /// script's `focus()` read during a task.
+    pub(crate) focused: FrameId,
+    /// When the user last pressed a button or a key on the page: a sandbox's
+    /// `allow-top-navigation-by-user-activation` allows a script's navigation
+    /// for [`ACTIVATION`] after that (HTML "transient activation"; measured: also
+    /// in a timer, also after a click in the parent).
+    pub(crate) activation: Option<std::time::Instant>,
 }
 
+/// How long a user's input counts as an activation (HTML "transient activation
+/// duration"; Chromium's five seconds).
+const ACTIVATION: std::time::Duration = std::time::Duration::from_secs(5);
+
 impl Frames {
+    /// True if the user's last input is recent.
+    pub(crate) fn recently_activated(&self) -> bool {
+        self.activation
+            .is_some_and(|time| time.elapsed() <= ACTIVATION)
+    }
+
     /// A tree with the top-level frame only.
     pub(crate) fn new() -> Frames {
         Frames {
@@ -297,6 +315,8 @@ impl Frames {
             }],
             free: Vec::new(),
             count: 0,
+            focused: FrameId::TOP,
+            activation: None,
             clients: HashMap::new(),
             requests: HashMap::new(),
             containers: HashMap::new(),

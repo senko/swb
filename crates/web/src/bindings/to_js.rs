@@ -16,6 +16,11 @@ pub fn node<H: Host>(rt: &mut Runtime, realm: u32, node: NodeId) -> VmResult<Val
     Ok(H::wrap_node(rt, realm, node)?.into())
 }
 
+/// The wrapper of a node argument.
+pub fn node_ref(node: super::NodeRef) -> Value {
+    Value::Object(node.object)
+}
+
 /// An object reference (another interface, `object`, a callback, a
 /// promise).
 pub fn object(object: Gc<Object>) -> Value {

@@ -144,8 +144,6 @@ pub(crate) struct Handlers {
     entries: HashMap<(Key, &'static str), Entry>,
     /// The nodes whose content attributes were read.
     synced: HashSet<NodeId>,
-    /// The callback of every handler listener.
-    marker: Option<Gc<Object>>,
     /// The API call that Chromium names in the message of a compile error
     /// found during it (`Failed to execute 'dispatchEvent' on
     /// 'EventTarget'`).
@@ -168,10 +166,7 @@ impl Handlers {
             .filter(|(key, _)| matches!(key, Key::Window))
             .copied()
             .collect();
-        let mut part = Handlers {
-            marker: self.marker,
-            ..Handlers::default()
-        };
+        let mut part = Handlers::default();
         for key in keys {
             if let Some(entry) = self.entries.remove(&key) {
                 part.entries.insert(key, entry);
@@ -180,15 +175,50 @@ impl Handlers {
         part
     }
 
-    /// Reports the functions and the marker to the collector.
+    /// The handlers of the nodes of `pairs` (old id, new id) go to the map of
+    /// the nodes' new document. A map with few entries is walked once; a large
+    /// one is asked per node and name, so that a loop of moves stays linear.
+    pub(crate) fn move_nodes(&mut self, to: &mut Handlers, pairs: &[(NodeId, NodeId)]) {
+        for (old, new) in pairs {
+            if self.synced.remove(old) {
+                to.synced.insert(*new);
+            }
+        }
+        if self.entries.is_empty() {
+            return;
+        }
+        if self.entries.len() <= pairs.len() * NAMES.len() {
+            let index: HashMap<NodeId, NodeId> = pairs.iter().copied().collect();
+            let keys: Vec<(Key, &'static str)> = self
+                .entries
+                .keys()
+                .filter(|(key, _)| matches!(key, Key::Node(node) if index.contains_key(node)))
+                .copied()
+                .collect();
+            for (key, name) in keys {
+                if let (Key::Node(node), Some(entry)) = (key, self.entries.remove(&(key, name)))
+                    && let Some(&new) = index.get(&node)
+                {
+                    to.entries.insert((Key::Node(new), name), entry);
+                }
+            }
+            return;
+        }
+        for &(old, new) in pairs {
+            for name in NAMES {
+                if let Some(entry) = self.entries.remove(&(Key::Node(old), name.attr)) {
+                    to.entries.insert((Key::Node(new), name.attr), entry);
+                }
+            }
+        }
+    }
+
+    /// Reports the functions to the collector.
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
         for entry in self.entries.values() {
             if let Value_::Function(function) = entry.value {
                 tracer.object(function);
             }
-        }
-        if let Some(marker) = self.marker {
-            tracer.object(marker);
         }
     }
 }
@@ -398,11 +428,11 @@ pub(crate) fn attribute_changed(
 
 /// The callback of handler listeners.
 fn marker(rt: &mut Runtime) -> VmResult<Gc<Object>> {
-    if let Some(marker) = state(rt)?.doc.handlers.marker {
+    if let Some(marker) = state(rt)?.handler_marker {
         return Ok(marker);
     }
     let marker = rt.new_plain_object(crate::state::doc_realm(rt)?)?;
-    state_mut(rt)?.doc.handlers.marker = Some(marker);
+    state_mut(rt)?.handler_marker = Some(marker);
     Ok(marker)
 }
 
@@ -694,7 +724,8 @@ pub(crate) fn call(
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
         Err(error) => {
             let site_name = format!("a listener of '{}'", name.event);
-            crate::errors::report(rt, &crate::errors::Site::named(&site_name), &error)
+            let site = crate::errors::Site::named(&site_name);
+            crate::errors::report_callback(rt, function, &site, &error)
         }
     }
 }

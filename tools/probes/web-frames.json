@@ -4447,6 +4447,843 @@
      "js": "new Promise(function (r) { setTimeout(function () { r([R.srcdocRead, R.srcdocAfter, R.nested, R.blankRead, R.blankAfter, R.topAfter, R.local, R.session, R.localBlank, R.sessionBlank, R.urls]); }, 400); })"
     }
    ]
+  },
+  {
+   "name": "nodes-move-wrapper",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var e = document.createElement('div'); e.id = 'mv'; e.className = 'a b'; e.dataset.k = 'v';\n e.innerHTML = '<span id=inner>t</span><!--c-->';\n e.expando = 1; var clicks = [];\n e.addEventListener('click', function (ev) { clicks.push(['listener', this === e, ev.target === e, ev instanceof Event, ev instanceof w.Event, ev.currentTarget === e]); });\n e.onclick = function () { clicks.push('onclick'); };\n var st = e.style, cl = e.classList, ds = e.dataset, at = e.attributes, cn = e.childNodes, ch = e.children, attr = e.getAttributeNode('id');\n document.body.appendChild(e);\n var plist = document.getElementsByTagName('div'), flist = fd.getElementsByTagName('div');\n R.before = [plist.length, flist.length];\n R.ret = fd.body.appendChild(e) === e;\n R.owner = [e.ownerDocument === fd, e.parentNode === fd.body, e.isConnected, e.getRootNode() === fd, e.parentElement === fd.body];\n R.lists = [plist.length, flist.length, flist[0] === e, plist[1] === undefined];\n R.proto = [P(e), Object.getPrototypeOf(e) === HTMLDivElement.prototype, e instanceof HTMLDivElement, e instanceof w.HTMLDivElement, e instanceof Node, e instanceof w.Node];\n R.same = [e.style === st, e.classList === cl, e.dataset === ds, e.attributes === at, e.childNodes === cn, e.children === ch, e.getAttributeNode('id') === attr];\n R.sameProto = [P(st), P(cl), P(ds), P(at), P(cn), P(ch), P(attr)];\n R.expando = e.expando;\n e.click(); R.clicks = clicks;\n st.color = 'red'; R.style = [e.getAttribute('style'), w.getComputedStyle(e).color, getComputedStyle(e).color];\n cl.add('c'); R.className = e.className;\n ds.k2 = 'x'; R.dataset = [e.getAttribute('data-k2'), ds.k];\n R.attrs = [at.length, at.id === attr, attr.ownerElement === e, attr.value];\n attr.value = 'mv2'; R.id = [e.id, fd.getElementById('mv2') === e, document.getElementById('mv2'), document.getElementById('mv')];\n R.childLists = [cn.length, ch.length, ch[0].id];\n e.appendChild(fd.createElement('b')); R.childLists2 = [cn.length, ch.length];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-move-realms",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var e = document.createElement('div'); e.innerHTML = '<span id=inner>t</span>text<!--c--><i class=k></i>';\n document.body.appendChild(e);\n fd.body.appendChild(e);\n R.children = [P(e.firstChild), P(e.childNodes[1]), P(e.lastChild), P(e.firstChild.firstChild)];\n R.new = {\n   childNodes: P(e.childNodes), children: P(e.children), style: P(e.style), classList: P(e.classList), dataset: P(e.dataset), attributes: P(e.attributes),\n   qsa: P(e.querySelectorAll('span')), byTag: P(e.getElementsByTagName('span')), byClass: P(e.getElementsByClassName('k')),\n   rect: P(e.getBoundingClientRect()), rects: P(e.getClientRects()), clone: P(e.cloneNode(true)), cloneChild: P(e.cloneNode(true).firstChild), attr: (e.setAttribute('q', 1), P(e.getAttributeNode('q'))),\n   computedByParent: P(getComputedStyle(e)), computedByFrame: P(w.getComputedStyle(e)), owner: P(e.ownerDocument), names: P(e.getAttributeNames())\n };\n R.frameCall = {\n   firstChild: P(w.Node.prototype.cloneNode.call(e)),\n   viaFrameQsa: P(w.Element.prototype.querySelectorAll.call(e, 'span')),\n   viaFrameByTag: P(w.Element.prototype.getElementsByTagName.call(e, 'span')),\n   viaFrameRect: P(w.Element.prototype.getBoundingClientRect.call(e))\n };\n var fe = fd.createElement('div'); fe.innerHTML = '<span>t</span>';\n document.body.appendChild(fe);\n R.fromFrame = { el: P(fe), child: P(fe.firstChild), list: P(fe.childNodes), style: P(fe.style), clone: P(fe.cloneNode(true)), qsa: P(fe.querySelectorAll('span')), ownerIsTop: fe.ownerDocument === document };\n document.body.removeChild(fe); fd.body.appendChild(fe);\n R.backAndForth = [P(fe), fe.ownerDocument === fd, P(fe.firstChild)];\n var text = document.createTextNode('t'), comment = document.createComment('c');\n fd.body.append(text, comment);\n R.textMoves = [text.ownerDocument === fd, comment.ownerDocument === fd, P(text), P(comment), text.data, comment.data, text.parentNode === fd.body];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-insertions",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n function N(tag, id) { var n = document.createElement(tag); n.id = id; return n; }\n var b = fd.body, fp = fd.getElementById('fp');\n var a = N('i', 'ib');\n R.insertBefore = [b.insertBefore(a, fp) === a, a.ownerDocument === fd, a.nextSibling === fp];\n var c = N('i', 'rc'); var old = fd.createElement('u'); b.appendChild(old);\n R.replaceChild = [b.replaceChild(c, old) === old, c.ownerDocument === fd, old.parentNode, c.parentNode === b];\n var d = N('i', 'ap'), d2 = N('i', 'ap2'); b.append(d, 'str', d2);\n R.append = [d.ownerDocument === fd, d.nextSibling.ownerDocument === fd, d.nextSibling.data, d2.ownerDocument === fd, P(d.nextSibling)];\n var g = N('i', 'pp'); b.prepend(g); R.prepend = [g.ownerDocument === fd, b.firstChild === g];\n var h = N('i', 'bf'); fp.before(h); R.before = [h.ownerDocument === fd, fp.previousSibling === h];\n var j = N('i', 'af'); fp.after(j); R.after = [j.ownerDocument === fd, fp.nextSibling === j];\n var k = N('i', 'rw'); j.replaceWith(k); R.replaceWith = [k.ownerDocument === fd, fp.nextSibling === k, j.parentNode];\n var box = fd.createElement('div'); b.appendChild(box); box.appendChild(fd.createElement('s'));\n var l = N('i', 'rch'); box.replaceChildren(l); R.replaceChildren = [l.ownerDocument === fd, box.firstChild === l, box.childNodes.length];\n var m = N('i', 'ia'); R.insertAdjacent = [fp.insertAdjacentElement('beforebegin', m) === m, m.ownerDocument === fd, fp.previousSibling === m];\n var frag = document.createDocumentFragment(); var f1 = N('i', 'f1'), f2 = N('i', 'f2'); frag.append(f1, f2);\n b.appendChild(frag);\n R.fragment = [f1.ownerDocument === fd, f2.ownerDocument === fd, frag.ownerDocument === document, frag.childNodes.length, f1.parentNode === b, P(frag)];\n var ffrag = fd.createDocumentFragment(); var f3 = fd.createElement('i'); ffrag.appendChild(f3);\n document.body.appendChild(ffrag);\n R.fragmentFromFrame = [f3.ownerDocument === document, ffrag.ownerDocument === fd, f3.parentNode === document.body];\n var sub = N('div', 'sub'); sub.innerHTML = '<b><u><i id=deep>x</i></u></b>'; document.body.appendChild(sub); b.appendChild(sub);\n R.subtree = [fd.getElementById('deep') !== null, document.getElementById('deep'), sub.querySelector('#deep').ownerDocument === fd];\n var tpl = document.createElement('template'); tpl.innerHTML = '<p id=tc>x</p>'; var content = tpl.content;\n b.appendChild(tpl);\n R.template = [tpl.ownerDocument === fd, tpl.content === content, content.ownerDocument === fd, content.ownerDocument === tpl.ownerDocument, content.firstChild.id, content.firstChild.ownerDocument === content.ownerDocument, P(content), P(content.firstChild), fd.getElementById('tc')];\n var ht = fd.createElement('template'); ht.content.appendChild(N('b', 'intpl'));\n R.intoTemplate = [ht.content.firstChild.ownerDocument === ht.content.ownerDocument, ht.content.firstChild.ownerDocument === fd];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-insertion-errors",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n function N(tag) { return document.createElement(tag); }\n var b = fd.body, fp = fd.getElementById('fp');\n var x = N('i'); document.body.appendChild(x);\n R.childOfOther = [T(function () { b.insertBefore(x, document.getElementById('host')); }), x.ownerDocument === document, x.parentNode === document.body];\n var y = fd.createElement('i'); b.appendChild(y);\n R.removeOther = T(function () { document.body.removeChild(y); });\n R.replaceOtherChild = [T(function () { document.body.replaceChild(x, y); }), x.parentNode === document.body, y.parentNode === b];\n R.replaceChildFromOther = [T(function () { b.replaceChild(x, document.getElementById('host')); }), x.parentNode === document.body];\n R.document = [T(function () { b.appendChild(document); }), T(function () { document.body.appendChild(fd); }), T(function () { fd.appendChild(document); })];\n R.textParent = [T(function () { fp.firstChild.appendChild(x); }), x.ownerDocument === document];\n R.oneElement = [T(function () { fd.appendChild(x); }), x.ownerDocument === document, x.parentNode === document.body];\n var t = document.createTextNode('t');\n R.textInDoc = [T(function () { fd.appendChild(t); }), t.ownerDocument === document];\n var fragEls = document.createDocumentFragment(); fragEls.append(N('i'), N('u'));\n R.fragInDoc = [T(function () { fd.appendChild(fragEls); }), fragEls.childNodes.length, fragEls.firstChild.ownerDocument === document];\n var dt = fd.doctype;\n R.doctype = [T(function () { document.body.appendChild(dt); }), T(function () { document.appendChild(dt); }), dt.ownerDocument === fd];\n var fr2 = document.implementation.createHTMLDocument('x');\n var dt2 = fr2.doctype; fd.removeChild(fd.doctype);\n R.doctypeInto = [T(function () { fd.insertBefore(dt2, fd.documentElement); }), dt2.ownerDocument === fd, dt2.parentNode === fd, fd.doctype === dt2, fr2.doctype];\n var host = fd.createElement('div');\n R.ancestorAcross = T(function () { var o = N('div'); var i = fd.createElement('div'); o.appendChild(i); return [i.ownerDocument === document, o.contains(i)]; });\n R.inArg = T(function () { var o = N('div'); host.appendChild(o); host.appendChild(document.createTextNode('z')); return [o.ownerDocument === fd, host.lastChild.data]; });\n R.afterNode = T(function () { var o = N('i'); var u = N('u'); document.body.append(o, u); fd.body.append(u, o); return [o.ownerDocument === fd, u.nextSibling === o, document.body.contains(o)]; });\n R.beforeSkip = T(function () { var s1 = fd.createElement('i'), s2 = N('u'); fd.body.append(s1); s1.before(s2, s1); return [s2.ownerDocument === fd, s2.nextSibling === s1]; });\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-adopt-import",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var e = document.createElement('div'); e.id = 'ae'; e.expando = 1; e.innerHTML = '<span>t</span>'; document.body.appendChild(e);\n var st = e.style;\n R.adopt = [fd.adoptNode(e) === e, e.ownerDocument === fd, e.parentNode, e.expando, e.style === st, P(e), document.body.contains(e), e.isConnected, P(e.firstChild), e.firstChild.ownerDocument === fd];\n fd.body.appendChild(e);\n R.adoptBack = [document.adoptNode(e) === e, e.ownerDocument === document, e.parentNode, fd.getElementById('ae')];\n R.adoptDocument = [T(function () { fd.adoptNode(document); }), T(function () { document.adoptNode(fd); }), T(function () { document.adoptNode(document); })];\n var frag = document.createDocumentFragment(); var c = document.createElement('i'); frag.appendChild(c);\n R.adoptFragment = [fd.adoptNode(frag) === frag, frag.ownerDocument === fd, c.ownerDocument === fd, frag.firstChild === c];\n var t = document.createTextNode('t'); fd.adoptNode(t); R.adoptText = [t.ownerDocument === fd, P(t)];\n var dt = fd.implementation.createDocumentType('a', '', ''); R.adoptDoctype = [document.adoptNode(dt) === dt, dt.ownerDocument === document, P(dt)];\n var hd = document.implementation.createHTMLDocument('h');\n var fe = fd.getElementById('fp');\n R.adoptIntoCreated = [hd.adoptNode(fe) === fe, fe.ownerDocument === hd, fd.getElementById('fp'), P(fe), hd.body.appendChild(fe) === fe, hd.getElementById('fp') === fe];\n fd.body.appendChild(fe);\n R.createdToFrame = [fe.ownerDocument === fd, fe.parentNode === fd.body, hd.getElementById('fp'), P(fe)];\n var ie = document.createElement('section'); ie.setAttribute('a', 'b'); ie.innerHTML = '<u>x</u>'; ie.expando = 1;\n ie.addEventListener('click', function () { R.importClick = 1; });\n var im = fd.importNode(ie, true);\n R.importFromParent = [P(im), im.ownerDocument === fd, im.parentNode, im.expando, im.getAttribute('a'), im.firstChild.textContent, P(im.firstChild), ie.ownerDocument === document];\n im.click(); R.importListeners = R.importClick === undefined;\n var im2 = fd.importNode(ie);\n R.importShallow = [im2.childNodes.length, P(im2)];\n var fsec = fd.createElement('section'); fsec.innerHTML = '<u>y</u>';\n var im3 = document.importNode(fsec, true);\n R.importFromFrame = [P(im3), im3.ownerDocument === document, P(im3.firstChild), im3.firstChild.textContent];\n var im4 = w.eval('document.importNode(parent.document.createElement(\"b\"))');\n R.importByFrameScript = [P(im4), im4.ownerDocument === fd];\n var im5 = Document.prototype.importNode.call(fd, ie);\n R.importCallParentFn = [P(im5), im5.ownerDocument === fd];\n var im6 = w.Document.prototype.importNode.call(document, fsec);\n R.importCallFrameFn = [P(im6), im6.ownerDocument === document];\n R.importDocument = [T(function () { fd.importNode(document); }), T(function () { fd.importNode(fd); })];\n var ffrag = document.createDocumentFragment(); ffrag.append(document.createElement('i'), 't');\n var im7 = fd.importNode(ffrag, true); R.importFragment = [im7.childNodes.length, im7.ownerDocument === fd, ffrag.childNodes.length, P(im7)];\n var c1 = fd.createElement('p').cloneNode(); R.cloneParentCall = [P(c1), c1.ownerDocument === fd];\n var c2 = w.eval('document.createElement(\"p\").cloneNode()'); R.cloneFrameCall = [P(c2), c2.ownerDocument === fd];\n var c3 = document.createElement('p'); var c4 = w.Node.prototype.cloneNode.call(c3); R.cloneFrameFn = [P(c4), c4.ownerDocument === document];\n var ti = document.createElement('input'); ti.value = 'typed'; ti.checked = true; var tim = fd.importNode(ti); R.importInput = [tim.value, tim.getAttribute('value')];\n var scr = document.createElement('script'); scr.textContent = 'R.ranScript = (R.ranScript || 0) + 1'; document.body.appendChild(scr);\n var imScr = fd.importNode(scr, true); fd.body.appendChild(imScr);\n R.importStartedScript = R.ranScript;\n var scr2 = document.createElement('script'); scr2.textContent = 'parent.R.ranImported = window === parent';\n var imScr2 = fd.importNode(scr2, true); fd.body.appendChild(imScr2);\n R.importNotStarted = R.ranImported;\n var tpl = document.createElement('template'); tpl.innerHTML = '<p>y</p>';\n var imTpl = fd.importNode(tpl, true); R.importTemplate = [imTpl.content.childNodes.length, imTpl.content.ownerDocument === imTpl.ownerDocument, imTpl.ownerDocument === fd, P(imTpl.content), P(imTpl.content.firstChild)];\n var imContent = fd.importNode(tpl.content, true); R.importTemplateContent = [imContent.childNodes.length, imContent.ownerDocument === fd];\n var hdoc = new DOMParser().parseFromString('<p id=dp>x</p>', 'text/html');\n var dp = hdoc.getElementById('dp');\n fd.body.appendChild(dp); R.fromParser = [dp.ownerDocument === fd, hdoc.getElementById('dp'), P(dp), dp.parentNode === fd.body];\n var fparsed = new w.DOMParser().parseFromString('<p id=fdp>x</p>', 'text/html');\n var fdp = fparsed.getElementById('fdp'); document.body.appendChild(fdp); R.fromFrameParser = [fdp.ownerDocument === document, P(fdp), P(fparsed)];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-reads-across",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body, fp = fd.getElementById('fp'), top1 = document.getElementById('host');\n R.contains = [document.contains(fp), b.contains(top1), top1.contains(fp), document.documentElement.contains(fd.documentElement), fd.contains(fp), f.contains(fp)];\n var cmp1 = top1.compareDocumentPosition(fp), cmp2 = fp.compareDocumentPosition(top1);\n R.compare = [cmp1 & 1, cmp1 & 32, cmp2 & 1, cmp2 & 32, (cmp1 & 6) !== (cmp2 & 6), (cmp1 & 6) !== 0, document.compareDocumentPosition(fd) & 33];\n R.same = [top1.isSameNode(fp), fp.isSameNode(fp), document.isSameNode(fd), top1.isSameNode(null)];\n var eq = document.createElement('p'); eq.id = 'fp'; eq.textContent = 'x';\n R.equal = [eq.isEqualNode(fp), fp.isEqualNode(eq), top1.isEqualNode(fp), document.documentElement.isEqualNode(fd.documentElement)];\n var ev = new MouseEvent('x', { relatedTarget: fp });\n R.related = [ev.relatedTarget === fp, new w.MouseEvent('x', { relatedTarget: top1 }).relatedTarget === top1, new MouseEvent('x', { relatedTarget: w }).relatedTarget === w, new FocusEvent('x', { relatedTarget: fp }).relatedTarget === fp];\n var log = [];\n fp.addEventListener('xx', function (e) { log.push(['frame node', e.target === fp, e instanceof Event, e instanceof w.Event, this === fp, w.event === e, window.event === e, P(e), e.composedPath().length]); });\n document.body.addEventListener('xx', function (e) { log.push(['never']); });\n R.dispatch = [fp.dispatchEvent(new Event('xx', { bubbles: true })), fp.dispatchEvent(new w.Event('xx'))];\n R.dispatchLog = log;\n var ev2 = new CustomEvent('yy'); var seen = []; function rec(e) { seen.push(e.target === top1 ? 't' : (e.target === fp ? 'f' : '?')); }\n top1.addEventListener('yy', rec); fp.addEventListener('yy', rec);\n top1.dispatchEvent(ev2); fp.dispatchEvent(ev2); R.redispatch = [seen, ev2.target === fp];\n R.windowDispatch = (function () { var got = []; w.addEventListener('zz', function (e) { got.push([e.target === w, e.isTrusted, e.currentTarget === w]); }); w.dispatchEvent(new Event('zz')); window.addEventListener('zz', function (e) { got.push(['top', e.target === window]); }); window.dispatchEvent(new w.Event('zz')); return got; })();\n var ff = fd.getElementById('ff'), fb = fd.getElementById('fb');\n R.formData = [T(function () { return Array.from(new FormData(ff).entries()); }), T(function () { return Array.from(new FormData(ff, fb).entries()); }), T(function () { return P(new FormData(ff)); }), T(function () { return Array.from(new w.FormData(ff).entries()); })];\n var pf = document.createElement('form'); document.body.appendChild(pf);\n R.formDataOtherSubmitter = [T(function () { return Array.from(new FormData(pf, fb).entries()); }), T(function () { pf.requestSubmit(fb); })];\n R.computed = [getComputedStyle(fp).display, P(getComputedStyle(fp)), w.getComputedStyle(top1).display, P(w.getComputedStyle(top1))];\n R.active = [document.activeElement === document.body, fd.activeElement === fd.body];\n R.sub = T(function () { var a = fd.createElement('button'); var s = new SubmitEvent('x', { submitter: a }); return s.submitter === a; });\n R.observers = T(function () { var io = new IntersectionObserver(function () {}, { root: fp }); var io2 = new IntersectionObserver(function () {}, { root: fd }); return [io.root === fp, io2.root === fd]; });\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-other-arguments",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var ft = fd.getElementById('ft'), fs = fd.getElementById('fs');\n var cap = document.createElement('caption'); cap.textContent = 'c'; ft.caption = cap;\n R.caption = [ft.caption === cap, cap.ownerDocument === fd, ft.firstChild === cap];\n var head = document.createElement('thead'); ft.tHead = head; R.thead = [ft.tHead === head, head.ownerDocument === fd];\n var foot = document.createElement('tfoot'); ft.tFoot = foot; R.tfoot = [ft.tFoot === foot, foot.ownerDocument === fd];\n var o = document.createElement('option'); o.textContent = 'po'; fs.add(o);\n R.selectAdd = [o.ownerDocument === fd, fs.options.length, fs.options[1] === o];\n var o2 = document.createElement('option'); fs.options.add(o2); R.optionsAdd = [o2.ownerDocument === fd, fs.options.length];\n var o3 = document.createElement('option'); fs[0] = o3; R.selectSet = [o3.ownerDocument === fd, fs.options[0] === o3];\n var o4 = document.createElement('option'); fs.options[1] = o4; R.optionsSet = [o4.ownerDocument === fd, fs.options[1] === o4];\n var o5 = document.createElement('option'); R.selectBeforeOther = [T(function () { fs.add(o5, document.getElementById('host')); }), o5.ownerDocument === document];\n var pbody = document.createElement('body'); pbody.id = 'pb';\n var fbodyOld = fd.body;\n R.bodySet = [T(function () { fd.body = pbody; return fd.body === pbody; }), pbody.ownerDocument === fd, fbodyOld.parentNode];\n var fnew = fd.createElement('body'); var dd = document.implementation.createHTMLDocument('d');\n R.bodySetToOtherArena = [T(function () { dd.body = fnew; return dd.body === fnew; }), fnew.ownerDocument === dd];\n var e = document.createElement('div'); e.id = 'io'; pbody.appendChild(e);\n var hits = []; var io = new IntersectionObserver(function (entries) { hits.push(['io', entries[0].target === e, P(entries[0])]); R.io = hits; }); io.observe(e);\n var ro = new ResizeObserver(function (entries) { R.ro = ['ro', entries[0].target === e, P(entries[0])]; }); ro.observe(e);\n R.ioUnobserve = T(function () { io.unobserve(document.getElementById('host')); return 'ok'; });\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-mutation-observers",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body;\n function summary(rs) { return rs.map(function (r) { return [r.type, r.target === e ? 'e' : (r.target === document.body ? 'pbody' : (r.target === b ? 'fbody' : '?')), r.addedNodes.length, r.removedNodes.length, r.addedNodes[0] === e, r.removedNodes[0] === e, r.attributeName, P(r), P(r.addedNodes)]; }); }\n var e = document.createElement('div'); e.innerHTML = '<i></i>'; document.body.appendChild(e);\n var m1 = new MutationObserver(function () {}); m1.observe(e, { attributes: true, childList: true, subtree: true });\n var m2 = new MutationObserver(function () {}); m2.observe(document.body, { childList: true, subtree: true });\n var m3 = new MutationObserver(function () {}); m3.observe(b, { childList: true, subtree: true });\n var m4 = new w.MutationObserver(function () {}); m4.observe(e, { attributes: true });\n e.setAttribute('a', 1);\n var inner = e.firstChild;\n R.waitingTarget = 0;\n b.appendChild(e);\n var r1 = m1.takeRecords();\n R.m1BeforeMove = summary(r1);\n R.m2Move = summary(m2.takeRecords());\n R.m3Move = summary(m3.takeRecords());\n R.m4Before = summary(m4.takeRecords());\n e.setAttribute('b', 2);\n inner.setAttribute('c', 3);\n e.appendChild(fd.createElement('u'));\n R.m1After = summary(m1.takeRecords());\n R.m4After = summary(m4.takeRecords());\n R.m3After = summary(m3.takeRecords());\n R.m2After = summary(m2.takeRecords());\n var d = document.createElement('div'); document.body.appendChild(d);\n d.innerHTML = '<s></s><s></s>';\n var waiting = new MutationObserver(function () {}); waiting.observe(d, { childList: true });\n d.innerHTML = '<u id=pu></u>';\n var added = null;\n b.appendChild(d);\n var wr = waiting.takeRecords();\n R.addedNotSeen = [wr.length, wr[0].target === d, wr[0].addedNodes.length, wr[0].addedNodes[0] === d.firstChild, wr[0].addedNodes[0].ownerDocument === fd, wr[0].removedNodes.length, wr[0].removedNodes[0].ownerDocument === document];\n var e2 = document.createElement('div'); document.body.appendChild(e2);\n var async1 = []; var m5 = new MutationObserver(function (rs, ob) { async1.push([rs.length, rs[0].target === e2, this === ob, P(rs)]); R.async = async1; }); m5.observe(e2, { attributes: true });\n e2.setAttribute('a', 1); b.appendChild(e2);\n Promise.resolve().then(function () { e2.setAttribute('b', 2); });\n var e3 = document.createElement('div'); document.body.appendChild(e3); var sub = document.createElement('div'); e3.appendChild(sub);\n var m6 = new MutationObserver(function () {}); m6.observe(e3, { attributes: true, subtree: true });\n document.body.removeChild(e3); e3.removeChild(sub);\n b.appendChild(sub); sub.setAttribute('t', 1);\n R.transientAcross = [m6.takeRecords().length];\n var e4 = document.createElement('div'); document.body.appendChild(e4); var c4 = document.createElement('i'); e4.appendChild(c4);\n var m7 = new MutationObserver(function () {}); m7.observe(e4, { attributes: true, subtree: true });\n e4.removeChild(c4); b.appendChild(c4); c4.setAttribute('t', 1);\n R.transientMoved = m7.takeRecords().map(function (r) { return r.target === c4; });\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-live-state",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body;\n var e = document.createElement('div'); e.innerHTML = '<span class=k>t</span><span>u</span>'; document.body.appendChild(e);\n var q = document.querySelectorAll('span'); var byTag = e.getElementsByTagName('span'); var byClass = e.getElementsByClassName('k'); var pDoc = document.getElementsByTagName('span');\n var first = q[0];\n var unseen = e.lastChild;\n R.preLen = [q.length, byTag.length, byClass.length, pDoc.length];\n b.appendChild(e);\n R.moved = { staticLen: q.length, staticFirst: q[0] === first, staticOwner: q[1].ownerDocument === fd, byTag: [byTag.length, byTag[0] === first, P(byTag)], byClass: [byClass.length], pDoc: pDoc.length, unseenSame: unseen === e.lastChild };\n e.appendChild(fd.createElement('span')); R.grow = [byTag.length, q.length];\n var i = document.createElement('input'); i.value = 'typed'; i.setSelectionRange(1, 3); var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;\n var ta = document.createElement('textarea'); ta.value = 'area'; var sel = document.createElement('select'); sel.innerHTML = '<option>a<option id=so>b'; sel.selectedIndex = 1; var det = document.createElement('details'); det.open = true;\n document.body.append(i, cb, ta, sel, det); b.append(i, cb, ta, sel, det);\n R.controls = { value: i.value, attr: i.getAttribute('value'), sel: [i.selectionStart, i.selectionEnd], checked: cb.checked, area: ta.value, index: sel.selectedIndex, opt: sel.selectedOptions[0].id, open: det.open };\n var form = document.createElement('form'); var inner = document.createElement('input'); inner.name = 'n'; inner.value = 'v'; form.appendChild(inner); document.body.appendChild(form);\n var ctrls = form.elements;\n R.formBefore = [inner.form === form, ctrls.length, form.n === inner];\n b.appendChild(form);\n R.form = [inner.form === form, ctrls.length, form.n === inner, ctrls[0] === inner, form.ownerDocument === fd, P(ctrls)];\n var lone = document.createElement('input'); form.appendChild(lone); var form2 = document.createElement('form'); form2.id = 'pform'; document.body.appendChild(form2);\n var byAttr = document.createElement('input'); byAttr.setAttribute('form', 'pform'); document.body.appendChild(byAttr);\n R.formAttr = [byAttr.form === form2, form2.elements.length]; b.appendChild(byAttr); R.formAttrAfter = [byAttr.form, form2.elements.length];\n var l = document.createElement('label'); var li = document.createElement('input'); li.id = 'lab'; l.htmlFor = 'lab'; document.body.append(l, li); var labels = li.labels;\n R.labelsBefore = [labels.length, l.control === li]; b.appendChild(li); R.labelsAfter = [labels.length, l.control, P(labels)];\n var a = document.createElement('a'); a.href = 'rel.html'; var before = a.href; document.body.appendChild(a); b.appendChild(a); R.anchor = [before === a.href, a.baseURI === fd.baseURI, a.ownerDocument === fd];\n var h = document.createElement('div'); h.setAttribute('onclick', 'R.handler = [this === h, window === parent ? \"frame\" : \"other\", typeof parent]; '); window.h = h;\n document.body.appendChild(h); b.appendChild(h); h.click(); R.lazyHandlerAttr = R.handler;\n var h2 = document.createElement('div'); h2.setAttribute('onclick', 'parent.R.handler2 = window === top ? \"parent\" : \"frame\";'); b.appendChild(h2); h2.click(); R.handlerNeverCompiled = R.handler2;\n var h3 = document.createElement('div'); h3.setAttribute('onclick', 'top.R.handler3 = window === top ? \"parent\" : \"frame\";'); var compiled = h3.onclick; b.appendChild(h3); h3.click(); R.handlerCompiledBefore = [R.handler3, h3.onclick === compiled, P(compiled)];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-focus",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body, log = [];\n var i = document.createElement('input'); document.body.appendChild(i);\n i.addEventListener('focus', function () { log.push('focus'); }); i.addEventListener('blur', function () { log.push('blur'); });\n i.focus();\n R.before = [document.activeElement === i, document.hasFocus(), fd.hasFocus()];\n b.appendChild(i);\n R.after = [document.activeElement === document.body, fd.activeElement === fd.body, i.matches(':focus'), log.slice()];\n i.focus();\n R.refocus = [fd.activeElement === i, document.activeElement === f, document.hasFocus(), fd.hasFocus(), i.matches(':focus'), log.slice()];\n document.body.appendChild(i);\n R.back = [fd.activeElement === fd.body, document.activeElement === document.body, i.matches(':focus'), log.slice()];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-frames-in-subtree",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body, log = [];\n var i = document.createElement('iframe'); i.id = 'inner'; i.name = 'inr'; var loads = 0; i.addEventListener('load', function () { loads++; });\n document.body.appendChild(i);\n var w1 = i.contentWindow, d1 = i.contentDocument; w1.exp = 1;\n R.before = [loads, w1.parent === window, typeof window.inr];\n b.appendChild(i);\n var w2 = i.contentWindow;\n R.after = [loads, w1 === w2, w1.closed, w2.closed, w2.exp, w2.parent === w, w.frames.length, frames.length, w.inr === w2, window.inr, d1.defaultView, i.contentDocument.defaultView === w2, i.ownerDocument === fd];\n var outer = document.createElement('div'); var inside = document.createElement('iframe'); outer.appendChild(inside); document.body.appendChild(outer);\n var insideWin = inside.contentWindow;\n var insideDoc = inside.contentDocument; var pinned = insideDoc.createElement('p'); insideDoc.body.appendChild(pinned);\n b.appendChild(outer);\n R.nested = [inside.contentWindow !== insideWin, insideWin.closed, inside.contentWindow.parent === w, pinned.ownerDocument === insideDoc];\n var fi = fd.createElement('iframe'); b.appendChild(fi); var fw = fi.contentWindow;\n document.body.appendChild(fi);\n R.fromFrame = [fi.contentWindow !== fw, fw.closed, fi.contentWindow.parent === window, fi.ownerDocument === document, P(fi)];\n var dead = document.createElement('iframe'); dead.src = 'x.html'; document.body.appendChild(dead);\n fd.adoptNode(dead); R.adoptedFrame = [dead.contentWindow, dead.isConnected];\n var noDoc = document.implementation.createHTMLDocument('h'); var fr = document.createElement('iframe'); noDoc.body.appendChild(fr); R.inCreated = [fr.contentWindow];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-scripts-in-subtree",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body;\n window.L = []; w.L = window.L;\n var s = document.createElement('script'); s.textContent = 'L.push([\"unstarted\", window === top ? \"parent\" : \"frame\", document === top.document ? \"topdoc\" : \"framedoc\", document.currentScript === null ? \"nocs\" : (document.currentScript.ownerDocument === document)])';\n b.appendChild(s);\n R.unstarted = window.L.slice();\n var ran = document.createElement('script'); ran.textContent = 'L.push([\"ran\", window === top ? \"parent\" : \"frame\"])'; document.body.appendChild(ran);\n var n = window.L.length; b.appendChild(ran); R.started = window.L.length === n;\n var inDiv = document.createElement('div'); var s2 = document.createElement('script'); s2.textContent = 'L.push([\"in a div\", window === top ? \"parent\" : \"frame\"])'; inDiv.appendChild(s2);\n b.appendChild(inDiv); R.inDiv = window.L.slice();\n var d = document.implementation.createHTMLDocument('h'); var s3 = d.createElement('script'); s3.textContent = 'L.push([\"from created\", window === top ? \"parent\" : \"frame\"])'; d.body.appendChild(s3);\n R.createdNoRun = window.L.length; b.appendChild(s3); R.fromCreated = window.L.slice();\n var ext = document.createElement('script'); ext.src = 's.js'; ext.onload = function () { R.extLoad = [window.L.slice(-1)[0]]; }; b.appendChild(ext);\n var ext2 = document.createElement('script'); ext2.src = 's2.js'; ext2.onload = function () { R.ext2Load = window.L.slice(-1)[0]; }; document.body.appendChild(ext2); b.appendChild(ext2);\n var st = document.createElement('style'); st.textContent = '#fp { color: rgb(1, 2, 3); } #host { color: rgb(4, 5, 6); }'; document.body.appendChild(st);\n var hostColor = getComputedStyle(document.getElementById('host')).color; var sheet = st.sheet;\n R.styleBefore = [hostColor, document.styleSheets.length, fd.styleSheets.length];\n b.appendChild(st);\n R.styleAfter = [getComputedStyle(document.getElementById('host')).color, w.getComputedStyle(fd.getElementById('fp')).color, document.styleSheets.length, fd.styleSheets.length, st.sheet === sheet, st.sheet !== null, sheet.ownerNode, P(st.sheet), sheet.cssRules.length];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    },
+    "s.js": {
+     "text": "L.push(['ext', window === top ? 'parent' : 'frame'])"
+    },
+    "s2.js": {
+     "text": "L.push(['ext2', window === top ? 'parent' : 'frame'])"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 500); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-attr",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var e = document.createElement('div'); e.setAttribute('a', '1'); var a = e.getAttributeNode('a');\n var fe = fd.createElement('div'); fe.setAttribute('b', '2'); var fa = fe.getAttributeNode('b');\n R.inUse = [T(function () { fe.setAttributeNode(a); }), T(function () { fe.setAttributeNodeNS(a); }), T(function () { fe.attributes.setNamedItem(a); }), T(function () { fe.attributes.setNamedItemNS(a); }), T(function () { e.setAttributeNode(fa); })];\n R.removeOther = [T(function () { fe.removeAttributeNode(a); }), T(function () { e.removeAttributeNode(fa); }), a.ownerElement === e, fa.ownerElement === fe];\n var detached = document.createAttribute('c'); detached.value = 'v';\n R.detachedAcross = [fe.setAttributeNode(detached), fe.getAttribute('c'), detached.ownerElement === fe, detached.ownerDocument === fd, P(detached), fe.getAttributeNode('c') === detached];\n var fd2 = fd.createAttribute('d'); fd2.value = 'w';\n R.detachedFromFrame = [e.attributes.setNamedItem(fd2), e.getAttribute('d'), fd2.ownerElement === e, fd2.ownerDocument === document, P(fd2)];\n var attrOfMoved = e.getAttributeNode('a'); fd.body.appendChild(e);\n R.moved = [attrOfMoved.ownerElement === e, attrOfMoved.ownerDocument === fd, e.getAttributeNode('a') === attrOfMoved, P(attrOfMoved)];\n attrOfMoved.value = 'x'; R.write = e.getAttribute('a');\n R.removeAfterMove = [e.removeAttributeNode(attrOfMoved) === attrOfMoved, attrOfMoved.ownerElement, attrOfMoved.value, attrOfMoved.ownerDocument === fd];\n var stay = fe.getAttributeNode('b'); document.body.appendChild(fe); R.frameAttrMoved = [stay.ownerDocument === document, stay.ownerElement === fe, P(stay)];\n var keep = document.createElement('i'); keep.setAttribute('k', '1'); var ka = keep.getAttributeNode('k'); keep.removeAttributeNode(ka); fd.body.appendChild(keep);\n R.removedAttrStays = [ka.ownerDocument === document, ka.value];\n var replaced = document.createElement('i'); replaced.setAttribute('z', 'old'); var oldZ = replaced.getAttributeNode('z'); var newZ = fd.createAttribute('z'); newZ.value = 'new';\n R.replace = [replaced.setAttributeNode(newZ) === oldZ, oldZ.ownerElement, oldZ.value, replaced.getAttribute('z'), newZ.ownerDocument === document];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-retired",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = fd.body, fe = fd.createElement('div'); fe.innerHTML = '<i>t</i>'; b.appendChild(fe);\n var pe = document.createElement('div'); pe.id = 'pe'; document.body.appendChild(pe);\n var fp = fd.getElementById('fp');\n f.remove();\n R.retiredToParent = [T(function () { document.body.appendChild(fe); return [fe.ownerDocument === document, fe.parentNode === document.body, fe.isConnected, P(fe)]; })];\n R.parentToRetired = [T(function () { b.appendChild(pe); return [pe.ownerDocument === fd, pe.parentNode === b, pe.isConnected, document.getElementById('pe'), fd.getElementById('pe') === pe, P(pe)]; })];\n R.adoptIntoRetired = T(function () { var x = document.createElement('i'); return [fd.adoptNode(x) === x, x.ownerDocument === fd]; });\n R.importIntoRetired = T(function () { var x = fd.importNode(document.createElement('u')); return [x.ownerDocument === fd]; });\n var s = document.createElement('script'); s.textContent = 'top.R.ranInRetired = 1'; b.appendChild(s); R.scriptInRetired = R.ranInRetired === undefined;\n var again = document.createElement('i'); document.body.appendChild(again); b.appendChild(again); document.body.appendChild(again); R.andBack = [again.ownerDocument === document];\n var frameInRetired = document.createElement('iframe'); b.appendChild(frameInRetired); R.frameInRetired = [frameInRetired.contentWindow];\n var ifr = document.createElement('iframe'); document.body.appendChild(ifr); var iw = ifr.contentWindow, idoc = ifr.contentDocument, only = idoc.documentElement;\n document.body.appendChild(only); ifr.remove(); R.onlyNode = [only.ownerDocument === document, only.parentNode === document.body, idoc.documentElement, iw.closed];\n \n};\n</script></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "nodes-sandbox-script",
+   "html": "<!DOCTYPE html><body><div id=host></div><iframe id=f srcdoc=\"<!DOCTYPE html><body><p id=fp>x</p><form id=ff action=/z><input name=a value=1><button id=fb name=b value=2>s</button></form><table id=ft></table><select id=fs><option id=fo>o</select></body>\"></iframe><script>\nvar R = {};\nfunction P(o) {\n  var w = document.getElementById('f') && document.getElementById('f').contentWindow;\n  var p = Object.getPrototypeOf(o);\n  while (p) {\n    if (p === Object.prototype) return 'parent';\n    if (w && p === w.Object.prototype) return 'frame';\n    p = Object.getPrototypeOf(p);\n  }\n  return 'other';\n}\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n\nwindow.onload = function () {\n var f = document.getElementById('f'), w = f.contentWindow, fd = f.contentDocument;\n\n var b = document.getElementById('sb').contentDocument;\n window.L = [];\n var s = document.createElement('script'); s.textContent = 'top.L.push(\"ran in sandbox\")'; b.body.appendChild(s);\n R.moved = window.L.slice();\n document.body.appendChild(s); R.movedBack = window.L.slice();\n var s2 = b.createElement('script'); s2.textContent = 'top.L.push(\"made in sandbox\")'; document.body.appendChild(s2); R.madeIn = window.L.slice();\n var s3 = document.createElement('script'); s3.textContent = 'top.L.push(\"fresh\")'; document.body.appendChild(s3); R.control = window.L.slice();\n var h = document.createElement('div'); h.setAttribute('onclick', 'top.L.push(\"handler in sandbox\")'); b.body.appendChild(h); h.click(); R.handler = window.L.slice();\n \n};\n</script><iframe id=sb sandbox=allow-same-origin srcdoc=\"<!DOCTYPE html><body>\"></iframe></body>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 300); })"
+    }
+   ]
+  },
+  {
+   "name": "errors-callbacks",
+   "html": "<!DOCTYPE html><body><div id=t></div><script>\nvar R = { log: [], unh: [] };\nwindow.onerror = function (m) { R.log.push('top onerror ' + m); return true; };\nfunction pfn() { throw new Error('parent fn'); }\n</script><iframe id=f srcdoc=\"<script>\nwindow.onerror = function (m) { parent.R.log.push('frame onerror ' + m); return true; };\nfunction ffn() { throw new Error('frame fn'); }\nwindow.fasync = async function () { throw new Error('frame async'); };\nwindow.fawait = async function () { await null; throw new Error('frame async after await'); };\naddEventListener('unhandledrejection', function (e) { parent.R.unh.push('frame ' + (e.reason && e.reason.message)); e.preventDefault(); });\n</script>\"></iframe><iframe id=g srcdoc=\"<script>\nwindow.onerror = function (m) { parent.R.log.push('frame onerror ' + m); return true; };\nfunction ffn() { throw new Error('frame fn'); }\nwindow.fasync = async function () { throw new Error('frame async'); };\nwindow.fawait = async function () { await null; throw new Error('frame async after await'); };\naddEventListener('unhandledrejection', function (e) { parent.R.unh.push('frame ' + (e.reason && e.reason.message)); e.preventDefault(); });\n</script>\"></iframe><script>\nwindow.onload = function () {\n  var f = document.getElementById('f'), w = f.contentWindow, d = f.contentDocument;\n  var g = document.getElementById('g'), gw = g.contentWindow, gfn = gw.ffn;\n  g.remove();\n  function mark(text) { R.log.push('-- ' + text); }\n  w.setTimeout(pfn, 0);\n  setTimeout(w.ffn, 0);\n  d.body.addEventListener('click', pfn); d.body.click(); d.body.removeEventListener('click', pfn);\n  document.body.addEventListener('click', w.ffn); document.body.click(); document.body.removeEventListener('click', w.ffn);\n  d.body.onclick = pfn; d.body.click(); d.body.onclick = null;\n  document.body.onclick = w.ffn; document.body.click(); document.body.onclick = null;\n  d.body.addEventListener('click', { handleEvent: pfn }); d.body.click();\n  w.requestAnimationFrame(pfn); requestAnimationFrame(w.ffn);\n  w.queueMicrotask(pfn); queueMicrotask(w.ffn);\n  w.requestIdleCallback(pfn); requestIdleCallback(w.ffn);\n  var m1 = new w.MutationObserver(pfn); m1.observe(d.body, { attributes: true }); d.body.setAttribute('a', 1);\n  var m2 = new MutationObserver(w.ffn); m2.observe(document.body, { attributes: true }); document.body.setAttribute('a', 1);\n  var i1 = new w.IntersectionObserver(pfn); i1.observe(d.body);\n  var i2 = new IntersectionObserver(w.ffn); i2.observe(document.body);\n  var r1 = new w.ResizeObserver(pfn); r1.observe(d.body);\n  var r2 = new ResizeObserver(w.ffn); r2.observe(document.body);\n  setTimeout(gfn, 0);\n  try { gfn(); } catch (e) { R.retiredCall = [e.message, e instanceof gw.Error, e instanceof Error]; }\n  queueMicrotask(gfn);\n  w.setTimeout(gfn, 0);\n  gw.setTimeout(pfn, 0);\n  w.reportError(new Error('report by frame'));\n  reportError(new w.Error('report by top'));\n  gw.reportError(new Error('report by retired'));\n  window.addEventListener('message', w.ffn); window.postMessage('m', '*');\n  w.setTimeout('throw new Error(\"string timer\")', 0);\n};\n</script>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 600); })"
+    }
+   ]
+  },
+  {
+   "name": "errors-promises",
+   "html": "<!DOCTYPE html><body><script>\nvar R = { log: [], unh: [] };\naddEventListener('unhandledrejection', function (e) { R.unh.push('top ' + (e.reason && e.reason.message)); e.preventDefault(); });\nfunction pfn() { throw new Error('parent then'); }\n</script><iframe id=f srcdoc=\"<script>\nwindow.onerror = function (m) { parent.R.log.push('frame onerror ' + m); return true; };\nfunction ffn() { throw new Error('frame fn'); }\nwindow.fasync = async function () { throw new Error('frame async'); };\nwindow.fawait = async function () { await null; throw new Error('frame async after await'); };\naddEventListener('unhandledrejection', function (e) { parent.R.unh.push('frame ' + (e.reason && e.reason.message)); e.preventDefault(); });\n</script>\"></iframe><iframe id=g srcdoc=\"<script>\nwindow.onerror = function (m) { parent.R.log.push('frame onerror ' + m); return true; };\nfunction ffn() { throw new Error('frame fn'); }\nwindow.fasync = async function () { throw new Error('frame async'); };\nwindow.fawait = async function () { await null; throw new Error('frame async after await'); };\naddEventListener('unhandledrejection', function (e) { parent.R.unh.push('frame ' + (e.reason && e.reason.message)); e.preventDefault(); });\n</script>\"></iframe><script>\nwindow.onload = function () {\n  var f = document.getElementById('f'), w = f.contentWindow;\n  var g = document.getElementById('g'), gw = g.contentWindow, gasync = gw.fasync;\n  var gP = gw.Promise;\n  g.remove();\n  w.Promise.reject(new Error('w.Promise.reject'));\n  Promise.reject(new Error('Promise.reject'));\n  Promise.reject.call(w.Promise, new Error('reject.call'));\n  w.Promise.resolve().then(pfn);\n  Promise.resolve().then(w.ffn);\n  Promise.prototype.then.call(w.Promise.resolve(), function () { throw new Error('then.call on a frame promise'); });\n  w.fasync();\n  w.fawait();\n  (async function () { await w.Promise.resolve(); throw new Error('top async'); })();\n  new w.Promise(function (_, rej) { rej(new Error('new w.Promise')); });\n  w.Promise.resolve().finally(function () { throw new Error('finally'); });\n  w.Promise.all([Promise.reject(new Error('all member'))]).catch(function () {});\n  w.Promise.all([w.Promise.reject(new Error('w.all rejects'))]);\n  Promise.all.call(w.Promise, [1, Promise.reject(new Error('all.call'))]);\n  w.Promise.reject(new w.Error('frame error')).then();\n  gP.reject(new Error('retired Promise'));\n  gasync();\n};\n</script>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 500); })"
+    }
+   ]
+  },
+  {
+   "name": "caller-urls",
+   "html": "<!DOCTYPE html><body><script>var R = {};</script><iframe id=f src=\"frame.html\"></iframe><iframe id=b></iframe><script>\nvar folder = location.href.replace(/[^/]*$/, ''); function name(u) { return String(u).replace(folder, 'F/').replace(location.origin, ''); }\nwindow.onload = function () {\n  var f = document.getElementById('f'), w = f.contentWindow;\n  R.frameUrl = name(w.location.href);\n  w.fetch('sub2.txt').then(function (r) { R.fetch = name(r.url); });\n  var x = new w.XMLHttpRequest(); x.open('GET', 'sub2.txt'); x.onload = function () { R.xhr = name(x.responseURL); }; x.send();\n  var y = new XMLHttpRequest(); y.open('GET', 'sub2.txt'); y.onload = function () { R.xhrTop = name(y.responseURL); }; y.send();\n  var im = new w.Image(); im.src = 'sub2.txt'; R.image = name(im.src);\n  var c = document.createElement('iframe'); document.body.appendChild(c); var cw = c.contentWindow;\n  cw.location.href = 'one.html';\n  var c2 = document.createElement('iframe'); document.body.appendChild(c2);\n  c2.contentWindow.location.assign('one.html');\n  var c3 = document.createElement('iframe'); document.body.appendChild(c3);\n  c3.contentWindow.location.replace('one.html');\n  var c4 = document.createElement('iframe'); c4.src = 'frame.html'; c4.id = 'c4'; document.body.appendChild(c4);\n  c4.addEventListener('load', function once() {\n    c4.removeEventListener('load', once);\n    c4.contentWindow.location.href = 'one.html';\n    setTimeout(function () { R.fromSub = name(c4.contentWindow.location.href); }, 150);\n  });\n  w.navme = 1;\n  var c5 = document.createElement('iframe'); c5.src = 'frame.html'; document.body.appendChild(c5);\n  c5.addEventListener('load', function once() {\n    c5.removeEventListener('load', once);\n    c5.contentWindow.eval('location.href = \"one.html\"');\n    setTimeout(function () { R.selfNavigation = name(c5.contentWindow.location.href); }, 150);\n  });\n  var c6 = document.createElement('iframe'); c6.src = 'frame.html'; document.body.appendChild(c6);\n  c6.addEventListener('load', function once() {\n    c6.removeEventListener('load', once);\n    c6.contentWindow.history.pushState(null, '', 'pushed.html');\n    R.pushState = name(c6.contentWindow.location.href);\n    c6.contentWindow.history.replaceState(null, '', 'replaced.html');\n    R.replaceState = name(c6.contentWindow.location.href);\n  });\n  w.setTimeout('window.stringTimerWin = window === parent ? \"parent\" : \"frame\"; parent.R.stringTimer = stringTimerWin', 0);\n  setTimeout(function () { R.child = [name(cw.location.href), name(c2.contentWindow.location.href), name(c3.contentWindow.location.href)]; }, 200);\n  R.locationOfTopByFrameFn = name(w.eval('location.href'));\n  R.baseURI = [name(w.document.baseURI), document.baseURI === location.href];\n  R.anchor = (function () { var a = w.document.createElement('a'); a.href = 'q.html'; return name(a.href); })();\n  R.urlCtor = T(function () { return name(new w.URL('q.html', w.location.href)); });\n};\nfunction T(f) { try { return f(); } catch (e) { return e.name + ': ' + e.message; } }\n</script>",
+   "resources": {
+    "frame.html": {
+     "text": "<!DOCTYPE html><base href=/nowhere/><title>frame</title><p>frame"
+    },
+    "sub2.txt": {
+     "text": "top"
+    },
+    "one.html": {
+     "text": "<!DOCTYPE html><title>top one</title>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 450); })"
+    }
+   ]
+  },
+  {
+   "name": "caller-messages",
+   "html": "<!DOCTYPE html><body><script>\nvar R = { top: [], sub: [], blank: [] };\naddEventListener('message', function (e) { R.top.push([e.data, who(e.source), e.origin === location.origin, e.isTrusted, e.origin === 'null']); });\nfunction who(s) { return s === window ? 'top' : (s === document.getElementById('s').contentWindow ? 's' : (s === document.getElementById('b').contentWindow ? 'b' : (s === document.getElementById('t').contentWindow ? 't' : String(s)))); }\n</script><iframe id=s src=\"sub.html\"></iframe><iframe id=b></iframe><iframe id=t srcdoc=\"<script>addEventListener('message', function (e) { parent.R.sub.push(['t got ' + e.data, parent.who(e.source), e.origin === parent.location.origin]); }); function send(x) { parent.document.getElementById('s').contentWindow.postMessage(x, '*'); } function sendTop(x) { parent.postMessage(x, '/'); }</script>\"></iframe><script>\nwindow.onload = function () {\n  var s = document.getElementById('s').contentWindow, b = document.getElementById('b').contentWindow, t = document.getElementById('t').contentWindow;\n  s.postMessage('from top', '*');\n  t.send('t to s, called by top');\n  t.sendTop('t to top by slash');\n  window.postMessage('top to itself', '/');\n  b.eval('parent.postMessage(\"from blank\", \"*\")');\n  t.postMessage('top to t by slash', '/');\n  t.postMessage('top to t by origin', location.origin);\n  window.postMessage.call(t, 'parent fn on t', '*');\n  t.postMessage.call(window, 'frame fn on top', '*');\n  t.eval('parent.document.getElementById(\"s\").contentWindow.postMessage(\"eval in t to s\", \"*\")');\n  s.eval('postMessage(\"s to itself\", \"*\")');\n  R.bad = (function () { try { t.postMessage('x', 'bad'); } catch (e) { return e.name + ': ' + e.message; } })();\n  var mc = new MessageChannel(); var got = []; mc.port1.onmessage = function (e) { R.port = [e.data, e.source === null, e.origin]; }; t.eval('(p => p.postMessage(\"by port\"))')(mc.port2);\n};\n</script>",
+   "resources": {
+    "sub.html": {
+     "text": "<!DOCTYPE html><script>addEventListener('message', function (e) { parent.R.sub.push(['s got ' + e.data, parent.who(e.source), e.origin === parent.location.origin]); });</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 350); })"
+    }
+   ]
+  },
+  {
+   "name": "caller-javascript-links",
+   "html": "<!DOCTYPE html><body><script>\nvar R = { ran: [] };\nfunction who(w) { return w === window ? 'top' : w.name; }\n</script><iframe id=t name=t srcdoc=\"<a id=up target=_parent href='javascript:R.ran.push(&quot;link _parent in &quot; + (self === top ? &quot;top&quot; : name))'>u</a><a id=top target=_top href='javascript:R.ran.push(&quot;link _top in &quot; + (self === top ? &quot;top&quot; : name))'>u</a><a id=me href='javascript:parent.R.ran.push(&quot;link self in &quot; + name)'>m</a><form id=fp target=_parent action='javascript:R.ran.push(&quot;form _parent in &quot; + (self === top ? &quot;top&quot; : name))'></form><a id=sib target=u href='javascript:parent.R.ran.push(&quot;link sibling in &quot; + name)'>s</a>\"></iframe><iframe id=u name=u></iframe><iframe id=sa name=sa sandbox=allow-same-origin srcdoc=\"<a id=sl target=_top href='javascript:R.ran.push(&quot;sandboxed link _top&quot;)'>x</a><a id=ss href='javascript:top.R.ran.push(&quot;sandboxed self&quot;)'>x</a>\"></iframe><iframe id=sb name=sb sandbox=\"allow-same-origin allow-scripts allow-top-navigation\" srcdoc=\"<a id=sl target=_top href='javascript:R.ran.push(&quot;sandbox top-nav link _top&quot;)'>x</a>\"></iframe>\n<a id=toT target=t href=\"javascript:parent.R.ran.push('parent link in ' + name)\">t</a>\n<a id=toSa target=sa href=\"javascript:top.R.ran.push('parent link into sandbox')\">sa</a>\n<a id=toNew target=nothing href=\"javascript:R.ran.push('unknown target')\">n</a>\n<a id=toBlank target=_blank href=\"javascript:R.ran.push('_blank')\">n</a>\n<form id=formT target=t action=\"javascript:parent.R.ran.push('parent form in ' + name)\"></form>\n<a id=doc target=t href=\"javascript:'<title>replaced</title>'\">d</a>\n<script>\nwindow.onload = function () {\n  function fd(id) { return document.getElementById(id).contentDocument; }\n  document.getElementById('toT').click();\n  document.getElementById('toSa').click();\n  document.getElementById('toNew').click();\n  document.getElementById('toBlank').click();\n  document.getElementById('formT').submit();\n  fd('t').getElementById('up').click();\n  fd('t').getElementById('top').click();\n  fd('t').getElementById('me').click();\n  fd('t').getElementById('fp').submit();\n  fd('t').getElementById('sib').click();\n  fd('sa').getElementById('sl').click();\n  fd('sa').getElementById('ss').click();\n  fd('sb').getElementById('sl').click();\n  R.sync = R.ran.slice();\n  setTimeout(function () { document.getElementById('doc').click(); setTimeout(function () { R.docAfter = [fd('t') && fd('t').title, fd('t') && fd('t').documentElement.textContent]; }, 60); }, 60);\n};\n</script>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 450); })"
+    }
+   ]
+  },
+  {
+   "name": "focus-by-script",
+   "html": "<!DOCTYPE html><body style='margin:0'><script>\nvar L = [], R = {};\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur']) addEventListener(t, e => L.push('p:' + t + '@' + nm(e.target)), true);\nfunction state() {\n  const fd = f.contentDocument, gd = g.contentDocument;\n  return [nm(document.activeElement), nm(fd.activeElement), nm(gd.activeElement), document.hasFocus(), fd.hasFocus(), gd.hasFocus()].join(',');\n}\nfunction take() { const r = L.join(' '); L.length = 0; return r; }\n</script><input id=p><iframe id=f src=f.html></iframe><iframe id=g src=f.html></iframe><script>\nwindow.onload = function () {\n  const w = f.contentWindow, fd = f.contentDocument, c = fd.getElementById('c'), gc = g.contentDocument.getElementById('c');\n  R.start = state();\n  p.focus(); R.a = [take(), state()];\n  c.focus(); R.b = [take(), state()];\n  fd.getElementById('c2').focus(); R.c = [take(), state()];\n  gc.focus(); R.d = [take(), state()];\n  p.focus(); R.e = [take(), state()];\n  c.focus(); take();\n  R.frameScriptFocusesParent = w.eval('parent.document.getElementById(\"p\").focus(); parent.state()'); R.f = take();\n  c.focus(); take();\n  c.blur(); R.blur = [take(), state()];\n  p.focus(); take();\n  w.focus(); R.windowFocus = [take(), state()];\n  window.focus(); R.topWindowFocus = [take(), state()];\n  w.blur(); R.windowBlur = [take(), state()];\n  p.focus(); take();\n  f.focus(); R.iframeFocus = [take(), state()];\n  p.focus(); take();\n  c.focus(); take();\n  f.remove(); R.removed = [take(), [nm(document.activeElement), document.hasFocus(), g.contentDocument.hasFocus()].join(',')];\n};\n</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><input id=c><input id=c2><script>\nconst L = parent.L;\nconst nm = t => t === window ? 'cwin' : t === document ? 'cdoc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur']) addEventListener(t, e => L.push('c:' + t + '@' + nm(e.target)), true);\n</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 150); })"
+    }
+   ]
+  },
+  {
+   "name": "focus-by-script-nested",
+   "html": "<!DOCTYPE html><body style='margin:0'><script>\nvar L = [], R = {};\nconst nm = t => t === window ? 'win' : t === document ? 'doc' : (t.id || t.nodeName);\nfor (const t of ['focus', 'blur']) addEventListener(t, e => L.push('p:' + t + '@' + nm(e.target)), true);\nfunction take() { const r = L.join(' '); L.length = 0; return r; }\n</script><input id=p><iframe id=f srcdoc=\"<!DOCTYPE html><input id=m><iframe id=k srcdoc='<!DOCTYPE html><input id=c>'></iframe>\"></iframe><script>\nwindow.onload = function () {\n  const fd = f.contentDocument, kd = fd.getElementById('k').contentDocument, c = kd.getElementById('c');\n  const log = (w, name) => { for (const t of ['focus', 'blur']) w.addEventListener(t, e => L.push(name + t + '@' + (e.target === w ? 'win' : e.target.id)), true); };\n  log(f.contentWindow, 'm:'); log(kd.defaultView, 'k:');\n  const state = () => [nm(document.activeElement), fd.activeElement.id || fd.activeElement.nodeName, kd.activeElement.id || kd.activeElement.nodeName, document.hasFocus(), fd.hasFocus(), kd.hasFocus()].join(',');\n  p.focus(); take();\n  c.focus(); R.intoNested = [take(), state()];\n  fd.getElementById('m').focus(); R.toMiddle = [take(), state()];\n  c.focus(); take();\n  p.focus(); R.backToTop = [take(), state()];\n};\n</script>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(function (r) { setTimeout(function () { r(R); }, 150); })"
+    }
+   ]
+  },
+  {
+   "name": "activation-script-navigates-top",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:200px'><script>try { top.location.href = 'never.html'; document.title = 'no throw'; } catch (e) { document.title = e.name; } addEventListener('click', () => { top.location.href = 'done.html'; });</script>"
+    },
+    "never.html": {
+     "text": "<!DOCTYPE html><title>never</title>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop()]"
+    }
+   ]
+  },
+  {
+   "name": "activation-key-navigates-top",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:200px'><input id=i style='width:200px;height:50px' autofocus><script>addEventListener('keydown', () => { top.location.href = 'done.html'; });</script>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      50,
+      20
+     ]
+    },
+    {
+     "wait": 50
+    },
+    {
+     "key": "a"
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop()]"
+    }
+   ]
+  },
+  {
+   "name": "activation-timer-after-click",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:200px'><script>addEventListener('click', () => { setTimeout(() => { top.location.href = 'done.html'; }, 50); });</script>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      50,
+      50
+     ]
+    },
+    {
+     "wait": 500
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop()]"
+    }
+   ]
+  },
+  {
+   "name": "activation-parent-click-not-frame",
+   "html": "<!DOCTYPE html><body style='margin:0'><div id=b style='position:absolute;left:400px;top:0;width:100px;height:100px'></div><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><script>var R; b.onclick = () => { try { f.contentWindow.go(); R = 'no throw'; } catch (e) { R = e.name; } };</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><script>function go() { top.location.href = 'done.html'; }</script>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      450,
+      50
+     ]
+    },
+    {
+     "wait": 400
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? 'gone' : R]"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-clicked-in-frame",
+   "html": "<!DOCTYPE html><body style='margin:0'><script>var R = [];</script><iframe id=f name=t src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a id=a href=\"javascript:parent.R.push('in ' + (self === top ? 'top' : 'frame'))\" style='display:block;width:100px;height:40px'>a</a><a id=b target=_top href=\"javascript:R.push('top link in ' + (self === top ? 'top' : 'frame'))\" style='display:block;width:100px;height:40px'>b</a>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      20,
+      20
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "click": [
+      20,
+      60
+     ]
+    },
+    {
+     "wait": 100
+    }
+   ],
+   "measure": [
+    {
+     "js": "R.slice().sort()"
+    }
+   ]
+  },
+  {
+   "name": "window-name-target",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f src=f.html style='position:absolute;left:0;top:0;width:300px;height:100px;border:0'></iframe><iframe id=g name=attr src=f.html style='position:absolute;left:0;top:100px;width:300px;height:100px;border:0'></iframe><a id=a target=renamed href=done.html style='position:absolute;left:400px;top:0;width:100px;height:40px;display:block'>a</a><a id=b target=second href=done.html?second style='position:absolute;left:400px;top:50px;width:100px;height:40px;display:block'>b</a><script>window.onload = () => { f.contentWindow.name = 'renamed'; g.contentWindow.name = 'second'; };</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><title>f</title>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "click": [
+      450,
+      20
+     ]
+    },
+    {
+     "wait": 200
+    },
+    {
+     "click": [
+      450,
+      70
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ],
+   "measure": [
+    {
+     "js": "[f.contentDocument.title, g.contentDocument.title, f.contentWindow.name, g.contentWindow.name, location.pathname.split('/').pop().split('.').pop()]"
+    }
+   ]
+  },
+  {
+   "name": "activation-escape-key",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><script>var R; setTimeout(() => { R = f.contentWindow.go(); }, 6500);</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:200px'><script>function go() { try { top.location.href = 'done.html'; return 'ok'; } catch (e) { return e.name; } }</script>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 6000
+    },
+    {
+     "key": "Escape"
+    },
+    {
+     "wait": 1000
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? '-' : R]"
+    }
+   ]
+  },
+  {
+   "name": "activation-other-key",
+   "html": "<!DOCTYPE html><body style='margin:0'><iframe id=f sandbox='allow-scripts allow-same-origin allow-top-navigation-by-user-activation' src=f.html style='position:absolute;left:0;top:0;width:300px;height:200px;border:0'></iframe><script>var R; setTimeout(() => { R = f.contentWindow.go(); }, 6500);</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:200px'><script>function go() { try { top.location.href = 'done.html'; return 'ok'; } catch (e) { return e.name; } }</script>"
+    },
+    "done.html": {
+     "text": "<!DOCTYPE html><title>done</title>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 6000
+    },
+    {
+     "key": "a"
+    },
+    {
+     "wait": 1000
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, location.pathname.split('/').pop(), typeof R === 'undefined' ? '-' : R]"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-hidden-in-frame",
+   "html": "<!DOCTYPE html><body style='margin:0'><script>window.log = [];</script><iframe id=a src=a.html style='position:absolute;left:0;top:0px;width:300px;height:60px;border:0'></iframe><iframe id=b src=b.html style='position:absolute;left:0;top:70px;width:300px;height:60px;border:0'></iframe><iframe id=c src=c.html style='position:absolute;left:0;top:140px;width:300px;height:60px;border:0'></iframe>",
+   "resources": {
+    "a.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a href=\"java&#115;cript:void(parent.log.push('entity'))\" target=_parent style='display:block;width:100px;height:30px'>go</a>"
+    },
+    "b.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a href=\"java\tscript:void(parent.log.push('tab'))\" target=_parent style='display:block;width:100px;height:30px'>go</a>"
+    },
+    "c.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a href=\"&#106;avascript:void(parent.log.push('self'))\" style='display:block;width:100px;height:30px'>go</a>"
+    }
+   },
+   "steps": [
+    {
+     "click": [
+      20,
+      10
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "click": [
+      20,
+      80
+     ]
+    },
+    {
+     "wait": 100
+    },
+    {
+     "click": [
+      20,
+      150
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join()"
+    }
+   ]
+  },
+  {
+   "name": "input-leave-order",
+   "html": "<!DOCTYPE html><body style='margin:0;height:900px'><div id=b style='position:absolute;left:500px;top:0;width:100px;height:100px;background:#ccc'></div><iframe id=f src=f.html style='position:absolute;left:100px;top:50px;width:300px;height:200px;border:0'></iframe><script>window.log = []; for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, e => log.push('P:' + t + '@' + (e.target.id || e.target.nodeName) + '<' + (e.relatedTarget ? (e.relatedTarget.id || e.relatedTarget.nodeName) : '')), true);</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><body style='margin:0;height:600px'><button id=x style='position:absolute;left:10px;top:10px;width:80px;height:40px'>x</button><script>for (const t of ['mouseover', 'mouseout', 'mouseenter', 'mouseleave']) document.addEventListener(t, e => top.log.push('F:' + t + '@' + (e.target.id || e.target.nodeName) + '<' + (e.relatedTarget ? (e.relatedTarget.id || e.relatedTarget.nodeName) : '')), true);</script>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 100
+    },
+    {
+     "hover": [
+      150,
+      80
+     ]
+    },
+    {
+     "hover": [
+      550,
+      50
+     ]
+    },
+    {
+     "hover": [
+      150,
+      80
+     ]
+    },
+    {
+     "hover": [
+      150,
+      500
+     ]
+    },
+    {
+     "wait": 200
+    }
+   ],
+   "measure": [
+    {
+     "js": "log.join(' ')"
+    }
+   ]
+  },
+  {
+   "name": "focus-iframe-then-inner",
+   "html": "<!DOCTYPE html><iframe id=f src=f.html></iframe><script>window.R = {}; window.onload = () => { const d = f.contentDocument; f.focus(); R.afterFrame = [f.matches(':focus'), document.activeElement.id, d.activeElement.nodeName]; d.getElementById('c').focus(); R.afterInner = [f.matches(':focus'), f.matches(':focus-within'), document.activeElement.id, d.activeElement.id]; };</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><button id=c>c</button>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(() => r(R), 100))"
+    }
+   ]
+  },
+  {
+   "name": "errors-promises-grouped",
+   "html": "<!DOCTYPE html><iframe id=f src=f.html></iframe><script>window.log = []; addEventListener('unhandledrejection', e => { log.push('P:' + e.reason); e.preventDefault(); }); addEventListener('load', () => { const w = f.contentWindow; Promise.reject('p1'); w.Promise.reject('f1'); Promise.reject('p2'); w.Promise.reject('f2'); });</script>",
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><script>addEventListener('unhandledrejection', e => { top.log.push('F:' + e.reason); e.preventDefault(); });</script>"
+    }
+   },
+   "measure": [
+    {
+     "js": "new Promise(r => setTimeout(() => { const side = s => log.filter(x => x[0] === s); r({p: side('P'), f: side('F'), changes: log.filter((x, i) => i > 0 && x[0] !== log[i - 1][0]).length}); }, 300))"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-origin-of-source",
+   "html": "<!DOCTYPE html><title>top</title><body style='margin:0'><iframe id=x src='$OTHER/$FOLDER/x.html' style='position:absolute;left:0px;top:0;width:150px;height:200px;border:0'></iframe><iframe id=y src='y.html' style='position:absolute;left:160px;top:0;width:150px;height:200px;border:0'></iframe><iframe id=s name=s src='s.html' style='position:absolute;left:320px;top:0;width:150px;height:200px;border:0'></iframe><iframe id=z sandbox='allow-same-origin allow-top-navigation' src='z.html' style='position:absolute;left:480px;top:0;width:150px;height:200px;border:0'></iframe>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><title>t</title><body style='margin:0'><a href=\"java&#115;cript:void(document.title+='+xs')\" target=s style='display:block;width:100px;height:30px'>xs</a><a href=\"java&#115;cript:void(document.title+='+xp')\" target=_parent style='display:block;width:100px;height:30px'>xp</a><a href=\"java&#115;cript:void(document.title+='+xt')\" target=_top style='display:block;width:100px;height:30px'>xt</a>"
+    },
+    "y.html": {
+     "text": "<!DOCTYPE html><title>t</title><body style='margin:0'><a href=\"java&#115;cript:void(document.title+='+ys')\" target=s style='display:block;width:100px;height:30px'>ys</a><a href=\"java&#115;cript:void(document.title+='+yb')\" target=_blank style='display:block;width:100px;height:30px'>yb</a><a href=\"java&#115;cript:void(document.title+='+yn')\" target=nosuch style='display:block;width:100px;height:30px'>yn</a>"
+    },
+    "s.html": {
+     "text": "<!DOCTYPE html><title>s</title>"
+    },
+    "z.html": {
+     "text": "<!DOCTYPE html><title>t</title><body style='margin:0'><a href=\"java&#115;cript:void(document.title+='+zt')\" target=_top style='display:block;width:100px;height:30px'>zt</a><a href=\"java&#115;cript:void(document.title+='+zs')\" target=_self style='display:block;width:100px;height:30px'>zs</a>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 200
+    },
+    {
+     "click": [
+      20,
+      15
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      20,
+      45
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      20,
+      75
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      180,
+      45
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      180,
+      75
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      500,
+      15
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      500,
+      45
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      180,
+      15
+     ]
+    },
+    {
+     "wait": 150
+    }
+   ],
+   "measure": [
+    {
+     "js": "[document.title, ...['s', 'y', 'z'].map(i => document.getElementById(i).contentDocument.title)]"
+    }
+   ]
+  },
+  {
+   "name": "javascript-link-origin-of-child",
+   "html": "<!DOCTYPE html><title>top</title><body style='margin:0'><iframe id=x src='$OTHER/$FOLDER/x.html' style='position:absolute;left:0px;top:0;width:200px;height:200px;border:0'></iframe><iframe id=y src='y.html' style='position:absolute;left:220px;top:0;width:200px;height:200px;border:0'></iframe>",
+   "resources": {
+    "x.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a href=\"java&#115;cript:void(top.document.title+='+xn')\" target=n style='display:block;width:100px;height:30px'>xn</a><iframe name=n src='$ORIGIN/$FOLDER/n.html' style='width:100px;height:50px'></iframe>"
+    },
+    "y.html": {
+     "text": "<!DOCTYPE html><body style='margin:0'><a href=\"java&#115;cript:void(top.document.title+='+yn')\" target=n style='display:block;width:100px;height:30px'>yn</a><iframe name=n src='n.html' style='width:100px;height:50px'></iframe>"
+    },
+    "n.html": {
+     "text": "<!DOCTYPE html><title>n</title>"
+    }
+   },
+   "steps": [
+    {
+     "wait": 200
+    },
+    {
+     "click": [
+      20,
+      15
+     ]
+    },
+    {
+     "wait": 150
+    },
+    {
+     "click": [
+      240,
+      15
+     ]
+    },
+    {
+     "wait": 150
+    }
+   ],
+   "measure": [
+    {
+     "js": "document.title"
+    }
+   ]
   }
  ]
 }

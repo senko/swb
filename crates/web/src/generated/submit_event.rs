@@ -9,8 +9,8 @@ use crate::bindings as b;
 
 /// The hand-written behaviour of `SubmitEvent`.
 pub trait SubmitEventImpl: b::Host {
-    /// `readonly attribute HTMLElement? submitter`.
-    fn submitter(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<b::NodeId>>;
+    /// `readonly attribute object? submitter`.
+    fn submitter(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `constructor(DOMString type, optional SubmitEventInit eventInitDict)`.
     fn constructor(cx: &mut b::Cx<'_>, type_: String, event_init_dict: super::types::SubmitEventInit) -> b::Result<swb_js::Gc<swb_js::Object>>;
@@ -21,7 +21,7 @@ fn get_submitter<H: SubmitEventImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Na
     b::glue::run(rt, call, b::Context::Getter("SubmitEvent", "submitter"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::SUBMIT_EVENT)?;
         let result = <H as SubmitEventImpl>::submitter(&mut b::Cx::new(rt, call, super::SUBMIT_EVENT), this)?;
-        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 

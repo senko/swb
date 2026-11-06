@@ -30,7 +30,7 @@ use super::{AT_TARGET, BUBBLING_PHASE, CAPTURING_PHASE, EventData, Extra, NONE, 
 use crate::bindings::{self as b, Host};
 use crate::generated as g;
 use crate::generated::types::EventInit;
-use crate::state::{WebState, dom, state, state_mut};
+use crate::state::{WebState, dom};
 
 /// Where the engine dispatches an event.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -493,19 +493,25 @@ fn invoke(
     }
     data.current_target = Some(item.target);
     let kind = data.kind.clone();
-    let target_kind = kind_of(rt, item.target)?;
-    super::handlers::sync(rt, target_kind)?;
-    let listeners = listeners_of(rt, target_kind, &kind)?;
-    inner_invoke(
-        rt,
-        handle,
-        event,
-        &listeners,
-        phase,
-        item,
-        target_kind,
-        &kind,
-    )
+    // A listener can have moved this node of the path to another document.
+    let entered = crate::state::enter_object(rt, item.target)?;
+    let result = (|| {
+        let target_kind = kind_of(rt, item.target)?;
+        super::handlers::sync(rt, target_kind)?;
+        let listeners = listeners_of(rt, target_kind, &kind)?;
+        inner_invoke(
+            rt,
+            handle,
+            event,
+            &listeners,
+            phase,
+            item,
+            target_kind,
+            &kind,
+        )
+    })();
+    crate::state::leave(rt, entered);
+    result
 }
 
 /// DOM "inner invoke".
@@ -533,10 +539,13 @@ fn inner_invoke(
         if listener.once {
             super::target::remove(rt, target, |list| list.remove_listener(kind, listener))?;
         }
-        // Steps 6 to 9: the window's current event, the passive flag.
-        let current_event = state(rt)?.doc.current_event;
+        // Steps 6 to 9: the current event of the window of the callback's
+        // realm (measured: `window.event` of the function's window), the
+        // passive flag.
+        let window = crate::state::document_of_function(rt, listener.callback)?;
+        let current_event = crate::state::current_event_of(rt, window)?;
         if !item.in_shadow_tree {
-            state_mut(rt)?.doc.current_event = Some(event);
+            crate::state::set_current_event_of(rt, window, Some(event))?;
         }
         super::data_mut(rt, handle)?.in_passive_listener = listener.passive;
         b::keep(rt, Value::Object(listener.callback));
@@ -545,7 +554,7 @@ fn inner_invoke(
             None => call_listener(rt, listener.callback, item.target, event, kind),
         };
         super::data_mut(rt, handle)?.in_passive_listener = false;
-        state_mut(rt)?.doc.current_event = current_event;
+        crate::state::set_current_event_of(rt, window, current_event)?;
         result?;
         // HTML "clean up after running a callback" (for the engine's
         // events; a no-op while script runs).
@@ -569,6 +578,7 @@ fn call_listener(
     kind: &str,
 ) -> VmResult<()> {
     let args = [Value::Object(event)];
+    let mut function = callback;
     let result = if rt.callable(callback.into())? {
         rt.call_function(callback.into(), current_target.into(), &args)
     } else {
@@ -581,6 +591,9 @@ fn call_listener(
             let error = VmError::type_error("The provided callback is not callable.");
             return report_vm_error(rt, kind, error);
         }
+        if let Value::Object(method) = method {
+            function = method;
+        }
         rt.call_function(method, callback.into(), &args)
     };
     match result {
@@ -589,7 +602,7 @@ fn call_listener(
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
         Err(error) => {
             let name = listener_name(kind);
-            crate::errors::report(rt, &crate::errors::Site::named(&name), &error)
+            crate::errors::report_callback(rt, function, &crate::errors::Site::named(&name), &error)
         }
     }
 }

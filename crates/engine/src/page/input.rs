@@ -336,13 +336,14 @@ impl Page {
     ) -> bool {
         self.input.modifiers = modifiers;
         let point = Point::new(x, y);
+        self.frames.activation = Some(std::time::Instant::now());
         let route = self.route_through_frames(point);
         if route.in_frame() {
-            // The frame gets the press; its other buttons do nothing in
-            // swb (the frame has no scripts, and no context menu).
+            // The frame gets the press; its other buttons give only the events
+            // of its scripts (no context menu in frames).
             self.input.pointer = Some(point);
             if button != MouseButton::Primary {
-                return false;
+                return self.other_button_in_frame(&route, button, click_count);
             }
             return self.press_in_frame(&route, point, modifiers, click_count);
         }
@@ -506,8 +507,16 @@ impl Page {
         // A press of the page's own document that ends over a frame: the
         // frame gets the release (measured), the document none of its
         // events, and the press is over.
-        if self.frames.count() > 0 && self.route_at(point).in_frame() {
-            return (self.end_press(button), false);
+        if self.frames.count() > 0 {
+            let route = self.route_at(point);
+            if route.in_frame() {
+                let ended = self.end_press(button);
+                let last = route.last();
+                let (changed, activated) = self
+                    .in_frame(last.frame, |p| p.release_in_document(last.point, button))
+                    .unwrap_or((false, false));
+                return (ended | changed, activated);
+            }
         }
         self.release_in_document(point, button)
     }
@@ -571,7 +580,12 @@ impl Page {
         } else {
             false
         };
-        let dragging = press.as_ref().is_some_and(|p| p.dragging);
+        // A drag that selected text ends without a click; a press that moved
+        // and selected nothing keeps it (measured, case `input-press-in-frame`).
+        let dragging = press.as_ref().is_some_and(|p| p.dragging)
+            && self
+                .parts()
+                .is_some_and(|(doc, fonts)| !doc.selected_text(fonts).is_empty());
         let up = self.scripted_up(point, button, dragging);
         changed |= generation != self.dom_generation();
         let Some((target, proceed)) = up else {
@@ -620,8 +634,12 @@ impl Page {
     /// summary clicks it when the key goes up ([`Page::key_up`]).
     pub fn key_down(&mut self, key: &Key, modifiers: Modifiers) -> bool {
         self.input.modifiers = modifiers;
-        // A frame that holds the focus gets the key; its document runs no
-        // scripts, so the key has no events there.
+        // Escape is no user activation (measured, HTML "activation triggering
+        // input event").
+        if *key != Key::Escape {
+            self.frames.activation = Some(std::time::Instant::now());
+        }
+        // A frame that holds the focus gets the key.
         if let Some(frame) = self.focused_frame() {
             self.set_keyboard_modality(true);
             return self.key_down_in_frame(frame, key, modifiers);
@@ -634,18 +652,26 @@ impl Page {
         if self.focused_element().is_some() {
             self.update_states(|s| s.focus_visible = true);
         }
+        if let Some(handled) = self.key_down_events(key, modifiers) {
+            return handled;
+        }
+        self.key_default(key, modifiers)
+    }
+
+    /// The events of a key going down in the active document, if it has
+    /// scripts. `Some` with the result of [`Page::key_down`] if the key ends
+    /// here; `None` if its default action comes next.
+    pub(super) fn key_down_events(&mut self, key: &Key, modifiers: Modifiers) -> Option<bool> {
         if !self.script_input() {
-            return self.key_default(key, modifiers);
+            return None;
         }
         // A new key going down: a Space whose release was lost (a host that
         // sends no `key_up`) must not click later.
         self.input.space_down = None;
         let info = key.info();
-        let Some(target) = self.key_target() else {
-            return self.key_default(key, modifiers);
-        };
+        let target = self.key_target()?;
         if !self.fire_key("keydown", target, &info, modifiers) {
-            return true;
+            return Some(true);
         }
         let ctrl = modifiers.ctrl || modifiers.meta;
         if key == &Key::Enter
@@ -653,15 +679,15 @@ impl Page {
             && !modifiers.alt
             && let Some(link) = self.focused_link()
         {
-            return self.simulate_click(link);
+            return Some(self.simulate_click(link));
         }
         if info.keypress && !ctrl {
             let target = self.key_target().unwrap_or(target);
             if !self.fire_key("keypress", target, &info, modifiers) {
-                return true;
+                return Some(true);
             }
         }
-        self.key_default(key, modifiers)
+        None
     }
 
     /// Handles a key release. With scripts, `keyup` goes to the focused
@@ -669,7 +695,17 @@ impl Page {
     /// checkbox, a radio button or a summary clicks it now. Returns true
     /// if the page handled the key.
     pub fn key_up(&mut self, key: &Key, modifiers: Modifiers) -> bool {
-        if !self.script_input() || self.focused_frame().is_some() {
+        if let Some(frame) = self.focused_frame() {
+            return self
+                .in_frame(frame, |p| p.key_up_here(key, modifiers))
+                .unwrap_or(false);
+        }
+        self.key_up_here(key, modifiers)
+    }
+
+    /// [`Page::key_up`] in the active document.
+    fn key_up_here(&mut self, key: &Key, modifiers: Modifiers) -> bool {
+        if !self.script_input() {
             return false;
         }
         self.input.modifiers = modifiers;

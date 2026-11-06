@@ -25,7 +25,7 @@ pub trait HTMLFormElementImpl: b::Host {
     fn submit(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
 
     /// `undefined requestSubmit(optional HTMLElement? submitter)`.
-    fn request_submit(cx: &mut b::Cx<'_>, this: b::NodeId, submitter: Option<b::NodeId>) -> b::Result<()>;
+    fn request_submit(cx: &mut b::Cx<'_>, this: b::NodeId, submitter: Option<b::NodeRef>) -> b::Result<()>;
 
     /// `undefined reset()`.
     fn reset(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<()>;
@@ -292,7 +292,7 @@ fn op_request_submit<H: HTMLFormElementImpl>(rt: &mut swb_js::Runtime, call: &sw
     b::glue::run(rt, call, b::Context::Operation("HTMLFormElement", "requestSubmit"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_FORM_ELEMENT)?;
         let v = rt.arg(call, 0);
-        let a0 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.argument(0))? };
+        let a0 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.argument(0))? };
         <H as HTMLFormElementImpl>::request_submit(&mut b::Cx::new(rt, call, super::HTML_FORM_ELEMENT), this, a0)?;
         Ok(swb_js::Value::Undefined)
     })

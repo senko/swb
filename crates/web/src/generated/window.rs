@@ -120,6 +120,12 @@ pub trait WindowImpl: b::Host {
     /// `readonly attribute Storage sessionStorage`.
     fn session_storage(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
+    /// `undefined focus()`.
+    fn focus(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
+    /// `undefined blur()`.
+    fn blur(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
+
     /// `MediaQueryList matchMedia(DOMString query)`.
     fn match_media(cx: &mut b::Cx<'_>, this: b::Platform, query: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
@@ -2499,6 +2505,22 @@ fn get_session_storage<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::N
     })
 }
 
+fn op_focus<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "focus"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        <H as WindowImpl>::focus(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
+fn op_blur<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Window", "blur"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_platform(rt, call, super::WINDOW)?;
+        <H as WindowImpl>::blur(&mut b::Cx::new(rt, call, super::WINDOW), this)?;
+        Ok(swb_js::Value::Undefined)
+    })
+}
+
 fn op_match_media<H: WindowImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Window", "matchMedia"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_platform(rt, call, super::WINDOW)?;
@@ -3033,6 +3055,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_accessor(realm, target, "sessionStorage", (Some(get_session_storage::<H> as swb_js::NativeFn), None), swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "alert", 0, op_alert::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "atob", 1, op_atob::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "blur", 0, op_blur::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "btoa", 1, op_btoa::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "cancelAnimationFrame", 1, op_cancel_animation_frame::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "cancelIdleCallback", 1, op_cancel_idle_callback::<H>, swb_js::Attributes::MEMBER)?;
@@ -3040,6 +3063,7 @@ pub fn define<H: WindowImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::Vm
     rt.define_method(realm, target, "clearTimeout", 0, op_clear_timeout::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "confirm", 0, op_confirm::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "fetch", 1, op_fetch::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "focus", 0, op_focus::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "getComputedStyle", 1, op_get_computed_style::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "matchMedia", 1, op_match_media::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "postMessage", 1, op_post_message::<H>, swb_js::Attributes::MEMBER)?;

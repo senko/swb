@@ -451,6 +451,15 @@ pub(crate) struct Vm {
     /// number of frames at the call and the caller's realm
     /// ([`Runtime::caller_realm`]).
     pub(crate) native_caller: Option<(usize, u32)>,
+    /// The realm of the first frame while a native of another realm, called
+    /// from that frame, has the frame's realm ([`Runtime::entry_realm`]).
+    pub(crate) first_frame_realm: Option<u32>,
+    /// While a reaction job rejects its derived promise after its handler
+    /// threw: the handler's realm ([`Runtime::take_unhandled_rejections_by_realm`]).
+    pub(crate) rejecting_handler_realm: Option<u32>,
+    /// The realm of the function of the last job whose exception no promise
+    /// took ([`Runtime::take_failed_job_realm`]).
+    pub(crate) failed_job_realm: Option<u32>,
     /// A termination that a native function requested
     /// ([`Runtime::terminate`]): every time check repeats it until the
     /// host's outermost run ends, so that no handler that dropped the error

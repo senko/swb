@@ -206,26 +206,28 @@ impl g::document::DocumentImpl for WebState {
 
     /// <https://html.spec.whatwg.org/multipage/dom.html#dom-document-body>,
     /// with Chromium's messages (`tools/probes/web-dom-tree.json`).
-    fn set_body(cx: &mut Cx<'_>, this: NodeId, value: Option<NodeId>) -> b::Result<()> {
-        let dom = dom(cx.rt)?;
-        let Some(value) = value.filter(|&v| {
-            dom.is_html_element(v, &local_name!("body"))
-                || dom.is_html_element(v, &local_name!("frameset"))
-        }) else {
-            return Err(match value {
-                Some(v) => Exception::dom(
-                    "HierarchyRequestError",
-                    format!(
-                        "The new body element is of type '{}'. It must be either a 'BODY' or 'FRAMESET' element.",
-                        super::tag_name(&dom.node(v).data)
-                    ),
-                ),
-                None => Exception::dom(
-                    "HierarchyRequestError",
-                    "The 1st argument provided is either null, or an invalid HTMLElement object.",
-                ),
-            });
+    fn set_body(cx: &mut Cx<'_>, this: NodeId, value: Option<b::NodeRef>) -> b::Result<()> {
+        let Some(new) = value else {
+            return Err(Exception::dom(
+                "HierarchyRequestError",
+                "The 1st argument provided is either null, or an invalid HTMLElement object.",
+            ));
         };
+        crate::state::ensure_lent(cx.rt, new.document)?;
+        let arena = crate::state::dom_of(cx.rt, new.document)?;
+        if !(arena.is_html_element(new.node, &local_name!("body"))
+            || arena.is_html_element(new.node, &local_name!("frameset")))
+        {
+            return Err(Exception::dom(
+                "HierarchyRequestError",
+                format!(
+                    "The new body element is of type '{}'. It must be either a 'BODY' or 'FRAMESET' element.",
+                    super::tag_name(&arena.node(new.node).data)
+                ),
+            ));
+        }
+        let value = super::adopt::brought_for_setter(cx.rt, new, this)?;
+        let dom = dom(cx.rt)?;
         let old = body_element(dom, this);
         if old == Some(value) {
             return Ok(());
@@ -346,29 +348,55 @@ impl g::document::DocumentImpl for WebState {
     fn import_node(
         cx: &mut Cx<'_>,
         this: NodeId,
-        node: NodeId,
+        node: b::NodeRef,
         subtree: bool,
     ) -> b::Result<NodeId> {
-        if matches!(dom(cx.rt)?.node(node).data, NodeData::Document) {
+        crate::state::ensure_lent(cx.rt, node.document)?;
+        if matches!(
+            crate::state::dom_of(cx.rt, node.document)?
+                .node(node.node)
+                .data,
+            NodeData::Document
+        ) {
             return Err(Exception::dom(
                 "NotSupportedError",
                 "The node provided is a document, which may not be imported.",
             ));
         }
-        super::clone(cx, node, this, subtree)
+        match node.here(cx.rt) {
+            Some(here) => super::clone(cx, here, this, subtree),
+            None => super::adopt::import_here(cx.rt, node, this, subtree),
+        }
     }
 
     /// <https://dom.spec.whatwg.org/#dom-document-adoptnode>
-    fn adopt_node(cx: &mut Cx<'_>, this: NodeId, node: NodeId) -> b::Result<NodeId> {
-        if matches!(dom(cx.rt)?.node(node).data, NodeData::Document) {
+    fn adopt_node(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        node: b::NodeRef,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::state::ensure_lent(cx.rt, node.document)?;
+        if matches!(
+            crate::state::dom_of(cx.rt, node.document)?
+                .node(node.node)
+                .data,
+            NodeData::Document
+        ) {
             return Err(Exception::dom(
                 "NotSupportedError",
                 "The node provided is of type '#document', which may not be adopted.",
             ));
         }
-        let result = dom_mut(cx.rt)?.adopt(node, this);
-        dom_result(cx.rt, result)?;
-        Ok(node)
+        match node.here(cx.rt) {
+            Some(here) => {
+                let result = dom_mut(cx.rt)?.adopt(here, this);
+                dom_result(cx.rt, result)?;
+            }
+            None => {
+                super::adopt::transplant(cx.rt, node, this)?;
+            }
+        }
+        Ok(node.object)
     }
 
     fn create_attribute(

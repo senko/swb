@@ -588,6 +588,26 @@ impl swb_web::EngineHost for DocumentState {
         self.script_copy_control_state(from, to)
     }
 
+    fn take_control_snapshots(&mut self, root: NodeId) -> Vec<(NodeId, swb_web::ControlSnapshot)> {
+        self.script_control_snapshots(root, true)
+    }
+
+    fn copy_control_snapshots(
+        &mut self,
+        root: NodeId,
+        deep: bool,
+    ) -> Vec<(NodeId, swb_web::ControlSnapshot)> {
+        self.script_control_snapshots(root, deep)
+    }
+
+    fn put_control_snapshot(
+        &mut self,
+        node: NodeId,
+        snapshot: swb_web::ControlSnapshot,
+    ) -> swb_web::ControlWrite {
+        self.script_put_control_snapshot(node, &snapshot)
+    }
+
     fn control_selection(&mut self, node: NodeId) -> Option<swb_web::SelectionRange> {
         self.script_selection(node)
     }

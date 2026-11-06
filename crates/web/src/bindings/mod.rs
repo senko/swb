@@ -73,12 +73,13 @@ impl<'a> Cx<'a> {
 
     /// The realm of the objects that the member makes: the realm of the
     /// called function. In a runtime with several documents it is the realm
-    /// of the current document, which is not the function's when `this`
-    /// belongs to another document: a list of a node of that document reads
-    /// that arena.
+    /// of `this` (measured: `w.Node.prototype.cloneNode.call(e)` gives an object
+    /// of the realm of `e`), which is not the function's when `this` belongs to
+    /// another document, and not the document's when `this` is a node that
+    /// moved.
     pub fn realm(&self) -> u32 {
         if self.rt.host_flag() {
-            return crate::state::doc_realm(self.rt).unwrap_or(self.realm);
+            return crate::state::objects_realm(self.rt).unwrap_or(self.realm);
         }
         self.realm
     }
@@ -121,6 +122,53 @@ impl<'a> Cx<'a> {
     }
 }
 
+/// A node argument of any document of the runtime (`[AnyDocument]` in the IDL):
+/// the wrapper, and the document and node that the wrapper names at the
+/// conversion. The `NodeId` means the arena of `document`, so that a native
+/// cannot read it in another arena: [`NodeRef::here`] gives it for the current
+/// document, and the table of ADR 0031 "Done (feature 12b2)" says what each
+/// native does with a node of another one.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NodeRef {
+    /// The wrapper.
+    pub object: Gc<Object>,
+    /// The key of the node's document.
+    pub document: u32,
+    /// The node, in the arena of `document`.
+    pub node: NodeId,
+}
+
+impl NodeRef {
+    /// The node of a wrapper with the host data `data`.
+    #[inline]
+    pub fn of(object: Gc<Object>, data: HostData) -> Option<NodeRef> {
+        let HostData::Word(word) = data else {
+            return None;
+        };
+        Some(NodeRef {
+            object,
+            document: node_document(word),
+            node: NodeId::from_index(word as u32 as usize)?,
+        })
+    }
+
+    /// The node if it belongs to the current document.
+    #[inline]
+    pub fn here(self, rt: &Runtime) -> Option<NodeId> {
+        if rt.host_flag() && crate::state::document_key(rt) != Ok(self.document) {
+            return None;
+        }
+        Some(self.node)
+    }
+
+    /// The node as the wrapper names it now: a script that ran since the
+    /// conversion may have moved it.
+    pub fn refreshed(self, rt: &Runtime) -> Option<NodeRef> {
+        let (_, data) = rt.host_object(Value::Object(self.object))?;
+        NodeRef::of(self.object, data)
+    }
+}
+
 /// A platform object that is not a node: the object and its host data.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Platform {
@@ -146,6 +194,19 @@ pub fn node_data_in(document: u32, node: NodeId) -> HostData {
 /// The document key in a wrapper's host data word.
 pub(crate) fn node_document(word: u64) -> u32 {
     (word >> DOCUMENT_SHIFT) as u32
+}
+
+/// The word of a node of the document `document`.
+pub(crate) fn word_of(document: u32, node: NodeId) -> u64 {
+    (u64::from(document) << DOCUMENT_SHIFT) | node.index() as u64
+}
+
+/// The document and the node of a word.
+pub(crate) fn word_parts(word: u64) -> Option<(u32, NodeId)> {
+    Some((
+        node_document(word),
+        NodeId::from_index(word as u32 as usize)?,
+    ))
 }
 
 /// The node of a wrapper's host data, without a look at its document. A

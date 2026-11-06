@@ -6287,3 +6287,167 @@ def scripted_frame_heap_limit_js_on() -> Page:
     )
     other = "<script src=nothing.js></script><p>b</p>"
     return Page(doc(f'<iframe srcdoc="{inner}"></iframe><iframe srcdoc="{other}"></iframe>'))
+
+
+# ----- Nodes across documents (M9 feature 12b2) -----
+
+
+@case(
+    "A subtree that moves back and forth between two documents in a loop: each move adds nodes to "
+    "an arena (ids are not reused), until the node limit ends the task",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=1300,
+)
+def nodes_back_and_forth_js_on() -> Page:
+    script = (
+        "<script>const d = frames[0].document; const e = document.createElement('div'); "
+        "e.innerHTML = '<p>a</p><p>b</p><p>c</p>'; "
+        "try { for (let i = 0; i < 1000000; i++) { d.body.appendChild(e); "
+        "document.body.appendChild(e); } } "
+        "catch (x) {} document.title = 'done';</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "One observer on each of 200,000 children, and their parent moved across: the observer's "
+    "registrations move in one pass, not one search per node",
+    swb_args=("--js",),
+    time_limit_s=3,
+    rss_limit_mib=1200,
+)
+def nodes_observer_on_many_moved_nodes_js_on() -> Page:
+    script = (
+        "<script>const d = frames[0].document; const e = document.createElement('div'); "
+        "const o = new MutationObserver(() => {}); "
+        "for (let i = 0; i < 200000; i++) { const s = document.createElement('span'); "
+        "e.appendChild(s); o.observe(s, {attributes: true}); } "
+        "document.body.appendChild(e); d.body.appendChild(e); "
+        "document.title = String(e.ownerDocument === d);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "One node moved across 400,000 times and a stale list read in a loop: the first read walks "
+    "the chain of moves, and later reads find the place at once",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=430,
+)
+def nodes_stale_list_after_many_moves_js_on() -> Page:
+    script = (
+        "<script>const d = frames[0].document; const e = document.createElement('div'); "
+        "e.id = 'n'; document.body.appendChild(e); const stale = document.querySelectorAll('#n'); "
+        "for (let i = 0; i < 200000; i++) { d.body.appendChild(e); "
+        "document.body.appendChild(e); } "
+        "let same = 0; for (let i = 0; i < 20000; i++) { if (stale[0] === e) same++; } "
+        "document.title = String(same);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "A chain of 1,000,000 elements moved across: the transplant is iterative, and the limits of "
+    "the "
+    "other arena end what does not fit",
+    swb_args=("--js",),
+    time_limit_s=4,
+    rss_limit_mib=1600,
+)
+def nodes_deep_subtree_moves_js_on() -> Page:
+    script = (
+        "<script>const d = frames[0].document; const root = document.createElement('div'); "
+        "let at = root; for (let i = 0; i < 1000000; i++) { const n = "
+        "document.createElement('div'); "
+        "at.appendChild(n); at = n; } "
+        "const holder = d.createElement('div'); holder.appendChild(root); d.adoptNode(holder); "
+        "document.adoptNode(root); document.title = String(root.ownerDocument === "
+        "document);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "200,000 wrappers with listeners, handlers and same objects moved across one by one",
+    swb_args=("--js",),
+    time_limit_s=4,
+    rss_limit_mib=2048,
+)
+def nodes_many_wrappers_move_js_on() -> Page:
+    script = (
+        "<script>const d = frames[0].document; const all = []; "
+        "for (let i = 0; i < 200000; i++) { const n = document.createElement('i'); "
+        "n.addEventListener('click', () => {}); n.onclick = () => {}; n.style.color = 'red'; "
+        "n.classList.add('k'); "
+        "all.push(n); document.body.appendChild(n); } "
+        "for (const n of all) d.body.appendChild(n); document.title = "
+        "String(d.body.children.length);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "A frame document's only node moves to the parent while the frame is removed, in a loop",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=800,
+)
+def nodes_only_node_leaves_a_removed_frame_js_on() -> Page:
+    script = (
+        "<script>for (let i = 0; i < 300; i++) { const f = document.createElement('iframe'); "
+        "document.body.appendChild(f); const d = f.contentDocument, root = d.documentElement; "
+        "d.addEventListener('x', () => {}); "
+        "f.contentWindow.addEventListener('unload', () => { document.body.appendChild(root); }); "
+        "f.remove(); d.adoptNode(root); document.body.appendChild(root); root.remove(); } "
+        "document.title = 'done';</script>"
+    )
+    return Page(doc(script))
+
+
+@case(
+    "A MutationObserver, live lists and a static list on a subtree that moves away, whose document "
+    "then retires; every object is read after that",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=300,
+)
+def nodes_observer_lists_of_a_retired_document_js_on() -> Page:
+    script = (
+        "<script>const f = document.querySelector('iframe'); const d = f.contentDocument; const "
+        "saved = []; "
+        "for (let i = 0; i < 2000; i++) { const e = d.createElement('div'); e.innerHTML = "
+        "'<p>x</p><p>y</p>'; "
+        "d.body.appendChild(e); const m = new MutationObserver(() => {}); m.observe(e, {subtree: "
+        "true, childList: true}); "
+        "const s = e.querySelectorAll('p'); saved.push([m, e, e.childNodes, "
+        "e.getElementsByTagName('p'), s, e.style, e.classList, e.attributes]); "
+        "e.setAttribute('a', i); document.body.appendChild(e); } "
+        "f.remove(); let sum = 0; "
+        "for (const [m, e, a, b, s, st, cl, at] of saved) { sum += a.length + b.length + s.length "
+        "+ at.length; s[0].id; st.color = 'red'; cl.add('k'); "
+        "e.appendChild(document.createElement('b')); sum += m.takeRecords().length; "
+        "d.body.appendChild(e); sum += a.length; m.disconnect(); } "
+        "document.title = String(sum);</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))
+
+
+@case(
+    "An `error` listener that throws, for a function of another window, in a loop of timers",
+    swb_args=("--js",),
+    time_limit_s=2,
+    rss_limit_mib=300,
+)
+def nodes_error_listener_throws_across_windows_js_on() -> Page:
+    script = (
+        "<script>const w = frames[0]; let n = 0; "
+        "addEventListener('error', () => { throw new Error('again'); }); "
+        "w.addEventListener('error', () => { throw new Error('again'); }); "
+        "function bad() { n++; throw new Error('x'); } "
+        "const b = w.document.body; b.addEventListener('click', bad); "
+        "for (let i = 0; i < 20000; i++) { w.setTimeout(bad, 0); b.click(); } "
+        "document.title = 'done';</script>"
+    )
+    return Page(doc("<iframe></iframe>" + script))

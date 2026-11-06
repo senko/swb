@@ -34,6 +34,8 @@ use swb_net::{CookieJar, Fetcher, Headers, NetError, Request, Response};
 mod common;
 #[path = "frames/input.rs"]
 mod input;
+#[path = "frames/nodes.rs"]
+mod nodes;
 #[path = "frames/paint.rs"]
 mod paint;
 #[path = "frames/scripted.rs"]
@@ -48,8 +50,7 @@ const LOCAL: &str = "http://localhost:8001";
 
 /// The queries of the covered cases that need scripts in frames or other
 /// later features, with the feature. The input cases (`focus`, `input-*`)
-/// run in `crates/automation/tests/frame_input.rs`; their rows here are the
-/// queries that read the log of the frame's own scripts.
+/// run in `crates/automation/tests/frame_input.rs`.
 const QUERIES_LATER: &[(&str, &str)] = &[
     (
         "about-blank",
@@ -58,62 +59,6 @@ const QUERIES_LATER: &[(&str, &str)] = &[
     (
         "cookies-frames",
         "document.cookie, fetch() and postMessage in frames: features 13 and 14",
-    ),
-    (
-        "input-pointer-events",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-press-in-frame",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-press-in-parent",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-click-in-frame",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-wheel-events",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-pointer-events-none",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-visibility-hidden",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-covered",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-opacity-0",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-transform",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-hit-border",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-tab-forward",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "input-tab-backward",
-        "what the frame's own scripts logged (the `c:` entries: its pointer, wheel, focus and blur events): feature 12b2; the page's side of the case runs in `crates/automation/tests/frame_input.rs`",
-    ),
-    (
-        "focus",
-        "the frame window's and the frame element's focus and blur events in the log (`c:` entries): feature 12b2; the page's side runs in `crates/automation/tests/frame_input.rs`",
     ),
     (
         "sandbox",

@@ -394,6 +394,8 @@ impl DocumentState {
             .map(web_font_face)
             .collect();
         fonts.set_web_fonts(faces);
+        self.web_fonts
+            .release_faces(|id| fonts.web_font_sources(id).is_some());
         self.web_fonts.env = Some(env);
         self.invalidate_layout();
     }
@@ -439,7 +441,7 @@ impl DocumentState {
             let url = match Source::parse(source) {
                 Source::Url(url) => url,
                 Source::Local(name) => {
-                    if !self.web_fonts.admit(LOCAL_FACE_COST) {
+                    if !self.web_fonts.admit_face(id, LOCAL_FACE_COST) {
                         continue;
                     }
                     // An installed font loads at once.
@@ -457,7 +459,7 @@ impl DocumentState {
             match self.web_fonts.files.get_mut(&url) {
                 Some(FontFile::Loaded(data)) => {
                     let data = data.clone();
-                    if !self.web_fonts.admit(FACE_COST) {
+                    if !self.web_fonts.admit_face(id, FACE_COST) {
                         continue;
                     }
                     match fonts.web_font_loaded(id, url.as_str(), &data) {
@@ -545,7 +547,7 @@ impl DocumentState {
                 _ => None,
             };
             let loaded = data.is_some_and(|data| {
-                self.web_fonts.admit(FACE_COST)
+                self.web_fonts.admit_face(id, FACE_COST)
                     && fonts
                         .web_font_loaded(id, url.as_str(), &data)
                         .map_err(|e| log::warn!("{e}"))

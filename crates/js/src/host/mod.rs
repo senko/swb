@@ -318,6 +318,14 @@ impl Runtime {
         Ok(HostData::Generic(self.keep(generic)))
     }
 
+    /// Replaces the word of a host object whose host data is a word (the
+    /// browser's bindings: a node moved to another document). The object stays
+    /// the same, with its class, realm, prototype and properties.
+    pub fn set_host_word(&mut self, object: Gc<Object>, word: u64) -> VmResult<()> {
+        self.heap.set_host_word(object, word)?;
+        Ok(())
+    }
+
     /// The realm of a host object (Web IDL "relevant realm"), or of the
     /// target of a `WindowProxy`.
     pub fn host_object_realm(&self, value: Value) -> Option<u32> {

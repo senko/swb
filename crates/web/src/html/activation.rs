@@ -272,9 +272,11 @@ pub(crate) fn after_dispatch(
             if let Some(source) = javascript_link(rt, a.node)? {
                 // A link for a new browsing context or a modified click
                 // (Ctrl, Shift, Meta) runs the script in that context, not
-                // in this document (measured).
-                if opens_here(rt, a.node)? && !opens_elsewhere(modifiers) {
-                    queue_javascript_url(rt, source)?;
+                // in this document (measured). A `target` that names a
+                // frame runs it there (ADR 0031 "Done (feature 12b2)").
+                if !opens_elsewhere(modifiers) {
+                    let target = link_target(rt, a.node)?;
+                    queue_javascript_url_in(rt, source, &target)?;
                 }
                 return Ok(());
             }
@@ -347,22 +349,19 @@ fn opens_elsewhere(mods: u16) -> bool {
     mods & (CONTROL | SHIFT | ALT) != 0
 }
 
-/// True if the link `node` navigates the current browsing context: its
-/// `target` (else the `target` of the first `base` element) is empty or
-/// `_self`, `_parent` or `_top` (swb has no frames; a named context counts
-/// as a new one).
-fn opens_here(rt: &Runtime, node: NodeId) -> VmResult<bool> {
+/// The `target` of the link `node`, else of the first `base` element.
+fn link_target(rt: &Runtime, node: NodeId) -> VmResult<String> {
     let own = dom(rt)?
         .element(node)
         .and_then(|e| e.attr("target"))
         .map(str::to_owned);
-    names_current_context(rt, own)
+    target_or_base(rt, own)
 }
 
-/// [`opens_here`] for the submission of `form` by `submitter`: the
+/// [`link_target`] for the submission of `form` by `submitter`: the
 /// `formtarget` of the submitter (if not empty), else the `target` of the
 /// form.
-fn form_opens_here(rt: &Runtime, form: NodeId, submitter: Option<NodeId>) -> VmResult<bool> {
+fn form_target(rt: &Runtime, form: NodeId, submitter: Option<NodeId>) -> VmResult<String> {
     let document = dom(rt)?;
     let attr = |node: NodeId, name: &str| {
         document
@@ -374,12 +373,12 @@ fn form_opens_here(rt: &Runtime, form: NodeId, submitter: Option<NodeId>) -> VmR
         .and_then(|s| attr(s, "formtarget"))
         .filter(|t| !t.is_empty())
         .or_else(|| attr(form, "target"));
-    names_current_context(rt, own)
+    target_or_base(rt, own)
 }
 
-/// True if the browsing context name `own` (else the `target` of the first
-/// `base` element that has one) is the current one.
-fn names_current_context(rt: &Runtime, own: Option<String>) -> VmResult<bool> {
+/// The browsing context name `own`, else the `target` of the first `base`
+/// element that has one, else the empty name.
+fn target_or_base(rt: &Runtime, own: Option<String>) -> VmResult<String> {
     let document = dom(rt)?;
     let target = own.or_else(|| {
         document
@@ -387,13 +386,7 @@ fn names_current_context(rt: &Runtime, own: Option<String>) -> VmResult<bool> {
             .filter(|&n| document.is_html_element(n, &local_name!("base")))
             .find_map(|n| document.element(n)?.attr("target").map(str::to_owned))
     });
-    Ok(target.is_none_or(|t| {
-        let t = t.trim();
-        t.is_empty()
-            || ["_self", "_parent", "_top"]
-                .iter()
-                .any(|r| t.eq_ignore_ascii_case(r))
-    }))
+    Ok(target.unwrap_or_default().trim().to_owned())
 }
 
 /// The script of the `javascript:` URL that the link `node` has, if any.
@@ -451,6 +444,27 @@ pub(crate) fn queue_javascript_url(rt: &mut Runtime, source: String) -> VmResult
         return Ok(());
     }
     crate::event_loop::queue_task(rt, Task::JavascriptUrl(source))
+}
+
+/// [`queue_javascript_url`] in the document that the browsing context name
+/// `target` names for the current document: the current one for the empty name
+/// and `_self`; `_parent`, `_top` and a frame's name if the current document may
+/// navigate it (measured, case `caller-javascript-links`). `_blank`, a name
+/// without a frame, and a frame that the rules refuse run nothing.
+fn queue_javascript_url_in(rt: &mut Runtime, source: String, target: &str) -> VmResult<()> {
+    if target.is_empty() || target.eq_ignore_ascii_case("_self") {
+        return queue_javascript_url(rt, source);
+    }
+    match crate::frames::script_target(rt, target)? {
+        crate::frames::ScriptTarget::Here => queue_javascript_url(rt, source),
+        crate::frames::ScriptTarget::None => Ok(()),
+        crate::frames::ScriptTarget::Document(key) => {
+            let entered = crate::state::switch_if_other(rt, key)?;
+            let result = queue_javascript_url(rt, source);
+            crate::state::leave(rt, entered);
+            result
+        }
+    }
 }
 
 /// Runs the script of a `javascript:` URL in the document as a classic
@@ -679,9 +693,11 @@ fn submit_steps(
     }
     if let Some(source) = javascript_form_action(rt, form, submitter)? {
         // A submission for a new context or with Ctrl, Shift or Alt held
-        // runs the script there, not in this document (measured).
-        if !click.elsewhere && form_opens_here(rt, form, submitter)? {
-            queue_javascript_url(rt, source)?;
+        // runs the script there, not in this document (measured). A `target`
+        // that names a frame runs it there.
+        if !click.elsewhere {
+            let target = form_target(rt, form, submitter)?;
+            queue_javascript_url_in(rt, source, &target)?;
         }
         return Ok(());
     }
@@ -747,10 +763,29 @@ fn reset_outputs(rt: &mut Runtime, form: NodeId) -> VmResult<()> {
 pub(crate) fn request_submit(
     cx: &mut Cx<'_>,
     form: NodeId,
-    submitter: Option<NodeId>,
+    submitter: Option<b::NodeRef>,
 ) -> b::Result<()> {
+    let submitter = submitter_here(cx.rt, submitter)?;
     check_submitter(cx, form, submitter)?;
     Ok(submit(cx.rt, form, submitter, false, ClickInfo::default())?)
+}
+
+/// The submitter of `requestSubmit` and `new FormData(form, submitter)`: an
+/// element of another document is owned by no form here (measured).
+pub(crate) fn submitter_here(
+    rt: &Runtime,
+    submitter: Option<b::NodeRef>,
+) -> b::Result<Option<NodeId>> {
+    match submitter {
+        None => Ok(None),
+        Some(node) => match node.here(rt) {
+            Some(here) => Ok(Some(here)),
+            None => Err(b::Exception::dom(
+                "NotFoundError",
+                "The specified element is not owned by this form element.",
+            )),
+        },
+    }
 }
 
 /// The checks of `requestSubmit` and `new FormData(form, submitter)`: the

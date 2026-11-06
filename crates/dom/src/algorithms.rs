@@ -123,19 +123,24 @@ impl Document {
     /// attributes (in any order) and equal children.
     /// <https://dom.spec.whatwg.org/#concept-node-equals>
     pub fn is_equal_node(&self, a: NodeId, b: NodeId) -> bool {
+        self.is_equal_to(a, self, b)
+    }
+
+    /// DOM "equals" of the node `a` of this arena and the node `b` of `other`.
+    pub fn is_equal_to(&self, a: NodeId, other: &Document, b: NodeId) -> bool {
         let mut stack = vec![(a, b)];
         while let Some((x, y)) = stack.pop() {
-            if !self.same_data(x, y) {
+            if !Self::same_data(self, x, other, y) {
                 return false;
             }
-            let (mut cx, mut cy) = (self.node(x).first_child, self.node(y).first_child);
+            let (mut cx, mut cy) = (self.node(x).first_child, other.node(y).first_child);
             loop {
                 match (cx, cy) {
                     (None, None) => break,
                     (Some(p), Some(q)) => {
                         stack.push((p, q));
                         cx = self.node(p).next_sibling;
-                        cy = self.node(q).next_sibling;
+                        cy = other.node(q).next_sibling;
                     }
                     _ => return false,
                 }
@@ -144,10 +149,10 @@ impl Document {
         true
     }
 
-    /// True if two nodes are of the same kind and have the same data (not
-    /// the children).
-    fn same_data(&self, x: NodeId, y: NodeId) -> bool {
-        match (&self.node(x).data, &self.node(y).data) {
+    /// True if the node `x` of `first` and the node `y` of `second` are of the
+    /// same kind and have the same data (not the children).
+    fn same_data(first: &Document, x: NodeId, second: &Document, y: NodeId) -> bool {
+        match (&first.node(x).data, &second.node(y).data) {
             (NodeData::Document, NodeData::Document)
             | (NodeData::DocumentFragment, NodeData::DocumentFragment) => true,
             (

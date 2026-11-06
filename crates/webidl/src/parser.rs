@@ -748,7 +748,11 @@ fn move_type_attrs(attrs: &mut ExtAttrs, ty: &mut Type) {
         std::mem::take(&mut attrs.0).into_iter().partition(|a| {
             matches!(
                 a.name.as_str(),
-                "Clamp" | "EnforceRange" | "LegacyNullToEmptyString" | "AllowShared"
+                "Clamp"
+                    | "EnforceRange"
+                    | "LegacyNullToEmptyString"
+                    | "AllowShared"
+                    | "SwbAnyDocument"
             )
         });
     attrs.0 = rest;

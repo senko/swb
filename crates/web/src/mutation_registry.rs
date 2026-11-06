@@ -3,13 +3,18 @@
 //! and 13): the registered observers of the nodes, the transient registered
 //! observers of removed nodes, and the records that wait for their delivery.
 //!
-//! It holds only Rust data (node ids, names, old values), so the document
+//! It holds only Rust data (node ids, names, old values), so a document
 //! can keep it as its mutation sink ([`Sink`]) while the document is lent
 //! to a script runtime. The JavaScript objects (`MutationObserver`,
 //! `MutationRecord`) are made at delivery (`mutation_observer.rs`).
 //!
-//! The sink is installed at the first `observe()`: until then the document
-//! reports nothing and a parse costs nothing extra.
+//! The registry belongs to the agent (HTML has one mutation observer microtask
+//! per agent), so an observer can have nodes of several documents of the
+//! runtime; a node is its document and its id ([`Place`]).
+//!
+//! The sink of a document is installed at the first `observe()` of one of its
+//! nodes: until then the document reports nothing and a parse costs nothing
+//! extra.
 //!
 //! Limits (ADR 0028 section 16): [`MAX_RECORDS`] records and
 //! [`MAX_RECORD_BYTES`] bytes of record data wait at most; later records are
@@ -53,6 +58,9 @@ pub(crate) const MAX_TRANSIENTS: usize = 500_000;
 /// checks the time limit of the task.
 const WORK_PER_CHECK: usize = 4096;
 
+/// A node of a document of the runtime.
+type Place = (u32, NodeId);
+
 /// The kind of a record (`MutationRecord.type`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -88,6 +96,8 @@ pub(crate) struct Options {
 /// A mutation record, as Rust data.
 #[derive(Clone, Debug)]
 pub(crate) struct Record {
+    /// The document of the nodes of the record, when it was queued.
+    pub(crate) document: u32,
     pub(crate) kind: Kind,
     pub(crate) target: NodeId,
     pub(crate) added: Vec<NodeId>,
@@ -117,7 +127,7 @@ impl Record {
 struct Registration {
     observer: u32,
     options: Rc<Options>,
-    source: Option<NodeId>,
+    source: Option<Place>,
 }
 
 /// What the registry knows about one observer.
@@ -127,15 +137,15 @@ struct Entry {
     records: Vec<Record>,
     /// The nodes with a regular registration of the observer (the
     /// observer's "node list").
-    nodes: Vec<NodeId>,
+    nodes: HashSet<Place>,
     /// The nodes with a transient registered observer of it.
-    transient_nodes: HashSet<NodeId>,
+    transient_nodes: HashSet<Place>,
 }
 
 /// The registered observers of all nodes and the queues of all observers.
 #[derive(Debug, Default)]
 pub(crate) struct Registry {
-    nodes: HashMap<NodeId, Vec<Registration>>,
+    nodes: HashMap<Place, Vec<Registration>>,
     /// The observers that have registrations, by number (creation order).
     entries: BTreeMap<u32, Entry>,
     /// The observers with records or transient registrations: the ones
@@ -161,11 +171,18 @@ pub(crate) struct Registry {
 pub(crate) type Shared = Rc<RefCell<Registry>>;
 
 /// The mutation sink of the document: reports to the registry.
-pub(crate) struct Sink(pub(crate) Shared);
+pub(crate) struct Sink {
+    /// The registry of the agent.
+    pub(crate) registry: Shared,
+    /// The key of the document.
+    pub(crate) document: u32,
+}
 
 impl MutationSink for Sink {
     fn change(&mut self, doc: &Document, change: &Change<'_>) {
-        self.0.borrow_mut().change(doc, change);
+        self.registry
+            .borrow_mut()
+            .change(self.document, doc, change);
     }
 }
 
@@ -181,7 +198,7 @@ impl Registry {
     /// The `observe()` algorithm of DOM §4.3.2, after the checks of its
     /// arguments: registers observer `observer` at `node`, or replaces the
     /// options of its registration there.
-    pub(crate) fn observe(&mut self, observer: u32, node: NodeId, options: Options) {
+    pub(crate) fn observe(&mut self, observer: u32, node: Place, options: Options) {
         let options = Rc::new(options);
         self.entries.entry(observer).or_default();
         let existing = self.nodes.get_mut(&node).and_then(|list| {
@@ -199,13 +216,13 @@ impl Registry {
             source: None,
         });
         if let Some(entry) = self.entries.get_mut(&observer) {
-            entry.nodes.push(node);
+            entry.nodes.insert(node);
         }
     }
 
     /// Removes the transient registered observers of `observer` whose
     /// source is the registration at `source`.
-    fn remove_transients(&mut self, observer: u32, source: NodeId) {
+    fn remove_transients(&mut self, observer: u32, source: Place) {
         let Some(entry) = self.entries.get_mut(&observer) else {
             return;
         };
@@ -349,13 +366,6 @@ impl Registry {
         (microtask, overdue)
     }
 
-    /// [`Self::take_signals`] without the time check: the work stays counted,
-    /// and the next work of this registry asks for the check again.
-    pub(crate) fn take_microtask_request(&mut self) -> bool {
-        self.request.set(false);
-        std::mem::take(&mut self.microtask_wanted)
-    }
-
     /// Counts work; asks the host to check the time limit when it is large.
     fn check_work(&mut self) {
         if self.work >= WORK_PER_CHECK {
@@ -376,9 +386,67 @@ impl Registry {
         self.waiting
     }
 
-    /// One change of the document (DOM "queue a mutation record" and, for
+    /// The nodes of `pairs` (old id, new id) went from the document `from` to
+    /// the document `to`: their registrations go with them (measured). True if
+    /// one of them has one, so that the new document needs its sink.
+    pub(crate) fn move_nodes(&mut self, from: u32, to: u32, pairs: &[(NodeId, NodeId)]) -> bool {
+        if self.nodes.is_empty() {
+            return false;
+        }
+        let mut any = false;
+        let mut sources: HashMap<(u32, Place), Place> = HashMap::new();
+        for &(old, new) in pairs {
+            let (before, after) = ((from, old), (to, new));
+            let Some(list) = self.nodes.remove(&before) else {
+                continue;
+            };
+            any = true;
+            for registration in &list {
+                let observer = registration.observer;
+                let Some(entry) = self.entries.get_mut(&observer) else {
+                    continue;
+                };
+                if registration.source.is_none() {
+                    if entry.nodes.remove(&before) {
+                        entry.nodes.insert(after);
+                    }
+                    sources.insert((observer, before), after);
+                } else if entry.transient_nodes.remove(&before) {
+                    entry.transient_nodes.insert(after);
+                }
+            }
+            self.nodes.insert(after, list);
+        }
+        self.sources_moved(&sources);
+        any
+    }
+
+    /// Regular registrations moved (`sources`: the observer and the place before,
+    /// and the place now): the transient registrations of those observers name
+    /// the new places. One walk over each observer's transients, so the cost
+    /// follows the transients and not the moved nodes times the transients.
+    fn sources_moved(&mut self, sources: &HashMap<(u32, Place), Place>) {
+        let observers: HashSet<u32> = sources.keys().map(|&(observer, _)| observer).collect();
+        for observer in observers {
+            let Some(entry) = self.entries.get(&observer) else {
+                continue;
+            };
+            for place in &entry.transient_nodes {
+                for registration in self.nodes.get_mut(place).into_iter().flatten() {
+                    if registration.observer == observer
+                        && let Some(source) = registration.source
+                        && let Some(&now) = sources.get(&(observer, source))
+                    {
+                        registration.source = Some(now);
+                    }
+                }
+            }
+        }
+    }
+
+    /// One change of a document (DOM "queue a mutation record" and, for
     /// removed nodes, the transient registered observers of "remove").
-    fn change(&mut self, doc: &Document, change: &Change<'_>) {
+    fn change(&mut self, document: u32, doc: &Document, change: &Change<'_>) {
         if self.nodes.is_empty() {
             return;
         }
@@ -391,9 +459,9 @@ impl Registry {
                 next_sibling,
             } => {
                 if !removed.is_empty() {
-                    self.add_transients(doc, parent, removed);
+                    self.add_transients(document, doc, parent, removed);
                 }
-                self.queue(doc, Kind::ChildList, parent, None, |record| {
+                self.queue(document, doc, Kind::ChildList, parent, None, |record| {
                     record.added = added.to_vec();
                     record.removed = removed.to_vec();
                     record.previous_sibling = prev_sibling;
@@ -404,13 +472,20 @@ impl Registry {
                 element,
                 name,
                 old_value,
-            } => self.queue(doc, Kind::Attributes, element, Some(name), |record| {
-                record.attribute_name = Some(name.local.to_string());
-                record.attribute_namespace = namespace_of(name);
-                record.old_value = old_value.map(str::to_owned);
-            }),
+            } => self.queue(
+                document,
+                doc,
+                Kind::Attributes,
+                element,
+                Some(name),
+                |record| {
+                    record.attribute_name = Some(name.local.to_string());
+                    record.attribute_namespace = namespace_of(name);
+                    record.old_value = old_value.map(str::to_owned);
+                },
+            ),
             Change::Text { node, old_value } => {
-                self.queue(doc, Kind::CharacterData, node, None, |record| {
+                self.queue(document, doc, Kind::CharacterData, node, None, |record| {
                     record.old_value = old_value.map(str::to_owned);
                 });
             }
@@ -422,6 +497,7 @@ impl Registry {
     /// (made by `fill`) at each.
     fn queue(
         &mut self,
+        document: u32,
         doc: &Document,
         kind: Kind,
         target: NodeId,
@@ -434,7 +510,7 @@ impl Registry {
         let mut visited = 0;
         while let Some(current) = node {
             visited += 1;
-            if let Some(list) = self.nodes.get(&current) {
+            if let Some(list) = self.nodes.get(&(document, current)) {
                 visited += list.len();
                 for registration in list {
                     if wants(&registration.options, kind, current == target, attribute) {
@@ -465,6 +541,7 @@ impl Registry {
             same
         });
         let mut proto = Record {
+            document,
             kind,
             target,
             added: Vec::new(),
@@ -532,7 +609,13 @@ impl Registry {
     /// The transient registered observers of "remove": each removed node
     /// gets one for each registered observer with `subtree` on the
     /// inclusive ancestors of `parent`.
-    fn add_transients(&mut self, doc: &Document, parent: NodeId, removed: &[NodeId]) {
+    fn add_transients(
+        &mut self,
+        document: u32,
+        doc: &Document,
+        parent: NodeId,
+        removed: &[NodeId],
+    ) {
         if self.transients >= MAX_TRANSIENTS {
             return;
         }
@@ -541,13 +624,13 @@ impl Registry {
         let mut visited = 0;
         while let Some(current) = node {
             visited += 1;
-            if let Some(list) = self.nodes.get(&current) {
+            if let Some(list) = self.nodes.get(&(document, current)) {
                 visited += list.len();
                 for registration in list.iter().filter(|r| r.options.subtree) {
                     sources.push(Registration {
                         observer: registration.observer,
                         options: registration.options.clone(),
-                        source: Some(registration.source.unwrap_or(current)),
+                        source: Some(registration.source.unwrap_or((document, current))),
                     });
                 }
             }
@@ -568,7 +651,7 @@ impl Registry {
                     }
                     return;
                 }
-                let list = self.nodes.entry(gone).or_default();
+                let list = self.nodes.entry((document, gone)).or_default();
                 let duplicate = list.iter().any(|r| {
                     r.observer == source.observer
                         && r.source == source.source
@@ -580,7 +663,7 @@ impl Registry {
                 list.push(source.clone());
                 self.transients += 1;
                 if let Some(entry) = self.entries.get_mut(&source.observer) {
-                    entry.transient_nodes.insert(gone);
+                    entry.transient_nodes.insert((document, gone));
                     self.notify.insert(source.observer);
                 }
             }
@@ -632,7 +715,7 @@ mod tests {
     #[test]
     fn a_registration_is_replaced_by_a_second_observe() {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
-        let node = NodeId::DOCUMENT;
+        let node = (0, NodeId::DOCUMENT);
         registry.observe(1, node, options(true, false));
         registry.observe(1, node, options(true, true));
         assert_eq!(registry.nodes[&node].len(), 1);
@@ -649,7 +732,7 @@ mod tests {
         let doc = Document::new();
         registry.observe(
             1,
-            NodeId::DOCUMENT,
+            (0, NodeId::DOCUMENT),
             Options {
                 character_data: true,
                 character_data_old_value: true,
@@ -661,7 +744,7 @@ mod tests {
             old_value: None,
         };
         for _ in 0..MAX_RECORDS + 10 {
-            registry.change(&doc, &change);
+            registry.change(0, &doc, &change);
         }
         assert_eq!(registry.waiting(), MAX_RECORDS);
         assert!(request.get());
@@ -674,7 +757,7 @@ mod tests {
             old_value: Some(&long),
         };
         for _ in 0..200 {
-            registry.change(&doc, &change);
+            registry.change(0, &doc, &change);
         }
         assert!(registry.waiting() <= MAX_RECORD_BYTES / (1 << 20));
         assert!(registry.waiting() >= 100);
@@ -684,11 +767,12 @@ mod tests {
     fn transient_registrations_are_bounded_and_released() {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
         let doc = Document::new();
-        registry.observe(1, NodeId::DOCUMENT, options(true, true));
+        registry.observe(1, (0, NodeId::DOCUMENT), options(true, true));
         let gone: Vec<NodeId> = (1..=MAX_TRANSIENTS + 10)
             .filter_map(NodeId::from_index)
             .collect();
         registry.change(
+            0,
             &doc,
             &Change::Children {
                 parent: NodeId::DOCUMENT,
@@ -714,9 +798,10 @@ mod tests {
         let mut registry = Registry::new(Rc::new(Cell::new(false)));
         let doc = Document::new();
         for observer in [1, 2] {
-            registry.observe(observer, NodeId::DOCUMENT, options(true, false));
+            registry.observe(observer, (0, NodeId::DOCUMENT), options(true, false));
         }
         registry.change(
+            0,
             &doc,
             &Change::Children {
                 parent: NodeId::DOCUMENT,
@@ -740,13 +825,14 @@ mod tests {
         let doc = Document::new();
         registry.observe(
             1,
-            NodeId::DOCUMENT,
+            (0, NodeId::DOCUMENT),
             Options {
                 character_data: true,
                 ..Options::default()
             },
         );
         registry.change(
+            0,
             &doc,
             &Change::Text {
                 node: NodeId::DOCUMENT,

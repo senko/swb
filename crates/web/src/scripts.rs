@@ -947,9 +947,14 @@ pub(crate) fn mark_module_ready(
 /// `load` for an external script. The exception of the script is
 /// reported; a termination goes up.
 pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError> {
-    let in_document = dom(rt)
-        .map(|d| d.node_document(node) == NodeId::DOCUMENT)
-        .map_err(crate::runtime::task_error)?;
+    // A script that moved to another document after its preparation does not
+    // run, and fires nothing (HTML "execute the script element", step 2;
+    // measured).
+    let moved = crate::state::has_moved(rt, node).map_err(crate::runtime::task_error)?;
+    let in_document = !moved
+        && dom(rt)
+            .map(|d| d.node_document(node) == NodeId::DOCUMENT)
+            .map_err(crate::runtime::task_error)?;
     let scripts = scripts_mut(rt).map_err(crate::runtime::task_error)?;
     let Some(el) = scripts.elements.get_mut(&node) else {
         return Ok(());
@@ -1279,6 +1284,19 @@ pub(crate) fn has_started(rt: &Runtime, node: NodeId) -> VmResult<bool> {
             .elements
             .get(&node)
             .is_some_and(|el| el.already_started))
+}
+
+/// The script element `old` went to another document, where it is `new`: its
+/// "already started" flag goes with it. The old record stays for what waits in
+/// the old document's lists, and [`execute`] ends there.
+pub(crate) fn node_moved(from: &Scripts, to: &mut Scripts, old: NodeId, new: NodeId) {
+    let Some(el) = from.elements.get(&old) else {
+        return;
+    };
+    let mut moved = ScriptElement::new();
+    moved.already_started = el.already_started;
+    moved.force_async = el.force_async;
+    to.elements.insert(new, moved);
 }
 
 /// The text of a character data node changed: the children changed steps

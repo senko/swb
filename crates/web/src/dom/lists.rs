@@ -210,6 +210,8 @@ struct Names {
 /// The data of a list.
 struct ListData {
     kind: ListKind,
+    /// The key of the document of `root`, whose arena the ids of the list mean.
+    document: u32,
     root: NodeId,
     /// The cache, if built and not dropped. A [`ListKind::Static`] list
     /// always has it.
@@ -217,6 +219,20 @@ struct ListData {
 }
 
 impl GenericData for ListData {
+    /// A static list keeps its ids and its document: a node that moved is found
+    /// from there. So its word names the document node, which stays.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, self.root))
+    }
+
+    fn set_host_word(&mut self, word: u64) {
+        if let Some((document, root)) = b::word_parts(word) {
+            self.document = document;
+            self.root = root;
+            self.built = None;
+        }
+    }
+
     fn trace(&self, _tracer: &mut Tracer<'_>) {}
 
     fn heap_size(&self) -> usize {
@@ -238,8 +254,10 @@ pub(crate) fn new_list(
     kind: ListKind,
 ) -> VmResult<Gc<Object>> {
     let class = kind.class();
+    let document = crate::state::document_key(rt)?;
     let data = rt.alloc_host_data(ListData {
         kind,
+        document,
         root,
         built: None,
     })?;
@@ -252,8 +270,10 @@ pub(crate) fn new_static_list(
     realm: u32,
     nodes: Vec<NodeId>,
 ) -> VmResult<Gc<Object>> {
+    let document = crate::state::document_key(rt)?;
     let data = rt.alloc_host_data(ListData {
         kind: ListKind::Static,
+        document,
         root: NodeId::DOCUMENT,
         built: Some(Built {
             generation: 0,
@@ -835,8 +855,10 @@ pub(crate) fn new_controls_named(
 ) -> b::Result<Platform> {
     let generation = dom(cx.rt)?.generation();
     let realm = cx.realm();
+    let document = crate::state::document_key(cx.rt)?;
     let data = cx.rt.alloc_host_data(ListData {
         kind: ListKind::ControlsNamed(name.to_owned()),
+        document,
         root: form,
         built: Some(Built {
             generation,

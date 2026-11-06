@@ -85,6 +85,16 @@ pub trait GenericData: Any {
     fn trace(&self, tracer: &mut Tracer<'_>);
     /// The bytes of the buffers that the data owns (not its own size).
     fn heap_size(&self) -> usize;
+    /// The host's number of the place that the data names, if it names one:
+    /// the browser's bindings keep the document and the node of a platform
+    /// object that belongs to a node here.
+    fn host_word(&self) -> Option<u64> {
+        None
+    }
+    /// Gives the data a new [`GenericData::host_word`]: the place moved.
+    fn set_host_word(&mut self, word: u64) {
+        let _ = word;
+    }
 }
 
 /// A slot of the generic kind.
@@ -489,6 +499,17 @@ impl Heap {
         let data: &mut dyn Any = &mut *self.arenas.generic.get_mut(handle)?.0;
         data.downcast_mut()
             .ok_or(Error::invariant("generic data of another type"))
+    }
+
+    /// [`GenericData::host_word`] of the data of `handle`.
+    pub fn generic_host_word(&self, handle: Gc<Generic>) -> Result<Option<u64>> {
+        Ok(self.arenas.generic.get(handle)?.0.host_word())
+    }
+
+    /// [`GenericData::set_host_word`] of the data of `handle`.
+    pub fn set_generic_host_word(&mut self, handle: Gc<Generic>, word: u64) -> Result<()> {
+        self.arenas.generic.get_mut(handle)?.0.set_host_word(word);
+        Ok(())
     }
 
     /// Runs `change` on the generic data of `handle` and charges the

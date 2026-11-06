@@ -7,15 +7,13 @@
 //! --project tools swbtools probe --json tools/probes/web-frames.json
 //! --case NAME ...`, three equal runs, merged with the same indent).
 //!
-//! Frame documents run no scripts in swb yet (features 12 and 13), so the
-//! probe's expressions that read a frame (`f.contentDocument`,
-//! `f.contentWindow.scrollY`) cannot run. The `eval` steps and queries
-//! that read frame state are snapshots (`log.push('KEY:' + ...)`); the test
-//! reads the same state through the engine API (`snapshot`) and pushes the
-//! string that Chromium's expression gives. What the scripts of the frame
-//! documents log (`c:` entries of the log) waits for feature 12: `LATER`
-//! lists those queries. `DEPARTURES` lists the queries where swb's value
-//! differs on purpose, with the reason.
+//! The scripts of frame documents get the events (M9 feature 12b2: the `c:`
+//! entries of the logs). Two things go through the engine API: the selection,
+//! because swb has no `getSelection` (the `eval` steps `log.push('slN:' + ...)`
+//! are snapshots, and the test pushes the string that Chromium's expression
+//! gives), and a cross-origin frame, which has no realm until feature 13.
+//! `DEPARTURES` lists the queries where swb's value differs on purpose, with the
+//! reason.
 
 // Test helpers outside `#[test]` functions unwrap too.
 #![allow(clippy::unwrap_used)]
@@ -29,16 +27,11 @@ use std::time::Duration;
 use common::{on_page_thread, value};
 use serde_json::Value;
 use swb_automation::run_steps;
-use swb_engine::{FontContext, FrameId, NodeId, Page, PageConfig, Size, Url};
+use swb_engine::{FontContext, FrameId, Page, PageConfig, Size, Url};
 use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
 const MAIN: &str = "http://127.0.0.1:8000";
 const OTHER: &str = "http://127.0.0.1:8001";
-
-/// Queries that read what the scripts of the frame documents logged: they
-/// wait for feature 12 (scripts in frames). A case name with the index of
-/// the query.
-const LATER_MARK: &str = "startsWith('c:')";
 
 /// Queries where swb's value differs from Chromium's on purpose: (case,
 /// query index, swb's value, why).
@@ -204,218 +197,10 @@ fn active(page: &Page, frame: FrameId) -> String {
     )
 }
 
-/// True if `frame` or one of its descendants holds the page's focus.
-fn has_focus(page: &mut Page, frame: FrameId) -> bool {
-    let mut at = Some(page.focused_frame_id());
-    while let Some(f) = at {
-        if f == frame {
-            return true;
-        }
-        at = page.frame_parent(f);
-    }
-    false
-}
-
-/// `element.matches(':hover')` (or `:active`): the element is the state's
-/// element or contains it.
-fn state_matches(page: &Page, frame: FrameId, element: Option<NodeId>, active: bool) -> bool {
-    let Some(doc) = page.frame_document(frame) else {
-        return false;
-    };
-    let state = if active {
-        doc.pressed_element()
-    } else {
-        doc.hovered_element()
-    };
-    let (Some(element), Some(state)) = (element, state) else {
-        return false;
-    };
-    element == state || doc.dom().ancestors(state).any(|a| a == element)
-}
-
-fn by_id(page: &Page, frame: FrameId, id: &str) -> Option<NodeId> {
-    page.frame_document(frame)?.dom().element_by_id(id)
-}
-
-/// `document.hasFocus()` of the page's document.
-fn window_focus(page: &mut Page) -> bool {
-    value(page, "document.hasFocus()") == Value::Bool(true)
-}
-
-fn flag(v: bool) -> &'static str {
-    if v { "true" } else { "false" }
-}
-
-/// The path and query of a URL as the probe prints them (`t.html?self#z`).
-fn short_url(url: &Url) -> String {
-    let name = url.path().rsplit('/').next().unwrap_or("");
-    format!(
-        "{name}{}{}",
-        url.query().map_or(String::new(), |q| format!("?{q}")),
-        url.fragment().map_or(String::new(), |f| format!("#{f}")),
-    )
-}
-
 /// The string that the snapshot `key` of a case gives in Chromium.
-fn snapshot(page: &mut Page, key: &str, source: &str) -> String {
+fn snapshot(page: &mut Page, key: &str) -> String {
     let kind = key.trim_end_matches(|c: char| c.is_ascii_digit());
-    state_snapshot(page, kind)
-        .or_else(|| scroll_snapshot(page, kind))
-        .or_else(|| focus_snapshot(page, kind, source))
-        .or_else(|| content_snapshot(page, kind))
-        .unwrap_or_else(|| panic!("no snapshot {kind:?} for {key}"))
-}
-
-fn flags(values: &[bool]) -> String {
-    values
-        .iter()
-        .map(|&v| flag(v))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-/// The `:hover` and `:active` chains.
-fn state_snapshot(page: &mut Page, kind: &str) -> Option<String> {
-    let top = FrameId::TOP;
-    let f = frame_of(page, top, "f")?;
-    let body =
-        |page: &Page, frame: FrameId| page.frame_document(frame).and_then(|d| d.dom().body());
-    let f_node = by_id(page, top, "f");
-    let a = by_id(page, f, "a");
-    Some(match kind {
-        // The pointer pages: f, #b, #a, body and root of the frame.
-        "h" => {
-            let b = by_id(page, top, "b");
-            let root = page.frame_document(f)?.dom().document_element();
-            let fb = body(page, f);
-            flags(&[
-                state_matches(page, top, f_node, false),
-                state_matches(page, top, b, false),
-                state_matches(page, f, a, false),
-                state_matches(page, f, fb, false),
-                state_matches(page, f, root, false),
-            ])
-        }
-        // The hit pages: f, #under, #a.
-        "hh" => {
-            let under = by_id(page, top, "under");
-            flags(&[
-                state_matches(page, top, f_node, false),
-                state_matches(page, top, under, false),
-                state_matches(page, f, a, false),
-            ])
-        }
-        // `:active`: f, the page's body, #a, the frame's body.
-        "a" => {
-            let (page_body, fb) = (body(page, top), body(page, f));
-            flags(&[
-                state_matches(page, top, f_node, true),
-                state_matches(page, top, page_body, true),
-                state_matches(page, f, a, true),
-                state_matches(page, f, fb, true),
-            ])
-        }
-        _ => return None,
-    })
-}
-
-/// The scroll offsets.
-fn scroll_snapshot(page: &mut Page, kind: &str) -> Option<String> {
-    let top = FrameId::TOP;
-    let y = |page: &Page, frame: Option<FrameId>| {
-        frame.map_or(0.0, |f| page.frame_document(f).unwrap().scroll_position().y)
-    };
-    match kind {
-        // The page, #f, and #g (of the page, or of #f).
-        "s" | "w" => {
-            let f = frame_of(page, top, "f");
-            let mut parts = vec![page.scroll_position().y.to_string(), y(page, f).to_string()];
-            let inner = f
-                .and_then(|f| frame_of(page, f, "g"))
-                .or_else(|| frame_of(page, top, "g"));
-            if kind == "w" || inner.is_some() {
-                parts.push(y(page, inner).to_string());
-            }
-            Some(parts.join(","))
-        }
-        // The case `wheel-scroll`: the page, `frames[0]` and `frames[1]`.
-        "frames" => {
-            let children = page.frame_children(top);
-            let child = |i: usize| children.get(i).copied();
-            Some(format!(
-                "{},{},{}",
-                page.scroll_position().y,
-                y(page, child(0)),
-                y(page, child(1))
-            ))
-        }
-        _ => None,
-    }
-}
-
-/// The focus: `document.activeElement` of the documents and `hasFocus()`.
-fn focus_snapshot(page: &mut Page, kind: &str, source: &str) -> Option<String> {
-    let top = FrameId::TOP;
-    let f = frame_of(page, top, "f");
-    let (page_active, page_focus) = (active(page, top), flag(window_focus(page)));
-    Some(match kind {
-        // The case `focus`.
-        "state" => {
-            let f = f?;
-            format!(
-                "{page_active},{},{page_focus},{}",
-                active(page, f),
-                flag(has_focus(page, f))
-            )
-        }
-        // After a Tab.
-        "fc" => {
-            let f = f?;
-            format!(
-                "{page_active}/{}/{page_focus}/{}",
-                active(page, f),
-                flag(has_focus(page, f))
-            )
-        }
-        // After a click into a frame: also `:focus` and `:focus-visible`.
-        "fx" => {
-            let f = f?;
-            let c1 = by_id(page, f, "c1");
-            let c1_focus = c1.is_some() && page.frame_document(f)?.focus_element() == c1;
-            format!(
-                "{page_active}/{}/{page_focus}/{}/false/{}/{}",
-                active(page, f),
-                flag(has_focus(page, f)),
-                flag(c1_focus),
-                flag(c1_focus),
-            )
-        }
-        // The Tab kinds page: the page, #pos, #empty.
-        "fk" => {
-            let pos = frame_of(page, top, "pos")?;
-            let empty = frame_of(page, top, "empty")?;
-            format!(
-                "{page_active}/{}/{}",
-                active(page, pos),
-                active(page, empty)
-            )
-        }
-        // The nested page: the page, #f, #g in #f.
-        "fn" => {
-            let f = f?;
-            let g = frame_of(page, f, "g")?;
-            format!("{page_active}/{}/{}", active(page, f), active(page, g))
-        }
-        // The focus after a frame went: the page and its focus.
-        "l" => {
-            let mut text = format!("{page_active}/{page_focus}");
-            if source.contains("act(f.contentDocument)") {
-                text = format!("{text}/{}", active(page, f?));
-            }
-            text
-        }
-        _ => return None,
-    })
+    content_snapshot(page, kind).unwrap_or_else(|| panic!("no snapshot {kind:?} for {key}"))
 }
 
 /// The form values and the selections.
@@ -423,29 +208,6 @@ fn content_snapshot(page: &mut Page, kind: &str) -> Option<String> {
     let top = FrameId::TOP;
     let f = frame_of(page, top, "f")?;
     Some(match kind {
-        // The URL of the frame, the values and the active id.
-        "v" => {
-            let doc = page.frame_document(f)?;
-            let get = |id: &str| by_id(page, f, id);
-            let value = |id: &str| {
-                get(id)
-                    .and_then(|n| doc.control_value(n))
-                    .unwrap_or_default()
-            };
-            let checked = |id: &str| {
-                get(id)
-                    .and_then(|n| doc.control_checked(n))
-                    .map_or(String::new(), |c| flag(c).to_owned())
-            };
-            [
-                short_url(doc.url()),
-                value("q"),
-                checked("c"),
-                value("s"),
-                active(page, f),
-            ]
-            .join(" | ")
-        }
         // The page's selection, the frame's, the active elements.
         "sl" => {
             let own = page.frame_selected_text(top);
@@ -462,70 +224,22 @@ fn content_snapshot(page: &mut Page, kind: &str) -> Option<String> {
     })
 }
 
-/// For a step that reads frame state, `{"eval": "log.push('KEY:' + ...)"}`
-/// with `contentDocument`, `contentWindow`, `matches(':hover')` of a frame
-/// element and the like: the key and the source. The case `wheel-scroll`
-/// pushes `frames[...]` values without a key.
-fn snapshot_key(step: &Value) -> Option<(String, String)> {
+/// For a step that reads a selection, `{"eval": "log.push('slN:' + ...)"}`: the
+/// key and the source.
+fn snapshot_key(step: &Value) -> Option<String> {
     let source = step.get("eval")?.as_str()?;
-    let reads_frame = ["contentDocument", "contentWindow", "f.matches(", "frames["]
-        .iter()
-        .any(|m| source.contains(m));
-    if !reads_frame || source.contains(".scrollTo(") {
-        return None;
-    }
-    if source.starts_with("log.push([scrollY, frames[0]") {
-        return Some(("frames".to_owned(), source.to_owned()));
-    }
-    let rest = source.strip_prefix("log.push('")?;
-    let key = rest.split(':').next()?;
-    Some((key.to_owned(), source.to_owned()))
-}
-
-/// A script's `frames[N].scrollTo(x, y)` of the case `wheel-scroll`: the
-/// frame's document scrolls (a script cannot do it in swb yet).
-fn frame_scroll_step(page: &mut Page, step: &Value) -> bool {
-    let Some(source) = step.get("eval").and_then(Value::as_str) else {
-        return false;
-    };
-    let Some(rest) = source.strip_prefix("frames[") else {
-        return false;
-    };
-    let Some((index, args)) = rest.split_once("].scrollTo(") else {
-        return false;
-    };
-    let numbers: Vec<f32> = args
-        .trim_end_matches(')')
-        .split(',')
-        .filter_map(|n| n.trim().parse().ok())
-        .collect();
-    let (Ok(index), [x, y]) = (index.parse::<usize>(), numbers.as_slice()) else {
-        return false;
-    };
-    let Some(&frame) = page.frame_children(FrameId::TOP).get(index) else {
-        return false;
-    };
-    let point = swb_engine::Point::new(*x, *y);
-    page.with_frame(frame, |p| p.scroll_to(point));
-    true
+    let rest = source.strip_prefix("log.push('sl")?;
+    Some(format!("sl{}", rest.split(':').next()?))
 }
 
 /// Runs the steps of a case: the snapshot steps push what the engine
 /// shows.
 fn run(page: &mut Page, case: &Value) -> Result<(), String> {
     for (i, step) in case["steps"].as_array().unwrap().iter().enumerate() {
-        if let Some((key, source)) = snapshot_key(step) {
-            let text = snapshot(page, &key, &source);
-            let text = if key == "frames" {
-                text
-            } else {
-                format!("{key}:{text}")
-            };
-            let literal = serde_json::to_string(&text).unwrap();
+        if let Some(key) = snapshot_key(step) {
+            let text = snapshot(page, &key);
+            let literal = serde_json::to_string(&format!("{key}:{text}")).unwrap();
             value(page, &format!("log.push({literal})"));
-            continue;
-        }
-        if frame_scroll_step(page, step) {
             continue;
         }
         run_steps(page, std::slice::from_ref(step)).map_err(|e| format!("step {}: {e}", i + 1))?;
@@ -535,7 +249,10 @@ fn run(page: &mut Page, case: &Value) -> Result<(), String> {
 
 /// The value of a query, run in swb (a snapshot query is not).
 fn query(page: &mut Page, source: &str) -> Value {
-    value(page, source)
+    match page.evaluate(source, swb_engine::JsonForm::Strict) {
+        Some(swb_engine::Evaluation::Value(text)) => serde_json::from_str(&text).unwrap(),
+        other => Value::String(format!("{other:?}")),
+    }
 }
 
 /// The `js` values that Chromium gave for the case.
@@ -554,15 +271,6 @@ fn expected(name: &str) -> Vec<Value> {
         .collect()
 }
 
-/// The `p:` entries of the log of the case `focus` (the part that the
-/// page's own scripts log) and its `state:` entry.
-fn page_events(log: &str) -> String {
-    log.split(' ')
-        .filter(|e| e.starts_with("p:") || e.starts_with("state:"))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 /// The cases that this test runs: `focus`, `wheel-scroll` and `input-*`.
 fn case_names() -> Vec<String> {
     probe_file()["cases"]
@@ -570,7 +278,14 @@ fn case_names() -> Vec<String> {
         .unwrap()
         .iter()
         .map(|c| c["name"].as_str().unwrap().to_owned())
-        .filter(|n| n.starts_with("input-") || n == "focus" || n == "wheel-scroll")
+        .filter(|n| {
+            n.starts_with("input-")
+                || n.starts_with("activation-")
+                || n.starts_with("javascript-link-")
+                || n.starts_with("window-name-")
+                || n == "focus"
+                || n == "wheel-scroll"
+        })
         .collect()
 }
 
@@ -596,23 +311,15 @@ fn check(name: &str) -> Vec<String> {
     let want = expected(name);
     for (index, q) in case["measure"].as_array().unwrap().iter().enumerate() {
         let source = q["js"].as_str().unwrap();
-        if source.contains(LATER_MARK) || source.contains("c:wheel") {
-            continue;
-        }
         let want = &want[index];
         let got = match name {
-            "focus" => focus_query(&mut page, index),
-            n if n.starts_with("input-link-cross-origin-") => link_query(&mut page, true),
-            n if n.starts_with("input-link-") => link_query(&mut page, false),
+            // A cross-origin frame has no realm until feature 13: the engine
+            // tells what the frame shows.
+            n if n.starts_with("input-link-cross-origin-") => link_query(&mut page),
             n if n.starts_with("input-target-") && index == 0 => target_query(&mut page),
-            _ => query(&mut page, source),
+            _ => normalize(&query(&mut page, source)),
         };
-        let (want, got) = match name {
-            // The query reads the frame's document and the whole log: the
-            // page's events are compared, the frame's wait for feature 12.
-            "focus" => (focus_expected(want), got),
-            _ => (normalize(want), got),
-        };
+        let want = normalize(want);
         let departure = DEPARTURES.iter().find(|d| d.0 == name && d.1 == index);
         match departure {
             Some(d) => {
@@ -633,11 +340,10 @@ fn check(name: &str) -> Vec<String> {
     failures
 }
 
-/// swb's value of the query of the cases `input-link-*`: the state of the
-/// page and its frames after the click, as the probe's expression reads
-/// it. With `cross_origin`, the expression of the cross-origin cases (the
-/// location of a cross-origin frame is not readable).
-fn link_query(page: &mut Page, cross_origin: bool) -> Value {
+/// swb's value of the query of the cases `input-link-cross-origin-*`: the state
+/// of the page and its frames after the click, as the probe's expression reads
+/// it (the location of a cross-origin frame is not readable).
+fn link_query(page: &mut Page) -> Value {
     let top = FrameId::TOP;
     let own = value(
         page,
@@ -655,28 +361,13 @@ fn link_query(page: &mut Page, cross_origin: bool) -> Value {
                     .unwrap_or_default()
                     .to_owned()
             };
-            if cross_origin {
-                let same =
-                    f_doc.origin_string() == page.frame_document(top).unwrap().origin_string();
-                let f_part = if same {
-                    last(f_doc.url())
-                } else {
-                    "SecurityError".to_owned()
-                };
-                format!("{f_part} | {}", last(g_doc.url()))
+            let same = f_doc.origin_string() == page.frame_document(top).unwrap().origin_string();
+            let f_part = if same {
+                last(f_doc.url())
             } else {
-                let g_url = g_doc.url();
-                let g_part = format!(
-                    "{}{}",
-                    g_url.path().rsplit('/').next().unwrap_or_default(),
-                    g_url.query().map_or(String::new(), |q| format!("?{q}"))
-                );
-                format!(
-                    "{} | {g_part} | {}",
-                    short_url(f_doc.url()),
-                    f_doc.scroll_position().y
-                )
-            }
+                "SecurityError".to_owned()
+            };
+            format!("{f_part} | {}", last(g_doc.url()))
         }
         _ => "gone".to_owned(),
     };
@@ -727,44 +418,6 @@ fn target_query(page: &mut Page) -> Value {
         ]
         .join(" | "),
     )
-}
-
-/// Chromium's value of the query of the case `focus` without the entries of
-/// the frame's scripts.
-fn focus_expected(want: &Value) -> Value {
-    let mut items = want.as_array().unwrap().clone();
-    if let Some(Value::String(log)) = items.last_mut() {
-        *log = page_events(log);
-    }
-    Value::Array(items)
-}
-
-/// swb's value of the query of the case `focus`.
-fn focus_query(page: &mut Page, _index: usize) -> Value {
-    let top = FrameId::TOP;
-    let f = frame_of(page, top, "f").unwrap();
-    let doc = page.frame_document(f).unwrap();
-    let c = doc.dom().element_by_id("c").unwrap();
-    let frame_active = if active(page, f) == "BODY" {
-        "BODY".to_owned()
-    } else {
-        active(page, f)
-    };
-    let parent_active = value(page, "document.activeElement.id");
-    let parent_active: Value = parent_active;
-    let log = value(page, "log.join(' ')");
-    let log = log.as_str().unwrap_or_default().to_owned();
-    serde_json::json!([
-        parent_active,
-        frame_active,
-        window_focus(page),
-        has_focus(page, f),
-        page.frame_document(f)
-            .unwrap()
-            .control_value(c)
-            .unwrap_or_default(),
-        log
-    ])
 }
 
 /// Chromium's value with the page's file name of the probe (`case-13.html`)

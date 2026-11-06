@@ -1436,6 +1436,66 @@ The BBC page (median of 7, alternating, the command of "BBC with hydration"):
 RSS 383.0 → 382.9 MiB. Peak RSS 500 ms after `load`, median of 3: Hacker News
 65.5 → 65.9 MiB, Ars Technica 275.5 → 275.8 MiB.
 
+### Nodes across documents and input in frames (M9 feature 12b2)
+
+ADR 0031 "Done (feature 12b2)". Release, callgrind, base 8675211.
+
+Hacker News, `--bench 3`, JavaScript on, three alternating runs: base 396.93,
+396.93, 397.06 M, new 397.07, 396.91, 397.22 M (+0.036 %, -0.005 %, +0.041 %).
+
+Hot bindings, the method of "Feature 12a" above (differences of 25,000 and 5,000
+iterations; an empty loop costs about 650 instructions, included):
+
+| Binding | Base | New | Ratio |
+|---|---|---|---|
+| `e.firstChild` | 1,396 | 1,399 | 1.003 |
+| `e.getAttribute('id')` | 2,628 | 2,641 | 1.005 |
+| `document.getElementById('a')` | 2,648 | 2,655 | 1.003 |
+| `e.addEventListener('x', f)` | 2,793 | 2,793 | 1.000 |
+| `e.style.color` | 6,720 | 6,714 | 0.999 |
+| `e.children[0]` | 3,324 | 3,355 | 1.009 |
+| `t.appendChild(n)`, same document | 3,549 | 3,482 | 0.981 |
+| `t.insertBefore(n, null)`, same document | 3,593 | 3,522 | 0.980 |
+| `document` by name | 1,220 | 1,227 | 1.006 |
+
+An insertion of a node of the same document does not cost more. I did not look
+for the cause of the decrease.
+
+`vm_bench`, callgrind, one row each:
+
+| Row | Base | New | Change |
+|---|---|---|---|
+| `promise: chain of 100k then` | 1,823.2 M | 1,830.7 M | +0.42 % |
+| `promise: Promise.all of 100k values` | 4,504.0 M | 4,504.1 M | +0.00 % |
+| `promise: 100k Promise.resolve(i).then` | 3,989.1 M | 3,993.5 M | +0.11 % |
+| `async: 100k await in a loop` | 1,143.8 M | 1,148.4 M | +0.40 % |
+| `async: 100k calls of an async function` | 1,284.9 M | 1,285.1 M | +0.01 % |
+
+Two rows are above the target of 0.2 %. In the profile of the first, a reaction
+job pays 11 more instructions in `Job::record` (5.5 M of the difference). The source
+of that function and of what it calls did not change, and the new binary has a smaller
+compilation of it that runs more instructions. A build with `Job::values` forced
+inline gave the same counts. `run_jobs`, which has the code of this feature, adds
+1.5 M, 3 instructions per job. I did not profile the `await` row. The runs
+also vary: one base run of the first row gave 1,829.0 M.
+
+`mouse_move` on a page without frames: JavaScript off 8,343 → 8,320 instructions
+per move (differences of 2,500 and 500 moves). With JavaScript on, 5,000 moves
+in one run: 339.55 → 339.54 M in all, and the function profiles show only other
+inlining (`dispatch_event` in `run_task_in`, `events::data` in `Heap::generic`).
+The difference of two runs gives 42,214 → 42,425 per move: this method has
+a noise of a few hundred instructions at that size.
+
+A move of a subtree of 100,000 children across documents (`d.body.appendChild`):
+about 60 ms in the page's clock. The whole page with the build of the subtree 0.37 s
+and 200 MiB peak RSS, against 0.02 s and 58 MiB without those nodes (three runs each).
+A chain of 1,000,000 elements moved and moved back: about 1.3 s, 525 MiB (hostile
+case `nodes-deep-subtree-moves-js-on`).
+
+The BBC page (median of 7, alternating, the command of "BBC with hydration"):
+`load` 0.353 → 0.352 s, hydrated 2.822 → 2.799 s, 61 % of the budget of 4.60 s,
+RSS 378.9 → 385.1 MiB.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

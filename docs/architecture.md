@@ -371,9 +371,10 @@ calls (`DocumentState::with_own_fonts`, ADR 0022). Frame documents take
 input (feature 11, ADR 0031 section 8): the input code of a document acts on
 `Page::doc`, so input in a frame runs it with the frame's document in that
 place (`Page::in_frame`: the document, the pointer and keyboard state, the
-viewport and the font faces of the frame are exchanged with the page's, the
-script runtime is taken out, and the exchange is undone after the call; the
-routing runs in the page's own context). A pointer point goes down the
+viewport and the font faces of the frame are exchanged with the page's, and the
+exchange is undone after the call; the routing runs in the page's own context;
+a frame with a realm takes the script paths, and a task in the exchange undoes
+it for its length, `Page::outside_exchange`, feature 12b2). A pointer point goes down the
 frames by hit tests that share one budget (`Page::route_at`:
 `DisplayList::hit_test_with` reports `Hit::Frame`, the engine maps the
 point into the frame's viewport); the keyboard focus is a chain of frames
@@ -417,6 +418,12 @@ documents of its runtime. A task gets the top-level document; a switch to
 another document borrows it from the registry, and the page takes it back
 after the task, so that a task costs what it touches. A document that leaves
 its frame retires: it stays in the runtime, readable, and starts nothing.
+Feature 12b2 (`crates/web/src/dom/adopt.rs`, `swb_dom::transplant`): a node
+that goes into another document moves between arenas. Its wrappers stay the
+same objects with a new host word, and what holds the old id follows
+`DocState::moved`. Mutation observers belong to the agent. An error goes to the
+window of the function's realm (`errors::report_callback`), and the document of
+the caller is `state::caller_key` or `entry_key` (ADR 0031, "Done (feature 12b2)").
 Feature 5c (ADR 0028 section 8): the
 runtime drives the parse of its document (`EngineHost::parse_step`, one
 step per `script` end tag), runs inline scripts at their place, waits for

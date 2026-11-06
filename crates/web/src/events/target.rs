@@ -91,11 +91,14 @@ pub(crate) fn remove_listener(
     callback: Gc<Object>,
     capture: bool,
 ) -> VmResult<()> {
-    let Ok(target) = kind_of(rt, target) else {
-        return Ok(());
+    // The signal can belong to another document than the target.
+    let entered = crate::state::enter_object(rt, target)?;
+    let result = match kind_of(rt, target) {
+        Ok(target) => remove(rt, target, |list| list.remove(kind, callback, capture)).map(drop),
+        Err(_) => Ok(()),
     };
-    remove(rt, target, |list| list.remove(kind, callback, capture))?;
-    Ok(())
+    crate::state::leave(rt, entered);
+    result
 }
 
 /// True if the event target `object` has a listener or an event handler

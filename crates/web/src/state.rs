@@ -118,6 +118,15 @@ pub(crate) struct WebState {
     pub(crate) console_frame: Rc<Cell<u32>>,
     /// True after a warning about the budget of realms (ADR 0031 section 11).
     pub(crate) realm_budget_warned: bool,
+    /// The realm of the objects that the running native makes, if `this` lives
+    /// in another realm than its document's: a node that moved keeps its realm
+    /// (measured, ADR 0031 "Done (feature 12b2)"). [`NO_RECEIVER`] otherwise.
+    receiver: u32,
+    /// The mutation observers of the agent (`mutation_observer.rs`).
+    pub(crate) mutation: crate::mutation_observer::MutationState,
+    /// The callback of every handler listener (`events/handlers.rs`): a node
+    /// that moves to another document keeps its listeners.
+    pub(crate) handler_marker: Option<Gc<Object>>,
     /// True when a document besides the first reached its load event: the
     /// runtime stops running tasks, and the page fires the event.
     pub(crate) frame_load_due: bool,
@@ -179,6 +188,13 @@ pub(crate) struct DocState {
     /// The document while the engine lends it for a task; for a retired
     /// document, for the rest of the runtime's life.
     pub(crate) host: Option<Box<dyn EngineHost>>,
+    /// The nodes that went to another document, by the id that they had here:
+    /// the document and the id there. A list or a mutation record that holds
+    /// the old id finds the node through it. An id does not come back into use
+    /// (a taken node stays an empty comment in the arena).
+    moved: HashMap<NodeId, (DocKey, NodeId)>,
+    /// True once the mutation registry is the document's sink.
+    pub(crate) mutation_sink: bool,
     /// The wrapper of each node that a script has seen, by node index.
     wrappers: Vec<Option<Gc<Object>>>,
     /// The `[SameObject]` objects of nodes.
@@ -277,8 +293,6 @@ pub(crate) struct DocState {
     pub(crate) media_queries: std::collections::BTreeMap<u64, Gc<swb_js::Generic>>,
     /// The `MediaQueryList` objects made so far.
     pub(crate) media_query_count: u64,
-    /// The mutation observers (`mutation_observer.rs`).
-    pub(crate) mutation: crate::mutation_observer::MutationState,
     /// The intersection observers (`intersection_observer.rs`).
     pub(crate) io: crate::intersection_observer::IoState,
     /// The resize observers (`resize_observer.rs`).
@@ -325,6 +339,10 @@ impl HostState for WebState {
         self.ports.trace(tracer);
         for proxy in self.window_proxies.values() {
             tracer.object(*proxy);
+        }
+        self.mutation.trace(tracer);
+        if let Some(marker) = self.handler_marker {
+            tracer.object(marker);
         }
         self.doc.trace(tracer);
         for doc in self.docs.iter().flatten() {
@@ -382,7 +400,6 @@ impl DocState {
             cache.trace(tracer);
         }
         self.animation_frames.trace(tracer);
-        self.mutation.trace(tracer);
         self.io.trace(tracer);
         self.ro.trace(tracer);
         for list in self.media_queries.values() {
@@ -404,11 +421,25 @@ impl DocState {
 
 // ----- The documents of a runtime -----
 
-/// What [`enter_call`] found: the document to go back to, or [`NO_SWITCH`].
-pub(crate) type Entered = DocKey;
+/// What [`enter_call`] found: the document and the receiver to go back to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Entered {
+    /// The document to go back to, or `DocKey::MAX` to stay.
+    document: DocKey,
+    /// The value of [`WebState::receiver`] to go back to, or `u32::MAX` to
+    /// keep it.
+    receiver: u32,
+}
 
 /// [`Entered`] when no switch happened.
-pub(crate) const NO_SWITCH: Entered = DocKey::MAX;
+pub(crate) const NO_SWITCH: Entered = Entered {
+    document: DocKey::MAX,
+    receiver: u32::MAX,
+};
+
+/// [`WebState::receiver`] of a native whose `this` lives in the realm of its
+/// document, and outside natives.
+const NO_RECEIVER: u32 = u32::MAX - 1;
 
 /// Makes the document `key` the current one; returns the one it replaced.
 fn switch_to(state: &mut WebState, key: DocKey) -> VmResult<DocKey> {
@@ -457,15 +488,71 @@ fn document_of_realm(state: &WebState, realm: u32) -> DocKey {
         .unwrap_or(state.doc.key)
 }
 
+/// The place of a node now: `document` and `node`, or where the node went if
+/// it moved to another document. Each id on a chain of moves then names the place
+/// at once, so a chain is walked once, however long it is and however often a stale
+/// id is read.
+pub(crate) fn settled(state: &mut WebState, document: DocKey, node: NodeId) -> (DocKey, NodeId) {
+    let mut at = (document, node);
+    let mut chain = Vec::new();
+    while let Some(&next) = document_ref(state, at.0).and_then(|d| d.moved.get(&at.1)) {
+        chain.push(at);
+        at = next;
+    }
+    if chain.len() > 1 {
+        for (document, id) in chain {
+            if let Some(record) = document_mut(state, document) {
+                record.moved.insert(id, at);
+            }
+        }
+    }
+    at
+}
+
 /// The document of a platform object: the one in the host data word of a
 /// node's wrapper (and the other objects that name a node with their word),
-/// else the document of the object's realm. `None` for another value.
-fn document_of_object(rt: &Runtime, state: &WebState, value: Value) -> Option<DocKey> {
-    let (_, data) = rt.host_object(value)?;
+/// the one in the data of an object that names a node there, else the document
+/// of the object's realm. `None` for another value. An object whose node moved
+/// gets the node's new place here, at its first use.
+fn document_of_object(rt: &mut Runtime, value: Value) -> VmResult<Option<DocKey>> {
+    let Some((_, data)) = rt.host_object(value) else {
+        return Ok(None);
+    };
     match data {
-        HostData::Word(word) if HostData::Word(word) != NOT_A_NODE => Some(b::node_document(word)),
-        _ => Some(document_of_realm(state, rt.host_object_realm(value)?)),
+        HostData::Word(word) if HostData::Word(word) != NOT_A_NODE => {
+            return Ok(Some(b::node_document(word)));
+        }
+        HostData::Generic(handle) => {
+            if let Some(key) = settle_generic(rt, handle)? {
+                return Ok(Some(key));
+            }
+        }
+        HostData::Word(_) => {}
     }
+    let state = state(rt)?;
+    Ok(rt
+        .host_object_realm(value)
+        .map(|realm| document_of_realm(state, realm)))
+}
+
+/// The document of generic data that names a node, with the node's new place if
+/// it moved. `None` for other data.
+pub(crate) fn settle_generic(
+    rt: &mut Runtime,
+    handle: Gc<swb_js::Generic>,
+) -> VmResult<Option<DocKey>> {
+    let Some(word) = rt.heap().generic_host_word(handle)? else {
+        return Ok(None);
+    };
+    let Some((document, node)) = b::word_parts(word) else {
+        return Ok(None);
+    };
+    let (key, now) = settled(state_mut(rt)?, document, node);
+    if (key, now) != (document, node) {
+        rt.heap_mut()
+            .set_generic_host_word(handle, b::word_of(key, now))?;
+    }
+    Ok(Some(key))
 }
 
 /// The start of a native of the glue (ADR 0031 section 5): the document of
@@ -484,10 +571,36 @@ pub(crate) fn enter_call(rt: &mut Runtime, call: &NativeCall) -> VmResult<Entere
 #[cold]
 #[inline(never)]
 fn switch_for_call(rt: &mut Runtime, call: &NativeCall) -> VmResult<Entered> {
-    let state = state(rt)?;
-    let key = document_of_object(rt, state, call.this())
-        .unwrap_or_else(|| document_of_realm(state, call.realm()));
-    switch_if_other(rt, key)
+    let key = match document_of_object(rt, call.this())? {
+        Some(key) => key,
+        None => document_of_realm(state(rt)?, call.realm()),
+    };
+    let realm = rt.host_object_realm(call.this());
+    enter_document(rt, key, realm)
+}
+
+/// Makes `key` the current document, and `realm`, if it is another realm than
+/// the document's, the realm of the objects that the native makes.
+fn enter_document(rt: &mut Runtime, key: DocKey, realm: Option<u32>) -> VmResult<Entered> {
+    let receiver = match realm {
+        Some(realm) if realm != realm_of_document(rt, key)? => realm,
+        _ => NO_RECEIVER,
+    };
+    let state = state_mut(rt)?;
+    let old_receiver = std::mem::replace(&mut state.receiver, receiver);
+    let document = if state.doc.key == key {
+        DocKey::MAX
+    } else {
+        switch_to(state, key)?
+    };
+    Ok(Entered {
+        document,
+        receiver: if old_receiver == receiver {
+            u32::MAX
+        } else {
+            old_receiver
+        },
+    })
 }
 
 /// The start of a hook of the platform object `object` (a legacy platform
@@ -504,11 +617,11 @@ pub(crate) fn enter_object(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Ent
 #[cold]
 #[inline(never)]
 fn switch_for_object(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Entered> {
-    let state = state(rt)?;
-    let Some(key) = document_of_object(rt, state, object.into()) else {
+    let Some(key) = document_of_object(rt, object.into())? else {
         return Ok(NO_SWITCH);
     };
-    switch_if_other(rt, key)
+    let realm = rt.host_object_realm(object.into());
+    enter_document(rt, key, realm)
 }
 
 /// The start of a function that belongs to `realm` and has no platform
@@ -526,8 +639,7 @@ pub(crate) fn switch_if_other(rt: &mut Runtime, key: DocKey) -> VmResult<Entered
     if state(rt)?.doc.key == key {
         return Ok(NO_SWITCH);
     }
-    crate::mutation_observer::before_switch(rt);
-    switch_to(state_mut(rt)?, key)
+    enter_document(rt, key, None)
 }
 
 /// The end of a native or a hook: back to the document that [`enter_call`]
@@ -543,9 +655,14 @@ pub(crate) fn leave(rt: &mut Runtime, entered: Entered) {
 #[cold]
 #[inline(never)]
 fn leave_switched(rt: &mut Runtime, entered: Entered) {
-    crate::mutation_observer::before_switch(rt);
-    if let Ok(state) = state_mut(rt)
-        && let Err(error) = switch_to(state, entered)
+    let Ok(state) = state_mut(rt) else {
+        return;
+    };
+    if entered.receiver != u32::MAX {
+        state.receiver = entered.receiver;
+    }
+    if entered.document != DocKey::MAX
+        && let Err(error) = switch_to(state, entered.document)
     {
         log::warn!("the document of a native is gone: {error:?}");
     }
@@ -559,6 +676,47 @@ pub(crate) fn document_key(rt: &Runtime) -> VmResult<DocKey> {
 /// The realm of the current document.
 pub(crate) fn doc_realm(rt: &Runtime) -> VmResult<u32> {
     Ok(state(rt)?.doc.realm)
+}
+
+/// The document of the realm of a function (Web IDL "associated realm" of a
+/// callback); the current document for an object that is no function.
+pub(crate) fn document_of_function(rt: &Runtime, function: Gc<Object>) -> VmResult<DocKey> {
+    let state = state(rt)?;
+    if !rt.host_flag() {
+        return Ok(state.doc.key);
+    }
+    Ok(match rt.function_realm_of(function.into()) {
+        Some(realm) => document_of_realm(state, realm),
+        None => state.doc.key,
+    })
+}
+
+/// The current event of the window of the document `key`.
+pub(crate) fn current_event_of(rt: &Runtime, key: DocKey) -> VmResult<Option<Gc<Object>>> {
+    Ok(document_ref(state(rt)?, key).and_then(|record| record.current_event))
+}
+
+/// Sets the current event of the window of the document `key`.
+pub(crate) fn set_current_event_of(
+    rt: &mut Runtime,
+    key: DocKey,
+    event: Option<Gc<Object>>,
+) -> VmResult<()> {
+    if let Some(record) = document_mut(state_mut(rt)?, key) {
+        record.current_event = event;
+    }
+    Ok(())
+}
+
+/// The realm of the objects that a native makes: the realm of its `this`,
+/// which is the realm of its document except for a node that moved (measured).
+pub(crate) fn objects_realm(rt: &Runtime) -> VmResult<u32> {
+    let state = state(rt)?;
+    Ok(if state.receiver == NO_RECEIVER {
+        state.doc.realm
+    } else {
+        state.receiver
+    })
 }
 
 /// The `WindowProxy` of the current document's `Window`: the global this
@@ -625,6 +783,10 @@ pub(crate) fn add_document(
     let state = state_mut(rt)?;
     state.window_proxies.insert(frame, proxy);
     let first = state.realm_docs.is_empty();
+    if first {
+        state.mutation = crate::mutation_observer::MutationState::new(signal);
+        state.receiver = NO_RECEIVER;
+    }
     let key = if first {
         0
     } else {
@@ -635,7 +797,6 @@ pub(crate) fn add_document(
         realm,
         frame,
         clock,
-        mutation: crate::mutation_observer::MutationState::new(signal),
         ..DocState::default()
     });
     if first {
@@ -667,7 +828,6 @@ pub(crate) fn realm_count(state: &WebState) -> usize {
 /// document's nodes stay in the old record with the old key, so their wrappers
 /// stay valid; what belongs to the window moves to a new record.
 pub(crate) fn reuse_window(rt: &mut Runtime, old_key: DocKey) -> VmResult<DocKey> {
-    let signal = rt.host_signal_cell();
     let state = state_mut(rt)?;
     let key = DocKey::try_from(state.docs.len())
         .map_err(|_| VmError::type_error("too many documents"))?;
@@ -680,7 +840,6 @@ pub(crate) fn reuse_window(rt: &mut Runtime, old_key: DocKey) -> VmResult<DocKey
         realm,
         frame: old.frame,
         clock: old.clock.clone(),
-        mutation: crate::mutation_observer::MutationState::new(signal),
         scripts_off: old.scripts_off,
         handlers: old.handlers.take_window_part(),
         window_listeners: std::mem::take(&mut old.window_listeners),
@@ -776,6 +935,27 @@ pub(crate) fn document_ref(state: &WebState, key: DocKey) -> Option<&DocState> {
     state.docs.get(key as usize)?.as_deref()
 }
 
+/// The key of the document of the realm of the code that called the running
+/// native (HTML's "incumbent" settings object).
+pub(crate) fn caller_key(rt: &Runtime) -> VmResult<DocKey> {
+    Ok(document_of_realm(state(rt)?, rt.caller_realm()))
+}
+
+/// The key of the document of the script at the bottom of the stack (HTML's
+/// "entry" settings object).
+pub(crate) fn entry_key(rt: &Runtime) -> VmResult<DocKey> {
+    Ok(document_of_realm(state(rt)?, rt.entry_realm()))
+}
+
+/// The serialized origin of the document `key`.
+pub(crate) fn origin_of_document(rt: &mut Runtime, key: DocKey) -> VmResult<String> {
+    ensure_lent(rt, key)?;
+    document_ref(state(rt)?, key)
+        .and_then(|record| record.host.as_deref())
+        .map(EngineHost::origin_text)
+        .ok_or(VmError::type_error(NO_DOCUMENT))
+}
+
 /// The document of the realm of the code that called the running native.
 pub(crate) fn caller_document(rt: &Runtime) -> VmResult<&DocState> {
     let state = state(rt)?;
@@ -806,6 +986,23 @@ pub(crate) fn engine_laid_out(rt: &mut Runtime) -> VmResult<&mut dyn EngineHost>
     engine_mut(rt)
 }
 
+/// Runs `change` with the frame registry and the documents that this runtime
+/// holds. Without a registry, nothing happens.
+pub(crate) fn with_registry_and_documents(
+    rt: &mut Runtime,
+    change: impl FnOnce(&mut dyn crate::host::FrameHost, &mut Hosts<'_>),
+) -> VmResult<()> {
+    let state = state_mut(rt)?;
+    let Some(frames) = state.frame_host.clone() else {
+        return Ok(());
+    };
+    let mut frames = frames
+        .try_borrow_mut()
+        .map_err(|_| VmError::invariant("the frame registry is in use"))?;
+    change(&mut *frames, &mut Hosts(state));
+    Ok(())
+}
+
 /// See [`engine_laid_out`].
 #[cold]
 fn update_frame_viewports(rt: &mut Runtime) -> VmResult<()> {
@@ -822,12 +1019,6 @@ fn update_frame_viewports(rt: &mut Runtime) -> VmResult<()> {
         .map_err(|_| VmError::type_error("the frame registry is in use"))?;
     frames.update_viewports(frame, &mut Hosts(state));
     Ok(())
-}
-
-/// All documents of the runtime, the current one first.
-pub(crate) fn documents_mut(state: &mut WebState) -> impl Iterator<Item = &mut DocState> {
-    let others = state.docs.iter_mut().flatten();
-    std::iter::once(&mut *state.doc).chain(others.map(|doc| &mut **doc))
 }
 
 /// The record of a document, for the host: its lent state goes in and out.
@@ -970,7 +1161,11 @@ pub(crate) fn wrap_node_with_proto(
     if let Some(Some(wrapper)) = state.doc.wrappers.get(node.index()) {
         return Ok(*wrapper);
     }
-    let (key, realm) = (state.doc.key, state.doc.realm);
+    if !state.doc.moved.is_empty() && state.doc.moved.contains_key(&node) {
+        return wrap_moved(rt, node);
+    }
+    let realm = objects_realm(rt)?;
+    let key = state.doc.key;
     let dom = dom(rt)?;
     if dom.get(node).is_none() {
         return Err(VmError::type_error(
@@ -992,6 +1187,191 @@ pub(crate) fn wrap_node_with_proto(
         *slot = Some(wrapper);
     }
     Ok(wrapper)
+}
+
+/// The wrapper of a node that an id of the current document names and that went
+/// to another document. What still holds the id (a static list, a mutation
+/// record) reads the node that moved (measured).
+#[cold]
+fn wrap_moved(rt: &mut Runtime, node: NodeId) -> VmResult<Gc<Object>> {
+    let state = state_mut(rt)?;
+    let current = state.doc.key;
+    let (key, now) = settled(state, current, node);
+    let entered = enter_document(rt, key, None)?;
+    let wrapper = wrap_node_with_proto(rt, now, None);
+    leave(rt, entered);
+    wrapper
+}
+
+// ----- Nodes that move to another document -----
+
+/// The `[SameObject]` objects that a node other than a document can have.
+fn node_slots() -> impl Iterator<Item = Slot> {
+    use crate::dom::ElementList as L;
+    [
+        Slot::ChildNodes,
+        Slot::Children,
+        Slot::ClassList,
+        Slot::Attributes,
+        Slot::Dataset,
+        Slot::ClassName,
+        Slot::Style,
+        Slot::Validity,
+        Slot::TokenList("rel"),
+        Slot::TokenList("sizes"),
+        Slot::TokenList("blocking"),
+        Slot::TokenList("sandbox"),
+        Slot::TokenList("for"),
+        Slot::ElementList(L::TableRows),
+        Slot::ElementList(L::TBodies),
+        Slot::ElementList(L::SectionRows),
+        Slot::ElementList(L::Cells),
+        Slot::ElementList(L::SelectOptions),
+        Slot::ElementList(L::SelectedOptions),
+        Slot::ElementList(L::DatalistOptions),
+        Slot::ElementList(L::FormControls),
+        Slot::ElementList(L::FieldsetElements),
+        Slot::ElementList(L::Areas),
+        Slot::ElementList(L::Labels),
+    ]
+    .into_iter()
+}
+
+/// True if `node` of the current document went to another document.
+pub(crate) fn has_moved(rt: &Runtime, node: NodeId) -> VmResult<bool> {
+    let doc = &state(rt)?.doc;
+    Ok(!doc.moved.is_empty() && doc.moved.contains_key(&node))
+}
+
+/// Gives the record of the document `key` its document, from the page's
+/// registry if the task has not touched it yet.
+pub(crate) fn ensure_lent(rt: &mut Runtime, key: DocKey) -> VmResult<()> {
+    let state = state_mut(rt)?;
+    if state.doc.key == key {
+        return Ok(());
+    }
+    let Some(mut record) = state.docs.get_mut(key as usize).and_then(Option::take) else {
+        return Err(VmError::type_error("a document key without a document"));
+    };
+    if record.host.is_none() && !record.retired {
+        borrow_document(state, &mut record);
+    }
+    if let Some(slot) = state.docs.get_mut(key as usize) {
+        *slot = Some(record);
+    }
+    Ok(())
+}
+
+/// The DOM of the document `key`; [`ensure_lent`] came first.
+pub(crate) fn dom_of(rt: &Runtime, key: DocKey) -> VmResult<&Document> {
+    document_ref(state(rt)?, key)
+        .and_then(|record| record.host.as_deref())
+        .map(EngineHost::dom)
+        .ok_or(VmError::type_error(NO_DOCUMENT))
+}
+
+/// What belongs to the nodes of `pairs` (old id, new id) goes from the document
+/// `source` to the current one (ADR 0031 "Done (feature 12b2)"): each wrapper
+/// gets its new word and stays the same object, with its expandos; its
+/// listeners, handlers and `[SameObject]` objects go with it. A list or another
+/// object with generic data finds its new place at its next use ([`settled`]).
+/// The state of a node without a wrapper is only the script element's and the
+/// mutation registry's.
+pub(crate) fn move_node_state(
+    rt: &mut Runtime,
+    source: DocKey,
+    pairs: &[(NodeId, NodeId)],
+) -> VmResult<()> {
+    let state_now = state_mut(rt)?;
+    let target = state_now.doc.key;
+    let Some(mut from) = state_now
+        .docs
+        .get_mut(source as usize)
+        .and_then(Option::take)
+    else {
+        return Err(VmError::type_error("a document key without a document"));
+    };
+    let to = &mut state_now.doc;
+    let mut words: Vec<(Gc<Object>, u64)> = Vec::new();
+    let mut with_wrapper: Vec<(NodeId, NodeId)> = Vec::new();
+    for &(old, new) in pairs {
+        from.moved.insert(old, (target, new));
+        if !from.scripts.elements.is_empty() {
+            crate::scripts::node_moved(&from.scripts, &mut to.scripts, old, new);
+        }
+        let Some(wrapper) = from.wrappers.get_mut(old.index()).and_then(Option::take) else {
+            continue;
+        };
+        if to.wrappers.len() <= new.index() {
+            to.wrappers.resize(new.index() + 1, None);
+        }
+        if let Some(slot) = to.wrappers.get_mut(new.index()) {
+            *slot = Some(wrapper);
+        }
+        words.push((wrapper, b::word_of(target, new)));
+        with_wrapper.push((old, new));
+    }
+    for &(old, new) in &with_wrapper {
+        for slot in node_slots() {
+            if let Some(object) = from.side.remove(&(old, slot)) {
+                to.side.insert((new, slot), object);
+                words.push((object, b::word_of(target, new)));
+            }
+        }
+        if let Some(list) = from.listeners.remove(&old) {
+            let count = list.count();
+            from.listener_count = from.listener_count.saturating_sub(count);
+            to.listener_count += count;
+            to.listeners.insert(new, list);
+        }
+        if from.indeterminate.remove(&old) {
+            to.indeterminate.insert(new);
+        }
+        if let Some(value) = from.output_defaults.remove(&old) {
+            to.output_defaults.insert(new, value);
+        }
+        if let Some(promises) = from.decodes.remove(&old) {
+            to.decodes.insert(new, promises);
+        }
+        from.style_blocks.forget(old);
+        from.io.forget_target(old);
+        from.ro.forget_target(old);
+        move_attr_objects(&mut from, to, old, new);
+    }
+    if !with_wrapper.is_empty() {
+        from.handlers.move_nodes(&mut to.handlers, &with_wrapper);
+        from.selection_events.forget(&with_wrapper);
+    }
+    if let Some(slot) = state_now.docs.get_mut(source as usize) {
+        *slot = Some(from);
+    }
+    let registered = state_now.mutation.move_nodes(source, target, pairs);
+    for (object, word) in words {
+        rt.set_host_word(object, word)?;
+    }
+    if registered {
+        crate::mutation_observer::install_sink(rt)?;
+    }
+    Ok(())
+}
+
+/// The `Attr` objects of a moved element, which is in the arena of `to` now.
+/// The data of each finds the new place of its element at its next use.
+fn move_attr_objects(from: &mut DocState, to: &mut DocState, old: NodeId, new: NodeId) {
+    let Some(host) = to.host.as_deref() else {
+        return;
+    };
+    let Some(element) = host.dom().element(new) else {
+        return;
+    };
+    for attribute in element.attributes() {
+        let name = &attribute.name;
+        let key = (old, name.ns.clone(), name.local.clone());
+        if let Some(object) = from.attr_objects.remove(&key) {
+            to.attr_objects
+                .insert((new, name.ns.clone(), name.local.clone()), object);
+        }
+    }
 }
 
 impl b::Host for WebState {

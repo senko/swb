@@ -80,6 +80,22 @@ impl ControlValidity {
     }
 }
 
+/// What a control or an option holds besides its attributes, on its way to
+/// another document of the runtime (ADR 0031 "Done (feature 12b2)").
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ControlSnapshot {
+    /// The value, if the dirty value flag is set.
+    pub value: Option<String>,
+    /// The selection in the value (UTF-16 offsets, backward).
+    pub selection: Option<(u32, u32, bool)>,
+    /// The checkedness, if the dirty checkedness flag is set.
+    pub checked: Option<bool>,
+    /// The selectedness of an option and its dirtiness flag.
+    pub selected: Option<(bool, bool)>,
+    /// The message of `setCustomValidity`.
+    pub custom_validity: Option<String>,
+}
+
 /// The selection of a text field or text area, in UTF-16 code units.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SelectionRange {
@@ -532,6 +548,31 @@ pub trait EngineHost: Any {
     /// value flag or the dirty checkedness flag.
     fn copy_control_state(&mut self, from: NodeId, to: NodeId) -> ControlWrite {
         let _ = (from, to);
+        ControlWrite::Done
+    }
+
+    /// Takes what scripts and the user gave the controls and options below
+    /// `root` (inclusive), which leave for another document of the runtime.
+    fn take_control_snapshots(&mut self, root: NodeId) -> Vec<(NodeId, ControlSnapshot)> {
+        let _ = root;
+        Vec::new()
+    }
+
+    /// The same as [`EngineHost::take_control_snapshots`] for copies, of `root`
+    /// and with `deep` of its descendants; nothing changes here.
+    fn copy_control_snapshots(
+        &mut self,
+        root: NodeId,
+        deep: bool,
+    ) -> Vec<(NodeId, ControlSnapshot)> {
+        let _ = (root, deep);
+        Vec::new()
+    }
+
+    /// Gives the control `node` of this document what another document's
+    /// control had.
+    fn put_control_snapshot(&mut self, node: NodeId, snapshot: ControlSnapshot) -> ControlWrite {
+        let _ = (node, snapshot);
         ControlWrite::Done
     }
 
@@ -1178,6 +1219,26 @@ pub trait FrameHost {
 
     /// True if the document of frame `source` may navigate frame `target`.
     fn may_navigate(&self, source: u32, target: u32) -> bool;
+
+    /// The frame that the browsing context name `name` (`_parent`, `_top` or a
+    /// frame's name) means for frame `source`, if `source` may navigate it. `None`
+    /// for a name without a frame (a new context in other browsers) and for a
+    /// frame that the rules refuse.
+    fn choose_frame(&self, source: u32, name: &str) -> Option<u32>;
+
+    /// The frame that holds the page's focus (the top level if none does).
+    fn focused_frame(&self) -> u32;
+
+    /// True if the frame holds the page's focus, or a frame inside it does.
+    fn holds_focus(&self, frame: u32) -> bool;
+
+    /// A script moved the page's focus to the frame: the documents above it are
+    /// focused through their `iframe` elements, the others not.
+    fn set_focused_frame(&mut self, frame: u32, docs: &mut dyn LentDocuments);
+
+    /// The frame that held the page's focus is gone: the focus falls to its
+    /// nearest ancestor, and a top level gets no focus (measured).
+    fn focus_after_disconnect(&mut self, docs: &mut dyn LentDocuments);
 
     /// Brings the viewport of the frame up to date: the layout of the
     /// documents above it, top first, then each frame's viewport from its

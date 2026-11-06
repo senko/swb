@@ -64,7 +64,7 @@ pub trait DocumentImpl: b::Host {
     fn body(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
     /// The setter of `attribute HTMLElement? body`.
-    fn set_body(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeId>) -> b::Result<()>;
+    fn set_body(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeRef>) -> b::Result<()>;
 
     /// `readonly attribute HTMLHeadElement? head`.
     fn head(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
@@ -148,10 +148,10 @@ pub trait DocumentImpl: b::Host {
     fn create_comment(cx: &mut b::Cx<'_>, this: b::NodeId, data: String) -> b::Result<b::NodeId>;
 
     /// `Node importNode(Node node, optional boolean subtree)`.
-    fn import_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId, subtree: bool) -> b::Result<b::NodeId>;
+    fn import_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeRef, subtree: bool) -> b::Result<b::NodeId>;
 
-    /// `Node adoptNode(Node node)`.
-    fn adopt_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId) -> b::Result<b::NodeId>;
+    /// `object adoptNode(Node node)`.
+    fn adopt_node(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeRef) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `Attr createAttribute(DOMString localName)`.
     fn create_attribute(cx: &mut b::Cx<'_>, this: b::NodeId, local_name: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
@@ -367,7 +367,7 @@ fn set_body<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall
     b::glue::run(rt, call, b::Context::Setter("Document", "body"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         let v = rt.arg(call, 0);
-        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(b::Exception::nested)?;
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(b::Exception::nested)?;
         <H as DocumentImpl>::set_body(&mut b::Cx::new(rt, call, super::DOCUMENT), this, value)?;
         Ok(swb_js::Value::Undefined)
     })
@@ -2303,7 +2303,7 @@ fn op_import_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nati
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.argument(1))? };
         let result = <H as DocumentImpl>::import_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1)?;
@@ -2316,9 +2316,9 @@ fn op_adopt_node<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Nativ
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let result = <H as DocumentImpl>::adopt_node(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0)?;
-        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 

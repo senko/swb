@@ -749,9 +749,14 @@ impl Runtime {
         let caller = self.current_realm();
         let depth = self.vm.frames.len();
         let outer = self.vm.native_caller.replace((depth, caller));
+        let outer_first = self.vm.first_frame_realm;
+        if depth == 1 && outer_first.is_none() {
+            self.vm.first_frame_realm = Some(caller);
+        }
         self.set_running_realm(realm);
         let result = self.run_native_here(function, func, realm, site);
         self.vm.native_caller = outer;
+        self.vm.first_frame_realm = outer_first;
         // The error object of a `Raise` is made in the function's realm.
         let result = match result {
             Err(VmError::Raise { kind, message }) => match self.error_object(kind, &message) {

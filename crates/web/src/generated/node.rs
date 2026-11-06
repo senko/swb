@@ -70,16 +70,16 @@ pub trait NodeImpl: b::Host {
     fn clone_node(cx: &mut b::Cx<'_>, this: b::NodeId, subtree: bool) -> b::Result<b::NodeId>;
 
     /// `boolean isEqualNode(Node? otherNode)`.
-    fn is_equal_node(cx: &mut b::Cx<'_>, this: b::NodeId, other_node: Option<b::NodeId>) -> b::Result<bool>;
+    fn is_equal_node(cx: &mut b::Cx<'_>, this: b::NodeId, other_node: Option<b::NodeRef>) -> b::Result<bool>;
 
     /// `boolean isSameNode(Node? otherNode)`.
-    fn is_same_node(cx: &mut b::Cx<'_>, this: b::NodeId, other_node: Option<b::NodeId>) -> b::Result<bool>;
+    fn is_same_node(cx: &mut b::Cx<'_>, this: b::NodeId, other_node: Option<b::NodeRef>) -> b::Result<bool>;
 
     /// `unsigned short compareDocumentPosition(Node other)`.
-    fn compare_document_position(cx: &mut b::Cx<'_>, this: b::NodeId, other: b::NodeId) -> b::Result<u16>;
+    fn compare_document_position(cx: &mut b::Cx<'_>, this: b::NodeId, other: b::NodeRef) -> b::Result<u16>;
 
     /// `boolean contains(Node? other)`.
-    fn contains(cx: &mut b::Cx<'_>, this: b::NodeId, other: Option<b::NodeId>) -> b::Result<bool>;
+    fn contains(cx: &mut b::Cx<'_>, this: b::NodeId, other: Option<b::NodeRef>) -> b::Result<bool>;
 
     /// `DOMString? lookupPrefix(DOMString? namespace)`.
     fn lookup_prefix(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>) -> b::Result<Option<String>>;
@@ -90,17 +90,17 @@ pub trait NodeImpl: b::Host {
     /// `boolean isDefaultNamespace(DOMString? namespace)`.
     fn is_default_namespace(cx: &mut b::Cx<'_>, this: b::NodeId, namespace: Option<String>) -> b::Result<bool>;
 
-    /// `Node insertBefore(Node node, Node? child)`.
-    fn insert_before(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId, child: Option<b::NodeId>) -> b::Result<b::NodeId>;
+    /// `object insertBefore(Node node, Node? child)`.
+    fn insert_before(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeRef, child: Option<b::NodeRef>) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-    /// `Node appendChild(Node node)`.
-    fn append_child(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId) -> b::Result<b::NodeId>;
+    /// `object appendChild(Node node)`.
+    fn append_child(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeRef) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `Node replaceChild(Node node, Node child)`.
-    fn replace_child(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeId, child: b::NodeId) -> b::Result<b::NodeId>;
+    fn replace_child(cx: &mut b::Cx<'_>, this: b::NodeId, node: b::NodeRef, child: b::NodeRef) -> b::Result<b::NodeId>;
 
     /// `Node removeChild(Node child)`.
-    fn remove_child(cx: &mut b::Cx<'_>, this: b::NodeId, child: b::NodeId) -> b::Result<b::NodeId>;
+    fn remove_child(cx: &mut b::Cx<'_>, this: b::NodeId, child: b::NodeRef) -> b::Result<b::NodeId>;
 
 }
 
@@ -277,7 +277,7 @@ fn op_is_equal_node<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Native
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::is_equal_node(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
@@ -288,7 +288,7 @@ fn op_is_same_node<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::is_same_node(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
@@ -299,7 +299,7 @@ fn op_compare_document_position<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &sw
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::compare_document_position(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::number(f64::from(result)))?)
     })
@@ -310,7 +310,7 @@ fn op_contains<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall)
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
+        let a0 = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::contains(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
         Ok(swb_js::VmResult::Ok(swb_js::Value::Bool(result))?)
     })
@@ -354,11 +354,11 @@ fn op_insert_before<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Native
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 2)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
-        let a1 = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(1))?;
+        let a1 = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::NODE, "Node").map(Some) }).map_err(|e| e.argument(1))?;
         let result = <H as NodeImpl>::insert_before(&mut b::Cx::new(rt, call, super::NODE), this, a0, a1)?;
-        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -367,9 +367,9 @@ fn op_append_child<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::append_child(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
-        Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
     })
 }
 
@@ -378,9 +378,9 @@ fn op_replace_child<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::Native
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 2)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
-        let a1 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(1))?;
+        let a1 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(1))?;
         let result = <H as NodeImpl>::replace_child(&mut b::Cx::new(rt, call, super::NODE), this, a0, a1)?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })
@@ -391,7 +391,7 @@ fn op_remove_child<H: NodeImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeC
         let this = b::glue::this_node(rt, call, super::NODE)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let result = <H as NodeImpl>::remove_child(&mut b::Cx::new(rt, call, super::NODE), this, a0)?;
         Ok(b::to_js::node::<H>(rt, call.realm(), result)?)
     })

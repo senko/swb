@@ -24,7 +24,7 @@
 //! Chromium runs the microtasks only after all listeners (measured).
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use swb_js::{Runtime, ScriptError, Tracer, Value, VmError, VmResult};
 
@@ -187,7 +187,7 @@ pub(crate) struct EventLoop {
     /// each listener.
     pub(crate) listener_checkpoints: bool,
     /// HTML "about-to-be-notified rejected promises list".
-    pub(crate) about_to_notify: Vec<Value>,
+    pub(crate) about_to_notify: Vec<(Value, u32)>,
     /// True while a [`Task::NotifyRejections`] waits in the queue.
     pub(crate) notify_queued: bool,
     /// True while a [`Task::FinalizationCleanup`] waits in the queue.
@@ -199,7 +199,7 @@ pub(crate) struct EventLoop {
 
 impl EventLoop {
     pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
-        for value in &self.about_to_notify {
+        for (value, _) in &self.about_to_notify {
             tracer.value(*value);
         }
         for (_, value) in &self.evaluations {
@@ -268,7 +268,7 @@ fn run_jobs(rt: &mut Runtime) -> Result<(), ScriptError> {
                 return Err(error);
             }
             Err(error) => {
-                if let Err(error) = crate::errors::report(rt, &crate::errors::Site::JOB, &error) {
+                if let Err(error) = report_job_error(rt, &error) {
                     rt.clear_jobs();
                     crate::mutation_observer::jobs_cleared(rt);
                     return Err(crate::runtime::task_error(error));
@@ -278,10 +278,21 @@ fn run_jobs(rt: &mut Runtime) -> Result<(), ScriptError> {
     }
 }
 
+/// Reports the exception of a microtask at the window of its function.
+fn report_job_error(rt: &mut Runtime, error: &ScriptError) -> VmResult<()> {
+    let entered = match rt.take_failed_job_realm() {
+        Some(realm) => crate::state::enter_realm(rt, realm)?,
+        None => crate::state::NO_SWITCH,
+    };
+    let result = crate::errors::report(rt, &crate::errors::Site::JOB, error);
+    crate::state::leave(rt, entered);
+    result
+}
+
 /// The end of a checkpoint: notes the promises that the tracker reported
 /// and queues the task that notifies about them.
 fn note_rejections(rt: &mut Runtime) -> VmResult<()> {
-    let rejected = rt.take_unhandled_rejections();
+    let rejected = rt.take_unhandled_rejections_by_realm();
     if rejected.is_empty() {
         return Ok(());
     }
@@ -320,25 +331,44 @@ pub(crate) fn queue_finalization_cleanup(rt: &mut Runtime) -> VmResult<()> {
     queue_task(rt, Task::FinalizationCleanup)
 }
 
+/// Puts the rejected promises of each window together, in the order of their
+/// rejection (HTML has one list per window; measured, case
+/// `errors-promises-grouped`). The windows come in the order of their first
+/// rejection; their order in Chromium varies from run to run.
+fn group_by_window(list: &mut [(Value, u32)]) {
+    let mut rank: HashMap<u32, usize> = HashMap::new();
+    for &(_, realm) in list.iter() {
+        let next = rank.len();
+        rank.entry(realm).or_insert(next);
+    }
+    list.sort_by_key(|(_, realm)| rank.get(realm).copied());
+}
+
 /// Runs the task that notifies about rejected promises: an
 /// `unhandledrejection` event per promise that still has no handler, and a
 /// console line if no listener canceled it.
 pub(crate) fn notify_rejections(rt: &mut Runtime) -> VmResult<()> {
     let event_loop = &mut state_mut(rt)?.event_loop;
     event_loop.notify_queued = false;
-    let list = std::mem::take(&mut event_loop.about_to_notify);
+    let mut list = std::mem::take(&mut event_loop.about_to_notify);
+    if rt.host_flag() {
+        group_by_window(&mut list);
+    }
     // The list is no longer traced: keep the promises in the task's scope.
-    for &promise in &list {
+    for &(promise, _) in &list {
         crate::bindings::keep(rt, promise);
     }
-    for promise in list {
+    for (promise, realm) in list {
         if rt.promise_is_handled(promise) != Some(false) {
             continue;
         }
         let reason = rt
             .promise_settlement(promise)
             .map_or(Value::Undefined, |(_, reason)| reason);
-        crate::errors::report_rejection(rt, promise, reason)?;
+        let entered = crate::state::enter_realm(rt, realm)?;
+        let result = crate::errors::report_rejection(rt, promise, reason);
+        crate::state::leave(rt, entered);
+        result?;
     }
     Ok(())
 }

@@ -58,12 +58,19 @@ impl CssomObjects {
 /// The host data of a `CSSStyleSheet`: the sheet and its `[SameObject]`
 /// members.
 struct SheetData {
+    /// The key of the document of the sheet.
+    document: u32,
     sheet: SheetRef,
     rules: Option<Gc<Object>>,
     media: Option<Gc<Object>>,
 }
 
 impl GenericData for SheetData {
+    /// The ids of the object mean the arena of its document.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, NodeId::DOCUMENT))
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         for object in [self.rules, self.media].into_iter().flatten() {
             tracer.object(object);
@@ -227,7 +234,9 @@ pub(crate) fn wrap_sheet(cx: &mut Cx<'_>, sheet: SheetRef) -> b::Result<Gc<Objec
     }
     sweep(cx.rt)?;
     let realm = cx.realm();
+    let document = crate::state::document_key(cx.rt)?;
     let data = cx.rt.alloc_host_data(SheetData {
+        document,
         sheet,
         rules: None,
         media: None,

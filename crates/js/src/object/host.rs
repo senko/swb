@@ -79,6 +79,14 @@ impl HostSlot {
         })
     }
 
+    /// The slot with the word `word`, if its data is a word.
+    pub(crate) fn with_word(self, word: u64) -> Option<HostSlot> {
+        (self.tag & GENERIC_BIT == 0).then_some(HostSlot {
+            tag: self.tag,
+            data: [word as u32, (word >> 32) as u32],
+        })
+    }
+
     /// The class number.
     #[inline]
     pub(crate) fn class(self) -> u32 {
@@ -141,6 +149,21 @@ impl Heap {
             ObjectKind::Host(slot)
         };
         self.new_object_with_kind(proto, kind)
+    }
+
+    /// Replaces the word of a host object whose data is a word.
+    pub(crate) fn set_host_word(&mut self, object: Gc<Object>, word: u64) -> Result<()> {
+        match &mut self.object_mut(object)?.kind {
+            ObjectKind::Host(slot) | ObjectKind::HostExotic(slot) => {
+                if let Some(new) = slot.with_word(word) {
+                    *slot = new;
+                }
+                Ok(())
+            }
+            _ => Err(Error::invariant(
+                "a word of an object that is no host object",
+            )),
+        }
     }
 
     /// The host slot of an object, if it is a host object or a `WindowProxy`

@@ -472,7 +472,7 @@ impl Page {
     /// empty one does nothing and needs no realm (measured, core-js's
     /// `src = "javascript:"`). A frame of another origin runs nothing until
     /// feature 13.
-    fn run_frame_javascript_url(&mut self, id: FrameId, url: &str) {
+    pub(super) fn run_frame_javascript_url(&mut self, id: FrameId, url: &str) {
         if url.len() <= "javascript:".len()
             || !self
                 .frames
@@ -1453,6 +1453,10 @@ fn may_have_script(bytes: &[u8], charset: Option<&str>) -> bool {
     bytes
         .windows(7)
         .any(|w| w[0] == b'<' && w[1..].iter().map(lower).eq(b"script".iter().copied()))
+        // A link or a form that runs a script when the user activates it.
+        || bytes
+            .windows(11)
+            .any(|w| w.eq_ignore_ascii_case(b"javascript:"))
         || bytes.iter().enumerate().any(|(index, &byte)| {
             if byte != b'=' {
                 return false;

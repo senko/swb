@@ -269,10 +269,13 @@ impl g::window::WindowImpl for WebState {
             ));
         };
         let data = swb_js::HostData::Word(word);
+        // The declaration belongs to the realm of this window (measured), its
+        // element to the element's document.
+        let realm = cx.realm();
         let entered = crate::state::switch_if_other(cx.rt, b::node_document(word))?;
         let result = match b::node_here(cx.rt, data) {
             Some(element) => {
-                crate::cssom::computed_style(cx, element, pseudo_elt.flatten().as_deref())
+                crate::cssom::computed_style(cx, realm, element, pseudo_elt.flatten().as_deref())
             }
             None => Err(b::Exception::type_error(
                 "parameter 1 is not of type 'Element'.",
@@ -280,6 +283,16 @@ impl g::window::WindowImpl for WebState {
         };
         crate::state::leave(cx.rt, entered);
         result
+    }
+
+    /// `window.focus()`: the page's focus comes to this window (measured).
+    fn focus(cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        Ok(crate::html::focus::focus_window(cx.rt)?)
+    }
+
+    /// `window.blur()`: does nothing (measured, also for a frame's window).
+    fn blur(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<()> {
+        Ok(())
     }
 
     // ----- CSSOM View (`cssom_view.rs`) -----

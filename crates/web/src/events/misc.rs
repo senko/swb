@@ -10,7 +10,7 @@
 use swb_js::{Gc, Object, Runtime, Tracer, Value, VmError};
 
 use super::{Extra, base, construct, this_data, this_data_mut};
-use crate::bindings::{self as b, Cx, Exception, NodeId, Platform};
+use crate::bindings::{self as b, Cx, Exception, Platform};
 use crate::generated as g;
 use crate::generated::types::{
     DeviceMotionEventInit, DeviceOrientationEventInit, FormDataEventInit, HashChangeEventInit,
@@ -202,25 +202,14 @@ fn init(
 
 impl g::submit_event::SubmitEventImpl for WebState {
     fn constructor(cx: &mut Cx<'_>, kind: String, init: SubmitEventInit) -> b::Result<Gc<Object>> {
-        let submitter = match init.submitter {
-            Some(node) => Some(<WebState as b::Host>::wrap_node(cx.rt, cx.realm(), node)?),
-            None => None,
-        };
+        let submitter = init.submitter.map(|node| node.object);
         let flags = (init.bubbles, init.cancelable, init.composed);
         make(cx, kind, flags, Other::Submit { submitter })
     }
 
-    fn submitter(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<NodeId>> {
+    fn submitter(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<Gc<Object>>> {
         match other(cx, this)? {
-            Other::Submit {
-                submitter: Some(object),
-            } => Ok(b::node_here(
-                cx.rt,
-                cx.rt
-                    .host_object((*object).into())
-                    .map(|(_, data)| data)
-                    .ok_or(VmError::type_error("Illegal invocation"))?,
-            )),
+            Other::Submit { submitter } => Ok(*submitter),
             _ => Ok(None),
         }
     }

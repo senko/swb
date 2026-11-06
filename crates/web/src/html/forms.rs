@@ -36,7 +36,11 @@ impl g::html_form_element::HTMLFormElementImpl for WebState {
         super::activation::submit_method(cx, this)
     }
 
-    fn request_submit(cx: &mut Cx<'_>, this: NodeId, submitter: Option<NodeId>) -> b::Result<()> {
+    fn request_submit(
+        cx: &mut Cx<'_>,
+        this: NodeId,
+        submitter: Option<b::NodeRef>,
+    ) -> b::Result<()> {
         super::activation::request_submit(cx, this, submitter)
     }
 
@@ -481,7 +485,9 @@ fn add(
         HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(n)
         | HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(n) => n,
     };
-    if dom(cx.rt)?.is_host_including_inclusive_ancestor(element, select) {
+    if let Some(here) = element.here(cx.rt)
+        && dom(cx.rt)?.is_host_including_inclusive_ancestor(here, select)
+    {
         return Err(crate::dom::tree_ops::hierarchy(
             "The new child element contains the parent.",
         ));
@@ -491,13 +497,16 @@ fn add(
         Some(HTMLElementOrLong::HTMLElement(node)) => {
             // The standard says "descendant"; Chromium (measured) accepts
             // only a child of the select, so an option in an `optgroup`
-            // throws NotFoundError.
-            if dom(cx.rt)?.parent(node) != Some(select) {
+            // throws NotFoundError. A node of another document is no child.
+            let child = node.here(cx.rt).filter(|&node| {
+                dom(cx.rt).is_ok_and(|document| document.parent(node) == Some(select))
+            });
+            let Some(child) = child else {
                 return Err(crate::dom::tree_ops::not_found(
                     "The node before which the new node is to be inserted is not a child of this node.",
                 ));
-            }
-            Some(node)
+            };
+            Some(child)
         }
         Some(HTMLElementOrLong::Long(index)) => {
             let options = options_list(cx, select)?;
@@ -508,11 +517,11 @@ fn add(
                 .flatten()
         }
     };
-    if reference == Some(element) {
+    if reference.is_some() && reference == element.here(cx.rt) {
         return Ok(());
     }
     let parent = reference.and_then(|r| dom_parent(cx, r)).unwrap_or(select);
-    crate::dom::tree_ops::pre_insert(cx, parent, element, reference)
+    crate::dom::tree_ops::pre_insert_node(cx, parent, element, reference)
 }
 
 /// The parent of `node`.
@@ -562,11 +571,12 @@ fn set_indexed(
     cx: &mut Cx<'_>,
     select: NodeId,
     index: u32,
-    value: Option<NodeId>,
+    value: Option<b::NodeRef>,
 ) -> b::Result<()> {
     let Some(option) = value else {
         return remove_at(cx, select, i32::try_from(index).unwrap_or(i32::MAX));
     };
+    let option = crate::dom::adopt::brought_for_setter(cx.rt, option, select)?;
     let options = options_list(cx, select)?;
     let length = lists::length_of(cx, options)?;
     if index > length {
@@ -704,7 +714,7 @@ impl g::html_select_element::HTMLSelectElementImpl for WebState {
         cx: &mut Cx<'_>,
         this: NodeId,
         index: u32,
-        value: Option<NodeId>,
+        value: Option<b::NodeRef>,
     ) -> b::Result<()> {
         set_indexed(cx, this, index, value)
     }
@@ -750,7 +760,7 @@ impl g::html_options_collection::HTMLOptionsCollectionImpl for WebState {
         cx: &mut Cx<'_>,
         this: Platform,
         index: u32,
-        value: Option<NodeId>,
+        value: Option<b::NodeRef>,
     ) -> b::Result<()> {
         let select = lists::root_of(cx.rt, this)?;
         set_indexed(cx, select, index, value)

@@ -4402,10 +4402,12 @@ Steps:
          `opener`, `name`, `location` of a frame, synchronous `about:blank`,
          timers, animation frames and observers per document. 18 Chromium
          cases. JS off: snapshot identical. JS on: `compare --js` unchanged.
-       - 12b2. Adoption across arenas, `Attr` arguments of another document,
-         the incumbent document, the window that gets an error or an
-         `unhandledrejection`, `javascript:` links with a `target`, input
-         events to frame listeners.
+       - 12b2. Done 2026-11-06: adoption across arenas, `importNode`, node and
+         `Attr` arguments of another document, the caller's document, the
+         window that gets an error or an `unhandledrejection`, `javascript:`
+         links with a `target`, input events to frame listeners, window focus
+         and blur of frames. 36 new Chromium cases. JS off: snapshot identical.
+         JS on: `compare --js` unchanged.
    13. Runtimes per origin and cross-origin objects
        (`implementer-hard`; ADR 0031 feature 5).
    14. Messaging and storage across documents (`implementer`; ADR 0031
@@ -4447,6 +4449,37 @@ Steps:
   and so a budget. Needs: a realm that is reachable only from live objects
   instead of a root, reuse of its index in `HostSlot`, and the release of its
   `DocState`.
+- Nodes across documents (feature 12b2; rows in
+  `crates/engine/tests/frames/nodes.rs`): `IntersectionObserver` and `ResizeObserver`
+  with a target of another document give a `TypeError`, and a target that moves
+  away ends its observations (Chromium keeps them); `Attr.ownerDocument` does not
+  exist; a `MutationRecord` of a frame's observer that the parent reads has the
+  observer's realm (Chromium: the parent's); a subtree that moves back and forth
+  ends at the node limit, because each move leaves empty detached comments.
+- Input in frames (feature 12b2, measured in its review; ADR 0031): a re-entrancy
+  rule for focus changes that a `blur` or `focus` listener asks for while a change
+  runs (Chromium ignores them; swb fires extra events, and a loop across two
+  windows ends at the depth limit after 818 events, Chromium 4); `f.focus()` then a
+  click in another frame fires an extra `blur` at `f`; `screenX` and `screenY` in a
+  frame are the frame's; the second wheel event over a frame at its end goes to the
+  frame (Chromium: the parent). Chromium's user activation has more rules
+  (consumption, other origins); no measured case needs them. A key press on a page
+  with a frame costs 5.8 K instructions more than at the base, focus outside the
+  frame; cause not looked for.
+- Scripts in frames (feature 12b2, measured in its review): a promise whose prototype
+  was replaced with another window's reports at that window (needs a realm in
+  `PromiseState`; ADR 0031); a `handleEvent` getter that throws fires no `error` (also
+  at the base; Chromium fires one at the window of the listener object);
+  `postMessage(x, 'about:blank')` is dropped (Chromium: `SyntaxError`); a handler
+  attribute set in a document without scripting and then moved to a scripted one
+  compiles and runs (Chromium: `null`); if a script in the removal steps moves the target
+  parent into the source, the native throws `HierarchyRequestError` with a generic
+  message (the state is consistent; Chromium not measured).
+- Tests (found in feature 12b2):
+  `script_location::at_most_sixty_four_traversals_wait_and_reloads_are_one` fails under
+  load, at the base too (about 25 % at 24 parallel runs, more than 3 requests at
+  line 436). `compare --js` of Ars Technica varies from run to run, at the base too
+  (pixels 0.9901 or 0.9891, one extra element). Cause of both not looked for.
 - `web` (found in feature 12b1): `<svg onload>`: swb fires no `load` at an `svg`
   element; `rejectionhandled` never fires; `window.visualViewport` is `null`; a
   `MediaQueryList` made after a style change that has no layout yet gets no first

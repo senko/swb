@@ -63,6 +63,12 @@ impl Page {
         post: Option<PostData>,
         target: Option<String>,
     ) -> bool {
+        // A modified click on a `javascript:` link is for a new browsing context,
+        // and runs nothing here (measured, ADR 0028).
+        let modifiers = self.input.modifiers;
+        if url.scheme() == "javascript" && (modifiers.ctrl || modifiers.shift || modifiers.meta) {
+            return false;
+        }
         let navigation = FrameNavigation {
             source: self.active_frame,
             url,
@@ -101,6 +107,9 @@ impl Page {
         } else {
             Sandbox::top_navigation_allowed
         };
+        if url.scheme() == "javascript" && self.script.is_some() {
+            return self.run_javascript_link(source, &url, target.as_deref(), allows);
+        }
         let Chosen::Frame(chosen) = self.choose_navigable(source, target.as_deref(), allows) else {
             return false;
         };
@@ -109,6 +118,62 @@ impl Page {
             return self.navigate_top_as(&url, post, initiator);
         }
         self.navigate_frame_as(chosen, url, post, initiator)
+    }
+
+    /// A `javascript:` link or form in a frame without a realm: one with a realm
+    /// runs it in its runtime. The frame had no sign of a script in its bytes,
+    /// because the URL parser removes tabs and the HTML parser decodes character
+    /// references (measured, case `javascript-link-hidden-in-frame`). It runs in
+    /// the frame that the target names, under the rules of `may_navigate`, if that
+    /// frame has the origin of the source (HTML "navigate to a javascript: URL";
+    /// measured, cases `javascript-link-origin-of-source` and
+    /// `javascript-link-origin-of-child`). A target for a new
+    /// browsing context and a source in a sandbox without `allow-scripts` run nothing
+    /// (measured, also with `allow-top-navigation` and the top as the target). True
+    /// if it runs.
+    fn run_javascript_link(
+        &mut self,
+        source: FrameId,
+        url: &Url,
+        target: Option<&str>,
+        allows: fn(Sandbox) -> bool,
+    ) -> bool {
+        if !self.sandbox_of(source).scripts_allowed() || self.names_new_context(target) {
+            return false;
+        }
+        let Chosen::Frame(chosen) = self.choose_navigable(source, target, allows) else {
+            return false;
+        };
+        let same_origin = match (self.frames.get(source), self.frames.get(chosen)) {
+            (Some(a), Some(b)) => a.origin.is_some() && a.origin == b.origin,
+            _ => false,
+        };
+        if !same_origin {
+            log::info!("{source}: a javascript: URL for {chosen}, another origin: not running it");
+            return false;
+        }
+        if chosen == FrameId::TOP {
+            self.run_task(|script| script.queue_javascript_url(url.as_str()));
+        } else {
+            self.run_frame_javascript_url(chosen, url.as_str());
+        }
+        true
+    }
+
+    /// True if the `target` of a link asks for a new browsing context: `_blank`,
+    /// or a name that no frame has.
+    fn names_new_context(&self, target: Option<&str>) -> bool {
+        let name = target.map_or("", str::trim);
+        let own = ["", "_self", "_top", "_parent"]
+            .iter()
+            .any(|n| name.eq_ignore_ascii_case(n));
+        !own && (name.eq_ignore_ascii_case("_blank")
+            || !self
+                .frames
+                .tree_order()
+                .into_iter()
+                .skip(1)
+                .any(|id| self.frames.get(id).is_some_and(|f| f.name == name)))
     }
 
     /// A navigation of the top-level document by a link or form.

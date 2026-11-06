@@ -18,7 +18,7 @@
 //! document, as in Chromium (the script's start position goes to `js`
 //! with its source, feature 5c).
 
-use swb_js::{Runtime, ScriptError, SourceLocation, Value, VmError, VmResult};
+use swb_js::{Gc, Object, Runtime, ScriptError, SourceLocation, Value, VmError, VmResult};
 
 use crate::events::Extra;
 use crate::generated as g;
@@ -158,6 +158,25 @@ pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> 
     }
 }
 
+/// [`report`] of an exception of the callback `callback`: it goes to the window
+/// of the function's realm (Web IDL "invoke a callback function"; measured:
+/// `w.setTimeout(parentFn)` reports at the parent's window).
+pub(crate) fn report_callback(
+    rt: &mut Runtime,
+    callback: Gc<Object>,
+    site: &Site<'_>,
+    error: &ScriptError,
+) -> VmResult<()> {
+    if !rt.host_flag() {
+        return report(rt, site, error);
+    }
+    let key = crate::state::document_of_function(rt, callback)?;
+    let entered = crate::state::switch_if_other(rt, key)?;
+    let result = report(rt, site, error);
+    crate::state::leave(rt, entered);
+    result
+}
+
 /// The resize observer loop error (Resize Observer §3.4 "deliver resize
 /// loop error notification"): an `ErrorEvent` at the window with this
 /// message, no error object, the document's URL as the file and the
@@ -200,7 +219,9 @@ fn report_exception(
 ) -> VmResult<()> {
     let state = state_mut(rt)?;
     let mut not_handled = true;
-    if !state.doc.error_reporting {
+    // A window whose frame is gone gets no event (measured, case
+    // `errors-callbacks`: a function of a removed frame reports nowhere).
+    if !state.doc.error_reporting && !state.doc.retired {
         state.doc.error_reporting = true;
         // Chromium runs the microtasks of `error` listeners after the
         // report (measured), not after each listener.
@@ -245,6 +266,10 @@ pub(crate) fn report_rejection(rt: &mut Runtime, promise: Value, reason: Value) 
     let Value::Object(object) = promise else {
         return Ok(());
     };
+    if crate::state::state(rt)?.doc.retired {
+        // A window whose frame is gone gets no event (measured).
+        return Ok(());
+    }
     let extra = Extra::PromiseRejection {
         promise: object,
         reason,

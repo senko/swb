@@ -109,9 +109,13 @@ pub(crate) struct WebFonts {
     /// The page's budget for the fonts of frame documents; `None` for the
     /// top-level document.
     budget: Option<Arc<ByteBudget>>,
-    /// What the fonts of the document hold of `budget`; the bytes return
+    /// What the font files of the document hold of `budget`; the bytes return
     /// when the document goes.
     held: Vec<Arc<Reservation>>,
+    /// What each loaded face holds of `budget`; the bytes return when the face
+    /// goes (a media query that stops matching), so that a face that loads
+    /// again is charged once.
+    held_by_faces: HashMap<WebFaceId, Arc<Reservation>>,
 }
 
 impl WebFonts {
@@ -142,6 +146,26 @@ impl WebFonts {
             );
         }
         false
+    }
+
+    /// [`Self::admit`] of the face `id`.
+    pub(crate) fn admit_face(&mut self, id: WebFaceId, bytes: usize) -> bool {
+        let Some(budget) = &self.budget else {
+            return true;
+        };
+        if self.held_by_faces.contains_key(&id) {
+            return true;
+        }
+        if let Some(reservation) = Reservation::new(budget, bytes) {
+            self.held_by_faces.insert(id, reservation);
+            return true;
+        }
+        self.admit(bytes)
+    }
+
+    /// The faces for which `kept` is false went away: what they held returns.
+    pub(crate) fn release_faces(&mut self, kept: impl Fn(WebFaceId) -> bool) {
+        self.held_by_faces.retain(|&id, _| kept(id));
     }
 
     /// Forgets files whose fetch was cancelled (by `stop` or a
@@ -178,6 +202,25 @@ mod tests {
         assert!(second.admit(60));
         // The top-level document has no budget.
         assert!(WebFonts::default().admit(1 << 40));
+    }
+
+    #[test]
+    fn a_face_that_loads_again_is_charged_once() {
+        let budget = ByteBudget::new(100);
+        let mut fonts = WebFonts::with_budget(Some(Arc::clone(&budget)));
+        let (a, b) = (WebFaceId::for_tests(1), WebFaceId::for_tests(2));
+        assert!(fonts.admit_face(a, 60));
+        assert!(fonts.admit_face(a, 60));
+        assert_eq!(budget.used(), 60);
+        assert!(!fonts.admit_face(b, 60));
+        // A face that goes gives its bytes back.
+        fonts.release_faces(|id| id != a);
+        assert_eq!(budget.used(), 0);
+        for _ in 0..5 {
+            assert!(fonts.admit_face(b, 60));
+            fonts.release_faces(|id| id != b);
+        }
+        assert_eq!(budget.used(), 0);
     }
 
     #[test]

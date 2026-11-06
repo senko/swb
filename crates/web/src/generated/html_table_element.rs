@@ -13,19 +13,19 @@ pub trait HTMLTableElementImpl: b::Host {
     fn caption(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
     /// The setter of `attribute HTMLTableCaptionElement? caption`.
-    fn set_caption(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeId>) -> b::Result<()>;
+    fn set_caption(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeRef>) -> b::Result<()>;
 
     /// `attribute HTMLTableSectionElement? tHead`.
     fn t_head(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
     /// The setter of `attribute HTMLTableSectionElement? tHead`.
-    fn set_t_head(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeId>) -> b::Result<()>;
+    fn set_t_head(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeRef>) -> b::Result<()>;
 
     /// `attribute HTMLTableSectionElement? tFoot`.
     fn t_foot(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<Option<b::NodeId>>;
 
     /// The setter of `attribute HTMLTableSectionElement? tFoot`.
-    fn set_t_foot(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeId>) -> b::Result<()>;
+    fn set_t_foot(cx: &mut b::Cx<'_>, this: b::NodeId, value: Option<b::NodeRef>) -> b::Result<()>;
 
     /// `readonly attribute HTMLCollection tBodies`.
     fn t_bodies(cx: &mut b::Cx<'_>, this: b::NodeId) -> b::Result<swb_js::Gc<swb_js::Object>>;
@@ -74,7 +74,7 @@ fn set_caption<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js:
     b::glue::run(rt, call, b::Context::Setter("HTMLTableElement", "caption"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
-        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_TABLE_CAPTION_ELEMENT, "HTMLTableCaptionElement").map(Some) }).map_err(b::Exception::nested)?;
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_CAPTION_ELEMENT, "HTMLTableCaptionElement").map(Some) }).map_err(b::Exception::nested)?;
         <H as HTMLTableElementImpl>::set_caption(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
         Ok(swb_js::Value::Undefined)
     })
@@ -92,7 +92,7 @@ fn set_t_head<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     b::glue::run(rt, call, b::Context::Setter("HTMLTableElement", "tHead"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
-        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
         <H as HTMLTableElementImpl>::set_t_head(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
         Ok(swb_js::Value::Undefined)
     })
@@ -110,7 +110,7 @@ fn set_t_foot<H: HTMLTableElementImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
     b::glue::run(rt, call, b::Context::Setter("HTMLTableElement", "tFoot"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::HTML_TABLE_ELEMENT)?;
         let v = rt.arg(call, 0);
-        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
+        let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_TABLE_SECTION_ELEMENT, "HTMLTableSectionElement").map(Some) }).map_err(b::Exception::nested)?;
         <H as HTMLTableElementImpl>::set_t_foot(&mut b::Cx::new(rt, call, super::HTML_TABLE_ELEMENT), this, value)?;
         Ok(swb_js::Value::Undefined)
     })

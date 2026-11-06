@@ -10,8 +10,9 @@
 //! Events of the page's scripts (measured in Chromium 148): the focus
 //! moving into a frame gives the page's element a `blur` and the window a
 //! `blur`, with no `focus` event on the `iframe`; the focus returning to
-//! the page gives the window a `focus` and the next element a `focus`. The
-//! frames' own events wait for scripts in frames (feature 12).
+//! the page gives the window a `focus` and the next element a `focus`. A frame
+//! with a realm gets the same events: its element and its window `blur` when
+//! the page's focus leaves it, its window `focus` when the focus comes.
 //!
 //! *Tab* treats a frame as its content: sequential navigation reaches the
 //! `iframe` element at its place in the order, then enters the frame at its
@@ -110,6 +111,10 @@ impl Page {
         if old == new {
             return;
         }
+        if old != FrameId::TOP {
+            self.in_frame(old, Page::blur_focused_element);
+            self.run_task_in(old, |s| s.window_focus(false));
+        }
         let old_chain = self.frame_chain(old);
         let new_chain = self.frame_chain(new);
         let common = old_chain
@@ -156,7 +161,19 @@ impl Page {
             return;
         }
         self.input.focus_frame = (new != FrameId::TOP).then_some(new);
+        self.frames.focused = new;
         self.sync_window_focus();
+        if new != FrameId::TOP {
+            self.run_task_in(new, |s| s.window_focus(true));
+        }
+    }
+
+    /// The focused element of the active document loses the focus, with its
+    /// events if the document has scripts.
+    fn blur_focused_element(&mut self) {
+        if self.focused_element().is_some() && self.script_input() {
+            self.scripted_focus(None, false);
+        }
     }
 
     /// The page's own document is focused through `container` (an
@@ -232,7 +249,10 @@ impl Page {
             if p.focused_element().is_some() {
                 p.update_states(|s| s.focus_visible = true);
             }
-            p.key_in_document(key, modifiers)
+            match p.key_down_events(key, modifiers) {
+                Some(handled) => KeyOutcome::Handled(handled),
+                None => p.key_in_document(key, modifiers),
+            }
         });
         match outcome {
             Some(outcome) => self.finish_key(frame, &outcome, key, modifiers),

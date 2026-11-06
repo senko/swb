@@ -230,14 +230,14 @@ pub(super) fn insert_adjacent_element(
     cx: &mut Cx<'_>,
     this: NodeId,
     position_text: &str,
-    element: NodeId,
-) -> b::Result<Option<NodeId>> {
+    element: b::NodeRef,
+) -> b::Result<Option<swb_js::Gc<swb_js::Object>>> {
     let position = position(position_text)?;
     let Some((parent, before)) = place(cx, this, position)? else {
         return Ok(None);
     };
-    tree_ops::pre_insert(cx, parent, element, before)?;
-    Ok(Some(element))
+    tree_ops::pre_insert_node(cx, parent, element, before)?;
+    Ok(Some(element.object))
 }
 
 /// `Element.insertAdjacentText`.

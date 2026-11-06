@@ -443,7 +443,68 @@ fn destroy(rt: &mut Runtime, frame: u32) -> VmResult<()> {
         }
         state_mut(rt)?.window_proxies.remove(&one.frame);
     }
-    Ok(())
+    state::with_registry_and_documents(rt, |frames, docs| frames.focus_after_disconnect(docs))
+}
+
+/// `document.hasFocus()` of a document of a frame: its frame holds the page's
+/// focus, or a frame inside it does (measured, case `focus-by-script`).
+pub(crate) fn holds_focus(rt: &Runtime) -> VmResult<bool> {
+    let state_now = state(rt)?;
+    if state_now.doc.retired {
+        return Ok(false);
+    }
+    let frame = state_now.doc.frame;
+    Ok(read(rt, |f| f.holds_focus(frame))?.unwrap_or(false))
+}
+
+/// A script focuses an element or the window of the current document: if the
+/// page's focus is in another document, it moves here first. Measured (cases
+/// `focus-by-script`, `focus-by-script-nested`), all inside the call: the old
+/// element gets `blur`, the old window `blur`, this window `focus`, and then the
+/// element its own `focus`. Windows between the two get nothing.
+pub(crate) fn focus_enters_current(rt: &mut Runtime) -> VmResult<()> {
+    if no_frames(rt)? || state(rt)?.doc.retired {
+        return Ok(());
+    }
+    let here = state(rt)?.doc.frame;
+    let Some(old) = read(rt, |f| f.focused_frame())? else {
+        return Ok(());
+    };
+    if old == here {
+        return Ok(());
+    }
+    if let Some(Some(key)) = read(rt, |f| f.document_key(old))? {
+        let entered = state::switch_if_other(rt, key.raw())?;
+        let result = crate::html::focus::focus_leaves_document(rt);
+        state::leave(rt, entered);
+        result?;
+    }
+    state::with_registry_and_documents(rt, |frames, docs| frames.set_focused_frame(here, docs))?;
+    crate::html::focus::window_focus(rt, true)
+}
+
+/// `focus()` of an `iframe` element with a frame of this agent: the page's focus
+/// goes to the frame's document (measured: the frame's window gets `focus`).
+/// False for another element.
+pub(crate) fn focus_enters_frame_of(rt: &mut Runtime, element: NodeId) -> VmResult<bool> {
+    if no_frames(rt)? {
+        return Ok(false);
+    }
+    let parent = state(rt)?.doc.frame;
+    let Some(Some(child)) = read(rt, |f| f.child_of_container(parent, element))? else {
+        return Ok(false);
+    };
+    if window_of_frame(rt, child)?.is_none() {
+        return Ok(false);
+    }
+    let Some(Some(key)) = read(rt, |f| f.document_key(child))? else {
+        return Ok(false);
+    };
+    let entered = state::switch_if_other(rt, key.raw())?;
+    let result = focus_enters_current(rt);
+    state::leave(rt, entered);
+    result?;
+    Ok(true)
 }
 
 /// True if the code that called the running native may navigate the frame of
@@ -462,6 +523,50 @@ pub(crate) fn caller_may_navigate(rt: &Runtime) -> VmResult<bool> {
         return Ok(true);
     }
     Ok(read(rt, |f| f.may_navigate(source, target))?.unwrap_or(true))
+}
+
+/// Where a `javascript:` URL of the current document goes.
+pub(crate) enum ScriptTarget {
+    /// The current document.
+    Here,
+    /// Another document of this agent.
+    Document(DocKey),
+    /// Nowhere: no such frame, a frame that the rules refuse, a frame of another
+    /// origin (feature 13) or without scripts.
+    None,
+}
+
+/// The document of the frame that the name `target` means for the current
+/// document, for a `javascript:` URL in a link or a form.
+pub(crate) fn script_target(rt: &mut Runtime, target: &str) -> VmResult<ScriptTarget> {
+    let source = state(rt)?.doc.frame;
+    let chosen = read(rt, |f| f.choose_frame(source, target))?;
+    let Some(chosen) = chosen else {
+        // A runtime without a page: one document, which `_parent` and `_top`
+        // name, and no other frames.
+        let current = ["_parent", "_top"]
+            .iter()
+            .any(|name| target.eq_ignore_ascii_case(name));
+        return Ok(if current {
+            ScriptTarget::Here
+        } else {
+            ScriptTarget::None
+        });
+    };
+    let Some(frame) = chosen else {
+        return Ok(ScriptTarget::None);
+    };
+    if frame == source {
+        return Ok(ScriptTarget::Here);
+    }
+    let allowed = read(rt, |f| f.in_this_agent(frame) && f.scripts_allowed(frame))?;
+    if allowed != Some(true) || window_of_frame(rt, frame)?.is_none() {
+        return Ok(ScriptTarget::None);
+    }
+    Ok(match read(rt, |f| f.document_key(frame))?.flatten() {
+        Some(key) => ScriptTarget::Document(key.raw()),
+        None => ScriptTarget::None,
+    })
 }
 
 /// The value of `window.opener`: swb has no auxiliary browsing contexts.

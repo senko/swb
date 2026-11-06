@@ -43,11 +43,9 @@ use crate::generated::types::{MutationCallback, MutationObserverInit};
 use crate::mutation_registry::{Options, Record, Registry, Shared, Sink};
 use crate::state::{WebState, dom_mut, state, state_mut};
 
-/// The mutation observer state of the binding state.
+/// The mutation observer state of the agent.
 pub(crate) struct MutationState {
     registry: Shared,
-    /// True once the registry is the document's mutation sink.
-    installed: bool,
     next_id: u32,
     /// The observers that have registrations, by number.
     kept: BTreeMap<u32, Gc<Object>>,
@@ -69,12 +67,16 @@ impl MutationState {
     pub(crate) fn new(request: Rc<Cell<bool>>) -> MutationState {
         MutationState {
             registry: Rc::new(RefCell::new(Registry::new(request))),
-            installed: false,
             next_id: 0,
             kept: BTreeMap::new(),
             queued: false,
             notify_fn: None,
         }
+    }
+
+    /// See [`Registry::move_nodes`].
+    pub(crate) fn move_nodes(&self, from: u32, to: u32, pairs: &[(NodeId, NodeId)]) -> bool {
+        self.registry.borrow_mut().move_nodes(from, to, pairs)
     }
 
     /// Reports the handles that the state holds.
@@ -112,6 +114,13 @@ struct RecordData {
 }
 
 impl GenericData for RecordData {
+    /// The ids of a record mean the arena of its document, whatever happened
+    /// since; a node that moved is found from there. So the word names the
+    /// document node, which stays.
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.record.document, NodeId::DOCUMENT))
+    }
+
     fn trace(&self, tracer: &mut Tracer<'_>) {
         for list in [self.added_list, self.removed_list].into_iter().flatten() {
             tracer.object(list);
@@ -182,7 +191,7 @@ pub(crate) fn needs_attention(rt: &Runtime) -> bool {
 #[cold]
 #[inline(never)]
 pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
-    let registry = state(rt)?.doc.mutation.registry.clone();
+    let registry = state(rt)?.mutation.registry.clone();
     let (microtask, overdue) = registry.borrow_mut().take_signals();
     if microtask {
         queue_microtask(rt);
@@ -193,85 +202,46 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     Ok(())
 }
 
-/// The current document stops being current. The documents of a runtime share
-/// the cell that [`needs_attention`] reads, and [`after_request`] asks the
-/// current document only, so a request must not outlive the switch (a hook
-/// ends without a look at the cell). A time check that waits comes back with
-/// the next work of this document's registry.
-pub(crate) fn before_switch(rt: &mut Runtime) {
-    if !needs_attention(rt) {
-        return;
-    }
-    let Ok(web) = state(rt) else {
-        return;
-    };
-    let registry = web.doc.mutation.registry.clone();
-    let microtask = registry.borrow_mut().take_microtask_request();
-    if microtask {
-        queue_microtask(rt);
-    }
-}
-
 /// DOM "queue a mutation observer microtask".
 fn queue_microtask(rt: &mut Runtime) {
     let Ok(web) = state_mut(rt) else {
         return;
     };
-    if web.doc.mutation.queued {
+    if web.mutation.queued {
         return;
     }
-    web.doc.mutation.queued = true;
-    let function = if let Some(function) = web.doc.mutation.notify_fn {
+    web.mutation.queued = true;
+    let function = if let Some(function) = web.mutation.notify_fn {
         function
     } else if let Ok(function) =
         crate::state::doc_realm(rt).and_then(|realm| rt.new_host_function(realm, "", notify))
     {
         if let Ok(web) = state_mut(rt) {
-            web.doc.mutation.notify_fn = Some(function);
+            web.mutation.notify_fn = Some(function);
         }
         function
     } else {
         if let Ok(web) = state_mut(rt) {
-            web.doc.mutation.queued = false;
+            web.mutation.queued = false;
         }
         return;
     };
     rt.queue_microtask(Value::Object(function));
 }
 
-/// The job queue of the agent was cleared (a termination): the microtask of
-/// every document is gone, and records may wait. The other documents ask
-/// first: each switch back queues their microtask ([`before_switch`]).
+/// The job queue of the agent was cleared (a termination): the microtask is
+/// gone, and records may wait.
 pub(crate) fn jobs_cleared(rt: &mut Runtime) {
     let Ok(web) = state_mut(rt) else {
         return;
     };
-    let current = web.doc.key;
-    let keys: Vec<_> = crate::state::documents_mut(web)
-        .map(|doc| {
-            doc.mutation.queued = false;
-            doc.key
-        })
-        .collect();
-    for key in keys.into_iter().filter(|&key| key != current) {
-        if let Ok(entered) = crate::state::switch_if_other(rt, key) {
-            ask_for_waiting_records(rt);
-            crate::state::leave(rt, entered);
-        }
-    }
-    ask_for_waiting_records(rt);
-}
-
-/// Asks for the microtask of the current document if records wait.
-fn ask_for_waiting_records(rt: &mut Runtime) {
-    if let Ok(web) = state_mut(rt) {
-        web.doc.mutation.registry.borrow_mut().want_microtask();
-    }
+    web.mutation.queued = false;
+    web.mutation.registry.borrow_mut().want_microtask();
 }
 
 /// The mutation observer microtask.
 fn notify(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
-    // The function belongs to the realm of the document whose records wait.
+    // The function belongs to the realm of the document that asked first.
     let entered = crate::state::enter_realm(rt, call.realm())?;
     let result = deliver(rt);
     crate::state::leave(rt, entered);
@@ -283,8 +253,8 @@ fn notify(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 fn deliver(rt: &mut Runtime) -> VmResult<()> {
     let registry = {
         let web = state_mut(rt)?;
-        web.doc.mutation.queued = false;
-        web.doc.mutation.registry.clone()
+        web.mutation.queued = false;
+        web.mutation.registry.clone()
     };
     let ids = registry.borrow_mut().take_notify_set();
     for (position, &id) in ids.iter().enumerate() {
@@ -305,13 +275,13 @@ fn notify_one(rt: &mut Runtime, registry: &Shared, id: u32) -> VmResult<()> {
     if records.is_empty() {
         return Ok(());
     }
-    let Some(&observer) = state(rt)?.doc.mutation.kept.get(&id) else {
+    let Some(&observer) = state(rt)?.mutation.kept.get(&id) else {
         return Ok(());
     };
     let Some(callback) = callback_of(rt, observer) else {
         return Ok(());
     };
-    let list = records_to_js(rt, records)?;
+    let list = records_to_js(rt, observer, records)?;
     b::keep(rt, Value::Object(list));
     b::keep(rt, Value::Object(callback));
     let result = rt.call_function(
@@ -325,7 +295,7 @@ fn notify_one(rt: &mut Runtime, registry: &Shared, id: u32) -> VmResult<()> {
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),
         Err(error) => {
             let site = crate::errors::Site::named("a MutationObserver callback");
-            crate::errors::report(rt, &site, &error)
+            crate::errors::report_callback(rt, callback, &site, &error)
         }
     }
 }
@@ -343,8 +313,17 @@ fn callback_of(rt: &Runtime, observer: Gc<Object>) -> Option<Gc<Object>> {
 }
 
 /// The array of `MutationRecord` objects for `records`.
-fn records_to_js(rt: &mut Runtime, records: Vec<Record>) -> VmResult<Gc<Object>> {
-    let realm = crate::state::doc_realm(rt)?;
+fn records_to_js(
+    rt: &mut Runtime,
+    observer: Gc<Object>,
+    records: Vec<Record>,
+) -> VmResult<Gc<Object>> {
+    // The realm of the observer (measured: also for a record of a node of
+    // another document).
+    let realm = match rt.host_object_realm(Value::Object(observer)) {
+        Some(realm) => realm,
+        None => crate::state::doc_realm(rt)?,
+    };
     let mut objects = Vec::with_capacity(records.len());
     for record in records {
         let data = rt.alloc_host_data(RecordData {
@@ -363,14 +342,15 @@ fn records_to_js(rt: &mut Runtime, records: Vec<Record>) -> VmResult<Gc<Object>>
     }
 }
 
-/// Makes the registry the document's mutation sink, once.
-fn install_sink(rt: &mut Runtime) -> b::Result<()> {
-    if state(rt)?.doc.mutation.installed {
+/// Makes the registry the mutation sink of the current document, once.
+pub(crate) fn install_sink(rt: &mut Runtime) -> VmResult<()> {
+    if state(rt)?.doc.mutation_sink {
         return Ok(());
     }
-    let registry = state(rt)?.doc.mutation.registry.clone();
-    dom_mut(rt)?.set_mutation_sink(Some(Box::new(Sink(registry))));
-    state_mut(rt)?.doc.mutation.installed = true;
+    let registry = state(rt)?.mutation.registry.clone();
+    let document = crate::state::document_key(rt)?;
+    dom_mut(rt)?.set_mutation_sink(Some(Box::new(Sink { registry, document })));
+    state_mut(rt)?.doc.mutation_sink = true;
     Ok(())
 }
 
@@ -419,7 +399,7 @@ fn options_of(init: MutationObserverInit) -> b::Result<Options> {
 
 impl g::mutation_observer::MutationObserverImpl for WebState {
     fn constructor(cx: &mut Cx<'_>, callback: MutationCallback) -> b::Result<Gc<Object>> {
-        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
+        let mutation = &mut state_mut(cx.rt)?.mutation;
         mutation.next_id += 1;
         let id = mutation.next_id;
         let data = cx.rt.alloc_host_data(ObserverData {
@@ -432,21 +412,27 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
     fn observe(
         cx: &mut Cx<'_>,
         this: Platform,
-        target: NodeId,
+        target: b::NodeRef,
         options: MutationObserverInit,
     ) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
         let options = options_of(options)?;
-        install_sink(cx.rt)?;
-        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
-        mutation.registry.borrow_mut().observe(id, target, options);
+        let entered = crate::state::switch_if_other(cx.rt, target.document)?;
+        let installed = install_sink(cx.rt);
+        crate::state::leave(cx.rt, entered);
+        installed?;
+        let mutation = &mut state_mut(cx.rt)?.mutation;
+        mutation
+            .registry
+            .borrow_mut()
+            .observe(id, (target.document, target.node), options);
         mutation.kept.insert(id, this.object);
         Ok(())
     }
 
     fn disconnect(cx: &mut Cx<'_>, this: Platform) -> b::Result<()> {
         let id = observer_data(cx.rt, this)?.id;
-        let mutation = &mut state_mut(cx.rt)?.doc.mutation;
+        let mutation = &mut state_mut(cx.rt)?.mutation;
         mutation.registry.borrow_mut().disconnect(id);
         mutation.kept.remove(&id);
         Ok(())
@@ -454,7 +440,7 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
 
     fn take_records(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<Gc<Object>>> {
         let id = observer_data(cx.rt, this)?.id;
-        let registry = state(cx.rt)?.doc.mutation.registry.clone();
+        let registry = state(cx.rt)?.mutation.registry.clone();
         let records = registry.borrow_mut().take_records(id);
         let mut objects = Vec::with_capacity(records.len());
         for record in records {
@@ -464,9 +450,8 @@ impl g::mutation_observer::MutationObserverImpl for WebState {
                 added_list: None,
                 removed_list: None,
             })?;
-            let object =
-                cx.rt
-                    .new_host_object(crate::state::doc_realm(cx.rt)?, g::MUTATION_RECORD, data)?;
+            let realm = cx.realm();
+            let object = cx.rt.new_host_object(realm, g::MUTATION_RECORD, data)?;
             b::keep(cx.rt, Value::Object(object));
             objects.push(object);
         }

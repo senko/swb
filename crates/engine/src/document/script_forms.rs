@@ -418,6 +418,96 @@ impl DocumentState {
         ControlWrite::Done
     }
 
+    /// What the control or option `node` holds besides its attributes, for its
+    /// move or copy to another document of the runtime. `None` if it holds
+    /// nothing.
+    fn script_control_snapshot(&mut self, node: NodeId) -> Option<swb_web::ControlSnapshot> {
+        let element = self.dom.element(node)?;
+        if !element.is_html() {
+            return None;
+        }
+        let mut snapshot = swb_web::ControlSnapshot::default();
+        match &**element.local_name() {
+            "option" => {
+                let by_attribute = element.has_attr("selected");
+                let selected = self.script_option_selected(node);
+                let dirty = self.seeds.option(node).is_some_and(|(_, dirty)| dirty);
+                if selected != by_attribute || dirty {
+                    snapshot.selected = Some((selected, dirty));
+                }
+            }
+            "input" | "textarea" => {
+                let ty = self.script_type(node)?;
+                let dirty = self.seeds.value(node).is_some()
+                    || self.seeds.checked(node).is_some()
+                    || self
+                        .forms
+                        .value()
+                        .typed_state(node, ty)
+                        .is_some_and(|s| s.dirty);
+                if dirty && ty.is_text() {
+                    snapshot.value = self.script_control_value(node);
+                    snapshot.selection = self
+                        .script_selection(node)
+                        .map(|range| (range.start, range.end, range.backward));
+                } else if dirty && ty.is_checkable() {
+                    snapshot.checked = self.script_control_checked(node);
+                }
+                snapshot.custom_validity = self.validity.custom(node).map(str::to_owned);
+            }
+            _ => return None,
+        }
+        (snapshot != swb_web::ControlSnapshot::default()).then_some(snapshot)
+    }
+
+    /// [`Self::script_control_snapshot`] of `root` and, with `deep`, its
+    /// descendants.
+    pub(crate) fn script_control_snapshots(
+        &mut self,
+        root: NodeId,
+        deep: bool,
+    ) -> Vec<(NodeId, swb_web::ControlSnapshot)> {
+        let nodes: Vec<NodeId> = if deep {
+            self.dom
+                .descendants(root)
+                .filter(|&n| self.dom.element(n).is_some())
+                .collect()
+        } else {
+            vec![root]
+        };
+        nodes
+            .into_iter()
+            .filter_map(|n| Some((n, self.script_control_snapshot(n)?)))
+            .collect()
+    }
+
+    /// Gives the control or option `node` what another document's had.
+    pub(crate) fn script_put_control_snapshot(
+        &mut self,
+        node: NodeId,
+        snapshot: &swb_web::ControlSnapshot,
+    ) -> ControlWrite {
+        if let Some((selected, dirty)) = snapshot.selected {
+            self.seeds.set_option(node, selected, dirty);
+            self.controls_changed();
+        }
+        if let Some(value) = &snapshot.value
+            && self.script_set_control_value(node, value) == ControlWrite::OverLimit
+        {
+            return ControlWrite::OverLimit;
+        }
+        if let Some((start, end, backward)) = snapshot.selection {
+            self.script_set_selection(node, start, end, backward);
+        }
+        if let Some(checked) = snapshot.checked {
+            self.script_set_control_checked(node, checked);
+        }
+        if let Some(message) = &snapshot.custom_validity {
+            return self.script_set_custom_validity(node, message);
+        }
+        ControlWrite::Done
+    }
+
     /// The checkedness of an `input`. The state of a radio button in the
     /// document is current first: the checked radio buttons of a group are
     /// settled when the states are built. An input whose type is not a

@@ -381,7 +381,7 @@ impl Runtime {
         if !self.is_callable(then)? {
             return self.fulfill_promise(promise, resolution);
         }
-        let realm = self.job_realm(then);
+        let realm = self.function_realm_of(then);
         self.enqueue_job(
             Job::ResolveThenable {
                 promise,
@@ -448,7 +448,7 @@ impl Runtime {
         // The realm of the handler's function (steps 2 and 3); `None` for
         // an empty handler or a continuation.
         let realm = match handler {
-            Handler::Function(function) => self.job_realm(function),
+            Handler::Function(function) => self.function_realm_of(function),
             Handler::Empty | Handler::Internal(_) => None,
         };
         self.enqueue_job(
@@ -462,8 +462,10 @@ impl Runtime {
         );
     }
 
-    /// The realm of a job's function (`GetFunctionRealm`).
-    fn job_realm(&self, function: Value) -> Option<u32> {
+    /// `GetFunctionRealm` (§7.3.24) of a value, also the realm of a job's
+    /// function: `None` for a value that is no function, and for a revoked proxy
+    /// on the way.
+    pub fn function_realm_of(&self, function: Value) -> Option<u32> {
         match function {
             Value::Object(function) => self.function_realm(function),
             _ => None,

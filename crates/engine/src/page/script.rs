@@ -373,6 +373,14 @@ impl Page {
         task: impl FnOnce(&mut ScriptRuntime) -> R,
     ) -> Option<R> {
         self.script.as_ref()?;
+        if self.active_frame != FrameId::TOP {
+            // Inside `Page::in_frame`: `FrameId::TOP` means the active document,
+            // as everything else there does.
+            return self.outside_exchange(|page, active| {
+                let frame = if frame == FrameId::TOP { active } else { frame };
+                page.run_task_in(frame, task)
+            });
+        }
         let key = if frame == FrameId::TOP {
             None
         } else {
@@ -488,6 +496,11 @@ impl Page {
             }
         }
         self.made_in_task.clear();
+        if let Some(focused) = after_task.focused {
+            self.input.focus_frame = (focused != FrameId::TOP).then_some(focused);
+            self.input.window_blurred = focused != FrameId::TOP;
+            self.sync_window_focus();
+        }
     }
 
     /// The runtime went away: the frame documents go on without scripts.

@@ -72,6 +72,7 @@ const TYPE_ATTRS: &[&str] = &[
     "LegacyNullToEmptyString",
     "AllowShared",
     "SwbBuffer",
+    "SwbAnyDocument",
 ];
 
 /// What a name stands for.

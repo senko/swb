@@ -7,13 +7,16 @@
 //! with the frame's document in that place: [`Page::in_frame`] exchanges
 //! the document, the pointer and keyboard state, the viewport and the font
 //! faces of the frame with the page's, runs the code, and exchanges them
-//! back. The exchange takes the runtime out, so the code of the frame takes
-//! the paths of a page without JavaScript, also when the frame's document has
-//! scripts (feature 12b2 gives the input events to them). What changes the page itself (a
-//! navigation) waits until the exchange is undone ([`Page::in_frame`] runs
-//! the deferred navigations). The page's own document then acts as the
-//! parent: its events and states see the `iframe` element where the frame
-//! is.
+//! back. The code of a frame document with a realm takes the paths of a page
+//! with scripts: a task for its events undoes the exchange for the length of the
+//! task ([`Page::run_task_in`]), because the runtime and the frame registry
+//! see the page's documents in their own places; a listener can destroy the
+//! frame, and the code then finds no document. A frame without a realm has no
+//! listeners and takes the paths of a page without JavaScript. What changes the
+//! page itself (a navigation) waits until the exchange is undone
+//! ([`Page::in_frame`] runs the deferred navigations). The page's own document
+//! then acts as the parent: its events and states see the `iframe` element where
+//! the frame is.
 //!
 //! *Hit test.* [`Page::route_at`] follows a point from the page's document
 //! into the frames: each document's display list tells whether the topmost
@@ -71,6 +74,18 @@ impl Route {
     pub(super) fn last(&self) -> RouteStep {
         self.steps[self.steps.len() - 1]
     }
+}
+
+/// What [`Page::in_frame`] took out of the page's place for the frame's document.
+pub(super) struct Exchange {
+    /// The web font faces of the page's document.
+    faces: swb_text::WebFontSet,
+    /// The input state of the page's document.
+    input: super::input::InputState,
+    /// The viewport of the page's document.
+    outer_viewport: swb_layout::Size,
+    /// The page's document.
+    outer: Option<Box<crate::document::DocumentState>>,
 }
 
 /// A press of the primary button that started in a frame.
@@ -288,36 +303,84 @@ impl Page {
             return Some(run(self));
         }
         self.doc.as_ref()?;
-        let record = self.frames.get_mut(id)?;
-        let mut inner = record.doc.take()?;
-        let viewport = record.viewport;
-        let mut faces = std::mem::take(&mut inner.web_fonts.set);
-        self.fonts.swap_web_fonts(&mut faces);
-        let mut input = self.frame_inputs.remove(&id).unwrap_or_default();
-        std::mem::swap(&mut self.input, &mut input);
-        let script = self.script.take();
-        let outer_viewport = std::mem::replace(&mut self.view.viewport, viewport);
-        let outer = self.doc.replace(inner);
-        self.active_frame = id;
+        if !self.enter_exchange(id) {
+            return None;
+        }
 
         let result = run(self);
 
-        self.active_frame = FrameId::TOP;
-        self.view.viewport = outer_viewport;
-        self.script = script;
-        std::mem::swap(&mut self.input, &mut input);
-        let inner = std::mem::replace(&mut self.doc, outer);
-        self.fonts.swap_web_fonts(&mut faces);
-        if let (Some(mut inner), Some(record)) = (inner, self.frames.get_mut(id)) {
-            inner.web_fonts.set = faces;
-            record.doc = Some(inner);
-            self.frame_inputs.insert(id, input);
-        }
+        self.leave_exchange();
         // The input may have changed the frame's own `iframe` elements
         // (a `details` that opened) or asked for navigations.
         self.update_frames(id);
         self.run_deferred_navigations();
         Some(result)
+    }
+
+    /// Puts the document of `id` in the page's place (see the module
+    /// documentation). False if the frame has no document.
+    fn enter_exchange(&mut self, id: FrameId) -> bool {
+        let Some(record) = self.frames.get_mut(id) else {
+            return false;
+        };
+        let Some(mut inner) = record.doc.take() else {
+            return false;
+        };
+        let viewport = record.viewport;
+        let mut faces = std::mem::take(&mut inner.web_fonts.set);
+        self.fonts.swap_web_fonts(&mut faces);
+        let mut input = self.frame_inputs.remove(&id).unwrap_or_default();
+        std::mem::swap(&mut self.input, &mut input);
+        let outer_viewport = std::mem::replace(&mut self.view.viewport, viewport);
+        let outer = self.doc.replace(inner);
+        self.active_frame = id;
+        self.exchange = Some(Exchange {
+            faces,
+            input,
+            outer_viewport,
+            outer,
+        });
+        true
+    }
+
+    /// Undoes [`Page::enter_exchange`]. Without a frame any more, the frame's
+    /// document and input state go.
+    fn leave_exchange(&mut self) {
+        let Some(mut exchange) = self.exchange.take() else {
+            return;
+        };
+        let id = std::mem::replace(&mut self.active_frame, FrameId::TOP);
+        self.view.viewport = exchange.outer_viewport;
+        std::mem::swap(&mut self.input, &mut exchange.input);
+        let inner = std::mem::replace(&mut self.doc, exchange.outer);
+        self.fonts.swap_web_fonts(&mut exchange.faces);
+        if let (Some(mut inner), Some(record)) = (inner, self.frames.get_mut(id)) {
+            inner.web_fonts.set = exchange.faces;
+            record.doc = Some(inner);
+            self.frame_inputs.insert(id, exchange.input);
+        }
+    }
+
+    /// Runs `run` with the page's documents in their own places, inside
+    /// [`Page::in_frame`], and goes back to the exchange. If a listener destroyed
+    /// the frame, the rest of the input finds no document.
+    pub(super) fn outside_exchange<R>(&mut self, run: impl FnOnce(&mut Page, FrameId) -> R) -> R {
+        let id = self.active_frame;
+        self.leave_exchange();
+        let result = run(self, id);
+        if !self.enter_exchange(id) {
+            let outer = self.doc.take();
+            let outer_viewport = self.view.viewport;
+            let input = std::mem::take(&mut self.input);
+            self.active_frame = id;
+            self.exchange = Some(Exchange {
+                faces: swb_text::WebFontSet::default(),
+                input,
+                outer_viewport,
+                outer,
+            });
+        }
+        result
     }
 
     /// The frames from the page's document down to `frame`.
@@ -353,8 +416,40 @@ impl Page {
     /// frame on the route gets its hover state, and the frames that the
     /// pointer left lose theirs. Returns true if a repaint is needed.
     pub(super) fn move_in_frames(&mut self, route: &Route, point: Point) -> bool {
-        let mut changed = self.move_top(point, route.in_frame() || route.over_frame);
+        // The frames that the pointer left get their events before the documents
+        // above them (measured, case `input-leave-order`).
+        let mut changed = self.leave_frames_off_route(route);
+        changed |= self.move_top(point, route.in_frame() || route.over_frame);
+        // A frame's scripts see the pointer as the page's do; only the innermost
+        // document gets the moves.
+        let last = route.steps.len().saturating_sub(1);
+        for (index, step) in route.steps.iter().enumerate().skip(1) {
+            let generation = self.in_frame(step.frame, |p| {
+                let generation = p.dom_generation();
+                if p.script_input() {
+                    p.scripted_move(step.point, index != last);
+                }
+                generation != p.dom_generation()
+            });
+            changed |= generation.unwrap_or(false);
+        }
         changed |= self.update_hover_route(route, true);
+        changed
+    }
+
+    /// Clears the hover state of the frames that are not on `route`. Returns true
+    /// if a repaint is needed.
+    fn leave_frames_off_route(&mut self, route: &Route) -> bool {
+        let on_route = |id: &FrameId| route.steps.iter().any(|s| s.frame == *id);
+        let (kept, gone) = std::mem::take(&mut self.input.hover_frames)
+            .into_iter()
+            .partition(|id| on_route(id));
+        self.input.hover_frames = kept;
+        let gone: Vec<FrameId> = gone;
+        let mut changed = false;
+        for id in gone {
+            changed |= self.clear_hover(id);
+        }
         changed
     }
 
@@ -398,6 +493,9 @@ impl Page {
     /// Removes the pointer and the hover state of frame `id`'s document.
     fn clear_hover(&mut self, id: FrameId) -> bool {
         self.in_frame(id, |p| {
+            if p.script_input() {
+                p.scripted_leave();
+            }
             p.input.pointer = None;
             p.input.cursor = swb_style::Cursor::Auto;
             p.update_states(|s| s.hover = None)
@@ -436,18 +534,57 @@ impl Page {
             let element = step.node.and_then(|n| self.element_of_in(step.frame, n));
             self.in_frame(step.frame, |p| p.update_states(|s| s.active = element));
         }
-        self.in_frame(last.frame, |p| {
-            p.press_in_document(last.point, modifiers, click_count, false, true)
-        });
+        // The frame's scripts see the press first; then the page's focus comes
+        // to the frame, and the press focuses its element.
+        let scripted = self
+            .in_frame(last.frame, |p| {
+                p.input.modifiers = modifiers;
+                if p.script_input() {
+                    p.input.pointer = Some(last.point);
+                    (
+                        true,
+                        p.scripted_down(last.point, MouseButton::Primary, click_count),
+                    )
+                } else {
+                    (false, true)
+                }
+            })
+            .unwrap_or((false, true));
         let chain: Vec<FrameId> = route.steps.iter().map(|s| s.frame).collect();
         self.input.press_frame = Some(FramePress {
             frame: last.frame,
             chain,
             offset: Point::new(point.x - last.point.x, point.y - last.point.y),
         });
-        self.set_focus_frame(last.frame);
+        if scripted.1 {
+            self.set_focus_frame(last.frame);
+        }
+        self.in_frame(last.frame, |p| {
+            p.press_in_document(last.point, modifiers, click_count, scripted.0, scripted.1)
+        });
         self.update_hover_route(route, true);
         true
+    }
+
+    /// A press of a button other than the primary one in the content of a
+    /// frame: the frame's scripts see it. Returns true if the document may have
+    /// changed.
+    pub(super) fn other_button_in_frame(
+        &mut self,
+        route: &Route,
+        button: MouseButton,
+        click_count: u32,
+    ) -> bool {
+        let last = route.last();
+        self.in_frame(last.frame, |p| {
+            if p.script_input() {
+                p.scripted_down(last.point, button, click_count);
+                true
+            } else {
+                false
+            }
+        })
+        .unwrap_or(false)
     }
 
     /// The element of `node` in the document of `frame`.
@@ -500,6 +637,9 @@ impl Page {
         let local = Point::new(point.x - press.offset.x, point.y - press.offset.y);
         self.in_frame(press.frame, |p| {
             p.input.pointer = Some(local);
+            if p.script_input() {
+                p.scripted_move(local, false);
+            }
             let changed = p.drag_press(local);
             changed | p.hover_while_pressed(local)
         })
@@ -557,9 +697,19 @@ impl Page {
     /// frame with `scrolling=no`) to the parent's chain from the `iframe`
     /// (ADR 0019 and ADR 0031 section 8; measured: a wheel that reaches the
     /// end of a frame does not move the parent in the same event). The
-    /// documents get no `wheel` event: the page's scripts see none for a
-    /// wheel over a frame (measured). Returns true if something scrolled.
+    /// documents above the innermost one get no `wheel` event (measured), and a
+    /// listener of the innermost one that cancels it keeps everything from
+    /// scrolling. Returns true if something scrolled.
     pub(super) fn wheel_in_frames(&mut self, route: &Route, dx: f32, dy: f32) -> bool {
+        let last = route.last();
+        let allowed = self
+            .in_frame(last.frame, |p| {
+                !p.script_input() || p.scripted_wheel(last.point, dx, dy)
+            })
+            .unwrap_or(true);
+        if !allowed {
+            return false;
+        }
         let mut scrolled = false;
         for step in route.steps.iter().rev() {
             let user = self.frame_user_scrollable(step.frame);

@@ -30,7 +30,13 @@ impl Gen<'_> {
             TypeKind::DomString | TypeKind::UsvString | TypeKind::ByteString => "String".to_owned(),
             TypeKind::Object | TypeKind::Promise(_) => GC_OBJECT.to_owned(),
             TypeKind::Named(name) => match self.model.kind(name) {
-                Some(Kind::Interface) if self.model.is_node(name) => "b::NodeId".to_owned(),
+                Some(Kind::Interface) if self.model.is_node(name) => {
+                    if !out && t.ext_attrs.has("SwbAnyDocument") {
+                        "b::NodeRef".to_owned()
+                    } else {
+                        "b::NodeId".to_owned()
+                    }
+                }
                 Some(Kind::Interface) if out => GC_OBJECT.to_owned(),
                 Some(Kind::Interface) => "b::Platform".to_owned(),
                 _ => format!("{p}{name}"),
@@ -230,7 +236,12 @@ impl Gen<'_> {
             TypeKind::Promise(_) => format!("b::convert::promise(rt, {realm}, {v})"),
             TypeKind::Named(name) => match self.model.kind(name) {
                 Some(Kind::Interface) if self.model.is_node(name) => format!(
-                    "b::convert::node(rt, {v}, super::{}, {})",
+                    "b::convert::{}(rt, {v}, super::{}, {})",
+                    if t.ext_attrs.has("SwbAnyDocument") {
+                        "node_ref"
+                    } else {
+                        "node"
+                    },
                     constant(name),
                     literal(name)
                 ),
@@ -312,7 +323,11 @@ impl Gen<'_> {
             }
             TypeKind::Named(name) => match self.model.kind(name) {
                 Some(Kind::Interface) if self.model.is_node(name) => {
-                    format!("b::to_js::node::<H>(rt, {realm}, {e})")
+                    if !out && t.ext_attrs.has("SwbAnyDocument") {
+                        format!("swb_js::VmResult::Ok(b::to_js::node_ref({e}))")
+                    } else {
+                        format!("b::to_js::node::<H>(rt, {realm}, {e})")
+                    }
                 }
                 Some(Kind::Interface) if out => {
                     format!("swb_js::VmResult::Ok(swb_js::Value::Object({e}))")

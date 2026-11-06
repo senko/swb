@@ -153,8 +153,8 @@ pub trait ElementImpl: b::Host {
     /// `HTMLCollection getElementsByClassName(DOMString classNames)`.
     fn get_elements_by_class_name(cx: &mut b::Cx<'_>, this: b::NodeId, class_names: String) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
-    /// `Element? insertAdjacentElement(DOMString where, Element element)`.
-    fn insert_adjacent_element(cx: &mut b::Cx<'_>, this: b::NodeId, where_: String, element: b::NodeId) -> b::Result<Option<b::NodeId>>;
+    /// `object? insertAdjacentElement(DOMString where, Element element)`.
+    fn insert_adjacent_element(cx: &mut b::Cx<'_>, this: b::NodeId, where_: String, element: b::NodeRef) -> b::Result<Option<swb_js::Gc<swb_js::Object>>>;
 
     /// `undefined insertAdjacentText(DOMString where, DOMString data)`.
     fn insert_adjacent_text(cx: &mut b::Cx<'_>, this: b::NodeId, where_: String, data: String) -> b::Result<()>;
@@ -740,9 +740,9 @@ fn op_insert_adjacent_element<H: ElementImpl>(rt: &mut swb_js::Runtime, call: &s
         let v = rt.arg(call, 0);
         let a0 = b::convert::dom_string(rt, v).map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
-        let a1 = b::convert::node(rt, v, super::ELEMENT, "Element").map_err(|e| e.argument(1))?;
+        let a1 = b::convert::node_ref(rt, v, super::ELEMENT, "Element").map_err(|e| e.argument(1))?;
         let result = <H as ElementImpl>::insert_adjacent_element(&mut b::Cx::new(rt, call, super::ELEMENT), this, a0, a1)?;
-        Ok((match result { Some(x0) => b::to_js::node::<H>(rt, call.realm(), x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
+        Ok((match result { Some(x0) => swb_js::VmResult::Ok(swb_js::Value::Object(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?)
     })
 }
 

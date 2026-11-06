@@ -259,6 +259,9 @@ impl Runtime {
             jobs: crate::vm::jobs::JobQueue::default(),
             host: crate::host::Host::default(),
             base_realm: 0,
+            first_frame_realm: None,
+            rejecting_handler_realm: None,
+            failed_job_realm: None,
             native_caller: None,
             terminating: None,
         };
@@ -939,6 +942,25 @@ impl Runtime {
             .into_iter()
             .map(Value::Object)
             .collect()
+    }
+
+    /// [`Runtime::take_unhandled_rejections`] with the realm of each rejection:
+    /// the realm of the promise, or the realm of the handler that threw when a
+    /// reaction job rejects a promise of `%Promise%`. These give Chromium's
+    /// window of `unhandledrejection` (measured, ADR 0031 "Done (feature
+    /// 12b2)").
+    pub fn take_unhandled_rejections_by_realm(&mut self) -> Vec<(Value, u32)> {
+        self.take_rejections_by_realm()
+            .into_iter()
+            .map(|(promise, realm)| (Value::Object(promise), realm))
+            .collect()
+    }
+
+    /// The realm of the function of the last job whose exception no promise
+    /// took ([`Runtime::run_jobs`]), once: the host reports the exception to the
+    /// window of that function.
+    pub fn take_failed_job_realm(&mut self) -> Option<u32> {
+        self.vm.failed_job_realm.take()
     }
 
     /// Enqueues a job that calls `callback` with no arguments (HTML

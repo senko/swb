@@ -28,7 +28,7 @@ pub trait HTMLOptionsCollectionImpl: b::Host {
     fn remove(cx: &mut b::Cx<'_>, this: b::Platform, index: i32) -> b::Result<()>;
 
     /// `setter undefined (unsigned long index, HTMLOptionElement? option)`: the indexed property setter of `HTMLOptionsCollection`.
-    fn indexed_setter(cx: &mut b::Cx<'_>, this: b::Platform, index: u32, value: Option<b::NodeId>) -> b::Result<()>;
+    fn indexed_setter(cx: &mut b::Cx<'_>, this: b::Platform, index: u32, value: Option<b::NodeRef>) -> b::Result<()>;
 
 }
 
@@ -106,7 +106,7 @@ fn legacy_indexed_get<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, 
 }
 
 fn legacy_indexed_set<H: super::Bindings>(rt: &mut swb_js::Runtime, realm: u32, this: b::Platform, index: u32, v: swb_js::Value) -> b::Result<()> {
-    let value = (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_OPTION_ELEMENT, "HTMLOptionElement").map(Some) }).map_err(|e| e.argument(1))?;
+    let value = (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_OPTION_ELEMENT, "HTMLOptionElement").map(Some) }).map_err(|e| e.argument(1))?;
     <H as HTMLOptionsCollectionImpl>::indexed_setter(&mut b::Cx::without_call(rt, realm, super::HTML_OPTIONS_COLLECTION), this, index, value)
 }
 

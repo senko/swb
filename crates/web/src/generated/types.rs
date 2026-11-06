@@ -1453,7 +1453,7 @@ pub struct SubmitEventInit {
     /// `composed`.
     pub composed: bool,
     /// `submitter`.
-    pub submitter: Option<b::NodeId>,
+    pub submitter: Option<b::NodeRef>,
 }
 
 impl SubmitEventInit {
@@ -1467,7 +1467,7 @@ impl SubmitEventInit {
         let v = b::convert::member(rt, object, "composed")?;
         let composed = if v.is_undefined() { false } else { b::convert::boolean(rt, v).map_err(|e| e.member("composed", "EventInit"))? };
         let v = b::convert::member(rt, object, "submitter")?;
-        let submitter = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.member("submitter", "SubmitEventInit"))? };
+        let submitter = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { b::convert::node_ref(rt, v, super::HTML_ELEMENT, "HTMLElement").map(Some) }).map_err(|e| e.member("submitter", "SubmitEventInit"))? };
         Ok(SubmitEventInit { bubbles, cancelable, composed, submitter })
     }
 
@@ -1480,7 +1480,7 @@ impl SubmitEventInit {
         b::to_js::dictionary_member(rt, object, "cancelable", value)?;
         let value = swb_js::VmResult::Ok(swb_js::Value::Bool(self.composed))?;
         b::to_js::dictionary_member(rt, object, "composed", value)?;
-        let value = (match self.submitter { Some(x0) => b::to_js::node::<H>(rt, realm, x0), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
+        let value = (match self.submitter { Some(x0) => swb_js::VmResult::Ok(b::to_js::node_ref(x0)), None => swb_js::VmResult::Ok(swb_js::Value::Null) })?;
         b::to_js::dictionary_member(rt, object, "submitter", value)?;
         Ok(object.into())
     }
@@ -5269,7 +5269,7 @@ impl FileOrUsvString {
 #[derive(Clone, Debug)]
 pub enum HTMLElementOrLong {
     /// `HTMLElement`.
-    HTMLElement(b::NodeId),
+    HTMLElement(b::NodeRef),
     /// `long`.
     Long(i32),
 }
@@ -5278,16 +5278,16 @@ impl HTMLElementOrLong {
     /// Converts a JavaScript value (Web IDL §3.2.25).
     pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<HTMLElementOrLong> {
         if b::convert::is_platform_object(rt, value) {
-            if rt.implements(value, super::HTML_ELEMENT) { return Ok(HTMLElementOrLong::HTMLElement(b::convert::node(rt, value, super::HTML_ELEMENT, "HTMLElement")?)); }
+            if rt.implements(value, super::HTML_ELEMENT) { return Ok(HTMLElementOrLong::HTMLElement(b::convert::node_ref(rt, value, super::HTML_ELEMENT, "HTMLElement")?)); }
         }
         if let swb_js::Value::Int(_) | swb_js::Value::Double(_) = value { return Ok(HTMLElementOrLong::Long(b::convert::long(rt, value, b::convert::IntMode::Plain)?)); }
         Ok(HTMLElementOrLong::Long(b::convert::long(rt, value, b::convert::IntMode::Plain)?))
     }
 
     /// Converts to a JavaScript value.
-    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+    pub fn to_js<H: b::Host>(&self, _rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
         match self {
-            HTMLElementOrLong::HTMLElement(x) => b::to_js::node::<H>(rt, realm, *x),
+            HTMLElementOrLong::HTMLElement(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
             HTMLElementOrLong::Long(x) => swb_js::VmResult::Ok(swb_js::Value::number(f64::from(*x))),
         }
     }
@@ -5297,26 +5297,26 @@ impl HTMLElementOrLong {
 #[derive(Clone, Debug)]
 pub enum HTMLOptionElementOrHTMLOptGroupElement {
     /// `HTMLOptionElement`.
-    HTMLOptionElement(b::NodeId),
+    HTMLOptionElement(b::NodeRef),
     /// `HTMLOptGroupElement`.
-    HTMLOptGroupElement(b::NodeId),
+    HTMLOptGroupElement(b::NodeRef),
 }
 
 impl HTMLOptionElementOrHTMLOptGroupElement {
     /// Converts a JavaScript value (Web IDL §3.2.25).
     pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<HTMLOptionElementOrHTMLOptGroupElement> {
         if b::convert::is_platform_object(rt, value) {
-            if rt.implements(value, super::HTML_OPTION_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(b::convert::node(rt, value, super::HTML_OPTION_ELEMENT, "HTMLOptionElement")?)); }
-            if rt.implements(value, super::HTML_OPT_GROUP_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(b::convert::node(rt, value, super::HTML_OPT_GROUP_ELEMENT, "HTMLOptGroupElement")?)); }
+            if rt.implements(value, super::HTML_OPTION_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(b::convert::node_ref(rt, value, super::HTML_OPTION_ELEMENT, "HTMLOptionElement")?)); }
+            if rt.implements(value, super::HTML_OPT_GROUP_ELEMENT) { return Ok(HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(b::convert::node_ref(rt, value, super::HTML_OPT_GROUP_ELEMENT, "HTMLOptGroupElement")?)); }
         }
         Err(b::Exception::NotOfType("(HTMLOptGroupElement or HTMLOptionElement)".into()))
     }
 
     /// Converts to a JavaScript value.
-    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+    pub fn to_js<H: b::Host>(&self, _rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
         match self {
-            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(x) => b::to_js::node::<H>(rt, realm, *x),
-            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(x) => b::to_js::node::<H>(rt, realm, *x),
+            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptionElement(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
+            HTMLOptionElementOrHTMLOptGroupElement::HTMLOptGroupElement(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
         }
     }
 }
@@ -5325,7 +5325,7 @@ impl HTMLOptionElementOrHTMLOptGroupElement {
 #[derive(Clone, Debug)]
 pub enum NodeOrDomString {
     /// `Node`.
-    Node(b::NodeId),
+    Node(b::NodeRef),
     /// `DOMString`.
     DomString(String),
 }
@@ -5334,15 +5334,15 @@ impl NodeOrDomString {
     /// Converts a JavaScript value (Web IDL §3.2.25).
     pub fn from_js(rt: &mut swb_js::Runtime, _realm: u32, value: swb_js::Value) -> b::Result<NodeOrDomString> {
         if b::convert::is_platform_object(rt, value) {
-            if rt.implements(value, super::NODE) { return Ok(NodeOrDomString::Node(b::convert::node(rt, value, super::NODE, "Node")?)); }
+            if rt.implements(value, super::NODE) { return Ok(NodeOrDomString::Node(b::convert::node_ref(rt, value, super::NODE, "Node")?)); }
         }
         Ok(NodeOrDomString::DomString(b::convert::dom_string(rt, value)?))
     }
 
     /// Converts to a JavaScript value.
-    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, realm: u32) -> swb_js::VmResult<swb_js::Value> {
+    pub fn to_js<H: b::Host>(&self, rt: &mut swb_js::Runtime, _realm: u32) -> swb_js::VmResult<swb_js::Value> {
         match self {
-            NodeOrDomString::Node(x) => b::to_js::node::<H>(rt, realm, *x),
+            NodeOrDomString::Node(x) => swb_js::VmResult::Ok(b::to_js::node_ref(*x)),
             NodeOrDomString::DomString(x) => b::to_js::string(rt, &x.clone()),
         }
     }

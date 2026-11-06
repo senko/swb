@@ -71,8 +71,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "fv-types-keyboard",
         0,
-        r#""text:F1 search:F1 url:F1 tel:F1 email:F1 password:F1 number:F1 date:F1 datetime-local:F1 month:F1 week:F1 time:F1 color:F1 range:F1 file:F1 checkbox:F1 radio:F1 submit:F1 button:F1 reset:F1 readonly-text:F1 text-notype:F1 textarea:F1 select:F1 summary:F1 link:F1 tabindex:F1 editable:-0 plaintext:-0 button:F1 iframe:F1""#,
-        "swb does not focus an element with contenteditable, and it focuses an empty iframe (Chromium does not)",
+        r#""text:F1 search:F1 url:F1 tel:F1 email:F1 password:F1 number:F1 date:F1 datetime-local:F1 month:F1 week:F1 time:F1 color:F1 range:F1 file:F1 checkbox:F1 radio:F1 submit:F1 button:F1 reset:F1 readonly-text:F1 text-notype:F1 textarea:F1 select:F1 summary:F1 link:F1 tabindex:F1 editable:-0 plaintext:-0 button:F1 iframe:F0""#,
+        "swb does not focus an element with contenteditable",
     ),
 ];
 

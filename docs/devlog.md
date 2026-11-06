@@ -4,6 +4,47 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-06: M9 feature 12b2: nodes across documents, the caller's document, input with scripts in frames
+
+- A node of another document of the runtime is now an ordinary argument. A move
+  takes the subtree from one arena and puts a copy into the other, iteratively,
+  and keeps the wrappers: the same objects with a new host word. A taken node stays
+  as an empty detached comment, so an old id never reads wrong data; what holds
+  an old id follows `DocState::moved`. Mutation observers belong to the agent. An
+  IDL argument with `[SwbAnyDocument]` is a `NodeRef`; any other keeps the `TypeError`.
+- `postMessage` has the caller's `source` and `origin`. `location` resolves against
+  the entry document; `fetch`, XHR and `pushState` against the window's own, as
+  measured. `javascript:` links and forms run in their target.
+- An exception goes to the window of the function's realm; `unhandledrejection`
+  goes per promise.
+- `Page::in_frame` keeps the runtime: frame listeners get pointer, wheel, key, focus
+  and blur events. Window focus and blur of frames, `document.hasFocus()`, script
+  `focus()` into a frame, and `allow-top-navigation-by-user-activation` with input.
+- Chromium 148: 36 new cases, three runs each.
+- Found in two reviews, then fixed:
+  - A move that did not fit could lose its subtree: the room check counted less than
+    the put needed for template contents, and a script in the removal steps could
+    fill the target after the check. The check and the put now share one formula,
+    and the check runs again right before the take.
+  - Moving the parent of many observed nodes was quadratic (the review measured 4.5 s
+    for 200,000 nodes; the hostile case now takes 0.75 s for its whole page). A stale
+    list of a node that moved many times walked the whole chain on each read (the
+    review measured 12 ms per read at 400,000 moves); now once.
+  - A `javascript:` link whose bytes hide the scheme did nothing in a frame without a
+    realm; Escape counted as a user activation; `unhandledrejection` interleaved
+    windows; an `iframe` matched `:focus`, which it never does in Chromium.
+  - The first fix for the hidden link had no origin check, so a frame of another
+    origin could have run a script in a same-origin frame by naming it; a re-read and
+    the review of the fixes found that before any commit. It now needs the same
+    origin, and a target for a new browsing context runs nothing.
+- A control case showed that the probe tool gives each page an activation at its load,
+  so a case about activation must wait past its five seconds.
+- Known limit: repeated moves grow the arena, so a subtree that moves back and
+  forth in a loop ends at the node limit. Focus re-entrancy and a few other
+  measured differences stay as departures (ADR 0031).
+- Next: feature 13, runtimes per origin and cross-origin objects, on the owner's
+  request.
+
 ## 2026-11-05: M9 feature 12b1: scripts in same-origin frames
 
 - A frame document of the top-level document's origin runs its scripts in a

@@ -87,20 +87,22 @@ fn replace_child_named(
     cx: &mut Cx<'_>,
     table: NodeId,
     name: &str,
-    new: Option<NodeId>,
+    new: Option<b::NodeRef>,
     place: impl FnOnce(&mut Cx<'_>, NodeId) -> b::Result<Option<NodeId>>,
 ) -> b::Result<()> {
-    if let Some(node) = new
-        && !dom(cx.rt)?.element(node).is_some_and(|e| is_named(e, name))
-    {
-        return Err(hierarchy(&format!("Not a {name} element.")));
+    if let Some(node) = new {
+        crate::state::ensure_lent(cx.rt, node.document)?;
+        let arena = crate::state::dom_of(cx.rt, node.document)?;
+        if !arena.element(node.node).is_some_and(|e| is_named(e, name)) {
+            return Err(hierarchy(&format!("Not a {name} element.")));
+        }
     }
     if let Some(old) = child_named(cx, table, name)? {
         remove(cx, old)?;
     }
     if let Some(node) = new {
         let reference = place(cx, table)?;
-        pre_insert(cx, table, node, reference)?;
+        crate::dom::tree_ops::pre_insert_node(cx, table, node, reference)?;
     }
     Ok(())
 }
@@ -116,7 +118,7 @@ impl g::html_table_element::HTMLTableElementImpl for WebState {
         child_named(cx, this, "caption")
     }
 
-    fn set_caption(cx: &mut Cx<'_>, this: NodeId, value: Option<NodeId>) -> b::Result<()> {
+    fn set_caption(cx: &mut Cx<'_>, this: NodeId, value: Option<b::NodeRef>) -> b::Result<()> {
         replace_child_named(cx, this, "caption", value, first_child_of)
     }
 
@@ -124,7 +126,7 @@ impl g::html_table_element::HTMLTableElementImpl for WebState {
         child_named(cx, this, "thead")
     }
 
-    fn set_t_head(cx: &mut Cx<'_>, this: NodeId, value: Option<NodeId>) -> b::Result<()> {
+    fn set_t_head(cx: &mut Cx<'_>, this: NodeId, value: Option<b::NodeRef>) -> b::Result<()> {
         replace_child_named(cx, this, "thead", value, |cx, t| {
             after_captions_and_cols(cx, t)
         })
@@ -134,7 +136,7 @@ impl g::html_table_element::HTMLTableElementImpl for WebState {
         child_named(cx, this, "tfoot")
     }
 
-    fn set_t_foot(cx: &mut Cx<'_>, this: NodeId, value: Option<NodeId>) -> b::Result<()> {
+    fn set_t_foot(cx: &mut Cx<'_>, this: NodeId, value: Option<b::NodeRef>) -> b::Result<()> {
         replace_child_named(cx, this, "tfoot", value, |_, _| Ok(None))
     }
 

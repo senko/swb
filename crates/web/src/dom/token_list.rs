@@ -28,11 +28,24 @@ use crate::state::{WebState, dom, state, state_mut};
 
 /// The data of a token list.
 struct ListData {
+    /// The key of the document of the element.
+    document: u32,
     element: NodeId,
     attribute: LocalName,
 }
 
 impl GenericData for ListData {
+    fn host_word(&self) -> Option<u64> {
+        Some(b::word_of(self.document, self.element))
+    }
+
+    fn set_host_word(&mut self, word: u64) {
+        if let Some((document, element)) = b::word_parts(word) {
+            self.document = document;
+            self.element = element;
+        }
+    }
+
     fn trace(&self, _tracer: &mut Tracer<'_>) {}
 
     fn heap_size(&self) -> usize {
@@ -47,7 +60,12 @@ pub(crate) fn new_token_list(
     element: NodeId,
     attribute: LocalName,
 ) -> VmResult<Gc<Object>> {
-    let data = rt.alloc_host_data(ListData { element, attribute })?;
+    let document = crate::state::document_key(rt)?;
+    let data = rt.alloc_host_data(ListData {
+        document,
+        element,
+        attribute,
+    })?;
     rt.new_host_object(realm, g::DOM_TOKEN_LIST, data)
 }
 

@@ -329,6 +329,8 @@ pub struct Page {
     /// The navigations that the input in a frame document asked for; the
     /// page acts on them when the frame's document is back in its place.
     deferred_navigations: Vec<frame_navigate::FrameNavigation>,
+    /// While [`Page::in_frame`] runs: what the frame's document replaced.
+    exchange: Option<frame_input::Exchange>,
     /// The bodies of frame documents that the workers have read and the page
     /// has not taken yet (ADR 0031 section 11): requests of frame documents
     /// hold a reservation, so that 1,000 frames cannot make the workers
@@ -409,6 +411,7 @@ impl Page {
             active_frame: FrameId::TOP,
             frame_inputs: std::collections::HashMap::new(),
             deferred_navigations: Vec::new(),
+            exchange: None,
             frame_bodies,
             frame_fonts,
         }

@@ -17,6 +17,7 @@ mod microsyntax;
 mod mutation;
 mod parser;
 mod serialize;
+mod transplant;
 mod tree;
 
 pub use algorithms::{Cloned, position};
@@ -34,6 +35,7 @@ pub use parser::{
     parse_html_bytes_with, parse_html_limited, parse_html_with,
 };
 pub use serialize::{inner_html, outer_html};
+pub use transplant::{Placed, Subtree, SubtreeSize};
 pub use tree::{
     Attribute, Children, Descendants, Document, ElementData, Limits, MAX_NODES, MAX_TEXT_BYTES,
     Node, NodeData, NodeId, QuirksMode, is_html_whitespace,

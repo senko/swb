@@ -99,6 +99,8 @@ interface Window : EventTarget {
   attribute any opener;
   attribute DOMString name;
   readonly attribute boolean closed;
+  undefined focus();
+  undefined blur();
   // From `WindowOrWorkerGlobalScope`.
   [Replaceable] readonly attribute USVString origin;
   // swb's type: `Element?` in the standard. The element is a node of another
@@ -159,7 +161,7 @@ partial interface Document {
 
   // DOM tree accessors
   [CEReactions] attribute DOMString title;
-  [CEReactions] attribute HTMLElement? body;
+  [CEReactions] attribute [SwbAnyDocument] HTMLElement? body;
   readonly attribute HTMLHeadElement? head;
   readonly attribute HTMLOrSVGScriptElement? currentScript; // classic scripts in a document tree only
 
@@ -624,15 +626,15 @@ HTMLAreaElement includes HTMLHyperlinkElementUtils;
 [Exposed=Window]
 interface HTMLTableElement : HTMLElement {
   [HTMLConstructor] constructor();
-  [CEReactions] attribute HTMLTableCaptionElement? caption;
+  [CEReactions] attribute [SwbAnyDocument] HTMLTableCaptionElement? caption;
   HTMLTableCaptionElement createCaption();
   [CEReactions] undefined deleteCaption();
 
-  [CEReactions] attribute HTMLTableSectionElement? tHead;
+  [CEReactions] attribute [SwbAnyDocument] HTMLTableSectionElement? tHead;
   HTMLTableSectionElement createTHead();
   [CEReactions] undefined deleteTHead();
 
-  [CEReactions] attribute HTMLTableSectionElement? tFoot;
+  [CEReactions] attribute [SwbAnyDocument] HTMLTableSectionElement? tFoot;
   HTMLTableSectionElement createTFoot();
   [CEReactions] undefined deleteTFoot();
 
@@ -705,7 +707,7 @@ interface HTMLFormElement : HTMLElement {
   getter (RadioNodeList or Element) (DOMString name);
 
   undefined submit();
-  undefined requestSubmit(optional HTMLElement? submitter = null);
+  undefined requestSubmit(optional [SwbAnyDocument] HTMLElement? submitter = null);
   [CEReactions] undefined reset();
 
   boolean checkValidity();
@@ -816,10 +818,10 @@ interface HTMLSelectElement : HTMLElement {
   [CEReactions] attribute unsigned long length;
   getter HTMLOptionElement? item(unsigned long index);
   HTMLOptionElement? namedItem(DOMString name);
-  [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
+  [CEReactions] undefined add(([SwbAnyDocument] HTMLOptionElement or [SwbAnyDocument] HTMLOptGroupElement) element, optional ([SwbAnyDocument] HTMLElement or long)? before = null);
   [CEReactions] undefined remove();
   [CEReactions] undefined remove(long index);
-  [CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
+  [CEReactions] setter undefined (unsigned long index, [SwbAnyDocument] HTMLOptionElement? option);
   [SameObject] readonly attribute HTMLCollection selectedOptions;
   [CEReactions] attribute long selectedIndex;
   [CEReactions] attribute DOMString value;
@@ -1001,8 +1003,8 @@ interface RadioNodeList : NodeList {
 [Exposed=Window, LegacyUnenumerableNamedProperties]
 interface HTMLOptionsCollection : HTMLCollection {
   [CEReactions] attribute unsigned long length;
-  [CEReactions] setter undefined (unsigned long index, HTMLOptionElement? option);
-  [CEReactions] undefined add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
+  [CEReactions] setter undefined (unsigned long index, [SwbAnyDocument] HTMLOptionElement? option);
+  [CEReactions] undefined add(([SwbAnyDocument] HTMLOptionElement or [SwbAnyDocument] HTMLOptGroupElement) element, optional ([SwbAnyDocument] HTMLElement or long)? before = null);
   [CEReactions] undefined remove(long index);
   attribute long selectedIndex;
 };
@@ -1469,11 +1471,11 @@ partial interface Document {
 interface SubmitEvent : Event {
   constructor(DOMString type, optional SubmitEventInit eventInitDict = {});
 
-  readonly attribute HTMLElement? submitter;
+  readonly attribute object? submitter; // an element of any document
 };
 
 dictionary SubmitEventInit : EventInit {
-  HTMLElement? submitter = null;
+  [SwbAnyDocument] HTMLElement? submitter = null;
 };
 
 [Exposed=Window]

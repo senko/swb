@@ -13,7 +13,7 @@ pub trait MutationObserverImpl: b::Host {
     fn constructor(cx: &mut b::Cx<'_>, callback: super::types::MutationCallback) -> b::Result<swb_js::Gc<swb_js::Object>>;
 
     /// `undefined observe(Node target, optional MutationObserverInit options)`.
-    fn observe(cx: &mut b::Cx<'_>, this: b::Platform, target: b::NodeId, options: super::types::MutationObserverInit) -> b::Result<()>;
+    fn observe(cx: &mut b::Cx<'_>, this: b::Platform, target: b::NodeRef, options: super::types::MutationObserverInit) -> b::Result<()>;
 
     /// `undefined disconnect()`.
     fn disconnect(cx: &mut b::Cx<'_>, this: b::Platform) -> b::Result<()>;
@@ -38,7 +38,7 @@ fn op_observe<H: MutationObserverImpl>(rt: &mut swb_js::Runtime, call: &swb_js::
         let this = b::glue::this_platform(rt, call, super::MUTATION_OBSERVER)?;
         b::glue::require_arguments(call, 1)?;
         let v = rt.arg(call, 0);
-        let a0 = b::convert::node(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
         let v = rt.arg(call, 1);
         let a1 = if v.is_undefined() { super::types::MutationObserverInit::from_js(rt, call.realm(), swb_js::Value::Undefined)? } else { super::types::MutationObserverInit::from_js(rt, call.realm(), v).map_err(|e| e.argument(1))? };
         <H as MutationObserverImpl>::observe(&mut b::Cx::new(rt, call, super::MUTATION_OBSERVER), this, a0, a1)?;
