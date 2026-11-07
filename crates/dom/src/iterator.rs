@@ -551,7 +551,7 @@ impl Document {
 
     /// The nodes in other arenas that iterator `id` points at (the reference
     /// and the candidate), as the tag and the node.
-    pub fn node_iterator_aways(&self, id: u32) -> [Option<(u32, NodeId)>; 2] {
+    pub fn away_pointers(&self, id: u32) -> [Option<(u32, NodeId)>; 2] {
         let away = |spot: Spot| match spot {
             Spot::Away(tag, node) => Some((tag, node)),
             Spot::Here(_) => None,
@@ -591,7 +591,8 @@ impl Document {
     /// collection, when no traversal runs, and when the candidate is in another
     /// arena (the host steps there with [`Document::iterator_step`]). A
     /// candidate outside the root's tree moves inside its own tree.
-    pub fn node_iterator_advance(&mut self, id: u32, forward: bool) -> Option<NodeId> {
+    #[cfg(test)]
+    pub(crate) fn node_iterator_advance(&mut self, id: u32, forward: bool) -> Option<NodeId> {
         let state = self.iterators.states.get(&id).copied()?;
         let (Spot::Here(node), before) = state.candidate? else {
             return None;

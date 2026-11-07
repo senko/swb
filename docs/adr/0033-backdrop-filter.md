@@ -109,7 +109,7 @@ model.
 
 ### Paint
 
-- `DisplayItem::BackdropFilter` (`paint/src/display_list.rs`): the
+- `DisplayItem::BackdropFilter` (`paint/src/display_list/items.rs`): the
   functions, the `color` of the element, the border box, its radii (if
   rounded), `alpha` and the number of groups that the box started before
   (`layers`). The builder pushes it after the box's groups and its `clip`

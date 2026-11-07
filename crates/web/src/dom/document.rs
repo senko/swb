@@ -1,17 +1,16 @@
 //! `Document` (DOM §4.5, <https://dom.spec.whatwg.org/#interface-document>)
 //! with the tree accessors of HTML §3.1.4
 //! (<https://html.spec.whatwg.org/multipage/dom.html#dom-tree-accessors>):
-//! `title`, `body` and `head`; `readyState` and `currentScript` (feature
-//! 5c, `scripts.rs`); the node factories, `importNode`, `adoptNode`,
-//! `getElementById`, `referrer` and `defaultView` (feature 6a).
+//! `title`, `body` and `head`; `readyState` and `currentScript`
+//! (`scripts.rs`); the node factories, `importNode`, `adoptNode`,
+//! `getElementById`, `referrer` and `defaultView`.
 //!
 //! Only the document of `NodeId::DOCUMENT` has a URL of its own and a
 //! script state; the other documents of the arena (the inert documents of
 //! template contents, `createHTMLDocument`, `DOMParser`) are UTF-8 and
 //! `text/html`, have their own quirks mode, and are `about:blank` except
 //! those of `DOMParser`, which have the URL of the window's document.
-//! Feature 6b adds the queries, the document collections and
-//! `implementation`.
+//! The queries, the document collections and `implementation` are here too.
 
 use swb_dom::{Document, ElementData, NodeData, NodeId, QualName, QuirksMode, local_name, ns};
 

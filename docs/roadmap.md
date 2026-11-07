@@ -3138,7 +3138,7 @@ Steps:
         objects), `change` events after a resize or a color scheme change
         (`Page::set_color_scheme`), in the order the lists were made; the
         media query serializer keeps Chromium's forms. The rendering
-        update (`page/frame.rs`): `resize`, `scroll`, media query changes
+        update (`page/rendering_update.rs`): `resize`, `scroll`, media query changes
         and `requestAnimationFrame` callbacks in HTML's order, the
         callbacks on a 60 Hz grid of page time (virtual time in
         headless), each as a task with its own deadline; style and layout
@@ -3950,7 +3950,7 @@ Steps:
      frame, so its first viewport differs from Chromium's until frames
      come.
 
-## M9: Ars Technica and BBC with JavaScript, frames
+## M9: Ars Technica and BBC with JavaScript, frames — done
 
 Owner decisions (2026-11-01, ground rules):
 
@@ -4200,7 +4200,7 @@ Steps:
       1500 px horizontally (Chromium 148, measured; the viewport size and
       the way of scrolling do not change it). An element without a box
       never loads; overflow clipping does not matter. The check runs in
-      the page frame (`document/lazy.rs`, `page/frame.rs`) after a change
+      the page frame (`document/lazy.rs`, `page/rendering_update.rs`) after a change
       of the DOM, the layout, a scroll offset or the viewport. Lazy images
       do not delay the window `load` event. With JavaScript off, Chromium
       loads every image at once (the HTML spec turns lazy loading off
@@ -4454,7 +4454,17 @@ Steps:
        unchanged. BBC: load 0.370 s, hydrated 3.196 s (budget 4.60 s). JS off:
        snapshot identical.
 
-   Then the end-of-milestone maintenance.
+   Then the end-of-milestone maintenance. Done 2026-11-07: two read-only
+   reviews listed 55 items; one implementer session applied 42 (duplicates,
+   dead code, names, test helpers, tools, splits of nine large files, comments
+   and docs), the orchestrator three (the roadmap backlog), and the README
+   describes the state after M9. Behaviour unchanged:
+   JS-off snapshot identical, `compare --js` unchanged, hostile set as before,
+   test262 unchanged, generated bindings and test cases byte-identical. Left
+   (risk or low value): one rule for the access of a document to cookies and
+   storage (`cookie.rs`, `storage.rs`, `domain.rs` decide it apart); one helper
+   for the checks of a node from another document in `dom/tree_ops.rs`; one
+   error page for the top level and frames (the pixels would change).
 
 ## Pending decisions
 
@@ -4471,14 +4481,13 @@ Steps:
   and `history.back()` in the parent traverses the frame).
 - Realm collection in `js`, priority: realms of removed frame documents
   stay until their runtime ends, and the budget of 256 counts them (ADR 0031
-  "Budget of realms"). Since feature 12b1 a page reaches this: a long-lived
-  page that replaces same-origin frames with scripts stops running scripts in
-  new frames after 255 of them (measured in the 12b1 review: 600 frames made,
-  read and removed one after the other, 255 scripts ran). Do it after feature 13,
-  which changes who owns a realm; feature 13 also gives each origin a runtime
-  and so a budget. Needs: a realm that is reachable only from live objects
-  instead of a root, reuse of its index in `HostSlot`, and the release of its
-  `DocState`.
+  "Budget of realms"). A long-lived page that replaces same-origin frames with
+  scripts stops running scripts in new frames after 255 of them (measured in
+  the 12b1 review: 600 frames made, read and removed one after the other, 255
+  scripts ran). The budget is per runtime, and each origin of a page has its
+  own runtime, so the limit applies to the frames of one origin. Needs: a realm
+  that is reachable only from live objects instead of a root, reuse of its
+  index in `HostSlot`, and the release of its `DocState`.
 - Cross-origin objects (feature 13a; rows in
   `crates/engine/tests/frames/cross_origin.rs`): a frame that a script renames is
   found by its new name through a cross-origin parent (Chromium: by no name);
@@ -4536,7 +4545,7 @@ Steps:
     wish for a collection across runtimes would close this.
   - A message that waited for a reused window reaches a listener of the first script of
     the new document; Chromium's does not see it.
-  - `document.hasStorageAccess` and `TreeWalker` do not exist.
+  - `document.hasStorageAccess` does not exist.
 - Traversal and BBC's consent dialog (feature 15; ADR 0028 "Feature 15a", ADR 0031 "Done
   (feature 15)"):
   - `TreeWalker`, `Range`, `createProcessingInstruction` and `createCDATASection` do not
@@ -4681,8 +4690,6 @@ Steps:
   feature 12b1). Cause not found. Hacker News repeats within 0.1 %.
 - CSP `frame-ancestors` and `frame-src`, `X-Frame-Options` (they protect
   a framed site from clickjacking; swb has no CSP).
-- Top-level navigation from a cross-origin frame after a user
-  activation (Chromium allows it; ADR 0031 refuses it).
 - Input in frames (feature 11, ADR 0031 section 8): Tab after a removed
   focused frame starts at the first element (Chromium: where the `iframe`
   was); `html:hover` over blank areas, top level and frames; `transform`
@@ -5366,8 +5373,7 @@ Steps:
   no `[LegacyOverrideBuiltIns]`); obsolete members (`div.align`,
   `body.bgColor`), `contentEditable`, `popover`, constraint
   validation, selection members, `files`, `valueAsNumber`, `labels`,
-  `img.complete` and `naturalWidth` from the loaded image,
-  `iframe.contentWindow`; color names in a color input are not
+  `img.complete` and `naturalWidth` from the loaded image; color names in a color input are not
   converted; `form.img` is not a named property.
 - `web` (found in feature 6c2): SVG animated values (`SVGAnimatedLength`
   and the others, with `x`, `width`, `viewBox`, `transform`), the URL
@@ -5457,9 +5463,7 @@ Steps:
   `Secure`, `__Host-` with `Domain=<IP>`) and the tab rule of scripts
   for `Set-Cookie` headers (a probe server that sends headers);
   `QuotaExceededError` as its own class (`quota`, `requested`);
-  `new Document()` and `document.implementation.createDocument`; the
-  `storage` event once a second document exists (frames, windows; a
-  `Task` variant, ADR 0028 section 12 notes); lone surrogates in
+  `new Document()` and `document.implementation.createDocument`; lone surrogates in
   `DOMString`s (storage keys and values become U+FFFD); `Object.keys` of
   a legacy platform object omits names that the prototype hides
   (Chromium lists them); the text of the opaque-origin storage
@@ -5478,8 +5482,8 @@ Steps:
   the next native call or checkpoint, so its order against promise
   jobs inside one script can differ. Missing, found by the probes: the
   `contentEditable`, `popover` and `Element.slot` setters write no
-  attribute; `Range`, `createProcessingInstruction`, `document.write`
-  (`setSelectionRange` came with 9b1). `Page::observers_due` copies the
+  attribute; `Range` and `createProcessingInstruction` (also in the
+  M9 backlog, feature 15). `Page::observers_due` copies the
   scroll offsets at each turn while observers exist (a generation counter in the
   scrollers would avoid it). Records past 131,072 in one task are
   dropped (Chromium delivers them all): a registry keeps a Rust copy of
@@ -5557,7 +5561,7 @@ Steps:
   external sheets in `document.styleSheets`: done in M9 feature 6.)
   `blob:` URLs for `img`, `link` and the page's loader
   (`img.src = URL.createObjectURL(blob)` fires `error`; upload previews
-  use it: feature 11 checks whether the Craigslist page does); the Blob
+  use it); the Blob
   URL store is per runtime, so a same-origin frame cannot read its
   parent's Blob URLs (not measured);
   XML documents (`responseXML`, `DOMParser` with `text/xml`); a
@@ -5679,7 +5683,8 @@ Steps:
 - Engine (found in the 6d2 review): a `details` without a `summary`
   gets no focus from a click (Chromium focuses it). A `javascript:` link
   whose `target` names a browsing context counts as a new context, also
-  when the name is `window.name` (swb has no frames). Image maps do not
+  when the name is `window.name` (found before M9 brought frames; not
+  checked again since). Image maps do not
   work with JavaScript on or off: a click on an `area` of an `img
   usemap` does not navigate, and a link around an `img ismap` sends no
   `?x,y`. The GUI

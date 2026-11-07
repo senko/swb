@@ -742,7 +742,9 @@ impl Parser<'_> {
 
 /// Moves the extended attributes that apply to a type (`[Clamp]`,
 /// `[EnforceRange]`, `[LegacyNullToEmptyString]`, `[AllowShared]`) from
-/// an argument or dictionary member to its type.
+/// an argument or dictionary member to its type. The list pairs with
+/// `TYPE_ATTRS` in `model.rs`, which also has `SwbBuffer`: the parser puts that
+/// one on the type itself.
 fn move_type_attrs(attrs: &mut ExtAttrs, ty: &mut Type) {
     let (type_attrs, rest): (Vec<ExtAttr>, Vec<ExtAttr>) =
         std::mem::take(&mut attrs.0).into_iter().partition(|a| {

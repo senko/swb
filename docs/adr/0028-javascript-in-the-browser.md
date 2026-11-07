@@ -685,8 +685,8 @@ Feature 5a notes (the event core; see also section 11):
   `load`) as a task: the deadline, the dispatch in a handle scope, the
   microtask checkpoint, the stop rule; `Page::dispatch_event` lends the
   document state for it. The checkpoint after each listener when the
-  stack is empty (HTML "clean up after running a callback") comes with
-  feature 5b.
+  stack is empty (HTML "clean up after running a callback") runs in the
+  dispatch (`events/dispatch.rs`; see "Feature 5b notes").
 
 Feature 5b notes (the event loop; see also section 7):
 
@@ -2843,7 +2843,7 @@ each; the Rust test is `crates/engine/tests/rendering.rs` with the cases in
   before). Departures: `calc()` in a query is kept as written and cannot
   use `em` (Chromium simplifies and evaluates it); swb knows
   `inverted-colors`, Chromium 148 does not.
-- **The rendering update** (section 7; `page/frame.rs`). A frame runs, in
+- **The rendering update** (section 7; `page/rendering_update.rs`). A frame runs, in
   HTML's order, `resize` at the window (when the viewport size changed),
   `scroll` (7b1), the media query changes and the animation frame
   callbacks; each callback is a task of its own (its deadline, a microtask
@@ -4247,7 +4247,7 @@ cases):
   element: border and content sizes, padding origin, border widths, inline,
   `position`, transform, clip), `ScriptRuntime::has_observations`,
   `observations_requested`, `run_resize_observers` and
-  `update_intersection_observers`. `js` got `Runtime::new_host_function`
+  `update_intersection_observers`. `js` got `Runtime::new_host_method`
   (a native function that the host queues as a microtask).
   `Exception::member` words the failure of a union member as Chromium does
   (`The provided value is not of type '(Document or Element)'.`).

@@ -3,7 +3,7 @@
 //! interaction source: the page hit-tests, fires the events at the target,
 //! and runs the default action only if no listener canceled the event. This
 //! file has the events of the pointer, the mouse, the wheel, the keys and
-//! the edits (the frame that fires `scroll` is in `frame.rs`); `input.rs`
+//! the edits (the frame that fires `scroll` is in `rendering_update.rs`); `input.rs`
 //! has the flow of each input and calls these functions when
 //! [`Page::script_input`] is true.
 //!

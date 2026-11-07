@@ -1,5 +1,5 @@
 //! Navigation by the user's input in documents with frames (ADR 0031
-//! sections 2, 3 and 8; M9 feature 11): a link or a form of a document
+//! sections 2, 3 and 8): a link or a form of a document
 //! navigates the browsing context that its `target` names (HTML "rules for
 //! choosing a navigable",
 //! <https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable>):
@@ -8,8 +8,8 @@
 //!
 //! swb has one tab, so a `_blank` target or a name that no frame has opens
 //! nothing new: the navigation goes to the frame of the document that asked
-//! (the top-level document ignored `target` before; Chromium opens a new tab
-//! and leaves the frame as it is), and a sandboxed frame without
+//! (Chromium opens a new tab and leaves the frame as it is), and a sandboxed
+//! frame without
 //! `allow-popups` does nothing (measured). A name is compared exactly; the
 //! keywords without ASCII case (measured). The rule that a document may
 //! navigate a frame is in [`crate::frames::Frames::may_navigate`]: a cross-origin
@@ -311,6 +311,6 @@ impl Page {
 
     /// The sandboxing flags of frame `id` (none for the page's own document).
     pub(super) fn sandbox_of(&self, id: FrameId) -> Sandbox {
-        self.frames.get(id).map(|f| f.sandbox).unwrap_or_default()
+        self.frame_sandbox(id).unwrap_or_default()
     }
 }

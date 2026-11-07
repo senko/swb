@@ -225,7 +225,7 @@ line box). The line boxes count up to the end of their content, which
 starts after the floats beside them. The layout test `scroll-floats`
 records 12 cases.
 
-### Paint order (`paint/src/display_list.rs`)
+### Paint order (`paint/src/display_list/builder.rs`)
 
 A stacking context paints its normal flow in three phases (Appendix E
 steps 4, 5 and 7): backgrounds and borders of in-flow blocks, then

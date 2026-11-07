@@ -234,7 +234,7 @@ fn queue_microtask(rt: &mut Runtime) {
     let function = if let Some(function) = web.mutation.notify_fn {
         function
     } else if let Ok(function) =
-        crate::state::doc_realm(rt).and_then(|realm| rt.new_host_function(realm, "", notify))
+        crate::state::doc_realm(rt).and_then(|realm| rt.new_host_method(realm, "", 0, notify))
     {
         if let Ok(web) = state_mut(rt) {
             web.mutation.notify_fn = Some(function);

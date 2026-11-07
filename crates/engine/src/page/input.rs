@@ -10,9 +10,9 @@ use swb_style::{Cursor, ElementStates, UserSelect};
 
 use super::Page;
 use super::events::Down;
-use super::frame::{ObservedState, ScrollSeen};
 use super::frame_focus::KeyOutcome;
 use super::frame_input::FramePress;
+use super::rendering_update::{ObservedState, ScrollSeen};
 use crate::focus;
 use crate::frames::{FrameId, MAX_DEPTH};
 use crate::hit_test::{self, HitResult};

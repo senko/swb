@@ -28,14 +28,14 @@ fn parent_with(frame_html: &str, more: &[(&str, Res)], js: bool) -> Page {
     let mut resources = vec![("/case/f.html", html(frame_html))];
     resources.extend(more.iter().map(|(p, r)| (*p, r.clone())));
     let (mut page, _) = open(PARENT, &resources, js);
-    settle(&mut page);
+    settle_and_paint(&mut page);
     page
 }
 
-/// Finishes the loads of the frames and lays everything out.
-fn settle(page: &mut Page) {
-    assert!(page.wait_until_idle(Duration::from_millis(30), Duration::from_secs(20)));
-    page.update_layout();
+/// Finishes the loads of the frames, lays everything out and paints (the hit
+/// tests need the display lists).
+fn settle_and_paint(page: &mut Page) {
+    crate::common::settle(page);
     page.screenshot(false).unwrap();
 }
 
@@ -93,7 +93,7 @@ fn a_hit_on_the_border_of_an_iframe_finds_the_iframe() {
         let html = "<!doctype html><style>body{margin:0}#f{position:absolute;left:100px;top:100px;\
             width:300px;height:100px;border:5px solid red}</style><iframe id=f srcdoc=\"<p id=a>x</p>\"></iframe>";
         let (mut page, _) = open(html, &[], false);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let iframe = node(&page, "f");
         let hit = page.hit_test(102.0, 150.0).unwrap();
         assert_eq!((hit.frame, hit.node), (FrameId::TOP, iframe));
@@ -110,7 +110,7 @@ fn pointer_events_visibility_and_covers_decide_what_a_frame_hits() {
             #c{position:absolute;left:100px;top:100px;width:150px;height:100px}</style>\
             <div id=u></div><iframe id=f srcdoc=\"<style>body{margin:0;height:100px}</style><p id=a>x</p>\"></iframe><div id=c></div>";
         let (mut page, _) = open(html, &[], false);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let f = frame(&page, "f");
         // The cover is above the frame on the left; the frame shows on the right.
         assert_eq!(page.hit_test(150.0, 150.0).unwrap().node, node(&page, "c"));
@@ -121,13 +121,13 @@ fn pointer_events_visibility_and_covers_decide_what_a_frame_hits() {
             let iframe = d.element_by_id("f").unwrap();
             d.set_attr(iframe, "style", "pointer-events:none").unwrap();
         });
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.hit_test(350.0, 150.0).unwrap().node, node(&page, "u"));
         page.change_dom(|d| {
             let iframe = d.element_by_id("f").unwrap();
             d.set_attr(iframe, "style", "visibility:hidden").unwrap();
         });
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.hit_test(350.0, 150.0).unwrap().node, node(&page, "u"));
     });
 }
@@ -156,7 +156,7 @@ fn a_hit_goes_through_a_transform_and_a_rounded_clip() {
             width:200px;height:100px;border:0;transform:rotate(90deg);border-radius:50px}</style>\
             <iframe id=f srcdoc=\"<style>body{margin:0}#a{position:absolute;left:0;top:0;width:60px;height:60px}</style><div id=a></div>\"></iframe>";
         let (mut page, _) = open(html, &[], false);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let f = frame(&page, "f");
         let a = frame_node(&page, f, "a");
         // The frame is 200x100 around (200, 150); rotated by 90 degrees it
@@ -318,7 +318,7 @@ fn links_page() -> (Page, std::sync::Arc<Sim>) {
         ],
         false,
     );
-    settle(&mut page);
+    settle_and_paint(&mut page);
     (page, sim)
 }
 
@@ -344,7 +344,7 @@ fn click_in_frame(page: &mut Page, f: FrameId, id: &str) {
         .element_boxes()[&n];
     let at = rect(page, "f");
     page.click(at.x + b.x + 5.0, at.y + b.y + 5.0);
-    settle(page);
+    settle_and_paint(page);
 }
 
 #[test]
@@ -394,15 +394,15 @@ fn a_link_with_a_frame_name_navigates_that_frame() {
         // The parent's own link and form, by the frame's name.
         let (mut page, _) = links_page();
         click(&mut page, "pl");
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(frame_url_of(&page, "g"), "t.html?pnamed");
         let (mut page, _) = links_page();
         click(&mut page, "pf");
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(frame_url_of(&page, "f"), "t.html?pf");
         let (mut page, _) = links_page();
         click(&mut page, "sb");
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(frame_url_of(&page, "g"), "t.html?a=1");
     });
 }
@@ -428,7 +428,7 @@ fn tall_pair() -> Page {
     let html = "<!doctype html><style>body{margin:0;height:3000px}iframe{position:absolute;top:100px;width:300px;height:200px;border:0}</style>\
         <iframe id=f src=tall.html style='left:100px'></iframe><iframe id=g scrolling=no src=tall.html style='left:450px'></iframe>";
     let (mut page, _) = open(html, &[("/case/tall.html", Res::html(TALL))], false);
-    settle(&mut page);
+    settle_and_paint(&mut page);
     page
 }
 
@@ -482,7 +482,7 @@ fn the_wheel_chains_through_nested_frames() {
             ],
             false,
         );
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let f = frame(&page, "f");
         let g = page.frame_of(f, frame_node(&page, f, "g")).unwrap();
         let state = |page: &Page| {
@@ -570,7 +570,7 @@ fn tab_page() -> Page {
         fields(&[("c1", 10, 10), ("c2", 100, 10)])
     );
     let (mut page, _) = open(&parent, &[("/case/f.html", html(&frame_doc))], false);
-    settle(&mut page);
+    settle_and_paint(&mut page);
     page
 }
 
@@ -662,7 +662,7 @@ fn a_frame_without_a_focusable_element_is_a_stop_and_hidden_frames_are_skipped()
             ],
             false,
         );
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let empty = frame(&page, "empty");
         let pos = frame(&page, "pos");
         let state = |page: &mut Page| {
@@ -718,7 +718,7 @@ fn tab_enters_nested_frames() {
             &[("/case/n.html", html(&n)), ("/case/g.html", html(&g))],
             false,
         );
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let f = frame(&page, "f");
         let gf = page.frame_of(f, frame_node(&page, f, "g")).unwrap();
         let name = |page: &Page, frame: FrameId| {
@@ -819,7 +819,7 @@ fn the_focus_stays_with_a_frame_that_navigates_and_falls_back_when_it_is_removed
             let iframe = d.element_by_id("f").unwrap();
             d.set_attr(iframe, "src", "g.html").unwrap();
         });
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.focused_frame_id(), f);
         assert_eq!(page.frame_document(f).unwrap().focus_element(), None);
         // Removing it: the page's document has the focus.
@@ -857,7 +857,7 @@ fn form_page() -> Page {
         ],
         false,
     );
-    settle(&mut page);
+    settle_and_paint(&mut page);
     page
 }
 
@@ -885,7 +885,7 @@ fn typing_and_enter_in_a_frame_field_submit_the_form_into_the_frame() {
             Some("hi")
         );
         key(&mut page, &Key::Enter);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.frame_document(f).unwrap().url().path(), "/case/r.html");
         assert_eq!(query_of(&page, f), "q=hi&c=on&s=b&go=go");
         assert_eq!(page.url().unwrap().path(), "/case/case.html");
@@ -917,7 +917,7 @@ fn a_checkbox_and_a_select_in_a_frame_work_with_mouse_and_keys() {
         key(&mut page, &Key::Tab);
         key(&mut page, &space());
         page.key_up(&space(), Modifiers::NONE);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(query_of(&page, f), "q=&c=on&s=c&go=go");
     });
 }
@@ -930,7 +930,7 @@ fn a_click_on_a_submit_button_in_a_frame_navigates_the_frame() {
         page.click(130.0, 120.0);
         page.insert_text("x y");
         page.click(130.0, 235.0);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(query_of(&page, f), "q=x+y&c=on&s=b&go=go");
     });
 }
@@ -946,7 +946,7 @@ fn text_page() -> Page {
         <p id=pp style='position:absolute;left:10px;top:250px;margin:0'>parent text words</p>\
         <iframe id=f src=sel.html style='position:absolute;left:100px;top:100px;width:300px;height:150px;border:0'></iframe>";
     let (mut page, _) = open(parent, &[("/case/sel.html", html(TEXT))], false);
-    settle(&mut page);
+    settle_and_paint(&mut page);
     page
 }
 
@@ -1026,7 +1026,7 @@ fn a_thousand_frames_over_each_other_take_input() {
             let _ = write!(body, "<iframe srcdoc=\"<input id=i{i}>\"></iframe>");
         }
         let (mut page, _) = open(&body, &[], false);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let start = std::time::Instant::now();
         for i in 0..100 {
             page.mouse_move(10.0 + i as f32, 20.0);
@@ -1084,9 +1084,9 @@ fn a_cross_origin_frame_navigates_the_top_level_after_a_click() {
             ],
             false,
         );
-        settle(&mut page);
+        settle_and_paint(&mut page);
         page.click(110.0, 110.0);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.url().unwrap().path(), "/case/t.html");
     });
 }
@@ -1104,7 +1104,7 @@ fn a_post_form_in_a_frame_posts_into_the_frame() {
             ],
             false,
         );
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let f = frame(&page, "f");
         let go = frame_node(&page, f, "go");
         let b = page
@@ -1114,7 +1114,7 @@ fn a_post_form_in_a_frame_posts_into_the_frame() {
             .unwrap()
             .element_boxes()[&go];
         page.click(100.0 + b.x + 5.0, 100.0 + b.y + 5.0);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert_eq!(page.frame_document(f).unwrap().url().path(), "/case/r.html");
         let posted = sim
             .requests_full()
@@ -1151,14 +1151,14 @@ fn a_lazy_image_in_a_frame_loads_when_the_frame_scrolls_near_it() {
         let frame_doc = "<!doctype html><style>body{margin:0}</style><div style='height:5000px'></div>\
                          <img src=lazy.png loading=lazy width=10 height=10>";
         let (mut page, sim) = open(PARENT, &[("/case/f.html", html(frame_doc))], true);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         let asked = |sim: &Sim| sim.requests().iter().any(|(u, _)| u.ends_with("/lazy.png"));
         assert!(
             !asked(&sim),
             "the image is 4,800 px below the frame's viewport"
         );
         page.wheel(200.0, 200.0, 0.0, 2500.0);
-        settle(&mut page);
+        settle_and_paint(&mut page);
         assert!(
             asked(&sim),
             "the frame scrolled to within 3,000 px of the image"

@@ -1,4 +1,4 @@
-//! Lazy loading of images (M9 feature 4, ADR 0032; HTML "lazy loading
+//! Lazy loading of images (ADR 0032; HTML "lazy loading
 //! attributes",
 //! <https://html.spec.whatwg.org/multipage/urls-and-fetching.html#lazy-loading-attributes>,
 //! and the lazy load steps of "update the image data",

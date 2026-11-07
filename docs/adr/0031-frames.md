@@ -343,7 +343,7 @@ origin if it and its ancestors are same-site with it) and its loader client
 site for cookies, when there is one, with the request URL, so a cross-site
 frame document and its requests set and send only `SameSite=None` cookies
 (case `cookies-frames`, the response part; `document.cookie` in frames
-comes with scripts in frames). `sandbox` is parsed (`Sandbox`): without
+uses the same rules, `crates/web/src/cookie.rs`). `sandbox` is parsed (`Sandbox`): without
 `allow-same-origin` the document's origin is opaque; `allow-scripts` gates
 the scripts of the document (feature 12b1). The flags are read at
 each navigation. The origin of `about:blank` and `about:srcdoc` documents
@@ -1644,9 +1644,9 @@ is true for a tuple origin. Probe cases: `tools/probes/web-small-gaps.json`
 
 **Done in one document (M9 feature 9, `crates/web/src/message_port.rs`;
 probe `tools/probes/web-message-channel.json`).** `MessageChannel` and
-`MessagePort` work within the runtime of the document; the registry is
-per runtime, which is per page until feature 5 (runtimes per origin)
-moves it to the page. Design:
+`MessagePort` work within the runtime of the document; the registry was
+per runtime then. Feature 13b gave each origin a runtime and feature 14a
+moved the registry to the page ("Done (feature 14a)"). Design:
 
 - *Registry.* Each port has an id (a counter that never reuses a value)
   and an entry in the registry: the entangled port's id, the queue of
@@ -2309,7 +2309,9 @@ replaced and destroyed documents return their bytes).
 
 Each feature is one commit; swb stays usable after each, and the JS-off
 fixtures change only as section 9 says. The roadmap (M9) gives the
-scope, exit and agent type of each.
+scope, exit and agent type of each. The numbers 1 to 7 below are the order of
+this ADR. The "Done (feature N)" headings use the numbers of the roadmap: 1
+here is feature 9, 2 is 10, 3 is 11, 4 is 12, 5 is 13, 6 is 14 and 7 is 15.
 
 1. **`MessageChannel` and `MessagePort` in one document** (`implementer`):
    the port registry, `start`, transfer within a runtime, the errors.

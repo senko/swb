@@ -419,7 +419,7 @@ const LINE_FIT_EPSILON: f32 = 0.001;
 /// for a line break in units of 1/64 px and truncates each one (measured:
 /// four items of `25.001%` of 1000 px fit one line, four of `25.003%` do
 /// not; `20% + 60% + 20%` of 976 px fits one line, while the `f32` sum is a
-/// little more than 976: BBC's cookie banner, M9 feature 7). The small
+/// little more than 976: BBC's cookie banner). The small
 /// addition keeps a size that is a multiple of 1/64 px in `f32` noise (for
 /// example 249.99998 for 250) from losing one unit.
 fn layout_units(size: f32) -> f32 {

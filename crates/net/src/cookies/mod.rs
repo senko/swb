@@ -24,7 +24,7 @@
 //!   used ones are evicted down to 150) and 3300 in total (down to 3000).
 //! - Third-party cookies (`SameSite=None; Secure`) are allowed.
 //!
-//! The non-HTTP API (`document.cookie`, feature 8b): [`CookieJar::set_script_cookie`]
+//! The non-HTTP API (`document.cookie`): [`CookieJar::set_script_cookie`]
 //! and [`CookieJar::script_cookie_string`] use the same rules as a response
 //! and a request of the document itself, except that a script cannot set
 //! an `HttpOnly` cookie, cannot replace or delete one, and does not see
@@ -55,7 +55,7 @@ use url::{Origin, Url};
 
 use crate::headers::Headers;
 use crate::request::Request;
-use crate::site::Site;
+use crate::site::same_site_as_url;
 use store::{Access, Store};
 
 /// The `SameSite` attribute of a cookie.
@@ -143,10 +143,7 @@ impl SameSiteContext {
     /// and its URL, and from its destination.
     pub(crate) fn of(request: &Request) -> Self {
         let same_site = match (&request.site_for_cookies, &request.initiator) {
-            (Some(site), _) => match (Site::of_origin(site), Site::of_url(&request.url)) {
-                (Some(a), Some(b)) => a == b,
-                _ => false,
-            },
+            (Some(site), _) => same_site_as_url(site, &request.url),
             (None, initiator) => Self::initiator_same_site(request, initiator.as_ref()),
         };
         if same_site {
@@ -166,10 +163,7 @@ impl SameSiteContext {
             // user starts only navigations. A subresource request without
             // one is a bug in the caller; it gets the fewest cookies.
             None => request.is_top_level_navigation(),
-            Some(initiator) => match (Site::of_origin(initiator), Site::of_url(&request.url)) {
-                (Some(a), Some(b)) => a == b,
-                _ => false,
-            },
+            Some(initiator) => same_site_as_url(initiator, &request.url),
         }
     }
 }
@@ -344,12 +338,8 @@ fn script_access(url: &Url, now: i64) -> Access<'_> {
 /// The access of a script of a frame document at `url`: same-site if the frame's site for
 /// cookies is, else cross-site (the same rule as for the frame's requests).
 fn script_access_in<'a>(url: &'a Url, site_for_cookies: &Origin, now: i64) -> Access<'a> {
-    let same = match (Site::of_origin(site_for_cookies), Site::of_url(url)) {
-        (Some(a), Some(b)) => a == b,
-        _ => false,
-    };
     Access {
-        context: if same {
+        context: if same_site_as_url(site_for_cookies, url) {
             SameSiteContext::SameSite
         } else {
             SameSiteContext::CrossSite

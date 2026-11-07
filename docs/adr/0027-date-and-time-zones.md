@@ -619,7 +619,7 @@ patterns, numbers, relative times and tags in `crates/js/src/intl/`;
 `tools/tests/test_js_intl_data.py`; the Ars Technica test (the story
 times: `data/ars-technica.js`, `ars-technica-chromium.json`); the test262
 groups `test/intl402/*` (`crates/js/test262/scores.json`); and three
-hostile cases (`tools/swbtools/hostile_cases.py`:
+hostile cases (`tools/swbtools/hostile_cases/write_cssom_modules.py`:
 `intl-formatters-loop-js-on`, `intl-number-digits-js-on`,
 `intl-locale-lists-js-on`).
 

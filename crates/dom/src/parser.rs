@@ -8,7 +8,7 @@
 //! keeps the [`Document`] and lends it to each step. The stack of open
 //! elements holds `NodeId`s, which stay valid while scripts and the engine
 //! use the document between steps (also for nodes they removed).
-//! `document.write` (M9 feature 2, ADR 0028 section 8, `write.rs`) puts its
+//! `document.write` (ADR 0028 section 8, `write.rs`) puts its
 //! text at the insertion point, in front of the unparsed rest: while a
 //! script runs ([`HtmlParser::enter_script`]), the first write moves the
 //! queue behind the insertion point, and [`HtmlParser::resume_written`]

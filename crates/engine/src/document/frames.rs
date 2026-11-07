@@ -144,29 +144,6 @@ impl DocumentState {
             })
     }
 
-    /// The element under the pointer (`:hover`); the `iframe` for a
-    /// document whose frame the pointer is in.
-    pub fn hovered_element(&self) -> Option<NodeId> {
-        self.states.hover
-    }
-
-    /// The element that is being pressed (`:active`).
-    pub fn pressed_element(&self) -> Option<NodeId> {
-        self.states.active
-    }
-
-    /// The focused element of the document (`:focus`).
-    pub fn focus_element(&self) -> Option<NodeId> {
-        self.states.focus
-    }
-
-    /// The `iframe` element that holds the page's focus through its frame
-    /// (`document.activeElement` while no element of the document is
-    /// focused; ADR 0031 section 8).
-    pub fn focused_frame_element(&self) -> Option<NodeId> {
-        self.frame_focus
-    }
-
     /// The value of a form control (the `value` IDL attribute); `None` for
     /// other elements.
     pub fn control_value(&self, node: NodeId) -> Option<String> {

@@ -22,10 +22,7 @@ use std::time::{Duration, Instant};
 
 use swb_dom::NodeId;
 
-use swb_js::{
-    ConsoleLevel, PromiseStatus, ReactionKind, Runtime, RuntimeConfig, ScriptError, Value, VmError,
-    VmResult,
-};
+use swb_js::{ConsoleLevel, Runtime, RuntimeConfig, ScriptError, Value, VmError};
 
 use crate::clock::{DocumentClock, PageClock};
 use crate::errors::Site;
@@ -33,7 +30,14 @@ use crate::event_loop::Task;
 use crate::events::{DispatchTarget, TrustedEvent};
 use crate::generated as g;
 use crate::host::{EngineHost, FrameHost};
-use crate::state::{WebState, state_mut};
+use crate::state::{DocState, WebState, state_mut};
+
+mod documents;
+mod evaluate;
+mod rendering;
+
+pub use evaluate::EVALUATION_TIMEOUT;
+use evaluate::SERIALIZER;
 
 /// The time limit of a task (ADR 0028 section 16).
 pub const TASK_TIME_LIMIT: Duration = Duration::from_secs(5);
@@ -95,57 +99,6 @@ pub enum JsonForm {
     /// `JSON.stringify`, and lone surrogates in strings become U+FFFD.
     Strict,
 }
-
-/// The function that writes the JSON text of an evaluated value, or the
-/// text of an error. It is compiled when the runtime is created, before any
-/// page script, and keeps the built-ins it uses, so that a page that
-/// replaces `JSON.stringify` or `Array.isArray` does not change it.
-const SERIALIZER: &str = r"(() => {
-  const isArray = Array.isArray, keys = Object.keys, stringify = JSON.stringify, S = String;
-  const apply = Reflect.apply, wellFormed = String.prototype.toWellFormed;
-  // Strict JSON parsers refuse the escape of a lone surrogate.
-  function string(s, strict) { return stringify(strict ? apply(wellFormed, s, []) : s); }
-  function number(n, strict) {
-    if (n !== n) return strict ? 'null' : 'NaN';
-    if (n === Infinity) return strict ? 'null' : 'Infinity';
-    if (n === -Infinity) return strict ? 'null' : '-Infinity';
-    if (n === 0 && 1 / n < 0) return strict ? '0' : '-0.0';
-    return S(n);
-  }
-  function value(v, strict, seen) {
-    switch (typeof v) {
-      case 'boolean': return v ? 'true' : 'false';
-      case 'number': return number(v, strict);
-      case 'bigint': return S(v);
-      case 'string': return string(v, strict);
-      case 'object': break;
-      default: return 'null';
-    }
-    if (v === null || seen.length > 100) return 'null';
-    for (let i = 0; i < seen.length; i++) if (seen[i] === v) return 'null';
-    seen[seen.length] = v;
-    let out = '';
-    if (isArray(v)) {
-      for (let i = 0; i < v.length; i++) out += (i ? ',' : '') + value(v[i], strict, seen);
-      out = '[' + out + ']';
-    } else {
-      const ks = keys(v);
-      for (let i = 0; i < ks.length; i++) out += (i ? ',' : '') + string(ks[i], strict) + ':' + value(v[ks[i]], strict, seen);
-      out = '{' + out + '}';
-    }
-    seen.length = seen.length - 1;
-    return out;
-  }
-  function error(e) {
-    try {
-      if (e !== null && typeof e === 'object' && 'message' in e) return S(e.name) + ': ' + S(e.message);
-      return S(e);
-    } catch (x) {
-      return 'a thrown value that has no text';
-    }
-  }
-  return (v, strict, isError) => isError ? error(v) : value(v, strict, []);
-})()";
 
 /// The frame id of the `WindowProxy` of a runtime's first document.
 const TOP_FRAME: u32 = 0;
@@ -236,7 +189,6 @@ impl AgentShared {
 /// section 5). A runtime starts with one document.
 pub struct ScriptRuntime {
     pub(crate) rt: Runtime,
-    console: Rc<RefCell<VecDeque<ConsoleMessage>>>,
     /// What this runtime shares with the other runtimes of its page.
     shared: AgentShared,
     /// The page clock (shared with the binding state).
@@ -351,17 +303,15 @@ impl ScriptRuntime {
         }
         state.console_frame.set(frame);
         let shared = shared.clone();
-        let console = Rc::clone(&state.console);
+        let sink = Rc::clone(&state.console);
         let logged = Rc::clone(&state.console_logged);
         let frame = Rc::clone(&state.console_frame);
-        let sink = Rc::clone(&console);
         rt.set_console(Box::new(move |level, line| {
             log_console(&logged, level, line);
             push_message(&sink, frame.get(), level, line);
         }));
         Ok(ScriptRuntime {
             rt,
-            console,
             shared,
             clock,
             time_limit: TASK_TIME_LIMIT,
@@ -424,256 +374,6 @@ impl ScriptRuntime {
     /// The page clock.
     pub fn clock(&self) -> &PageClock {
         &self.clock
-    }
-
-    /// Adds a document to the agent: a new realm with a `Window`, the record
-    /// of the document, and the `WindowProxy` of the frame `frame` (below
-    /// 2^30; one object per frame, ADR 0031 section 5). Returns the key of
-    /// the document. The runtime's first document has the key 0.
-    pub fn add_document(&mut self, frame: u32) -> Result<DocumentKey, ScriptError> {
-        let clock = DocumentClock::new(self.clock.clone());
-        let setup = |rt: &mut Runtime| -> Result<u32, VmError> {
-            let realm = rt.create_realm()?;
-            init_window(rt, realm)?;
-            crate::state::add_document(rt, realm, frame, clock)
-        };
-        setup(&mut self.rt)
-            .map(DocumentKey)
-            .map_err(|e| internal(&e))
-    }
-
-    /// Shares the page's frame registry with the runtime (ADR 0031 section
-    /// 5); `count` is the number of frames besides the top level, which the
-    /// page keeps current.
-    pub fn set_frame_host(&mut self, host: Rc<RefCell<dyn FrameHost>>, count: Rc<Cell<usize>>) {
-        if let Ok(state) = state_mut(&mut self.rt) {
-            state.frame_host = Some(host);
-            state.frame_count = count;
-        }
-    }
-
-    /// A new realm for a document of frame `frame` that the runtime will
-    /// start ([`ScriptRuntime::start_document`] under
-    /// [`ScriptRuntime::with_document`]); the frame's proxy gets its `Window`
-    /// as the target. `None` past the budget of realms of ADR 0031 section 11
-    /// (one warning), or after an error.
-    pub fn add_frame_document(&mut self, frame: u32) -> Option<DocumentKey> {
-        match crate::frames::new_realm(&mut self.rt, frame) {
-            Ok(key) => key.map(DocumentKey),
-            Err(error) => {
-                log::warn!("cannot make the realm of a frame document: {error:?}");
-                None
-            }
-        }
-    }
-
-    /// The `Window` of the document `old` goes on with a new document of its
-    /// frame (HTML "initial about:blank" reuse): the new document has the
-    /// returned key, and `old` keeps the wrappers of its nodes.
-    pub fn reuse_window(&mut self, old: DocumentKey) -> Option<DocumentKey> {
-        crate::state::reuse_window(&mut self.rt, old.0)
-            .ok()
-            .map(DocumentKey)
-    }
-
-    /// The document `key` left its frame: it stays while the realm lives. With
-    /// `doc`, the engine gives up the document that it held.
-    pub fn retire_document(&mut self, key: DocumentKey, doc: Option<Box<dyn EngineHost>>) {
-        if let Err(error) = crate::state::retire_document(&mut self.rt, key.0, doc) {
-            log::warn!("cannot retire a document: {error:?}");
-        }
-    }
-
-    /// The frame `frame` is destroyed: nothing can ask for its proxy again.
-    pub fn forget_frame(&mut self, frame: u32) {
-        if let Ok(state) = state_mut(&mut self.rt) {
-            state.window_proxies.remove(&frame);
-        }
-    }
-
-    /// True if the runtime has seen the proxy of frame `frame`: a script may
-    /// hold it, so a new document of the frame needs its realm at once.
-    pub fn knows_frame(&self, frame: u32) -> bool {
-        crate::state::state(&self.rt).is_ok_and(|s| s.window_proxies.contains_key(&frame))
-    }
-
-    /// The proxy of frame `frame` loses its target: the frame has a document
-    /// of another origin, or one past the budget of realms.
-    pub fn clear_frame_target(&mut self, frame: u32) {
-        let proxy = crate::state::state(&self.rt)
-            .ok()
-            .and_then(|s| s.window_proxies.get(&frame).copied());
-        if let Some(proxy) = proxy
-            && let Err(error) = self.rt.set_window_proxy_target(proxy, None)
-        {
-            log::warn!("cannot change a WindowProxy: {error:?}");
-        }
-    }
-
-    /// The document `key` got a realm with its parse complete: its load goes
-    /// on without a parse of the runtime (`loading`: its `load` event is to
-    /// come).
-    pub fn adopt_complete_document(&mut self, key: DocumentKey, loading: bool) {
-        if let Ok(state) = state_mut(&mut self.rt)
-            && let Some(doc) = crate::state::document_mut(state, key.0)
-        {
-            doc.scripts.adopt_complete(loading);
-        }
-    }
-
-    /// A sandbox without `allow-scripts` stops the scripts of the document
-    /// `key`, by the flags of the navigation that made it (measured, case
-    /// `scripted-sandbox-scripts`). A kept `Window` takes the new value.
-    pub fn set_scripts_off(&mut self, key: DocumentKey, scripts_off: bool) {
-        if let Ok(state) = state_mut(&mut self.rt)
-            && let Some(doc) = crate::state::document_mut(state, key.0)
-        {
-            doc.scripts_off = scripts_off;
-        }
-    }
-
-    /// Gives the document a realm at its first need, outside a native (an
-    /// evaluation in a frame). False if it cannot have one.
-    pub fn ensure_frame_window(&mut self, frame: u32) -> bool {
-        matches!(
-            crate::frames::window_of_frame(&mut self.rt, frame),
-            Ok(Some(_))
-        )
-    }
-
-    /// The current document gets its host from the registry if it has none. A
-    /// runtime whose documents the page does not lend calls it at the start of a
-    /// task, so that a native that runs in the current document finds it.
-    pub fn borrow_current_document(&mut self) {
-        crate::state::ensure_current_lent(&mut self.rt);
-    }
-
-    /// Takes back what the task borrowed besides the first document, which
-    /// [`ScriptRuntime::take_back`] takes.
-    pub fn take_back_documents(&mut self) -> Vec<Box<dyn EngineHost>> {
-        let Ok(state) = state_mut(&mut self.rt) else {
-            return Vec::new();
-        };
-        if state.lent.is_empty() {
-            return Vec::new();
-        }
-        let keys = std::mem::take(&mut state.lent);
-        keys.into_iter()
-            .filter_map(|key| crate::state::document_mut(state, key)?.host.take())
-            .collect()
-    }
-
-    /// Reads the state of the document `key`, without making it current.
-    fn read_document<R>(
-        &self,
-        key: DocumentKey,
-        read: impl FnOnce(&crate::state::DocState) -> R,
-    ) -> Option<R> {
-        let state = crate::state::state(&self.rt).ok()?;
-        crate::state::document_ref(state, key.0).map(read)
-    }
-
-    /// [`ScriptRuntime::load_event_due`] of the document `key`.
-    pub fn load_event_due_in(&self, key: DocumentKey) -> bool {
-        self.read_document(key, |d| {
-            d.scripts.phase == crate::scripts::Phase::AfterContentLoaded
-                && d.scripts.asap.is_empty()
-                && d.scripts.in_order.is_empty()
-        })
-        .unwrap_or(false)
-    }
-
-    /// [`ScriptRuntime::document_loaded`] of the document `key`.
-    pub fn document_loaded_in(&self, key: DocumentKey) -> bool {
-        self.read_document(key, |d| {
-            matches!(
-                d.scripts.phase,
-                crate::scripts::Phase::NotStarted
-                    | crate::scripts::Phase::Loaded
-                    | crate::scripts::Phase::Unloaded
-            )
-        })
-        .unwrap_or(true)
-    }
-
-    /// [`ScriptRuntime::waits_for_style_sheets`] of the document `key`.
-    pub fn waits_for_style_sheets_in(&self, key: DocumentKey) -> bool {
-        self.read_document(key, |d| match d.scripts.phase {
-            crate::scripts::Phase::Parsing => d.scripts.pending_parsing_blocking.is_some(),
-            crate::scripts::Phase::Deferred => true,
-            _ => false,
-        })
-        .unwrap_or(false)
-    }
-
-    /// True if the document `key` has animation frame callbacks.
-    pub fn has_animation_frames_in(&self, key: DocumentKey) -> bool {
-        !self.stopped
-            && self
-                .read_document(key, |d| !d.animation_frames.is_empty())
-                .unwrap_or(false)
-    }
-
-    /// True if the document `key` has an observation.
-    pub fn has_observations_in(&self, key: DocumentKey) -> bool {
-        !self.stopped
-            && self
-                .read_document(key, |d| d.io.is_observing() || d.ro.is_observing())
-                .unwrap_or(false)
-    }
-
-    /// True if the window of the document `key` reacts to a new size of its
-    /// viewport: a `resize` listener or handler, or a `MediaQueryList` with a
-    /// listener.
-    pub fn watches_viewport_in(&self, key: DocumentKey) -> bool {
-        !self.stopped
-            && self
-                .read_document(key, |d| {
-                    !d.media_queries.is_empty()
-                        || d.window_listeners.has_kind("resize")
-                        || d.handlers.has_window_handler("resize")
-                })
-                .unwrap_or(false)
-    }
-
-    /// True if the runtime has a document besides the first.
-    pub fn has_several_documents(&self) -> bool {
-        self.rt.host_flag()
-    }
-
-    /// Queues the script of a `javascript:` URL as a task of the current
-    /// document (a navigation of a frame to it, ADR 0031 section 2).
-    pub fn queue_javascript_url(&mut self, url: &str) {
-        if let Some(source) = crate::html::activation::javascript_source(url)
-            && let Err(error) = crate::html::activation::queue_javascript_url(&mut self.rt, source)
-        {
-            log::warn!("a javascript: URL was not queued: {error:?}");
-        }
-    }
-
-    /// True if a document of the runtime holds this condition.
-    fn any_document(&self, test: impl Fn(&crate::state::DocState) -> bool) -> bool {
-        crate::state::state(&self.rt).is_ok_and(|s| test(&s.doc) || s.docs_iter().any(&test))
-    }
-
-    /// Defines the global `name` in the document `into` with the
-    /// `WindowProxy` of the document `window`: for tests that have no page,
-    /// so no frames, and need two documents that know each other.
-    #[doc(hidden)]
-    pub fn expose_window_for_tests(
-        &mut self,
-        into: DocumentKey,
-        name: &str,
-        window: DocumentKey,
-    ) -> Result<(), ScriptError> {
-        let define = |rt: &mut Runtime| -> Result<(), VmError> {
-            let proxy = crate::state::window_proxy_of(rt, window.0)?;
-            let global = crate::state::global_of(rt, into.0)?;
-            let key = rt.key_from_str(name)?;
-            let desc = swb_js::PropertyDescriptor::data(proxy.into(), true, false, true);
-            rt.define_property(global, key, desc)
-        };
-        define(&mut self.rt).map_err(|e| internal(&e))
     }
 
     /// Runs `f` with the document `key` as the current one: the scripts,
@@ -942,215 +642,6 @@ impl ScriptRuntime {
         crate::state::state(&self.rt).map_or(0, |s| s.doc.timers.len())
     }
 
-    // ----- The rendering update (HTML §8.1.7.3; feature 7b2) -----
-
-    /// True if an animation frame callback waits: the engine runs a frame
-    /// for it.
-    pub fn has_animation_frame_callbacks(&self) -> bool {
-        !self.stopped && self.any_document(|d| !d.animation_frames.is_empty())
-    }
-
-    // ----- Observers (feature 9a) -----
-
-    /// True if an intersection or resize observer has a target: the engine
-    /// then updates them in the frames that follow a change.
-    pub fn has_observations(&self) -> bool {
-        !self.stopped && self.any_document(|d| d.io.is_observing() || d.ro.is_observing())
-    }
-
-    /// True if an observation was added since the last update: the engine
-    /// runs a frame for it.
-    pub fn observations_requested(&self) -> bool {
-        !self.stopped && self.any_document(|d| d.io.requested() || d.ro.requested())
-    }
-
-    /// The resize observer steps of the rendering update (Resize Observer
-    /// §3.4): gathers the active observations and delivers them, again
-    /// below the depth of the shallowest delivered target, until none is
-    /// active; skipped ones fire the loop error. Each callback is a task.
-    /// Returns true if a callback ran.
-    pub fn run_resize_observers(&mut self) -> bool {
-        if self.stopped || !crate::resize_observer::is_observing(&self.rt) {
-            return false;
-        }
-        crate::resize_observer::clear_request(&mut self.rt);
-        let mut ran = false;
-        let mut limit = -1;
-        let mut skipped = false;
-        loop {
-            // Errors are reported.
-            let gathered = self.task("resize observations", |rt| {
-                crate::resize_observer::gather(rt, limit).map_err(|e| match e {
-                    crate::bindings::Exception::Js(error) => task_error(error),
-                    other => task_error(VmError::type_error(format!("{other:?}"))),
-                })
-            });
-            let Ok(gathered) = gathered else { break };
-            skipped = gathered.has_skipped();
-            if !gathered.has_active() || self.stopped {
-                break;
-            }
-            let mut shallowest = i32::MAX;
-            for id in gathered.observers() {
-                if self.stopped {
-                    break;
-                }
-                let depth = self.task("a ResizeObserver callback", |rt| {
-                    crate::resize_observer::broadcast(rt, &gathered, id)
-                });
-                ran = true;
-                if let Ok(depth) = depth {
-                    shallowest = shallowest.min(depth);
-                }
-            }
-            if shallowest == i32::MAX {
-                break;
-            }
-            limit = shallowest;
-        }
-        if skipped && !self.stopped {
-            // The skipped observations stay active: the next frame
-            // delivers them.
-            crate::resize_observer::request(&mut self.rt);
-            let _ = self.task("a resize observer", |rt| {
-                crate::errors::report_resize_loop_error(rt).map_err(task_error)
-            });
-            ran = true;
-        }
-        ran
-    }
-
-    /// The intersection observer steps of the rendering update
-    /// (Intersection Observer "run the update intersection observations
-    /// steps"): computes the observations after layout at the page time
-    /// `frame_time`, queues the entries that changed and the task that
-    /// delivers them. Returns true if it ran.
-    pub fn update_intersection_observers(&mut self, frame_time: f64) -> bool {
-        if self.stopped || !crate::state::state(&self.rt).is_ok_and(|s| s.doc.io.is_observing()) {
-            return false;
-        }
-        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.doc.clock.at(frame_time));
-        let _ = self.task("intersection observations", |rt| {
-            crate::intersection_observer::update(rt, now)
-        });
-        true
-    }
-
-    // ----- Idle periods (step 4 of the event loop; feature 8a2) -----
-
-    /// True if an idle callback waits: the engine starts an idle period
-    /// for it when no task and no frame is due.
-    pub fn has_idle_callbacks(&self) -> bool {
-        !self.stopped && self.any_document(|d| !d.idle.is_empty())
-    }
-
-    /// An idle period that ends at the page time `deadline`: the callbacks
-    /// that wait now run, each as a task of its own, with an `IdleDeadline`
-    /// for that deadline. The period ends early when the (real) clock
-    /// reaches the deadline. Callbacks that they request wait for the next
-    /// period. Returns the number of callbacks that ran.
-    pub fn run_idle_callbacks(&mut self, deadline: f64) -> usize {
-        let keys: Vec<DocumentKey> = crate::state::state(&self.rt)
-            .map(|s| {
-                std::iter::once(&*s.doc)
-                    .chain(s.docs_iter())
-                    .filter(|d| !d.idle.is_empty())
-                    .map(|d| DocumentKey(d.key))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let mut ran = 0;
-        for key in keys {
-            ran += self
-                .with_document(key, |runtime| runtime.run_idle_of_document(deadline))
-                .unwrap_or(0);
-        }
-        ran
-    }
-
-    /// The idle callbacks of the current document.
-    fn run_idle_of_document(&mut self, deadline: f64) -> usize {
-        let mut ran = 0;
-        for handle in crate::idle_callbacks::handles(&self.rt) {
-            if self.stopped || (!self.clock.is_virtual() && self.clock.now() >= deadline) {
-                break;
-            }
-            if !crate::idle_callbacks::waits(&self.rt, handle) {
-                continue;
-            }
-            // Errors are reported.
-            let _ = self.task("an idle callback", |rt| {
-                crate::idle_callbacks::run(rt, handle, Some(deadline))
-            });
-            ran += 1;
-        }
-        ran
-    }
-
-    /// CSSOM View "evaluate media queries and report changes": a `change`
-    /// event at each `MediaQueryList` with listeners whose result changed,
-    /// as one task. Nothing without such lists; returns true if the task
-    /// ran.
-    pub fn evaluate_media_queries(&mut self) -> bool {
-        if self.stopped || !crate::media_queries::any_registered(&self.rt) {
-            return false;
-        }
-        // Errors are reported.
-        let _ = self.task("media query changes", |rt| {
-            set_listener_checkpoints(rt, true);
-            let result = crate::media_queries::report_changes(rt).map_err(task_error);
-            set_listener_checkpoints(rt, false);
-            result
-        });
-        true
-    }
-
-    /// HTML "run the animation frame callbacks": the callbacks that wait
-    /// now, each as a task of its own, with the time of the frame
-    /// (`frame_time`, in page time, as `performance.now()` gives it).
-    /// Callbacks that they request wait for the next frame.
-    pub fn run_animation_frame_callbacks(&mut self, frame_time: f64) {
-        if self.stopped {
-            return;
-        }
-        let now = crate::state::state(&self.rt).map_or(0.0, |s| s.doc.clock.at(frame_time));
-        for handle in crate::animation_frames::handles(&self.rt) {
-            if self.stopped {
-                return;
-            }
-            // Errors are reported.
-            let _ = self.task("an animation frame callback", |rt| {
-                crate::animation_frames::run(rt, handle, now)
-            });
-        }
-    }
-
-    /// Fires the `storage` events that wait for the current document now, before a
-    /// navigation replaces it: Chromium's events come before a pending navigation commits
-    /// (measured, case `storage-event-retire`), and a document that is gone gets none.
-    /// Only the events that wait at the call, and for at most [`MAX_STORAGE_FLUSH`]: a
-    /// listener can queue new ones for ever. The commit drops the rest.
-    pub fn flush_storage_events(&mut self) {
-        let started = Instant::now();
-        for _ in 0..crate::storage_events::waiting(&self.rt) {
-            if self.stopped || started.elapsed() >= MAX_STORAGE_FLUSH {
-                return;
-            }
-            // Errors are reported.
-            let _ = self.storage_event_task();
-        }
-    }
-
-    /// The task of one `storage` event of the current document.
-    fn storage_event_task(&mut self) -> Result<(), ScriptError> {
-        self.task("the event 'storage'", |rt| {
-            set_listener_checkpoints(rt, true);
-            let result = crate::storage_events::deliver(rt).map_err(task_error);
-            set_listener_checkpoints(rt, false);
-            result
-        })
-    }
-
     fn run_task(&mut self, task: Task) -> Result<(), ScriptError> {
         match task {
             Task::Timer { id, handle } => {
@@ -1253,161 +744,10 @@ impl ScriptRuntime {
         }
     }
 
-    /// Evaluates `source` as a classic script in the global scope (the
-    /// value of the last expression statement) as a task, and waits for a
-    /// promise through this runtime's event loop (at most
-    /// [`EVALUATION_TIMEOUT`] of real time; virtual time jumps to the next
-    /// task). Returns the JSON text of the value in `form`, or the error.
-    /// The engine, which also waits for the network, uses
-    /// [`ScriptRuntime::start_evaluation`] instead.
-    pub fn evaluate(&mut self, source: &str, form: JsonForm) -> Evaluation {
-        let id = match self.start_evaluation(source, form) {
-            EvaluationStart::Done(evaluation) => return evaluation,
-            EvaluationStart::Pending(id) => id,
-        };
-        let deadline = Instant::now() + EVALUATION_TIMEOUT;
-        loop {
-            if let Some(evaluation) = self.poll_evaluation(id, form) {
-                return evaluation;
-            }
-            if self.run_due_tasks(Duration::from_millis(16)) > 0 {
-                continue;
-            }
-            let now = Instant::now();
-            match self.next_task_time() {
-                Some(time) if now < deadline => {
-                    if self.clock.is_virtual() {
-                        self.clock.advance_to(time);
-                    } else {
-                        let until = self.clock.instant_of(time).min(deadline);
-                        std::thread::sleep(until.saturating_duration_since(now));
-                    }
-                }
-                _ => break,
-            }
-        }
-        self.cancel_evaluation(id);
-        Evaluation::Error(NOT_SETTLED.to_owned())
-    }
-
-    /// Evaluates `source` as a classic script in the global scope as a
-    /// task. A value that is not a promise, a settled promise (after the
-    /// microtask checkpoint) and an error are done; a pending promise waits
-    /// for [`ScriptRuntime::poll_evaluation`]. The evaluation handles a
-    /// rejection of its promise, so it is not reported as unhandled.
-    pub fn start_evaluation(&mut self, source: &str, form: JsonForm) -> EvaluationStart {
-        let mut error_text = None;
-        let started = self.task("evaluate", |rt| {
-            let realm = crate::state::doc_realm(rt).map_err(task_error)?;
-            let value = match rt.eval_named_at(realm, source, "", (0, 0)) {
-                Ok(value) => value,
-                Err(error) => {
-                    error_text = Some(thrown_text(rt, &error));
-                    return Err(error);
-                }
-            };
-            if rt.promise_settlement(value).is_none() {
-                pin(rt, value);
-                let text = serialize(rt, value, form, false);
-                unpin(rt);
-                return Ok(EvaluationStart::Done(match text {
-                    Ok(text) => Evaluation::Value(text),
-                    Err(error) => Evaluation::Error(error_text_of(&error)),
-                }));
-            }
-            // A reaction marks the promise as handled.
-            rt.react_to_promise(value, ignore_settlement, Value::Undefined)?;
-            let event_loop = &mut state_mut(rt).map_err(task_error)?.event_loop;
-            let id = event_loop.next_evaluation;
-            event_loop.next_evaluation += 1;
-            event_loop.evaluations.push((id, value));
-            Ok(EvaluationStart::Pending(EvaluationId(id)))
-        });
-        match started {
-            Ok(EvaluationStart::Pending(id)) => match self.poll_evaluation(id, form) {
-                Some(evaluation) => EvaluationStart::Done(evaluation),
-                None => EvaluationStart::Pending(id),
-            },
-            Ok(done) => done,
-            Err(error) => EvaluationStart::Done(Evaluation::Error(
-                error_text.unwrap_or_else(|| error_text_of(&error)),
-            )),
-        }
-    }
-
-    /// The result of a pending evaluation once its promise settled (the
-    /// JSON text of the value, or the error of a rejection), else `None`.
-    /// A stopped document gives an error.
-    pub fn poll_evaluation(&mut self, id: EvaluationId, form: JsonForm) -> Option<Evaluation> {
-        let promise = crate::state::state(&self.rt)
-            .ok()?
-            .event_loop
-            .evaluations
-            .iter()
-            .find(|(i, _)| *i == id.0)
-            .map(|&(_, value)| value);
-        let Some(promise) = promise else {
-            return Some(Evaluation::Error(NOT_SETTLED.to_owned()));
-        };
-        let settlement = self.rt.promise_settlement(promise);
-        let (value, is_error) = match settlement {
-            Some((PromiseStatus::Fulfilled, result)) => (result, false),
-            Some((PromiseStatus::Rejected, reason)) => (reason, true),
-            _ if self.stopped => {
-                self.cancel_evaluation(id);
-                return Some(Evaluation::Error(error_text_of(&STOPPED)));
-            }
-            _ => return None,
-        };
-        let text = self.task("evaluate", |rt| {
-            pin(rt, value);
-            let text = serialize(rt, value, form, is_error);
-            unpin(rt);
-            text
-        });
-        self.cancel_evaluation(id);
-        Some(match text {
-            Ok(text) if is_error => Evaluation::Error(text),
-            Ok(text) => Evaluation::Value(text),
-            Err(error) => Evaluation::Error(error_text_of(&error)),
-        })
-    }
-
-    /// True if the promise of a pending evaluation settled (or the
-    /// evaluation is unknown, or the document's scripts stopped), so that
-    /// [`ScriptRuntime::poll_evaluation`] gives a result.
-    pub fn evaluation_settled(&self, id: EvaluationId) -> bool {
-        let Ok(state) = crate::state::state(&self.rt) else {
-            return true;
-        };
-        let promise = state
-            .event_loop
-            .evaluations
-            .iter()
-            .find(|(i, _)| *i == id.0);
-        match promise {
-            Some(&(_, promise)) => {
-                self.stopped
-                    || !matches!(
-                        self.rt.promise_settlement(promise),
-                        Some((PromiseStatus::Pending, _))
-                    )
-            }
-            None => true,
-        }
-    }
-
-    /// Forgets a pending evaluation (its time ran out).
-    pub fn cancel_evaluation(&mut self, id: EvaluationId) {
-        if let Ok(state) = state_mut(&mut self.rt) {
-            state.event_loop.evaluations.retain(|(i, _)| *i != id.0);
-        }
-    }
-
-    /// The console messages of the document so far (at most the last
+    /// The console messages of all runtimes of the page so far (at most the last
     /// 1,000).
     pub fn console_messages(&self) -> Vec<ConsoleMessage> {
-        self.console.borrow().iter().cloned().collect()
+        self.shared.console_messages()
     }
 
     /// The bytes that the heap uses (for tests and measurements).
@@ -1415,7 +755,7 @@ impl ScriptRuntime {
         self.rt.heap().heap_size()
     }
 
-    /// The number of live message ports of the page: those that were
+    /// The number of live message ports of this runtime: those that were
     /// made and not closed or collected (for tests and measurements).
     pub fn live_message_ports(&self) -> usize {
         crate::state::state(&self.rt).map_or(0, |s| s.ports.live())
@@ -1563,23 +903,6 @@ const LONG_TASK: Duration = Duration::from_millis(50);
 /// The longest that the `storage` events of a document hold up the commit that replaces
 /// it, apart from the listener that runs when the time ends.
 const MAX_STORAGE_FLUSH: Duration = Duration::from_millis(100);
-
-/// The longest that [`ScriptRuntime::evaluate`] waits for a promise.
-pub const EVALUATION_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// The error of an evaluation whose promise did not settle in time.
-const NOT_SETTLED: &str = "Error: the promise did not settle in time";
-
-/// The reaction that marks an evaluated promise as handled.
-#[allow(clippy::unnecessary_wraps, reason = "the type of a host reaction")]
-fn ignore_settlement(
-    _rt: &mut Runtime,
-    _data: Value,
-    _kind: ReactionKind,
-    _value: Value,
-) -> VmResult<Value> {
-    Ok(Value::Undefined)
-}
 
 /// Turns the per-listener checkpoints of an engine dispatch on or off.
 fn set_listener_checkpoints(rt: &mut Runtime, on: bool) {

@@ -48,6 +48,59 @@ impl Drop for Site {
     }
 }
 
+/// The response of `status` with `body` for `request`, as `text/html`.
+pub(crate) fn html_response(request: &Request, status: u16, body: Vec<u8>) -> Response {
+    let headers: Headers = [("content-type", "text/html")].into_iter().collect();
+    Response {
+        url: request.url.clone(),
+        status,
+        headers,
+        body,
+        redirected: false,
+    }
+}
+
+/// The URL of the page that [`OnePage`] serves.
+pub(crate) const CASE_PAGE: &str = "file:///case.html";
+
+/// A fetcher that serves one page at [`CASE_PAGE`]; other URLs get a 404, and
+/// `data:` URLs are fetched if the page was made `with_data_urls`.
+pub(crate) struct OnePage {
+    html: String,
+    data_urls: bool,
+}
+
+impl OnePage {
+    /// A fetcher for `html`; `data:` URLs get a 404.
+    pub(crate) fn new(html: impl Into<String>) -> OnePage {
+        OnePage {
+            html: html.into(),
+            data_urls: false,
+        }
+    }
+
+    /// A fetcher for `html` that also serves `data:` URLs.
+    pub(crate) fn with_data_urls(html: impl Into<String>) -> OnePage {
+        OnePage {
+            html: html.into(),
+            data_urls: true,
+        }
+    }
+}
+
+impl Fetcher for OnePage {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        if self.data_urls && request.url.scheme() == "data" {
+            return NetworkFetcher::new().fetch(request);
+        }
+        Ok(if request.url.as_str() == CASE_PAGE {
+            html_response(request, 200, self.html.as_bytes().to_vec())
+        } else {
+            html_response(request, 404, b"not found".to_vec())
+        })
+    }
+}
+
 /// The repository root.
 pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -97,6 +150,53 @@ pub(crate) fn answer(page: &mut Page, expression: &str) -> serde_json::Value {
         Some(Evaluation::Value(text)) => serde_json::from_str(&text).expect("valid JSON"),
         Some(Evaluation::Error(text)) => serde_json::Value::String(format!("error: {text}")),
         None => serde_json::Value::String("error: no script runtime".to_owned()),
+    }
+}
+
+/// The value of `source` as JSON (strict form). Text that is no JSON is a string;
+/// an error is the string `error: MESSAGE`, and a page without a script runtime
+/// gives `no evaluation`.
+pub(crate) fn evaluate_json(page: &mut Page, source: &str) -> serde_json::Value {
+    use serde_json::Value as Json;
+    match page.evaluate(source, JsonForm::Strict) {
+        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
+        Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
+        None => Json::String("no evaluation".to_owned()),
+    }
+}
+
+/// The differences of two JSON values, by path: (path, `swb ..., Chromium ...`).
+/// Arrays of one length and objects are compared element by element; a key that
+/// only one object has is a difference (`(missing)` on the other side).
+pub(crate) fn json_differences(
+    path: &str,
+    swb: &serde_json::Value,
+    chromium: &serde_json::Value,
+    out: &mut Vec<(String, String)>,
+) {
+    use serde_json::Value as Json;
+    match (swb, chromium) {
+        (Json::Array(a), Json::Array(b)) if a.len() == b.len() => {
+            for (index, (x, y)) in a.iter().zip(b).enumerate() {
+                json_differences(&format!("{path}[{index}]"), x, y, out);
+            }
+        }
+        (Json::Object(a), Json::Object(b)) => {
+            for key in b.keys().chain(a.keys().filter(|k| !b.contains_key(*k))) {
+                let path = format!("{path}.{key}");
+                match (a.get(key), b.get(key)) {
+                    (Some(x), Some(y)) => json_differences(&path, x, y, out),
+                    (x, y) => {
+                        let shown = |v: Option<&Json>| {
+                            v.map_or_else(|| "(missing)".to_owned(), ToString::to_string)
+                        };
+                        out.push((path, format!("swb {}, Chromium {}", shown(x), shown(y))));
+                    }
+                }
+            }
+        }
+        _ if swb == chromium => {}
+        _ => out.push((path.to_owned(), format!("swb {swb}, Chromium {chromium}"))),
     }
 }
 

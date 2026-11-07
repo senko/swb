@@ -409,10 +409,10 @@ fn area_of(rt: &Runtime, this: Platform) -> b::Result<(StorageKind, Rc<StorageKe
     let doc = &state(rt)?.doc;
     let own = match &doc.storage_key {
         Some(Ok(key)) if !doc.retired => key,
-        _ => return Err(Exception::dom("SecurityError", DENIED)),
+        _ => return Err(Exception::security(DENIED)),
     };
     if !Rc::ptr_eq(own, &data.key) && **own != *data.key {
-        return Err(Exception::dom("SecurityError", DENIED));
+        return Err(Exception::security(DENIED));
     }
     Ok((data.kind, Rc::clone(&data.key)))
 }
@@ -459,9 +459,9 @@ pub(crate) fn storage_object_in(
         return Ok(object);
     }
     if state(rt)?.doc.retired {
-        return Err(Exception::dom("SecurityError", DENIED));
+        return Err(Exception::security(DENIED));
     }
-    let key = current_key(rt).map_err(|message| Exception::dom("SecurityError", message))?;
+    let key = current_key(rt).map_err(Exception::security)?;
     let data = rt.alloc_host_data(StorageData { kind, key })?;
     let object = rt.new_host_object(realm, g::STORAGE, data)?;
     if let Some(entry) = state_mut(rt)?.doc.storage_objects.get_mut(slot) {

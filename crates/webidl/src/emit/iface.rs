@@ -18,6 +18,7 @@ use crate::model::{Iface, Kind, exposed_in_window};
 
 use super::Gen;
 use super::names::{constant, ident, literal, snake};
+use super::reflect::{Reflect, content_attribute, reflect_kind, unsigned_limit};
 
 /// An operation (or constructor) with its overloads.
 struct OpGroup<'a> {
@@ -137,14 +138,18 @@ impl Gen<'_> {
         )
     }
 
-    /// [`Gen::this_check`] of a member that a cross-origin object has
-    /// (`[SwbCrossOrigin]`, ADR 0031 section 5): `this` can also be such an
-    /// object.
-    fn cross_origin_this_check(iface: &Iface) -> String {
-        format!(
-            "let this = b::glue::this_platform_cross_origin(rt, call, super::{})?;",
-            constant(&iface.name)
-        )
+    /// [`Gen::this_check`], or for a member that a cross-origin object has
+    /// (`cross_origin`: `[SwbCrossOrigin]`, ADR 0031 section 5) the check
+    /// that accepts such an object as `this` too.
+    fn this_check_for(&self, iface: &Iface, cross_origin: bool) -> String {
+        if cross_origin {
+            format!(
+                "let this = b::glue::this_platform_cross_origin(rt, call, super::{})?;",
+                constant(&iface.name)
+            )
+        } else {
+            self.this_check(iface)
+        }
     }
 
     // --- Attributes ---
@@ -157,14 +162,11 @@ impl Gen<'_> {
         glue: &mut String,
         claim: &mut impl FnMut(&str, &Place) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        let getter = snake(&attr.name);
-        let fn_name = ident(&attr.name);
         if is_event_handler(attr) {
             self.event_handler_glue(iface, attr, glue);
             return Ok(());
         }
         let reflect = reflect_kind(attr);
-        let this_ty = self.this_type(iface);
         if (reflect.is_some() || attr.ext_attrs.has("ReflectSetter"))
             && !self.model.is_node(&iface.name)
         {
@@ -173,15 +175,34 @@ impl Gen<'_> {
                 "[Reflect] needs an interface that inherits from Node",
             ));
         }
+        self.attribute_getter(iface, attr, reflect, trait_items, glue, claim)?;
+        if attr.readonly && !attr.ext_attrs.has("Replaceable") && !attr.ext_attrs.has("PutForwards")
+        {
+            return Ok(());
+        }
+        self.attribute_setter(iface, attr, reflect, trait_items, glue, claim)
+    }
+
+    /// The trait method and the native function of the getter of `attr`.
+    fn attribute_getter(
+        &self,
+        iface: &Iface,
+        attr: &Attribute,
+        reflect: Option<Reflect>,
+        trait_items: &mut String,
+        glue: &mut String,
+        claim: &mut impl FnMut(&str, &Place) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let getter = snake(&attr.name);
+        let fn_name = ident(&attr.name);
+        let this_ty = self.this_type(iface);
         let out_ty = self.rust_type(&attr.ty, "super::types::", true);
-        let in_ty = self.rust_type(&attr.ty, "super::types::", false);
         let custom = attr.ext_attrs.has("SwbCustom");
         let context = format!(
             "b::Context::Getter({}, {})",
             literal(&iface.name),
             literal(&attr.name)
         );
-        // The getter.
         if custom {
             claim(&fn_name, &attr.place)?;
             let _ = writeln!(
@@ -217,11 +238,7 @@ impl Gen<'_> {
                 attr.name
             );
             let value = self.rust_to_js(&attr.ty, "result", "call.realm()", true, 0);
-            let check = if attr.ext_attrs.has("SwbCrossOrigin") {
-                Self::cross_origin_this_check(iface)
-            } else {
-                self.this_check(iface)
-            };
+            let check = self.this_check_for(iface, attr.ext_attrs.has("SwbCrossOrigin"));
             let _ = writeln!(
                 glue,
                 "fn get_{getter}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {check}\n        let result = <H as {}Impl>::{fn_name}({}, this)?;\n        Ok({value}?)\n    }})\n}}\n",
@@ -239,22 +256,32 @@ impl Gen<'_> {
                 self.this_check(iface)
             );
         }
-        // The setter.
-        if attr.readonly && !attr.ext_attrs.has("Replaceable") && !attr.ext_attrs.has("PutForwards")
-        {
-            return Ok(());
-        }
+        Ok(())
+    }
+
+    /// The native function of the setter of `attr` (also `[Replaceable]` and
+    /// `[PutForwards]`), and the trait method unless the setter reflects or is
+    /// written by hand.
+    fn attribute_setter(
+        &self,
+        iface: &Iface,
+        attr: &Attribute,
+        reflect: Option<Reflect>,
+        trait_items: &mut String,
+        glue: &mut String,
+        claim: &mut impl FnMut(&str, &Place) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let getter = snake(&attr.name);
+        let this_ty = self.this_type(iface);
+        let in_ty = self.rust_type(&attr.ty, "super::types::", false);
+        let custom = attr.ext_attrs.has("SwbCustom");
         let context = format!(
             "b::Context::Setter({}, {})",
             literal(&iface.name),
             literal(&attr.name)
         );
         let set_fn = format!("set_{getter}");
-        let check = if attr.ext_attrs.has("SwbCrossOriginSetter") {
-            Self::cross_origin_this_check(iface)
-        } else {
-            self.this_check(iface)
-        };
+        let check = self.this_check_for(iface, attr.ext_attrs.has("SwbCrossOriginSetter"));
         let head = format!(
             "fn {set_fn}<H: {}Impl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {{\n    b::glue::run(rt, call, {context}, super::DOM_EXCEPTION, |rt| {{\n        {check}\n",
             iface.name,
@@ -403,98 +430,6 @@ impl Gen<'_> {
                 self.this_check(iface),
             );
         }
-    }
-
-    /// The getter call of a reflected attribute (an expression with the
-    /// placeholder of the context `CX` and `this`).
-    fn reflect_get(&self, attr: &Attribute, kind: Reflect) -> Result<String, Error> {
-        let name = literal(&content_attribute(attr));
-        let t = self.model.resolve(&attr.ty);
-        let keywords = keywords(attr)?;
-        Ok(match (&t.kind, t.nullable, kind) {
-            (TypeKind::DomString, false, Reflect::Plain) => match keywords {
-                Some(k) => format!("b::reflect::get_enumerated::<H>(CX, this, {name}, &{k})"),
-                None => format!("b::reflect::get_string::<H>(CX, this, {name})"),
-            },
-            (TypeKind::DomString, true, Reflect::Plain) => match keywords {
-                Some(k) => {
-                    format!("b::reflect::get_nullable_enumerated::<H>(CX, this, {name}, &{k})")
-                }
-                None => format!("b::reflect::get_nullable_string::<H>(CX, this, {name})"),
-            },
-            (TypeKind::UsvString, false, Reflect::Plain) => {
-                format!("b::reflect::get_string::<H>(CX, this, {name})")
-            }
-            (TypeKind::UsvString, false, Reflect::Url) => {
-                format!("b::reflect::get_url::<H>(CX, this, {name})")
-            }
-            (TypeKind::Boolean, false, Reflect::Plain) => {
-                format!("b::reflect::get_boolean::<H>(CX, this, {name})")
-            }
-            (
-                TypeKind::Integer(crate::ast::IntegerType::Long),
-                false,
-                Reflect::Plain | Reflect::NonNegative,
-            ) => {
-                let non_negative = kind == Reflect::NonNegative;
-                let default = default_integer(attr)?;
-                format!("b::reflect::get_long::<H>(CX, this, {name}, {non_negative}, {default})")
-            }
-            (TypeKind::Integer(crate::ast::IntegerType::UnsignedLong), false, _) => {
-                let limit = unsigned_limit(attr, kind)?;
-                let default = default_integer(attr)?;
-                format!("b::reflect::get_unsigned_long::<H>(CX, this, {name}, {limit}, {default})")
-            }
-            _ => {
-                return Err(err(
-                    &attr.place,
-                    format!(
-                        "[Reflect] of the type {} is not generated",
-                        self.idl_name(&t)
-                    ),
-                ));
-            }
-        })
-    }
-
-    /// The setter call of a reflected attribute (`value` in scope).
-    fn reflect_set(&self, attr: &Attribute, kind: Reflect) -> Result<String, Error> {
-        let name = literal(&content_attribute(attr));
-        let t = self.model.resolve(&attr.ty);
-        let cx = "&mut b::Cx::new(rt, call, CLASS)";
-        Ok(match (&t.kind, t.nullable) {
-            (TypeKind::DomString | TypeKind::UsvString, false) => {
-                format!("b::reflect::set_string::<H>({cx}, this, {name}, &value)")
-            }
-            (TypeKind::DomString, true) => {
-                format!(
-                    "b::reflect::set_nullable_string::<H>({cx}, this, {name}, value.as_deref())"
-                )
-            }
-            (TypeKind::Boolean, false) => {
-                format!("b::reflect::set_boolean::<H>({cx}, this, {name}, value)")
-            }
-            (TypeKind::Integer(crate::ast::IntegerType::Long), false) => {
-                let non_negative = kind == Reflect::NonNegative;
-                format!("b::reflect::set_long::<H>({cx}, this, {name}, {non_negative}, value)")
-            }
-            (TypeKind::Integer(crate::ast::IntegerType::UnsignedLong), false) => {
-                let limit = unsigned_limit(attr, kind)?;
-                let default = default_integer(attr)?;
-                format!(
-                    "b::reflect::set_unsigned_long::<H>({cx}, this, {name}, {limit}, {default}, value)"
-                )
-            }
-            _ => {
-                return Err(err(
-                    &attr.place,
-                    format!(
-                        "[Reflect] of the type {} is not generated",
-                        self.idl_name(&t)
-                    ),
-                ));
-            }
-        })
     }
 
     // --- Operations ---
@@ -674,11 +609,7 @@ impl Gen<'_> {
                 .overloads
                 .iter()
                 .any(|op| op.ext_attrs.has("SwbCrossOrigin"));
-            let check = if cross_origin {
-                Self::cross_origin_this_check(iface)
-            } else {
-                self.this_check(iface)
-            };
+            let check = self.this_check_for(iface, cross_origin);
             let _ = writeln!(glue, "        {check}");
         }
         if group.factory.is_some() {
@@ -1405,127 +1336,6 @@ fn arg_ident(name: &str) -> String {
     }
 }
 
-/// The variants of reflection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Reflect {
-    Plain,
-    Url,
-    NonNegative,
-    Positive,
-    PositiveWithFallback,
-}
-
-fn reflect_kind(attr: &Attribute) -> Option<Reflect> {
-    let a = &attr.ext_attrs;
-    if a.has("Reflect") {
-        Some(Reflect::Plain)
-    } else if a.has("ReflectURL") {
-        Some(Reflect::Url)
-    } else if a.has("ReflectNonNegative") {
-        Some(Reflect::NonNegative)
-    } else if a.has("ReflectPositive") {
-        Some(Reflect::Positive)
-    } else if a.has("ReflectPositiveWithFallback") {
-        Some(Reflect::PositiveWithFallback)
-    } else {
-        None
-    }
-}
-
-/// The content attribute name: the string of the reflection attribute, or
-/// the IDL name in ASCII lowercase.
-fn content_attribute(attr: &Attribute) -> String {
-    for name in [
-        "Reflect",
-        "ReflectSetter",
-        "ReflectURL",
-        "ReflectNonNegative",
-        "ReflectPositive",
-        "ReflectPositiveWithFallback",
-    ] {
-        if let Some(a) = attr.ext_attrs.get(name)
-            && let ExtValue::String(text) | ExtValue::Ident(text) = &a.value
-        {
-            return text.clone();
-        }
-    }
-    attr.name.to_ascii_lowercase()
-}
-
-/// `Some(n)` of `[ReflectDefault=n]`, or `None`.
-fn default_integer(attr: &Attribute) -> Result<String, Error> {
-    match attr.ext_attrs.get("ReflectDefault").map(|a| &a.value) {
-        None => Ok("None".to_owned()),
-        Some(ExtValue::Integer(n)) => Ok(format!("Some({n})")),
-        Some(_) => Err(err(&attr.place, "[ReflectDefault] needs an integer")),
-    }
-}
-
-/// The `b::reflect::UnsignedLimit` of an `unsigned long` reflection.
-fn unsigned_limit(attr: &Attribute, kind: Reflect) -> Result<String, Error> {
-    if let Some(range) = attr.ext_attrs.get("ReflectRange") {
-        if let ExtValue::List(items) = &range.value
-            && let [ExtValue::Integer(min), ExtValue::Integer(max)] = items.as_slice()
-            && kind == Reflect::Plain
-        {
-            return Ok(format!("b::reflect::UnsignedLimit::Range({min}, {max})"));
-        }
-        return Err(err(
-            &attr.place,
-            "[ReflectRange] needs two integers and [Reflect] or [ReflectSetter]",
-        ));
-    }
-    Ok(match kind {
-        Reflect::Positive => "b::reflect::UnsignedLimit::Positive",
-        Reflect::PositiveWithFallback => "b::reflect::UnsignedLimit::PositiveWithFallback",
-        Reflect::Plain => "b::reflect::UnsignedLimit::None",
-        Reflect::Url | Reflect::NonNegative => {
-            return Err(err(
-                &attr.place,
-                "this reflection does not apply to unsigned long",
-            ));
-        }
-    }
-    .to_owned())
-}
-
-/// The keyword table of an enumerated attribute (`[SwbKeywords]`,
-/// `[SwbMissing]`, `[SwbInvalid]`), as a Rust expression.
-///
-/// `SwbKeywords` is a space-separated list of keywords; `alias=canonical`
-/// maps a keyword to the canonical keyword of its state, and `=canonical`
-/// is the empty keyword.
-fn keywords(attr: &Attribute) -> Result<Option<String>, Error> {
-    let Some(list) = attr.ext_attrs.get("SwbKeywords") else {
-        return Ok(None);
-    };
-    let ExtValue::String(list) = &list.value else {
-        return Err(err(&attr.place, "[SwbKeywords] needs a string"));
-    };
-    let string = |name: &str| -> Result<String, Error> {
-        match attr.ext_attrs.get(name).map(|a| &a.value) {
-            None => Ok("None".to_owned()),
-            Some(ExtValue::String(text)) => Ok(format!("Some({})", literal(text))),
-            Some(_) => Err(err(&attr.place, format!("[{name}] needs a string"))),
-        }
-    };
-    let mut pairs = Vec::new();
-    for token in list.split_ascii_whitespace() {
-        let (keyword, canonical) = token.split_once('=').unwrap_or((token, token));
-        pairs.push(format!(
-            "({}, {})",
-            literal(&keyword.to_ascii_lowercase()),
-            literal(canonical)
-        ));
-    }
-    Ok(Some(format!(
-        "b::reflect::Keywords {{ keywords: &[{}], missing: {}, invalid: {} }}",
-        pairs.join(", "),
-        string("SwbMissing")?,
-        string("SwbInvalid")?
-    )))
-}
-
 /// The context argument of a member's trait call.
 fn cx(iface: &Iface) -> String {
     format!(
@@ -1534,7 +1344,7 @@ fn cx(iface: &Iface) -> String {
     )
 }
 
-fn err(place: &Place, message: impl Into<String>) -> Error {
+pub(super) fn err(place: &Place, message: impl Into<String>) -> Error {
     Error {
         file: place.file.clone(),
         line: place.line,

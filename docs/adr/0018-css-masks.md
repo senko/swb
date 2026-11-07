@@ -101,7 +101,7 @@ background, border, content, descendants (positioned ones included) and
 outline. Like opacity stacking contexts in swb, a masked box that is not
 positioned paints as a unit in the inline content phase of its stacking
 context (a float in the float phase, ADR 0015), not in the z-index 0
-layer (CSS 2.2 Appendix E; a simplification of `display_list.rs`). The
+layer (CSS 2.2 Appendix E; a simplification of `display_list/builder.rs`). The
 mask and the opacity of the root element also apply to the canvas
 background, which the root's groups then paint first (as in Chromium; a
 mask of the body does not mask the canvas).

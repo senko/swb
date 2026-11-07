@@ -1,4 +1,4 @@
-//! Pointer input in frames (ADR 0031 section 8; M9 feature 11): the hit
+//! Pointer input in frames (ADR 0031 section 8): the hit
 //! test through frames, hover per document, presses that stay in the frame
 //! where they started, and the wheel with its scroll chain across frames.
 //!

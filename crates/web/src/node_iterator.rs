@@ -1,5 +1,5 @@
 //! `NodeIterator`, `NodeFilter` and `Document.createNodeIterator` (DOM section 6,
-//! <https://dom.spec.whatwg.org/#interface-nodeiterator>; M9 feature 15a,
+//! <https://dom.spec.whatwg.org/#interface-nodeiterator>;
 //! ADR 0028 section 17).
 //!
 //! The position of an iterator (root, reference node, pointer flag, and the
@@ -51,7 +51,7 @@ use crate::state::{self, DocKey, DocState, WebState, state_mut};
 
 /// The nodes of other documents that an iterator points at: the reference and
 /// the candidate.
-type Aways = [Option<(DocKey, NodeId)>; 2];
+type AwayPointers = [Option<(DocKey, NodeId)>; 2];
 
 /// The iterators of the runtime.
 #[derive(Default)]
@@ -64,8 +64,8 @@ pub(crate) struct IteratorTable {
     /// The work of the pre-removing steps since the host last charged it.
     steps: Rc<Cell<usize>>,
     /// The nodes in other documents that each iterator points at.
-    aways: HashMap<u32, Aways>,
-    /// `(document, node, id)` for each entry of `aways`.
+    away: HashMap<u32, AwayPointers>,
+    /// `(document, node, id)` for each entry of `away`.
     away_at: BTreeSet<(DocKey, NodeId, u32)>,
 }
 
@@ -76,8 +76,8 @@ impl IteratorTable {
     }
 
     /// Records where iterator `id` points in other documents.
-    fn track(&mut self, id: u32, now: Aways) {
-        let old = self.aways.get(&id).copied().unwrap_or([None, None]);
+    fn track(&mut self, id: u32, now: AwayPointers) {
+        let old = self.away.get(&id).copied().unwrap_or([None, None]);
         if old == now {
             return;
         }
@@ -88,9 +88,9 @@ impl IteratorTable {
             self.away_at.insert((key, node, id));
         }
         if now == [None, None] {
-            self.aways.remove(&id);
+            self.away.remove(&id);
         } else {
-            self.aways.insert(id, now);
+            self.away.insert(id, now);
         }
     }
 
@@ -290,8 +290,8 @@ fn put_entries(
     }
     dom.put_node_iterators(found, to.key);
     for id in ids {
-        let aways = dom.node_iterator_aways(id);
-        table.track(id, aways);
+        let away = dom.away_pointers(id);
+        table.track(id, away);
     }
 }
 
@@ -299,7 +299,7 @@ fn put_entries(
 /// `record`, which holds its entry.
 fn track_in(table: &mut IteratorTable, record: &mut DocState, id: u32) {
     if let Some(host) = record.host.as_deref() {
-        table.track(id, host.dom().node_iterator_aways(id));
+        table.track(id, host.dom().away_pointers(id));
     }
 }
 
@@ -481,9 +481,9 @@ fn traverse(cx: &mut Cx<'_>, this: Platform, forward: bool) -> b::Result<Option<
             Ok(Some(_)) => dom.node_iterator_accept(id),
             _ => dom.node_iterator_end(id),
         }
-        let aways = dom.node_iterator_aways(id);
+        let away = dom.away_pointers(id);
         if let Ok(state) = state_mut(rt) {
-            state.iterators.track(id, aways);
+            state.iterators.track(id, away);
         }
     }
     match result? {

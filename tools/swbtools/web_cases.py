@@ -17,17 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from swbtools import paths
+from swbtools.rust_cases import raw
 
 log = logging.getLogger(__name__)
-
-
-def raw(text: str) -> str:
-    """Returns `text` as a Rust raw string literal."""
-    for n in range(10):
-        fence = "#" * n
-        if f'"{fence}' not in text:
-            return f'r{fence}"{text}"{fence}'
-    raise ValueError("no raw string fence is free")
 
 
 def render(probe: dict[str, Any], chromium: dict[str, Any], probe_file: str) -> str:

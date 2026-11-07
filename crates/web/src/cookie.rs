@@ -72,7 +72,7 @@ pub(crate) fn read(cx: &mut Cx<'_>, is_main: bool) -> b::Result<String> {
     match access_of(host) {
         Access::Jar => Ok(host.cookie_string()),
         Access::Averse => Ok(String::new()),
-        Access::Denied(message) => Err(Exception::dom("SecurityError", message)),
+        Access::Denied(message) => Err(Exception::security(message)),
     }
 }
 
@@ -88,7 +88,7 @@ pub(crate) fn write(cx: &mut Cx<'_>, is_main: bool, value: &str) -> b::Result<()
             Ok(())
         }
         Access::Averse => Ok(()),
-        Access::Denied(message) => Err(Exception::dom("SecurityError", message)),
+        Access::Denied(message) => Err(Exception::security(message)),
     }
 }
 

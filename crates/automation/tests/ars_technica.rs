@@ -198,7 +198,13 @@ fn ars_technica_works_with_javascript_on() {
             }
         };
 
-        let mut problems = differences("load", &record(&mut page), &expected[0]);
+        let mut problems = common::differences(
+            "load",
+            &record(&mut page),
+            &expected[0],
+            RECTANGLES,
+            TOLERANCE,
+        );
         sample("load", &mut page, &mut problems);
         let groups = step_groups(include_str!("data/ars-technica-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
@@ -211,7 +217,13 @@ fn ars_technica_works_with_javascript_on() {
                 assert_eq!(page.url().unwrap().as_str(), CLASSIC_PREVIEW);
                 continue;
             }
-            problems.extend(differences(name, &record(&mut page), &expected[index + 1]));
+            problems.extend(common::differences(
+                name,
+                &record(&mut page),
+                &expected[index + 1],
+                RECTANGLES,
+                TOLERANCE,
+            ));
             sample(name, &mut page, &mut problems);
         }
         assert_eq!(
@@ -272,10 +284,4 @@ fn ars_technica_lazy_images_load_as_in_chromium() {
             );
         }
     });
-}
-
-/// The keys of `got` and `expected` that differ, as `name: key: swb ..
-/// != Chromium ..`.
-fn differences(name: &str, got: &Value, expected: &Value) -> Vec<String> {
-    common::differences(name, got, expected, RECTANGLES, TOLERANCE)
 }

@@ -334,7 +334,7 @@ fn check_clean(sheet: &SheetRef, message: &'static str) -> b::Result<()> {
     if sheet.borrow().origin_clean {
         Ok(())
     } else {
-        Err(b::Exception::dom("SecurityError", message))
+        Err(b::Exception::security(message))
     }
 }
 

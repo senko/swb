@@ -1,6 +1,6 @@
 """`swbtools hostile`: runs swb on the hostile-page set and checks limits.
 
-Each case (`hostile_cases.py`) is a page that goes just past a documented
+Each case (`hostile_cases/`) is a page that goes just past a documented
 limit of swb. The runner loads it with the release binary, one case at a
 time, and measures the wall time and the peak resident memory. A case
 passes when swb finishes within the time and memory limits of the case

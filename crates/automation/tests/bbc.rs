@@ -178,21 +178,6 @@ fn other_console_errors(page: &Page) -> Vec<String> {
     errors
 }
 
-/// `record` without the keys in `skip`.
-fn without(record: &Value, skip: &[&str]) -> Value {
-    let mut record = record.clone();
-    for key in skip {
-        record.as_object_mut().unwrap().remove(*key);
-    }
-    record
-}
-
-/// The keys of `got` and `expected` that differ, as `name: key: swb ..
-/// != Chromium ..`.
-fn differences(name: &str, got: &Value, expected: &Value) -> Vec<String> {
-    common::differences(name, got, expected, RECTANGLES, TOLERANCE)
-}
-
 #[test]
 fn bbc_works_with_javascript_on() {
     let Some(dir) = fixture("bbc") else {
@@ -228,7 +213,8 @@ fn bbc_works_with_javascript_on() {
 
         // The load: the page with the consent dialog, as Chromium's record at the load.
         let at_load = record(&mut page, &fetcher);
-        let mut problems = differences("load", &at_load, &expected[0]);
+        let mut problems =
+            common::differences("load", &at_load, &expected[0], RECTANGLES, TOLERANCE);
         sample("load", &mut page, &mut problems);
         let groups = step_groups(include_str!("data/bbc-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
@@ -266,10 +252,12 @@ fn bbc_works_with_javascript_on() {
             } else {
                 &[]
             };
-            problems.extend(differences(
+            problems.extend(common::differences(
                 name,
-                &without(&got, skip),
-                &without(expected, skip),
+                &common::without(&got, skip),
+                &common::without(expected, skip),
+                RECTANGLES,
+                TOLERANCE,
             ));
             sample(name, &mut page, &mut problems);
         }
@@ -333,16 +321,24 @@ fn consent_click(
     assert!(page.has_script_runtime());
     assert_eq!(console_errors(&page), Vec::<String>::new());
     assert_eq!(value(&mut page, include_str!("data/bbc.js")), 1);
-    let mut problems = differences("load", &consent_record(&mut page), &expected[0]);
+    let mut problems = common::differences(
+        "load",
+        &consent_record(&mut page),
+        &expected[0],
+        RECTANGLES,
+        TOLERANCE,
+    );
     let groups = step_groups(steps);
     assert_eq!(groups.len() + 1, expected.len());
     for (index, (name, steps)) in groups.iter().enumerate() {
         run_steps(&mut page, steps).unwrap();
         let got = consent_record(&mut page);
-        problems.extend(differences(
+        problems.extend(common::differences(
             name,
-            &without(&got, skip),
-            &without(&expected[index + 1], skip),
+            &common::without(&got, skip),
+            &common::without(&expected[index + 1], skip),
+            RECTANGLES,
+            TOLERANCE,
         ));
     }
     (page, problems)

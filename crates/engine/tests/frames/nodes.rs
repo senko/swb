@@ -5,10 +5,9 @@
 //! of named rows; a departure has a row with its reason.
 
 use serde_json::Value as Json;
-use swb_engine::{Evaluation, JsonForm, Page};
 
 use super::{OTHER, Res, case_html, case_resource, open, probe_file, results};
-use crate::common::on_page_thread;
+use crate::common::{evaluate_json as evaluate, json_differences, on_page_thread};
 
 /// A row where swb departs on purpose: (case, path of the value, why).
 const DEPARTURES: &[(&str, &str, &str)] = &[
@@ -59,29 +58,6 @@ const DEPARTURES: &[(&str, &str, &str)] = &[
     ("nodes-mutation-observers", ".m4After[0][8]", "as above"),
 ];
 
-/// The differences of two values, by path.
-fn differences(path: &str, swb: &Json, chromium: &Json, out: &mut Vec<String>) {
-    match (swb, chromium) {
-        (Json::Array(a), Json::Array(b)) if a.len() == b.len() => {
-            for (index, (x, y)) in a.iter().zip(b).enumerate() {
-                differences(&format!("{path}[{index}]"), x, y, out);
-            }
-        }
-        (Json::Object(a), Json::Object(b)) => {
-            for key in b.keys().chain(a.keys().filter(|k| !b.contains_key(*k))) {
-                differences(
-                    &format!("{path}.{key}"),
-                    a.get(key).unwrap_or(&Json::Null),
-                    b.get(key).unwrap_or(&Json::Null),
-                    out,
-                );
-            }
-        }
-        _ if swb == chromium => {}
-        _ => out.push(format!("{path}: swb {swb}, Chromium {chromium}")),
-    }
-}
-
 /// True if the row `path` of the case `name` is a departure: the row itself or
 /// a row around it.
 fn departs(name: &str, path: &str) -> bool {
@@ -116,11 +92,10 @@ fn run_case(name: &str) -> Vec<String> {
         let swb = in_order(evaluate(&mut page, source));
         let want = in_order(result["value"].clone());
         let mut found = Vec::new();
-        differences("", &swb, &want, &mut found);
-        for difference in found {
-            let path = difference.split(": ").next().unwrap_or("");
-            if !departs(name, path) {
-                failures.push(format!("{name} {difference}"));
+        json_differences("", &swb, &want, &mut found);
+        for (path, text) in found {
+            if !departs(name, &path) {
+                failures.push(format!("{name} {path}: {text}"));
             }
         }
     }
@@ -137,14 +112,6 @@ fn in_order(mut value: Json) -> Json {
         }
     }
     value
-}
-
-fn evaluate(page: &mut Page, source: &str) -> Json {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
-        Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
-        None => Json::String("no evaluation".to_owned()),
-    }
 }
 
 macro_rules! case_test {

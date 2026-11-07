@@ -28,8 +28,9 @@ impl Page {
     /// The page time at which the next idle period can start, if idle
     /// callbacks wait. None after the scripts stopped.
     pub(super) fn idle_time(&self) -> Option<f64> {
-        (self.any_runtime(swb_web::ScriptRuntime::has_idle_callbacks) && self.frames_run())
-            .then_some(self.input.idle_next)
+        (self.any_runtime(swb_web::ScriptRuntime::has_idle_callbacks)
+            && self.runs_rendering_updates())
+        .then_some(self.input.idle_next)
     }
 
     /// True if idle callbacks wait that `horizon` (a page time) would see

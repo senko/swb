@@ -1,4 +1,4 @@
-//! Frames as scripts see them (ADR 0031 section 5, M9 feature 12b): the
+//! Frames as scripts see them (ADR 0031 section 5): the
 //! `WindowProxy` of a frame, the realm that a frame document gets at its first
 //! need, the members of `Window` and of `iframe` that name frames, and the
 //! steps that make and destroy frames inside a task.

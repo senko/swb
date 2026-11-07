@@ -972,23 +972,13 @@ impl Runtime {
         self.enqueue_callback_job(callback);
     }
 
-    /// Creates a native function object in `realm` that the host can pass
-    /// to [`Runtime::queue_microtask`] (the mutation observer microtask of
-    /// DOM §4.3.1). The result is recorded in the current handle scope: the
-    /// host keeps it in its state (traced) to use it again.
-    pub fn new_host_function(
-        &mut self,
-        realm: u32,
-        name: &str,
-        func: NativeFn,
-    ) -> VmResult<Gc<Object>> {
-        self.new_native_function(realm, name, 0, func)
-    }
-
-    /// [`Runtime::new_host_function`] with a `length`: a function that a
-    /// script reads as a property (the functions of cross-origin objects, HTML
-    /// §7.2.3.5). `func` can be a native of a generated binding, so the
-    /// function behaves as that member does, in the realm `realm`.
+    /// Creates a native function object in `realm` with `length` parameters.
+    /// The host can pass it to [`Runtime::queue_microtask`] (the mutation
+    /// observer microtask of DOM §4.3.1) or a script reads it as a property
+    /// (the functions of cross-origin objects, HTML §7.2.3.5). The result is
+    /// recorded in the current handle scope: the host keeps it in its state
+    /// (traced) to use it again. `func` can be a native of a generated binding,
+    /// so the function behaves as that member does, in the realm `realm`.
     pub fn new_host_method(
         &mut self,
         realm: u32,

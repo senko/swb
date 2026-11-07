@@ -8,11 +8,9 @@
 //! tree or navigates, and a filter that removes or navigates its own frame. A
 //! departure has a row with its reason.
 
-use serde_json::Value as Json;
-use swb_engine::{Evaluation, JsonForm, Page};
-
 use super::open;
-use crate::common::on_page_thread;
+use crate::common::{evaluate_json as evaluate, on_page_thread};
+use serde_json::Value as Json;
 
 /// A query where swb departs on purpose: (case, query index, swb's value, why).
 const DEPARTURES: &[(&str, usize, &str, &str)] = &[(
@@ -33,14 +31,6 @@ fn probe() -> Json {
 
 fn chromium() -> Json {
     serde_json::from_str(include_str!("../data/web-node-iterator-frames.json")).unwrap()
-}
-
-fn evaluate(page: &mut Page, source: &str) -> Json {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
-        Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
-        None => Json::String("no evaluation".to_owned()),
-    }
 }
 
 /// Runs the queries of a case in a page with JavaScript on and returns the differences.

@@ -196,7 +196,7 @@ fn security_error(rt: &mut Runtime, object: Gc<Object>, prefix: &str) -> VmError
         realm,
         prefix,
         g::DOM_EXCEPTION,
-        Exception::dom("SecurityError", text),
+        Exception::security(text),
     )
 }
 
@@ -390,12 +390,9 @@ pub(crate) fn navigate(
     let scripted = url.as_ref().is_some_and(|url| url.scheme() == "javascript");
     if !allowed || scripted {
         let shown = url.as_ref().map_or(text, url::Url::as_str);
-        return Err(Exception::dom(
-            "SecurityError",
-            format!(
-                "The current window does not have permission to navigate the target frame to '{shown}'."
-            ),
-        ));
+        return Err(Exception::security(format!(
+            "The current window does not have permission to navigate the target frame to '{shown}'."
+        )));
     }
     let Some(url) = url else {
         return Err(Exception::dom(

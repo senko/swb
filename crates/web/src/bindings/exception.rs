@@ -69,6 +69,11 @@ impl Exception {
         }
     }
 
+    /// A `SecurityError` `DOMException` with `message`.
+    pub fn security(message: impl Into<Cow<'static, str>>) -> Exception {
+        Exception::dom("SecurityError", message)
+    }
+
     /// The exception for the argument at `index` (0-based): a value of the
     /// wrong type is "parameter N is not of type 'T'.".
     #[must_use]

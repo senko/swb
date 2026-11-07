@@ -20,6 +20,7 @@ mod iface;
 mod items;
 mod legacy;
 pub(crate) mod names;
+mod reflect;
 mod types;
 
 use std::cell::RefCell;

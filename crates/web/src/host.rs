@@ -6,7 +6,7 @@
 //! `Box<dyn EngineHost>` and takes it back afterwards
 //! ([`crate::ScriptRuntime::take_back`]); [`EngineHost::into_any`] turns the
 //! box back into the engine's type. The style and layout queries of scripts
-//! (`getComputedStyle`, feature 7) are here too.
+//! (`getComputedStyle`) are here too.
 
 use std::any::Any;
 use std::sync::Arc;
@@ -886,7 +886,7 @@ pub trait EngineHost: Any {
         String::new()
     }
 
-    // ----- Style sheets (CSSOM, M9 feature 6) -----
+    // ----- Style sheets (CSSOM) -----
     //
     // Each of these processes the DOM changes first, so that a `style`
     // element that a script just inserted has its sheet.
@@ -922,7 +922,7 @@ pub trait EngineHost: Any {
     /// next style flush.
     fn style_sheets_changed(&mut self) {}
 
-    // ----- Geometry and scrolling (CSSOM View, feature 7b) -----
+    // ----- Geometry and scrolling (CSSOM View) -----
     //
     // Each of these that needs layout flushes it first (a forced run in a
     // script task); the bindings check the task deadline afterwards.
@@ -1025,7 +1025,7 @@ pub trait EngineHost: Any {
         None
     }
 
-    // ----- Rendered text and media (feature 7b2) -----
+    // ----- Rendered text and media -----
 
     /// The rendered text of `element` (`innerText`, HTML "rendered text
     /// collection steps"), after a style flush; `None` if the element is
@@ -1049,7 +1049,7 @@ pub trait EngineHost: Any {
         swb_css::MediaEnvironment::default()
     }
 
-    // ----- Location and the session history (feature 8a1) -----
+    // ----- Location and the session history -----
 
     /// The number of entries in the session history (`history.length`).
     fn history_length(&self) -> usize {

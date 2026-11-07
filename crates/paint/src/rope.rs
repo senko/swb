@@ -1,7 +1,7 @@
 //! A list of display items in chunks, for building the display list.
 //!
 //! The builder moves the items of positioned boxes out of the list and
-//! back into the list of their stacking context (`display_list.rs`). With
+//! back into the list of their stacking context (`display_list/builder.rs`). With
 //! one vector, every nesting level copied all the items of its subtree, so
 //! deeply nested positioned or transformed boxes cost items × depth. Here a
 //! split copies only the items after the split point in its chunk (the

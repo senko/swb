@@ -118,7 +118,7 @@ Format: source, license (for code), what it influenced.
   setters (`crates/engine/src/document/inner_text.rs`,
   `crates/web/src/html/inner_text.rs`); animation frames and the order
   of the rendering update (`crates/web/src/animation_frames.rs`,
-  `crates/engine/src/page/frame.rs`).
+  `crates/engine/src/page/rendering_update.rs`).
 - WHATWG URL, Fetch, Encoding standards — https://url.spec.whatwg.org/,
   https://fetch.spec.whatwg.org/, https://encoding.spec.whatwg.org/
   The IDL of `URL` and `URLSearchParams` is copied into

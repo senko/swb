@@ -1,13 +1,14 @@
 //! The rendering update of a document with scripts (HTML "update the
 //! rendering",
 //! <https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering>;
-//! ADR 0028 section 7; M8 features 7b1 and 7b2): the frame runs, in this
-//! order, the resize steps (`resize` at the window), the scroll steps
-//! (`scroll` events, CSSOM View "run the scroll steps"), the media query
-//! changes (`change` at `MediaQueryList`s), the animation frame callbacks,
-//! the check of the lazy images (M9 feature 4, ADR 0032) and the observers.
+//! ADR 0028 section 7): the update runs, in this order, the resize steps
+//! (`resize` at the window), the scroll steps (`scroll` events, CSSOM View
+//! "run the scroll steps"), the media query changes (`change` at
+//! `MediaQueryList`s), the animation frame callbacks, the check of the lazy
+//! images (ADR 0032) and the observers. "Frame" in this file is an
+//! animation frame; the frames of `iframe` elements are in `frames.rs`.
 //!
-//! A frame is due when something needs it: a scroll or a resize, a change
+//! An update is due when something needs it: a scroll or a resize, a change
 //! of the media environment (`frame_due`, one frame length after it), an
 //! animation frame callback, or a deferred lazy image whose surroundings
 //! changed (the next frame on a grid of 60 frames per
@@ -115,7 +116,7 @@ impl Page {
             return 0;
         }
         let mut sum = 0u64;
-        for id in self.frames_with_realms() {
+        for id in self.documents_with_realms() {
             if let Some(doc) = self.doc_of(id) {
                 sum = sum
                     .wrapping_add(doc.dom.generation())
@@ -151,7 +152,7 @@ impl Page {
 
     /// True if the page has a runtime whose scripts can run (not stopped by
     /// the time limits): only then are frames due.
-    pub(super) fn frames_run(&self) -> bool {
+    pub(super) fn runs_rendering_updates(&self) -> bool {
         self.any_runtime(|s| !s.stopped())
     }
 
@@ -159,7 +160,7 @@ impl Page {
     /// scripts were stopped: no frame runs then, and a due time in the
     /// past would keep the event loop from advancing or being idle.
     pub(super) fn frame_time(&self) -> Option<f64> {
-        if !self.frames_run() {
+        if !self.runs_rendering_updates() {
             return None;
         }
         let callbacks = (self.any_runtime(ScriptRuntime::has_animation_frame_callbacks)
@@ -176,11 +177,12 @@ impl Page {
     /// callbacks (a page with a `requestAnimationFrame` loop can still be
     /// idle).
     pub(super) fn frame_work_due(&self) -> Option<f64> {
-        let observers = (self.frames_run() && (self.observers_due() || self.lazy_due()))
-            .then(|| self.grid_frame_time());
+        let observers = (self.runs_rendering_updates()
+            && (self.observers_due() || self.lazy_due()))
+        .then(|| self.grid_frame_time());
         self.input
             .frame_due
-            .filter(|_| self.frames_run())
+            .filter(|_| self.runs_rendering_updates())
             .into_iter()
             .chain(observers)
             .reduce(f64::min)
@@ -199,11 +201,11 @@ impl Page {
         self.input.frame_due = None;
         // The time the frame was due, so that a late pump keeps the grid.
         self.input.last_frame = Some(due);
-        let documents = self.frames_with_realms();
+        let documents = self.documents_with_realms();
         // A frame's viewport comes from its parent's layout: a size that a
         // change in the parent gave it shows in this update, if the frame's
         // window reacts to it.
-        if self.frames_watch_viewports(&documents) {
+        if self.documents_watch_viewports(&documents) {
             self.update_layout();
         }
         let mut ran = false;
@@ -242,7 +244,7 @@ impl Page {
 
     /// The frames whose documents have a realm, in tree order, without the
     /// top level.
-    fn frames_with_realms(&self) -> Vec<FrameId> {
+    fn documents_with_realms(&self) -> Vec<FrameId> {
         if !self.frames_may_have_realms() {
             return Vec::new();
         }
@@ -256,7 +258,7 @@ impl Page {
 
     /// True if a frame document among `documents` reacts to a new size of its
     /// viewport.
-    fn frames_watch_viewports(&self, documents: &[FrameId]) -> bool {
+    fn documents_watch_viewports(&self, documents: &[FrameId]) -> bool {
         documents.iter().any(|&id| {
             self.frame_runtime(id)
                 .is_some_and(|(script, key)| script.watches_viewport_in(key))
@@ -326,8 +328,8 @@ impl Page {
     /// rendering update finds if a frame's window reacts to it.
     pub(super) fn note_frame_viewports_may_change(&mut self) {
         if self.frames.count() > 0 {
-            let documents = self.frames_with_realms();
-            if self.frames_watch_viewports(&documents) {
+            let documents = self.documents_with_realms();
+            if self.documents_watch_viewports(&documents) {
                 self.request_frame();
             }
         }
@@ -338,7 +340,7 @@ impl Page {
     /// sheets or a layout that happened for another reason changed since
     /// the last check (a DOM change alone does not count; ADR 0032).
     fn lazy_due(&self) -> bool {
-        self.frames_run()
+        self.runs_rendering_updates()
             && (self.doc.as_deref().is_some_and(DocumentState::lazy_due) || self.frame_lazy_due())
     }
 
@@ -394,7 +396,7 @@ impl Page {
     /// A document whose scripts cannot run frames (no runtime, or stopped
     /// by the time limits) starts all its deferred lazy images.
     pub(super) fn release_lazy_without_frames(&mut self) -> bool {
-        if self.lent || self.frames_run() {
+        if self.lent || self.runs_rendering_updates() {
             return false;
         }
         let mut released = match self.doc.as_deref_mut() {

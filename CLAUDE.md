@@ -36,7 +36,7 @@ Work on one feature at a time:
 4. Commit. Then start the next feature.
 
 Do not run implementation work in parallel: parallel work on the central
-files (`block.rs`, `box_tree.rs`, `inline/`, `display_list.rs`,
+files (`block.rs`, `box_tree.rs`, `inline/`, `display_list/`,
 `raster.rs`, the style property tables) costs more in rebases and merges
 than it saves. Parallel sub-agents are allowed only for read-only work
 (measurements, research) or for changes in crates that the plan names as

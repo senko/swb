@@ -210,7 +210,7 @@ pub struct DocumentState {
     /// The `fetch()` calls of scripts (they do not delay the load event).
     pub(crate) api_fetches: ApiFetches,
     /// The `load` and `error` events of images and style sheets that wait
-    /// for the script runtime (feature 10b).
+    /// for the script runtime.
     pub(crate) element_events: element_events::ElementEvents,
     /// True while the journal drain processes a step of the parser: the
     /// style sheets that it finds block scripts.
@@ -1296,14 +1296,32 @@ impl DocumentState {
         self.creator_url.as_ref().unwrap_or(&self.url)
     }
 
-    /// True for the document of a frame (not the top-level document).
-    pub fn is_frame_document(&self) -> bool {
-        self.frame
-    }
-
     /// The serialized origin of the document (`"null"` for an opaque one).
     pub fn origin_string(&self) -> String {
         self.origin().ascii_serialization()
+    }
+
+    /// The element under the pointer (`:hover`); the `iframe` for a
+    /// document whose frame the pointer is in.
+    pub fn hovered_element(&self) -> Option<NodeId> {
+        self.states.hover
+    }
+
+    /// The element that is being pressed (`:active`).
+    pub fn pressed_element(&self) -> Option<NodeId> {
+        self.states.active
+    }
+
+    /// The focused element of the document (`:focus`).
+    pub fn focus_element(&self) -> Option<NodeId> {
+        self.states.focus
+    }
+
+    /// The `iframe` element that holds the page's focus through its frame
+    /// (`document.activeElement` while no element of the document is
+    /// focused; ADR 0031 section 8).
+    pub fn focused_frame_element(&self) -> Option<NodeId> {
+        self.frame_focus
     }
 
     /// True if the document may load `url`: only `file:` documents may

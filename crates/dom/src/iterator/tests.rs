@@ -421,7 +421,7 @@ fn a_pointer_that_leaves_for_another_arena_is_not_moved_by_removals_and_comes_ba
     assert_eq!(a.send_node_pointers(&[(nodes[2], copy[2])], 5), [1]);
     let p = a.node_iterator(1).unwrap();
     assert_eq!(p.reference, Spot::Away(5, copy[2]));
-    assert_eq!(a.node_iterator_aways(1), [Some((5, copy[2])), None]);
+    assert_eq!(a.away_pointers(1), [Some((5, copy[2])), None]);
     // Removals in this arena do not change it.
     a.remove(nodes[1]);
     assert_eq!(
@@ -431,7 +431,7 @@ fn a_pointer_that_leaves_for_another_arena_is_not_moved_by_removals_and_comes_ba
     // It comes back as another node.
     a.receive_node_pointer(1, 5, copy[2], Spot::Here(nodes[3]));
     assert_eq!(a.node_iterator(1).unwrap().reference, Spot::Here(nodes[3]));
-    assert_eq!(a.node_iterator_aways(1), [None, None]);
+    assert_eq!(a.away_pointers(1), [None, None]);
 }
 
 #[test]

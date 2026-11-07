@@ -530,34 +530,77 @@ pub(crate) fn deliver(rt: &mut Runtime) -> VmResult<()> {
         return Ok(());
     }
     let realm = crate::state::doc_realm(rt)?;
-    let (kind, data, ports) = match deserialize_message(rt, realm, &posted.record) {
-        Ok((data, ports)) => {
-            // The ports have their objects now: the record no longer holds them.
-            posted.record.forget_ports();
-            b::keep(rt, data);
-            ("message", data, ports)
-        }
-        Err(Exception::Js(error @ (VmError::Terminated(_) | VmError::Internal(_)))) => {
-            return Err(error);
-        }
-        Err(_) => ("messageerror", Value::Null, Vec::new()),
-    };
+    let received = receive_message(rt, realm, &posted.record, |_| Ok(()))?;
+    if received.kind == "message" {
+        // The ports have their objects now: the record no longer holds them.
+        posted.record.forget_ports();
+    }
     let window = crate::state::window_proxy(rt)?;
     let source = source_window(rt, &posted.source)?;
     let origin = std::mem::take(&mut posted.origin);
+    fire_message(rt, window, received, origin, Some(source))
+}
+
+/// The data of a `message` event, or the lack of it.
+pub(crate) struct Received {
+    /// `message`, or `messageerror` if the data cannot come into the realm.
+    pub(crate) kind: &'static str,
+    pub(crate) data: Value,
+    pub(crate) ports: Vec<Gc<Object>>,
+}
+
+/// Deserializes `record` in the realm `realm` for a `message` event. If the data cannot
+/// come into the realm, `on_error` runs and the result is a `messageerror`. A
+/// termination or an internal error passes on.
+pub(crate) fn receive_message(
+    rt: &mut Runtime,
+    realm: u32,
+    record: &Serialized,
+    on_error: impl FnOnce(&mut Runtime) -> VmResult<()>,
+) -> VmResult<Received> {
+    match deserialize_message(rt, realm, record) {
+        Ok((data, ports)) => {
+            b::keep(rt, data);
+            Ok(Received {
+                kind: "message",
+                data,
+                ports,
+            })
+        }
+        Err(Exception::Js(error @ (VmError::Terminated(_) | VmError::Internal(_)))) => Err(error),
+        Err(_) => {
+            on_error(rt)?;
+            Ok(Received {
+                kind: "messageerror",
+                data: Value::Null,
+                ports: Vec::new(),
+            })
+        }
+    }
+}
+
+/// Fires the `message` (or `messageerror`) event `received` at `target`, with the
+/// `origin` and `source` of the sender (a port message has neither).
+pub(crate) fn fire_message(
+    rt: &mut Runtime,
+    target: Gc<Object>,
+    received: Received,
+    origin: String,
+    source: Option<Gc<Object>>,
+) -> VmResult<()> {
     let other = Other::Message {
-        data,
+        data: received.data,
         origin,
         last_event_id: String::new(),
-        source: Some(source),
-        ports,
+        source,
+        ports: received.ports,
         frozen: None,
     };
     fire_at_object(
         rt,
-        window,
+        target,
         g::MESSAGE_EVENT,
-        kind,
+        received.kind,
         false,
         Extra::Other(Box::new(other)),
     )

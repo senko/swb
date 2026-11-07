@@ -18,7 +18,7 @@
 #![allow(clippy::unwrap_used)]
 
 mod common;
-use common::{on_page_thread, repo_root, value};
+use common::{OnePage, on_page_thread, repo_root, value};
 
 use std::path::Path;
 use std::sync::Arc;
@@ -27,7 +27,6 @@ use std::time::Duration;
 use serde_json::Value;
 use swb_automation::run_steps;
 use swb_engine::{FontContext, Page, PageConfig, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
 /// The values where swb departs from Chromium on purpose: (case, query
 /// index, swb's value as JSON, why).
@@ -75,30 +74,6 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
         "swb does not focus an element with contenteditable",
     ),
 ];
-
-/// Serves one page; other URLs get a 404.
-struct OnePage {
-    url: &'static str,
-    html: String,
-}
-
-impl Fetcher for OnePage {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        let (status, body) = if request.url.as_str() == self.url {
-            (200, self.html.as_bytes().to_vec())
-        } else {
-            (404, b"not found".to_vec())
-        };
-        let headers: Headers = [("content-type", "text/html")].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status,
-            headers,
-            body,
-            redirected: false,
-        })
-    }
-}
 
 /// A page with JavaScript on (800x600, test fonts) that shows `html` at
 /// `url`, loaded.

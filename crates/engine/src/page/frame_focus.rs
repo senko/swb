@@ -1,4 +1,4 @@
-//! Focus and keys in frames (ADR 0031 section 8, ADR 0009; M9 feature 11).
+//! Focus and keys in frames (ADR 0031 section 8, ADR 0009).
 //!
 //! Each document has a focused area (`states.focus`). When a frame holds
 //! the page's focus, the documents above it have no focused element of

@@ -285,8 +285,8 @@ M8 feature 7b1, 2026-10-28, seven interleaved runs on senko-net: the
 heap after the creation grew from 1,140,798 to 1,177,969 bytes (+37 KB
 for 5 interfaces and about 60 members of `Window`, `Document`, `Element`
 and `HTMLElement`), the median time from 3.38 to 3.58 ms (the runs
-overlap: 3.24–3.85 and 2.53–3.72 ms). The lazy creation of interfaces
-(backlog, before 8a) is still open.
+overlap: 3.24–3.85 and 2.53–3.72 ms). The lazy creation of interfaces,
+open then, was done later (ADR 0028, "Lazy interfaces notes").
 
 M8 feature 7b2, 2026-10-29, seven interleaved runs: the heap grew from
 1,177,969 to 1,197,385 bytes (+19 KB: `MediaQueryList`,

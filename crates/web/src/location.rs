@@ -107,7 +107,7 @@ pub(crate) fn history_object(cx: &mut Cx<'_>) -> b::Result<Gc<Object>> {
 /// The URL of the document.
 fn document_url(cx: &Cx<'_>) -> b::Result<Url> {
     Url::parse(&engine(cx.rt)?.url())
-        .map_err(|_| Exception::dom("SecurityError", "The document has no valid URL."))
+        .map_err(|_| Exception::security("The document has no valid URL."))
 }
 
 /// `value` parsed against the base URL of the entry settings object (HTML
@@ -134,12 +134,9 @@ pub(crate) fn parse_against_base(rt: &mut swb_js::Runtime, value: &str) -> b::Re
 fn navigate(cx: &mut Cx<'_>, url: &Url, replace: bool) -> b::Result<()> {
     if !crate::frames::caller_may_navigate(cx.rt)? {
         // Measured, cases `scripted-nav-*`.
-        return Err(Exception::dom(
-            "SecurityError",
-            format!(
-                "The current window does not have permission to navigate the target frame to '{url}'."
-            ),
-        ));
+        return Err(Exception::security(format!(
+            "The current window does not have permission to navigate the target frame to '{url}'."
+        )));
     }
     if let Some(source) = crate::html::activation::javascript_source(url.as_str()) {
         crate::html::activation::queue_javascript_url(cx.rt, source)?;
@@ -361,12 +358,9 @@ fn security_error(url: &str, document: &Url) -> Exception {
         } else {
             get::origin(document)
         };
-    Exception::dom(
-        "SecurityError",
-        format!(
-            "A history state object with URL '{url}' cannot be created in a document with origin '{origin}' and URL '{document}'."
-        ),
-    )
+    Exception::security(format!(
+        "A history state object with URL '{url}' cannot be created in a document with origin '{origin}' and URL '{document}'."
+    ))
 }
 
 /// Chromium's rule for the URL of `pushState()` and `replaceState()`:

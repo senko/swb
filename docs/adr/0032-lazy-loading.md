@@ -131,7 +131,7 @@ the URL and `naturalWidth` is the size of the loaded image (Chromium:
 
 The document keeps the deferred images (element to URL) and the released
 elements (`document/lazy.rs`). A check runs in the frame of the page
-(`page/frame.rs`, after the animation frame callbacks and before the
+(`page/rendering_update.rs`, after the animation frame callbacks and before the
 observers, HTML "update the rendering"):
 
 1. It does nothing while no image is deferred. Images with `sizes="auto"`

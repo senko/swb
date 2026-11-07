@@ -208,7 +208,8 @@ pub mod rule_type {
 impl StyleSheet {
     /// A sheet of the rules of `css`, without an owner, for a document of
     /// its own memory.
-    pub fn parse(css: &str, quirks: bool) -> SheetRef {
+    #[cfg(test)]
+    pub(crate) fn parse(css: &str, quirks: bool) -> SheetRef {
         Self::parse_in(css, quirks, &StyleMemory::default(), false)
     }
 
@@ -264,12 +265,14 @@ impl StyleSheet {
     /// The estimated bytes that the sheet's rules hold in the document's
     /// style memory (0 for a sheet of the page's own text), without the
     /// declarations of its style rules.
-    pub fn held_bytes(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn held_bytes(&self) -> usize {
         self.hold.as_ref().map_or(0, Hold::bytes)
     }
 
     /// True after a script changed the rules.
-    pub fn is_modified(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_modified(&self) -> bool {
         self.modified
     }
 

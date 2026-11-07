@@ -136,6 +136,14 @@ pub fn same_site(a: &Origin, b: &Origin) -> bool {
     }
 }
 
+/// True if `origin` and the origin of `url` are same-site (as [`same_site`]).
+pub(crate) fn same_site_as_url(origin: &Origin, url: &Url) -> bool {
+    match (Site::of_origin(origin), Site::of_url(url)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
+}
+
 /// True if a request to `url` counts as secure for cookies: `https:`, or
 /// `http:` to `localhost`, `127.0.0.0/8` or `::1`. Chromium treats such
 /// "potentially trustworthy" URLs as secure for `Secure` cookies since

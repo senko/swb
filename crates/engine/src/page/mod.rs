@@ -27,7 +27,9 @@
 //! accepted limits, screenshots), `scroll.rs` (scrolling by the user and
 //! the scroll queries), `input.rs` (pointer, keyboard, focus, selection),
 //! `forms.rs` (form controls: editing, activation, submission),
-//! `script.rs` (the script runtime of the document), `frame_input.rs`,
+//! `script.rs` (the script runtime of the document), `agents.rs` (the
+//! runtimes of the other origins of a page), `rendering_update.rs` (the
+//! rendering update and its timing), `frame_input.rs`,
 //! `frame_focus.rs` and `frame_navigate.rs` (input and navigation by input in
 //! frames; ADR 0031 section 8) and `frames.rs` (the
 //! frames of `iframe` elements, their documents, load state and viewports;
@@ -36,9 +38,10 @@
 mod agents;
 mod events;
 mod forms;
-mod frame;
+mod frame_commit;
 mod frame_focus;
 mod frame_input;
+mod frame_load;
 mod frame_navigate;
 mod frames;
 mod history_api;
@@ -46,6 +49,7 @@ mod idle;
 mod input;
 mod loading;
 mod pipeline;
+mod rendering_update;
 mod script;
 mod scroll;
 

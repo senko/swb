@@ -29,9 +29,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use swb_engine::{Page, Pixmap, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, NetworkFetcher, Request, Response};
 
-use common::{answer, differences, new_page, on_page_threads};
+use common::{OnePage, answer, differences, new_page, on_page_threads};
 
 /// A probe case with JavaScript queries: (query, Chromium's value).
 pub(crate) struct Case {
@@ -83,35 +82,15 @@ const SWB_INK: &[(&str, usize, &str)] = &[(
     "a button and a text field: the edge of the circle on the control differs by 6 % of the ink",
 )];
 
-const PAGE: &str = "file:///case.html";
-
-/// Serves one page and `data:` URLs; other URLs get a 404.
-struct OnePage(&'static str);
-
-impl Fetcher for OnePage {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        if request.url.scheme() == "data" {
-            return NetworkFetcher::new().fetch(request);
-        }
-        let (status, body) = if request.url.as_str() == PAGE {
-            (200, self.0.as_bytes().to_vec())
-        } else {
-            (404, b"not found".to_vec())
-        };
-        let headers: Headers = [("content-type", "text/html")].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status,
-            headers,
-            body,
-            redirected: false,
-        })
-    }
-}
+const PAGE: &str = common::CASE_PAGE;
 
 /// A page that shows `html`, loaded, in the viewport of the probe.
 fn open(html: &'static str, javascript: bool) -> Page {
-    let mut page = new_page(Arc::new(OnePage(html)), 2, Size::new(900.0, 700.0));
+    let mut page = new_page(
+        Arc::new(OnePage::with_data_urls(html)),
+        2,
+        Size::new(900.0, 700.0),
+    );
     page.set_javascript(javascript);
     page.navigate(Url::parse(PAGE).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(20)));

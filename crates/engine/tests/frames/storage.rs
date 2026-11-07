@@ -266,7 +266,7 @@ fn page_with_listening_frames(n: usize) -> Page {
 }
 
 /// Lets the page's tasks run for a while of page time.
-fn settle(page: &mut Page) {
+fn wait_3s(page: &mut Page) {
     evaluate(page, "new Promise(r => setTimeout(r, 3000))");
 }
 
@@ -282,7 +282,7 @@ fn the_budget_of_waiting_events_stops_a_burst_and_gives_back() {
             &mut page,
             "(() => { for (let i = 0; i < 70000; i++) localStorage.setItem('k', String(i)); return 1; })()",
         );
-        settle(&mut page);
+        wait_3s(&mut page);
         let count = evaluate(&mut page, "count").as_u64().unwrap();
         assert!(count > 0 && count <= 65_536, "{count} events");
         assert_eq!(
@@ -291,7 +291,7 @@ fn the_budget_of_waiting_events_stops_a_burst_and_gives_back() {
         );
         // Nothing waits now: one more write fires.
         evaluate(&mut page, "localStorage.setItem('k', 'again'); 1");
-        settle(&mut page);
+        wait_3s(&mut page);
         assert_eq!(evaluate(&mut page, "count").as_u64().unwrap(), count + 1);
     });
 }
@@ -307,7 +307,7 @@ fn the_bytes_of_waiting_events_count() {
             "(() => { const v = 'x'.repeat((5 << 20) - 8); for (let i = 0; i < 200; i++) { \
              localStorage.setItem('k', v); localStorage.removeItem('k'); } return 1; })()",
         );
-        settle(&mut page);
+        wait_3s(&mut page);
         let count = evaluate(&mut page, "count").as_u64().unwrap();
         // 256 MiB / (3 receivers x about 5 MiB of the strings of one event).
         assert!(count > 0 && count < 3 * 400, "{count} events");
@@ -325,7 +325,7 @@ fn a_removed_frame_takes_its_events_with_it() {
             "(() => { for (let i = 0; i < 50; i++) localStorage.setItem('k', String(i)); \
              f0.remove(); f1.remove(); return 1; })()",
         );
-        settle(&mut page);
+        wait_3s(&mut page);
         assert_eq!(evaluate(&mut page, "count"), json!(0));
     });
 }
@@ -419,7 +419,7 @@ fn a_removed_frame_is_no_receiver_of_later_writes() {
             &mut page,
             "(() => { for (let i = 0; i < 70000; i++) localStorage.setItem('k', String(i)); return 1; })()",
         );
-        settle(&mut page);
+        wait_3s(&mut page);
         let count = evaluate(&mut page, "count").as_u64().unwrap();
         // The budget of 65,536 waiting events is for one receiver.
         assert!(count > 50_000 && count <= 65_536, "{count} events");

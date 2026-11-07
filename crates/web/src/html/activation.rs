@@ -18,7 +18,7 @@
 //! its controls, and the requests that the page acts on when the task ends
 //! (a navigation, a scroll).
 //!
-//! Feature 6d2 adds the user's clicks (the engine's input is dispatched as
+//! It also handles the user's clicks (the engine's input is dispatched as
 //! trusted events, and the activation behavior of this module replaces the
 //! engine's own action), the `summary` of a `details` element, the
 //! `javascript:` URLs of links and form actions, and the simulated click of

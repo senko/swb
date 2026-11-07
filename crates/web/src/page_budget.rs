@@ -17,7 +17,7 @@ pub(crate) struct PageBudgets {
     pub(crate) blob_urls: Rc<Cell<u64>>,
     /// [`crate::file_api::MAX_HELD_BYTES`].
     pub(crate) held_blobs: Rc<Cell<u64>>,
-    /// [`crate::message_port::MAX_BYTES`].
+    /// `MAX_BYTES` in `message_port/hub.rs`.
     pub(crate) messages: Rc<Cell<u64>>,
     /// [`crate::mutation_registry::MAX_RECORD_BYTES`].
     pub(crate) mutation_records: Rc<Cell<u64>>,

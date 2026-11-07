@@ -1,9 +1,9 @@
-//! Scripts in same-origin frame documents against Chromium (M9 feature 12b1,
-//! ADR 0031 sections 2, 5 and 6): every query of the cases `scripted-*` of
+//! Scripts in same-origin frame documents against Chromium (ADR 0031
+//! sections 2, 5 and 6): every query of the cases `scripted-*` of
 //! `tools/probes/web-frames.json`, and the frame queries of the cases that
-//! `QUERIES_LATER` listed until this feature (`geometry`, `about-blank` without
-//! `document.open`, `load-order`, `limits`, `self-embed`, `windowproxy`,
-//! `sandbox`), with Chromium's values. A departure has a row with its reason.
+//! need scripts in frames (`geometry`, `about-blank` without `document.open`,
+//! `load-order`, `limits`, `self-embed`, `windowproxy`, `sandbox`), with
+//! Chromium's values. A departure has a row with its reason.
 
 use std::time::{Duration, Instant};
 
@@ -11,7 +11,8 @@ use serde_json::Value as Json;
 use swb_engine::{Evaluation, JsonForm, Page, Size};
 
 use super::{MAIN, OTHER, Res, Sim, case_html, case_resource, open, open_at, probe_file, results};
-use crate::common::{new_page, on_page_thread};
+pub(super) use crate::common::evaluate_json as evaluate;
+use crate::common::{json_differences, new_page, on_page_thread};
 
 /// A row where swb departs on purpose: (case, query, path of the value, why).
 /// An empty path is the whole value of the query.
@@ -122,13 +123,13 @@ const DEPARTURES: &[(&str, usize, &str, &str)] = &[
         "scripted-retired",
         5,
         "[0]",
-        "document.open on a frame document: feature 15",
+        "document.open on a frame document: backlog (docs/roadmap.md)",
     ),
     (
         "scripted-retired",
         5,
         "[1]",
-        "document.write on a frame document: feature 15",
+        "document.write on a frame document: backlog (docs/roadmap.md)",
     ),
 ];
 
@@ -186,27 +187,6 @@ fn comparable(value: &Json) -> Json {
         Json::String(text) => Json::String(normalize(text)),
         Json::Array(items) => Json::Array(items.iter().map(comparable).collect()),
         other => other.clone(),
-    }
-}
-
-/// The differences of two values, by path.
-fn differences(path: &str, swb: &Json, chromium: &Json, out: &mut Vec<(String, String)>) {
-    match (swb, chromium) {
-        (Json::Array(a), Json::Array(b)) if a.len() == b.len() => {
-            for (index, (x, y)) in a.iter().zip(b).enumerate() {
-                differences(&format!("{path}[{index}]"), x, y, out);
-            }
-        }
-        _ if swb == chromium => {}
-        _ => out.push((path.to_owned(), format!("swb {swb}, Chromium {chromium}"))),
-    }
-}
-
-pub(super) fn evaluate(page: &mut Page, source: &str) -> Json {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
-        Some(Evaluation::Error(text)) => Json::String(format!("error: {text}")),
-        None => Json::String("no evaluation".to_owned()),
     }
 }
 
@@ -316,7 +296,7 @@ pub(super) fn compare_queries(
         let swb = without(comparable(&value));
         let want = without(comparable(&result["value"]));
         let mut found = Vec::new();
-        differences("", &swb, &want, &mut found);
+        json_differences("", &swb, &want, &mut found);
         for (path, text) in found {
             let departs = departures
                 .iter()
@@ -595,7 +575,8 @@ case_test!(the_event_loop_runs_each_document, "scripted-event-loop");
 case_test!(geometry_from_scripts, "geometry");
 case_test!(load_order_with_frame_scripts, "load-order");
 
-/// The case `about-blank` up to the call of `document.open` (feature 15).
+/// The case `about-blank` up to the call of `document.open` (on a frame document it
+/// is a backlog item).
 #[test]
 fn about_blank_is_synchronous() {
     on_page_thread(|| {

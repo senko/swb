@@ -161,11 +161,6 @@ const TOLERANCE: i64 = 3;
 /// (anti-aliased, equal within 6) and in gradients (within 3).
 const PIXEL_TOLERANCE: i32 = 12;
 
-/// The keys of `got` and `expected` that differ, as `key: got != expected`.
-fn differences(name: &str, got: &Value, expected: &Value) -> Vec<String> {
-    common::differences(name, got, expected, RECTANGLES, TOLERANCE)
-}
-
 #[test]
 fn numbers_in_rectangle_texts() {
     assert_eq!(
@@ -200,7 +195,13 @@ fn wikipedia_web_browser_works_with_javascript_on() {
         let setup = include_str!("data/wikipedia-web-browser.js");
         assert_eq!(value(&mut page, setup), 1);
 
-        let mut problems = differences("load", &record(&mut page), &expected[0]);
+        let mut problems = common::differences(
+            "load",
+            &record(&mut page),
+            &expected[0],
+            RECTANGLES,
+            TOLERANCE,
+        );
         let groups = step_groups(include_str!("data/wikipedia-web-browser-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
         let (pixel_groups, points) =
@@ -211,7 +212,13 @@ fn wikipedia_web_browser_works_with_javascript_on() {
         for (index, (name, steps)) in groups.iter().enumerate() {
             run_steps(&mut page, steps).unwrap();
             let got = record(&mut page);
-            problems.extend(differences(name, &got, &expected[index + 1]));
+            problems.extend(common::differences(
+                name,
+                &got,
+                &expected[index + 1],
+                RECTANGLES,
+                TOLERANCE,
+            ));
             if let Some(at) = pixel_groups.iter().position(|g| g == name) {
                 problems.extend(common::pixel_differences(
                     name,

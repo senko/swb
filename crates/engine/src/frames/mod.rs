@@ -739,6 +739,25 @@ impl Frames {
         chain
     }
 
+    /// True if `test` holds for every frame from `from` up to the top level,
+    /// which is not tested. A frame that does not exist fails the test.
+    fn ancestors_all(&self, from: FrameId, test: impl Fn(&Frame) -> bool) -> bool {
+        let mut frame = Some(from);
+        while let Some(id) = frame {
+            if id == FrameId::TOP {
+                break;
+            }
+            let Some(found) = self.get(id) else {
+                return false;
+            };
+            if !test(found) {
+                return false;
+            }
+            frame = found.parent;
+        }
+        true
+    }
+
     /// The site for cookies of the requests of a document of origin `own` in
     /// a child of `parent` (RFC 6265bis §5.2.1; ADR 0031 section 3), or of
     /// the request of a frame document of `parent` (`own` is `None`): the
@@ -748,18 +767,10 @@ impl Frames {
         let Some(top) = self.top_origin() else {
             return Origin::new_opaque();
         };
-        let mut same = own.is_none_or(|o| same_site(o, top));
-        let mut frame = Some(parent);
-        while same && let Some(id) = frame {
-            if id == FrameId::TOP {
-                break;
-            }
-            same = self
-                .get(id)
-                .and_then(|f| f.origin.as_ref())
-                .is_some_and(|o| same_site(o, top));
-            frame = self.get(id).and_then(|f| f.parent);
-        }
+        let same = own.is_none_or(|o| same_site(o, top))
+            && self.ancestors_all(parent, |f| {
+                f.origin.as_ref().is_some_and(|o| same_site(o, top))
+            });
         if same {
             top.clone()
         } else {
@@ -781,18 +792,8 @@ impl Frames {
         let (Some(own), Some(top)) = (own, self.top().storage_site.clone()) else {
             return StoragePartition::Unavailable;
         };
-        let mut frame = Some(parent);
-        let mut first_party = &*top == own;
-        while first_party && let Some(id) = frame {
-            if id == FrameId::TOP {
-                break;
-            }
-            first_party = self
-                .get(id)
-                .and_then(|f| f.storage_site.as_deref())
-                .is_some_and(|site| site == own);
-            frame = self.get(id).and_then(|f| f.parent);
-        }
+        let first_party =
+            &*top == own && self.ancestors_all(parent, |f| f.storage_site.as_deref() == Some(own));
         if first_party {
             StoragePartition::FirstParty
         } else {

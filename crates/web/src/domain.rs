@@ -1,7 +1,7 @@
 //! `document.domain` and `window.originAgentCluster` (HTML "relaxing the
 //! same-origin restriction",
 //! <https://html.spec.whatwg.org/multipage/browsers.html#dom-document-domain>;
-//! ADR 0031 section 5, M9 feature 1).
+//! ADR 0031 section 5).
 //!
 //! The getter gives the host of the document's origin (the effective
 //! domain), `""` for an opaque origin and for `file:` URLs. An `about:` document
@@ -69,7 +69,7 @@ pub(crate) fn origin_agent_cluster(cx: &mut Cx<'_>) -> b::Result<bool> {
 }
 
 fn security(message: String) -> Exception {
-    Exception::dom("SecurityError", message)
+    Exception::security(message)
 }
 
 /// The setter. `has_context` is false for a document without a browsing

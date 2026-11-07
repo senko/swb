@@ -72,22 +72,13 @@ fn groups() -> Vec<(String, Vec<Value>)> {
 
 /// The keys of `got` and `expected` that differ, as `key: got != expected`.
 fn differences(name: &str, got: &Value, expected: &Value, skip: &[&str]) -> Vec<String> {
-    let (Some(got), Some(expected)) = (got.as_object(), expected.as_object()) else {
-        panic!("{name}: a record is an object");
-    };
-    let mut keys: Vec<&String> = got.keys().chain(expected.keys()).collect();
-    keys.sort();
-    keys.dedup();
-    keys.into_iter()
-        .filter(|k| !skip.contains(&k.as_str()) && got.get(*k) != expected.get(*k))
-        .map(|k| {
-            format!(
-                "{name}: {k}: swb {:?} != Chromium {:?}",
-                got.get(k),
-                expected.get(k)
-            )
-        })
-        .collect()
+    common::differences(
+        name,
+        &common::without(got, skip),
+        &common::without(expected, skip),
+        &[],
+        0,
+    )
 }
 
 #[test]

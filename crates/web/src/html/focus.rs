@@ -22,10 +22,10 @@
 //!   composed, and have the window as `view`.
 //! - The window has the focus (`hasFocus()` is true for the document of
 //!   the window, false for the others) and no `focus` or `blur` event
-//!   goes to the window when the focused element changes. (Feature 6d2:
-//!   the engine tells when the user's Tab leaves the page after its last
-//!   element and when the next Tab enters it again; `blur` and `focus`
-//!   then go to the window ([`window_focus`]).)
+//!   goes to the window when the focused element changes. The engine tells
+//!   when the user's Tab leaves the page after its last element and when
+//!   the next Tab enters it again; `blur` and `focus` then go to the window
+//!   ([`window_focus`]).
 //! - A text control with an edit of the user that was not committed fires
 //!   `change` before `blur` when it loses the focus (measured in
 //!   `tools/probes/web-input-real.json`).

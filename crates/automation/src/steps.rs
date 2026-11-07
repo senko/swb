@@ -12,7 +12,7 @@
 //! `[dx, dy]` at the pointer position; `wait` takes milliseconds of page
 //! time; `focus` takes a selector; `eval` takes an expression; `record`
 //! takes an expression and prints its answer line to standard output, as
-//! `--eval` does (M9 feature 1); `viewport` takes `[width, height]`
+//! `--eval` does; `viewport` takes `[width, height]`
 //! (`page.setViewport`); `colorScheme` takes `"light"` or `"dark"`
 //! (`prefers-color-scheme`); `back` and `forward` take `true`
 //! (`page.back`, `page.forward`: the history of the tab). A point step may

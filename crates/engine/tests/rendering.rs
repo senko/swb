@@ -24,9 +24,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use swb_engine::{ClockMode, Evaluation, JsonForm, Page, PageClock, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, Request, Response};
 
-use common::{new_page, on_page_thread};
+use common::{OnePage, new_page, on_page_thread};
 use departures::SWB_VALUES;
 
 /// A probe case with Chromium's values: its input steps (kind, JSON
@@ -39,32 +38,11 @@ pub(crate) struct Case {
 }
 
 /// The URL of the case pages.
-const PAGE: &str = "file:///case.html";
-
-/// Serves one page; other URLs get a 404.
-struct OnePage(&'static str);
-
-impl Fetcher for OnePage {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        let (status, body) = if request.url.as_str() == PAGE {
-            (200, self.0.as_bytes().to_vec())
-        } else {
-            (404, b"not found".to_vec())
-        };
-        let headers: Headers = [("content-type", "text/html")].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status,
-            headers,
-            body,
-            redirected: false,
-        })
-    }
-}
+const PAGE: &str = common::CASE_PAGE;
 
 /// A page with JavaScript on and virtual time that shows `html`, loaded.
 fn open(html: &'static str) -> Page {
-    let mut page = new_page(Arc::new(OnePage(html)), 2, Size::new(800.0, 600.0));
+    let mut page = new_page(Arc::new(OnePage::new(html)), 2, Size::new(800.0, 600.0));
     page.set_javascript(true);
     page.set_clock(PageClock::new(ClockMode::Virtual, None));
     page.navigate(Url::parse(PAGE).unwrap());

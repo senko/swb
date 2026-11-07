@@ -30,9 +30,8 @@ use std::time::Duration;
 
 use serde_json::Value;
 use swb_engine::{Page, Size, Url};
-use swb_net::{Fetcher, Headers, NetError, NetworkFetcher, Request, Response};
 
-use common::{answer, differences, new_page, on_page_threads, repo_root};
+use common::{OnePage, answer, differences, new_page, on_page_threads, repo_root};
 
 /// The largest difference of a channel that counts as equal (the probe tool
 /// uses 2 too).
@@ -95,35 +94,11 @@ const SWB_PIXELS: &[(&str, usize, &str)] = &[
     ),
 ];
 
-const PAGE: &str = "file:///case.html";
-
-/// Serves one page; other URLs get a 404.
-struct OnePage(String);
-
-impl Fetcher for OnePage {
-    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
-        if request.url.scheme() == "data" {
-            return NetworkFetcher::new().fetch(request);
-        }
-        let (status, body) = if request.url.as_str() == PAGE {
-            (200, self.0.as_bytes().to_vec())
-        } else {
-            (404, b"not found".to_vec())
-        };
-        let headers: Headers = [("content-type", "text/html")].into_iter().collect();
-        Ok(Response {
-            url: request.url.clone(),
-            status,
-            headers,
-            body,
-            redirected: false,
-        })
-    }
-}
+const PAGE: &str = common::CASE_PAGE;
 
 /// A page that shows `html`, loaded, in a viewport of `size`.
 fn open(html: &str, size: Size, javascript: bool) -> Page {
-    let mut page = new_page(Arc::new(OnePage(html.to_owned())), 2, size);
+    let mut page = new_page(Arc::new(OnePage::with_data_urls(html)), 2, size);
     page.set_javascript(javascript);
     page.navigate(Url::parse(PAGE).unwrap());
     assert!(page.wait_until_loaded(Duration::from_secs(20)));

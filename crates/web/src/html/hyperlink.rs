@@ -42,14 +42,7 @@ pub(crate) fn href(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
 }
 
 fn origin(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {
-    Ok(current(cx, this)?.map_or_else(String::new, |u| {
-        // Chromium (measured) gives "file://" for the origin of a file URL.
-        if u.scheme() == "file" {
-            "file://".to_owned()
-        } else {
-            u.origin().ascii_serialization()
-        }
-    }))
+    Ok(current(cx, this)?.map_or_else(String::new, |u| crate::url_api::get::origin(&u)))
 }
 
 fn protocol(cx: &mut Cx<'_>, this: NodeId) -> b::Result<String> {

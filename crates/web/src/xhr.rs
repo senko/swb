@@ -527,10 +527,9 @@ fn open(cx: &mut Cx<'_>, this: Platform, method: &str, url: &str) -> b::Result<(
         ));
     }
     if is_forbidden_method(method) {
-        return Err(Exception::dom(
-            "SecurityError",
-            format!("'{method}' HTTP method is unsupported."),
-        ));
+        return Err(Exception::security(format!(
+            "'{method}' HTTP method is unsupported."
+        )));
     }
     let Some(parsed) = crate::fetch::engine_parse_url(cx.rt, url)? else {
         return Err(Exception::dom("SyntaxError", "Invalid URL"));

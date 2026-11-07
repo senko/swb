@@ -15,7 +15,35 @@ use swb_engine::{
     ClockMode, ConsoleLevel, Evaluation, FontContext, JsonForm, Page, PageClock, PageConfig, Size,
     Url,
 };
-use swb_net::{CookieJar, Fetcher, NetError, ReplayFetcher, Request, Response};
+use swb_net::{CookieJar, Fetcher, Headers, NetError, ReplayFetcher, Request, Response};
+
+/// The response of `status` with `body` for `request`, as `text/html`.
+pub(crate) fn html_response(request: &Request, status: u16, body: Vec<u8>) -> Response {
+    let headers: Headers = [("content-type", "text/html")].into_iter().collect();
+    Response {
+        url: request.url.clone(),
+        status,
+        headers,
+        body,
+        redirected: false,
+    }
+}
+
+/// A fetcher that serves one page at `url`; other URLs get a 404.
+pub(crate) struct OnePage {
+    pub(crate) url: &'static str,
+    pub(crate) html: String,
+}
+
+impl Fetcher for OnePage {
+    fn fetch(&self, request: &Request) -> Result<Response, NetError> {
+        Ok(if request.url.as_str() == self.url {
+            html_response(request, 200, self.html.as_bytes().to_vec())
+        } else {
+            html_response(request, 404, b"not found".to_vec())
+        })
+    }
+}
 
 /// A fetcher that records the URLs of its requests, in order, and answers
 /// from the fixture.
@@ -238,6 +266,15 @@ pub(crate) fn differences(
             )
         })
         .collect()
+}
+
+/// `record` without the keys in `skip`.
+pub(crate) fn without(record: &Value, skip: &[&str]) -> Value {
+    let mut record = record.clone();
+    for key in skip {
+        record.as_object_mut().unwrap().remove(*key);
+    }
+    record
 }
 
 /// A point of the pixel check: name, x and y in the viewport.

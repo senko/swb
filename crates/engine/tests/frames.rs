@@ -1,17 +1,16 @@
-//! Frames (ADR 0031 sections 2 to 4 and 11, M9 feature 10a): the frame
-//! tree, the loading of frame documents, the load state, the `iframe` box
-//! and the frame viewports; `frames/paint.rs` (feature 10b): what frames
-//! paint.
+//! Frames (ADR 0031 sections 2 to 4 and 11): the frame tree, the loading of
+//! frame documents, the load state, the `iframe` box and the frame viewports;
+//! `frames/paint.rs`: what frames paint.
 //!
-//! The cases of `tools/probes/web-frames.json` that feature 10a covers run
-//! here with Chromium's values (`tests/data/web-frames.json`: `just probe
+//! The cases of `tools/probes/web-frames.json` for the frame tree run here with
+//! Chromium's values (`tests/data/web-frames.json`: `just probe
 //! --json tools/probes/web-frames.json` with the cases `geometry`,
 //! `about-blank`, `load-order`, `cookies-frames`, `javascript-off`,
 //! `limits`, `self-embed` and `sandbox`; three equal runs apart from the
 //! server ports). The tests here read frame documents through the engine API
 //! (`Page::frame_document`) where JavaScript is off; `frames/scripted.rs` runs
-//! the queries of the probe with scripts in frames (feature 12b1), and
-//! `QUERIES_LATER` lists what waits for later features.
+//! the queries of the probe with scripts in frames, and `QUERIES_LATER` lists
+//! what no test covers.
 //!
 //! `Sim` serves the cases as the probe server does: the case page and its
 //! resources under `/case/`, on the main origin (`127.0.0.1:8000`), a
@@ -58,12 +57,11 @@ const MAIN: &str = "http://127.0.0.1:8000";
 const OTHER: &str = "http://127.0.0.1:8001";
 const LOCAL: &str = "http://localhost:8001";
 
-/// The queries of the covered cases that need scripts in frames or other
-/// later features, with the feature. The input cases (`focus`, `input-*`)
-/// run in `crates/automation/tests/frame_input.rs`.
+/// The queries of the covered cases that no test covers, with the reason. The
+/// input cases (`focus`, `input-*`) run in `crates/automation/tests/frame_input.rs`.
 const QUERIES_LATER: &[(&str, &str)] = &[(
     "about-blank",
-    "document.open, write and close on a frame document: feature 15",
+    "document.open, write and close on a frame document: backlog (docs/roadmap.md)",
 )];
 
 // ----- The simulated server -----

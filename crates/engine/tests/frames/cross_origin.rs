@@ -3,10 +3,7 @@
 //! and `xo-*` of `tools/probes/web-frames.json` with Chromium's values. A departure
 //! has a row with its reason.
 
-use serde_json::Value as Json;
-use swb_engine::{Evaluation, JsonForm, Page};
-
-use super::scripted::compare_case;
+use super::scripted::{compare_case, evaluate};
 use super::{OTHER, Res, open};
 use crate::common::on_page_thread;
 
@@ -128,13 +125,6 @@ case_test!(
     promise_natives_of_other_interfaces,
     "xo-promise-natives-others"
 );
-
-fn evaluate(page: &mut Page, source: &str) -> Json {
-    match page.evaluate(source, JsonForm::Strict) {
-        Some(Evaluation::Value(text)) => serde_json::from_str(&text).unwrap_or(Json::String(text)),
-        other => panic!("{other:?}"),
-    }
-}
 
 /// A frame past the budget of realms (ADR 0031 section 11) keeps its proxy without
 /// a target although its document has this origin, so the rules of another origin

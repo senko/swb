@@ -4,6 +4,41 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M9 maintenance; end of M9
+
+- Two read-only reviewers (the script layer: `web`, `webidl`, `js`, `dom`; the rest: engine,
+  rendering, tools, docs) listed 55 items and no bug. One implementer session applied 42 of
+  them and I applied three (the roadmap backlog), without a change of behaviour:
+  - Duplicates removed: one delivery of a `message` event for windows and ports; one console
+    store per runtime; one `SecurityError` constructor; the `file:` origin rule of links; the
+    same-site test of the cookie jar; the walk over a frame's ancestors for the site for
+    cookies and the storage partition; the `raw()` helper of the four case generators; test
+    helpers of the frames tests (evaluation, JSON comparison, `settle`, `OnePage`) and of the
+    target tests in `tests/common/mod.rs`.
+  - Dead code and names: `DocumentState::is_frame_document`, test-only `pub` items; the
+    rendering update is `page/rendering_update.rs` (it was `page/frame.rs`, next to
+    `page/frames.rs` for `iframe`s).
+  - Splits along existing seams: `web/src/state.rs`, `runtime.rs`, `message_port.rs` and
+    `scripts.rs`; `webidl/src/emit/iface.rs`; `engine/src/page/frames.rs` (commit and load
+    state); `paint/src/display_list.rs` (items, builder, tests) and `raster.rs` (borders,
+    masks, tests); `tools/swbtools/hostile_cases.py` became a package.
+  - Comments and docs: module comments say what the code does, not which feature added it;
+    statements that named done work as future work; the module lists of
+    `docs/architecture.md`; counts in `docs/testing.md`; the roadmap backlog lost five items
+    that M9 resolved and one duplicate.
+- The shared JSON comparison of the frames tests reports a key that only one browser gives
+  (one of the three copies counted it as `null`).
+- README: JavaScript, frames, the six targets, the JS toggle and the stack limit it needs,
+  and all third-party material of the binaries.
+- Proof of no behaviour change: JS-off snapshot identical (362 files); `compare --js` of the
+  six JS fixtures equal to the base; hostile set 412 cases, all ok except the known
+  `nest-div-100000`; test262 40,574 pass; the generated bindings and test cases
+  byte-identical.
+- Left: one access rule for cookies and storage, one helper for the checks of a node from
+  another document, one error page for the top level and frames.
+
+Next: the owner chooses the next milestone.
+
 ## 2026-11-07: M9 feature 15: `NodeIterator` and BBC's consent dialog
 
 - `document.createNodeIterator`, `NodeIterator` and `NodeFilter`. DOMPurify in Sourcepoint's

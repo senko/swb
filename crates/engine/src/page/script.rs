@@ -225,7 +225,7 @@ impl Page {
     }
 
     /// Hands the `load` and `error` events of images and style sheets that
-    /// the document queued to the runtime (feature 10b), one slice at a
+    /// the document queued to the runtime, one slice at a
     /// time. Returns true if it delivered any.
     pub(super) fn deliver_element_events(&mut self) -> bool {
         self.deliver_element_events_in(FrameId::TOP)

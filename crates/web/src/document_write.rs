@@ -1,7 +1,7 @@
 //! `document.write()`, `writeln()`, `open()` and `close()` (HTML "dynamic
 //! markup insertion",
 //! <https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html>;
-//! ADR 0028 section 8, M9 feature 2).
+//! ADR 0028 section 8).
 //!
 //! While a script that the parser started runs, the parser has an insertion
 //! point ([`swb_dom::HtmlParser::enter_script`], `document_load.rs`).
