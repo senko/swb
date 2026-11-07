@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!-- The min-content size of a flex container (CSS Flexbox 1 §9.9.1, as
+     Chromium computes it): the sum of the items' min-content contributions
+     and margins plus the gaps for a single-line row container, the largest
+     contribution for a multi-line row or a column, and a definite
+     flex-basis that limits the contributions of items that cannot grow or
+     shrink. Each container is a float in a 0 px wide box, so that its width
+     is its min-content size (or in a flex item or table cell with
+     min-width: auto). Probe cases: tools/probes/flex-intrinsic.json. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Min-content size of flex containers</title>
+<style>
+  body { margin: 8px; font: 16px/20px sans-serif; }
+  .z { width: 0; }
+  .z > div { float: left; }
+  .c { clear: both; }
+  .f { display: flex; background: #eee; }
+  .f > * { background: #ccc; }
+  .a { width: 50px; height: 10px; }
+  .w { display: flex; width: 100px; }
+</style>
+</head>
+<body>
+  <!-- single-line row: sum; wrap and column: largest -->
+  <div class="z"><div class="f" id="nowrap"><div class="a"></div><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f" style="flex-wrap: wrap"><div class="a"></div><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f" style="flex-direction: column"><div class="a"></div><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f" style="flex-direction: row-reverse"><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <!-- gaps: px, em and calc count; a percentage counts as 0; wrap ignores them for min-content -->
+  <div class="z"><div class="f" style="gap: 10px"><div class="a"></div><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f" style="gap: 10%"><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f" style="gap: 3px; flex-wrap: wrap"><div class="a"></div><div class="a"></div></div></div>
+  <div class="c"></div>
+  <!-- text, margins, borders, text runs, nested containers, replaced items -->
+  <div class="z"><div class="f"><span>aaaa bbbb</span><span style="margin: 0 5px">cc dd</span><span style="border: 3px solid">ee</span></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f">aaaa bbbb<div class="a"></div>cccc dddd</div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><div class="f"><div class="a"></div><div class="a"></div></div><div class="f" style="flex-direction: column"><div class="a"></div></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><svg width="30" height="20"></svg><svg width="30" height="20" style="margin-left: 4px"></svg></div></div>
+  <div class="c"></div>
+  <!-- flex-basis limits the contributions -->
+  <div class="z"><div class="f"><div class="a" style="flex: 0 1 20px"></div><div class="a" style="flex: 0 1 20px"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><div class="a" style="flex: 0 0 100px"></div><div class="a" style="flex: 0 0 100px"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><div class="a" style="flex: 1 1 20px"></div><div class="a" style="flex: 1 1 20px"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><div style="flex: 0 1 20px">aaaaaaaaaaaa bbbb</div><div style="flex: 0 1 20px; overflow: hidden">aaaaaaaaaaaa bbbb</div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><div class="a" style="flex-basis: 0"></div><div class="a" style="flex-basis: 0"></div></div></div>
+  <div class="c"></div>
+  <div class="z"><div class="f"><span style="flex-shrink: 0">aaaa bbbb</span><span style="flex-shrink: 0">cc dd</span></div></div>
+  <div class="c"></div>
+  <!-- contexts: flex item and table cell with an automatic minimum width, inline-flex -->
+  <div class="w"><div id="item"><div class="f"><div class="a"></div><div class="a"></div></div></div><div style="width: 200px; flex: none"></div></div>
+  <div class="w"><div id="item2" style="flex: 1 1 auto"><div class="f"><span>aaaa bbbb</span><span>cc dd</span></div></div><div style="width: 60px"></div></div>
+  <table style="width: 30px"><tr><td><div class="f"><div class="a"></div><div class="a"></div></div></td><td>x</td></tr></table>
+  <div style="width: 30px"><span style="display: inline-flex"><span>aaaa bbbb</span><span>cc dd</span></span></div>
+  <div style="display: grid; grid-template-columns: auto auto; width: 100px"><div><div class="f"><div class="a"></div><div class="a"></div></div></div><div>x</div></div>
+</body>
+</html>

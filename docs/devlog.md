@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M10 feature 2: min-content size of flex containers
+
+- swb gave a row flex container the widest item as its min-content size.
+  GitHub's header navigation shrinks to that size and was 402 px wide
+  instead of 627 px (390 boxes of the JS-off dump).
+- Measured in Chromium 148 (`tools/probes/flex-intrinsic.json`, 374
+  cases; widths of the container in a float in a 0, 100 and 3000 px box):
+  a single-line row is the sum of the items' contributions (with margins)
+  and the gaps, for the min-content and the max-content size (percentage
+  gaps count 0); a wrapping row takes the largest unlimited contribution
+  for its min-content size and the sum of the limited contributions for
+  its max-content size, at least the min-content size; a column takes the
+  largest. A definite `flex-basis` limits the contribution of an item that
+  cannot grow (at most the basis) or shrink (at least the basis); then
+  `max-width` applies, then the minimum width (`min-width` wins over
+  `max-width`); a table item is never narrower than its min-content width.
+  Chromium does not use the spec's flex-fraction algorithm (§9.9.1).
+- The automatic minimum size (§4.5) is now one function
+  (`flex::automatic_min_main`) for flex layout and intrinsic sizes.
+- Review: an item with `min-width` above `max-width` and a definite basis
+  lost its `min-width` (Chromium 60, swb 30); fixed. My check of the fix
+  found that a table item went below its min-content width (Chromium
+  142.38, swb 40 for two tables); fixed. Two unit tests did not catch the
+  removal of their rule; they now do, apart from the max-content floor of
+  wrapping rows, which no consumer in swb shows.
+- Tests: the layout test `flex-min-content` (Chromium's boxes);
+  `intrinsic-sizes` passes and left `known-failures.txt`; 7 unit tests;
+  the hostile case `flex-min-content-nesting` (200 levels: 0.05 s).
+- Scores: GitHub JS off geometry 0.6978 to 0.9221, pixels 0.9911 to
+  0.9939; JS on 0.5881 to 0.7909, 0.9720 to 0.9749. The other targets are
+  unchanged with JavaScript on and off.
+- Next: feature 3, ES modules (`implementer-hard`, ADR first).
+
 ## 2026-11-07: M10 feature 1: cascade layers
 
 - `swb_css` keeps `@layer` statements and blocks (named, dotted, anonymous,

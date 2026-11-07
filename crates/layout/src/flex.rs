@@ -308,24 +308,13 @@ fn new_item<'a>(
     item.max_main = resolve_max_size(max_prop, axes.main_available, style.box_sizing, main_edges)
         .unwrap_or(f32::INFINITY);
     item.min_main = match min_prop {
-        swb_style::Size::Auto => {
-            // Automatic minimum size (§4.5): the content size suggestion,
-            // capped by the specified size suggestion. Scroll containers
-            // (but not `overflow: clip` boxes) have no automatic minimum;
-            // neither have items with size containment (measured in
-            // Chromium 148, also for `contain-intrinsic-size`).
-            let overflow = if axes.row {
-                style.overflow_x
-            } else {
-                style.overflow_y
-            };
-            if overflow.is_scroll_container() || style.contain.size {
-                0.0
-            } else {
-                let content = min_content.min(item.max_main);
-                definite_main.map_or(content, |d| content.min(d))
-            }
-        }
+        swb_style::Size::Auto => automatic_min_main(
+            style,
+            axes.row,
+            || min_content,
+            item.max_main,
+            definite_main,
+        ),
         other => {
             resolve_size(other, axes.main_available, style.box_sizing, main_edges).unwrap_or(0.0)
         }
@@ -333,6 +322,33 @@ fn new_item<'a>(
     item.hypothetical = item.base_size.min(item.max_main).max(item.min_main);
     item.target = item.hypothetical;
     item
+}
+
+/// The automatic minimum size of a flex item in the main axis (`row` for a
+/// row container), content box (CSS Flexbox 1 §4.5,
+/// <https://drafts.csswg.org/css-flexbox-1/#min-size-auto>): the content
+/// size suggestion `min_content`, capped by `max_main` and by the
+/// specified size suggestion `definite_main`. Scroll containers (but not
+/// `overflow: clip` boxes) have no automatic minimum; neither have items
+/// with size containment (measured in Chromium 148, also for
+/// `contain-intrinsic-size`). `min_content` runs only if needed.
+pub(crate) fn automatic_min_main(
+    style: &ComputedStyle,
+    row: bool,
+    min_content: impl FnOnce() -> f32,
+    max_main: f32,
+    definite_main: Option<f32>,
+) -> f32 {
+    let overflow = if row {
+        style.overflow_x
+    } else {
+        style.overflow_y
+    };
+    if overflow.is_scroll_container() || style.contain.size {
+        return 0.0;
+    }
+    let content = min_content().min(max_main);
+    definite_main.map_or(content, |d| content.min(d))
 }
 
 /// The transferred size suggestion of a row item with an `aspect-ratio`

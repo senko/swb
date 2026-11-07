@@ -751,6 +751,21 @@ def flex_many_items() -> Page:
     return Page(doc(f"<div style='display:flex;flex-wrap:wrap'>{items}</div>"))
 
 
+@case("single-line flex containers nested 200 deep in floats, items limited by flex-basis")
+def flex_min_content_nesting() -> Page:
+    # The min-content size of each level sums the contributions of its two
+    # items; the limit by `flex-basis` needs the minimum width of the item,
+    # which must not make the work grow with 2^depth.
+    inner = "aaaa bbbb"
+    for _ in range(200):
+        inner = (
+            "<div style='float:left'><div style='display:flex'>"
+            f"<div style='flex:0 1 5px'>{inner}</div>"
+            "<div style='width:30px;flex:0 1 5px'>y</div></div></div>"
+        )
+    return Page(doc(f"<div style='width:0'>{inner}</div>"))
+
+
 # --- Masks and scroll containers (ADR 0018, 0019) --------------------------
 
 

@@ -4585,6 +4585,21 @@ Steps:
       items' contributions and margins (CSS Flexbox 9.9.1). Cases:
       `tools/probes/github-nav.json`. Exit: the header navigation as in
       Chromium; the other targets unchanged or better.
+      Done (2026-11-07): `flex_content_sizes` (`crates/layout/src/
+      intrinsic.rs`) follows Chromium, which does not use the spec's
+      flex-fraction algorithm: a single-line row container is as wide as
+      the sum of its items' contributions and gaps; a wrapping row takes
+      the largest contribution for its min-content size and the sum for its
+      max-content size; a column takes the largest. A definite `flex-basis`
+      limits the contribution of an item that cannot grow or shrink, then
+      `max-width` and the minimum width apply (§9.9.3); a table item is
+      never narrower than its min-content width. The automatic minimum size
+      is one function for flex layout and intrinsic sizes. 374 probe cases
+      (`tools/probes/flex-intrinsic.json`) and the 12 of `github-nav.json`
+      match Chromium, apart from 18 cases of other features (backlog).
+      GitHub JS off: geometry 0.6978 to 0.9221, pixels 0.9911 to 0.9939; JS
+      on: 0.5881 to 0.7909, 0.9720 to 0.9749; the other targets unchanged
+      (JS on and off).
    3. ES modules (`implementer-hard`; new ADR), in two parts: 3a the engine
       (module records, link, evaluate with cycles and top-level `await`,
       namespace objects, `import.meta`) and 3b the host (the module graph
@@ -4656,6 +4671,22 @@ Steps:
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
+- Intrinsic sizes (found in feature 2; cases in
+  `tools/probes/flex-intrinsic.json`): `min-content`, `max-content` and
+  `fit-content` as `width`, `min-width` and `max-width` of block boxes are
+  parsed but block layout ignores them (7 cases); an item with `contain:
+  size` must contribute no content size (Chromium: 0; 2 cases);
+  `flex-basis: min-content` and `max-content` are not resolved in flex
+  layout (the width matches, the item's height does not; 2 cases); an
+  `img` with `width: 50%` and a definite height in a shrink-to-fit box
+  (Chromium 40 for two, swb 0); the max-content width of a column-wrap
+  container with a definite height is the sum of its columns (Chromium
+  100, swb 50). Flex layout: a table item's hypothetical main size is not
+  at least its min-content width, so a wrapping row puts two tables on one
+  line where Chromium breaks the line (5 `review-table-wrap-*` cases). The
+  intrinsic sizes do not use the transferred size suggestion of a
+  stretched `aspect-ratio` item (`stretched_ratio_width` in `flex.rs`;
+  not measured).
 
 ## Backlog from M9
 
