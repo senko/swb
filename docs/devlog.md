@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M10 feature 3: ADR 0034 (JavaScript modules)
+
+- ADR 0034 decides the design of modules before the code: module records
+  as heap objects with the spec's load, link and evaluate algorithms (all
+  iterative); a module compiled as one function that suspends after its
+  prologue at link time, so hoisted functions exist in cycles; imports as
+  captures of the exporter's cells (live bindings, TDZ); top-level
+  `await` on the async-function machinery; namespace objects as a new
+  exotic object kind; the host's module map holds the records.
+- 25 Chromium cases in `tools/probes/web-module-graph.json`: the order of
+  graphs, the errors of descendants and where they are reported, cycles,
+  live bindings, namespaces, import maps, `modulepreload`, `import()`.
+- GitHub's static graph has 95 modules, depth 2, no cycle; 16 bare
+  specifiers need the import map. Parse and compile of the 5.4 MB of
+  modules: about 0.26 s (17 % of the load budget).
+- Orchestrator decisions: five sub-features (3a-1 static graphs, 3a-2
+  top-level `await`, 3a-3 `import()` and `import.meta`, 3b-1 the graph in
+  the page, 3b-2 import maps and `modulepreload`); JSON and CSS modules to
+  the backlog; parse on first use; `import()` from a cross-origin classic
+  script without `crossorigin` rejected at once, as in Chromium.
+- Next: 3a-1.
+
 ## 2026-11-07: M10 feature 2: min-content size of flex containers
 
 - swb gave a row flex container the widest item as its min-content size.

@@ -967,7 +967,8 @@ temporary directory, loaded by navigation.
   serves next to the page, each after its delay:
   `{"a.js": {"text": "log('a')", "delay_ms": 200, "content_type":
   "text/plain"}}` (`delay_ms` default 0, at most 10,000; the type comes
-  from the extension unless `content_type` gives it). A case with
+  from the extension unless `content_type` gives it). Resource names
+  cannot contain `/` (no subdirectories). A case with
   resources loads from `http://127.0.0.1:PORT/case-N/case-N.html` in
   Chromium and in swb (`--with-swb`), so a case can order the arrival of
   scripts and style sheets (`tools/probes/web-scripts.json`). Responses

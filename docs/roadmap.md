@@ -4521,6 +4521,7 @@ Steps:
      fixture `fixtures/pages/github-swb`.
 2. Each hard feature writes its ADR first (modules, custom elements,
    shadow DOM, the top layer); the orchestrator reads it before the code.
+   ADR 0034 (modules): accepted 2026-11-07.
 3. Features, in this order. Each feature ends with a review and a
    commit, with the checks of M9: JavaScript off by default; the other
    targets keep their scores with JavaScript on and off; a change of a
@@ -4600,13 +4601,27 @@ Steps:
       GitHub JS off: geometry 0.6978 to 0.9221, pixels 0.9911 to 0.9939; JS
       on: 0.5881 to 0.7909, 0.9720 to 0.9749; the other targets unchanged
       (JS on and off).
-   3. ES modules (`implementer-hard`; new ADR), in two parts: 3a the engine
-      (module records, link, evaluate with cycles and top-level `await`,
-      namespace objects, `import.meta`) and 3b the host (the module graph
-      fetch, the import map, `modulepreload`, `import()` in modules and
-      classic scripts, `load` and `error` events, the console). Exit: the
-      9 module scripts of GitHub run in Chromium's order; the module
-      scripts of BBC keep working.
+   3. ES modules ([ADR 0034](adr/0034-javascript-modules.md), accepted
+      2026-11-07), in five sub-features, each with its own review and
+      commit (scope, files, tests and exit of each in the ADR, "The plan of
+      sub-features"):
+      - 3a-1 static module graphs in the engine: records, link,
+        synchronous evaluate with cycles, namespace objects, `swb-js
+        --module`, the test262 loader (`implementer-hard`; at least 330 of
+        350 static test262 module tests).
+      - 3a-2 top-level `await` (`implementer-hard`; at least 230 of 250).
+      - 3a-3 `import()` and `import.meta` (`implementer-hard`; at least 590
+        of 631 and 21 of 22).
+      - 3b-1 the module graph in the page: module map, fetch, readiness,
+        errors, budgets (`implementer-hard`; the cases of
+        `tools/probes/web-module-graph.json` without import maps and
+        `modulepreload`).
+      - 3b-2 import maps, `modulepreload`, `import()` base URLs in the page
+        (`implementer`).
+      Exit: the 9 module scripts of GitHub run in Chromium's order (the
+      page's errors after that belong to later features); the module
+      scripts of BBC keep working; the other targets keep their scores
+      with JavaScript on and off.
    4. Custom elements (`implementer-hard`; new ADR): the registry
       (`define`, `get`, `whenDefined`, `upgrade`), `HTMLElement` as a
       constructor base, synchronous construction in the parser, upgrades,
@@ -4671,6 +4686,10 @@ Steps:
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
+- Modules (ADR 0034): JSON and CSS modules (import attributes with
+  `type`; GitHub uses none). The probe tool cannot serve `resources` in
+  subdirectories (a name with `/`); the module cases use a second origin
+  instead.
 - Intrinsic sizes (found in feature 2; cases in
   `tools/probes/flex-intrinsic.json`): `min-content`, `max-content` and
   `fit-content` as `width`, `min-width` and `max-width` of block boxes are
