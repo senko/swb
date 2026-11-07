@@ -233,10 +233,18 @@ async def scroll_through(page: Page, pause_ms: int = 250, max_steps: int | None 
         height = await page.evaluate("document.documentElement.scrollHeight")
         if y >= height:
             break
-        await page.evaluate(f"window.scrollTo(0, {y})")
+        await page.evaluate(f"window.scrollTo({{top: {y}, left: 0, behavior: 'instant'}})")
         await page.wait_for_timeout(pause_ms)
         y += step
-    await page.evaluate("window.scrollTo(0, 0)")
+    await scroll_to_top(page)
+
+
+async def scroll_to_top(page: Page) -> None:
+    """Scrolls to the top at once. A page with `scroll-behavior: smooth` on
+    the root (GitHub) animates a plain `scrollTo(0, 0)`, and the box dump and
+    the screenshot then come from the middle of the animation (M10 step 1:
+    the reference of github-swb was scrolled by 394 px)."""
+    await page.evaluate("window.scrollTo({top: 0, left: 0, behavior: 'instant'})")
 
 
 # A constructed stylesheet, so that no element is added to the document.

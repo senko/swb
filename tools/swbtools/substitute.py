@@ -20,6 +20,10 @@ Images are found by content type and by their first bytes, so an image
 with a wrong content type is replaced too. Animated images become one
 frame, and an ICO file one image of its largest size.
 
+A base64 `data:` URL of a raster image in a text body (a CSS rule of GitHub
+has two 3 x 2 px PNGs) becomes an SVG `data:` URL of the same pixel size
+with one color (M10 step 1). The rest of the text stays.
+
 After the replacement, `check_fixture` looks at every body again and
 reports what is still not allowed: an image that is not a placeholder
 (Pillow cannot read it, or it is larger than `MAX_PIXELS`), an image
@@ -33,6 +37,7 @@ idempotent: placeholders and DejaVu fonts stay as they are. HTML, CSS and
 SVG files are not changed.
 """
 
+import base64
 import hashlib
 import io
 import logging
@@ -70,6 +75,12 @@ TEXT_TYPES = ("text/", "image/svg+xml", "application/javascript", "application/j
 
 RASTER_DATA_URL = re.compile(rb"data:image/(?!svg)[a-z.+-]+", re.IGNORECASE)
 """A `data:` URL of a raster image in a text body."""
+
+RASTER_BASE64_DATA_URL = re.compile(
+    rb"data:image/(?!svg)[a-z.+-]+(?:;[a-z0-9=_.+-]+)*;base64,([A-Za-z0-9+/=]+)", re.IGNORECASE
+)
+"""A base64 `data:` URL of a raster image, with the payload as group 1.
+Percent-encoded raster payloads are not replaced; the check reports them."""
 
 FREE_FONT_LICENSES = (
     "scripts.sil.org/ofl",
@@ -230,13 +241,71 @@ def substitute_font(body: bytes, url: str) -> bytes | None:
     return output.getvalue()
 
 
+def svg_data_url(width: int, height: int, seed: str) -> bytes:
+    """A `data:` URL of an SVG image of `width` x `height` px with one color,
+    from a hash of `seed`. It has no space, quote, parenthesis or `#`, so it
+    works unquoted in `url()` and inside any quotes."""
+    digest = hashlib.sha256(seed.encode("utf-8")).digest()
+    color = "%23" + "".join(f"{int(digest[i] * 0.5 + 64):02x}" for i in range(3))
+    svg = (
+        f"%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%27{width}%27"
+        f"%20height=%27{height}%27%3E%3Crect%20width=%27100%25%27%20height=%27100%25%27"
+        f"%20fill=%27{color}%27/%3E%3C/svg%3E"
+    )
+    return f"data:image/svg+xml,{svg}".encode("ascii")
+
+
+def substitute_data_urls(body: bytes, url: str) -> bytes:
+    """Replaces every base64 `data:` URL of a raster image in a text body by
+    an SVG `data:` URL of the same pixel size (see `svg_data_url`). A payload
+    that Pillow cannot read, or an image over `MAX_PIXELS`, stays; the check
+    reports it."""
+    count = 0
+
+    def replacement(match: re.Match[bytes]) -> bytes:
+        nonlocal count
+        try:
+            payload = base64.b64decode(match.group(1), validate=True)
+            with Image.open(io.BytesIO(payload)) as original:
+                width, height = original.size
+        except Exception as error:  # base64 and Pillow raise many types for bad data.
+            log.warning("cannot read the data: URL image in %s (%s)", url, error)
+            return match.group(0)
+        if width * height > MAX_PIXELS:
+            return match.group(0)
+        count += 1
+        return svg_data_url(width, height, f"{url}#{count}")
+
+    return RASTER_BASE64_DATA_URL.sub(replacement, body)
+
+
+def substitute_text(fixture: Fixture, key: tuple[str, str], entry: Entry, directory: Path) -> bool:
+    """Replaces the raster `data:` URLs in the body of a text entry. Returns
+    True if the entry changed."""
+    body = fixture.read_body(entry)
+    if not (content_type(entry).startswith(TEXT_TYPES) and RASTER_DATA_URL.search(body)):
+        return False
+    new = substitute_data_urls(body, entry.url)
+    if new == body:
+        return False
+    content_types = [value for name, value in entry.headers if name == "content-type"]
+    file_name = body_file_name(new, content_types)
+    (directory / FILES_DIR / file_name).write_bytes(new)
+    fixture.entries[key] = replace(entry, body=f"{FILES_DIR}/{file_name}")
+    return True
+
+
 def substitute_fixture(directory: Path) -> tuple[int, int]:
-    """Replaces the images and non-free fonts of a fixture. Returns the
-    number of replaced images and fonts."""
+    """Replaces the images and non-free fonts of a fixture, and the raster
+    `data:` URLs of its text bodies. Returns the number of replaced images
+    and fonts."""
     fixture = Fixture(directory)
     images = fonts = 0
     for key, entry in sorted(fixture.entries.items()):
         body = fixture.read_body(entry)
+        if substitute_text(fixture, key, entry, directory):
+            images += 1
+            continue
         pil_format = image_format(entry, body)
         if pil_format is not None and pil_format != "unsupported":
             new = substitute_image(body, pil_format, entry.url)

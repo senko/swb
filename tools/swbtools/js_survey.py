@@ -51,6 +51,10 @@ log = logging.getLogger(__name__)
 
 TRACER_FILE = Path(__file__).with_name("js_tracer.js")
 SCROLL_STEPS = 60
+
+SCROLL_TOP = "window.scrollTo({top: 0, left: 0, behavior: 'instant'})"
+"""Scrolls to the top at once (a root with `scroll-behavior: smooth` would
+animate a plain `scrollTo(0, 0)`)."""
 IDLE_TIMEOUT_MS = 15_000
 SETTLE_MS = 2_000
 """Wait after the network idle wait, for timers that start late."""
@@ -99,10 +103,10 @@ async def scroll_through(page: Page, cdp: CDPSession) -> None:
         height = await harness(cdp, "document.documentElement.scrollHeight")
         if y >= height:
             break
-        await harness(cdp, f"window.scrollTo(0, {y})")
+        await harness(cdp, f"window.scrollTo({{top: {y}, left: 0, behavior: 'instant'}})")
         await page.wait_for_timeout(250)
         y += step
-    await harness(cdp, "window.scrollTo(0, 0)")
+    await harness(cdp, SCROLL_TOP)
 
 
 async def settle(page: Page, cdp: CDPSession, tracker: browser.PendingRequests) -> list[str]:
@@ -115,7 +119,7 @@ async def settle(page: Page, cdp: CDPSession, tracker: browser.PendingRequests) 
     if pending:
         log.warning("%d requests still pending: %s", len(pending), ", ".join(pending[:10]))
     await page.wait_for_timeout(SETTLE_MS)
-    await harness(cdp, "window.scrollTo(0, 0)")
+    await harness(cdp, SCROLL_TOP)
     return pending
 
 
@@ -264,7 +268,7 @@ async def js_off_run(
         await page.goto(url, wait_until="load", timeout=120_000)
         await browser.scroll_through(page, pause_ms=100, max_steps=SCROLL_STEPS)
         await browser.wait_for_network_idle(page, IDLE_TIMEOUT_MS)
-        await page.evaluate("window.scrollTo(0, 0)")
+        await browser.scroll_to_top(page)
         await browser.wait_for_fonts(page)
         await browser.stop_animations(page)
         elements = await page.evaluate("document.getElementsByTagName('*').length")

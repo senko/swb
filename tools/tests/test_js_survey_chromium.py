@@ -120,3 +120,24 @@ def test_tracer_counts_phases_and_keeps_the_page_working(tmp_path):
     assert trace["inserted_scripts"][0]["async"] is True
     assert trace["mutations"]["later"]["added_elements_total"] >= 1
     assert trace["tracer_errors"] == []
+
+
+SMOOTH_PAGE = (
+    "<!DOCTYPE html><style>html{scroll-behavior:smooth} body{margin:0;height:5000px}</style>"
+    "<body>x</body>"
+)
+
+
+def test_scroll_through_ends_at_the_top_on_a_page_with_smooth_scrolling(tmp_path):
+    """`html { scroll-behavior: smooth }` (GitHub) animates a plain
+    `scrollTo(0, 0)`; the reference of github-swb was scrolled by 394 px."""
+
+    async def run():
+        path = tmp_path / "smooth.html"
+        path.write_text(SMOOTH_PAGE, encoding="utf-8")
+        async with browser.session((400, 300)) as (_, _, page):
+            await page.goto(path.as_uri(), wait_until="load")
+            await browser.scroll_through(page, pause_ms=20, max_steps=4)
+            return await page.evaluate("window.scrollY")
+
+    assert asyncio.run(run()) == 0

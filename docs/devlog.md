@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M10 plan: GitHub
+
+- The owner chose github.com/senko/swb (the repository's front page, logged out) as the
+  next target, with JavaScript on and off, and confirmed the list of what "works"
+  (roadmap, M10). What replay cannot test stays out; CSS anchor positioning goes to the
+  backlog.
+- The diagnosis ([github-diagnosis.md](github-diagnosis.md)): with JavaScript off, swb
+  scores geometry 0.1576 and pixels 0.9344. Two causes: swb flattens CSS cascade layers
+  (GitHub has 39 % of its rules in layers; with the layer order emulated, geometry 0.66), and
+  it takes the widest item as the min-content size of a flex row (Chromium: the sum). With
+  JavaScript on, nothing of the page runs: 8 of its 9 module scripts import other modules,
+  which swb refuses. The page also needs custom elements, shadow DOM, popovers, React 19
+  hydration and some missing APIs.
+- Tools: the Chromium reference of the GitHub capture was scrolled by 394 px, because the
+  page asks for smooth scrolling and the tools scrolled back with an animation; they now
+  scroll at once. `substitute` turns raster `data:` URLs in CSS into SVG ones of the same
+  size. New JS-off fixture `fixtures/pages/github-swb`; probe files `github-nav.json` and
+  `github-css.json`.
+- Plan: nine features (cascade layers, flex min-content, ES modules, custom elements, shadow
+  DOM, popover and the top layer, smaller CSS features, the first view, the interactions).
+- Next: M10 feature 1, cascade layers.
+
 ## 2026-11-07: M9 maintenance; end of M9
 
 - Two read-only reviewers (the script layer: `web`, `webidl`, `js`, `dom`; the rest: engine,

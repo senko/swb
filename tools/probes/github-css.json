@@ -1,0 +1,285 @@
+{
+ "viewport": [
+  1280,
+  800
+ ],
+ "cases": [
+  {
+   "name": "layer-unlayered-beats-layered",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { #p, p.x { width: 10px } } p { width: 20px }</style><p id=p class=x>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-order-by-statement",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a, b; @layer b { p { width: 10px } } @layer a { #p { width: 20px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-order-by-first-block",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { p { width: 10px } } @layer b { p { width: 20px } } @layer a { #p { width: 30px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-important-reverses",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a, b; @layer a { p { width: 10px !important } } @layer b { p { width: 20px !important } } p { width: 30px !important }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-nested",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { @layer b { #p { width: 10px } } p { width: 20px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-anonymous-and-revert-layer",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer { p { width: 10px } } @layer b { p { width: 20px } } @layer c { p { width: revert-layer } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "layer-github-primer-pattern",
+   "html": "<!DOCTYPE html><style>@layer primer-css-base, primer-react, primer-brand; @layer primer-css-base { a { color: rgb(9,105,218); text-decoration: none } } @layer primer-react { [data-variant=normal] .link { color: rgb(9,105,218) } } .crumb { color: rgb(31,35,40) }</style><div data-variant=normal><a id=a class='link crumb' href=#>senko</a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "color",
+      "text-decoration-line"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "container-size-query",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}.c { container-type: inline-size; width: 300px } .t { width: 20px } @container (min-width: 200px) { .t { width: 10px } } @container (min-width: 400px) { .u { width: 10px } }</style><div class=c><p class=t id=t>x</p><p class=u id=u>y</p></div>",
+   "measure": [
+    {
+     "boxes": "#t, #u"
+    }
+   ]
+  },
+  {
+   "name": "container-query-hides-an-item",
+   "html": "<!DOCTYPE html><style>.c { container-type: inline-size; } .btn { display: block; width: 32px; height: 32px } @container (min-width: 544px) { .btn { display: none } }</style><div class=c><div class=btn id=b></div></div>",
+   "measure": [
+    {
+     "boxes": "#b"
+    }
+   ]
+  },
+  {
+   "name": "container-named-and-units",
+   "html": "<!DOCTYPE html><style>.c { container: card / inline-size; width: 400px } @container card (width >= 300px) { .t { width: 50cqw; height: 10px } }</style><div class=c><div class=t id=t></div></div>",
+   "measure": [
+    {
+     "boxes": "#t"
+    }
+   ]
+  },
+  {
+   "name": "has-selector",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}div:has(> p.x) { width: 10px } div:has(p.y) { width: 20px }</style><div id=a><p class=x>x</p></div><div id=b><p>y</p></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    }
+   ]
+  },
+  {
+   "name": "css-nesting",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}.a { width: 10px; .b { width: 20px } & > .c { width: 30px } @media (width >= 100px) { .d { width: 40px } } }</style><div class=a id=a><span class=b id=b>b</span><span class=c id=c>c</span><span class=d id=d>d</span></div>",
+   "measure": [
+    {
+     "boxes": "#a, #b, #c, #d"
+    }
+   ]
+  },
+  {
+   "name": "color-mix",
+   "html": "<!DOCTYPE html><style>p { color: color-mix(in srgb, rgb(255,0,0) 50%, rgb(0,0,255)) } #q { color: color-mix(in srgb, currentcolor 20%, transparent) }</style><p id=p>x</p><p id=q>y</p>",
+   "measure": [
+    {
+     "js": "JSON.stringify([getComputedStyle(document.getElementById('p')).color,getComputedStyle(document.getElementById('q')).color])"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "light-dark",
+   "html": "<!DOCTYPE html><style>:root { color-scheme: light dark } p { color: light-dark(rgb(255,0,0), rgb(0,0,255)) }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "js": "JSON.stringify([getComputedStyle(document.getElementById('p')).color])"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "at-property",
+   "html": "<!DOCTYPE html><style>@property --w { syntax: '<length>'; inherits: false; initial-value: 5px } div { width: var(--w); height: 10px }</style><div id=d></div>",
+   "measure": [
+    {
+     "boxes": "#d"
+    }
+   ]
+  },
+  {
+   "name": "anchor-positioning",
+   "html": "<!DOCTYPE html><style>#a { anchor-name: --a; width: 100px; height: 40px; margin: 100px } #p { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 50px; height: 20px }</style><div id=a></div><div id=p></div>",
+   "measure": [
+    {
+     "boxes": "#a, #p"
+    }
+   ]
+  },
+  {
+   "name": "popover-attribute-ua-style",
+   "html": "<!DOCTYPE html><style>div { width: 100px; height: 50px }</style><div popover id=p>hi</div><div id=q>q</div>",
+   "measure": [
+    {
+     "boxes": "#p, #q"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "display",
+      "position",
+      "top",
+      "left",
+      "margin",
+      "inset"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "popover-open-pseudo",
+   "javascript": true,
+   "html": "<!DOCTYPE html><style>div { width: 100px; height: 50px } #p:popover-open { color: rgb(255,0,0); background: rgb(0,0,255) } #p::backdrop { background: rgb(0,255,0) }</style><div popover id=p>hi</div><script>document.getElementById('p').showPopover()</script>",
+   "measure": [
+    {
+     "boxes": "#p"
+    },
+    {
+     "style": "#p",
+     "props": [
+      "display",
+      "position",
+      "color",
+      "top",
+      "left",
+      "margin",
+      "width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "dialog-modal-backdrop",
+   "javascript": true,
+   "html": "<!DOCTYPE html><style>dialog::backdrop { background: rgb(0,255,0) }</style><dialog id=d>hi</dialog><script>document.getElementById('d').showModal()</script>",
+   "measure": [
+    {
+     "boxes": "#d"
+    },
+    {
+     "style": "#d",
+     "props": [
+      "position",
+      "top",
+      "left",
+      "margin",
+      "display"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "field-sizing",
+   "html": "<!DOCTYPE html><style>input { field-sizing: content; font: 16px sans-serif; padding: 0; border: 0 }</style><input id=i value='hello world'>",
+   "measure": [
+    {
+     "boxes": "#i"
+    },
+    {
+     "style": "#i",
+     "props": [
+      "field-sizing"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "supports-selector-and-has",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@supports selector(:has(a)) { p { width: 10px } } @supports not (display: foo) { #q { width: 20px } }</style><p id=p>x</p><p id=q>y</p>",
+   "measure": [
+    {
+     "boxes": "#p, #q"
+    }
+   ]
+  },
+  {
+   "name": "where-is-not",
+   "html": "<!DOCTYPE html><style>:where(.a, .b) > p { color: rgb(1,1,1) } :is(.a, .b) > #q { color: rgb(2,2,2) } p:not(.x, .y) { margin-top: 7px }</style><div class=a><p id=p>x</p><p id=q>y</p></div>",
+   "measure": [
+    {
+     "style": "#p, #q",
+     "props": [
+      "color",
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-properties-in-root-after-layer-statement",
+   "html": "<!DOCTYPE html><style>@layer base, theme; :root { --base-size-8: 0.5rem } @layer base { .b { padding: var(--base-size-8) } } @media (width>=1012px) { .b { padding: var(--base-size-8) } }</style><div class=b id=b>x</div>",
+   "measure": [
+    {
+     "style": "#b",
+     "props": [
+      "padding-left"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "content-visibility-and-text-wrap",
+   "html": "<!DOCTYPE html><style>#a { content-visibility: auto; contain-intrinsic-size: auto 100px } #b { text-wrap: balance; width: 200px; font: 16px sans-serif }</style><div id=a>x</div><div id=b>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll</div>",
+   "measure": [
+    {
+     "boxes": "#a, #b"
+    },
+    {
+     "style": "#a, #b",
+     "props": [
+      "content-visibility",
+      "text-wrap"
+     ]
+    }
+   ]
+  }
+ ]
+}

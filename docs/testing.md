@@ -560,6 +560,12 @@ listed by name; named-property access (`localStorage.key = value`) is not
 counted; only the top frame is traced; the phase of a mutation is the phase
 at the time of delivery; replay misses requests with new URLs.
 
+Scrolling: the tools scroll with `behavior: 'instant'`
+(`browser.scroll_to_top`). A page with `html { scroll-behavior: smooth }`
+(GitHub) animates a plain `scrollTo(0, 0)`, and the reference was taken in
+the middle of the animation (the box dump of github-swb started at y = 394;
+fixed in M10 step 1, `tools/tests/test_js_survey_chromium.py`).
+
 ### Substitute copyrighted content
 
 `just substitute NAME...` (`tools/swbtools/substitute.py`) changes a
@@ -582,6 +588,12 @@ images become one frame, ICO files one image of the largest size. HTML,
 CSS and SVG files do not change. The command is idempotent. Run it again
 after `capture-missing`, then `just reference`. Free fonts that stay in a
 fixture are listed in `THIRD_PARTY_NOTICES.md`.
+
+A base64 `data:` URL of a raster image in a text body (CSS, HTML, SVG,
+JavaScript) becomes an SVG `data:` URL of the same pixel size with one
+color (M10 step 1; GitHub's CSS has two 3 x 2 px PNGs). A payload that
+Pillow cannot read and a percent-encoded raster payload stay, and the check
+reports them.
 
 After the replacement the command checks every body again and fails if
 something may still not be published: an image that is not a

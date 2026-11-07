@@ -52,7 +52,7 @@ async def click_and_settle(page: Page, selectors: list[str]) -> None:
         await page.locator(selector).first.click(timeout=CLICK_TIMEOUT_MS)
         await page.wait_for_timeout(SETTLE_MS)
     if selectors:
-        await page.evaluate("window.scrollTo(0, 0)")
+        await browser.scroll_to_top(page)
         await browser.wait_for_fonts(page)
         await page.wait_for_timeout(SETTLE_MS)
 

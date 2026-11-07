@@ -40,7 +40,7 @@ async def load_settled(page: Page, url: str) -> None:
     # Load lazy images everywhere on the page, then measure at the top.
     await browser.scroll_through(page, pause_ms=100)
     await browser.wait_for_network_idle(page)
-    await page.evaluate("window.scrollTo(0, 0)")
+    await browser.scroll_to_top(page)
     await browser.wait_for_fonts(page)
     await browser.stop_animations(page)
 
@@ -82,7 +82,7 @@ async def load_settled_js(page: Page, url: str) -> None:
     await page.wait_for_timeout(JS_SETTLE_MS)
     await browser.wait_for_fonts(page)
     await browser.stop_animations(page)
-    await page.evaluate("window.scrollTo(0, 0)")
+    await browser.scroll_to_top(page)
 
 
 @dataclass

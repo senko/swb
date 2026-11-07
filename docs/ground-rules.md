@@ -132,3 +132,18 @@ Details and reasons are in [ADR 0025](adr/0025-javascript-approach.md).
   behaviour, but new HTML and CSS features apply to both settings. A
   feature that changes a JS-off fixture reports the change and its
   scores, which must not get worse.
+
+## Decisions from 2026-11-07: GitHub
+
+- The next milestone (M10) targets the front page of the repository
+  github.com/senko/swb (logged out), with JavaScript on and off. The
+  owner confirmed the list of what "works" (roadmap, M10).
+- The fixture of 2026-10-22 stays. What replay cannot test (login, the
+  search dialog, the file finder, the keyboard-shortcut dialog, hover
+  cards, the clipboard, the pages behind links) is not in the list, and
+  the fixture gets no new capture for it.
+- CSS anchor positioning is not in M10 (GitHub tests for it and has a
+  fallback); it is a backlog item.
+- The rules of M9 apply: JavaScript is off by default, the other targets
+  keep their scores with JavaScript on and off, and a new HTML or CSS
+  feature applies to both settings.

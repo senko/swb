@@ -14,6 +14,7 @@ swb binaries. Each snapshot keeps the license of its source:
 | `ars-technica` | https://arstechnica.com/ | Content of Condé Nast (Ars Technica) and its authors; Ars Technica terms of use. Photos are replaced by placeholders and commercial fonts by DejaVu Sans (`just substitute`). |
 | `bbc` | https://www.bbc.com/ | Content of the BBC; BBC terms of use. Photos are replaced by placeholders and commercial fonts by DejaVu Sans (`just substitute`). |
 | `craigslist-posting` | https://www.craigslist.org/view/d/san-francisco-halloween-costume-anna/oDaX2VtmaDQQtbwFiCrkqH | Content of craigslist and of the user who posted it; craigslist terms of use. Photos are replaced by placeholders (`just substitute`). |
+| `github-swb` | https://github.com/senko/swb (the page with JavaScript off, captured 2026-10-22) | Content of the repository's owner (the project owner); GitHub's markup and style sheets (Primer, MIT License) and GitHub's terms of use. The avatar is a placeholder (`just substitute`). |
 
 The `reference/` files (Chromium's box dumps and screenshots) are derived
 from these snapshots.

@@ -1,5 +1,6 @@
 """`swbtools substitute`: placeholders for images, free fonts for others."""
 
+import base64
 import io
 from pathlib import Path
 
@@ -181,6 +182,35 @@ def test_the_check_reports_what_cannot_be_replaced(
         "https://a.test/odd: image of an unknown format",
         "https://a.test/s.css: raster image in a data: URL",
     ]
+
+
+def test_raster_data_urls_in_text_become_svg_data_urls_of_the_same_size(tmp_path: Path) -> None:
+    png = base64.b64encode(image_bytes("PNG", (3, 2), "RGBA")).decode()
+    gif = base64.b64encode(image_bytes("GIF", (7, 5))).decode()
+    css = (
+        f"a{{background:url(data:image/png;base64,{png})}}"
+        f"b{{background:url('data:image/gif;charset=x;base64,{gif}')}}"
+        f"c{{background:url(data:image/svg+xml;base64,PHN2Zz4=)}}"
+    ).encode()
+    make_fixture(tmp_path, {"https://a.test/s.css": ("text/css", css)})
+    assert substitute_fixture(tmp_path) == (1, 0)
+    after = bodies(tmp_path)["https://a.test/s.css"]
+    assert b"data:image/png" not in after
+    assert b"data:image/gif" not in after
+    assert b"data:image/svg+xml;base64,PHN2Zz4=" in after
+    assert after.count(b"width=%273%27%20height=%272%27") == 1
+    assert after.count(b"width=%277%27%20height=%275%27") == 1
+    assert check_fixture(tmp_path) == []
+    assert substitute_fixture(tmp_path) == (0, 0)
+    assert bodies(tmp_path)["https://a.test/s.css"] == after
+
+
+def test_unreadable_raster_data_urls_stay_and_the_check_reports_them(tmp_path: Path) -> None:
+    css = b"a{background:url(data:image/png;base64,AAAA)}b{background:url(data:image/png,%89PNG)}"
+    make_fixture(tmp_path, {"https://a.test/s.css": ("text/css", css)})
+    assert substitute_fixture(tmp_path) == (0, 0)
+    assert bodies(tmp_path)["https://a.test/s.css"] == css
+    assert check_fixture(tmp_path) == ["https://a.test/s.css: raster image in a data: URL"]
 
 
 def test_placeholders_do_not_depend_on_the_band_size(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4466,6 +4466,146 @@ Steps:
    for the checks of a node from another document in `dom/tree_ops.rs`; one
    error page for the top level and frames (the pixels would change).
 
+## M10: GitHub (github.com/senko/swb)
+
+Owner decisions (2026-11-07, ground rules): the target is the front page
+of the repository github.com/senko/swb, logged out, with JavaScript on and
+off. The owner confirmed the list of what "works" below. What replay
+cannot test stays out, and the fixture of 2026-10-22 gets no new capture.
+CSS anchor positioning goes to the backlog. The rules of M9 apply.
+
+Fixtures: `fixtures/js/github-swb` (captured 2026-10-22; local only) and
+`fixtures/pages/github-swb` (JS off, committed in the plan).
+
+State at the start (swb 433d211, replay): JS off geometry 0.1576, pixels
+0.9344; JS on 0.1425, 0.9167. swb runs none of the page's scripts: 8 of its
+9 module scripts import other modules, which swb refuses, so the page is the
+server-rendered HTML. Budget for `load`: 1.56 s (three times Chromium's
+jitless task time, 0.485 s, plus the JS-off pipeline, 0.103 s; measured
+under load: measure again on an idle machine before feature 8).
+
+Steps:
+
+1. Diagnosis (`implementer`, tools and measurements). Done 2026-11-07
+   (report: [github-diagnosis.md](github-diagnosis.md); the main numbers
+   here):
+   - JS off: CSS cascade layers are flattened (`swb_css` ignores the layer
+     order); GitHub has 6,341 of its 16,282 style rules in three layers.
+     With the layer order emulated by hand, geometry goes from 0.16 to
+     0.66. The rest is the min-content size of a non-wrapping row flex
+     container: swb takes the widest item, Chromium the sum of the items
+     and their margins (the header navigation, 402 px against 627 px; 390
+     boxes; `tools/probes/github-nav.json`). The probe cases of the CSS
+     features of the page are in `tools/probes/github-css.json`.
+   - The page's scripts: 133 module files (5.4 MB) with about 307 static
+     imports, an import map, 111 `modulepreload` links, `import()` and
+     `import.meta`; 75 custom element definitions (8 on the page, all
+     autonomous, with `connectedCallback`, `attributeChangedCallback` and
+     `observedAttributes`); 24 open shadow roots (23 `relative-time`, 1
+     `tool-tip`), no declarative shadow roots; 10 `popover` elements; 8
+     same-origin `fetch` calls of JSON that React 19 renders (the header,
+     the repository header, the file list and the sidebar); Turbo soft
+     navigation. Missing in swb: `customElements`, `attachShadow`,
+     `showPopover`, `Range` and `getSelection`, `indexedDB`,
+     `createTreeWalker`, `adoptedStyleSheets`, `Element.animate`.
+   - Tools: the Chromium reference of the capture was scrolled by 394 px
+     (`html { scroll-behavior: smooth }` animated `scrollTo(0, 0)`; the
+     tools now scroll with `behavior: 'instant'`); `substitute` replaces
+     raster `data:` URLs in CSS with SVG ones of the same size; the JS-off
+     fixture `fixtures/pages/github-swb`.
+2. Each hard feature writes its ADR first (modules, custom elements,
+   shadow DOM, the top layer); the orchestrator reads it before the code.
+3. Features, in this order. Each feature ends with a review and a
+   commit, with the checks of M9: JavaScript off by default; the other
+   targets keep their scores with JavaScript on and off; a change of a
+   JS-off fixture is reported with its scores, which must not get worse;
+   probe cases with Chromium's values; hostile cases.
+
+   What "works" means (the owner confirmed this list on 2026-11-07), on
+   the `github-swb` fixture with JavaScript on, logged out, 1280 x 800:
+
+   1. The first view renders like Chromium's replay: the header with its
+      menus, "Pricing", the search button, Sign in and Sign up; the
+      repository header with breadcrumbs, tabs, Watch, Fork and Star; the
+      branch selector, the branch and tag counts, "Go to file" and the
+      Code button; the latest-commit line (author, message, hash, relative
+      time, check icon, commit count); the file list with commit messages
+      and relative times; About, Releases and Contributors.
+   2. The page's scripts run without a console error that Chromium does
+      not have (Chromium logs the 404 of `payloads.json`).
+   3. The header menus open by click and close with Escape.
+   4. The Code button opens the Clone popover with its HTTPS and GitHub
+      CLI tabs; Escape closes it.
+   5. The branch selector opens its overlay with the filter and the branch
+      list; Escape closes it and returns the focus to the button.
+   6. "Go to file" takes the focus, also by the key `t`.
+   7. The "..." button of the latest-commit line opens its popover.
+   8. Watch, Fork, Star, the tabs and the file links navigate (the next
+      page is not in the fixture).
+   9. The relative times have Chromium's text at the page clock.
+   10. The Tab order and `:focus-visible` after the load equal Chromium's.
+   11. With JavaScript off, the page renders like Chromium's JS-off
+       reference, at scores like the other targets'.
+   12. The `load` event within the budget.
+
+   Not tested in replay: login, the search dialog, the file finder, the
+   keyboard-shortcut dialog, hover cards, the clipboard, the pages behind
+   links (the fixture lacks 44 lazily loaded URLs).
+
+   Features:
+
+   1. Cascade layers (`implementer`; JS on and off): the layer order of
+      `@layer` statements and blocks, nested and anonymous layers,
+      `@import ... layer()`, unlayered rules last, the reversed order of
+      `!important`, `revert-layer`, the CSSOM rule objects if the page
+      needs them. Cases: `tools/probes/github-css.json` and new ones. Exit:
+      GitHub's JS-off geometry near the emulated 0.66; the other targets
+      unchanged or better.
+   2. Flex min-content (`implementer`; JS on and off): the min-content
+      contribution of a non-wrapping flex container is the sum of its
+      items' contributions and margins (CSS Flexbox 9.9.1). Cases:
+      `tools/probes/github-nav.json`. Exit: the header navigation as in
+      Chromium; the other targets unchanged or better.
+   3. ES modules (`implementer-hard`; new ADR), in two parts: 3a the engine
+      (module records, link, evaluate with cycles and top-level `await`,
+      namespace objects, `import.meta`) and 3b the host (the module graph
+      fetch, the import map, `modulepreload`, `import()` in modules and
+      classic scripts, `load` and `error` events, the console). Exit: the
+      9 module scripts of GitHub run in Chromium's order; the module
+      scripts of BBC keep working.
+   4. Custom elements (`implementer-hard`; new ADR): the registry
+      (`define`, `get`, `whenDefined`, `upgrade`), `HTMLElement` as a
+      constructor base, synchronous construction in the parser, upgrades,
+      the reaction queue (`connectedCallback`, `disconnectedCallback`,
+      `adoptedCallback`, `attributeChangedCallback` with
+      `observedAttributes`), `[CEReactions]`. Autonomous elements only.
+   5. Shadow DOM (`implementer-hard`; new ADR), in three parts: 5a
+      `attachShadow`, slots and the flat tree in style, layout, paint and
+      hit testing; 5b style scoping, `:host`, `::slotted`,
+      `adoptedStyleSheets`; 5c event retargeting, `composedPath`, focus and
+      the Tab order through shadow trees. Declarative shadow roots if a
+      target has them (GitHub has none). Exit: GitHub's `relative-time`
+      and `tool-tip` render as in Chromium.
+   6. Popover, dialog and the top layer (`implementer-hard`; new ADR; JS on
+      and off): the `popover` attribute and its states, `showPopover`,
+      `hidePopover`, `togglePopover`, `popovertarget` (also without
+      scripts), `beforetoggle` and `toggle`, light dismiss, `:popover-open`,
+      `showModal` and `close`, `::backdrop`, the paint order and hit
+      testing of the top layer, Escape.
+   7. Smaller CSS features (`implementer`; JS on and off): `@container`
+      (size queries, container units, names), `@property`,
+      `field-sizing`, `color-mix()` with `currentcolor` and transparency,
+      the computed value of `content-visibility`.
+   8. The first view (`implementer-hard`): run the page with features 1
+      to 7 and fix what stops it (React's hydration, the missing APIs,
+      `relative-time` with `Intl`), the console, the scores, the budget.
+      Exit: items 1, 2, 9, 11 and 12 of the list; the integration test
+      `crates/automation/tests/github_swb.rs` with Chromium's records.
+   9. Interactions (`implementer`): items 3 to 8 and 10 of the list in the
+      integration test, with Chromium's records of the same steps.
+
+   Then the end-of-milestone maintenance.
+
 ## Pending decisions
 
 - Clean-room rewrites of the code derived from Chromium (table layout
@@ -4473,6 +4613,20 @@ Steps:
   sizing; sticky offsets; two float helpers), Skia data and Servo
   (`collapsed_margin.rs`, MPL-2.0); kept with attribution for now
   (ADR 0021).
+
+## Backlog from M10
+
+- CSS anchor positioning (`anchor()`, `anchor-name`, `position-anchor`,
+  `@position-try`): GitHub's overlays use it after
+  `CSS.supports('position-anchor', ...)` and have a fallback (owner
+  decision, 2026-11-07). 30 uses; cases in `tools/probes/github-css.json`.
+- Found in the diagnosis: `getComputedStyle` gives an empty
+  `content-visibility`; `font-family` serializes `-apple-system,
+  BlinkMacSystemFont` as `system-ui, system-ui`; Chromium's replay of
+  GitHub never reaches network idle (15 s cap: every `reference --js` and
+  `replay` of this page takes 17 s or more).
+- CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
+  of `github-css.json` differ).
 
 ## Backlog from M9
 
@@ -5018,19 +5172,6 @@ Steps:
 - `noscript` with JavaScript off (found in feature 2): an inline
   `noscript` with block children gets another union box than in
   Chromium (block-in-inline; Chromium y=42 h=134, swb y=26 h=150).
-- CSS (found by the GitHub candidate, 2026-10-22): the header
-  navigation of github.com/senko/swb is 402 px wide in swb and 627 px
-  in Chromium, because the menu buttons have no side padding. The rule
-  is `padding: var(--base-size-8)` inside `@media (width>=1012px)`,
-  and the custom properties are in a `:root` rule after `@layer`
-  statements. Find which of the three swb gets wrong. The JS-off
-  capture is in the git-ignored `out/candidates/github-swb/`.
-- `compare`: the Chromium reference of the GitHub capture is scrolled
-  by 394 px (the box dump starts at y = 394). Find the cause before
-  GitHub becomes a target.
-- `substitute` fails on raster `data:` URLs in CSS (GitHub has two
-  3x2 px PNGs; they were replaced by hand). Replace them with an SVG
-  `data:` URL of the same size.
 - DOM (found in feature 3a): `element_ids()` (SVG `use` references,
   layout) still scans the whole tree; it could use the id index.
 - DOM: the parser can create a few nodes past the node limit (the token
