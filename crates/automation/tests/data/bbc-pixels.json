@@ -1,5 +1,254 @@
 {
+ "load": {
+  "dialog white": [
+   255,
+   255,
+   255
+  ],
+  "dialog logo": [
+   0,
+   0,
+   0
+  ],
+  "dialog agree button": [
+   0,
+   0,
+   0
+  ],
+  "dialog reject button": [
+   0,
+   0,
+   0
+  ],
+  "dialog manage inside": [
+   255,
+   255,
+   255
+  ],
+  "dialog dimmed page": [
+   86,
+   86,
+   86
+  ],
+  "dialog dimmed page right": [
+   86,
+   86,
+   86
+  ],
+  "clear page": [
+   86,
+   86,
+   86
+  ],
+  "clear page right": [
+   86,
+   86,
+   86
+  ],
+  "menu panel": [
+   81,
+   86,
+   82
+  ],
+  "menu dimmed page": [
+   34,
+   10,
+   10
+  ],
+  "menu dimmed page right": [
+   0,
+   0,
+   0
+  ],
+  "menu header": [
+   86,
+   86,
+   86
+  ],
+  "save popover": [
+   89,
+   89,
+   89
+  ],
+  "save popover corner": [
+   89,
+   89,
+   89
+  ],
+  "save sign in button": [
+   21,
+   24,
+   27
+  ],
+  "save page": [
+   40,
+   42,
+   44
+  ],
+  "language button": [
+   85,
+   89,
+   89
+  ],
+  "language list": [
+   255,
+   255,
+   255
+  ],
+  "language list lower": [
+   48,
+   59,
+   69
+  ]
+ },
+ "consent": {
+  "dialog white": [
+   246,
+   246,
+   246
+  ],
+  "dialog logo": [
+   246,
+   246,
+   246
+  ],
+  "dialog agree button": [
+   85,
+   100,
+   127
+  ],
+  "dialog reject button": [
+   69,
+   80,
+   102
+  ],
+  "dialog manage inside": [
+   77,
+   90,
+   115
+  ],
+  "dialog dimmed page": [
+   246,
+   246,
+   246
+  ],
+  "dialog dimmed page right": [
+   246,
+   246,
+   246
+  ],
+  "clear page": [
+   246,
+   246,
+   246
+  ],
+  "clear page right": [
+   246,
+   246,
+   246
+  ],
+  "menu panel": [
+   231,
+   245,
+   235
+  ],
+  "menu dimmed page": [
+   128,
+   75,
+   74
+  ],
+  "menu dimmed page right": [
+   0,
+   0,
+   0
+  ],
+  "menu header": [
+   246,
+   246,
+   246
+  ],
+  "save popover": [
+   255,
+   255,
+   255
+  ],
+  "save popover corner": [
+   255,
+   255,
+   255
+  ],
+  "save sign in button": [
+   61,
+   69,
+   78
+  ],
+  "save page": [
+   116,
+   122,
+   127
+  ],
+  "language button": [
+   244,
+   255,
+   254
+  ],
+  "language list": [
+   91,
+   83,
+   90
+  ],
+  "language list lower": [
+   161,
+   186,
+   210
+  ]
+ },
  "menu news": {
+  "dialog white": [
+   178,
+   178,
+   178
+  ],
+  "dialog logo": [
+   246,
+   246,
+   246
+  ],
+  "dialog agree button": [
+   178,
+   178,
+   178
+  ],
+  "dialog reject button": [
+   22,
+   23,
+   25
+  ],
+  "dialog manage inside": [
+   178,
+   178,
+   178
+  ],
+  "dialog dimmed page": [
+   255,
+   255,
+   255
+  ],
+  "dialog dimmed page right": [
+   22,
+   23,
+   25
+  ],
+  "clear page": [
+   255,
+   255,
+   255
+  ],
+  "clear page right": [
+   22,
+   23,
+   25
+  ],
   "menu panel": [
    255,
    255,
@@ -57,6 +306,51 @@
   ]
  },
  "save open": {
+  "dialog white": [
+   255,
+   255,
+   255
+  ],
+  "dialog logo": [
+   255,
+   255,
+   255
+  ],
+  "dialog agree button": [
+   246,
+   246,
+   246
+  ],
+  "dialog reject button": [
+   246,
+   246,
+   246
+  ],
+  "dialog manage inside": [
+   246,
+   246,
+   246
+  ],
+  "dialog dimmed page": [
+   255,
+   255,
+   255
+  ],
+  "dialog dimmed page right": [
+   81,
+   83,
+   87
+  ],
+  "clear page": [
+   255,
+   255,
+   255
+  ],
+  "clear page right": [
+   81,
+   83,
+   87
+  ],
   "menu panel": [
    246,
    246,
@@ -114,6 +408,51 @@
   ]
  },
  "language open": {
+  "dialog white": [
+   246,
+   246,
+   246
+  ],
+  "dialog logo": [
+   246,
+   246,
+   246
+  ],
+  "dialog agree button": [
+   255,
+   255,
+   255
+  ],
+  "dialog reject button": [
+   255,
+   255,
+   255
+  ],
+  "dialog manage inside": [
+   230,
+   232,
+   234
+  ],
+  "dialog dimmed page": [
+   246,
+   246,
+   246
+  ],
+  "dialog dimmed page right": [
+   246,
+   246,
+   246
+  ],
+  "clear page": [
+   246,
+   246,
+   246
+  ],
+  "clear page right": [
+   246,
+   246,
+   246
+  ],
   "menu panel": [
    210,
    212,

@@ -1120,9 +1120,16 @@ fn define_constants(iface: &Iface, out: &mut String) -> Result<(), Error> {
         };
         let _ = writeln!(
             out,
-            "    rt.define_value(interface.object, {0}, {value}, swb_js::Attributes::CONSTANT)?;\n    rt.define_value(interface.prototype, {0}, {value}, swb_js::Attributes::CONSTANT)?;",
+            "    rt.define_value(interface.object, {0}, {value}, swb_js::Attributes::CONSTANT)?;",
             literal(&c.name)
         );
+        if !iface.callback {
+            let _ = writeln!(
+                out,
+                "    rt.define_value(interface.prototype, {0}, {value}, swb_js::Attributes::CONSTANT)?;",
+                literal(&c.name)
+            );
+        }
     }
     Ok(())
 }

@@ -149,7 +149,7 @@ pub(crate) fn string_replace_all_in(
         Some(dom_result(rt, result)?)
     };
     crate::html::focus::before_removal(rt, parent, false)?;
-    let result = dom_mut(rt)?.replace_all(parent, node);
+    let result = dom_mut(rt)?.replace_all_batched(parent, node);
     dom_result(rt, result)?;
     let added: Vec<NodeId> = node.into_iter().collect();
     Ok(crate::scripts::after_insertion(rt, parent, &added)?)

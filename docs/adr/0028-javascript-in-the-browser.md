@@ -2146,9 +2146,11 @@ cases; "M9 feature notes" at the end of this section):
   runs `document.open()` in the standard and Chromium replaces the
   document (also while the parser waits for a script, which it then
   aborts). swb ignores the text and logs one warning per document.
-  Document replacement is not planned; M9 feature 15 brings `open` for
-  frame documents. An explicit `open()` without an insertion point is
-  ignored the same way and returns the document.
+  Document replacement is not planned, also not for frame documents: no
+  target calls `open` on a frame (measured in M9 feature 15; ADR 0031
+  "Done (feature 15)"), and it stays in the backlog. An explicit `open()`
+  without an insertion point is ignored the same way and returns the
+  document.
 - Chromium stops the nesting at level 21: the write of a script at level
   22 or more does nothing and does not throw (a script that writes itself
   runs 22 times). swb does the same, with a warning, and the shared
@@ -5370,6 +5372,122 @@ runtimes of a page share, `AgentShared`; ADR 0031, "Done (feature 13b)".)
   of the current document, or of `this` when it differs (`Cx::realm`; measured).
 - **Tests.** `crates/web/tests/documents.rs`: two documents of one runtime,
   normal and in the GC stress mode.
+
+**Feature 15a: `NodeIterator`, `NodeFilter`, `Document.createNodeIterator`
+(BBC's Sourcepoint rendering app).** DOMPurify in the app, which runs in its frame
+since M9 feature 14a, calls `createNodeIterator` on a document that `DOMParser`
+made and removes nodes while it walks. The IDL is DOM section 6 (`dom.idl`);
+`TreeWalker` and `Range` stay in the backlog. Chromium values are those of Chromium
+148 (`tools/probes/web-node-iterator.json` and `-frames.json`, three equal runs;
+`crates/web/tests/node_iterator.rs`, `crates/engine/tests/frames/node_iterator.rs`).
+
+- **Position data in the arena (`swb_dom::iterator`).** The root, the reference
+  node, the pointer flag and the candidate of a running traversal of each iterator
+  are Rust data in the arena of the root: ids only, so the arena keeps them while a
+  runtime borrows it. Nothing is installed until the first iterator of an arena
+  (one comparison per removal otherwise). The registry finds an iterator from a
+  removed subtree through an ordered index of the nodes that pointers are at: with
+  at most 8 iterators the walk up from each pointer and the walk through the
+  removed subtree take turns, and each pointer is decided by the first that answers,
+  so a removal costs the smaller of the subtree's size and the pointers' depth (a
+  leaf that is added and removed 100,000 times beside a chain of 100,000 levels with
+  an iterator at its bottom costs a few units each; hostile case
+  `node-iterator-unrelated-removals-in-a-deep-chain-js-on`); with more iterators it
+  walks the removed subtree and looks each node up. One removal computes the node
+  after the removed subtree and the node before it once for all iterators. The work (nodes
+  visited, index entries read) is counted in a cell that the runtime shares with the
+  arena; the glue's check after each native call (`after_request`) charges it to
+  the time limit of the task when it passes 4,096 units, as it charges the work of
+  the mutation registry (sections 3 and 16). The loop of `nextNode` checks the
+  time limit every 4,096 steps. There is no limit on live iterators:
+  1,000,000 iterators made and dropped in a loop and 100,000 live ones work, as in
+  Chromium. A removal of the top of a chain of 100,000 levels in a loop with more
+  than 8 iterators is quadratic and ends at the time limit (hostile case
+  `node-iterator-chain-cut-one-by-one-js-on`).
+- **The hook.** `Document::unlink_with` runs the pre-removing steps before a node
+  leaves its parent; every removal goes through it: `remove`, `removeChild`,
+  `replaceChild` and `replaceWith` (`remove_node`), "replace all" (`textContent`,
+  `innerHTML`, `innerText`, `replaceChildren`), the removal that "adopt" and "insert"
+  do for a node that moves (`adopt_into`, also across arenas: `transplant` removes the
+  node before it takes the subtree), the children of a fragment that is inserted,
+  `normalize`, and a removal with `suppress_observers`. A move across arenas takes
+  the iterators whose root is in the moved subtree to the new arena
+  (`state::move_node_state`).
+- **A reference in another arena.** The reference and the candidate are nodes,
+  not places in the root's tree: a node that script adopts into another document
+  stays the reference (or the candidate) of the iterators that point at it, whether
+  or not its root moves with it (measured in Chromium: `referenceNode` is the node
+  in its new document, `nextNode` returns it when the pointer is before it, and the
+  next steps go through its own tree; a root that moves leaves a reference outside
+  its subtree where it was). In the arena the pointer is `Spot::Away(tag, node)`,
+  with the tag of the other document; the steps of the arena never touch it
+  (the removed node and the root are in different documents). The glue keeps an
+  index `(document, node, iterator)` of such nodes, so that `move_node_state`
+  finds the iterators that point at a node that moves (the pointer follows it, and
+  is a node of the iterator's own arena again when it comes back), and every node
+  that the glue turns into an object goes through `state::settled`, which follows
+  a node that moved. `referenceNode`, `nextNode` and `previousNode` are typed
+  `object` in the IDL for that reason (a node conversion looks in the current arena
+  only). A running traversal goes on after a filter moved the root to another
+  document: the walk reads the entry and the candidate again at each step, and the
+  accepted node is the reference there.
+- **Dead entries.** The data's `Drop` puts the id on a list (`swb_dom::DeadIterators`)
+  that the runtime shares with all arenas; an arena drops the entries of ids on it
+  at its next removal (each id once; an id of another arena is skipped), and
+  `createNodeIterator` clears the list and the glue's side of the entries.
+- **Chromium's rules, where they differ from the text of the standard** (the
+  specification's steps are the base; each is measured on a fixed tree and on every
+  tree of up to five nodes, every removed node, every pointer, before and after):
+  the removal of an ancestor of the root changes nothing; a pointer before a removed
+  node that has children, with no node after it inside the root, stays;
+  `textContent`, `innerHTML` and `innerText` run the steps for all children while
+  the tree is whole (the previous sibling of the second child is still the first),
+  `replaceChildren` child by child; the children of an inserted fragment leave
+  together; the parser's moves (adoption agency, foster parenting) run no steps; a
+  traversal has a candidate that the steps move like the reference, and the
+  accepted candidate becomes the reference, so a filter that removes the node it
+  looks at leaves the reference at the node's parent or previous sibling. A filter
+  that calls `nextNode` of its own iterator gets `InvalidStateError` ("Filter
+  function can't be recursive"); the flag is per iterator and off again after an
+  exception. A result of the filter is converted to `unsigned short` (so 65537 is
+  accept); only 1 accepts. The object of a callable filter is called with `this`
+  undefined, an object's `acceptNode` is read at each call and called with `this`
+  the object.
+- **Objects.** `NodeFilter` is a callback interface with constants: the generator
+  makes an interface object for it (`Iface::callback`, `ClassSpec::callback_interface`
+  in `crates/js`): a function with the constants, no `prototype`, no `[[Construct]]`;
+  `NodeFilter()` throws `Illegal constructor`. The iterator object is in the realm
+  of the document that `createNodeIterator` was called on (`this`, not the function)
+  and its host word names the root's document, so a call runs in that document
+  and the nodes that it returns have that document's realm (`state::switch_for_call`).
+  Its data traces the filter; the wrappers of nodes live as long as their document
+  (section 4), so the root and the reference need no tracing. The entry of a freed
+  object goes as the dead entries paragraph says (the collector cannot reach the
+  arena).
+- **Departures.** A `TypeError` for a filter without a callable `acceptNode` is
+  made in the realm of the running native; Chromium makes it in the filter's realm
+  (`DEPARTURES` of the frames test). An exception of script code while the result of
+  `acceptNode` is converted, and an engine exception while it is read, pass
+  unchanged; Chromium adds a prefix to their messages. An `Attr` is no `Node`, so it
+  cannot be a root; swb has no XML documents, `createProcessingInstruction` and
+  `createCDATASection`, so the bits `SHOW_PROCESSING_INSTRUCTION` and
+  `SHOW_CDATA_SECTION` select no node. After a filter caught the
+  `InvalidStateError` of its own nested `nextNode` call, Chromium's walk ends at once
+  (it returns `null` for the node after `p#a`, where the steps of the standard give
+  the next node); a longer form of the same page, with a loop of `nextNode` calls
+  after it, crashes Chromium's renderer. Chromium's state after a caught nested call
+  does not follow the standard, so swb keeps the standard's steps (a row in
+  `crates/web/tests/node_iterator.rs` with Chromium's values).
+- **Result.** The Sourcepoint dialog renders in swb: the frame's document has the
+  markup of Chromium's (15,587 bytes, 10 children in the body, a height of 800 px),
+  the page's records match Chromium's after the click on "I agree" and swb logs
+  the two console errors that Chromium's replay logs, in the same order
+  (`crates/automation/tests/bbc.rs`). "I do not agree" removes the frame and logs the
+  same two errors; "Manage options" shrinks the dialog's frame to 0 by 0, adds the
+  frame of the privacy manager (its document is not in the fixture, so the settings
+  view shows in neither browser), sets `overflow: hidden` on the body and logs
+  nothing, as Chromium does (the focus fixup of the hidden container is the known
+  gap: swb keeps the focus in the frame).
 
 ## Consequences
 

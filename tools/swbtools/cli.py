@@ -33,6 +33,7 @@ from swbtools.reference import reference, reference_js
 from swbtools.replay import DEFAULT_PAUSE_MS, replay_command
 from swbtools.scoring import DEFAULT_TOLERANCE, Scores
 from swbtools.substitute import substitute
+from swbtools.web_cases import write_web_cases
 
 log = logging.getLogger("swbtools")
 
@@ -149,6 +150,10 @@ def cmd_lazy_cases(args: argparse.Namespace) -> int:
     return write_lazy_cases(args.chromium)
 
 
+def cmd_web_cases(args: argparse.Namespace) -> int:
+    return write_web_cases(args.probe, args.chromium, args.rust)
+
+
 def cmd_cssom_cases(args: argparse.Namespace) -> int:
     return write_cssom_cases(args.chromium)
 
@@ -193,6 +198,8 @@ def cmd_replay(args: argparse.Namespace) -> int:
         args.screenshots,
         args.pixels,
         args.pixels_out,
+        args.init_script,
+        args.console_out,
     )
 
 
@@ -413,6 +420,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_lazy_cases)
 
     p = commands.add_parser(
+        "web-cases",
+        help="write the Rust cases of a probe file for crates/web/tests",
+    )
+    p.add_argument("probe", type=Path, help="the probe file, relative to the repository root")
+    p.add_argument("chromium", type=Path, help="the output of `probe --json PROBE`")
+    p.add_argument(
+        "rust", type=Path, help="the Rust file to write, relative to the repository root"
+    )
+    p.set_defaults(func=cmd_web_cases)
+
+    p = commands.add_parser(
         "cssom-cases",
         help="write crates/engine/tests/cssom_sheets/cases.rs from web-cssom-sheets.json",
     )
@@ -536,6 +554,18 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         metavar="FILE",
         help="write {group: {point: [r, g, b]}} here (needs --pixels)",
+    )
+    p.add_argument(
+        "--init-script",
+        type=Path,
+        metavar="FILE",
+        help="script that runs in every frame before the page's scripts (add_init_script)",
+    )
+    p.add_argument(
+        "--console-out",
+        type=Path,
+        metavar="FILE",
+        help="write the console of all frames here, one line per message: type, url:line, text",
     )
     p.add_argument("--system-fonts", action="store_true", help=fonts_help)
     p.set_defaults(func=cmd_replay)

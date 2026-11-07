@@ -49,16 +49,18 @@
 //! time (`ckns_policy_exp`).
 //!
 //! The consent frame (feature 1 of the list): Chromium's replay shows the
-//! Sourcepoint dialog in a cross-origin frame of 1280x800 over the page.
-//! swb has no frames yet (M9 features 10 to 15), so there the page has no
-//! dialog and pointer input reaches the page. The first group, `consent`,
-//! clicks "I agree" in the frame in Chromium (the frame sends `sp.hideMessage`
-//! and the page removes it); the test skips it, and compares swb's record at
-//! the load with Chromium's record after the group (the same page state:
-//! scroll position 0, focus on the body, `overflow` visible, the banner and
-//! the header where they are), and with Chromium's record at the load except
-//! for the focused element (the frame). Feature 15 of the milestone runs the
-//! group in swb too and adds item 1.
+//! Sourcepoint dialog in a cross-origin frame of 1280x800 over the page, and
+//! so does swb since M9 feature 15a (`document.createNodeIterator`, which the
+//! `DOMPurify` of the rendering app calls): the frame's document has 15,587
+//! bytes of markup, 14,194 in the body, 10 children and a height of 800 px, as
+//! in Chromium; the first screenshot differs from Chromium's in 0.5 % of its
+//! pixels (the glyph edges). Four messages `sp.*` cross: `sp.readyForPreload`,
+//! `sp.loadMessage`, `sp.showMessage` and, after the click, `sp.hideMessage`. The
+//! first group, `consent`, clicks "I agree" in the frame (the frame sends
+//! `sp.hideMessage` and the page removes it); swb runs it, and the record at the
+//! load has the focus in the frame as Chromium's has (the key `active` is
+//! compared at the load too). Neither browser calls `document.open`, `write` or
+//! `close` on a document of the page.
 //!
 //! Scroll anchoring (CSS Scroll Anchoring) is not implemented in swb. In
 //! Chromium the first wheel step scrolls 16 px less than the wheel: the
@@ -74,7 +76,8 @@
 //! frame (the consent choice requests are not in the fixture): `console.error:
 //! ERROR in messagingWithoutDetection: RequestError: Server request error: 0`
 //! from `wrapperMessagingWithoutDetection.js`, and the exception `Failed to
-//! fetch`. swb has no console error at all: it skips the group.
+//! fetch`. swb logs the same two, in the same order, and no other console
+//! message ([`CONSENT_CLICK_ERRORS`]).
 //!
 //! Where the Chromium values come from: Chromium 148.0.7778.96 (headless
 //! shell, Playwright) replayed the same fixture with the same page clock,
@@ -154,23 +157,20 @@ fn record(page: &mut Page, fetcher: &Recording) -> Value {
     record
 }
 
-/// The start of the console errors that the consent frame leaves until swb has
-/// `document.createNodeIterator`: since messages cross runtimes (ADR 0031 "Done (feature
-/// 14a)") Sourcepoint's rendering app runs in its frame, and `DOMPurify` in it calls that
-/// function, which swb lacks (backlog). The app reports `sp.renderingAppError`, the
-/// wrapper of the top level logs it, and its report of the error is a POST that the
-/// fixture does not have. The page gives each of them once.
-const CONSENT_FRAME_ERRORS: &[&str] = &[
-    "Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'call')",
+/// The start of the two console errors that the click in the consent frame leaves, in
+/// the order in which both browsers log them: the wrapper's report of the failed consent
+/// request and the rejection of the app's own request (neither request is in the
+/// fixture). The page gives each of them once.
+const CONSENT_CLICK_ERRORS: &[&str] = &[
     "ERROR in messagingWithoutDetection:",
     "Uncaught (in promise) TypeError: Failed to fetch",
 ];
 
-/// The console errors without one of each of [`CONSENT_FRAME_ERRORS`]. The texts are
+/// The console errors without one of each of [`CONSENT_CLICK_ERRORS`]. The texts are
 /// general, so a second error with the same start stays and fails the test.
 fn other_console_errors(page: &Page) -> Vec<String> {
     let mut errors = console_errors(page);
-    for known in CONSENT_FRAME_ERRORS {
+    for known in CONSENT_CLICK_ERRORS {
         if let Some(found) = errors.iter().position(|error| error.starts_with(known)) {
             errors.remove(found);
         }
@@ -226,24 +226,24 @@ fn bbc_works_with_javascript_on() {
             }
         };
 
-        // The load: the same page as Chromium's after the group `consent`
-        // (no frame in swb), and as Chromium's at the load except for the
-        // focused element (the frame).
+        // The load: the page with the consent dialog, as Chromium's record at the load.
         let at_load = record(&mut page, &fetcher);
-        let mut problems = differences(
-            "load",
-            &without(&at_load, &["active"]),
-            &without(&expected[0], &["active"]),
-        );
+        let mut problems = differences("load", &at_load, &expected[0]);
+        sample("load", &mut page, &mut problems);
         let groups = step_groups(include_str!("data/bbc-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
         for (index, (name, steps)) in groups.iter().enumerate() {
             let expected = &expected[index + 1];
-            if name == "consent" {
-                problems.extend(differences(name, &at_load, expected));
-                continue;
-            }
             run_steps(&mut page, steps).unwrap();
+            if name == "consent" {
+                // The click in the consent frame left the two errors of Chromium's replay,
+                // in its order, and no other.
+                let errors = console_errors(&page);
+                assert_eq!(errors.len(), CONSENT_CLICK_ERRORS.len(), "{errors:?}");
+                for (error, start) in errors.iter().zip(CONSENT_CLICK_ERRORS) {
+                    assert!(error.starts_with(start), "{error}");
+                }
+            }
             if name == "sign in" {
                 // The page navigates away: Chromium's record is the one of
                 // the error page.
@@ -279,8 +279,8 @@ fn bbc_works_with_javascript_on() {
             "a group of the pixel check is missing"
         );
         assert!(problems.is_empty(), "{}", problems.join("\n"));
-        // No script error after the steps either (the console lists each
-        // message once, so these are the new ones).
+        // No script error after the steps either (the console lists each message once, so
+        // these are the new ones).
         assert_eq!(other_console_errors(&page), Vec::<String>::new());
     });
 }
@@ -301,14 +301,101 @@ fn bbc_cookie_banner_settings_link_navigates() {
         assert_eq!(other_console_errors(&page), Vec::<String>::new());
         let groups = step_groups(include_str!("data/bbc-settings-steps.json"));
         assert_eq!(groups.len() + 1, expected.len());
-        for (name, steps) in &groups {
-            if name == "consent" {
-                continue;
-            }
+        for (_, steps) in &groups {
             run_steps(&mut page, steps).unwrap();
         }
         assert_eq!(expected.last().unwrap()["navigated"], true);
         assert_eq!(page.url().unwrap().as_str(), COOKIE_SETTINGS);
         assert!(fetcher.urls().iter().any(|url| url == COOKIE_SETTINGS));
+    });
+}
+
+/// The record of the page for the consent tests (`data/bbc-consent-record.txt`:
+/// `window.__s()` with the key `frames`, the frames that have an `id`, with their
+/// size and the path of their URL).
+fn consent_record(page: &mut Page) -> Value {
+    let text = value(page, include_str!("data/bbc-consent-record.txt"));
+    serde_json::from_str(text.as_str().unwrap()).unwrap()
+}
+
+/// A load, the click on a button of the consent dialog (`steps`, with the wait for
+/// the dialog's answer) and Chromium's records (`chromium`) of the same steps: the
+/// page and the differences of swb's record at the load and after the group.
+fn consent_click(
+    dir: &std::path::Path,
+    steps: &str,
+    chromium: &str,
+    skip: &[&str],
+) -> (Page, Vec<String>) {
+    let expected: Vec<Value> = serde_json::from_str(chromium).unwrap();
+    let fetcher = Arc::new(Recording::new(ReplayFetcher::load(dir).unwrap()));
+    let mut page = load_at_capture_with(dir, Duration::from_millis(1500), fetcher);
+    assert!(page.has_script_runtime());
+    assert_eq!(console_errors(&page), Vec::<String>::new());
+    assert_eq!(value(&mut page, include_str!("data/bbc.js")), 1);
+    let mut problems = differences("load", &consent_record(&mut page), &expected[0]);
+    let groups = step_groups(steps);
+    assert_eq!(groups.len() + 1, expected.len());
+    for (index, (name, steps)) in groups.iter().enumerate() {
+        run_steps(&mut page, steps).unwrap();
+        let got = consent_record(&mut page);
+        problems.extend(differences(
+            name,
+            &without(&got, skip),
+            &without(&expected[index + 1], skip),
+        ));
+    }
+    (page, problems)
+}
+
+/// "I do not agree" in the consent frame (a load of its own): the page removes the
+/// frame, the focus goes to the body, and the console gets the two errors of "I agree"
+/// (the consent choice requests are not in the fixture).
+#[test]
+fn bbc_consent_reject_closes_the_dialog() {
+    let Some(dir) = fixture("bbc") else {
+        eprintln!("skipped: fixtures/js/bbc is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let (page, problems) = consent_click(
+            &dir,
+            include_str!("data/bbc-consent-reject-steps.json"),
+            include_str!("data/bbc-consent-reject-chromium.json"),
+            &[],
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+        let errors = console_errors(&page);
+        assert_eq!(errors.len(), CONSENT_CLICK_ERRORS.len(), "{errors:?}");
+        for (error, start) in errors.iter().zip(CONSENT_CLICK_ERRORS) {
+            assert!(error.starts_with(start), "{error}");
+        }
+    });
+}
+
+/// "Manage options" in the consent frame (a load of its own): the dialog's frame
+/// becomes 0 by 0, the page adds the frame of the privacy manager (also 0 by 0) and
+/// sets `overflow: hidden` on the body, and the console stays empty. The settings
+/// view is the document of that second frame, which the fixture does not have, so
+/// neither browser shows it in the replay: the test checks that the dialog closes and
+/// that the privacy manager's frame starts, as Chromium's record does.
+#[test]
+fn bbc_consent_manage_options_starts_the_privacy_manager() {
+    let Some(dir) = fixture("bbc") else {
+        eprintln!("skipped: fixtures/js/bbc is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let (page, problems) = consent_click(
+            &dir,
+            include_str!("data/bbc-consent-manage-steps.json"),
+            include_str!("data/bbc-consent-manage-chromium.json"),
+            // The page hides the dialog's container with `display: none` while the
+            // frame has the focus: Chromium moves the focus to the body (the focus
+            // fixup rule), swb keeps it, as after "banner agree" in the main test.
+            &["active"],
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+        assert_eq!(console_errors(&page), Vec::<String>::new());
     });
 }

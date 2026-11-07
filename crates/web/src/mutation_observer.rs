@@ -215,7 +215,8 @@ pub(crate) fn after_request(rt: &mut Runtime) -> VmResult<()> {
     if microtask {
         queue_microtask(rt);
     }
-    if overdue {
+    // The work of the pre-removing steps of the node iterators counts too.
+    if crate::node_iterator::take_overdue(rt) || overdue {
         rt.check_time()?;
     }
     Ok(())

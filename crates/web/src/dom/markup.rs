@@ -80,7 +80,7 @@ pub(super) fn set_inner_html(cx: &mut Cx<'_>, this: NodeId, markup: &str) -> b::
         .element(this)
         .and_then(|e| e.template_contents)
         .unwrap_or(this);
-    let result = tree_ops::replace_all(cx, target, fragment);
+    let result = tree_ops::replace_all(cx, target, fragment, true);
     recycle(cx, fragment)?;
     result
 }

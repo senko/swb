@@ -40,7 +40,7 @@ pub(crate) fn get(rt: &mut Runtime, element: NodeId) -> b::Result<String> {
 /// The `innerText` setter: HTML "set the inner text steps".
 pub(crate) fn set_inner(cx: &mut Cx<'_>, element: NodeId, value: &str) -> b::Result<()> {
     let fragment = rendered_text_fragment(cx, element, value)?;
-    replace_all(cx, element, fragment)
+    replace_all(cx, element, fragment, true)
 }
 
 /// The `outerText` setter: replaces the element with the rendered text

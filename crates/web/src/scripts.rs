@@ -1413,7 +1413,7 @@ impl g::html_script_element::HTMLScriptElementImpl for WebState {
             let result = dom_mut(cx.rt)?.create_node_in(doc, NodeData::Text(value));
             Some(crate::dom::dom_result(cx.rt, result)?)
         };
-        let result = dom_mut(cx.rt)?.replace_all(this, node);
+        let result = dom_mut(cx.rt)?.replace_all_batched(this, node);
         crate::dom::dom_result(cx.rt, result)?;
         Ok(children_changed(cx.rt, this)?)
     }

@@ -4,6 +4,39 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M9 feature 15: `NodeIterator` and BBC's consent dialog
+
+- `document.createNodeIterator`, `NodeIterator` and `NodeFilter`. DOMPurify in Sourcepoint's
+  rendering app needs them; with them the app runs to its end, and BBC's consent dialog renders
+  in its cross-origin frame as in Chromium. `compare --js bbc`: pixels 0.2463 to 0.9977,
+  geometry 0.9992 to 1.0000.
+- The position of each iterator is plain data in the arena of its root, and every removal runs
+  the pre-removing steps before the node leaves. An arena without iterators pays one comparison
+  per removal. Chromium differs from the text of the standard in five rules, measured on every
+  tree of up to five nodes: for example a removal of an ancestor of the root changes nothing,
+  and `innerHTML` runs the steps for all children while the tree is whole. swb follows
+  Chromium.
+- A reference or a candidate that another document adopts stays the reference there, as in
+  Chromium; the iterator keeps a pointer into the other arena.
+- `NodeFilter` is a callback interface with constants: the WebIDL generator and `crates/js` now
+  make an interface object without `prototype` and `[[Construct]]` for it. test262 unchanged.
+- BBC: "I agree" and "I do not agree" close the dialog, with the two console errors of
+  Chromium's replay. "Manage options" starts the privacy manager, whose page is not in the
+  fixture, so it stays 0 x 0 in both browsers. `bbc.rs` now covers all eight items of the
+  list. Load 0.370 s, hydrated 3.196 s (budget 4.60 s).
+- `document.open`, `write` and `close` on frame documents are not done: Chromium calls them on no
+  document during BBC's load and the consent clicks (an init script in every frame), so they
+  went to the backlog.
+- Three reviews found no panic. They found, and this commit fixes: a removal far from a deep
+  pointer walked the pointer's ancestors (100,000 removals reached the time limit; now 0.96 s);
+  entries of dropped iterators stayed until the next `createNodeIterator`; a reference in a
+  subtree that moved to another arena was read through its old id; a filter that moved the
+  root lost the accepted node; the ADR said Chromium hung on a caught nested call (it answers;
+  a longer form crashes its renderer).
+- Found and left in the backlog: Tab does not enter a frame that a script focused, and
+  `vertical-align: top` aligns as `baseline` (the dialog's arrows sit 5 px low).
+- Next: the end-of-milestone maintenance of M9.
+
 ## 2026-11-06: M9 feature 14b: storage keys, `storage` events, cookies and referrer of frames
 
 - A frame's `localStorage` and `sessionStorage` are partitioned by top-level site. The key is

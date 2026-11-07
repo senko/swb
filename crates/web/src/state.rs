@@ -166,6 +166,8 @@ pub(crate) struct WebState {
     pub(crate) ports: Rc<crate::message_port::Ports>,
     /// What large messages cost this runtime (`messaging.rs`).
     pub(crate) message_cost: crate::messaging::MessageCost,
+    /// The `NodeIterator` objects of the runtime (`node_iterator.rs`).
+    pub(crate) iterators: crate::node_iterator::IteratorTable,
 }
 
 /// The binding state of one document and its `Window`.
@@ -627,7 +629,13 @@ fn switch_for_call(rt: &mut Runtime, call: &NativeCall) -> VmResult<Entered> {
         Some(key) => key,
         None => document_of_realm(state(rt)?, call.realm()),
     };
-    let realm = rt.host_object_realm(call.this());
+    // A `NodeIterator` of one realm walks the nodes of another document (its
+    // root's); the wrappers it makes belong to that document's realm
+    // (measured).
+    let realm = match rt.host_object(call.this()) {
+        Some((class, _)) if class == g::NODE_ITERATOR => None,
+        _ => rt.host_object_realm(call.this()),
+    };
     enter_document(rt, key, realm)
 }
 
@@ -1357,6 +1365,7 @@ pub(crate) fn move_node_state(
     source: DocKey,
     pairs: &[(NodeId, NodeId)],
 ) -> VmResult<()> {
+    let request = rt.host_signal_cell();
     let state_now = state_mut(rt)?;
     let target = state_now.doc.key;
     let Some(mut from) = state_now
@@ -1417,6 +1426,14 @@ pub(crate) fn move_node_state(
         from.handlers.move_nodes(&mut to.handlers, &with_wrapper);
         from.selection_events.forget(&with_wrapper);
     }
+    crate::node_iterator::moved(
+        &mut state_now.iterators,
+        &request,
+        &mut state_now.docs,
+        &mut from,
+        to,
+        pairs,
+    );
     if let Some(slot) = state_now.docs.get_mut(source as usize) {
         *slot = Some(from);
     }

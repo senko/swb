@@ -401,6 +401,8 @@ pub struct Document {
     /// writes reuses them.
     pub(crate) scratch_fragment: Option<NodeId>,
     pub(crate) scratch_body: Option<NodeId>,
+    /// The `NodeIterator` positions of the arena (`iterator.rs`).
+    pub(crate) iterators: crate::iterator::NodeIterators,
     arena_id: u64,
 }
 
@@ -449,6 +451,7 @@ impl Document {
             other_quirks: HashMap::new(),
             scratch_fragment: None,
             scratch_body: None,
+            iterators: crate::iterator::NodeIterators::default(),
             arena_id: NEXT_ARENA_ID.fetch_add(1, Ordering::Relaxed),
         }
     }

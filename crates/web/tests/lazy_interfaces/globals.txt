@@ -100,6 +100,8 @@ ProcessingInstruction:dwc
 Comment:dwc
 MutationObserver:dwc
 MutationRecord:dwc
+NodeIterator:dwc
+NodeFilter:dwc
 TextDecoder:dwc
 TextEncoder:dwc
 Headers:dwc

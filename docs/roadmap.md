@@ -4440,6 +4440,19 @@ Steps:
        renders in its frame and its buttons close it; the BBC test covers feature
        1 of the list and has no row for the consent frame's console errors; BBC
        meets its list and budget; targets.md for targets 4, 5 and 6.
+       Done 2026-11-07: `createNodeIterator`, `NodeIterator` and `NodeFilter`
+       with Chromium's rules for the pre-removing steps (ADR 0028 "Feature 15a";
+       56 probe cases, three equal Chromium runs). The dialog renders in its frame
+       as in Chromium; "I agree" and "I do not agree" close it, with the same two
+       console errors as Chromium's replay (the choice requests are not in the
+       fixture); "Manage options" starts the privacy manager in a second frame,
+       whose page is not in the fixture, so in both browsers it stays 0 x 0 (ADR
+       0031 "Done (feature 15)"). `bbc.rs` covers all eight items of the list.
+       `document.open` on frames is not done: Chromium calls it on no document of
+       the targets (measured), so it went to the backlog. `compare --js bbc`:
+       geometry 0.9992 → 1.0000, pixels 0.2463 → 0.9977; the other JS fixtures
+       unchanged. BBC: load 0.370 s, hydrated 3.196 s (budget 4.60 s). JS off:
+       snapshot identical.
 
    Then the end-of-milestone maintenance.
 
@@ -4524,6 +4537,33 @@ Steps:
   - A message that waited for a reused window reaches a listener of the first script of
     the new document; Chromium's does not see it.
   - `document.hasStorageAccess` and `TreeWalker` do not exist.
+- Traversal and BBC's consent dialog (feature 15; ADR 0028 "Feature 15a", ADR 0031 "Done
+  (feature 15)"):
+  - `TreeWalker`, `Range`, `createProcessingInstruction` and `createCDATASection` do not
+    exist (Wikipedia's and GitHub's fixtures name `createTreeWalker`; no target needs it
+    yet).
+  - Tab does not enter a frame that a script focused with `iframe.focus()`: the top
+    document's focused element is then the `iframe`, and `Page::focused_frame`
+    (`crates/engine/src/page/frame_focus.rs`) takes that for a focus in the top document
+    and resets the frame focus, so Tab starts at the `iframe` and leaves the page. In
+    Chromium Tab reaches the heading of BBC's consent dialog, and Enter opens its rows; in
+    swb Tab moves to the page under the dialog. A fix is about five lines (do not count the
+    frame's own `iframe` as a focus in the top document) and a frame input case.
+  - `vertical-align: top` and `bottom` align as `baseline` (`baseline_shift` in
+    `crates/layout/src/inline/mod.rs`; CSS 2.2 §10.8.1). BBC's consent dialog draws its
+    accordion arrows 5 px lower than Chromium.
+  - "Manage options" of BBC's consent dialog starts the privacy manager, whose page is not in
+    the fixture (both browsers show a frame of 0 x 0). Recording it needs the live site.
+  - A `TypeError` for a filter without a callable `acceptNode` is made in the realm of the
+    running native (Chromium: the filter's realm); exceptions while the result of
+    `acceptNode` is converted pass without Chromium's prefix of the message.
+  - A filter that catches the `InvalidStateError` of its own nested call: swb follows the
+    standard; Chromium gives `null` at the third call, and a longer form crashes its
+    renderer.
+  - More than 8 iterators and a chain of 100,000 levels cut node by node take quadratic
+    time and end at the task's time limit.
+  - The callback interface `NodeFilter` makes a prototype object that nothing can reach
+    (one per realm that uses it; `Interface.prototype` is not optional in `crates/js`).
 - Storage, cookies and the referrer of frames (feature 14b; rows in
   `crates/engine/tests/frames/storage.rs` and ADR 0031 "Done (feature 14b)"):
   - The `referrerpolicy` attribute of `iframe` and the `Referrer-Policy` header are not read
@@ -4676,7 +4716,9 @@ Steps:
   check `plugins.length` can take swb for a headless browser.
 - Document replacement by `document.open()` and by a write without an
   insertion point (Chromium replaces the document; swb ignores the
-  call). Feature 15 does `open` for frame documents only.
+  call), also on frame documents: core-js's `NullProtoObjectViaIFrame`
+  (`about-blank` case of `web-frames.json` has Chromium's values) needs it
+  only where `Object.create` is missing, and no target calls it (feature 15).
 - Chromium's intervention that blocks written cross-site scripts on slow
   networks.
 - `reference --js` and `compare` do not record the request order;

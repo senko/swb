@@ -1,0 +1,633 @@
+{
+ "cases": [
+  {
+   "name": "frames-realms",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const it = fd.createNodeIterator(fd.body); const it2 = document.createNodeIterator(fd.body); const it3 = document.createNodeIterator(document.body); const it4 = Document.prototype.createNodeIterator.call(fd, document.body); const it5 = fw.Document.prototype.createNodeIterator.call(document, fd.body); return [it instanceof NodeIterator, it instanceof fw.NodeIterator, it2 instanceof NodeIterator, it2 instanceof fw.NodeIterator, it3 instanceof NodeIterator, it4 instanceof NodeIterator, it4 instanceof fw.NodeIterator, it5 instanceof NodeIterator, it5 instanceof fw.NodeIterator, fw.NodeFilter === NodeFilter, fw.NodeFilter.SHOW_ALL, N(it.root), N(it2.root), it.root === fd.body, it2.root === fd.body, Object.getPrototypeOf(it) === fw.NodeIterator.prototype, N(it.nextNode()), N(it2.nextNode()), N(it.referenceNode), it2.root.ownerDocument === fd, it2.root instanceof fw.Node, it2.referenceNode instanceof fw.HTMLElement]; })()",
+     "value": [
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      4294967295,
+      "body",
+      "body",
+      true,
+      true,
+      true,
+      "body",
+      "body",
+      "body",
+      true,
+      true,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-filters",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const o = []; const ff = fw.eval('(n => n.localName === `p` ? 3 : 1)'); const it = fd.createNodeIterator(fd.body, 1, ff); o.push(FWD(it)); o.push(String(it.filter === ff)); const fo = fw.eval('(window.fo = {acceptNode(n) { return this === window.fo ? 1 : 3; }})'); const it2 = document.createNodeIterator(fd.body, 1, fo); o.push(FWD(it2)); const thrower = fw.eval('(() => { throw new Error(`fe`); })'); try { document.createNodeIterator(document.body, 1, thrower).nextNode(); } catch (x) { o.push(x instanceof Error, x instanceof fw.Error); } let it3; it3 = fd.createNodeIterator(fd.body, 1, n => { try { it3.nextNode(); } catch (x) { o.push('reentry:' + [x.name, x instanceof DOMException, x instanceof fw.DOMException].join()); } return 1; }); it3.nextNode(); const e1 = (() => { try { document.createNodeIterator(fd.body, 1, fw.eval('(() => 1)')); return 'ok'; } catch (x) { return x.name; } })(); o.push(e1); try { fd.createNodeIterator(1); } catch (x) { o.push(x instanceof TypeError, x instanceof fw.TypeError); } try { document.createNodeIterator(1); } catch (x) { o.push(x instanceof TypeError, x instanceof fw.TypeError); } try { fw.Document.prototype.createNodeIterator.call(document, 1); } catch (x) { o.push(x instanceof TypeError, x instanceof fw.TypeError); } return o; })()",
+     "value": [
+      "body b#fb i#fi",
+      "true",
+      "body p#fp b#fb i#fi",
+      false,
+      true,
+      "reentry:InvalidStateError,false,true",
+      "ok",
+      false,
+      true,
+      true,
+      false,
+      false,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-filter-errors",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument, fw = f.contentWindow; const o = []; const bad = (it, e) => E(() => { try { it.nextNode(); } catch (x) { return [x.name, x instanceof TypeError, x instanceof fw.TypeError, x instanceof DOMException, x instanceof fw.DOMException].join(); } return 'no'; }); o.push(bad(fd.createNodeIterator(fd.body, 1, {})), bad(document.createNodeIterator(fd.body, 1, {})), bad(document.createNodeIterator(document.body, 1, fw.eval('({})')))); return o; })()",
+     "value": [
+      "TypeError,true,false,false,false",
+      "TypeError,true,false,false,false",
+      "TypeError,false,true,false,false"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-top",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument; const it = document.createNodeIterator(fd.body); let n; while ((n = it.nextNode()) && n.id !== 'fb'); const o = [S(it)]; fd.getElementById('fb').remove(); o.push(S(it)); fd.getElementById('fp').remove(); o.push(S(it)); fd.body.appendChild(fd.createElement('u')); o.push(FWD(it)); return o; })()",
+     "value": [
+      "b#fb>",
+      "t:hi>",
+      "body>",
+      "i#fi u"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-move-root",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument; const w = document.createElement('div'); w.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = document.createNodeIterator(w); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it)]; fd.body.appendChild(w); o.push(String(it.root.ownerDocument === fd), S(it), String(it.root === w), FWD(it), S(it)); w.querySelector('#a').remove(); o.push(S(it)); w.firstChild.remove(); o.push(S(it)); w.innerHTML = '<p id=c><i id=c1></i></p>'; document.body.appendChild(w); o.push(String(w.ownerDocument === document), S(it)); w.firstChild.remove(); o.push(S(it)); w.remove(); return o; })()",
+     "value": [
+      "i#a1>",
+      "true",
+      "i#a1>",
+      "true",
+      "p#b",
+      "p#b>",
+      "p#b>",
+      "div>",
+      "true",
+      "div>",
+      "div>"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-move-node",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument; const it = document.createNodeIterator(document.body); let n; while ((n = it.nextNode()) && n.id !== 'tp'); const o = [S(it)]; fd.body.appendChild(document.getElementById('tp')); o.push(S(it), String(document.getElementById('tp'))); const it2 = fd.createNodeIterator(fd.body); while ((n = it2.nextNode()) && n.id !== 'fb'); o.push(S(it2)); document.body.appendChild(fd.getElementById('fp')); o.push(S(it2)); return o; })()",
+     "value": [
+      "p#tp>",
+      "iframe#f>",
+      "null",
+      "b#fb>",
+      "body>"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-leave",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "(() => { const f = document.getElementById('f'); const fd = f.contentDocument; const it = fd.createNodeIterator(fd.body); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it)]; f.remove(); o.push(S(it), String(f.contentDocument), String(fd.defaultView)); o.push(E(() => N(it.nextNode())), S(it)); const b = fd.getElementById('fb'); o.push(String(b !== null)); if (b) b.remove(); o.push(S(it)); o.push(E(() => N(it.previousNode())), S(it), FWD(it), BWD(it)); return o; })()",
+     "value": [
+      "t:hi>",
+      "t:hi>",
+      "null",
+      "null",
+      "b#fb",
+      "b#fb>",
+      "true",
+      "t:hi>",
+      "t:hi",
+      "t:hi<",
+      "t:hi i#fi",
+      "i#fi t:hi p#fp body"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-navigate-a",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const f = document.getElementById('f'); const fd = f.contentDocument; const it = fd.createNodeIterator(fd.body); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it)]; f.onload = () => { const nd = f.contentDocument; o.push(String(nd !== fd), String(fd.defaultView), E(() => N(it.nextNode())), S(it)); const b = fd.getElementById('fb'); o.push(String(b !== null)); if (b) b.remove(); o.push(S(it)); const it2 = nd.createNodeIterator(nd.body); o.push(FWD(it2)); res(o); }; f.srcdoc = '<!DOCTYPE html><body><p id=np>new</p></body>'; })",
+     "value": [
+      "t:hi>",
+      "true",
+      "null",
+      "b#fb",
+      "b#fb>",
+      "true",
+      "t:hi>",
+      "body p#np t:new"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-navigate-b",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const f = document.getElementById('f'); const fd = f.contentDocument; const o = []; const it = fd.createNodeIterator(fd.body, 4294967295, n => { if (n.id === 'fb') { f.remove(); } return 1; }); o.push(FWD(it), S(it), String(fd.defaultView), N(it.root)); res(o); })",
+     "value": [
+      "body p#fp t:hi b#fb t:x i#fi",
+      "i#fi>",
+      "null",
+      "body"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-navigate-c",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "new Promise(res => { const f = document.getElementById('f'); const fd = f.contentDocument; const o = []; let it; it = fd.createNodeIterator(fd.body, 4294967295, n => { if (n.id === 'fb') { f.srcdoc = '<p>again</p>'; } return 1; }); o.push(FWD(it), S(it)); setTimeout(() => { o.push(String(fd.defaultView), N(f.contentDocument.body.firstChild), E(() => N(it.previousNode())), S(it)); res(o); }, 50); })",
+     "value": [
+      "body p#fp t:hi b#fb t:x i#fi",
+      "i#fi>",
+      "null",
+      "p",
+      "i#fi",
+      "i#fi<"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-ref-moves",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "const fd = document.getElementById('f').contentDocument;\nconst dp = new DOMParser().parseFromString('<body><p>x</p>', 'text/html');\nconst hd = document.implementation.createHTMLDocument('');\nconst D = n => n === null || n === undefined ? '-' : n.ownerDocument === document ? 'top' : n.ownerDocument === fd ? 'frame' : n.ownerDocument === dp ? 'parser' : n.ownerDocument === hd ? 'html' : 'other';\nconst DEST = { stay: c => {}, frame: c => fd.adoptNode(c), same: c => document.adoptNode(c), parser: c => dp.adoptNode(c), html: c => hd.adoptNode(c) };\nconst make = html => { const box = document.createElement('div'); document.body.appendChild(box); box.innerHTML = html; return box.firstChild; };\n\n(() => {\n const out = [];\n for (const how of ['none', 'remove', 'textContent', 'removeChild', 'replaceChildren'])\n for (const dest of ['stay', 'frame', 'same', 'parser', 'html'])\n for (const mask of [4294967295, 1, 129])\n for (const dir of ['next', 'prev']) {\n  const r = make('<div id=r><i id=c><b>g</b></i></div>'), c = r.firstChild;\n  const it = document.createNodeIterator(r, mask);\n  it.nextNode(); it.nextNode(); it.previousNode();\n  const s0 = S(it);\n  if (how === 'remove') c.remove(); else if (how === 'textContent') r.textContent = ''; else if (how === 'removeChild') r.removeChild(c); else if (how === 'replaceChildren') r.replaceChildren();\n  const s1 = S(it);\n  const o = E(() => DEST[dest](c));\n  const s2 = S(it), same = it.referenceNode === c;\n  const got = E(() => { const n = dir === 'next' ? it.nextNode() : it.previousNode(); return N(n) + '/' + D(n) + '/' + (n === c); });\n  const tail = []; for (let k = 0; k < 5; k++) tail.push(E(() => { const n = dir === 'next' ? it.nextNode() : it.previousNode(); return N(n) + '/' + D(n) + ' ' + S(it); }));\n  out.push([how, dest, mask, dir, 'c:' + D(c), s0, s1, o === 'undefined' || o === 'null' || o.startsWith('[object') ? '' : o, s2, same, D(it.referenceNode), got, S(it), 'then', tail.join(' | ')].join(' '));\n }\n return out;\n})()",
+     "value": [
+      "none stay 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none stay 4294967295 prev c:top i#c< i#c<  i#c< true top div#r/top/false div#r< then null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r<",
+      "none stay 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none stay 1 prev c:top i#c< i#c<  i#c< true top div#r/top/false div#r< then null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r<",
+      "none stay 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none stay 129 prev c:top i#c< i#c<  i#c< true top div#r/top/false div#r< then null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r< | null/- div#r<",
+      "none frame 4294967295 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true t:g> then b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none frame 4294967295 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none frame 1 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none frame 1 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none frame 129 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none frame 129 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none same 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none same 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none same 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none same 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none same 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none same 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none parser 4294967295 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true t:g> then b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none parser 4294967295 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none parser 1 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none parser 1 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none parser 129 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none parser 129 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none html 4294967295 next c:html i#c< i#c<  i#c< true html i#c/html/true t:g> then b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none html 4294967295 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none html 1 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none html 1 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "none html 129 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none html 129 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove stay 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove stay 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove stay 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove stay 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove stay 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove stay 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove frame 4294967295 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true t:g> then b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove frame 4294967295 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove frame 1 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove frame 1 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove frame 129 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove frame 129 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove same 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove same 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove same 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove same 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove same 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove same 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove parser 4294967295 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true t:g> then b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove parser 4294967295 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove parser 1 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove parser 1 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove parser 129 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove parser 129 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove html 4294967295 next c:html i#c< i#c<  i#c< true html i#c/html/true t:g> then b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove html 4294967295 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove html 1 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove html 1 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "remove html 129 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove html 129 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent stay 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "textContent stay 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent stay 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent stay 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent stay 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent stay 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent frame 4294967295 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true t:g> then b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "textContent frame 4294967295 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent frame 1 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent frame 1 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent frame 129 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent frame 129 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent same 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "textContent same 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent same 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent same 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent same 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent same 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent parser 4294967295 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true t:g> then b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "textContent parser 4294967295 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent parser 1 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent parser 1 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent parser 129 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent parser 129 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent html 4294967295 next c:html i#c< i#c<  i#c< true html i#c/html/true t:g> then b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "textContent html 4294967295 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent html 1 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent html 1 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "textContent html 129 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "textContent html 129 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild stay 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "removeChild stay 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild stay 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild stay 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild stay 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild stay 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild frame 4294967295 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true t:g> then b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "removeChild frame 4294967295 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild frame 1 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild frame 1 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild frame 129 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild frame 129 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild same 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "removeChild same 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild same 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild same 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild same 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild same 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild parser 4294967295 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true t:g> then b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "removeChild parser 4294967295 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild parser 1 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild parser 1 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild parser 129 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild parser 129 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild html 4294967295 next c:html i#c< i#c<  i#c< true html i#c/html/true t:g> then b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "removeChild html 4294967295 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild html 1 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild html 1 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "removeChild html 129 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "removeChild html 129 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren stay 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "replaceChildren stay 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren stay 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren stay 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren stay 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren stay 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren frame 4294967295 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true t:g> then b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "replaceChildren frame 4294967295 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren frame 1 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren frame 1 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren frame 129 next c:frame i#c< i#c<  i#c< true frame i#c/frame/true b> then b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren frame 129 prev c:frame i#c< i#c<  i#c< true frame null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren same 4294967295 next c:top i#c< i#c<  i#c< true top i#c/top/true t:g> then b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "replaceChildren same 4294967295 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren same 1 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren same 1 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren same 129 next c:top i#c< i#c<  i#c< true top i#c/top/true b> then b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren same 129 prev c:top i#c< i#c<  i#c< true top null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren parser 4294967295 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true t:g> then b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "replaceChildren parser 4294967295 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren parser 1 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren parser 1 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren parser 129 next c:parser i#c< i#c<  i#c< true parser i#c/parser/true b> then b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren parser 129 prev c:parser i#c< i#c<  i#c< true parser null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren html 4294967295 next c:html i#c< i#c<  i#c< true html i#c/html/true t:g> then b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "replaceChildren html 4294967295 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren html 1 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren html 1 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<",
+      "replaceChildren html 129 next c:html i#c< i#c<  i#c< true html i#c/html/true b> then b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "replaceChildren html 129 prev c:html i#c< i#c<  i#c< true html null/-/false i#c< then null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c< | null/- i#c<"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-candidate-moves",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "const fd = document.getElementById('f').contentDocument;\nconst dp = new DOMParser().parseFromString('<body><p>x</p>', 'text/html');\nconst hd = document.implementation.createHTMLDocument('');\nconst D = n => n === null || n === undefined ? '-' : n.ownerDocument === document ? 'top' : n.ownerDocument === fd ? 'frame' : n.ownerDocument === dp ? 'parser' : n.ownerDocument === hd ? 'html' : 'other';\nconst DEST = { stay: c => {}, frame: c => fd.adoptNode(c), same: c => document.adoptNode(c), parser: c => dp.adoptNode(c), html: c => hd.adoptNode(c) };\nconst make = html => { const box = document.createElement('div'); document.body.appendChild(box); box.innerHTML = html; return box.firstChild; };\n\n(() => {\n const out = [];\n for (const how of ['remove', 'none'])\n for (const dest of ['stay', 'frame', 'same', 'parser', 'html'])\n for (const ret of [1, 3, 2])\n for (const mask of [4294967295, 1])\n for (const dir of ['prev', 'next']) {\n  const r = make(dir === 'prev' ? '<div id=r><i id=c><b>g</b></i></div>' : '<div id=r><i id=c><b>g</b></i><u id=u>u</u></div>'), c = r.firstChild;\n  let act = null; const seen = [];\n  const it = document.createNodeIterator(r, mask, n => { seen.push(N(n) + '/' + D(n)); if (act) { act = null; if (how === 'remove') c.remove(); DEST[dest](c); return ret; } return 1; });\n  it.nextNode(); if (dir === 'prev') it.nextNode();\n  seen.length = 0;\n  act = true;\n  const g1 = E(() => { const n = dir === 'prev' ? it.previousNode() : it.nextNode(); return N(n) + '/' + D(n); });\n  const s1 = S(it), d1 = D(it.referenceNode);\n  const g2 = E(() => { const n = it.nextNode(); return N(n) + '/' + D(n); });\n  const s2 = S(it), d2 = D(it.referenceNode);\n  const g3 = E(() => { const n = it.previousNode(); return N(n) + '/' + D(n); });\n  const tail = []; for (let k = 0; k < 6; k++) tail.push(E(() => { const n = it.nextNode(); return N(n) + '/' + D(n) + ' ' + S(it); }));\n  out.push([how, dest, ret, mask, dir, 'c:' + D(c), 'first', g1, s1, d1, 'next', g2, s2, d2, 'prev', g3, S(it), 'seen', seen.join(','), 'then', tail.join(' | ')].join(' '));\n }\n return out;\n})()",
+     "value": [
+      "remove stay 1 4294967295 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top t:g> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top,t:g/top then i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove stay 1 4294967295 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove stay 1 1 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top b> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top then i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove stay 1 1 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove stay 3 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove stay 3 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove stay 3 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove stay 3 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove stay 2 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove stay 2 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove stay 2 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove stay 2 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove frame 1 4294967295 prev c:frame first i#c/frame i#c< frame next i#c/frame i#c> frame prev i#c/frame t:g> seen i#c/top,i#c/frame,i#c/frame,i#c/frame,b/frame,t:g/frame then i#c/frame i#c> | b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove frame 1 4294967295 next c:frame first i#c/frame div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove frame 1 1 prev c:frame first i#c/frame i#c< frame next i#c/frame i#c> frame prev i#c/frame b> seen i#c/top,i#c/frame,i#c/frame,i#c/frame,b/frame then i#c/frame i#c> | b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove frame 1 1 next c:frame first i#c/frame div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove frame 3 4294967295 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove frame 3 4294967295 next c:frame first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove frame 3 1 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove frame 3 1 next c:frame first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove frame 2 4294967295 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove frame 2 4294967295 next c:frame first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove frame 2 1 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove frame 2 1 next c:frame first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove same 1 4294967295 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top t:g> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top,t:g/top then i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove same 1 4294967295 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove same 1 1 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top b> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top then i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove same 1 1 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove same 3 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove same 3 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove same 3 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove same 3 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove same 2 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove same 2 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove same 2 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove same 2 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove parser 1 4294967295 prev c:parser first i#c/parser i#c< parser next i#c/parser i#c> parser prev i#c/parser t:g> seen i#c/top,i#c/parser,i#c/parser,i#c/parser,b/parser,t:g/parser then i#c/parser i#c> | b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove parser 1 4294967295 next c:parser first i#c/parser div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove parser 1 1 prev c:parser first i#c/parser i#c< parser next i#c/parser i#c> parser prev i#c/parser b> seen i#c/top,i#c/parser,i#c/parser,i#c/parser,b/parser then i#c/parser i#c> | b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove parser 1 1 next c:parser first i#c/parser div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove parser 3 4294967295 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove parser 3 4294967295 next c:parser first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove parser 3 1 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove parser 3 1 next c:parser first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove parser 2 4294967295 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove parser 2 4294967295 next c:parser first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove parser 2 1 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove parser 2 1 next c:parser first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove html 1 4294967295 prev c:html first i#c/html i#c< html next i#c/html i#c> html prev i#c/html t:g> seen i#c/top,i#c/html,i#c/html,i#c/html,b/html,t:g/html then i#c/html i#c> | b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "remove html 1 4294967295 next c:html first i#c/html div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove html 1 1 prev c:html first i#c/html i#c< html next i#c/html i#c> html prev i#c/html b> seen i#c/top,i#c/html,i#c/html,i#c/html,b/html then i#c/html i#c> | b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "remove html 1 1 next c:html first i#c/html div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove html 3 4294967295 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove html 3 4294967295 next c:html first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove html 3 1 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove html 3 1 next c:html first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "remove html 2 4294967295 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove html 2 4294967295 next c:html first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "remove html 2 1 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "remove html 2 1 next c:html first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none stay 1 4294967295 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top t:g> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top,t:g/top then i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none stay 1 4294967295 next c:top first i#c/top i#c> top next b/top b> top prev b/top t:u> seen i#c/top,b/top,b/top,b/top,t:g/top,u#u/top,t:u/top then b/top b> | t:g/top t:g> | u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u>",
+      "none stay 1 1 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top b> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top then i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none stay 1 1 next c:top first i#c/top i#c> top next b/top b> top prev b/top u#u> seen i#c/top,b/top,b/top,b/top,u#u/top then b/top b> | u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none stay 3 4294967295 prev c:top first div#r/top div#r< top next div#r/top div#r> top prev div#r/top t:g> seen i#c/top,div#r/top,div#r/top,div#r/top,div#r/top,i#c/top,b/top,t:g/top then div#r/top div#r> | i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g>",
+      "none stay 3 4294967295 next c:top first b/top b> top next t:g/top t:g> top prev t:g/top t:u> seen i#c/top,b/top,t:g/top,t:g/top,t:g/top,u#u/top,t:u/top then t:g/top t:g> | u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none stay 3 1 prev c:top first div#r/top div#r< top next div#r/top div#r> top prev div#r/top b> seen i#c/top,div#r/top,div#r/top,div#r/top,div#r/top,i#c/top,b/top then div#r/top div#r> | i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b>",
+      "none stay 3 1 next c:top first b/top b> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,b/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none stay 2 4294967295 prev c:top first div#r/top div#r< top next div#r/top div#r> top prev div#r/top t:g> seen i#c/top,div#r/top,div#r/top,div#r/top,div#r/top,i#c/top,b/top,t:g/top then div#r/top div#r> | i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g>",
+      "none stay 2 4294967295 next c:top first b/top b> top next t:g/top t:g> top prev t:g/top t:u> seen i#c/top,b/top,t:g/top,t:g/top,t:g/top,u#u/top,t:u/top then t:g/top t:g> | u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none stay 2 1 prev c:top first div#r/top div#r< top next div#r/top div#r> top prev div#r/top b> seen i#c/top,div#r/top,div#r/top,div#r/top,div#r/top,i#c/top,b/top then div#r/top div#r> | i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b>",
+      "none stay 2 1 next c:top first b/top b> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,b/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none frame 1 4294967295 prev c:frame first i#c/frame i#c< frame next i#c/frame i#c> frame prev i#c/frame t:g> seen i#c/top,i#c/frame,i#c/frame,i#c/frame,b/frame,t:g/frame then i#c/frame i#c> | b/frame b> | t:g/frame t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none frame 1 4294967295 next c:frame first i#c/frame div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none frame 1 1 prev c:frame first i#c/frame i#c< frame next i#c/frame i#c> frame prev i#c/frame b> seen i#c/top,i#c/frame,i#c/frame,i#c/frame,b/frame then i#c/frame i#c> | b/frame b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none frame 1 1 next c:frame first i#c/frame div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none frame 3 4294967295 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none frame 3 4294967295 next c:frame first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none frame 3 1 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none frame 3 1 next c:frame first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none frame 2 4294967295 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none frame 2 4294967295 next c:frame first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none frame 2 1 prev c:frame first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none frame 2 1 next c:frame first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none same 1 4294967295 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top t:g> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top,t:g/top then i#c/top i#c> | b/top b> | t:g/top t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none same 1 4294967295 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none same 1 1 prev c:top first i#c/top i#c< top next i#c/top i#c> top prev i#c/top b> seen i#c/top,i#c/top,i#c/top,i#c/top,b/top then i#c/top i#c> | b/top b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none same 1 1 next c:top first i#c/top div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none same 3 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none same 3 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none same 3 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none same 3 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none same 2 4294967295 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none same 2 4294967295 next c:top first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none same 2 1 prev c:top first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none same 2 1 next c:top first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none parser 1 4294967295 prev c:parser first i#c/parser i#c< parser next i#c/parser i#c> parser prev i#c/parser t:g> seen i#c/top,i#c/parser,i#c/parser,i#c/parser,b/parser,t:g/parser then i#c/parser i#c> | b/parser b> | t:g/parser t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none parser 1 4294967295 next c:parser first i#c/parser div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none parser 1 1 prev c:parser first i#c/parser i#c< parser next i#c/parser i#c> parser prev i#c/parser b> seen i#c/top,i#c/parser,i#c/parser,i#c/parser,b/parser then i#c/parser i#c> | b/parser b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none parser 1 1 next c:parser first i#c/parser div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none parser 3 4294967295 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none parser 3 4294967295 next c:parser first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none parser 3 1 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none parser 3 1 next c:parser first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none parser 2 4294967295 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none parser 2 4294967295 next c:parser first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none parser 2 1 prev c:parser first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none parser 2 1 next c:parser first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none html 1 4294967295 prev c:html first i#c/html i#c< html next i#c/html i#c> html prev i#c/html t:g> seen i#c/top,i#c/html,i#c/html,i#c/html,b/html,t:g/html then i#c/html i#c> | b/html b> | t:g/html t:g> | null/- t:g> | null/- t:g> | null/- t:g>",
+      "none html 1 4294967295 next c:html first i#c/html div#r> top next u#u/top u#u> top prev u#u/top t:u> seen i#c/top,u#u/top,u#u/top,u#u/top,t:u/top then u#u/top u#u> | t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none html 1 1 prev c:html first i#c/html i#c< html next i#c/html i#c> html prev i#c/html b> seen i#c/top,i#c/html,i#c/html,i#c/html,b/html then i#c/html i#c> | b/html b> | null/- b> | null/- b> | null/- b> | null/- b>",
+      "none html 1 1 next c:html first i#c/html div#r> top next u#u/top u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none html 3 4294967295 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none html 3 4294967295 next c:html first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none html 3 1 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none html 3 1 next c:html first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>",
+      "none html 2 4294967295 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none html 2 4294967295 next c:html first u#u/top u#u> top next t:u/top t:u> top prev t:u/top t:u> seen i#c/top,u#u/top,t:u/top,t:u/top,t:u/top then t:u/top t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u> | null/- t:u>",
+      "none html 2 1 prev c:html first null/- div#r> top next null/- div#r> top prev div#r/top div#r> seen i#c/top,div#r/top,div#r/top then div#r/top div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r> | null/- div#r>",
+      "none html 2 1 next c:html first u#u/top u#u> top next null/- u#u> top prev u#u/top u#u> seen i#c/top,u#u/top,u#u/top,u#u/top then u#u/top u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u> | null/- u#u>"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-root-moves",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "const fd = document.getElementById('f').contentDocument;\nconst dp = new DOMParser().parseFromString('<body><p>x</p>', 'text/html');\nconst hd = document.implementation.createHTMLDocument('');\nconst D = n => n === null || n === undefined ? '-' : n.ownerDocument === document ? 'top' : n.ownerDocument === fd ? 'frame' : n.ownerDocument === dp ? 'parser' : n.ownerDocument === hd ? 'html' : 'other';\nconst DEST = { stay: c => {}, frame: c => fd.adoptNode(c), same: c => document.adoptNode(c), parser: c => dp.adoptNode(c), html: c => hd.adoptNode(c) };\nconst make = html => { const box = document.createElement('div'); document.body.appendChild(box); box.innerHTML = html; return box.firstChild; };\n\n(() => {\n const out = [];\n for (const dest of ['frame', 'same', 'parser', 'html'])\n for (const ret of [1, 3])\n for (const dir of ['next', 'prev'])\n for (const mask of [4294967295, 1]) {\n  const r = make('<div id=r><i id=c><b>g</b></i><u id=u>u</u></div>');\n  let act = false; let k = 0;\n  const it = document.createNodeIterator(r, mask, n => { k++; if (act) { act = false; DEST[dest](r); } return ret; });\n  const first = () => E(() => { const n = dir === 'next' ? it.nextNode() : it.previousNode(); return N(n) + '/' + D(n); });\n  if (dir === 'prev') { it.nextNode(); it.nextNode(); }\n  k = 0; act = true;\n  const g1 = first(), s1 = S(it), rd = D(it.root);\n  const g2 = first(), s2 = S(it);\n  const back = E(() => { document.adoptNode(r); return 'ok'; });\n  const g3 = first(), s3 = S(it), rd3 = D(it.root);\n  out.push([dest, ret, dir, mask, g1, s1, 'root:' + rd, g2, s2, back, g3, s3, 'root:' + rd3, 'calls', k].join(' '));\n }\n return out;\n})()",
+     "value": [
+      "frame 1 next 4294967295 div#r/frame div#r> root:frame i#c/frame i#c> ok b/top b> root:top calls 3",
+      "frame 1 next 1 div#r/frame div#r> root:frame i#c/frame i#c> ok b/top b> root:top calls 3",
+      "frame 1 prev 4294967295 i#c/frame i#c< root:frame div#r/frame div#r< ok null/- div#r< root:top calls 2",
+      "frame 1 prev 1 i#c/frame i#c< root:frame div#r/frame div#r< ok null/- div#r< root:top calls 2",
+      "frame 3 next 4294967295 null/- div#r< root:frame null/- div#r< ok null/- div#r< root:top calls 18",
+      "frame 3 next 1 null/- div#r< root:frame null/- div#r< ok null/- div#r< root:top calls 12",
+      "frame 3 prev 4294967295 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "frame 3 prev 1 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "same 1 next 4294967295 div#r/top div#r> root:top i#c/top i#c> ok b/top b> root:top calls 3",
+      "same 1 next 1 div#r/top div#r> root:top i#c/top i#c> ok b/top b> root:top calls 3",
+      "same 1 prev 4294967295 i#c/top i#c< root:top div#r/top div#r< ok null/- div#r< root:top calls 2",
+      "same 1 prev 1 i#c/top i#c< root:top div#r/top div#r< ok null/- div#r< root:top calls 2",
+      "same 3 next 4294967295 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 18",
+      "same 3 next 1 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 12",
+      "same 3 prev 4294967295 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "same 3 prev 1 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "parser 1 next 4294967295 div#r/parser div#r> root:parser i#c/parser i#c> ok b/top b> root:top calls 3",
+      "parser 1 next 1 div#r/parser div#r> root:parser i#c/parser i#c> ok b/top b> root:top calls 3",
+      "parser 1 prev 4294967295 i#c/parser i#c< root:parser div#r/parser div#r< ok null/- div#r< root:top calls 2",
+      "parser 1 prev 1 i#c/parser i#c< root:parser div#r/parser div#r< ok null/- div#r< root:top calls 2",
+      "parser 3 next 4294967295 null/- div#r< root:parser null/- div#r< ok null/- div#r< root:top calls 18",
+      "parser 3 next 1 null/- div#r< root:parser null/- div#r< ok null/- div#r< root:top calls 12",
+      "parser 3 prev 4294967295 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "parser 3 prev 1 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "html 1 next 4294967295 div#r/html div#r> root:html i#c/html i#c> ok b/top b> root:top calls 3",
+      "html 1 next 1 div#r/html div#r> root:html i#c/html i#c> ok b/top b> root:top calls 3",
+      "html 1 prev 4294967295 i#c/html i#c< root:html div#r/html div#r< ok null/- div#r< root:top calls 2",
+      "html 1 prev 1 i#c/html i#c< root:html div#r/html div#r< ok null/- div#r< root:top calls 2",
+      "html 3 next 4294967295 null/- div#r< root:html null/- div#r< ok null/- div#r< root:top calls 18",
+      "html 3 next 1 null/- div#r< root:html null/- div#r< ok null/- div#r< root:top calls 12",
+      "html 3 prev 4294967295 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0",
+      "html 3 prev 1 null/- div#r< root:top null/- div#r< ok null/- div#r< root:top calls 0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-root-moves-2",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "const fd = document.getElementById('f').contentDocument;\nconst dp = new DOMParser().parseFromString('<body><p>x</p>', 'text/html');\nconst hd = document.implementation.createHTMLDocument('');\nconst D = n => n === null || n === undefined ? '-' : n.ownerDocument === document ? 'top' : n.ownerDocument === fd ? 'frame' : n.ownerDocument === dp ? 'parser' : n.ownerDocument === hd ? 'html' : 'other';\nconst DEST = { stay: c => {}, frame: c => fd.adoptNode(c), same: c => document.adoptNode(c), parser: c => dp.adoptNode(c), html: c => hd.adoptNode(c) };\nconst make = html => { const box = document.createElement('div'); document.body.appendChild(box); box.innerHTML = html; return box.firstChild; };\n\n(() => {\n const out = [];\n for (const ret of [1, 3]) {\n  const r = make('<div id=r><i id=c><b>g</b></i><u id=u>u</u></div>');\n  let act = false;\n  const it = document.createNodeIterator(r, 1, n => { if (act) { act = false; fd.adoptNode(r); } return ret; });\n  act = true;\n  const a = [];\n  for (let i = 0; i < 5; i++) a.push(E(() => { const n = it.nextNode(); return N(n) + '/' + D(n) + ' ' + S(it) + '/' + D(it.referenceNode); }));\n  out.push(ret + ' ' + a.join(' | '));\n }\n return out;\n})()",
+     "value": [
+      "1 div#r/frame div#r>/frame | i#c/frame i#c>/frame | b/frame b>/frame | u#u/frame u#u>/frame | null/- u#u>/frame",
+      "3 null/- div#r</frame | null/- div#r</frame | null/- div#r</frame | null/- div#r</frame | null/- div#r</frame"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "frames-root-moves-3",
+   "viewport": [
+    400,
+    200
+   ],
+   "results": [
+    {
+     "kind": "js",
+     "label": "const fd = document.getElementById('f').contentDocument;\nconst dp = new DOMParser().parseFromString('<body><p>x</p>', 'text/html');\nconst hd = document.implementation.createHTMLDocument('');\nconst D = n => n === null || n === undefined ? '-' : n.ownerDocument === document ? 'top' : n.ownerDocument === fd ? 'frame' : n.ownerDocument === dp ? 'parser' : n.ownerDocument === hd ? 'html' : 'other';\nconst DEST = { stay: c => {}, frame: c => fd.adoptNode(c), same: c => document.adoptNode(c), parser: c => dp.adoptNode(c), html: c => hd.adoptNode(c) };\nconst make = html => { const box = document.createElement('div'); document.body.appendChild(box); box.innerHTML = html; return box.firstChild; };\n\n(() => {\n const out = [];\n for (const dest of ['frame', 'same', 'parser'])\n for (const pre of ['detached', 'away'])\n for (const dir of ['next', 'prev']) {\n  const r = make('<div id=r><i id=c><b>g</b></i></div>'), c = r.firstChild;\n  const it = document.createNodeIterator(r, 1);\n  it.nextNode(); it.nextNode(); it.previousNode();\n  c.remove();\n  if (pre === 'away') hd.adoptNode(c);\n  const s0 = S(it) + '/' + D(it.referenceNode);\n  const o = E(() => { DEST[dest](r); return 'moved'; });\n  const s1 = S(it) + '/' + D(it.referenceNode) + '/root:' + D(it.root);\n  const g = E(() => { const n = dir === 'next' ? it.nextNode() : it.previousNode(); return N(n) + '/' + D(n); });\n  const g2 = E(() => { const n = dir === 'next' ? it.nextNode() : it.previousNode(); return N(n) + '/' + D(n); });\n  out.push([dest, pre, dir, s0, s1, g, S(it) + '/' + D(it.referenceNode), g2, S(it)].join(' '));\n }\n return out;\n})()",
+     "value": [
+      "frame detached next i#c</top i#c</top/root:frame i#c/top b>/top b/top b>",
+      "frame detached prev i#c</top i#c</top/root:frame null/- i#c</top null/- i#c<",
+      "frame away next i#c</html i#c</html/root:frame i#c/html b>/html b/html b>",
+      "frame away prev i#c</html i#c</html/root:frame null/- i#c</html null/- i#c<",
+      "same detached next i#c</top i#c</top/root:top i#c/top b>/top b/top b>",
+      "same detached prev i#c</top i#c</top/root:top null/- i#c</top null/- i#c<",
+      "same away next i#c</html i#c</html/root:top i#c/html b>/html b/html b>",
+      "same away prev i#c</html i#c</html/root:top null/- i#c</html null/- i#c<",
+      "parser detached next i#c</top i#c</top/root:parser i#c/top b>/top b/top b>",
+      "parser detached prev i#c</top i#c</top/root:parser null/- i#c</top null/- i#c<",
+      "parser away next i#c</html i#c</html/root:parser i#c/html b>/html b/html b>",
+      "parser away prev i#c</html i#c</html/root:parser null/- i#c</html null/- i#c<"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -116,6 +116,10 @@ pub struct ClassSpec {
     pub constructor: Option<NativeFn>,
     /// The `length` of the interface object.
     pub length: u32,
+    /// A callback interface with constants (Web IDL §3.7, "Interface
+    /// object"): the interface object is no constructor and has no
+    /// `prototype` property.
+    pub callback: bool,
 }
 
 impl ClassSpec {
@@ -127,7 +131,16 @@ impl ClassSpec {
             hooks: None,
             constructor: None,
             length: 0,
+            callback: false,
         }
+    }
+
+    /// As the class of a callback interface: an interface object that is no
+    /// constructor and has no `prototype` property (Chromium's `NodeFilter`).
+    #[must_use]
+    pub fn callback_interface(mut self) -> ClassSpec {
+        self.callback = true;
+        self
     }
 
     /// With a parent class.
@@ -162,6 +175,7 @@ pub(crate) struct HostClass {
     pub(crate) hooks: Option<HostHooks>,
     pub(crate) constructor: Option<NativeFn>,
     pub(crate) length: u32,
+    pub(crate) callback: bool,
 }
 
 impl HostClass {
@@ -257,6 +271,7 @@ impl Runtime {
             hooks: spec.hooks,
             constructor: spec.constructor,
             length: spec.length,
+            callback: spec.callback,
         });
         Ok(id)
     }

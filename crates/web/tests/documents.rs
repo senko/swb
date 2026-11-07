@@ -488,6 +488,55 @@ fn a_node_of_another_document_moves_as_an_argument() {
     });
 }
 
+/// A `NodeIterator` follows its root to another document's arena and goes on there
+/// (M9 feature 15a): the nodes that it returns are those of the new place, the pre-removing
+/// steps of the new arena move it, and the old arena no longer does. An iterator of
+/// one realm over the nodes of another has the realm of the document it was made on,
+/// and the nodes that it returns the realm of their own document (a node that moved
+/// keeps the realm of its wrapper).
+#[test]
+fn a_node_iterator_follows_its_root_to_another_document() {
+    both_modes(|stress| {
+        let (mut rt, key) = two_documents(stress);
+        assert_eq!(
+            first(
+                &mut rt,
+                "const w = document.createElement('div');
+                 w.innerHTML = '<p id=p1><i id=i1></i></p><p id=p2></p>';
+                 const it = document.createNodeIterator(w);
+                 it.nextNode(); it.nextNode(); it.nextNode();
+                 const log = [it.referenceNode.id];
+                 other.document.body.appendChild(w);
+                 log.push(it.root === w, it.root.ownerDocument === other.document, it.referenceNode.id,
+                          it.referenceNode instanceof other.HTMLElement, it.nextNode().id);
+                 other.document.getElementById('p2').remove();
+                 log.push(it.referenceNode.id, it.pointerBeforeReferenceNode);
+                 document.body.appendChild(w);
+                 w.querySelector('#p1').remove();
+                 log.push(it.referenceNode.id, it.root === w, it.nextNode());
+                 log;"
+            ),
+            expected(r#"["i1", true, true, "i1", false, "p2", "i1", false, "", true, null]"#),
+            "stress {stress}"
+        );
+        // An iterator made on one document over the nodes of the other.
+        assert_eq!(
+            first(
+                &mut rt,
+                "const it2 = document.createNodeIterator(other.document.body);
+                 const n = it2.nextNode();
+                 [it2 instanceof NodeIterator, it2 instanceof other.NodeIterator,
+                  n instanceof other.HTMLElement, it2.nextNode().id];"
+            ),
+            expected(r#"[true, false, true, "b"]"#)
+        );
+        assert_eq!(
+            second(&mut rt, key, "document.body.childNodes.length"),
+            expected("2")
+        );
+    });
+}
+
 #[test]
 fn a_list_of_an_old_document_keeps_its_arena_after_a_takeover() {
     both_modes(|stress| {

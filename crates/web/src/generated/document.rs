@@ -177,6 +177,9 @@ pub trait DocumentImpl: b::Host {
     /// `sequence<Element> elementsFromPoint(double x, double y)`.
     fn elements_from_point(cx: &mut b::Cx<'_>, this: b::NodeId, x: f64, y: f64) -> b::Result<Vec<b::NodeId>>;
 
+    /// `NodeIterator createNodeIterator(Node root, optional unsigned long whatToShow, optional NodeFilter? filter)`.
+    fn create_node_iterator(cx: &mut b::Cx<'_>, this: b::NodeId, root: b::NodeRef, what_to_show: u32, filter: Option<super::types::NodeFilter>) -> b::Result<swb_js::Gc<swb_js::Object>>;
+
     /// `Document open(optional DOMString unused1, optional DOMString unused2)`.
     fn open(cx: &mut b::Cx<'_>, this: b::NodeId, unused1: Option<String>, unused2: Option<String>) -> b::Result<b::NodeId>;
 
@@ -2418,6 +2421,21 @@ fn op_elements_from_point<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_
     })
 }
 
+fn op_create_node_iterator<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
+    b::glue::run(rt, call, b::Context::Operation("Document", "createNodeIterator"), super::DOM_EXCEPTION, |rt| {
+        let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
+        b::glue::require_arguments(call, 1)?;
+        let v = rt.arg(call, 0);
+        let a0 = b::convert::node_ref(rt, v, super::NODE, "Node").map_err(|e| e.argument(0))?;
+        let v = rt.arg(call, 1);
+        let a1 = if v.is_undefined() { 4294967295 } else { b::convert::unsigned_long(rt, v, b::convert::IntMode::Plain).map_err(|e| e.argument(1))? };
+        let v = rt.arg(call, 2);
+        let a2 = if v.is_undefined() { None } else { (if v.is_nullish() { Ok(None) } else { super::types::NodeFilter::from_js(v).map(Some) }).map_err(|e| e.argument(2))? };
+        let result = <H as DocumentImpl>::create_node_iterator(&mut b::Cx::new(rt, call, super::DOCUMENT), this, a0, a1, a2)?;
+        Ok(swb_js::VmResult::Ok(swb_js::Value::Object(result))?)
+    })
+}
+
 fn op_open<H: DocumentImpl>(rt: &mut swb_js::Runtime, call: &swb_js::NativeCall) -> swb_js::VmResult<swb_js::NativeReturn> {
     b::glue::run(rt, call, b::Context::Operation("Document", "open"), super::DOM_EXCEPTION, |rt| {
         let this = b::glue::this_node(rt, call, super::DOCUMENT)?;
@@ -2714,6 +2732,7 @@ pub fn define<H: DocumentImpl>(rt: &mut swb_js::Runtime, realm: u32) -> swb_js::
     rt.define_method(realm, target, "createElement", 1, op_create_element::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createElementNS", 2, op_create_element_ns::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createEvent", 1, op_create_event::<H>, swb_js::Attributes::MEMBER)?;
+    rt.define_method(realm, target, "createNodeIterator", 1, op_create_node_iterator::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "createTextNode", 1, op_create_text_node::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementFromPoint", 2, op_element_from_point::<H>, swb_js::Attributes::MEMBER)?;
     rt.define_method(realm, target, "elementsFromPoint", 2, op_elements_from_point::<H>, swb_js::Attributes::MEMBER)?;

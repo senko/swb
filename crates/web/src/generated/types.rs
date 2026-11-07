@@ -4866,6 +4866,30 @@ impl EventListener {
 
 }
 
+/// The callback interface type `NodeFilter`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NodeFilter(pub swb_js::Gc<swb_js::Object>);
+
+impl NodeFilter {
+    /// Converts a JavaScript value (Web IDL §3.2.16).
+    pub fn from_js(value: swb_js::Value) -> b::Result<NodeFilter> {
+        Ok(NodeFilter(b::convert::callback_interface(value)?))
+    }
+
+    /// Calls `acceptNode` (Web IDL §3.11, "call a user object's operation"):
+    /// the object itself if it is callable, else its `acceptNode` method.
+    /// Call it inside a handle scope that keeps the results alive.
+    pub fn accept_node<H: b::Host>(self, rt: &mut swb_js::Runtime, realm: u32, this: swb_js::Value, node: b::NodeId) -> b::Result<u16> {
+        let mut args: Vec<swb_js::Value> = Vec::new();
+        let value = b::to_js::node::<H>(rt, realm, node)?;
+        b::keep(rt, value);
+        args.push(value);
+        let result = b::glue::call_operation(rt, self.0, "acceptNode", this, &args)?;
+        b::convert::unsigned_short(rt, result, b::convert::IntMode::Plain)
+    }
+
+}
+
 /// The union type `(AddEventListenerOptions or boolean)`.
 #[derive(Clone, Debug)]
 pub enum AddEventListenerOptionsOrBoolean {

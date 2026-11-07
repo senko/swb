@@ -40,6 +40,7 @@ strategy and its reasons are in [ADR 0005](adr/0005-testing-strategy.md).
 | Module script tests    | `crates/engine/tests/probe_net.rs`, `module_probe_cases_match_chromium` (M9 feature 7, ADR 0028 section 8: every query of `tools/probes/web-module-scripts.json` (46 cases, 53 queries: the order against classic, `defer`, `async` and inserted scripts, `DOMContentLoaded` and `load`; `this`, strict mode and local declarations; the module map; nomodule; the fetch with `crossorigin`, CORS and the MIME types; the decoding; the `load` and `error` events; the errors and positions; the forms that need other modules) with Chromium's values in `tests/probe_net/modules.rs` (generated: run `uv run --project tools swbtools probe --json tools/probes/web-module-scripts.json > chromium.json` three times, check that the outputs are equal, then `uv run --project tools swbtools module-cases chromium.json` and `just fmt`; `tools/swbtools/module_cases.py`, tested by `tools/tests/test_module_cases.py`); `MODULE_DEPARTURES` lists the 21 queries where swb differs, with reasons (the `Origin` header of a same-origin request, the cookies of the simulated server, the modules that need another module, the error of a second element with one URL, `import()`); the simulated server answers with 8 loader threads (Chromium has 6 connections per host); `crates/js/tests/modules.rs` (`Runtime::eval_module_at`: `this`, strictness, local declarations, hoisting, the TDZ, errors with the position, the early errors of the Module goal, the refused forms and top-level `await`, the register limit, the deadline); `crates/engine/src/document/tests.rs` (`module_scripts_*`: the request mode and credentials, the MIME type check and the decoding); the layout test `tests/layout/flex-wrap-percent-sum.html`; hostile cases `module-*` (6) | no |
 | Message channel tests  | `crates/web/tests/message_channel.rs` (M9 feature 9, ADR 0031 section 7: every case of `tools/probes/web-message-channel.json` (10 cases, 103 queries, among them the five queries of `message-channel` in `web-frames.json`: constructors, prototypes and errors, the queue (`onmessage`, `onmessageerror`, `start()`, `addEventListener` alone), the order of port messages against microtasks, timers, window messages and other ports, the missing timer clamp, `close()`, the transfer of ports in `port.postMessage()`, `window.postMessage()` and `structuredClone()`, the errors with Chromium's wording per caller, `MessageEvent` of a port, `MessageEvent.ports` as one frozen array, the limits) with Chromium's values in `message_channel/cases.rs` and `limit_cases.rs` (generated from `swbtools probe --json` output, three equal runs, then `just fmt`; the case `gc` of the probe file needs a collector that Chromium runs when it wants, so the Rust test checks the same rules with `ScriptRuntime::collect`); `SWB_VALUES` and `LIMIT_VALUES` list the 8 departures (no `BroadcastChannel`, no animation frames in the test runtime, no `userActivation`, a timer count that depends on the clock, the limits of 65,536 ports and messages); tests of the registry's lifetime (channels that nobody keeps, an unreferenced pair with listeners and queues, a held port with its partner's listener across collections, a port whose partner travels, ports in a dropped message, ports that travel only in the queues of travelling ports (the sweep; with and without listeners on the partners; 70,000 iterations leave the limits free), the shared budget, a ping-pong beside timers in real time; `crates/web/tests/message_channel_warn.rs`: one warning per episode at the port limit); unit tests of the registry in `crates/web/src/message_port.rs`); hostile cases `message-channel-*` and `message-port-flood-*` (6; limit 10 s) | no |
 | JavaScript shell tests | `crates/js/tests/shell.rs` (`swb-js`: output, exit codes, `$262`, `--dump-ast`, limits, the test262 runner on a tiny directory of our own); `crates/js/src/test262/` unit tests (frontmatter, skip rules, scores) | no |
+| NodeIterator tests     | `crates/web/tests/node_iterator.rs` (M9 feature 15a, ADR 0028 "Feature 15a": every case of `tools/probes/web-node-iterator.json` (41 cases, 104 queries) with Chromium's values in `node_iterator/cases.rs` (`swbtools web-cases`, `tools/swbtools/web_cases.py`; three equal runs of `swbtools probe --json`, then `just fmt`): the objects and descriptors of `NodeFilter` and `NodeIterator`, the arguments and conversions, each `SHOW_*` mask over documents, elements, fragments, detached subtrees and templates, `nextNode` and `previousNode` in many orders, the filter's results, `this`, errors and re-entry, the pre-removing steps for each way a node leaves (`remove`, `removeChild`, `replaceChild`, `replaceWith`, `innerHTML`, `outerHTML`, `textContent`, `innerText`, `replaceChildren`, `normalize`, moves with `appendChild`, `insertBefore`, `before`, `after`, `append`, `adoptNode`, a fragment's children) on a fixed tree, and on every tree of up to five nodes (every node, pointer before and after), roots that move to other documents, the parser's moves (adoption agency, foster parenting), DOMPurify's loops; `SWB_VALUES` lists the 6 departures with reasons; tests of the collector (an iterator with no other reference to its root, a moved reference across collections), 1,000,000 iterators made and dropped, 100,000 live iterators); `crates/engine/tests/frames/node_iterator.rs` (the 15 cases of `tools/probes/web-node-iterator-frames.json` with the values in `tests/data/web-node-iterator-frames.json`: realms of the iterator, its wrappers and its errors, filters of another realm, a removal in a frame, roots and nodes that move between documents, a frame that leaves the tree or navigates, a filter that removes its own frame, and (the fix round) a reference or a candidate that moves to a frame, a parser document or a `createHTMLDocument` document (3 equal runs: the reference stays the reference, `nextNode` returns it in its new document), a filter that moves the root to another document (the accepted node is the reference, the walk goes on in the new document) and a root that moves while the reference is outside its tree; `DEPARTURES` lists one row); unit tests in `crates/dom/src/iterator/tests.rs` (the rule of the steps, the index against the scan of the pointers, moves between arenas, pointers that leave for another arena and come back, a candidate in another arena, work counting, a removal far from the pointers that does not walk their ancestors, the entries of dead iterators, a chain of 200,000 levels); `crates/web/tests/node_iterator.rs` also holds Chromium's values for a filter that catches the error of its own nested call (`NESTED_CATCH_CHROMIUM`: Chromium's walk ends there; a longer form of the page crashes its renderer); hostile cases `node-iterator-*` (8) | no |
 | JavaScript engine tests | `crates/js/tests/vm.rs` (scripts and their expected output, compared with Node.js 22), `vm_limits.rs` (limits, termination, the time limit), `gc.rs` (the collector, roots, weak tables, accounting), `limits.rs` (the heap limit, no-GC regions, kind payloads), `objects.rs` (shapes, elements, the internal methods), with `tests/common/`. Each case runs with and without `HeapConfig::stress` (a collection at every safepoint) and fails if a collection finds a stale root. Front end: unit tests in `crates/js-syntax/src/`, `js-text` and `js-regexp`; regular expressions: `crates/js-regexp/tests/` (see "Regular expression tests") and the `RegExp` built-in: `crates/js/tests/builtins_regexp.rs`, `regexp_hostile.rs` (see "RegExp built-in tests"); `Proxy`: `builtins_proxy.rs`, `proxy_hostile.rs` (see "Proxy tests"); the weak collections: `builtins_weak.rs`, `weak.rs`, `weak_hostile.rs` (see "Weak collection tests"); `BigInt`: `builtins_bigint.rs`, `bigint_hostile.rs` (see "BigInt tests"); `ArrayBuffer` and `DataView`: `builtins_binary.rs`, `binary_hostile.rs` (see "ArrayBuffer and DataView tests"); the typed arrays: `builtins_typed.rs`, `typed_hostile.rs` (see "Typed array tests"); `Date`: `builtins_date.rs`, `date_hostile.rs` (see "Date tests"); `Intl`: `builtins_intl.rs` (see "Intl tests"); unit tests of the Python generators in `tools/tests/test_js_unicode_tables.py`, `test_js_time_zone_names.py` and `test_js_intl_data.py` | no |
 | test262 (ratchet)      | `crates/js/test262/` (`subset.txt`, `scores.json`; parse-only mode: `parse-skip.txt`, `parse-scores.json`); `just test262`, `just test262 --parse-only`, not part of `just check` | no |
 | Automation API tests   | `crates/automation/tests/headless.rs`; the engine's input as DOM events against Chromium's values: `crates/automation/tests/real_input.rs` (cases of `tools/probes/web-input-real.json`), the simple dialogs, `print()` and `navigator.clipboard`: `crates/automation/tests/window_dialogs.rs` (cases of `tools/probes/web-window-dialogs.json`, M8 feature 11c2, ADR 0028 section 13), forms from scripts: `crates/automation/tests/forms_script.rs` (cases of `tools/probes/web-forms-script.json` and `web-forms-selection.json`), the small DOM gaps of M9 feature 1: `crates/automation/tests/small_gaps.rs` (cases of `tools/probes/web-small-gaps.json`), and the Ars Technica features: `crates/automation/tests/ars_technica.rs` (local fixture; with M9 feature 2 also its `document.write` requests), and the BBC features: `crates/automation/tests/bbc.rs` (local fixture; M9 feature 8); Python client: `tools/tests/test_automation.py` | no |
@@ -83,7 +84,7 @@ all options. `-v` (before the command) prints progress, `-vv` debug output.
 | `just substitute NAME...`    | `substitute NAME... [--check]`         | Replaces photos with placeholders and non-free fonts with free ones in a fixture (see "Substitute copyrighted content"). |
 | `just reference [NAME...]`   | `reference NAME... \| --all`           | Writes Chromium's `reference/boxes.json` and `reference/screenshot.png`. |
 | `just tools reference --js NAME...` | `reference --js NAME... \| --all` | Writes Chromium's output with JavaScript on for `fixtures/js/NAME` into `out/js-reference/NAME/` (local only; see "Compare with JavaScript on"). |
-| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"). |
+| `just tools replay NAME --steps FILE --record EXPR` | `replay NAME --steps FILE --record EXPR [--setup FILE] [--out FILE] [--pause-ms MS] [--screenshots DIR] [--pixels FILE --pixels-out FILE] [--init-script FILE] [--console-out FILE]` | Replays `fixtures/js/NAME` in Chromium as `reference --js` does, runs the step groups of FILE and writes the value of EXPR after the load and after each group as a JSON list; with `--screenshots` also a screenshot of the viewport after each, with `--pixels` the colors at named points after the named groups (see "Automation tests"); `--init-script` runs a script in every frame before the page's scripts and `--console-out` writes the console of all frames, one line per message. |
 | `just compare [NAME...]`     | `compare NAME... \| --all`             | Runs swb on fixtures and compares with the references. `just` builds swb first. |
 | `just compare NAME --full-page`    | `compare NAME --full-page`       | Also compares the full-page screenshots and lists the differing regions (see "Compare swb with Chromium"). |
 | `just compare NAME --click SEL` | `compare NAME --click SELECTOR` | Compares the page after clicking the first element of SELECTOR in both browsers (repeatable). |
@@ -1613,14 +1614,34 @@ page, the popover and the language list (tolerance 12). Chromium's record
 adds the key `res` (the `ichef` image URLs of the resource timing entries); the
 test adds the same list from a recording fetcher (`common::Recording`).
 
-The consent frame: Chromium's replay shows the Sourcepoint dialog in a
-cross-origin frame over the page, and swb has no frames before M9 features 10
-to 15. The first group, `consent`, clicks "I agree" in the frame (Chromium
-only; the frame sends `sp.hideMessage` and the page removes it) and the test
-skips it. swb's record at the load equals Chromium's record after the group
-(and Chromium's at the load except for the focused element), so both browsers
-run the later steps on the same page state. Feature 15 of the milestone runs
-the group in swb and adds item 1. The group `anchoring off` sets
+The consent frame (item 1, M9 feature 15): Chromium's replay shows the
+Sourcepoint dialog in a cross-origin frame over the page, and so does swb since
+feature 15a. The first group, `consent`, clicks "I agree" in the frame (the frame
+sends `sp.hideMessage` and the page removes it), and swb runs it; its console
+then has the two errors of Chromium's replay (`CONSENT_CLICK_ERRORS`). The pixel
+groups of `data/bbc-pixel-points.json` include `load` (the points `dialog *`,
+sampled right after the record at the load: the white dialog, the logo, the two
+black buttons, the inside of "Manage options", the dimmed page) and `consent` (the
+points `clear *`, the page without the dimming). Two more loads, with
+`bbc_consent_reject_closes_the_dialog` and
+`bbc_consent_manage_options_starts_the_privacy_manager`, click "I do not agree"
+(514, 584) and "Manage options" (640, 677) in the dialog
+(`data/bbc-consent-reject-steps.json`, `data/bbc-consent-manage-steps.json`) and
+compare the record `data/bbc-consent-record.txt` (`window.__s()` with the key
+`frames`: the frames that have an `id`, with their size and the path of their URL;
+the frames without an `id` are left out because Chromium adds them in a varying
+order) at the load and after the click with Chromium's (`data/bbc-consent-reject-chromium.json`,
+`data/bbc-consent-manage-chromium.json`). "I do not agree" removes the frame and
+logs the same two errors as "I agree". "Manage options" makes the dialog's frame
+0 by 0 and adds the frame `sp_message_iframe_779247` (the privacy manager,
+`https://cdn.privacy-mgmt.com/privacy-manager/index.html?...`), also 0 by 0, and
+sets `overflow: hidden` on the body; the console stays empty. The document of that
+second frame, the settings view itself, is not in the fixture, so it shows in
+neither browser: the test checks that the dialog closes and that the privacy
+manager's frame starts, as in Chromium. The container of the dialog gets
+`display: none` while the frame has the focus, and Chromium moves the focus to the
+body (the focus fixup rule); swb keeps it, so the test skips `active` there, as
+after "banner agree". The group `anchoring off` sets
 `overflow-anchor: none` in both browsers: swb has no scroll anchoring, and
 Chromium's first wheel step scrolls 16 px less than the wheel with it
 (`tools/probes/web-bbc-gaps.json`, 21 cases, no Rust test runs it: `just probe
@@ -1651,13 +1672,24 @@ uv run --project tools swbtools replay bbc \
   --setup crates/automation/tests/data/bbc.js \
   --record "$(cat crates/automation/tests/data/bbc-record.txt)" \
   --out crates/automation/tests/data/bbc-settings-chromium.json
+uv run --project tools swbtools replay bbc \
+  --steps crates/automation/tests/data/bbc-consent-reject-steps.json \
+  --setup crates/automation/tests/data/bbc.js \
+  --record "$(cat crates/automation/tests/data/bbc-consent-record.txt)" \
+  --out crates/automation/tests/data/bbc-consent-reject-chromium.json
+uv run --project tools swbtools replay bbc \
+  --steps crates/automation/tests/data/bbc-consent-manage-steps.json \
+  --setup crates/automation/tests/data/bbc.js \
+  --record "$(cat crates/automation/tests/data/bbc-consent-record.txt)" \
+  --out crates/automation/tests/data/bbc-consent-manage-chromium.json
 ```
 
-Chromium's replay logs two errors after the click in the consent frame (the
-consent choice requests are not in the fixture): `ERROR in
-messagingWithoutDetection: RequestError: Server request error: 0`
-(`wrapperMessagingWithoutDetection.js`) and the exception `Failed to fetch`.
-swb has no error on its console at the load or after the steps.
+Chromium's replay logs two errors after the click on "I agree" or "I do not
+agree" in the consent frame (the consent choice requests are not in the fixture):
+`ERROR in messagingWithoutDetection: RequestError: Server request error: 0`
+(`wrapperMessagingWithoutDetection.js`) and the exception `Failed to fetch`. swb
+logs the same two, in the same order, and has no error on its console at the load
+or after any other step.
 
 `small_gaps.rs` (M9 feature 1) runs the 80 cases of
 `tools/probes/web-small-gaps.json` against Chromium's values
@@ -1689,7 +1721,20 @@ file (`include_str!`), so Chromium and swb run the same steps. The steps are
 those of `swb --steps` (see "Probe Chromium behaviour"), sent with the probe
 tool's runner with a pause of `--pause-ms` (default 300) after each step; the
 group's own `wait` steps follow. Console errors and exceptions of the page
-and the URLs that the fixture lacks are logged as warnings. The commands for
+and the URLs that the fixture lacks are logged as warnings. `--init-script FILE`
+(M9 feature 15a) is a script that Playwright runs in every frame before its own
+scripts (`add_init_script`): a wrapper of an API that the page calls during the
+load, a listener for `message` events, or a summary of a cross-origin frame's DOM
+after its load, which no query of the top level can read. `--console-out FILE`
+writes the console of all frames (every type), one line per message (`type`,
+`url:line`, text), so that the output of the init script is readable; the file
+also has the messages up to a step that fails or a replay that times out, and is
+empty for an empty console. A missing `--init-script` file is an error message with
+exit status 2. The BBC
+measurement of feature 15a used a script that logs the calls of
+`Document.prototype.open`, `write`, `writeln` and `close` with their callers, the
+messages of every window, and the markup size of the Sourcepoint frame; Chromium
+calls none of the four on any document of the page. The commands for
 the two tests (make the records three times and use them when the three runs
 are equal):
 

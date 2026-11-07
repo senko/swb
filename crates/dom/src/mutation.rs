@@ -281,7 +281,9 @@ impl Document {
 
     /// Unlinks `node` from its parent and removes its ids from the index if
     /// it was connected. No record. Does nothing for a node without parent.
-    pub(crate) fn unlink(&mut self, node: NodeId) {
+    /// `steps` says whether the pre-removing steps of the node iterators run
+    /// first, while the node is in its place (DOM "remove", section 6.1).
+    fn unlink_with(&mut self, node: NodeId, steps: bool) {
         let (parent, prev, next) = {
             let n = self.node(node);
             (n.parent, n.prev_sibling, n.next_sibling)
@@ -289,6 +291,9 @@ impl Document {
         let Some(parent) = parent else {
             return;
         };
+        if steps {
+            self.run_removal_steps(node);
+        }
         if self.may_have_ids(node) && self.is_connected(parent) {
             self.unindex_ids(node);
         }
@@ -376,8 +381,13 @@ impl Document {
         if nodes.is_empty() {
             return;
         }
+        // The children leave together: the steps of the node iterators run for
+        // all of them while the fragment is whole (measured).
         for &n in &nodes {
-            self.unlink(n);
+            self.run_removal_steps(n);
+        }
+        for &n in &nodes {
+            self.unlink_with(n, false);
         }
         self.record(&Change::Children {
             parent: node,
@@ -410,6 +420,12 @@ impl Document {
     /// parent.
     /// <https://dom.spec.whatwg.org/#concept-node-remove>
     pub(crate) fn remove_node(&mut self, node: NodeId, suppress_observers: bool) {
+        self.remove_node_with(node, suppress_observers, true);
+    }
+
+    /// [`remove_node`](Self::remove_node); `steps` as in
+    /// [`unlink_with`](Self::unlink_with).
+    fn remove_node_with(&mut self, node: NodeId, suppress_observers: bool, steps: bool) {
         let (parent, prev_sibling, next_sibling) = {
             let n = self.node(node);
             (n.parent, n.prev_sibling, n.next_sibling)
@@ -417,7 +433,7 @@ impl Document {
         let Some(parent) = parent else {
             return;
         };
-        self.unlink(node);
+        self.unlink_with(node, steps);
         if !suppress_observers {
             self.record(&Change::Children {
                 parent,
@@ -461,8 +477,17 @@ impl Document {
 
     /// DOM "replace all" (without the checks).
     /// <https://dom.spec.whatwg.org/#concept-node-replace-all>
-    fn replace_all_unchecked(&mut self, parent: NodeId, node: Option<NodeId>) {
+    ///
+    /// With `batched`, the pre-removing steps of the node iterators run for
+    /// all children first, while the tree is whole (`textContent`, `innerHTML`:
+    /// measured); else for each child as it leaves.
+    fn replace_all_unchecked(&mut self, parent: NodeId, node: Option<NodeId>, batched: bool) {
         let removed = self.child_list(parent);
+        if batched {
+            for &child in &removed {
+                self.run_removal_steps(child);
+            }
+        }
         let added = match node {
             Some(n) if matches!(self.node(n).data, NodeData::DocumentFragment) => {
                 self.child_list(n)
@@ -471,7 +496,7 @@ impl Document {
             None => Vec::new(),
         };
         for &child in &removed {
-            self.remove_node(child, true);
+            self.remove_node_with(child, true, !batched);
             self.reset_form_owners(child);
         }
         if let Some(n) = node {
@@ -578,12 +603,33 @@ impl Document {
     /// a second element even though the first would go.
     /// <https://dom.spec.whatwg.org/#dom-parentnode-replacechildren>
     pub fn replace_all(&mut self, parent: NodeId, node: Option<NodeId>) -> Result<(), DomError> {
+        self.replace_all_checked(parent, node, false)
+    }
+
+    /// [`replace_all`](Self::replace_all) for `textContent`, `innerHTML` and
+    /// the other setters that Chromium runs as one removal of all children:
+    /// the pre-removing steps of the node iterators run for every child
+    /// before the first leaves.
+    pub fn replace_all_batched(
+        &mut self,
+        parent: NodeId,
+        node: Option<NodeId>,
+    ) -> Result<(), DomError> {
+        self.replace_all_checked(parent, node, true)
+    }
+
+    fn replace_all_checked(
+        &mut self,
+        parent: NodeId,
+        node: Option<NodeId>,
+        batched: bool,
+    ) -> Result<(), DomError> {
         if let Some(node) = node {
             self.check_insertion(parent, node, None, Validity::PreInsert)?;
         } else if !self.can_have_children(parent) {
             return Err(DomError::HierarchyRequest);
         }
-        self.replace_all_unchecked(parent, node);
+        self.replace_all_unchecked(parent, node, batched);
         Ok(())
     }
 

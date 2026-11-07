@@ -116,6 +116,7 @@ mod mime;
 mod mutation_observer;
 mod mutation_registry;
 mod navigator;
+mod node_iterator;
 mod page_budget;
 mod performance;
 mod performance_observer;

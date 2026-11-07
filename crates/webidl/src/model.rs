@@ -97,6 +97,11 @@ pub(crate) struct Iface {
     pub(crate) ext_attrs: ExtAttrs,
     pub(crate) members: Vec<Member>,
     pub(crate) place: Place,
+    /// True for the interface object of a callback interface that has
+    /// constants (Web IDL §3.7: such an interface has an interface object
+    /// with the constants and no prototype): `members` holds the constants
+    /// only.
+    pub(crate) callback: bool,
 }
 
 /// The checked model.
@@ -109,6 +114,22 @@ pub(crate) struct Model {
     pub(crate) callbacks: Vec<CallbackFunction>,
     typedefs: HashMap<String, Type>,
     kinds: HashMap<String, Kind>,
+}
+
+/// The interface object of a callback interface that has constants (Web IDL §3.7):
+/// an interface with the constants only; `None` for one without.
+fn constants_interface(callback: &Iface) -> Option<Iface> {
+    let constants: Vec<Member> = callback
+        .members
+        .iter()
+        .filter(|m| matches!(m, Member::Const(_)))
+        .cloned()
+        .collect();
+    (!constants.is_empty()).then(|| Iface {
+        members: constants,
+        callback: true,
+        ..callback.clone()
+    })
 }
 
 fn error<T>(place: &Place, message: impl Into<String>) -> Result<T, Error> {
@@ -150,6 +171,7 @@ impl Model {
                         ext_attrs: i.ext_attrs.clone(),
                         members: i.members.clone(),
                         place: i.place.clone(),
+                        callback: false,
                     };
                     if i.mixin {
                         if mixins.iter().any(|m| m.name == i.name) {
@@ -158,6 +180,7 @@ impl Model {
                         mixins.push(iface);
                     } else if i.callback {
                         declare(&i.name, Kind::CallbackInterface, &i.place)?;
+                        interfaces.extend(constants_interface(&iface));
                         callback_interfaces.push(iface);
                     } else {
                         declare(&i.name, Kind::Interface, &i.place)?;

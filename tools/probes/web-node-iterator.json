@@ -1,0 +1,608 @@
+{
+ "viewport": [
+  400,
+  200
+ ],
+ "javascript": true,
+ "cases": [
+  {
+   "name": "api",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><p id=p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[typeof NodeFilter, typeof NodeIterator, Object.getOwnPropertyNames(NodeFilter).join(), Object.getOwnPropertyNames(NodeIterator).join(), Object.getOwnPropertyNames(NodeIterator.prototype).join(), typeof NodeFilter.prototype, Object.getOwnPropertyNames(Object(NodeFilter.prototype)).join(), NodeFilter.length, NodeIterator.length, NodeFilter.name, NodeIterator.name, Object.prototype.toString.call(NodeFilter), Object.prototype.toString.call(NodeIterator.prototype), Object.getPrototypeOf(NodeFilter) === Function.prototype, Object.getPrototypeOf(NodeIterator) === Function.prototype, Object.getPrototypeOf(NodeIterator.prototype) === Object.prototype, NodeIterator.prototype.constructor === NodeIterator, String(NodeFilter), String(NodeIterator).replace(/\\s+/g, ' ')]"
+    },
+    {
+     "js": "[J(Object.getOwnPropertyDescriptors(NodeFilter)), J(Object.getOwnPropertyDescriptors(Object(NodeFilter.prototype)))]"
+    },
+    {
+     "js": "(() => { const keys = Object.getOwnPropertyNames(NodeFilter).filter(k => k !== 'length' && k !== 'name' && k !== 'prototype'); const o = []; for (const k of keys) { const d = Object.getOwnPropertyDescriptor(NodeFilter, k); o.push(k + '=' + d.value + ',' + d.writable + d.enumerable + d.configurable); } return o; })()"
+    },
+    {
+     "js": "[E(() => { NodeFilter.SHOW_ALL = 5; return NodeFilter.SHOW_ALL; }), E(() => { 'use strict'; NodeFilter.SHOW_ALL = 5; }), E(() => { 'use strict'; delete NodeFilter.SHOW_ALL; }), Object.keys(NodeFilter).join(), E(() => { 'use strict'; NodeFilter.extra = 1; return NodeFilter.extra; }), Object.isFrozen(NodeFilter), Object.isExtensible(NodeFilter), Object.isExtensible(NodeIterator.prototype)]"
+    },
+    {
+     "js": "[E(() => new NodeFilter()), E(() => NodeFilter()), E(() => new NodeIterator()), E(() => NodeIterator()), E(() => Object.create(NodeIterator.prototype).nextNode()), E(() => NodeIterator.prototype.nextNode.call({})), E(() => NodeIterator.prototype.previousNode.call(document)), E(() => NodeIterator.prototype.detach.call(null)), E(() => Object.getOwnPropertyDescriptor(NodeIterator.prototype, 'root').get.call({})), E(() => Object.getOwnPropertyDescriptor(NodeIterator.prototype, 'whatToShow').get.call(NodeFilter)), E(() => Reflect.construct(Object, [], NodeIterator) instanceof NodeIterator), E(() => NodeFilter.hasOwnProperty('acceptNode')), E(() => typeof NodeFilter.acceptNode)]"
+    },
+    {
+     "js": "[J(Object.getOwnPropertyDescriptor(window, 'NodeFilter')), J(Object.getOwnPropertyDescriptor(window, 'NodeIterator')), Object.getOwnPropertyNames(window).filter(k => /^Node/.test(k)).sort().join(), 'NodeFilter' in globalThis, typeof Document.prototype.createNodeIterator, typeof Node.prototype.createNodeIterator, typeof Element.prototype.createNodeIterator, Object.getOwnPropertyDescriptor(Document.prototype, 'createNodeIterator').enumerable, Object.getOwnPropertyDescriptor(Document.prototype, 'createNodeIterator').writable, Document.prototype.createNodeIterator.length, Document.prototype.createNodeIterator.name, (n => n.indexOf('createEvent') < n.indexOf('createNodeIterator') && n.indexOf('createNodeIterator') < n.indexOf('createTextNode'))(Object.getOwnPropertyNames(Document.prototype))]"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.body); const d = k => { const x = Object.getOwnPropertyDescriptor(NodeIterator.prototype, k); return k + ':' + (typeof x.get) + (typeof x.set) + x.enumerable + x.configurable + (x.get ? x.get.name + x.get.length : ''); }; return [String(it), Object.prototype.toString.call(it), Object.keys(it).join(), J(it), Object.getOwnPropertyNames(it).join(), ['root', 'referenceNode', 'pointerBeforeReferenceNode', 'whatToShow', 'filter'].map(d), ['nextNode', 'previousNode', 'detach'].map(k => { const x = Object.getOwnPropertyDescriptor(NodeIterator.prototype, k); return k + ':' + x.writable + x.enumerable + x.configurable + x.value.length + x.value.name; }), it instanceof NodeIterator, it.constructor === NodeIterator, Object.getPrototypeOf(it) === NodeIterator.prototype, Object.isExtensible(it)]; })()"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.body); return [it.root === it.root, it.root === document.body, it.referenceNode === document.body, it.pointerBeforeReferenceNode, it.whatToShow, it.filter, it.detach(), typeof it.detach(), S(it), it.nextNode() === document.body, S(it), it.nextNode() === document.getElementById('p'), S(it), it.root === document.body]; })()"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.body); const o = []; it.root = 1; it.whatToShow = 1; it.filter = 1; it.referenceNode = 1; o.push(N(it.root), it.whatToShow, it.filter, N(it.referenceNode)); o.push(E(() => { 'use strict'; it.root = 1; }), E(() => { 'use strict'; it.pointerBeforeReferenceNode = 1; }), E(() => { 'use strict'; delete it.nextNode; return 'ok'; })); it.nextNode = 5; o.push(typeof it.nextNode, Object.keys(it).join()); it.expando = 7; o.push(it.expando); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "args",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><p id=p>x</p><!--c--></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[E(() => document.createNodeIterator()), E(() => document.createNodeIterator(1)), E(() => document.createNodeIterator(null)), E(() => document.createNodeIterator(undefined)), E(() => document.createNodeIterator({})), E(() => document.createNodeIterator(window)), E(() => document.createNodeIterator('str')), E(() => document.createNodeIterator(document.body.firstChild).constructor.name), E(() => document.createNodeIterator(Symbol())), E(() => document.createNodeIterator(document.implementation.createDocumentType('a', '', '')).constructor.name), E(() => document.createNodeIterator(document.body.childNodes)), E(() => document.createNodeIterator(document.body, 1, null).constructor.name)]"
+    },
+    {
+     "js": "[undefined, null, -1, 0, 1, 2, 2 ** 32 + 1, 2 ** 32, 2 ** 31, -(2 ** 31), 4294967295, 4294967296, '4', 'abc', '', 1.9, -1.9, NaN, Infinity, -Infinity, true, false, {}, [], [5], {valueOf() { return 7; }}, 1e20, -1e20, 0.5].map(v => E(() => String(document.createNodeIterator(document.body, v).whatToShow)))"
+    },
+    {
+     "js": "E(() => document.createNodeIterator(document.createAttribute('x')).constructor.name)"
+    },
+    {
+     "js": "E(() => String(document.createNodeIterator(document.body, Symbol()).whatToShow)) + ' | ' + E(() => String(document.createNodeIterator(document.body, 10n).whatToShow)) + ' | ' + E(() => String(document.createNodeIterator(document.body, {valueOf() { throw new RangeError('boom'); }}).whatToShow))"
+    },
+    {
+     "js": "(() => { const f = () => 1, o = {acceptNode() { return 1; }}, o2 = {}, o3 = {acceptNode: 5}, c = class {}, a = []; return [undefined, null, f, o, o2, o3, 1, 'x', true, Symbol(), c, a, new Proxy(f, {}), new Proxy({}, {}), document.body, window, 10n, NaN, 0, ''].map(v => E(() => { const it = document.createNodeIterator(document.body, 4294967295, v); return (it.filter === v ? 'same' : 'other:' + String(it.filter)) + ' ' + typeof it.filter; })); })()"
+    },
+    {
+     "js": "(() => { const f = () => 1, o = {acceptNode() { return 1; }}, o2 = {}, o3 = {acceptNode: 5}, o4 = {acceptNode: null}, o5 = {handleEvent() { return 1; }}, c = class {}, a = [], p = new Proxy({}, {get(t, k) { return k === 'acceptNode' ? () => 1 : undefined; }}); return [f, o, o2, o3, o4, o5, c, a, p].map(v => E(() => { const it = document.createNodeIterator(document.body, 4294967295, v); return N(it.nextNode()) + ' ' + N(it.nextNode()); })); })()"
+    },
+    {
+     "js": "[E(() => { const it = document.createNodeIterator(document.body, 4294967295, null, false); return it.whatToShow; }), E(() => { const it = document.createNodeIterator(document.body, 1, null, true, 5, 6); return it.whatToShow; }), E(() => document.createNodeIterator(document.body, 4, undefined, Symbol()).whatToShow), E(() => document.createNodeIterator(document.body, 1, null, {get x() { throw new Error('read'); }}).whatToShow), E(() => document.createNodeIterator(document.body, 4294967295, 7, false)), E(() => document.createNodeIterator(document.body, {valueOf() { throw new RangeError('first'); }}, 5))]"
+    },
+    {
+     "js": "(() => { const f = Document.prototype.createNodeIterator; const o = document.implementation.createHTMLDocument('x'); return [E(() => N(f.call(o, document.body).root)), E(() => f.call({}, document.body)), E(() => f.call(document.body, document.body)), E(() => f.call(undefined, document.body)), E(() => f.call(null, document.body)), E(() => f.call(document.implementation, document.body)), E(() => f.call(new DOMParser().parseFromString('<p>', 'text/html'), document.body.firstChild).root === document.body.firstChild), E(() => f.call(document, o).root === o), E(() => f.call(document, o.body).root === o.body), E(() => f.call(1, document.body))]; })()"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.body); return [Object.getPrototypeOf(it) === NodeIterator.prototype, it.constructor === NodeIterator, it instanceof Object, document.createNodeIterator(document.body) !== it, Reflect.ownKeys(it).length]; })()"
+    }
+   ]
+  },
+  {
+   "name": "show",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><div id=a>t1<b id=b>t2</b><!--c1--></div><p id=p></p><template id=tpl><i id=ti>tt</i></template></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<!DOCTYPE html><html><head><title>T</title></head><body><div id=a>t1<b id=b>t2</b><!--c1--></div><p id=p></p></body></html>\", 'text/html'); const roots = {doc: d, el: d.getElementById('a'), body: d.body}; return [['ALL', 0xFFFFFFFF], ['ELEMENT', 1], ['ATTRIBUTE', 2], ['TEXT', 4], ['CDATA', 8], ['ENTITY_REFERENCE', 16], ['ENTITY', 32], ['PI', 64], ['COMMENT', 128], ['DOCUMENT', 256], ['DOCUMENT_TYPE', 512], ['DOCUMENT_FRAGMENT', 1024], ['NOTATION', 2048], ['ZERO', 0], ['EL+TEXT', 5], ['TEXT+COMMENT', 132], ['HIGH', 0xFFFFF000], ['BIT12', 4096], ['BIT31', 2147483648]].map(([k, m]) => k + ': ' + [d, d.getElementById('a'), d.body].map(r => FWD(d.createNodeIterator(r, m))).join(' / ')); })()"
+    },
+    {
+     "js": "(() => { const f = document.createDocumentFragment(); f.append(TREE('<b id=fb>x</b>t<!--fc-->').firstChild, 'tx', document.createComment('cm'), document.createElement('u')); const det = TREE('<p id=dp>a<!--dc--></p>').firstChild; return [['ALL', 0xFFFFFFFF], ['ELEMENT', 1], ['ATTRIBUTE', 2], ['TEXT', 4], ['CDATA', 8], ['ENTITY_REFERENCE', 16], ['ENTITY', 32], ['PI', 64], ['COMMENT', 128], ['DOCUMENT', 256], ['DOCUMENT_TYPE', 512], ['DOCUMENT_FRAGMENT', 1024], ['NOTATION', 2048], ['ZERO', 0], ['EL+TEXT', 5], ['TEXT+COMMENT', 132], ['HIGH', 0xFFFFF000], ['BIT12', 4096], ['BIT31', 2147483648]].map(([k, m]) => k + ': ' + [f, det, document.getElementById('tpl').content, document.createTextNode('solo'), document.createComment('cmt')].map(r => FWD(document.createNodeIterator(r, m))).join(' / ')); })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<!DOCTYPE html><html><head><title>T</title></head><body><div id=a>t1<b id=b>t2</b><!--c1--></div><p id=p></p></body></html>\", 'text/html'); return [['ALL', 0xFFFFFFFF], ['ELEMENT', 1], ['ATTRIBUTE', 2], ['TEXT', 4], ['CDATA', 8], ['ENTITY_REFERENCE', 16], ['ENTITY', 32], ['PI', 64], ['COMMENT', 128], ['DOCUMENT', 256], ['DOCUMENT_TYPE', 512], ['DOCUMENT_FRAGMENT', 1024], ['NOTATION', 2048], ['ZERO', 0], ['EL+TEXT', 5], ['TEXT+COMMENT', 132], ['HIGH', 0xFFFFF000], ['BIT12', 4096], ['BIT31', 2147483648]].map(([k, m]) => { const it = d.createNodeIterator(d, m); FWD(it); return k + ': ' + BWD(it) + ' ' + S(it); }); })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<!DOCTYPE html><html><head><title>T</title></head><body><div id=a>t1<b id=b>t2</b><!--c1--></div><p id=p></p></body></html>\", 'text/html'); const r = []; for (const m of [256, 512, 1, 1024, 257, 513]) { const it = d.createNodeIterator(d, m); r.push(m + ': ' + FWD(it) + ' | ' + S(it) + ' | ' + BWD(it)); } return r; })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<!DOCTYPE html><html><head><title>T</title></head><body><div id=a>t1<b id=b>t2</b><!--c1--></div><p id=p></p></body></html>\", 'text/html'); return [d.doctype, d.documentElement, d.getElementById('a').firstChild, d.getElementById('a').lastChild, d.createDocumentFragment(), d].map(root => { const it = d.createNodeIterator(root); return N(root) + ': ' + N(it.root) + ' ' + S(it) + ' ' + FWD(it) + ' ' + S(it); }); })()"
+    }
+   ]
+  },
+  {
+   "name": "xml",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<r><?pi data?><![CDATA[cd]]><!--x--><e/>tx</r>\", 'application/xml'); return [['ALL', 0xFFFFFFFF], ['ELEMENT', 1], ['ATTRIBUTE', 2], ['TEXT', 4], ['CDATA', 8], ['ENTITY_REFERENCE', 16], ['ENTITY', 32], ['PI', 64], ['COMMENT', 128], ['DOCUMENT', 256], ['DOCUMENT_TYPE', 512], ['DOCUMENT_FRAGMENT', 1024], ['NOTATION', 2048], ['ZERO', 0], ['EL+TEXT', 5], ['TEXT+COMMENT', 132], ['HIGH', 0xFFFFF000], ['BIT12', 4096], ['BIT31', 2147483648]].map(([k, m]) => k + ': ' + FWD(d.createNodeIterator(d, m))); })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString(\"<r><?pi data?><![CDATA[cd]]><!--x--><e/>tx</r>\", 'application/xml'); const it = d.createNodeIterator(d, 64); const a = it.nextNode(); return [a.nodeType, a.target, a.data, a.constructor.name, S(it), d.documentElement.childNodes.length, Array.from(d.documentElement.childNodes).map(n => n.nodeType + ':' + n.nodeName)]; })()"
+    },
+    {
+     "js": "[E(() => N(document.createProcessingInstruction('t', 'd'))), E(() => document.createCDATASection('x').nodeType), E(() => { const pi = document.createProcessingInstruction('t', 'd'); const it = document.createNodeIterator(pi); return N(it.nextNode()) + ' ' + N(it.nextNode()) + ' ' + FWD(document.createNodeIterator(pi, 64)); })]"
+    }
+   ]
+  },
+  {
+   "name": "walk",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><div id=r><p id=a>t1<i id=a1></i><!--c1--></p><p id=b></p><p id=c><i id=c1>t2</i></p></div></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const run = (m, seq, root) => { const it = document.createNodeIterator(root || document.getElementById('r'), m); const o = [S(it)]; for (const c of seq) { const n = c === 'n' ? it.nextNode() : it.previousNode(); o.push(c + ':' + N(n) + ' ' + S(it)); } return o.join(' ; '); }; return ['n', 'p', 'nn', 'pp', 'np', 'pn', 'npn', 'pnp', 'nnnnnnnnnnnn', 'nnnnnnnnnnnnp', 'nnnnnnnnnnnnpp', 'nnnnnnnnnnnnppn', 'nnnnnnnnnnnnnpppppppppppppp', 'nnnpp', 'nnnnpnpnp', 'ppnnnn'].map(s => s + ': ' + run(4294967295, s)); })()"
+    },
+    {
+     "js": "(() => { const run = (m, seq, root) => { const it = document.createNodeIterator(root || document.getElementById('r'), m); const o = [S(it)]; for (const c of seq) { const n = c === 'n' ? it.nextNode() : it.previousNode(); o.push(c + ':' + N(n) + ' ' + S(it)); } return o.join(' ; '); }; return [1, 4, 128, 0, 5].flatMap(m => ['nnnnnnnn', 'nnnnnnnnpppppppp', 'pppp', 'nnpnnp', 'npppnnn'].map(s => m + ' ' + s + ': ' + run(m, s))); })()"
+    },
+    {
+     "js": "(() => { const t = document.createTextNode('only'); const e = document.createElement('u'); const o = []; for (const root of [t, e]) { const it = document.createNodeIterator(root); o.push(['n', 'n', 'p', 'p', 'p', 'n'].map(c => (c === 'n' ? N(it.nextNode()) : N(it.previousNode())) + ' ' + S(it)).join(' ; ')); } const it2 = document.createNodeIterator(e, 4); o.push(['n', 'p', 'n'].map(c => (c === 'n' ? N(it2.nextNode()) : N(it2.previousNode())) + ' ' + S(it2)).join(' ; ')); return o; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const a = document.createNodeIterator(r), b = document.createNodeIterator(r); return [N(a.nextNode()), N(a.nextNode()), N(b.nextNode()), S(a), S(b), N(a.previousNode()), S(a), S(b)]; })()"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.getElementById('b')); return [FWD(it), BWD(it), S(it)]; })()"
+    },
+    {
+     "js": "(() => { const it = document.createNodeIterator(document.getElementById('a'), 1); return [FWD(it), S(it), BWD(it), S(it)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "filter",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><div id=r><p id=a>t1<i id=a1></i></p><p id=b></p><p id=c></p></div></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const vals = [1, 2, 3, 0, 4, -1, true, false, undefined, null, '1', '2', '3', 'abc', 1.5, 65537, 65538, 65539, NaN, {}, [1], Infinity, 2 ** 32 + 1, 3.9, -65535, () => Symbol(), () => 10n, () => { throw 'str'; }, () => ({valueOf() { return 2; }})]; const r = document.getElementById('r'); return vals.map(v => E(() => { const it = document.createNodeIterator(r, 1, {acceptNode(n) { return typeof v === 'function' ? v() : v; }}); return FWD(it) + ' | ' + BWD(it) + ' | ' + S(it); })); })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); return E(() => { const it = document.createNodeIterator(r, 1, {acceptNode(n) { return {valueOf() { throw new RangeError('vo'); }}; }}); return FWD(it); }); })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const run = k => { const it = document.createNodeIterator(r, 4294967295, n => n.id === 'a' ? k : 1); return FWD(it) + ' | ' + BWD(it); }; return [run(1), run(2), run(3), run(0)]; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const log = []; const o = {acceptNode(n) { log.push(['obj', this === o, arguments.length, N(n), typeof arguments[1]].join()); return 1; }}; document.createNodeIterator(r, 1, o).nextNode(); const f = function() { 'use strict'; log.push('strict:' + typeof this + ',' + arguments.length); return 1; }; document.createNodeIterator(r, 1, f).nextNode(); const g = function() { log.push('sloppy:' + (this === window) + ',' + typeof this); return 1; }; document.createNodeIterator(r, 1, g).nextNode(); const h = () => { log.push('arrow'); return 1; }; h.acceptNode = () => { log.push('property'); return 1; }; document.createNodeIterator(r, 1, h).nextNode(); const bound = function() { log.push('bound:' + (this === o)); return 1; }.bind(o); document.createNodeIterator(r, 1, bound).nextNode(); const o2 = Object.create({acceptNode() { log.push('inherited:' + (this === o2)); return 1; }}); document.createNodeIterator(r, 1, o2).nextNode(); const o3 = {handleEvent() { log.push('handleEvent'); return 1; }}; E(() => document.createNodeIterator(r, 1, o3).nextNode()); const c = function() { log.push('new.target:' + (new.target === undefined)); return 1; }; document.createNodeIterator(r, 1, c).nextNode(); return log; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const log = []; let k = 0; const o = {get acceptNode() { log.push('get' + k); k++; return k < 3 ? () => 1 : 5; }}; const it = document.createNodeIterator(r, 1, o); return [E(() => N(it.nextNode())), E(() => N(it.nextNode())), E(() => N(it.nextNode())), S(it), E(() => N(it.nextNode())), log.join()]; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const log = []; const target = {acceptNode() { return 1; }}; const p = new Proxy(target, {get(t, k, rc) { log.push('get:' + String(k)); return Reflect.get(t, k, rc); }, has(t, k) { log.push('has:' + String(k)); return Reflect.has(t, k); }, getOwnPropertyDescriptor(t, k) { log.push('gopd:' + String(k)); return Reflect.getOwnPropertyDescriptor(t, k); }}); const it = document.createNodeIterator(r, 1, p); it.nextNode(); log.push('|'); it.nextNode(); const fp = new Proxy(() => 1, {apply(t, th, args) { log.push('apply:' + args.length + (th === undefined)); return 1; }, get(t, k, rc) { log.push('fget:' + String(k)); return Reflect.get(t, k, rc); }}); log.push('|'); document.createNodeIterator(r, 1, fp).nextNode(); return log.join(' '); })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const rv = Proxy.revocable({acceptNode() { return 1; }}, {}); const it2 = document.createNodeIterator(r, 1, rv.proxy); rv.revoke(); return [E(() => N(it2.nextNode())), E(() => String(it2.filter === rv.proxy)), S(it2)]; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); let fail = 'a1'; const it = document.createNodeIterator(r, 1, n => { if (n.id === fail) throw new Error('x'); return 1; }); const o = [N(it.nextNode()), N(it.nextNode())]; o.push(E(() => N(it.nextNode()))); o.push(S(it)); o.push(E(() => N(it.nextNode())), S(it)); o.push(E(() => N(it.previousNode())), S(it)); fail = 'none'; o.push(N(it.nextNode()), S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const err = new TypeError('mine'); let what = err; const it = document.createNodeIterator(r, 1, n => { if (n.id === 'a') throw what; return 1; }); const o = []; o.push(N(it.nextNode())); for (const w of [err, 'str', undefined, null, 42, {k: 1}]) { what = w; try { it.nextNode(); o.push('no throw'); } catch (e) { o.push(e === w ? 'same:' + typeof e : 'other:' + e); } } o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const o = []; let it, mode = 0; it = document.createNodeIterator(r, 1, n => { if (mode === 1) { mode = 0; o.push(E(() => String(it.detach()))); o.push(S(it)); o.push(String(it.filter !== null), String(it.root === r), String(it.whatToShow)); } return 1; }); o.push(N(it.nextNode())); mode = 1; o.push(N(it.nextNode())); o.push(S(it)); o.push(N(it.nextNode()), S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const r = document.getElementById('r'); const o = []; let it, mode = 0; it = document.createNodeIterator(r, 1, n => { if (mode === 1) it.nextNode(); return 1; }); o.push(N(it.nextNode())); mode = 1; o.push(E(() => N(it.nextNode()))); mode = 0; o.push(E(() => N(it.nextNode())), S(it)); const it2 = document.createNodeIterator(r, 1, n => { if (mode === 2) { o.push('inner:' + N(it3.nextNode())); } return 1; }); const it3 = document.createNodeIterator(r, 1, n => 1); mode = 2; o.push(N(it2.nextNode()), N(it2.nextNode())); const shared = n => { if (mode === 3) { mode = 0; o.push('shared:' + E(() => N(ia.nextNode()) + N(ib.nextNode()))); } return 1; }; const ia = document.createNodeIterator(r, 1, shared), ib = document.createNodeIterator(r, 1, shared); mode = 3; o.push(N(ia.nextNode())); return o; })()"
+    },
+    {
+     "js": "(() => { const mk = () => { const w = document.createElement('div'); w.innerHTML = '<div id=r><p id=a>t1<i id=a1></i></p><p id=b></p><p id=c></p></div>'; return w.firstChild; }; const run = (act) => { const r = mk(); const g = id => r.ownerDocument === document ? null : null; const find = id => r.id === id ? r : r.querySelector('#' + id); const it = document.createNodeIterator(r, 1, n => { act(n, r, find); return 1; }); const o = []; for (let i = 0; i < 8; i++) { const x = it.nextNode(); o.push(N(x) + ' ' + S(it)); if (!x) break; } const p = []; for (let i = 0; i < 8; i++) { const x = it.previousNode(); p.push(N(x) + ' ' + S(it)); if (!x) break; } return o.join(' ; ') + ' || ' + p.join(' ; ') + ' || ' + r.innerHTML; }; return [run((n, r, f) => { if (n.id === 'a') n.remove(); }), run((n, r, f) => { if (n.id === 'b') f('a') && f('a').remove(); }), run((n, r, f) => { if (n.id === 'b') f('c') && f('c').remove(); }), run((n, r, f) => { if (n.id === 'a1') f('a').remove(); }), run((n, r, f) => { if (n.id === 'a') r.remove(); }), run((n, r, f) => { if (n.id === 'a') r.appendChild(document.createElement('z')); }), run((n, r, f) => { if (n.id === 'a') f('b').before(document.createElement('y')); }), run((n, r, f) => { if (n.id === 'b') r.textContent = ''; }), run((n, r, f) => { if (n.id === 'b') r.innerHTML = '<q id=a></q><q id=b></q>'; })]; })()"
+    },
+    {
+     "js": "(() => { const r = TREE('<p id=a></p><p id=b></p>'); const seen = []; const it = document.createNodeIterator(r, 1, n => { seen.push(N(n) + ':' + N(n.parentNode) + ':' + N(n.nextSibling)); return 1; }); it.nextNode(); it.nextNode(); return seen; })()"
+    }
+   ]
+  },
+  {
+   "name": "remove-remove",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.remove())"
+    }
+   ]
+  },
+  {
+   "name": "remove-removeChild",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.parentNode.removeChild(x))"
+    }
+   ]
+  },
+  {
+   "name": "remove-replaceChild",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.parentNode.replaceChild(document.createElement('s'), x))"
+    }
+   ]
+  },
+  {
+   "name": "remove-replaceWith",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.replaceWith('t', document.createElement('s')))"
+    }
+   ]
+  },
+  {
+   "name": "remove-innerHTML",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.innerHTML = '<s id=s></s>'; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-innerHTML-empty",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.innerHTML = ''; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-outerHTML",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.outerHTML = '<s id=s></s>'; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-textContent",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.textContent = 'z'; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-textContent-empty",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.textContent = ''; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-replaceChildren",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.replaceChildren())"
+    }
+   ]
+  },
+  {
+   "name": "remove-replaceChildren-node",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.replaceChildren(document.createElement('s'), 'u'))"
+    }
+   ]
+  },
+  {
+   "name": "remove-innerText",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.innerText = 'z'; })"
+    }
+   ]
+  },
+  {
+   "name": "remove-adoptNode",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => document.adoptNode(x))"
+    }
+   ]
+  },
+  {
+   "name": "remove-importNode",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => document.importNode(x, true))"
+    }
+   ]
+  },
+  {
+   "name": "remove-cloneNode",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.cloneNode(true))"
+    }
+   ]
+  },
+  {
+   "name": "move-appendChild-parent",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => document.getElementById('w').appendChild(x))"
+    }
+   ]
+  },
+  {
+   "name": "move-appendChild-root",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => document.getElementById('r').appendChild(x))"
+    }
+   ]
+  },
+  {
+   "name": "move-appendChild-self-parent",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => x.parentNode && x.parentNode.appendChild(x))"
+    }
+   ]
+  },
+  {
+   "name": "move-insertBefore-first",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { const r = document.getElementById('r'); r.insertBefore(x, r.firstChild); })"
+    }
+   ]
+  },
+  {
+   "name": "move-insertBefore-self",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.parentNode && x.parentNode.insertBefore(x, x); })"
+    }
+   ]
+  },
+  {
+   "name": "move-insertBefore-next",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.parentNode && x.parentNode.insertBefore(x, x.nextSibling); })"
+    }
+   ]
+  },
+  {
+   "name": "move-before",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { const b = document.getElementById('b'); if (b !== x && !x.contains(b)) b.before(x); })"
+    }
+   ]
+  },
+  {
+   "name": "move-after",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { const c = document.getElementById('c1'); if (c !== x && !x.contains(c)) c.after(x); })"
+    }
+   ]
+  },
+  {
+   "name": "move-append-fragment",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { const f = document.createDocumentFragment(); f.append(document.createElement('s'), 't'); x.append(f); })"
+    }
+   ]
+  },
+  {
+   "name": "move-append-many",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { const b = document.getElementById('b'); b.append(document.getElementById('a1'), document.getElementById('c1')); })"
+    }
+   ]
+  },
+  {
+   "name": "move-moved-into-self",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TABLE(x => { x.appendChild(x.parentNode); })"
+    }
+   ]
+  },
+  {
+   "name": "remove-misc",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst MKT = () => { const w = document.createElement('div'); w.id = 'w'; w.innerHTML = '<u id=u0></u><div id=r><p id=a><i id=a1></i><i id=a2></i></p><p id=b></p><p id=c><i id=c1></i></p></div><u id=u1></u>'; document.body.appendChild(w); return w; };\nconst POS = ['r', 'a', 'a1', 'a2', 'b', 'c', 'c1'];\nconst SETUP = (ref, before) => { const w = MKT(); const r = document.getElementById('r'); const it = document.createNodeIterator(r, 4294967295); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); return {w, it}; };\nconst TARGETS = ['a', 'a1', 'b', 'c', 'c1', 'r', 'w', 'u0'];\nconst TABLE = op => TARGETS.map(x => x + ': ' + POS.flatMap(ref => [false, true].map(before => { const {w, it} = SETUP(ref, before); const s0 = ref + (before ? '<' : '>'); try { op(document.getElementById(x)); } catch (e) { w.remove(); return s0 + '!' + e.name; } const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' '));\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const out = []; for (const mask of [1, 4, 5]) for (const x of ['a', 'b', 'c']) for (const before of [false, true]) { const w = document.createElement('div'); w.innerHTML = '<div id=r>x<p id=a>y</p>z<p id=b></p>zz<p id=c>w</p></div>'; document.body.appendChild(w); const r = w.firstChild; const it = document.createNodeIterator(r, mask); let n; let last; while ((n = it.nextNode())) last = n; if (!last) { out.push('none'); w.remove(); continue; } const s0 = S(it); if (before) it.previousNode(); const s1 = S(it); r.querySelector('#' + x).remove(); out.push(mask + x + ' ' + s0 + ' ' + s1 + ' -> ' + S(it) + ' ' + FWD(it) + ' | ' + BWD(it)); w.remove(); } return out; })()"
+    },
+    {
+     "js": "(() => { const out = []; for (const idx of [0, 1, 2, 3, 4]) for (const before of [false, true]) { const w = document.createElement('div'); w.innerHTML = '<div id=r><p id=a></p><p id=b></p></div>'; document.body.appendChild(w); const r = w.firstChild; const a = r.firstChild; for (const t of ['t1', '', 't2', 't3']) a.appendChild(document.createTextNode(t)); const it = document.createNodeIterator(r); let n, k = 0; const nodes = [r, a, ...a.childNodes]; while ((n = it.nextNode()) && n !== nodes[idx + 1 > 5 ? 5 : idx + 1]); if (before) it.previousNode(); const s0 = S(it); a.normalize(); out.push(idx + ' ' + s0 + ' -> ' + S(it) + ' ' + a.childNodes.length + ' ' + FWD(it) + ' | ' + BWD(it)); w.remove(); } return out; })()"
+    },
+    {
+     "js": "(() => { const {w, it: a} = SETUP('a1', false); const r = document.getElementById('r'); const b = document.createNodeIterator(r); let n; while ((n = b.nextNode()) && n.id !== 'c'); b.previousNode(); const c = document.createNodeIterator(document.getElementById('a')); while ((n = c.nextNode()) && n.id !== 'a2'); const o = [S(a), S(b), S(c)]; document.getElementById('a').remove(); o.push(S(a), S(b), S(c)); document.getElementById('c').remove(); o.push(S(a), S(b), S(c)); w.remove(); o.push(S(a), S(b), S(c)); return o; })()"
+    },
+    {
+     "js": "(() => { const root = TREE('<p id=a><i id=a1></i></p><p id=b></p>'); const it = document.createNodeIterator(root); let n; while ((n = it.nextNode()) && n.id !== 'a1'); const o = [S(it)]; root.firstChild.remove(); o.push(S(it)); it.previousNode(); o.push(S(it)); root.remove(); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const {w, it} = SETUP('a2', true); const o = [S(it)]; w.remove(); o.push(S(it)); const r = document.getElementById('r'); o.push(String(r), N(it.root), String(it.root.isConnected)); const wb = document.createElement('div'); wb.appendChild(it.root); o.push(S(it)); it.root.firstChild.remove(); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const o = []; for (const ref of ['x', 'y', 'z']) for (const before of [false, true]) { const f = document.createDocumentFragment(); for (const id of ['x', 'y', 'z']) { const e = document.createElement('p'); e.id = id; e.appendChild(document.createElement('i')); f.appendChild(e); } const it = document.createNodeIterator(f); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); const s0 = S(it); const w = document.createElement('div'); document.body.appendChild(w); w.appendChild(f); o.push(s0 + ' -> ' + S(it)); w.remove(); } return o; })()"
+    },
+    {
+     "js": "(() => { const f = document.createDocumentFragment(); f.append(TREE('<p id=a></p><p id=b></p>').firstChild, document.createElement('p')); const it = document.createNodeIterator(f); it.nextNode(); it.nextNode(); const o = [S(it)]; document.body.appendChild(f); o.push(S(it), String(f.childNodes.length), FWD(it), BWD(it)); document.getElementById('a').remove(); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "remove-shapes",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst SHAPES = h => { const ids = []; const mk = () => { const w = document.createElement('div'); w.innerHTML = '<div id=r>' + h + '</div>'; document.body.appendChild(w); return w; }; const w0 = mk(); for (const e of w0.querySelectorAll('[id]')) ids.push(e.id); w0.remove(); return ids.flatMap(x => x === 'r' ? [] : [x + ': ' + ids.flatMap(ref => [false, true].map(before => { const w = mk(); const r = document.getElementById('r'); const it = document.createNodeIterator(r); let n; while ((n = it.nextNode()) && n.id !== ref); if (before) it.previousNode(); const s0 = ref + (before ? '<' : '>'); document.getElementById(x).remove(); const s1 = S(it); w.remove(); return s0 + '=' + s1; })).join(' ')]); };\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "SHAPES(\"<p id=a></p><p id=b></p><p id=c></p>\")"
+    },
+    {
+     "js": "SHAPES(\"<p id=a><i id=a1></i><i id=a2></i></p><p id=b></p>\")"
+    },
+    {
+     "js": "SHAPES(\"<p id=a><i id=a1><u id=a11></u></i></p><p id=b><i id=b1></i></p>\")"
+    },
+    {
+     "js": "SHAPES(\"<p id=a></p><p id=b><i id=b1><u id=b11></u></i></p>\")"
+    },
+    {
+     "js": "SHAPES(\"<div id=a><div id=b><div id=c></div></div></div>\")"
+    },
+    {
+     "js": "SHAPES(\"<p id=a><i id=a1></i></p><p id=b><i id=b1></i><i id=b2></i></p><p id=c></p>\")"
+    }
+   ]
+  },
+  {
+   "name": "docs",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><div id=a><p id=p>t</p></div><template id=tpl><i id=ti>x</i><b id=tb></b></template></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString('<p id=a>x<b id=b>y</b><!--c--></p><i id=i></i>', 'text/html'); const body = d.body; const it = Document.prototype.createNodeIterator.call(body.ownerDocument || body, body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_TEXT, null, false); const out = []; let n; while ((n = it.nextNode())) { out.push(N(n)); if (n.nodeType === 8 || n.id === 'b') n.parentNode.removeChild(n); } return [out.join(' '), body.innerHTML, S(it), it.root === body, it.whatToShow]; })()"
+    },
+    {
+     "js": "(() => { const d2 = document.implementation.createHTMLDocument('t'); d2.body.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const o = []; for (const make of [r => document.createNodeIterator(r), r => d2.createNodeIterator(r), r => new DOMParser().parseFromString('', 'text/html').createNodeIterator(r)]) { d2.body.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = make(d2.body); let n; while ((n = it.nextNode()) && n.id !== 'a1'); const s0 = S(it); d2.getElementById('a').remove(); o.push(s0 + ' -> ' + S(it)); } return o; })()"
+    },
+    {
+     "js": "(() => { const d2 = document.implementation.createHTMLDocument('t'); const a = document.getElementById('a'); const it = d2.createNodeIterator(a); it.nextNode(); it.nextNode(); const o = [S(it)]; document.getElementById('p').remove(); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const t = document.getElementById('tpl').content; const it = document.createNodeIterator(t); const o = [N(t), String(t.ownerDocument === document)]; let n; while ((n = it.nextNode()) && n.id !== 'tb'); o.push(S(it)); t.getElementById ? 0 : 0; t.firstChild.remove(); o.push(S(it)); o.push(FWD(it), BWD(it)); const it2 = document.createNodeIterator(document.getElementById('tpl')); o.push(FWD(it2)); return o; })()"
+    },
+    {
+     "js": "(() => { const d2 = document.implementation.createHTMLDocument('t'); const w = document.createElement('div'); w.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = document.createNodeIterator(w); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it), String(w.ownerDocument === document)]; d2.adoptNode(w); o.push(String(w.ownerDocument === d2), S(it)); w.firstChild.remove(); o.push(S(it)); document.body.appendChild(w); o.push(String(w.ownerDocument === document), S(it)); w.firstChild.remove(); o.push(S(it)); w.remove(); return o; })()"
+    },
+    {
+     "js": "(() => { const d2 = document.implementation.createHTMLDocument('t'); const w = document.createElement('div'); w.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = document.createNodeIterator(w); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it)]; d2.body.appendChild(w); o.push(String(w.ownerDocument === d2), S(it)); d2.getElementById('a').remove(); o.push(S(it)); d2.body.removeChild(w); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const d2 = document.implementation.createHTMLDocument('t'); const w = document.createElement('div'); w.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = document.createNodeIterator(w); it.nextNode(); it.nextNode(); it.nextNode(); const o = [S(it)]; d2.body.appendChild(w.firstChild); o.push(S(it), String(w.childNodes.length)); d2.adoptNode(w.firstChild); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const w = document.createElement('div'); w.innerHTML = '<p id=a><i id=a1></i></p><p id=b></p>'; const it = document.createNodeIterator(w); it.nextNode(); it.nextNode(); const o = [S(it)]; const c = document.importNode(w.firstChild, true); o.push(S(it), String(c !== w.firstChild)); document.body.appendChild(c); o.push(S(it)); c.remove(); o.push(S(it)); return o; })()"
+    },
+    {
+     "js": "(() => { const d = new DOMParser().parseFromString('<p id=a>x</p><p id=b></p>', 'text/html'); const it = d.createNodeIterator(d); let n; while ((n = it.nextNode()) && n.id !== 'a'); const o = [S(it)]; d.documentElement.remove(); o.push(S(it)); d.appendChild(d.createElement('html')); o.push(FWD(it), S(it)); return o; })()"
+    }
+   ]
+  },
+  {
+   "name": "parser-adoption",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><b id=fb><i id=fi><p id=fp>q<script>window.it = document.createNodeIterator(document.body); let n; while ((n = it.nextNode()) && n.nodeName !== 'SCRIPT'); window.log = [S(it)]; document.write('</b>after'); window.log.push(S(it));</script>more</p></i></b>tail</body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[window.log, S(window.it), document.body.innerHTML, FWD(window.it), BWD(window.it)]"
+    }
+   ]
+  },
+  {
+   "name": "parser-foster",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><table id=t><b id=fb><p id=fp>q<script>window.it = document.createNodeIterator(document.body); let n; while ((n = it.nextNode()) && n.nodeName !== 'SCRIPT'); window.log = [S(it)]; document.write('</b>after'); window.log.push(S(it));</script>more</p></b></table>tail</body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[window.log, S(window.it), document.body.innerHTML, FWD(window.it), BWD(window.it)]"
+    }
+   ]
+  },
+  {
+   "name": "parser-fresh",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><table id=t><tr><td id=td>q<script>window.it = document.createNodeIterator(document.body); let n; while ((n = it.nextNode()) && n.nodeName !== 'SCRIPT'); window.log = [S(it)]; document.write('<tr><td>c2</td></tr>foster<td>c3'); window.log.push(S(it));</script></td></tr></table>tail</body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "[window.log, S(window.it), document.body.innerHTML.replace(/<script>.*<\\/script>/, '<script></script>'), FWD(window.it)]"
+    }
+   ]
+  },
+  {
+   "name": "purify",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\n\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "(() => { const dirty = '<p id=a>hello<script id=s>alert(1)</script><img id=im src=x onerror=1><b id=b onclick=1>bold<i id=i>it</i></b><!--c--></p>'; const doc = new DOMParser().parseFromString('<remove></remove>' + dirty, 'text/html'); const body = doc.body; const it = Document.prototype.createNodeIterator.call(body.ownerDocument || body, body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_TEXT, null, false); const log = []; let cur; while ((cur = it.nextNode())) { log.push(N(cur)); if (cur.nodeName === 'SCRIPT' || cur.nodeType === 8 || cur.nodeName === 'REMOVE') { cur.parentNode.removeChild(cur); continue; } if (cur.nodeName === 'B') { const p = cur.parentNode; for (const child of Array.from(cur.childNodes)) p.insertBefore(child.cloneNode(true), cur.nextSibling); p.removeChild(cur); } } return [log.join(' '), body.innerHTML, S(it)]; })()"
+    },
+    {
+     "js": "(() => { const sanitize = frag => { const log = []; const it = Document.prototype.createNodeIterator.call(frag.ownerDocument || frag, frag, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null, false); let cur; while ((cur = it.nextNode())) { log.push(N(cur)); if (cur.nodeName === 'SCRIPT') { cur.remove(); continue; } if (cur.nodeName === 'TEMPLATE' && cur.content) log.push('[' + sanitize(cur.content).join(' ') + ']'); } return log; }; const doc = new DOMParser().parseFromString('<div id=d><template id=t><p>a<script>1</script></p><template id=t2><b>deep<script>2</script></b></template></template>tail</div>', 'text/html'); const log = sanitize(doc.body); return [log.join(' '), doc.body.innerHTML]; })()"
+    },
+    {
+     "js": "(() => { const doc = new DOMParser().parseFromString('<p>a</p><p>b</p><p>c</p>', 'text/html'); const body = doc.body; const it = doc.createNodeIterator(body, 1); const o = []; let cur; while ((cur = it.nextNode())) { o.push(N(cur) + ':' + cur.textContent); if (cur.textContent === 'a') cur.nextSibling.remove(); if (cur.textContent === 'c') break; } return [o.join(' '), body.innerHTML, S(it)]; })()"
+    },
+    {
+     "js": "(() => { const doc = new DOMParser().parseFromString('<div><p>a</p></div><div><p>b</p></div>', 'text/html'); const it = doc.createNodeIterator(doc.body, NodeFilter.SHOW_ELEMENT); const o = []; let cur; while ((cur = it.nextNode())) { o.push(cur.localName + ':' + cur.textContent); if (cur.localName === 'div') cur.parentNode.removeChild(cur); } return [o.join(' '), doc.body.innerHTML, S(it)]; })()"
+    },
+    {
+     "js": "(() => { const doc = new DOMParser().parseFromString('<div><p>a</p></div><div><p>b</p></div>', 'text/html'); const it = doc.createNodeIterator(doc.body, NodeFilter.SHOW_ELEMENT); const o = []; let cur; while ((cur = it.nextNode())) { o.push(cur.localName + ':' + cur.textContent); if (cur.localName === 'p') cur.parentNode.removeChild(cur); } return [o.join(' '), doc.body.innerHTML, S(it)]; })()"
+    }
+   ]
+  },
+  {
+   "name": "remove-trees",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst TREES = n => { const words = []; const go = (w, open, close) => { if (w.length === 2 * n) { words.push(w); return; } if (open < n) go(w + '(', open + 1, close); if (close < open) go(w + ')', open, close + 1); }; go('', 0, 0); const build = w => { const root = document.createElement('div'); root.id = 'r'; const holder = document.createElement('div'); holder.appendChild(root); document.body.appendChild(holder); const stack = [root]; const nodes = [root]; let k = 0; for (const c of w) { if (c === '(') { const e = document.createElement('p'); e.id = 'n' + (++k); stack[stack.length - 1].appendChild(e); stack.push(e); nodes.push(e); } else stack.pop(); } return {holder, nodes}; }; return words.map(w => { const out = []; for (let x = 1; x <= n; x++) for (let p = 0; p <= n; p++) for (const before of [false, true]) { const {holder, nodes} = build(w); const it = document.createNodeIterator(nodes[0]); let m; while ((m = it.nextNode()) && m !== nodes[p]); if (before) it.previousNode(); nodes[x].remove(); const now = S(it); const was = nodes[p].id + (before ? '<' : '>'); if (now !== was) out.push(was + '=' + now); holder.remove(); } return w + ' ' + out.join(' '); }); };\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TREES(3)"
+    },
+    {
+     "js": "TREES(4)"
+    }
+   ]
+  },
+  {
+   "name": "remove-trees-5",
+   "html": "<!DOCTYPE html><html><head><script>\nconst E = g => { try { const v = g(); return typeof v === 'string' ? v : String(v); } catch (e) { return e.name + ': ' + e.message; } };\nconst N = n => n === null ? 'null' : n === undefined ? 'undefined' : n.nodeType === 1 ? n.localName + (n.id ? '#' + n.id : '') : n.nodeType === 3 ? 't:' + n.data : n.nodeType === 8 ? 'c:' + n.data : n.nodeType === 7 ? 'pi:' + n.target : n.nodeType === 9 ? '#document' : n.nodeType === 10 ? '!' + n.name : n.nodeType === 11 ? '#fragment' : '#' + n.nodeType;\nconst S = it => N(it.referenceNode) + (it.pointerBeforeReferenceNode ? '<' : '>');\nconst FWD = it => { const o = []; let n, k = 0; while ((n = it.nextNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst BWD = it => { const o = []; let n, k = 0; while ((n = it.previousNode()) && k++ < 99) o.push(N(n)); return o.join(' '); };\nconst TREE = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };\nconst J = JSON.stringify;\nconst TREES = n => { const words = []; const go = (w, open, close) => { if (w.length === 2 * n) { words.push(w); return; } if (open < n) go(w + '(', open + 1, close); if (close < open) go(w + ')', open, close + 1); }; go('', 0, 0); const build = w => { const root = document.createElement('div'); root.id = 'r'; const holder = document.createElement('div'); holder.appendChild(root); document.body.appendChild(holder); const stack = [root]; const nodes = [root]; let k = 0; for (const c of w) { if (c === '(') { const e = document.createElement('p'); e.id = 'n' + (++k); stack[stack.length - 1].appendChild(e); stack.push(e); nodes.push(e); } else stack.pop(); } return {holder, nodes}; }; return words.map(w => { const out = []; for (let x = 1; x <= n; x++) for (let p = 0; p <= n; p++) for (const before of [false, true]) { const {holder, nodes} = build(w); const it = document.createNodeIterator(nodes[0]); let m; while ((m = it.nextNode()) && m !== nodes[p]); if (before) it.previousNode(); nodes[x].remove(); const now = S(it); const was = nodes[p].id + (before ? '<' : '>'); if (now !== was) out.push(was + '=' + now); holder.remove(); } return w + ' ' + out.join(' '); }); };\n</script></head><body><p>x</p></body></html>",
+   "javascript": true,
+   "measure": [
+    {
+     "js": "TREES(5)"
+    }
+   ]
+  }
+ ]
+}

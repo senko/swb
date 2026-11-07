@@ -344,6 +344,17 @@ impl g::document::DocumentImpl for WebState {
         dom_result(cx.rt, result)
     }
 
+    /// <https://dom.spec.whatwg.org/#dom-document-createnodeiterator>
+    fn create_node_iterator(
+        cx: &mut Cx<'_>,
+        _this: NodeId,
+        root: b::NodeRef,
+        what_to_show: u32,
+        filter: Option<crate::generated::types::NodeFilter>,
+    ) -> b::Result<swb_js::Gc<swb_js::Object>> {
+        crate::node_iterator::create(cx, root, what_to_show, filter)
+    }
+
     /// <https://dom.spec.whatwg.org/#dom-document-importnode>
     fn import_node(
         cx: &mut Cx<'_>,

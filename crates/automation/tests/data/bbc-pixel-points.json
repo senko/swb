@@ -1,11 +1,22 @@
 {
-  "groups": ["menu news", "save open", "language open"],
+  "groups": ["load", "consent", "menu news", "save open", "language open"],
   "group_points": {
+    "load": ["dialog "],
+    "consent": ["clear "],
     "menu news": ["menu "],
     "save open": ["save "],
     "language open": ["language "]
   },
   "points": {
+    "dialog white": [600, 130],
+    "dialog logo": [318, 115],
+    "dialog agree button": [680, 584],
+    "dialog reject button": [420, 584],
+    "dialog manage inside": [580, 677],
+    "dialog dimmed page": [100, 100],
+    "dialog dimmed page right": [1100, 200],
+    "clear page": [100, 100],
+    "clear page right": [1100, 200],
     "menu panel": [120, 600],
     "menu dimmed page": [700, 720],
     "menu dimmed page right": [1100, 300],

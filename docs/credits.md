@@ -36,9 +36,12 @@ Format: source, license (for code), what it influenced.
   `Document` (with `createEvent`), `DocumentType`,
   `DocumentFragment`, `NodeList`, `Element`, `CharacterData`, `Text`,
   `ProcessingInstruction`, `Comment` and the mixins `ParentNode` and
-  `NonDocumentTypeChildNode`, copied into `crates/web/idl/dom.idl`
-  (BSD-3-Clause, as above); the event listener, dispatch and
-  `composedPath` algorithms of `swb-web` (`events/`).
+  `NonDocumentTypeChildNode`, `NodeIterator` and `NodeFilter`, copied
+  into `crates/web/idl/dom.idl` (BSD-3-Clause, as above); the event
+  listener, dispatch and `composedPath` algorithms of `swb-web`
+  (`events/`); the traversal and the pre-removing steps of `NodeIterator`
+  (§6, M9 feature 15; `swb_dom::iterator`, `node_iterator.rs`) and Web
+  IDL's "call a user object's operation" for the filter.
 - W3C High Resolution Time — https://w3c.github.io/hr-time/ — the
   typedef `DOMHighResTimeStamp` in `crates/web/idl/hr-time.idl` (W3C
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).

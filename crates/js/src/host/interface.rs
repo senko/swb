@@ -85,7 +85,8 @@ impl Runtime {
     pub fn begin_interface(&mut self, realm: u32, class: ClassId) -> VmResult<Interface> {
         self.scoped(|rt| {
             let record = rt.vm.host.class(class.index())?;
-            let (name, length) = (record.name.to_string(), record.length);
+            let (name, length, callback) =
+                (record.name.to_string(), record.length, record.callback);
             let parent = match rt.class_parent(class) {
                 Some(parent) => Some(rt.interface(realm, parent).ok_or(VmError::invariant(
                     "an interface whose parent has no interface in the realm",
@@ -108,12 +109,16 @@ impl Runtime {
                 &name,
                 length,
                 interface_object,
-                true,
+                !callback,
             )?;
             rt.set_native_slots(object, Box::new([Value::Int(class.index() as i32)]))?;
-            let key = PropertyKey::String(rt.vm.atoms.prototype);
-            rt.define(object, key, prototype.into(), false, false, false)?;
-            crate::builtins::to_string_tag(rt, prototype, &name)?;
+            // A callback interface has no `prototype` property: its prototype
+            // object stays unreachable.
+            if !callback {
+                let key = PropertyKey::String(rt.vm.atoms.prototype);
+                rt.define(object, key, prototype.into(), false, false, false)?;
+                crate::builtins::to_string_tag(rt, prototype, &name)?;
+            }
             let interface = Interface { object, prototype };
             rt.set_interface(realm, class, interface)?;
             Ok(interface)

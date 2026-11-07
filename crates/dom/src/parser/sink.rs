@@ -169,7 +169,9 @@ impl TreeSink for Sink {
         let mut doc = self.doc.borrow_mut();
         let parent = depth_limited_parent(&doc, *parent);
         match child {
-            NodeOrText::AppendNode(node) => doc.insert(node, parent, None, false),
+            NodeOrText::AppendNode(node) => {
+                doc.parser_moves(|doc| doc.insert(node, parent, None, false));
+            }
             NodeOrText::AppendText(text) => doc.parser_append_text(parent, &text),
         }
         self.check_limits(&doc);
@@ -233,7 +235,7 @@ impl TreeSink for Sink {
         match new_node {
             NodeOrText::AppendNode(node) => {
                 if let Some(parent) = doc.parent(*sibling) {
-                    doc.insert(node, parent, Some(*sibling), false);
+                    doc.parser_moves(|doc| doc.insert(node, parent, Some(*sibling), false));
                 }
             }
             NodeOrText::AppendText(text) => doc.parser_insert_text_before(*sibling, &text),
@@ -248,7 +250,9 @@ impl TreeSink for Sink {
     }
 
     fn remove_from_parent(&self, target: &NodeId) {
-        self.doc.borrow_mut().remove_node(*target, false);
+        self.doc
+            .borrow_mut()
+            .parser_moves(|doc| doc.remove_node(*target, false));
     }
 
     /// Moves the children one by one, as the adoption agency algorithm
@@ -256,7 +260,7 @@ impl TreeSink for Sink {
     fn reparent_children(&self, node: &NodeId, new_parent: &NodeId) {
         let mut doc = self.doc.borrow_mut();
         while let Some(child) = doc.node(*node).first_child() {
-            doc.insert(child, *new_parent, None, false);
+            doc.parser_moves(|doc| doc.insert(child, *new_parent, None, false));
         }
     }
 

@@ -1,0 +1,1 @@
+(() => { const o = JSON.parse(window.__s()); o.frames = [...document.querySelectorAll('iframe')].filter((f) => f.id).map((f) => { const r = f.getBoundingClientRect(); return [f.id, Math.round(r.width), Math.round(r.height), new URL(f.src).pathname].join(' '); }); return JSON.stringify(o); })()

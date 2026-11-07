@@ -239,3 +239,110 @@ def test_steps_files_take_frame_steps(tmp_path):
     bad = write(tmp_path, [[{"type": "x", "frame": "#f"}]])
     with pytest.raises(ProbeError, match="group 1, step 1: frame"):
         read_groups(bad)
+
+
+def test_replay_command_line_takes_the_init_script_and_the_console_file():
+    args = build_parser().parse_args(
+        [
+            "replay",
+            "bbc",
+            "--steps",
+            "s.json",
+            "--record",
+            "1",
+            "--init-script",
+            "wrap.js",
+            "--console-out",
+            "console.txt",
+        ]
+    )
+    assert args.init_script == Path("wrap.js")
+    assert args.console_out == Path("console.txt")
+    plain = build_parser().parse_args(["replay", "bbc", "--steps", "s.json", "--record", "1"])
+    assert (plain.init_script, plain.console_out) == (None, None)
+
+
+FRAME_PAGE = (
+    b"<!DOCTYPE html><iframe id=f srcdoc='<p>in frame</p>'></iframe>"
+    b"<script>console.log('top script', typeof window.__wrapped)</script>"
+)
+
+
+@pytest.mark.usefixtures("chromium")
+def test_replay_runs_the_init_script_in_every_frame_and_writes_the_console(tmp_path, monkeypatch):
+    """The init script runs before the page's scripts, in the page and in its frame;
+    the console of both goes to the file, one line per message."""
+    root = tmp_path / "root"
+    fixture = root / "fixtures" / "js" / "page"
+    fixture.mkdir(parents=True)
+    recorded = Fixture(fixture)
+    recorded.record(
+        "GET", "https://fixture.test/", 200, [("content-type", "text/html")], FRAME_PAGE
+    )
+    recorded.save()
+    write_meta(
+        fixture,
+        FixtureMeta("https://fixture.test/", "2031-05-06T07:08:09Z", (400, 300), "test", True),
+    )
+    monkeypatch.setenv("SWB_ROOT", str(root))
+    init = tmp_path / "init.js"
+    init.write_text(
+        "window.__wrapped = 1; console.log('init in ' + (window === top ? 'top' : 'frame'));"
+    )
+    steps = write(tmp_path, [])
+    console = tmp_path / "out" / "console.txt"
+    status = replay_command(
+        "page", None, steps, "1", tmp_path / "records.json", 50, True,
+        init_script=init, console_out=console,
+    )  # fmt: skip
+    assert status == 0
+    lines = console.read_text().splitlines()
+    assert any(line.startswith("log  ") and line.endswith("init in top") for line in lines)
+    assert any(line.endswith("init in frame") for line in lines)
+    assert any(line.endswith("top script number") for line in lines)
+
+
+def test_a_missing_init_script_is_an_error_message(tmp_path, caplog):
+    steps = write(tmp_path, [])
+    status = replay_command(
+        "page", None, steps, "1", None, 50, True, init_script=tmp_path / "missing.js"
+    )
+    assert status == 2
+    assert "--init-script: no such file" in caplog.text
+
+
+def fake_replay(console_lines, error):
+    """A replay that puts `console_lines` into the caller's list and then fails
+    with `error` (or ends, when `error` is None)."""
+
+    async def run(*args, **kwargs):
+        console = args[9]
+        console.extend(console_lines)
+        if error is not None:
+            raise error
+        return [], [], []
+
+    return run
+
+
+def test_the_console_file_has_the_messages_up_to_a_failed_step(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "swbtools.replay.replay",
+        fake_replay(["log  u:1  a", "error  u:2  b"], RuntimeError("step")),
+    )
+    console = tmp_path / "out" / "console.txt"
+    steps = write(tmp_path, [])
+    with pytest.raises(RuntimeError, match="step"):
+        replay_command("page", None, steps, "1", None, 50, True, console_out=console)
+    assert console.read_text() == "log  u:1  a\nerror  u:2  b\n"
+
+
+def test_an_empty_console_makes_an_empty_file(tmp_path, monkeypatch):
+    monkeypatch.setattr("swbtools.replay.replay", fake_replay([], None))
+    console = tmp_path / "console.txt"
+    steps = write(tmp_path, [])
+    assert (
+        replay_command("page", None, steps, "1", tmp_path / "r.json", 50, True, console_out=console)
+        == 0
+    )
+    assert console.read_text() == ""

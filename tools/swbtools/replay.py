@@ -24,6 +24,15 @@ is the state after the load); `--pixels-out FILE` then gets
 `{"theme night": {"wordmark": [r, g, b]}}`, the colors of the viewport
 screenshot at the points. The numbers go into the tests of the targets, so
 that no image is committed.
+
+`--init-script FILE` (M9 feature 15a) is a script that runs in every frame
+before the page's own scripts (Playwright's `add_init_script`: the page, its
+frames and the documents that a navigation makes), for a wrapper of an API that
+the page calls during the load. `--console-out FILE` writes the console of
+all frames, every type, one line each (`type  url:line  text`), so that the
+output of the wrapper is readable; the file also has the messages up to a step that
+fails, and is empty for an empty console. The setup script of `--setup` still runs
+after the load.
 """
 
 import asyncio
@@ -164,12 +173,15 @@ async def replay(
     system_fonts: bool = False,
     observer: Observer | None = None,
     names: list[str] | None = None,
+    init_script: str = "",
+    console: list[str] | None = None,
 ) -> tuple[list[Any], list[str], list[str]]:
     """Replays the fixture `name` and returns the records, the requested
     URLs that the fixture does not have, and the console errors and
     uncaught exceptions of the page. `observer` is called after each
     record with the label: `load`, or the name of the group from `names`
-    (`group N` without names)."""
+    (`group N` without names). `init_script` runs in all frames before their
+    scripts; every console message of every frame goes to `console`."""
     directory = paths.js_fixture_dir(name)
     meta = read_meta(directory)
     replayer = Replayer(Fixture(directory))
@@ -179,6 +191,18 @@ async def replay(
         meta.viewport, system_fonts, javascript=True, start_time=parse_captured(meta.captured)
     ) as (_, context, page):
         await replayer.attach(context, page)
+        if init_script:
+            await context.add_init_script(script=init_script)
+        if console is not None:
+            # One line per message: a line feed in the text is written as `\n`.
+            page.on(
+                "console",
+                lambda message: console.append(
+                    f"{message.type}  {message.location.get('url', '')}:"
+                    f"{message.location.get('lineNumber', 0)}  "
+                    + message.text.replace("\\", "\\\\").replace("\n", "\\n")
+                ),
+            )
         page.on(
             "console",
             lambda message: (
@@ -214,17 +238,25 @@ def replay_command(
     screenshots: Path | None = None,
     pixels: Path | None = None,
     pixels_out: Path | None = None,
+    init_script: Path | None = None,
+    console_out: Path | None = None,
 ) -> int:
     """Runs `replay` and writes the records (JSON, indent 1) to `out` or
     stdout. Logs the missing URLs and the page's errors. With `pixels` and
     `pixels_out` it also writes the colors at the points; `screenshots`
-    saves the screenshots (see the module comment)."""
+    saves the screenshots; `init_script` and `console_out` are described in
+    the module comment."""
     groups = read_groups(steps)
     names = read_group_names(steps)
     setup_text = setup.read_text(encoding="utf-8") if setup else ""
     if (pixels is None) != (pixels_out is None):
         log.error("--pixels and --pixels-out go together")
         return 2
+    if init_script is not None and not init_script.is_file():
+        log.error("--init-script: no such file: %s", init_script)
+        return 2
+    init_text = init_script.read_text(encoding="utf-8") if init_script else ""
+    console: list[str] | None = [] if console_out is not None else None
     samples: dict[str, dict[str, list[int]]] = {}
     observer = None
     if pixels is not None or screenshots is not None:
@@ -243,13 +275,29 @@ def replay_command(
     try:
         records, missing, errors = asyncio.run(
             asyncio.wait_for(
-                replay(name, setup_text, groups, record, pause_ms, system_fonts, observer, names),
+                replay(
+                    name,
+                    setup_text,
+                    groups,
+                    record,
+                    pause_ms,
+                    system_fonts,
+                    observer,
+                    names,
+                    init_text,
+                    console,
+                ),
                 REPLAY_TIMEOUT_S,
             )
         )
     except TimeoutError:
         log.error("%s: the replay took more than %d s", name, REPLAY_TIMEOUT_S)
         return 1
+    finally:
+        # The messages up to a failure or a timeout are the evidence for it.
+        if console_out is not None and console is not None:
+            console_out.parent.mkdir(parents=True, exist_ok=True)
+            console_out.write_text("".join(f"{line}\n" for line in console), encoding="utf-8")
     for url in missing:
         log.warning("%s: not in fixture: %s", name, url)
     for error in errors:

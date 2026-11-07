@@ -7328,3 +7328,206 @@ def storage_events_in_a_chain_of_nested_frames_js_on() -> Page:
         "localStorage.setItem('k', String(i)); console.warn('chain end'); });</script>"
     )
     return origins_page(doc("<iframe src='http://hostile.test/n0.html'></iframe>" + top), documents)
+
+
+# ----- NodeIterator (M9 feature 15a, ADR 0028 section 17) -----
+
+
+@case(
+    "A million document.createNodeIterator() in a loop that keeps none (M9 feature 15a): the "
+    "collector frees the objects and the next createNodeIterator removes their entries in the "
+    "arena, so the entries do not pile up and each iterator works (ADR 0028 section 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    expect_log="node-iterators made 1000000",
+)
+def node_iterator_million_unkept_js_on() -> Page:
+    script = (
+        "<script>let ok = 0; for (let i = 0; i < 1000000; i++) { "
+        "const it = document.createNodeIterator(document.body); "
+        "if (it.nextNode() === document.body) ok++; } "
+        "console.warn('node-iterators made ' + ok);</script>"
+    )
+    return Page(doc("<p>iterators</p>" + script))
+
+
+@case(
+    "100,000 live NodeIterator objects, each at the child of its own root, and a loop that "
+    "removes the children (M9 feature 15a): every removal finds its iterator through the index "
+    "of the nodes that iterators point at, so the loop costs the removals and not their product "
+    "with the iterators; then 100,000 iterators at one node move together (ADR 0028 section 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=15,
+    rss_limit_mib=1024,
+    expect_log="node-iterators moved 100000 100000",
+)
+def node_iterator_100000_live_with_removals_js_on() -> Page:
+    script = (
+        "<script>const a = document.createElement('div'); document.body.appendChild(a); "
+        "const live = [], inner = []; "
+        "for (let i = 0; i < 100000; i++) { const p = document.createElement('p'); "
+        "p.appendChild(document.createElement('i')); a.appendChild(p); "
+        "const it = document.createNodeIterator(p); it.nextNode(); it.nextNode(); "
+        "live.push(it); inner.push(p.firstChild); } "
+        "for (const c of inner) c.remove(); "
+        "let moved = 0; for (const it of live) { if (it.referenceNode === it.root) moved++; } "
+        "const shared = []; "
+        "for (let i = 0; i < 100000; i++) { const it = document.createNodeIterator(a); "
+        "it.nextNode(); it.nextNode(); shared.push(it); } "
+        "a.firstChild.remove(); let together = 0; "
+        "for (const it of shared) { if (it.referenceNode === a) together++; } "
+        "console.warn('node-iterators moved ' + moved + ' ' + together);</script>"
+    )
+    return Page(doc("<p>iterators</p>" + script))
+
+
+@case(
+    "A chain of 100,000 nested elements walked to the end and back by 20 NodeIterator objects, "
+    "then cut every 1,000 levels from the top with iterators inside (M9 feature 15a): the walk "
+    "is iterative, each cut walks the cut subtree once, and the work counts toward the time limit "
+    "of the task (ADR 0028 section 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=15,
+    rss_limit_mib=1024,
+    expect_log="node-iterator chain done",
+)
+def node_iterator_chain_100000_js_on() -> Page:
+    script = (
+        "<script>const start = document.createElement('div'); document.body.appendChild(start); "
+        "const nodes = [start]; let cur = start; "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "cur.appendChild(d); cur = d; nodes.push(d); } "
+        "const iterators = []; for (let i = 0; i < 20; i++) { "
+        "const it = document.createNodeIterator(start); let n, k = 0; "
+        "while (k++ < i * 5000 && it.nextNode()); iterators.push(it); } "
+        "let steps = 0; const last = document.createNodeIterator(start); "
+        "while (last.nextNode()) steps++; while (last.previousNode()) steps++; "
+        "for (let k = 99000; k >= 1000; k -= 1000) nodes[k].remove(); "
+        "nodes[1].remove(); "
+        "let atTop = 0; for (const it of iterators) { if (it.referenceNode === start) atTop++; } "
+        "console.warn('node-iterator chain done ' + steps + ' ' + atTop);</script>"
+    )
+    return Page(doc("<p>chain</p>" + script))
+
+
+@case(
+    "One NodeIterator at the bottom of a chain of 100,000 nested elements, and 100,000 "
+    "appendChild and remove calls of an unrelated element (M9 feature 15a): with few "
+    "iterators a removal looks for the pointers by walking up from them and through the removed "
+    "subtree in turns, so its cost is the size of the removed subtree and not the depth of the "
+    "pointers (ADR 0028 section 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=1024,
+    expect_log="node-iterator unrelated 100000",
+)
+def node_iterator_unrelated_removals_in_a_deep_chain_js_on() -> Page:
+    script = (
+        "<script>const start = document.createElement('div'); document.body.appendChild(start); "
+        "let cur = start; "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "cur.appendChild(d); cur = d; } "
+        "const it = document.createNodeIterator(start); while (it.nextNode()); "
+        "const other = document.createElement('p'); let n = 0; "
+        "for (let i = 0; i < 100000; i++) { "
+        "document.body.appendChild(other); other.remove(); n++; } "
+        "console.warn('node-iterator unrelated ' + n);</script>"
+    )
+    return Page(doc("<p>chain</p>" + script))
+
+
+@case(
+    "A chain of 100,000 nested elements cut from the top one node at a time with 11 NodeIterator "
+    "objects (M9 feature 15a): with more than 8 iterators each cut walks the cut subtree, so the "
+    "loop is quadratic. The work counts toward the time limit of the task, which ends the "
+    "script (ADR 0028 sections 16 and 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=30,
+    rss_limit_mib=1024,
+    expect_log="time limit",
+)
+def node_iterator_chain_cut_one_by_one_js_on() -> Page:
+    script = (
+        "<script>const start = document.createElement('div'); document.body.appendChild(start); "
+        "let cur = start; "
+        "for (let i = 0; i < 100000; i++) { const d = document.createElement('div'); "
+        "cur.appendChild(d); cur = d; } "
+        "const live = []; "
+        "for (let i = 0; i < 10; i++) live.push(document.createNodeIterator(start)); "
+        "const it = document.createNodeIterator(start); while (it.nextNode()); "
+        "let n = start.firstChild; "
+        "while (n) { const next = n.firstChild; n.remove(); n = next; } "
+        "console.warn('node-iterator cut done');</script>"
+    )
+    return Page(doc("<p>chain</p>" + script))
+
+
+@case(
+    "A NodeFilter that removes the iframe that holds the iterator's document while nextNode runs "
+    "(M9 feature 15a): the walk goes on in the detached document or ends, and nothing panics or "
+    "hangs (ADR 0028 section 17, ADR 0031 section 5)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    expect_log="node-iterator frame gone",
+)
+def node_iterator_filter_removes_its_frame_js_on() -> Page:
+    script = (
+        "<script>addEventListener('load', () => { const f = document.getElementById('f'); "
+        "const fd = f.contentDocument; let removed = 0; "
+        "const it = fd.createNodeIterator(fd.body, NodeFilter.SHOW_ALL, (n) => { "
+        "if (!removed++) f.remove(); return NodeFilter.FILTER_ACCEPT; }); "
+        "let count = 0; while (it.nextNode()) count++; "
+        "const it2 = fd.createNodeIterator(fd.body, NodeFilter.SHOW_ALL, (n) => { "
+        "if (n.localName === 'b') { f.srcdoc = '<p>again</p>'; } return 1; }); "
+        "let more = 0; while (it2.nextNode()) more++; "
+        "console.warn('node-iterator frame gone ' + (count > 0) + ' ' + (more >= 0)); });</script>"
+    )
+    frame = "<iframe id=f srcdoc='<body><p>a<b>b</b></p><i>c</i></body>'></iframe>"
+    return Page(doc(frame + script))
+
+
+@case(
+    "A NodeFilter that makes a NodeIterator with itself as the filter and walks it, so the "
+    "recursion goes on until the stack limit (M9 feature 15a): the RangeError of the stack "
+    "ends the recursion, the active flag of each iterator is off again, and the page goes on "
+    "(ADR 0028 sections 7 and 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=10,
+    rss_limit_mib=512,
+    expect_log="node-iterator recursion RangeError",
+)
+def node_iterator_filter_recursion_js_on() -> Page:
+    script = (
+        "<script>let depth = 0; function filter(n) { depth++; "
+        "const it = document.createNodeIterator(document.body, 1, filter); "
+        "it.nextNode(); return 1; } "
+        "let name = 'none'; "
+        "try { const it = document.createNodeIterator(document.body, 1, filter); "
+        "it.nextNode(); } catch (e) { name = e.name; } "
+        "const again = document.createNodeIterator(document.body, 1, null); "
+        "console.warn('node-iterator recursion ' + name + ' ' + (depth > 100) + ' ' + "
+        "(again.nextNode() === document.body));</script>"
+    )
+    return Page(doc("<p>recursion</p>" + script))
+
+
+@case(
+    "A NodeFilter that throws at every call, in a loop of a million nextNode calls (M9 feature "
+    "15a): each exception leaves the position and the active flag as they were, and the catch "
+    "in the loop keeps running (ADR 0028 section 17)",
+    swb_args=("--js", "--settle-ms", "500"),
+    time_limit_s=15,
+    rss_limit_mib=512,
+    expect_log="node-iterator throws 1000000",
+)
+def node_iterator_filter_throws_in_a_loop_js_on() -> Page:
+    script = (
+        "<script>const it = document.createNodeIterator(document.body, 4294967295, "
+        "() => { throw new Error('no'); }); let caught = 0; "
+        "for (let i = 0; i < 1000000; i++) { try { it.nextNode(); } catch (e) { caught++; } } "
+        "console.warn('node-iterator throws ' + caught + ' ' + (it.referenceNode === "
+        "document.body));</script>"
+    )
+    return Page(doc("<p>throws</p>" + script))

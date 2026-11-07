@@ -333,13 +333,25 @@ pub(crate) fn replace(
     Ok(crate::scripts::after_insertion(cx.rt, parent, &added)?)
 }
 
-/// DOM "replace all" `parent`'s children with `node` (`replaceChildren`).
-pub(crate) fn replace_all(cx: &mut Cx<'_>, parent: NodeId, node: NodeId) -> b::Result<()> {
+/// DOM "replace all" `parent`'s children with `node` (`replaceChildren`, and
+/// `innerHTML` with `batched`: Chromium runs the pre-removing steps of the node
+/// iterators for all children before the first leaves, `replaceChildren` child
+/// by child).
+pub(crate) fn replace_all(
+    cx: &mut Cx<'_>,
+    parent: NodeId,
+    node: NodeId,
+    batched: bool,
+) -> b::Result<()> {
     ensure_valid(dom(cx.rt)?, parent, node, None, false)?;
     crate::html::focus::before_removal(cx.rt, parent, false)?;
     before_move(cx, node)?;
     let added = inserted(dom(cx.rt)?, node);
-    let result = dom_mut(cx.rt)?.replace_all(parent, Some(node));
+    let result = if batched {
+        dom_mut(cx.rt)?.replace_all_batched(parent, Some(node))
+    } else {
+        dom_mut(cx.rt)?.replace_all(parent, Some(node))
+    };
     dom_result(cx.rt, result)?;
     Ok(crate::scripts::after_insertion(cx.rt, parent, &added)?)
 }
@@ -474,7 +486,7 @@ pub(super) fn replace_children(
             adopt::bring_here(cx.rt, node, this)?
         }
     };
-    replace_all(cx, this, node)
+    replace_all(cx, this, node, false)
 }
 
 /// `ChildNode.before`.

@@ -17,7 +17,10 @@
 // HTMLCollection are complete, and so is the partial Window interface with
 // `event`; AddEventListenerOptions has `signal` and AbortController and
 // AbortSignal are complete (feature 10a, copied on 2026-10-30; `any` is
-// written `_any` as in the standard).
+// written `_any` as in the standard). NodeIterator, NodeFilter and
+// `Document.createNodeIterator` are complete (section 6 of the standard,
+// copied on 2026-11-07, M9 feature 15a); TreeWalker and Range are not copied
+// yet.
 // Document has no constructor yet (`new Document()` makes an XML
 // document); it lacks createCDATASection, createProcessingInstruction,
 // createRange and the other members that the roadmap backlog lists;
@@ -466,4 +469,54 @@ interface MutationRecord {
   readonly attribute DOMString? attributeName;
   readonly attribute DOMString? attributeNamespace;
   readonly attribute DOMString? oldValue;
+};
+
+// DOM section 6, Traversal (https://dom.spec.whatwg.org/#traversal). The
+// first argument of createNodeIterator is a node of any document of the
+// runtime, as the arguments of importNode and adoptNode.
+partial interface Document {
+  [NewObject] NodeIterator createNodeIterator([SwbAnyDocument] Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
+};
+
+[Exposed=Window]
+interface NodeIterator {
+  [SameObject] readonly attribute Node root;
+  // swb's type for `referenceNode`, `nextNode()` and `previousNode()`: `Node`
+  // and `Node?` in the standard. A node that script moved to another
+  // document stays the reference of an iterator, and a conversion of a node
+  // looks in the current arena only.
+  readonly attribute object referenceNode;
+  readonly attribute boolean pointerBeforeReferenceNode;
+  readonly attribute unsigned long whatToShow;
+  readonly attribute NodeFilter? filter;
+
+  object? nextNode();
+  object? previousNode();
+
+  undefined detach();
+};
+
+[Exposed=Window]
+callback interface NodeFilter {
+  // Constants for acceptNode()
+  const unsigned short FILTER_ACCEPT = 1;
+  const unsigned short FILTER_REJECT = 2;
+  const unsigned short FILTER_SKIP = 3;
+
+  // Constants for whatToShow
+  const unsigned long SHOW_ALL = 0xFFFFFFFF;
+  const unsigned long SHOW_ELEMENT = 0x1;
+  const unsigned long SHOW_ATTRIBUTE = 0x2;
+  const unsigned long SHOW_TEXT = 0x4;
+  const unsigned long SHOW_CDATA_SECTION = 0x8;
+  const unsigned long SHOW_ENTITY_REFERENCE = 0x10; // legacy
+  const unsigned long SHOW_ENTITY = 0x20; // legacy
+  const unsigned long SHOW_PROCESSING_INSTRUCTION = 0x40;
+  const unsigned long SHOW_COMMENT = 0x80;
+  const unsigned long SHOW_DOCUMENT = 0x100;
+  const unsigned long SHOW_DOCUMENT_TYPE = 0x200;
+  const unsigned long SHOW_DOCUMENT_FRAGMENT = 0x400;
+  const unsigned long SHOW_NOTATION = 0x800; // legacy
+
+  unsigned short acceptNode(Node node);
 };

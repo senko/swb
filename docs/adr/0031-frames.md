@@ -86,8 +86,8 @@ same-origin, same-site and cross-site frames; `sandbox` with
 indexed and named access to child frames; cross-origin `Window` and
 `Location` objects; `window.postMessage`, `MessageEvent`, `MessageChannel`
 and `MessagePort`; `document.open`, `write` and `close` on a frame
-document from its parent; frame rendering, input and focus; frames with
-JavaScript off.
+document from its parent (moved to the backlog in feature 15: no target
+calls them); frame rendering, input and focus; frames with JavaScript off.
 
 Out of scope, with reasons in section 13: `frame` and `frameset`,
 documents in `object` and `embed`, `window.open` and auxiliary browsing
@@ -180,7 +180,9 @@ its URL to the URL of the calling document, `readyState` is `loading`; an
 inline script in the written text runs inside `write()`, in the frame's
 realm; `close()` ends the parse and fires the frame's `load` and the
 `iframe`'s `load` inside the call. This needs the `document.write` work
-of M9 (Ars Technica); the frame part is a feature of its own (section 14).
+of M9 (Ars Technica). Not done: no target calls it (measured in feature
+15, "Done (feature 15)" in section 7), so it is a backlog item; swb ignores
+the call with a warning, as for the top-level document.
 
 **Load event and "loaded".** A frame document delays the `load` event of
 its parent document until it has loaded (measured order: parent
@@ -979,7 +981,8 @@ cases, three equal runs); every value is compared in
   `HostSlot` and `realm_docs`, so a realm is never reused. Departures: the
   interfaces of a retired window stay (`w.Event`, `w.XMLHttpRequest`, `w.Image` are
   constructors; Chromium has no such property once the frame is gone), and
-  `document.open` on a retired document does nothing (feature 15).
+  `document.open` on a retired document does nothing (as on any frame document:
+  "Done (feature 15)").
 - *A frame that removes its own `iframe`* (case `scripted-self-remove`). The
   running script goes on; the parse ends there (no later script, no
   `DOMContentLoaded`, no `load`); its timer does not run. Departure: Chromium fires
@@ -1041,8 +1044,8 @@ cases, three equal runs); every value is compared in
   `DocumentState::cookie_url`, `EngineHost::storage_url`). A document with an opaque
   origin keeps its own URL, so it has neither.
 - *Not in 12b1.* `document.referrer` of a frame document (feature 14: it is empty),
-  `document.open` on a frame document (feature 15), cross-origin frames (features 13a and
-  13b below).
+  `document.open` on a frame document (backlog: "Done (feature 15)"), cross-origin frames
+  (features 13a and 13b below).
 - Costs: docs/performance.md, "Scripts in frames".
 
 **Done (feature 12b2).** Nodes across documents, the caller's document, the
@@ -1879,8 +1882,34 @@ cases in one process, so it says nothing about the order between processes.
   frame. Sourcepoint's rendering app now runs on `sp.loadMessage` and stops in DOMPurify at
   `document.createNodeIterator`, which swb lacks (not `document.open`, feature 15). It reports
   `sp.renderingAppError`, so no dialog comes and the pixels stay as they were. The three console
-  errors that this leaves are a row of `crates/automation/tests/bbc.rs`
-  (`CONSENT_FRAME_ERRORS`).
+  errors that this leaves are a row of `crates/automation/tests/bbc.rs` until feature 15.
+
+**Done (feature 15).** BBC's consent dialog. Feature 15 adds `document.createNodeIterator`,
+`NodeIterator` and `NodeFilter` (ADR 0028 "Feature 15a"); with them Sourcepoint's rendering
+app runs to its end, and the dialog renders in its cross-origin frame of 1280 x 800 as in
+Chromium's replay (the frame's markup is Chromium's; `compare --js bbc`: pixels 0.2463 to
+0.9977, geometry 0.9992 to 1.0000). Four messages `sp.*` cross: `sp.readyForPreload`,
+`sp.loadMessage`, `sp.showMessage` and, after a button, `sp.hideMessage`.
+- *The buttons* (`crates/automation/tests/bbc.rs`, three equal Chromium runs each). "I agree"
+  and "I do not agree" close the dialog: the page removes the frame, and both browsers log
+  the same two console errors in the same order (the consent choice requests are not in the
+  fixture). "Manage options" collapses the dialog's frame to 0 x 0 and starts the privacy
+  manager in a second frame (`privacy-manager/index.html`), whose document is not in the
+  fixture, so it stays 0 x 0 in both browsers: the settings view cannot be shown in replay.
+  After this click Chromium moves the focus from the hidden frame to the body (the focus
+  fixup rule, a known departure); the test skips the focused element there.
+- *`document.open`, `write` and `close` on frame documents* (section 2; section 14, item 7)
+  are not done. An init script that wraps the three methods in every frame
+  (`swbtools replay --init-script`) shows that Chromium calls none of them on any document
+  during BBC's load and the consent clicks, and swb logs no ignored call. core-js reaches its
+  `NullProtoObjectViaIFrame` only when `Object.create` is missing. The work goes to the
+  backlog with document replacement (ADR 0028 section 8).
+- *Found and left in the backlog.* Tab does not enter the consent frame: after the app's
+  `iframe.focus()` the top document's focused element is the `iframe`, and
+  `Page::focused_frame` takes that for a focus in the top document, so Tab starts there and
+  leaves the page (Chromium keeps the focus in the frame and Tab reaches the dialog's
+  heading). The dialog's accordion arrows are 5 px lower than in Chromium: they use
+  `vertical-align: top`, which swb's inline layout aligns as `baseline`.
 
 **`BroadcastChannel`** is out (section 13) unless the diagnosis shows
 that a target needs it.
@@ -2315,7 +2344,9 @@ scope, exit and agent type of each.
    favorites work; BBC's consent dialog renders and closes.
 7. **`document.open`, `write` and `close` on frame documents**
    (`implementer`, after M9's `document.write` feature): core-js's
-   pattern in Sourcepoint's wrapper.
+   pattern in Sourcepoint's wrapper. Became BBC's consent dialog with
+   `createNodeIterator`; `document.open` on frames went to the backlog,
+   because no target calls it ("Done (feature 15)", section 7).
 
 Later: realm collection in `js`, joint session history, throttling of
 hidden frames.

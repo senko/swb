@@ -27,9 +27,9 @@
 //! - A write with no insertion point (from a timer, a listener, an async or
 //!   deferred script, after the parse, or while the parser waits for a
 //!   script) runs `document.open()` in the standard, and Chromium replaces
-//!   the document. Departure: swb ignores the text with a warning. Feature
-//!   15 of M9 brings `open()` for frame documents; document replacement is
-//!   not planned for the main document. The same goes for a write to a
+//!   the document. Departure: swb ignores the text with a warning, in the
+//!   top-level document and in frame documents (no target calls `open()` on
+//!   a frame; ADR 0031 "Done (feature 15)"). The same goes for a write to a
 //!   document that has no parser (`createHTMLDocument()`), which Chromium
 //!   replaces too.
 //! - `open()` with a script nesting level above 0 returns the document and

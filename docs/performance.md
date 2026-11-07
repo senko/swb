@@ -1640,6 +1640,43 @@ origins that each write 4 MiB until the total of 64 MiB stops them 2.96 s and 17
 navigates in a loop 2.61 s and 151 MiB, a `Storage` object of a retired document 2.71 s and 112 MiB, 30
 nested frames that listen 2.66 s and 158 MiB.
 
+### `NodeIterator` (M9 feature 15a)
+
+A removal in an arena without iterators pays one comparison (`NodeIterators::is_empty`).
+Measured with callgrind (`valgrind --tool=callgrind`, instructions, base is the binary of
+the commit before the feature):
+
+| Page | Base | New |
+|------|------|-----|
+| Hacker News, `--bench 3`, two runs each | 397,036,963 and 396,802,198 | 396,759,658 and 396,825,963 (-0.03 %) |
+| A loop of `removeChild` and `appendChild` of 100 children, per iteration (20,000 and 60,000 iterations, the difference), no iterator | 4,485.4 | 4,487.1 (+0.04 %) |
+| The same loop with one live iterator that points at the removed children | | 4,912.8 (+9.5 % of the loop without iterator) |
+| The same loop with 1,000 live iterators on the 100 children (ten at each, so each removal moves ten) | | 5,347.2 (+19.2 %) |
+| `innerHTML = html` and `innerHTML = ''` of 30,000 nodes, per cycle, no iterator | 230,765,061 | 230,766,139 (+0.0005 %) |
+| The same with one live iterator elsewhere (at the body) | 236,254,730 (the first version of the feature) | 239,127,059 (+1.2 %) |
+
+BBC (`swb --headless --js --replay fixtures/js/bbc --virtual-time`, median of seven runs,
+alternating the two binaries, on the final code of the feature): the load (`--settle-ms 0`)
+0.374 s before and 0.370 s after, the hydrated page (`--settle-ms 1500`) 3.129 s before and
+3.196 s after (69 % of the budget of 4.60 s), peak RSS 197.2 and 197.6 MiB, 387.7 and 385.6
+MiB. The 0.07 s are the work that the feature starts: the Sourcepoint frame renders its
+dialog (the app runs to its end, the frame lays out and paints 14 KB of markup).
+
+The cost of the pre-removing steps follows the number of live iterators and the size of
+the removed subtree: with at most eight iterators each pointer climbs 64 levels toward the root,
+and a pointer that is deeper takes part in a walk where its climb and the walk through the
+removed subtree take turns, so a removal costs the smaller of the subtree and the depth
+(one iterator at the bottom of a chain of 100,000 levels and 100,000 `appendChild` and `remove`
+of an unrelated element: 0.90 s, where the first version of the feature ended at the time limit
+of 5 s; the hostile case `node-iterator-unrelated-removals-in-a-deep-chain-js-on`); with more it
+walks the removed subtree once and looks each node up in the index
+(the hostile cases: 100,000 live iterators 1.2 s, 378 MiB; 1,000,000 made and dropped
+1.7 s, 119 MiB; a chain of 100,000 levels walked to the end and back, then cut, 0.9 s; the
+same chain cut one node at a time with eleven iterators is quadratic and ends at the time limit
+of 5 s, as designed). An iterator costs 96 bytes of its own and what the arena holds for it. The
+entries of dropped iterators go at the next removal in their arena (the shared list of dead
+ids), so removals do not pay for them any more.
+
 ### BBC scripts (M6 spike)
 
 The BBC scripts (the 60 scripts of the target page):

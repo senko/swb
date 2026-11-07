@@ -141,6 +141,9 @@ impl Gen<'_> {
                     snake(&iface.name)
                 );
             }
+            if iface.callback {
+                spec.push_str(".callback_interface()");
+            }
             if self.model.legacy(iface).is_legacy() {
                 let _ = write!(spec, ".hooks({}::hooks::<H>())", snake(&iface.name));
             }

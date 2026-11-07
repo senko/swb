@@ -40,6 +40,8 @@ mod cross_origin;
 mod input;
 #[path = "frames/messages.rs"]
 mod messages;
+#[path = "frames/node_iterator.rs"]
+mod node_iterator;
 #[path = "frames/nodes.rs"]
 mod nodes;
 #[path = "frames/paint.rs"]
