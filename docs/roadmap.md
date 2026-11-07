@@ -4608,7 +4608,20 @@ Steps:
       - 3a-1 static module graphs in the engine: records, link,
         synchronous evaluate with cycles, namespace objects, `swb-js
         --module`, the test262 loader (`implementer-hard`; at least 330 of
-        350 static test262 module tests).
+        350 static test262 module tests). Done (2026-11-08): module records
+        as heap data with the API of ADR 0034 section 1; Link with
+        ResolveExport (memoized; a review compared it with a
+        specification oracle on 8,000 random graphs), GetExportedNames and
+        InitializeEnvironment; synchronous Evaluate with cycles and cached
+        errors; the module function (`CodeKind::Module`, `ModuleCell`)
+        that suspends after its prologue; namespace objects; all graph
+        algorithms iterative (chains of 30,000 modules). 350 of 350 static
+        test262 module tests, also in the stress mode; other groups gained
+        15 passes. A module with `export` and no request runs in the page
+        (four probe departures gone); the JS-on targets are unchanged.
+        Messages measured in Chromium (20 cases `msg-*` in
+        `web-module-graph.json`): writes to imports, namespace bindings in
+        the dead zone, import attribute keys, the `stack` of link errors.
       - 3a-2 top-level `await` (`implementer-hard`; at least 230 of 250).
       - 3a-3 `import()` and `import.meta` (`implementer-hard`; at least 590
         of 631 and 21 of 22).
@@ -4690,6 +4703,19 @@ Steps:
   `type`; GitHub uses none). The probe tool cannot serve `resources` in
   subdirectories (a name with `/`); the module cases use a second origin
   instead.
+- Module link errors in cyclic graphs (found in 3a-1; cases `msg-cycle-*`
+  of `tools/probes/web-module-graph.json`): Chromium reports a cycle of
+  `export {...} from` entries as `SyntaxError: Detected cycle while
+  resolving name 'N' in 'S'` at the cycle entry that points to the module
+  whose entry closes the cycle (a self-loop: at that entry); swb reports
+  `The requested module 'S' does not provide an export named 'N'` at the
+  entry that closes the cycle. Chromium also checks a strongly connected
+  component from its first module down (swb: post-order, as the
+  specification), so the first error of a cyclic graph can differ. A cycle
+  through an `export *` edge gives "does not provide" in both. Only the
+  console text of a graph that fails in every browser differs. Not
+  measured: the text of a namespace binding in its dead zone that the
+  `JSON.parse` reviver reads.
 - Intrinsic sizes (found in feature 2; cases in
   `tools/probes/flex-intrinsic.json`): `min-content`, `max-content` and
   `fit-content` as `width`, `min-width` and `max-width` of block boxes are

@@ -196,7 +196,10 @@ impl Heap {
     pub(crate) fn needs_runtime(&self, object: Gc<Object>) -> Result<bool> {
         Ok(matches!(
             self.object(object)?.kind,
-            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_)
+            ObjectKind::Proxy(_)
+                | ObjectKind::WindowProxy(_)
+                | ObjectKind::HostExotic(_)
+                | ObjectKind::ModuleNamespace(_)
         ))
     }
 }

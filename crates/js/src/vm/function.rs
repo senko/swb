@@ -355,7 +355,8 @@ impl Runtime {
             | CodeKind::Async
             | CodeKind::ClassConstructor
             | CodeKind::DerivedConstructor
-            | CodeKind::Initializer => return Ok(function),
+            | CodeKind::Initializer
+            | CodeKind::Module => return Ok(function),
         };
         let generator_proto = self.intrinsic(realm, generator_proto)?;
         let prototype = self.heap.new_object(Some(generator_proto))?;

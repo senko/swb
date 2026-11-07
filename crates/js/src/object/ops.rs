@@ -241,11 +241,12 @@ impl Heap {
         }
         match &self.object(object)?.kind {
             ObjectKind::Array { .. } => self.array_define_own_property(object, key, desc, roots),
-            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => {
-                Err(Error::invariant(
-                    "a heap [[DefineOwnProperty]] of a proxy or a host object with hooks",
-                ))
-            }
+            ObjectKind::Proxy(_)
+            | ObjectKind::WindowProxy(_)
+            | ObjectKind::HostExotic(_)
+            | ObjectKind::ModuleNamespace(_) => Err(Error::invariant(
+                "a heap [[DefineOwnProperty]] of a proxy or a host object with hooks",
+            )),
             ObjectKind::TypedArray(_) => self.typed_or_ordinary_define(object, key, desc, roots),
             _ => self.ordinary_define_own_property(object, key, desc, roots),
         }
@@ -583,7 +584,10 @@ impl Heap {
         match key {
             PropertyKey::Index(index) => {
                 let record = self.object_mut(object)?;
-                if let ObjectKind::HostExotic(_) | ObjectKind::WindowProxy(_) = record.kind {
+                if let ObjectKind::HostExotic(_)
+                | ObjectKind::ModuleNamespace(_)
+                | ObjectKind::WindowProxy(_) = record.kind
+                {
                     return Ok(false);
                 }
                 match record.elements.write_dense(index, value) {
@@ -609,7 +613,10 @@ impl Heap {
             }
             _ => {
                 let record = self.object(object)?;
-                if let ObjectKind::HostExotic(_) | ObjectKind::WindowProxy(_) = record.kind {
+                if let ObjectKind::HostExotic(_)
+                | ObjectKind::ModuleNamespace(_)
+                | ObjectKind::WindowProxy(_) = record.kind
+                {
                     return Ok(false);
                 }
                 let shape = self.arenas.shapes.get(record.shape)?;
@@ -709,7 +716,10 @@ impl Heap {
     pub fn delete(&mut self, object: Gc<Object>, key: PropertyKey) -> Result<bool> {
         let record = self.object(object)?;
         match &record.kind {
-            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => {
+            ObjectKind::Proxy(_)
+            | ObjectKind::WindowProxy(_)
+            | ObjectKind::HostExotic(_)
+            | ObjectKind::ModuleNamespace(_) => {
                 return Err(Error::invariant(
                     "a heap [[Delete]] of a proxy or a host object with hooks",
                 ));
@@ -1025,9 +1035,10 @@ impl Heap {
     #[inline(never)]
     fn exotic_receiver(&self, record: &Object, key: PropertyKey) -> Result<Option<SetResult>> {
         Ok(match record.kind {
-            ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => {
-                Some(SetResult::Generic)
-            }
+            ObjectKind::Proxy(_)
+            | ObjectKind::WindowProxy(_)
+            | ObjectKind::HostExotic(_)
+            | ObjectKind::ModuleNamespace(_) => Some(SetResult::Generic),
             ObjectKind::TypedArray(_) if self.numeric_index(key)?.is_some() => {
                 Some(SetResult::Generic)
             }

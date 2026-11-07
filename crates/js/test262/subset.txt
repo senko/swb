@@ -15,9 +15,11 @@
 # proxyTrapsHelper.js, detachArrayBuffer.js, byteConversionValues.js,
 # testTypedArray.js, resizableArrayBufferUtils.js, testAtomics.js,
 # assertRelativeDateMs.js or dateConstants.js, or
-# have the flags module or CanBlockIsTrue, or use $262.createRealm or
+# have the flag CanBlockIsTrue, or use $262.createRealm or
 # $262.agent or new SharedArrayBuffer. Tests with the flag async get
 # doneprintHandle.js and pass when they print Test262:AsyncTestComplete.
+# Tests with the flag module run once as a module (ADR 0034); the phase
+# resolution applies to them only.
 
 feature __getter__
 feature __proto__
@@ -567,3 +569,19 @@ dir test/intl402/RelativeTimeFormat
 dir test/intl402/Intl
 dir test/intl402/Date
 dir test/intl402/Number
+
+# Added in M10 feature 3a-1 (ADR 0034): static module graphs. Module tests
+# (the flag module) run as modules; their imports are files relative to
+# the importing module inside the test262 directory. Import attributes:
+# the key `type` is supported, and no module type exists (json-modules,
+# import-text and import-bytes stay skipped by their features). The
+# top-level-await directory comes with 3a-2.
+feature export-star-as-namespace-from-module
+feature arbitrary-module-namespace-names
+feature import-attributes
+dir test/language/module-code
+dir test/language/module-code/ambiguous-export-bindings
+dir test/language/module-code/import-attributes
+dir test/language/module-code/namespace
+dir test/language/import
+dir test/language/export

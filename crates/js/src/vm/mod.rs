@@ -93,7 +93,7 @@ pub(crate) use promise::{ContinuationFn, PromiseState};
 pub use promise::{PromiseStatus, ReactionKind};
 pub(crate) use property::{Lookup, SetOutcome};
 pub(crate) use realm::{Intrinsic, Realm, TYPED_ARRAY_TYPES, error_prototype};
-pub(crate) use stack::ErrorData;
+pub(crate) use stack::{ErrorData, StackFrame};
 pub(crate) use stack::{capture_stack_trace, stack_getter, stack_setter};
 pub(crate) use symbols::{Symbols, WELL_KNOWN, WellKnown};
 pub(crate) use time::TIME_CHECK_INTERVAL;
@@ -430,6 +430,9 @@ pub(crate) struct Vm {
     pub(crate) split_cache: Box<[Option<SplitCache>]>,
     /// The job queue and the rejection tracker (`jobs.rs`).
     pub(crate) jobs: jobs::JobQueue,
+    /// The module hooks, the graph loads and the pending load requests
+    /// (`module/load.rs`).
+    pub(crate) modules: Box<crate::module::ModuleTable>,
     /// The state of the last regular expression match, whose vectors the
     /// next match reuses (`builtins/regexp_exec.rs`).
     pub(crate) regexp_matcher: Option<swb_js_regexp::Matcher>,
@@ -492,11 +495,12 @@ impl RootSource for Vm {
             }
         }
         self.jobs.trace(tracer);
+        self.modules.trace(tracer);
         self.host.trace(tracer);
     }
 
     fn extra_bytes(&self) -> usize {
-        self.jobs.bytes()
+        self.jobs.bytes() + self.modules.bytes()
     }
 }
 

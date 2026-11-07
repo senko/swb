@@ -638,3 +638,136 @@ Risk: low to medium (the import map rules are long but mechanical).
 - Backlog: JSON and CSS modules (import attributes with `type`); the
   probe tool's resources in subdirectories.
 - The test262 scores file gets five new directories, about 1,250 tests.
+
+## 3a-1 implementation notes
+
+Facts of the implementation (M10 sub-feature 3a-1) that differ from the
+decision above or that the later sub-features need.
+
+**API** (`crates/js/src/module/`, re-exported by `swb_js`):
+
+- `Runtime::link(module) -> Result<(), ScriptError>`, not `Result<(),
+  Value>`: Link runs the prologues of the module functions, so it can end
+  with a termination. A link error is `ScriptError::Uncaught`; the
+  `SyntaxError` object is `Runtime::last_value()`, and
+  `Runtime::error_location` gives the imported name in the importing
+  module. The modules of a failed link are `unlinked` again.
+- `load_requested_modules` and `finish_loading_imported_module` return
+  `VmResult`; `module_namespace` returns `Result<Value, ScriptError>`.
+  Further: `module_host_defined`, `module_realm`. `Module::trace` reports
+  a record to the host's tracer; the host keeps its records alive.
+- `ModuleHooks` has only `load_imported_module`; `import_meta_properties`
+  comes with 3a-3. The graph load has no `[[HostDefined]]` of its own: the
+  hook sees the referrer (`Referrer::Module`), whose host-defined number
+  the host chose in `parse_module`. `LoadRequest` has the specifier and
+  the attributes as Rust strings (lone surrogates become U+FFFD). Two
+  specifiers that differ only in lone surrogates reach the host as one
+  string; the record keeps its loaded modules by request index, so the
+  engine does not mix them. 3b-1 keys its module map by the resolved URL;
+  it must measure which URL Chromium requests for such a specifier.
+- The promise of `Runtime::evaluate` is marked as handled: the host
+  reports its rejection (the rejection tracker does not). A graph whose
+  evaluation was ended by a termination gives `ScriptError::Terminated`
+  once; a later Evaluate of a module of it gives a promise that never
+  settles.
+- An import attribute with a key other than `type` fails the load with
+  `SyntaxError: Invalid attribute key "k".` (Chromium 148's text,
+  measured; the key error comes before the value error of `type`, also
+  for `export ... from ... with {k2: 'v'}`). The host sees only
+  requests with `type`. The shell's loader fails a `type` value other than
+  "json" and "css" with `TypeError: "javascript" is not a valid module
+  type.` (measured) and "json"/"css" with `Unsupported module type`
+  (JSON and CSS modules are in the backlog); the web layer must do the
+  same in 3b.
+- `Runtime::eval_module_at` uses the record path (parse, link, evaluate)
+  for a module without requests; a module with requests is refused with
+  "not supported yet (module syntax)" at its first `import` or `export
+  ... from`. `import()`, `import.meta` and top-level `await` are still
+  refused by the compiler (`compiler/support.rs`).
+
+**Engine:**
+
+- The module function has `CodeKind::Module` (strict, no `prototype`).
+  Its closure has the cells of the import entries that its code uses
+  (the capture list of the scope analysis, `CaptureSource::Import`), then
+  the environment cells; `Insn::ModuleCell { dst, index }` puts capture
+  `index` (at or after the import captures; the verifier checks that) into
+  the binding's register. The environment is the bindings of the local
+  export entries, each once (`compiler::module_environment`, shared by the
+  compiler and the record). The prologue stores `undefined` into exported
+  `var` cells; lexical cells stay `Empty` from the linker.
+- The suspended body is a generator object without prototype
+  (`GeneratorKind::Sync`); Evaluate resumes it with
+  `Runtime::run_suspended` from the evaluation loop. 3a-2 needs a kind
+  that settles the capability (an `AsyncStart` after the initial
+  suspension) and the status `evaluating-async` with the async fields,
+  which the record does not have yet (`top_level_promise` is
+  `[[TopLevelCapability]]`'s promise).
+- Namespace objects are `ObjectKind::ModuleNamespace` next to
+  `HostExotic`; `Runtime::host_hooks` gives the engine's hooks
+  `NAMESPACE_HOOKS` for them, so every generic path that handles host
+  objects with hooks (and the inline caches, which never store them)
+  handles namespaces. `[[HasProperty]]` is a special case in `has_generic`
+  (it must not read a binding in its dead zone). A namespace shows as
+  `[object Module]` in messages (`TypeError: [object Module] is not
+  extensible` for `Object.setPrototypeOf(ns, {})`, measured). The
+  namespace cell of a module exists before its object; a work list makes
+  the objects, so `export * as` cycles need no recursion.
+- Export names are heap atoms, compared by handle. ResolveExport keeps the
+  specification's shared resolve set; a result is memoized per (module,
+  name) when no circularity cut in its computation hit an entry of the set
+  from before the call (such a result equals the answer for an empty set).
+- A link error object keeps one captured frame, the imported name, for
+  `Runtime::error_location` (the host reports the error at `x.js:1:9`, as
+  Chromium reports it to `window.onerror`). Its `stack` is the first line
+  only, `SyntaxError: message`, with no `at` line (measured). The shell
+  prints the `at` line itself from the location.
+- Messages that Chromium 148 gives (all measured):
+  - A pure write to an import binding (`late = 1`, a destructuring
+    target, a `for` head, `eval('late = 1')`, in a closure) throws
+    `TypeError: Assignment to constant variable.` and does no dead-zone
+    check; a form that reads first (`late++`, `late += 1`, `late ??= 1`,
+    `typeof late`) throws the `ReferenceError` in the dead zone. After
+    initialization `??=` and `||=` do not assign.
+  - A namespace binding `v` in its dead zone: `[[Get]]` (`ns.v`, `Reflect.get`,
+    a Proxy without traps, `Object.create(ns).v`) throws `ReferenceError:
+    Failed to read the 'v' property from 'Module': Cannot access 'v'
+    before initialization`; `[[GetOwnProperty]]` and `[[DefineOwnProperty]]`
+    (`getOwnPropertyDescriptor`, `hasOwn`, `values`, `entries`, spread,
+    `assign`, `defineProperty`, `freeze`, `isFrozen`, and `keys`,
+    `for-in` and `JSON.stringify` of a Proxy around ns) throw
+    `ReferenceError: v is not defined`; the key enumeration of the
+    namespace object itself (`Object.keys(ns)`, `for-in` over ns or an
+    object with ns on its chain, `JSON.stringify(ns)`) throws `ReferenceError:
+    Cannot access 'v' before initialization`.
+    `Runtime::exotic_own_property_listed` and `own_enumerable_listed`
+    give the third text.
+  - `Object.defineProperty(ns, key, desc)` for a string or index key that
+    the module does not export: `TypeError: Cannot redefine property: q`;
+    a symbol key keeps `Cannot define property Symbol(s), object is not
+    extensible`.
+  - Not changed, differ from Chromium (backlog): the messages of circular
+    re-exports (`Detected cycle while resolving name 'b' in './c2.js'`).
+  - The measurements are the cases `msg-*` of
+    `tools/probes/web-module-graph.json`; 3b-1 runs them in the page.
+- Direct `eval` in module code sees the imports: the scope analysis
+  captures every import of a module function with a direct `eval`, and the
+  eval references of inner functions include imports (`js-syntax`
+  `scope/analysis.rs`, `scope/dynamic.rs`).
+- A termination during a graph load leaves that load pending (its
+  promise never settles); during Link the modules on the stack return to
+  `unlinked`.
+
+**Tests and scores.** test262: the static module tests pass 350 of 350
+(also with `--stress`); `subset.txt` has the features
+`export-star-as-namespace-from-module`, `arbitrary-module-namespace-names`
+and `import-attributes` and the groups `test/language/module-code` (with
+`ambiguous-export-bindings`, `import-attributes`, `namespace`),
+`test/language/import` and `test/language/export`; module tests that were
+in other groups (eval code, classes, `Proxy` and others) raised those
+counts. The robustness tests of `module_graph.rs` (chain and ring of
+10,000 modules, a chain of 10,000 re-exports, a mesh of 200 modules with
+40,000 star edges, 100,000 export names) each take well under a second
+in the test profile. In the web layer, a module with `export` and no
+request now runs; four rows of `MODULE_DEPARTURES` went (`export-const`,
+`export-default`, `export-list`, `import-external`).

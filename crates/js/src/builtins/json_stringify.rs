@@ -979,7 +979,7 @@ fn enumerable_keys(rt: &mut Runtime, object: Gc<Object>) -> VmResult<Keys> {
         let mut keys = Vec::new();
         for key in own {
             rt.tick()?;
-            if !key.is_symbol() && rt.own_enumerable(object, key)? {
+            if !key.is_symbol() && rt.own_enumerable_listed(object, key)? {
                 keys.push(key);
             }
         }

@@ -3,11 +3,10 @@
 //! function compiles. The script fails with a `SyntaxError` "not
 //! supported yet (construct)" at the first such construct in the source;
 //! the compile functions never see them. These are `import()`,
-//! `import.meta`, the `import` and `export` forms and the top-level
-//! `await` of a module. A module without them runs (ADR 0028 section 6,
-//! item 7).
+//! `import.meta` and the top-level `await` of a module (ADR 0034: they
+//! come with sub-features 3a-2 and 3a-3).
 
-use swb_js_syntax::{ExprKind, Script, StmtKind};
+use swb_js_syntax::{ExprKind, Script};
 
 /// The construct of an expression that the compiler does not support.
 pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
@@ -18,22 +17,11 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     })
 }
 
-/// The construct of a statement that the compiler does not support.
-pub(super) fn unsupported_stmt(kind: StmtKind) -> Option<&'static str> {
-    Some(match kind {
-        StmtKind::Import
-        | StmtKind::ExportDeclaration(_)
-        | StmtKind::ExportDefault { .. }
-        | StmtKind::ExportList => "module syntax",
-        _ => return None,
-    })
-}
-
 /// The first construct of the script (by source offset) that the
 /// compiler does not support, with its offset.
 pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> {
     // A module with top-level `await` suspends: modules that wait are not
-    // supported (ADR 0028 section 6, item 7). The record has no offset.
+    // supported yet (ADR 0034 sub-feature 3a-2). The record has no offset.
     if script
         .module
         .as_ref()
@@ -52,12 +40,6 @@ pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> 
         let expr = ast.expr(id);
         if let Some(construct) = unsupported_expr(expr.kind) {
             note(expr.span.start, construct);
-        }
-    }
-    for id in ast.stmt_ids() {
-        let stmt = ast.stmt(id);
-        if let Some(construct) = unsupported_stmt(stmt.kind) {
-            note(stmt.span.start, construct);
         }
     }
     first

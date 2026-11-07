@@ -88,6 +88,10 @@ pub struct ImportEntry {
     pub local_name: NameId,
     /// The local binding ([`crate::BindingKind::Import`]).
     pub binding: BindingId,
+    /// The offset of the imported name (`zz` in `import { zz as y }`; the
+    /// local name of a default or namespace import): where a link error
+    /// of this entry is reported (Chromium's position, ADR 0034).
+    pub offset: u32,
 }
 
 /// What an export entry re-exports from another module.
@@ -113,4 +117,9 @@ pub struct ExportEntry {
     pub import_name: Option<ExportImportName>,
     /// The local name of a local export.
     pub local_name: Option<NameId>,
+    /// The offset of the entry's name in the source: the imported name of
+    /// a re-export (`zz` in `export { zz } from "m"`), the `*` of a star
+    /// export, the declaration or the name of a local export. A link error
+    /// of an indirect export is reported there (ADR 0034).
+    pub offset: u32,
 }

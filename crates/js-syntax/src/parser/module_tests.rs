@@ -898,6 +898,43 @@ fn import_entries() {
     );
 }
 
+#[test]
+fn entries_have_the_offsets_of_their_names() {
+    // The positions of link errors (ADR 0034): the imported name, the
+    // re-exported name, the `*` of a star export, the name of `export *
+    // as`, and for a re-export of an import the name in the import.
+    let source = "import d, * as ns from 'm'; import { zz as y, w } from 'n';\n\
+                  export { q as r } from 'o'; export * from 'p'; export * as s from 'p';\n\
+                  export { w as v }; export const k = 1; export default 2;";
+    let script = module(source);
+    let record = script.module.as_ref().expect("a record");
+    let at = |offset: u32| &source[offset as usize..];
+    let imports: Vec<&str> = record
+        .import_entries
+        .iter()
+        .map(|e| &at(e.offset)[..2])
+        .collect();
+    assert_eq!(imports, ["d,", "ns", "zz", "w "]);
+    let indirect: Vec<&str> = record
+        .indirect_exports
+        .iter()
+        .map(|e| &at(e.offset)[..2])
+        .collect();
+    assert_eq!(indirect, ["q ", "s ", "w "]);
+    let star: Vec<&str> = record
+        .star_exports
+        .iter()
+        .map(|e| &at(e.offset)[..2])
+        .collect();
+    assert_eq!(star, ["* "]);
+    let local: Vec<&str> = record
+        .local_exports
+        .iter()
+        .map(|e| &at(e.offset)[..2])
+        .collect();
+    assert_eq!(local, ["co", "de"]);
+}
+
 /// The export entries of a list as `export import local request`.
 fn export_texts(script: &Script, entries: &[ExportEntry]) -> Vec<String> {
     let name = |n: Option<crate::NameId>| n.map_or("-".to_owned(), |n| text(script, n));

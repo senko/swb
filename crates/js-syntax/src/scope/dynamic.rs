@@ -200,7 +200,6 @@ fn eval_visible(kind: BindingKind) -> bool {
             | BindingKind::ActiveFunction
             | BindingKind::DynamicEnv
             | BindingKind::PrivateEnvironment
-            | BindingKind::Import
     )
 }
 

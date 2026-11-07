@@ -108,6 +108,17 @@ pub(crate) fn analyze(ast: &Ast, tree: &mut ScopeTree, limits: &Limits) -> Resul
     resolver.resolve_references(ast, tree, first_new..all)?;
     tree.private_refs.sort_unstable_by_key(|&(r, _)| r);
     dynamic::finish_outer_links(tree);
+    // A direct `eval` in the module function can name any import: the
+    // function receives the cell of each one (its scope description lists
+    // them).
+    if let Some(top) = ast.function_ids().next()
+        && tree.function(top).has_direct_eval
+    {
+        for binding in tree.import_bindings.clone() {
+            let scope = tree.binding(binding).scope;
+            resolver.capture(ast, tree, scope, binding)?;
+        }
+    }
     let captures = resolver.captures;
     mark_direct_eval(ast, tree);
     mark_mapped_arguments(ast, tree);

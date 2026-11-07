@@ -299,6 +299,21 @@ impl Runtime {
             .is_some_and(|property| property.enumerable()))
     }
 
+    /// [`Self::own_enumerable`] for the key enumeration of `Object.keys`
+    /// and `JSON.stringify` (the text of an error at a namespace object).
+    pub(crate) fn own_enumerable_listed(
+        &mut self,
+        object: Gc<Object>,
+        key: PropertyKey,
+    ) -> VmResult<bool> {
+        if self.heap.needs_runtime(object)? {
+            return Ok(self
+                .exotic_own_property_listed(object, key)?
+                .is_some_and(|property| property.enumerable()));
+        }
+        self.own_enumerable(object, key)
+    }
+
     /// `O.[[GetOwnProperty]](P)` for any object, except the characters of
     /// a String object, which are not stored and read as no property (for
     /// callers that know them to be fixed).
@@ -383,6 +398,10 @@ impl Runtime {
             }
             if let Some((data, index)) = self.typed_numeric(current, key)? {
                 return Ok(self.heap.valid_index(&data, index)?.is_some());
+            }
+            // §10.4.6.7: a namespace object reads no binding.
+            if let Some(has) = self.namespace_has(current, key)? {
+                return Ok(has);
             }
             let own = match self.host_hooks(current)? {
                 Some(hooks) => self.host_own_property(current, key, &hooks)?.is_some(),

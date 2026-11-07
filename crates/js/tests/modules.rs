@@ -1,7 +1,9 @@
 //! Modules without other modules (ADR 0028 section 6, item 7;
 //! `Runtime::eval_module_at`): strict code with `this` undefined whose
-//! top-level declarations belong to the module; the `import` and `export`
-//! forms, `import()`, `import.meta` and top-level `await` do not compile.
+//! top-level declarations belong to the module; `export` without `from`
+//! runs (ADR 0034 3a-1); requests (`import`, `export ... from`),
+//! `import()`, `import.meta` and top-level `await` are refused. Module
+//! graphs are tested in `module_graph.rs`.
 //! The expected values are Chromium's (`tools/probes/web-module-scripts.json`,
 //! case `semantics`). Each test runs with and without the GC stress mode.
 
@@ -192,10 +194,8 @@ fn modules_that_need_other_modules_do_not_compile() {
         ("import './dep.js';", "module syntax"),
         ("import {a} from './dep.js'; print(a)", "module syntax"),
         ("import * as ns from './dep.js';", "module syntax"),
-        ("export const a = 1;", "module syntax"),
-        ("export default 1;", "module syntax"),
-        ("const a = 1; export { a };", "module syntax"),
         ("export * from './dep.js';", "module syntax"),
+        ("export { a } from './dep.js';", "module syntax"),
         ("print(1); import('./dep.js').then(print);", "import()"),
         ("print(import.meta.url);", "import.meta"),
         ("await 0; print('after');", "top-level await"),
@@ -222,6 +222,35 @@ fn modules_that_need_other_modules_do_not_compile() {
             }
         });
     }
+}
+
+#[test]
+fn modules_with_exports_only_run() {
+    // ADR 0034 3a-1: a module without requests runs on the path of module
+    // records (Chromium's `export-const` case of
+    // `tools/probes/web-module-scripts.json`: `main:1`).
+    assert_eq!(
+        run_module(
+            "export const a = 1; print('main:' + a);
+             const b = 2; export { b, b as c };
+             export default function () { return 'f' }
+             export function named() { return named.name }
+             print(typeof named, named());
+             export let later; print(later); later = 3; print(later);
+             export var v; print(v);",
+        ),
+        "main:1\nfunction named\nundefined\n3\nundefined"
+    );
+    assert_eq!(run_module("export default 1; print('main')"), "main");
+    assert_eq!(
+        run_module("export default class {}; print('class')"),
+        "class"
+    );
+    // The error of a module with exports.
+    assert_eq!(
+        run_module("export const a = 1;\nnull.x;"),
+        "Uncaught TypeError: Cannot read properties of null (reading 'x')"
+    );
 }
 
 #[test]

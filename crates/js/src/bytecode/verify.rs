@@ -122,7 +122,10 @@ pub(crate) fn verify(code: &FunctionCode) -> Result<(), VerifyError> {
 fn check_code_kind(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str> {
     match *insn {
         Insn::InitialYield
-            if !matches!(code.kind, CodeKind::Generator | CodeKind::AsyncGenerator) =>
+            if !matches!(
+                code.kind,
+                CodeKind::Generator | CodeKind::AsyncGenerator | CodeKind::Module
+            ) =>
         {
             Err("yield outside a generator")
         }
@@ -143,6 +146,14 @@ fn check_code_kind(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str>
             Err("yield outside an async generator")
         }
         Insn::AsyncStart if code.kind != CodeKind::Async => Err("await outside an async function"),
+        // The capture index is checked when the instruction runs: the
+        // module's environment cells are captures that the code does not
+        // list.
+        Insn::ModuleCell { index, .. }
+            if code.kind != CodeKind::Module || (index as usize) < code.captures.len() =>
+        {
+            Err("a module cell outside a module's environment")
+        }
         Insn::Await { .. }
         | Insn::AsyncReject { .. }
         | Insn::GetAsyncIterator { .. }
@@ -411,6 +422,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::Empty { dst }
         | I::NewCell { dst, .. }
         | I::LoadCapture { dst, .. }
+        | I::ModuleCell { dst, .. }
         | I::This { dst }
         | I::Callee { dst }
         | I::Arguments { dst, .. }

@@ -30,6 +30,7 @@ swb-js: the shell of swb's JavaScript engine
 
 Usage:
   swb-js [OPTIONS] FILE...        run script files in one global scope
+  swb-js [OPTIONS] --module FILE  run FILE as a module (with the other files)
   swb-js [OPTIONS] -e CODE        run CODE
   swb-js [OPTIONS] -              read the script from standard input
   swb-js test262 [--help]         the test262 runner (just test262)
@@ -48,6 +49,8 @@ Options:
   --time-limit MS       end a run after MS milliseconds
   --disassemble         print the bytecode of each script before it runs
   --compile-only        compile only (with --disassemble: list, do not run)
+  --module FILE         run FILE as a module: its imports are files relative to
+                        the importing module, inside FILE's directory
   -h, --help            this text
 
 print(...) and console.log(...) write to stdout. $262 has evalScript(src),
@@ -126,7 +129,8 @@ fn dump_ast_main(args: &[String]) -> u8 {
 struct Command {
     options: Options,
     code: Option<String>,
-    files: Vec<String>,
+    /// The files in order, each with whether it is a module.
+    files: Vec<(String, bool)>,
     disassemble: bool,
     compile_only: bool,
 }
@@ -170,10 +174,14 @@ fn parse_command(args: &[String]) -> Result<Option<Command>, String> {
             "--stress" => command.options.stress = true,
             "--disassemble" => command.disassemble = true,
             "--compile-only" => command.compile_only = true,
+            "--module" => {
+                let file = iter.next().ok_or("--module needs a file")?;
+                command.files.push((file.clone(), true));
+            }
             other if other.starts_with('-') && other != "-" => {
                 return Err(format!("unknown option {other}"));
             }
-            file => command.files.push(file.to_owned()),
+            file => command.files.push((file.to_owned(), false)),
         }
     }
     Ok(Some(command))
@@ -206,11 +214,11 @@ fn run_command(command: &Command, out: &shell::Output) -> u8 {
             return 70;
         }
     };
-    let mut scripts: Vec<(String, String)> = Vec::new();
+    let mut scripts: Vec<(String, String, bool)> = Vec::new();
     if let Some(code) = &command.code {
-        scripts.push(("<eval>".to_owned(), code.clone()));
+        scripts.push(("<eval>".to_owned(), code.clone(), false));
     }
-    for file in &command.files {
+    for (file, module) in &command.files {
         let read = if file == "-" {
             // `-` is the standard input.
             let mut bytes = Vec::new();
@@ -224,6 +232,7 @@ fn run_command(command: &Command, out: &shell::Output) -> u8 {
                 scripts.push((
                     name.to_owned(),
                     String::from_utf8_lossy(&bytes).into_owned(),
+                    *module,
                 ));
             }
             Err(error) => {
@@ -232,8 +241,12 @@ fn run_command(command: &Command, out: &shell::Output) -> u8 {
             }
         }
     }
-    for (name, source) in &scripts {
-        let result = run_script(&mut rt, command, name, source, out);
+    for (name, source, module) in &scripts {
+        let result = if *module {
+            run_module(&mut rt, command, name, source, out)
+        } else {
+            run_script(&mut rt, command, name, source, out)
+        };
         if let Err(code) = result {
             return code;
         }
@@ -269,8 +282,31 @@ fn run_script(
         Ok(_) => {}
         Err(error) => return Err(fail(&error)),
     }
-    // An unhandled rejection ends the run like an uncaught error (exit
-    // code 1; Node.js does the same), after all of them are reported.
+    report_rejections(rt, out)
+}
+
+/// Runs a file as a module (`--module FILE`, ADR 0034 section 7): its
+/// imports are files relative to the importing module, inside the file's
+/// directory.
+fn run_module(
+    rt: &mut swb_js::Runtime,
+    command: &Command,
+    name: &str,
+    source: &str,
+    out: &shell::Output,
+) -> Result<(), u8> {
+    if let Err(failure) = shell::run_module(rt, &command.options, name, source) {
+        let _ = out.borrow_mut().flush();
+        let (report, code) = shell::loader::describe_failure(rt, &failure, name, source);
+        eprintln!("{report}");
+        return Err(code);
+    }
+    report_rejections(rt, out)
+}
+
+/// An unhandled rejection ends the run like an uncaught error (exit code
+/// 1; Node.js does the same), after all of them are reported.
+fn report_rejections(rt: &mut swb_js::Runtime, out: &shell::Output) -> Result<(), u8> {
     let rejections = shell::unhandled_rejections(rt);
     if rejections.is_empty() {
         return Ok(());

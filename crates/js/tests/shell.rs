@@ -311,7 +311,20 @@ fn mini_test262(name: &str) -> PathBuf {
         "neg_runtime.js",
         "/*---\nnegative:\n  phase: runtime\n  type: Test262Error\n---*/\nassert(false);\n",
     );
-    write("skip.js", "/*---\nflags: [module]\n---*/\nthrow 1;\n");
+    write(
+        "skip.js",
+        "/*---\nflags: [CanBlockIsTrue]\n---*/\nthrow 1;\n",
+    );
+    // Module tests (ADR 0034): the imports are files of the directory.
+    write("dep_FIXTURE.js", "export const v = 1;\n");
+    write(
+        "module.js",
+        "/*---\nflags: [module]\n---*/\nimport { v } from './dep_FIXTURE.js';\nassert.sameValue(v, 1);\nassert.sameValue(this, undefined);\n",
+    );
+    write(
+        "neg_resolution.js",
+        "/*---\nnegative:\n  phase: resolution\n  type: SyntaxError\nflags: [module]\n---*/\nimport { nope } from './dep_FIXTURE.js';\n",
+    );
     write(
         "async.js",
         "/*---\nflags: [async]\n---*/\nPromise.resolve(2).then(v => assert.sameValue(v, 2)).then($DONE, $DONE);\n",
@@ -345,11 +358,11 @@ fn test262_runner_counts_and_ratchets() {
     };
     let out = run(&[]);
     let stdout = text(&out.stdout);
-    // pass, neg, neg_runtime, strict, async pass; fail; unsupported;
-    // skipped.
+    // pass, neg, neg_runtime, strict, async, module, neg_resolution pass;
+    // fail; unsupported; skipped.
     assert!(
         stdout.contains("test/language/mini/group")
-            && stdout.contains("total: 5 pass, 1 fail, 1 unsupported, 1 skipped (8 tests)"),
+            && stdout.contains("total: 7 pass, 1 fail, 1 unsupported, 1 skipped (10 tests)"),
         "{stdout}\n{}",
         text(&out.stderr)
     );
@@ -359,15 +372,15 @@ fn test262_runner_counts_and_ratchets() {
     assert_eq!(code(&run(&["--update"])), 0);
     let written = std::fs::read_to_string(&scores).unwrap();
     assert!(
-        written.contains("\"test/language/mini/group\": 5"),
+        written.contains("\"test/language/mini/group\": 7"),
         "{written}"
     );
     assert_eq!(code(&run(&[])), 0);
     // A recorded count above the current one is a regression.
-    std::fs::write(&scores, "{\"test/language/mini/group\": 6}").unwrap();
+    std::fs::write(&scores, "{\"test/language/mini/group\": 8}").unwrap();
     let out = run(&[]);
     assert_eq!(code(&out), 1);
-    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 5 < 6"));
+    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 7 < 8"));
     // A path argument runs only that test; a group is not judged by a part.
     let out = run(&["test/language/mini/group/pass.js"]);
     assert!(text(&out.stdout).contains("total: 1 pass, 0 fail, 0 unsupported, 0 skipped"));
@@ -378,7 +391,7 @@ fn test262_runner_counts_and_ratchets() {
     assert!(text(&out.stderr).contains("--update needs a run of whole groups"));
     assert_eq!(
         std::fs::read_to_string(&scores).unwrap(),
-        "{\"test/language/mini/group\": 6}"
+        "{\"test/language/mini/group\": 8}"
     );
     // A run that finds no tests fails.
     let out = run(&["test/language/zzz"]);
@@ -446,7 +459,120 @@ fn unreadable_test_file_is_a_failure() {
     ]);
     let stdout = text(&out.stdout);
     assert!(stdout.contains("cannot read"), "{stdout}");
-    assert!(stdout.contains("5 pass, 2 fail"), "{stdout}");
+    assert!(stdout.contains("7 pass, 2 fail"), "{stdout}");
+}
+
+#[test]
+fn module_files_run_with_their_imports() {
+    // ADR 0034 section 7: `--module FILE`; the imports are files relative
+    // to the importing module, inside FILE's directory.
+    let dir = temp_dir("module");
+    let sub = dir.join("sub");
+    std::fs::create_dir_all(&sub).unwrap();
+    let write = |name: &str, text: &str| std::fs::write(dir.join(name), text).unwrap();
+    write(
+        "main.js",
+        "import { a } from './sub/a.js';\nimport * as ns from './sub/a.js';\nprint(a, Object.keys(ns), this);\n",
+    );
+    write(
+        "sub/a.js",
+        "import { b } from '../b.js';\nexport const a = 'A' + b;\n",
+    );
+    write("b.js", "export const b = 'B';\n");
+    // A real file outside the root, reached by a `..` specifier, an
+    // absolute specifier and a symbolic link inside the root.
+    let outside = temp_dir("module-outside");
+    let secret = outside.join("secret.js");
+    std::fs::write(&secret, "print('SECRET-TEXT-OF-THE-OUTSIDE-FILE');\n").unwrap();
+    let outside_name = outside.file_name().unwrap().to_str().unwrap().to_owned();
+    write(
+        "escape-dotdot.js",
+        &format!("import '../{outside_name}/secret.js';\n"),
+    );
+    write(
+        "escape-absolute.js",
+        &format!("import '{}';\n", secret.display()),
+    );
+    std::os::unix::fs::symlink(&secret, dir.join("linked.js")).unwrap();
+    write("escape-symlink.js", "import './linked.js';\n");
+    write("link.js", "\nimport { nope } from './b.js';\n");
+    write(
+        "type-js.js",
+        "import './b.js' with { type: 'javascript' };\n",
+    );
+    write("type-json.js", "import './b.js' with { type: 'json' };\n");
+    write("bad-dep.js", "import './bad.js';\n");
+    write("bad.js", "let x = ;\n");
+    write(
+        "throws.js",
+        "import './b.js';\nthrow new TypeError('boom');\n",
+    );
+    let path = |name: &str| dir.join(name).to_str().unwrap().to_owned();
+    let out = shell(&["--module", &path("main.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "AB a undefined\n");
+    // A request out of the directory is a load error.
+    for name in [
+        "escape-dotdot.js",
+        "escape-absolute.js",
+        "escape-symlink.js",
+    ] {
+        let out = shell(&["--module", &path(name)]);
+        assert_eq!(code(&out), 1, "{name}");
+        let stderr = text(&out.stderr);
+        assert!(
+            stderr.contains("Uncaught TypeError: Cannot load module") && stderr.contains("outside"),
+            "{name}: {stderr}"
+        );
+        assert!(
+            !text(&out.stdout).contains("SECRET-TEXT") && !stderr.contains("SECRET-TEXT"),
+            "{name}: the outside file ran"
+        );
+    }
+    // Chromium's messages for the attribute `type`; "json" and "css" are
+    // known types that are not supported yet.
+    let out = shell(&["--module", &path("type-js.js")]);
+    assert_eq!(code(&out), 1);
+    assert!(
+        text(&out.stderr)
+            .contains("Uncaught TypeError: \"javascript\" is not a valid module type."),
+        "{}",
+        text(&out.stderr)
+    );
+    let out = shell(&["--module", &path("type-json.js")]);
+    assert_eq!(code(&out), 1);
+    assert!(
+        text(&out.stderr).contains("Uncaught TypeError: Unsupported module type 'json'"),
+        "{}",
+        text(&out.stderr)
+    );
+    // A link error names the importing module's line and column.
+    let out = shell(&["--module", &path("link.js")]);
+    assert_eq!(code(&out), 1);
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("Uncaught SyntaxError: The requested module './b.js' does not provide an export named 'nope'")
+            && stderr.contains("link.js:2:10"),
+        "{stderr}"
+    );
+    // A dependency that does not parse: its error and position, exit 2.
+    let out = shell(&["--module", &path("bad-dep.js")]);
+    assert_eq!(code(&out), 2);
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("SyntaxError: Unexpected token ';'") && stderr.contains("bad.js:1:9"),
+        "{stderr}"
+    );
+    let out = shell(&["--module", &path("throws.js")]);
+    assert_eq!(code(&out), 1);
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("Uncaught TypeError: boom") && stderr.contains("throws.js:2:7"),
+        "{stderr}"
+    );
+    // Scripts and modules run in one global scope.
+    let out = shell(&["-e", "globalThis.g = 'G'", "--module", &path("main.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
 }
 
 #[test]

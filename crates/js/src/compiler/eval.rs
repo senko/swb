@@ -492,9 +492,13 @@ impl FunctionCompiler<'_> {
             return Ok(());
         };
         let kind = access.kind;
-        let constant = matches!(kind, Some(BindingKind::Const | BindingKind::ClassName))
-            || (kind == Some(BindingKind::FunctionName) && self.strict);
-        if kind.is_some_and(has_dead_zone) {
+        let constant = matches!(
+            kind,
+            Some(BindingKind::Const | BindingKind::ClassName | BindingKind::Import)
+        ) || (kind == Some(BindingKind::FunctionName) && self.strict);
+        // A pure write to an import throws the TypeError without a
+        // dead-zone check (the read-first forms have checked already).
+        if kind.is_some_and(has_dead_zone) && kind != Some(BindingKind::Import) {
             let mark = self.mark();
             let t = self.temp()?;
             self.emit(Insn::LoadCapture { dst: t, index });
@@ -652,6 +656,15 @@ impl FunctionCompiler<'_> {
                     private: index,
                     ..spec_name(b.kind, slot)
                 }),
+                // An import of the module function: the cell it captured
+                // (the analysis captures every import of a module function
+                // with a direct `eval`).
+                Storage::Import => self
+                    .fscope
+                    .captures
+                    .iter()
+                    .position(|capture| capture.binding == binding)
+                    .map(|index| spec_name(b.kind, EvalSlot::Capture(index as u32))),
                 storage => cell_slot(storage).map(|slot| EvalName {
                     derived: b.kind == BindingKind::This && derived_this,
                     ..spec_name(b.kind, slot)

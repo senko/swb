@@ -212,6 +212,13 @@ pub enum ObjectKind {
     /// caches never store it. (Next to `TypedArray`, for the comparisons of
     /// [`ObjectKind::walks_exotic`] and [`ObjectKind::sets_exotic`].)
     HostExotic(HostSlot),
+    /// A module namespace exotic object (§10.4.6, ADR 0034 section 2): the
+    /// sorted export names of a module with the cells of their bindings
+    /// (`module/namespace.rs`). Its internal methods are hooks, as those of
+    /// a host object with hooks (`Runtime::host_hooks`). (Next to
+    /// `HostExotic`, for the comparisons of [`ObjectKind::walks_exotic`]
+    /// and [`ObjectKind::sets_exotic`].)
+    ModuleNamespace(Box<crate::module::NamespaceData>),
     /// A `WeakMap` (`[[WeakMapData]]`, §24.3): the hash table of `Map`,
     /// whose entries the collector treats as ephemerons (`weak.rs`).
     WeakMap(Box<Table>),
@@ -287,6 +294,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::Array { .. } => "Array",
             ObjectKind::Host(_) => "Host",
             ObjectKind::HostExotic(_) => "HostExotic",
+            ObjectKind::ModuleNamespace(_) => "ModuleNamespace",
             ObjectKind::Function(_) => "Function",
             ObjectKind::Native(_) => "Native",
             ObjectKind::Bound(_) => "Bound",
@@ -346,6 +354,18 @@ impl ObjectKind {
                 | ObjectKind::WindowProxy(_)
                 | ObjectKind::TypedArray(_)
                 | ObjectKind::HostExotic(_)
+                | ObjectKind::ModuleNamespace(_)
+        )
+    }
+
+    /// Whether the runtime's generic paths call hooks for the internal
+    /// methods of this kind (`Runtime::host_hooks`): a host object of a
+    /// class with hooks or a module namespace object.
+    #[inline]
+    pub(crate) fn has_hooks(&self) -> bool {
+        matches!(
+            self,
+            ObjectKind::HostExotic(_) | ObjectKind::ModuleNamespace(_)
         )
     }
 
@@ -360,6 +380,7 @@ impl ObjectKind {
                 | ObjectKind::WindowProxy(_)
                 | ObjectKind::TypedArray(_)
                 | ObjectKind::HostExotic(_)
+                | ObjectKind::ModuleNamespace(_)
         )
     }
 
@@ -394,6 +415,7 @@ impl ObjectKind {
                     tracer.generic(generic);
                 }
             }
+            ObjectKind::ModuleNamespace(data) => data.trace(tracer),
             ObjectKind::Function(closure) => closure.trace(tracer),
             ObjectKind::Bound(bound) => bound.trace(tracer),
             ObjectKind::Generator(state) => state.trace(tracer),
@@ -485,6 +507,7 @@ impl ObjectKind {
             ObjectKind::DataView(_) => size_of::<BufferView>(),
             ObjectKind::TypedArray(_) => size_of::<TypedArrayData>(),
             ObjectKind::Intl(data) => data.heap_size(),
+            ObjectKind::ModuleNamespace(data) => data.heap_size(),
             _ => 0,
         }
     }

@@ -266,6 +266,13 @@ impl Runtime {
         }
     }
 
+    /// Sets `[[PromiseIsHandled]]`: a later rejection is not tracked (the
+    /// host reports it, as for the promise of a module evaluation).
+    pub(crate) fn set_promise_handled(&mut self, promise: Gc<Object>) -> VmResult<()> {
+        self.promise_state_mut(promise)?.is_handled = true;
+        Ok(())
+    }
+
     fn promise_state_mut(&mut self, promise: Gc<Object>) -> VmResult<&mut PromiseState> {
         match &mut self.heap.object_mut(promise)?.kind {
             ObjectKind::Promise(state) => Ok(state),

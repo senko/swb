@@ -188,6 +188,9 @@ pub(crate) struct Session {
     pub(crate) eval_scopes: HashMap<FunctionId, Vec<swb_js_syntax::ScopeId>>,
     /// Eval code: the captures of the caller's cells.
     pub(crate) caller: Option<eval::CallerPlan>,
+    /// Module code: the index in the module's environment of each
+    /// exported binding ([`module_environment`]).
+    pub(crate) module_cells: HashMap<BindingId, u32>,
 }
 
 impl Session {
@@ -196,6 +199,11 @@ impl Session {
         let mut session = Session {
             eval_scopes: Session::eval_scopes(script),
             caller: input.map(|input| eval::CallerPlan::new(script, input)),
+            module_cells: module_environment(script)
+                .into_iter()
+                .enumerate()
+                .map(|(index, binding)| (binding, index as u32))
+                .collect(),
             ..Session::default()
         };
         for id in script.ast.class_ids() {
@@ -227,6 +235,40 @@ impl Session {
         }
         session
     }
+}
+
+/// The environment of a module (ADR 0034 section 2): the bindings that
+/// its local export entries name, each once, in the order of their first
+/// entry. Each is a cell of the module function, which the linker makes
+/// and gives to the importing modules; [`crate::bytecode::Insn::ModuleCell`]
+/// puts it into the binding's register. A re-exported namespace import is
+/// not part of it (its cell is the namespace cell of the imported module).
+/// Empty for a script.
+pub(crate) fn module_environment(script: &Script) -> Vec<BindingId> {
+    let Some(record) = &script.module else {
+        return Vec::new();
+    };
+    let scope = script.ast.function(script.top).scope;
+    let by_name: HashMap<swb_js_syntax::NameId, BindingId> = script
+        .scopes
+        .bindings_of(scope)
+        .iter()
+        .map(|&binding| (script.scopes.binding(binding).name, binding))
+        .collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut cells = Vec::new();
+    for entry in &record.local_exports {
+        let Some(&binding) = entry.local_name.and_then(|name| by_name.get(&name)) else {
+            continue;
+        };
+        if script.scopes.binding(binding).kind == swb_js_syntax::BindingKind::Import {
+            continue;
+        }
+        if seen.insert(binding) {
+            cells.push(binding);
+        }
+    }
+    cells
 }
 
 /// Statistics of compiled code (for measurements).

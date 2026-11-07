@@ -134,10 +134,13 @@ impl Runtime {
     /// The hooks of `object`, if it is a host object of a class with hooks.
     #[inline]
     pub(crate) fn host_hooks(&self, object: Gc<Object>) -> VmResult<Option<HostHooks>> {
-        let ObjectKind::HostExotic(slot) = self.heap.object(object)?.kind else {
-            return Ok(None);
-        };
-        Ok(self.vm.host.class(slot.class())?.hooks)
+        match self.heap.object(object)?.kind {
+            ObjectKind::HostExotic(slot) => Ok(self.vm.host.class(slot.class())?.hooks),
+            // The internal methods of a module namespace object (§10.4.6)
+            // are the engine's own hooks.
+            ObjectKind::ModuleNamespace(_) => Ok(Some(crate::module::NAMESPACE_HOOKS)),
+            _ => Ok(None),
+        }
     }
 
     /// Runs one hook call: [`HOOK_WEIGHT`] of the recursion budget and a

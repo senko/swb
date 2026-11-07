@@ -22,6 +22,7 @@ mod error;
 mod heap;
 mod host;
 mod intl;
+mod module;
 mod object;
 mod runtime;
 mod source_text;
@@ -40,6 +41,10 @@ pub use host::{
     Interface, InterfaceHook, LazyHooks, OwnKeysHook, PreventExtensionsHook, Refusal, RefusalHook,
     ScriptIterator, SetAnswer, SetHook, SetPrototypeHook, Slots, WindowDefineHook,
     WindowOwnPropertyHook, WindowProxyHooks,
+};
+pub use module::{
+    LoadAnswer, LoadImportedModuleHook, LoadRequest, Module, ModuleHooks, ModuleRequestInfo,
+    Referrer,
 };
 pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};

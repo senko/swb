@@ -252,6 +252,7 @@ impl Runtime {
                 ObjectKind::Proxy(_)
                     | ObjectKind::WindowProxy(_)
                     | ObjectKind::HostExotic(_)
+                    | ObjectKind::ModuleNamespace(_)
                     | ObjectKind::TypedArray(_)
             );
             if !plain || !object_record.watched {

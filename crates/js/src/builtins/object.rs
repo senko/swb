@@ -104,7 +104,12 @@ fn enumerable_own_properties(
             continue;
         }
         rt.with_scope(|rt| {
-            if !rt.own_enumerable(object, key)? {
+            let enumerable = if matches!(kind, Kind::Keys) {
+                rt.own_enumerable_listed(object, key)?
+            } else {
+                rt.own_enumerable(object, key)?
+            };
+            if !enumerable {
                 return Ok(());
             }
             let item = match kind {
@@ -315,6 +320,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::Ordinary
         | ObjectKind::Host(_)
         | ObjectKind::HostExotic(_)
+        | ObjectKind::ModuleNamespace(_)
         | ObjectKind::RawJson
         | ObjectKind::SymbolWrapper(_)
         | ObjectKind::BigIntWrapper(_)

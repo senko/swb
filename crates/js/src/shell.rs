@@ -1,5 +1,8 @@
 //! The runtime of the `swb-js` shell: options, the host functions
-//! (`print`, `$262`), and the report of the errors of a run.
+//! (`print`, `$262`), the module loader (`loader.rs`), and the report of
+//! the errors of a run.
+
+pub(crate) mod loader;
 
 use std::cell::RefCell;
 use std::fmt::Write as _;
@@ -39,9 +42,17 @@ pub(crate) type Output = Rc<RefCell<dyn Write>>;
 /// The host data of a runtime: the output of `print`.
 struct Host {
     out: Output,
+    /// The modules of a module run (`loader.rs`).
+    modules: Option<loader::ModuleMap>,
 }
 
-impl swb_js::HostState for Host {}
+impl swb_js::HostState for Host {
+    fn trace(&self, tracer: &mut swb_js::Tracer<'_>) {
+        if let Some(modules) = &self.modules {
+            modules.trace(tracer);
+        }
+    }
+}
 
 /// Creates a runtime with `print`, `console.log` and `$262`.
 pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, ScriptError> {
@@ -74,7 +85,10 @@ pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, Scr
             handle.terminate();
         }
     }));
-    rt.set_host_data(Host { out });
+    rt.set_host_data(Host { out, modules: None });
+    rt.set_module_hooks(swb_js::ModuleHooks {
+        load_imported_module: loader::load,
+    });
     rt.define_global_function("print", 1, print)?;
     rt.define_global_object(
         "$262",
@@ -156,6 +170,35 @@ pub(crate) fn run(
         rt.run_jobs()?;
     }
     Ok(value)
+}
+
+/// Runs the file `path` (its text `source`) as a module under the time
+/// limit of the options; its imports stay in the file's directory
+/// (`loader.rs`).
+pub(crate) fn run_module(
+    rt: &mut Runtime,
+    options: &Options,
+    path: &str,
+    source: &str,
+) -> Result<(), loader::ModuleFailure> {
+    let path = std::path::Path::new(path);
+    let root = match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => std::path::Path::new("."),
+    };
+    run_module_in(rt, options, root, path, source)
+}
+
+/// [`run_module`] with the directory that the imports may not leave.
+pub(crate) fn run_module_in(
+    rt: &mut Runtime,
+    options: &Options,
+    root: &std::path::Path,
+    path: &std::path::Path,
+    source: &str,
+) -> Result<(), loader::ModuleFailure> {
+    rt.set_deadline(options.time_limit.map(|limit| Instant::now() + limit));
+    loader::run_module(rt, root, path, source)
 }
 
 /// The reports of the promises that were rejected without a handler and

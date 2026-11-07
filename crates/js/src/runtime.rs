@@ -134,7 +134,7 @@ pub enum ScriptError {
 /// The goal symbol of the source that a run compiles (§16): a classic
 /// script or a module.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Goal {
+pub(crate) enum Goal {
     Script,
     Module,
 }
@@ -220,7 +220,7 @@ pub struct Runtime {
 
 /// The lengths of the VM's stacks and regions before a host run, to
 /// restore after a run that ended abruptly.
-struct RunStart {
+pub(crate) struct RunStart {
     frames: usize,
     stack: usize,
     scopes: usize,
@@ -257,6 +257,7 @@ impl Runtime {
             plain_array: None,
             closure_shapes: None,
             jobs: crate::vm::jobs::JobQueue::default(),
+            modules: Box::default(),
             host: crate::host::Host::default(),
             base_realm: 0,
             first_frame_realm: None,
@@ -365,7 +366,7 @@ impl Runtime {
     /// The lengths of the VM's stacks before a host run. The outermost
     /// run (no frames) starts a new task: a termination that a native
     /// requested in the last one is over.
-    fn run_start(&mut self) -> RunStart {
+    pub(crate) fn run_start(&mut self) -> RunStart {
         if self.vm.frames.is_empty() {
             self.vm.terminating = None;
         }
@@ -381,7 +382,7 @@ impl Runtime {
     /// Restores the state before a host run after an abrupt end. The
     /// interpreter already removed its frames; this is the safety net for
     /// paths that left early (generators of removed frames complete).
-    fn restore_run_start(&mut self, start: &RunStart) {
+    pub(crate) fn restore_run_start(&mut self, start: &RunStart) {
         self.unwind(start.frames);
         self.vm.stack.truncate(start.stack);
         self.heap.close_scopes_to(start.scopes);
@@ -430,14 +431,17 @@ impl Runtime {
     }
 
     /// Compiles and runs a module that requests no other module, in the
-    /// realm `realm` (§16.2.1.5, "Source Text Module Records", for a module
-    /// without imports; ADR 0028 section 6, item 7): strict code with `this`
-    /// undefined, whose top-level declarations belong to the module and
-    /// not to the global object. `name` and `start` are as in
-    /// [`Runtime::eval_named_at`]. The module needs no other module:
-    /// `import` and `export` declarations, `import()`, `import.meta` and
-    /// top-level `await` fail to compile with a `SyntaxError` whose message
-    /// starts with "not supported yet" ([`ScriptError::is_unsupported`]).
+    /// realm `realm` (ADR 0028 section 6, item 7; since ADR 0034 3a-1 on
+    /// the path of module records: link, then evaluate): strict code with
+    /// `this` undefined, whose top-level declarations belong to the module
+    /// and not to the global object; `export` declarations without `from`
+    /// run. `name` and `start` are as in [`Runtime::eval_named_at`]. A
+    /// module with requests (`import`, `export ... from`), `import()`,
+    /// `import.meta` and top-level `await` fail with a `SyntaxError` whose
+    /// message starts with "not supported yet"
+    /// ([`ScriptError::is_unsupported`]); module graphs use
+    /// [`Runtime::parse_module`], [`Runtime::load_requested_modules`],
+    /// [`Runtime::link`] and [`Runtime::evaluate`].
     pub fn eval_module_at(
         &mut self,
         realm: u32,
@@ -449,7 +453,12 @@ impl Runtime {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(realm, text.as_str16(), name, start, Goal::Module);
+        self.vm.error_offset = None;
+        let run = self.run_start();
+        let result = self.run_module_without_requests(realm, text.as_str16(), name, start);
+        if result.is_err() {
+            self.restore_run_start(&run);
+        }
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
@@ -465,13 +474,7 @@ impl Runtime {
         self.vm.error_offset = None;
         let start = self.run_start();
         let (code, compiled) = self.compile(source, name, position, goal)?;
-        // A script runs with the global this value as `this`; a module has
-        // none (§16.2.1.6.4 `InitializeEnvironment`: `this` is undefined).
-        let this = match goal {
-            Goal::Script => None,
-            Goal::Module => Some(Value::Undefined),
-        };
-        let result = self.run_script(code, compiled, realm, this);
+        let result = self.run_script(code, compiled, realm, None);
         if result.is_err() {
             self.restore_run_start(&start);
         }
@@ -487,6 +490,19 @@ impl Runtime {
         start: (u32, u32),
         goal: Goal,
     ) -> Result<(Gc<Generic>, Rc<FunctionCode>), ScriptError> {
+        self.parse_and_compile(source, name, start, goal)
+            .map(|(_, code, compiled)| (code, compiled))
+    }
+
+    /// [`Runtime::compile`] that also returns the parsed script (the
+    /// records of a module).
+    pub(crate) fn parse_and_compile(
+        &mut self,
+        source: Str16<'_>,
+        name: &str,
+        start: (u32, u32),
+        goal: Goal,
+    ) -> Result<(swb_js_syntax::Script, Gc<Generic>, Rc<FunctionCode>), ScriptError> {
         let started = std::time::Instant::now();
         let script = match goal {
             Goal::Script => swb_js_syntax::parse_script(source, &mut self.budget)?,
@@ -522,7 +538,7 @@ impl Runtime {
                 started.elapsed(),
             );
         }
-        result
+        result.map(|(code, compiled)| (script, code, compiled))
     }
 
     /// Compiles a script and returns the statistics of its code (for
@@ -601,7 +617,7 @@ impl Runtime {
 
     /// Turns the result of a run into the API's result and keeps the value
     /// alive until the next run.
-    fn finish(&mut self, result: VmResult<Value>) -> Result<Value, ScriptError> {
+    pub(crate) fn finish(&mut self, result: VmResult<Value>) -> Result<Value, ScriptError> {
         let mut dropped = None;
         if self.vm.frames.is_empty() {
             dropped = self.vm.terminating.take();

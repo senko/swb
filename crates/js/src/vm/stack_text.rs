@@ -106,6 +106,10 @@ impl Runtime {
         let Some(function) = frame.function else {
             return location;
         };
+        // The body of a module shows as the code of a script.
+        if frame.compiled.kind == CodeKind::Module {
+            return location;
+        }
         let mut name = self.debug_name(function, &frame.compiled);
         if name.is_empty() && frame.compiled.source.origin.is_some() {
             // V8 names the anonymous functions of eval code (and the

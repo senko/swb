@@ -96,13 +96,15 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             self.consume_semicolon()?;
             return Ok(self.finish_import(start));
         }
-        let mut bindings: Vec<(ImportName, NameId, u32)> = Vec::new();
+        // (imported name, local name, offset of the local name, offset of
+        // the imported name).
+        let mut bindings: Vec<(ImportName, NameId, u32, u32)> = Vec::new();
         // The index of the first named import (`{ a }`).
         let mut named_from = None;
         let mut more = true;
         if self.at_identifier() {
             let (name, offset) = self.parse_imported_binding()?;
-            bindings.push((ImportName::Name(names::DEFAULT), name, offset));
+            bindings.push((ImportName::Name(names::DEFAULT), name, offset, offset));
             more = self.at(TokenKind::Comma);
             if more {
                 let comma = self.token.start;
@@ -119,7 +121,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     self.advance()?;
                     self.expect_contextual(names::AS)?;
                     let (name, offset) = self.parse_imported_binding()?;
-                    bindings.push((ImportName::Namespace, name, offset));
+                    bindings.push((ImportName::Namespace, name, offset, offset));
                 }
                 TokenKind::LBrace => {
                     named_from = Some(bindings.len());
@@ -134,7 +136,9 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
         let request = self.add_request(specifier, attributes);
         self.consume_semicolon()?;
         let named_from = named_from;
-        for (index, (import_name, local_name, offset)) in bindings.into_iter().enumerate() {
+        for (index, (import_name, local_name, offset, name_offset)) in
+            bindings.into_iter().enumerate()
+        {
             let declared = self.scopes.declare_import(self.scope, local_name, offset);
             // V8 reports a redeclared default or namespace import at the
             // `import`, a named one at its binding.
@@ -149,6 +153,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     import_name,
                     local_name,
                     binding,
+                    offset: name_offset,
                 });
             }
         }
@@ -189,7 +194,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
     /// `NamedImports`: `{ a, b as c, "s" as d, }`.
     fn parse_named_imports(
         &mut self,
-        bindings: &mut Vec<(ImportName, NameId, u32)>,
+        bindings: &mut Vec<(ImportName, NameId, u32, u32)>,
     ) -> PResult<()> {
         self.expect(TokenKind::LBrace)?;
         while !self.at(TokenKind::RBrace) {
@@ -198,7 +203,12 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             if self.at_contextual(names::AS) {
                 self.advance()?;
                 let (local, offset) = self.parse_imported_binding()?;
-                bindings.push((ImportName::Name(import_name.name), local, offset));
+                bindings.push((
+                    ImportName::Name(import_name.name),
+                    local,
+                    offset,
+                    import_name.offset,
+                ));
             } else if import_name.string || import_name.reserved || token.kind.is_keyword() {
                 // `{ "s" }`, `{ default }`: V8 reports a reserved word.
                 return Err(ParseError::syntax(
@@ -211,6 +221,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 bindings.push((
                     ImportName::Name(import_name.name),
                     local,
+                    import_name.offset,
                     import_name.offset,
                 ));
             }
@@ -367,6 +378,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
 
     /// `export * from "m";` and `export * as name from "m";`.
     fn parse_export_star(&mut self) -> PResult<StmtKind> {
+        let star = self.token.start;
         self.advance()?;
         let mut export_name = None;
         let mut name_offset = 0;
@@ -394,6 +406,11 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             request: Some(request),
             import_name: Some(import_name),
             local_name: None,
+            offset: if export_name.is_some() {
+                name_offset
+            } else {
+                star
+            },
         });
         Ok(StmtKind::ExportList)
     }
@@ -429,6 +446,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                     request: Some(request),
                     import_name: Some(ExportImportName::Name(local.name)),
                     local_name: None,
+                    offset: local.offset,
                 });
             }
             return Ok(StmtKind::ExportList);
@@ -459,6 +477,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 request: None,
                 import_name: None,
                 local_name: Some(local.name),
+                offset: local.offset,
             });
         }
         Ok(StmtKind::ExportList)
@@ -525,6 +544,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
                 request: None,
                 import_name: None,
                 local_name: Some(name),
+                offset: declaration_start,
             });
             if let Some(state) = self.module.as_mut() {
                 state.local_names.push((name, start));
@@ -675,6 +695,7 @@ impl<U: CodeUnit> Parser<'_, '_, U> {
             request: None,
             import_name: None,
             local_name: Some(local_name),
+            offset,
         });
         Ok(())
     }
@@ -744,11 +765,13 @@ fn split_export(
         Some(import) => match import.import_name {
             // A re-export of an imported namespace object.
             ImportName::Namespace => record.local_exports.push(entry),
+            // Reported at the imported name of the import.
             ImportName::Name(name) => record.indirect_exports.push(ExportEntry {
                 export_name: entry.export_name,
                 request: Some(import.request),
                 import_name: Some(ExportImportName::Name(name)),
                 local_name: None,
+                offset: import.offset,
             }),
         },
         None => record.local_exports.push(entry),

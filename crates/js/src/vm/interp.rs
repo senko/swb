@@ -478,6 +478,10 @@ impl Runtime {
                     let value = get!(src);
                     tri!(self.heap.cell_mut(cell)).value = value;
                 }
+                Insn::ModuleCell { dst, index } => {
+                    let cell = tri!(self.capture(index));
+                    put!(dst, Value::Cell(cell));
+                }
                 Insn::This { dst } => {
                     let this = self.vm.frames.last().map_or(Value::Undefined, |f| f.this);
                     put!(dst, this);
@@ -2144,7 +2148,8 @@ impl Runtime {
                     }
                 }
                 swb_js_syntax::CaptureSource::ParentCapture(index) => self.capture(index),
-                // The compiler rejects module code (roadmap: modules, M7 feature 14).
+                // Only the linker makes the closure of a module function, with
+                // the cells of its imports (`module/link.rs`).
                 swb_js_syntax::CaptureSource::Import(_) => {
                     Err(VmError::invariant("an import capture outside a module"))
                 }

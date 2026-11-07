@@ -323,16 +323,27 @@ impl Runtime {
         }
     }
 
+    /// The text of a `WindowProxy` (its target's; one without a target
+    /// tells nothing, measured: `Class extends value [object Object]`) or
+    /// of a module namespace object (its tag, as in Chromium's messages of
+    /// its refused writes, `module/namespace.rs`); `None` for other
+    /// objects.
+    fn forwarded_object_text(&self, object: Gc<Object>) -> Option<String> {
+        match self.heap.object(object).map(|o| &o.kind) {
+            Ok(ObjectKind::WindowProxy(slot)) => Some(match slot.target() {
+                Some(target) => self.object_text(target),
+                None => "[object Object]".to_owned(),
+            }),
+            Ok(ObjectKind::ModuleNamespace(_)) => Some("[object Module]".to_owned()),
+            _ => None,
+        }
+    }
+
     /// The text of an object in messages (V8 shows the constructor name;
     /// the global object as Node.js shows it).
     pub(crate) fn object_text(&self, object: Gc<Object>) -> String {
-        // A `WindowProxy` shows as its target. One without a target tells
-        // nothing (measured: `Class extends value [object Object]`).
-        if let Ok(ObjectKind::WindowProxy(slot)) = self.heap.object(object).map(|o| &o.kind) {
-            return match slot.target() {
-                Some(target) => self.object_text(target),
-                None => "[object Object]".to_owned(),
-            };
+        if let Some(text) = self.forwarded_object_text(object) {
+            return text;
         }
         let host = matches!(
             self.heap.object(object).map(|o| &o.kind),

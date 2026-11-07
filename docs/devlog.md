@@ -4,6 +4,45 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 3a-1: static module graphs in the engine
+
+- The engine has module records (ADR 0034 sections 1, 2, 5, 6):
+  `crates/js/src/module/` loads a graph through the host's
+  `HostLoadImportedModule` hook (answers now or later, by token), links it
+  (Tarjan's DFS; ResolveExport with indirect and star exports and
+  ambiguity, memoized; GetExportedNames; InitializeEnvironment) and
+  evaluates it without top-level `await` (cycles, cached errors, a
+  termination that ends the graph). Every graph algorithm is a loop with an
+  explicit stack.
+- A module compiles as one function (`CodeKind::Module`): its prologue
+  puts the environment cells in place (`ModuleCell`), initializes `var`
+  bindings and hoisted functions and suspends; Evaluate resumes it. Imports
+  are captures of the exporter's cells: live bindings and the dead zone in
+  cycles. Namespace objects are a new object kind whose internal methods
+  are engine hooks on the host-hook paths.
+- `swb-js --module FILE` runs a file as a module, with a loader confined to
+  the file's directory. The test262 runner runs module tests: 350 of 350
+  static module tests, also in the stress mode; other groups gained 15
+  passes from module tests in them.
+- `Runtime::eval_module_at` uses the records: a module with `export` and
+  no request now runs in the page. Modules with requests, `import()`,
+  `import.meta` and top-level `await` stay refused in the page until 3b-1.
+- Review: a pure write to an import in its dead zone threw the
+  `ReferenceError`; Chromium (and the specification) throws the
+  `TypeError`, while the forms that read first (`++`, `+=`, `??=`) throw
+  the `ReferenceError`. The test of the loader's directory confinement
+  passed with the check removed; it now uses a real file outside the root,
+  a symlink and an absolute path. The ResolveExport memo matched a
+  specification oracle on 8,000 random graphs.
+- Messages that the implementer guessed, measured in Chromium (20 cases
+  `msg-*` in `web-module-graph.json`): import attribute keys, the module
+  type, `defineProperty` on a namespace, the `stack` of a link error (one
+  line), and three texts for a namespace binding in its dead zone
+  (`[[Get]]`, `[[GetOwnProperty]]`, the key enumeration). Errors of
+  circular re-exports differ (Chromium: "Detected cycle", another location
+  and order; backlog).
+- Next: 3a-2 (top-level `await`).
+
 ## 2026-11-07: M10 feature 3: ADR 0034 (JavaScript modules)
 
 - ADR 0034 decides the design of modules before the code: module records

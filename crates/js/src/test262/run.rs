@@ -11,6 +11,7 @@ use swb_js::{ScriptError, TimeZone};
 use swb_js_syntax::messages::NOT_SUPPORTED;
 
 use super::meta::Meta;
+use crate::shell::loader::ModuleFailure;
 use crate::shell::{self, Options};
 
 /// Host features that the shell does not have. `new SharedArrayBuffer`:
@@ -80,15 +81,15 @@ pub(crate) enum Plan {
     Skip(String),
     /// Run in these modes.
     Run { sloppy: bool, strict: bool },
+    /// Run once as a module (the flag `module`; ADR 0034 section 7).
+    Module,
 }
 
 /// Decides whether and how a test runs (the skip rules).
 pub(crate) fn plan(meta: &Meta, source: &str, features: &BTreeSet<String>) -> Plan {
     let has = |flag: &str| meta.flags.iter().any(|f| f == flag);
-    for flag in ["module", "CanBlockIsTrue"] {
-        if has(flag) {
-            return Plan::Skip(format!("flag {flag}"));
-        }
+    if has("CanBlockIsTrue") {
+        return Plan::Skip("flag CanBlockIsTrue".to_owned());
     }
     if let Some(other) = meta.includes.iter().find(|name| {
         !matches!(name.as_str(), "assert.js" | "sta.js")
@@ -102,6 +103,10 @@ pub(crate) fn plan(meta: &Meta, source: &str, features: &BTreeSet<String>) -> Pl
     if let Some(host) = HOST_USES.iter().find(|name| source.contains(*name)) {
         return Plan::Skip(format!("host {host}"));
     }
+    if has("module") {
+        return Plan::Module;
+    }
+    // Only a module graph has a resolution phase.
     if meta
         .negative
         .as_ref()
@@ -178,6 +183,92 @@ pub(crate) fn run_mode(
         return judge_async(&String::from_utf8_lossy(&printed.borrow()));
     }
     status
+}
+
+/// Runs a module test (the flag `module`, test262's INTERPRETING.md): the
+/// harness as a classic script, then the test file as the root of a module
+/// graph whose requests are files relative to the requesting module,
+/// inside the test262 directory (ADR 0034 section 7).
+fn run_module_mode(
+    harness: &str,
+    meta: &Meta,
+    source: &str,
+    file: TestFile<'_>,
+    limits: Limits,
+) -> Status {
+    let options = Options {
+        heap_limit: Some(limits.heap),
+        stress: limits.stress,
+        time_limit: Some(limits.time),
+        time_zone: Some(test_zone()),
+        now: None,
+    };
+    let printed = Rc::new(std::cell::RefCell::new(Vec::<u8>::new()));
+    let sink: shell::Output = printed.clone();
+    let mut rt = match shell::new_runtime(&options, sink) {
+        Ok(rt) => rt,
+        Err(error) => return Status::Fail(format!("runtime: {error}")),
+    };
+    if let Err(error) = shell::run(&mut rt, &options, harness, "") {
+        return Status::Fail(format!("harness: {error}"));
+    }
+    let path = file.dir.join(file.path);
+    let result = shell::run_module_in(&mut rt, &options, file.dir, &path, source);
+    drop(rt.take_unhandled_rejections());
+    let status = judge_module(&rt, meta, result);
+    if status == Status::Pass && meta.flags.iter().any(|f| f == "async") && meta.negative.is_none()
+    {
+        return judge_async(&String::from_utf8_lossy(&printed.borrow()));
+    }
+    status
+}
+
+/// Compares the result of a module run with the expectation of the test:
+/// a negative test passes when the step of its phase (`parse` for the
+/// root, `resolution` for the loads and the link, `runtime` for the
+/// evaluation) fails with its error type.
+fn judge_module(rt: &swb_js::Runtime, meta: &Meta, result: Result<(), ModuleFailure>) -> Status {
+    let error_name = |value| rt.constructor_name(value);
+    let error_text = |value| normalise(&format!("Uncaught {}", rt.error_report(value)));
+    if let Err(ModuleFailure::Resolution(value) | ModuleFailure::Runtime(value)) = &result
+        && rt.error_report(*value).contains(NOT_SUPPORTED)
+    {
+        return Status::Unsupported(rt.error_report(*value));
+    }
+    let failure = match result {
+        Ok(()) => None,
+        Err(ModuleFailure::Parse(error)) => return judge(rt, meta, Err(error)),
+        // An error of `run_jobs` or of the finalization is a failure of the
+        // runner, never the pass of a negative test.
+        Err(ModuleFailure::Other(error)) => {
+            return match judge(rt, meta, Err(error)) {
+                Status::Pass => Status::Fail("an error of the module run, not a negative".into()),
+                other => other,
+            };
+        }
+        Err(ModuleFailure::Resolution(value)) => Some(("resolution", value)),
+        Err(ModuleFailure::Runtime(value)) => Some(("runtime", value)),
+    };
+    match (&meta.negative, failure) {
+        (None, None) => Status::Pass,
+        (None, Some((_, value))) => Status::Fail(error_text(value)),
+        (Some(negative), None) => Status::Fail(format!(
+            "expected {} in phase {}, but the test completed",
+            negative.kind, negative.phase
+        )),
+        (Some(negative), Some((phase, value))) => {
+            if negative.phase == phase && error_name(value) == negative.kind {
+                Status::Pass
+            } else {
+                Status::Fail(format!(
+                    "expected {} in phase {}, got in phase {phase}: {}",
+                    negative.kind,
+                    negative.phase,
+                    error_text(value)
+                ))
+            }
+        }
+    }
 }
 
 /// The result of an async test that ran without an uncaught error: what
@@ -286,17 +377,40 @@ fn normalise(text: &str) -> String {
     out.chars().take(110).collect()
 }
 
+/// The file of a test: the test262 directory (which module requests may
+/// not leave) and the test's path in it.
+#[derive(Clone, Copy)]
+pub(crate) struct TestFile<'a> {
+    pub(crate) dir: &'a Path,
+    pub(crate) path: &'a str,
+}
+
 /// Runs a test in all of its modes on this thread; a panic is a failure.
+/// A module test needs its file (`file`), for the requests of its graph.
 pub(crate) fn run_test(
     harness: &str,
     meta: &Meta,
     source: &str,
     subset_features: &BTreeSet<String>,
     limits: Limits,
+    file: Option<TestFile<'_>>,
 ) -> Vec<(&'static str, Status)> {
     let (sloppy, strict) = match plan(meta, source, subset_features) {
         Plan::Skip(reason) => return vec![("-", Status::Skipped(reason))],
         Plan::Run { sloppy, strict } => (sloppy, strict),
+        Plan::Module => {
+            let Some(file) = file else {
+                return vec![(
+                    "module",
+                    Status::Fail("a module test without its file".to_owned()),
+                )];
+            };
+            let status = catch_unwind(AssertUnwindSafe(|| {
+                run_module_mode(harness, meta, source, file, limits)
+            }))
+            .unwrap_or_else(|_| Status::Fail("panic".to_owned()));
+            return vec![("module", status)];
+        }
     };
     let mut results = Vec::new();
     for (enabled, label, flag) in [(sloppy, "sloppy", false), (strict, "strict", true)] {
@@ -389,9 +503,16 @@ mod tests {
     fn skip_rules() {
         let all = features(&["ok"]);
         let skip = |front: &str, body: &str| plan(&parse_meta(front), body, &all);
+        assert_eq!(skip("/*---\nflags: [module]\n---*/", ""), Plan::Module);
+        // A resolution phase is for modules only.
+        let resolution = "/*---\nnegative:\n  phase: resolution\n  type: SyntaxError\n---*/";
+        assert_eq!(skip(resolution, ""), Plan::Skip("phase resolution".into()));
         assert_eq!(
-            skip("/*---\nflags: [module]\n---*/", ""),
-            Plan::Skip("flag module".into())
+            skip(
+                "/*---\nnegative:\n  phase: resolution\n  type: SyntaxError\nflags: [module]\n---*/",
+                ""
+            ),
+            Plan::Module
         );
         assert_eq!(
             skip("/*---\nflags: [CanBlockIsTrue]\n---*/", ""),
@@ -500,6 +621,7 @@ mod tests {
             &source,
             &BTreeSet::new(),
             LIMITS,
+            None,
         )
     }
 
@@ -534,6 +656,25 @@ mod tests {
     }
 
     #[test]
+    fn an_error_of_the_module_run_is_never_a_negative_pass() {
+        let mut rt = swb_js::Runtime::new(swb_js::RuntimeConfig::default()).expect("a runtime");
+        // The last thrown value is a TypeError, as if the run had thrown it.
+        let _ = rt.eval("throw new TypeError('x')");
+        let meta = parse_meta(
+            "/*---\nflags: [module]\nnegative:\n  phase: runtime\n  type: TypeError\n---*/",
+        );
+        let other = ScriptError::Uncaught {
+            name: "TypeError".into(),
+            message: "x".into(),
+            offset: None,
+        };
+        assert!(matches!(
+            judge_module(&rt, &meta, Err(ModuleFailure::Other(other))),
+            Status::Fail(_)
+        ));
+    }
+
+    #[test]
     fn unsupported_constructs_are_counted_apart() {
         let results = run("/*---\n---*/", "import('m');");
         assert!(matches!(combine(&results), Status::Unsupported(_)));
@@ -541,8 +682,11 @@ mod tests {
 
     #[test]
     fn skipped_tests_do_not_run() {
-        let results = run("/*---\nflags: [module]\n---*/", "throw 1;");
-        assert_eq!(combine(&results), Status::Skipped("flag module".into()));
+        let results = run("/*---\nflags: [CanBlockIsTrue]\n---*/", "throw 1;");
+        assert_eq!(
+            combine(&results),
+            Status::Skipped("flag CanBlockIsTrue".into())
+        );
     }
 
     const ASYNC_HARNESS: &str = "function Test262Error(m) { this.message = m; }\n\
@@ -556,6 +700,7 @@ mod tests {
             &source,
             &BTreeSet::new(),
             LIMITS,
+            None,
         ))
     }
 

@@ -465,9 +465,15 @@ impl FunctionCompiler<'_> {
     pub(super) fn store_static(&mut self, id: RefId, src: Reg) -> CResult<()> {
         let reference = self.reference(id);
         let kind = self.binding_kind(&reference);
-        let constant = matches!(kind, Some(BindingKind::Const | BindingKind::ClassName))
-            || (kind == Some(BindingKind::FunctionName) && self.strict);
+        // An import is an immutable binding (§16.2.1.7.3.1 step 7.c.ii).
+        let constant = matches!(
+            kind,
+            Some(BindingKind::Const | BindingKind::ClassName | BindingKind::Import)
+        ) || (kind == Some(BindingKind::FunctionName) && self.strict);
         let ignored = kind == Some(BindingKind::FunctionName) && !self.strict;
+        // A pure write to an import throws the TypeError without a dead-zone
+        // check; the forms that read first have checked the zone already.
+        let tdz_check = reference.tdz_check && kind != Some(BindingKind::Import);
         let name = self.name_const(reference.name);
         match reference.resolution {
             Resolution::Global => {
@@ -475,7 +481,7 @@ impl FunctionCompiler<'_> {
                 self.emit(Insn::SetGlobal { src, site });
             }
             Resolution::Register(r) => {
-                if reference.tdz_check {
+                if tdz_check {
                     self.check_register_tdz(&reference, r)?;
                 }
                 if constant {
@@ -485,7 +491,7 @@ impl FunctionCompiler<'_> {
                 }
             }
             Resolution::Cell(_) | Resolution::Capture(_) => {
-                if reference.tdz_check || constant {
+                if tdz_check {
                     let mark = self.mark();
                     let t = self.temp()?;
                     match reference.resolution {
@@ -495,9 +501,7 @@ impl FunctionCompiler<'_> {
                         }
                         _ => return Err(Self::internal("a store to an unresolved name")),
                     };
-                    if reference.tdz_check {
-                        self.emit(Insn::CheckTdz { src: t, name });
-                    }
+                    self.emit(Insn::CheckTdz { src: t, name });
                     self.release(mark);
                 }
                 if constant {

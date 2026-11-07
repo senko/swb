@@ -128,7 +128,7 @@ impl Runtime {
         loop {
             let next = if self.heap.needs_runtime(current)? {
                 let found = self.with_scope(|rt| {
-                    let Some(property) = rt.exotic_own_property(current, key)? else {
+                    let Some(property) = rt.exotic_own_property_listed(current, key)? else {
                         return Ok(Err(rt.get_prototype_of(current)?));
                     };
                     Ok(Ok(property.enumerable()))

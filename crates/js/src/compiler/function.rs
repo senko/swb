@@ -286,10 +286,18 @@ impl<'a> FunctionCompiler<'a> {
         // CreateDynamicFunction step 33: `SetFunctionName(F, "anonymous")`.
         let dynamic = self.script.dynamic_function == Some(self.id);
         // Stack traces name the frames of eval code `eval` (V8).
+        // `export default function () {}` binds `*default*`; the
+        // function's name is `default` (§16.2.3.7).
         let name = self
             .function
             .name
-            .map(|ident| self.name_text(ident.name))
+            .map(|ident| {
+                if ident.name == swb_js_syntax::names::DEFAULT_EXPORT {
+                    String16::from("default")
+                } else {
+                    self.name_text(ident.name)
+                }
+            })
             .or_else(|| super::class::initializer_name(self.function.kind))
             .or_else(|| (kind == CodeKind::Eval).then(|| String16::from("eval")))
             .or_else(|| dynamic.then(|| self.dynamic_name()));
@@ -346,10 +354,10 @@ impl<'a> FunctionCompiler<'a> {
             _ if function.is_generator && function.is_async => CodeKind::AsyncGenerator,
             _ if function.is_generator => CodeKind::Generator,
             _ if function.is_async => CodeKind::Async,
-            // A module without requests runs as a strict function called
-            // with `this` undefined (ADR 0028 section 6, item 7): its
-            // top-level declarations are bindings of the module scope.
-            FunctionKind::Normal | FunctionKind::Module => CodeKind::Normal,
+            // The body of a module (ADR 0034 section 2): its top-level
+            // declarations are bindings of the module scope.
+            FunctionKind::Module => CodeKind::Module,
+            FunctionKind::Normal => CodeKind::Normal,
             FunctionKind::Arrow => CodeKind::Arrow,
             // Accessors of object literals are methods (§15.4.5): not
             // constructors, without `prototype`.
@@ -647,7 +655,7 @@ impl<'a> FunctionCompiler<'a> {
             Storage::Caller => {
                 return self.init_var_env_binding(binding, src, b.kind == BindingKind::Function);
             }
-            Storage::Import => return Err(self.unsupported("module")),
+            Storage::Import => return Err(Self::internal("a store to an import")),
             Storage::Private(_) => return Err(Self::internal("a store to a private name")),
         }
         Ok(())
@@ -691,7 +699,9 @@ impl<'a> FunctionCompiler<'a> {
             }
             match b.kind {
                 // Set up by the prologue (the home object and the active
-                // function too), or below (the record of eval vars).
+                // function too), or below (the record of eval vars). An
+                // import has no storage in the frame: the linker gives the
+                // module function its cell (a capture).
                 BindingKind::Parameter
                 | BindingKind::This
                 | BindingKind::NewTarget
@@ -701,8 +711,8 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::HomeObject
                 | BindingKind::ActiveFunction
                 | BindingKind::PrivateName
-                | BindingKind::PrivateEnvironment => continue,
-                BindingKind::Import => return Err(self.unsupported("module")),
+                | BindingKind::PrivateEnvironment
+                | BindingKind::Import => continue,
                 BindingKind::Var
                 | BindingKind::Function
                 | BindingKind::BlockFunctionVar
@@ -713,6 +723,10 @@ impl<'a> FunctionCompiler<'a> {
                 | BindingKind::ClassName => {}
             }
             let lexical = b.kind.is_lexical();
+            if let Some(&index) = self.session.module_cells.get(&binding) {
+                self.module_cell(&b, index)?;
+                continue;
+            }
             match b.storage {
                 Storage::Register(r) if lexical && b.needs_tdz => {
                     self.emit(Insn::Empty { dst: r });
@@ -727,6 +741,28 @@ impl<'a> FunctionCompiler<'a> {
             }
         }
         self.enter_var_record(scope)
+    }
+
+    /// An exported binding of a module (ADR 0034 section 2): the cell of
+    /// the module's environment goes into its register (the linker made it
+    /// with `Empty`, the dead zone of a lexical binding); a `var` starts as
+    /// `undefined` (§16.2.1.7.3.1 `InitializeEnvironment` step 21).
+    fn module_cell(&mut self, b: &swb_js_syntax::Binding, index: u32) -> CResult<()> {
+        let Storage::Cell(r) = b.storage else {
+            return Err(Self::internal("an exported binding without a cell"));
+        };
+        let index = u32::try_from(self.fscope.captures.len())
+            .ok()
+            .and_then(|imports| imports.checked_add(index))
+            .ok_or(Self::internal("too many module cells"))?;
+        self.emit(Insn::ModuleCell { dst: r, index });
+        if matches!(b.kind, BindingKind::Var | BindingKind::BlockFunctionVar) {
+            let mark = self.mark();
+            let t = self.undefined_temp()?;
+            self.emit(Insn::StoreCell { cell: r, src: t });
+            self.release(mark);
+        }
+        Ok(())
     }
 
     /// Creates the function declarations of a scope.
@@ -891,7 +927,13 @@ impl<'a> FunctionCompiler<'a> {
         } else {
             self.parameter_list(scope)?;
         }
-        if matches!(kind, CodeKind::Generator | CodeKind::AsyncGenerator) {
+        // A module stops after its declarations until it is evaluated
+        // (ADR 0034 section 2: the hoisted functions of the modules of a
+        // cycle exist before any of them runs).
+        if matches!(
+            kind,
+            CodeKind::Generator | CodeKind::AsyncGenerator | CodeKind::Module
+        ) {
             self.emit(Insn::InitialYield);
         }
         Ok(())

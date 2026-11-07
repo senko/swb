@@ -371,7 +371,18 @@ fn run_file(
                 // fails (the plan skips the others).
                 Err(message) => return vec![("-", Status::Fail(message))],
             };
-            run_test(&text, &meta, &source, &subset.features, args.limits)
+            let file = run::TestFile {
+                dir: &args.dir,
+                path,
+            };
+            run_test(
+                &text,
+                &meta,
+                &source,
+                &subset.features,
+                args.limits,
+                Some(file),
+            )
         }
         Err(message) => vec![("-", Status::Fail(message))],
     }

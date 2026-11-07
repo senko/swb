@@ -37,7 +37,8 @@ impl FunctionCompiler<'_> {
     /// The code of one statement.
     fn stmt_kind(&mut self, kind: StmtKind) -> CResult<()> {
         match kind {
-            StmtKind::Empty => {}
+            // The linker binds the imports and the exports (ADR 0034).
+            StmtKind::Empty | StmtKind::Import | StmtKind::ExportList => {}
             StmtKind::Function(function) => self.block_function_var(function)?,
             StmtKind::ForIn {
                 left,
@@ -58,13 +59,8 @@ impl FunctionCompiler<'_> {
                 body,
                 scope,
             } => self.with_statement(object, body, scope)?,
-            kind @ (StmtKind::Import
-            | StmtKind::ExportDeclaration(_)
-            | StmtKind::ExportDefault { .. }
-            | StmtKind::ExportList) => {
-                let construct = super::support::unsupported_stmt(kind).unwrap_or("statement");
-                return Err(self.unsupported(construct));
-            }
+            StmtKind::ExportDeclaration(declaration) => self.stmt(declaration)?,
+            StmtKind::ExportDefault { value, binding } => self.export_default(value, binding)?,
             StmtKind::Debugger => {
                 self.emit(Insn::Nop);
             }
@@ -157,6 +153,13 @@ impl FunctionCompiler<'_> {
     /// A class declaration (§15.7.15 `BindingClassDeclarationEvaluation`):
     /// the class, then its binding in the enclosing scope.
     fn class_declaration(&mut self, id: swb_js_syntax::ClassId) -> CResult<()> {
+        // `export default class {}` (§16.2.3.7: `SetFunctionName(F,
+        // "default")`).
+        if self.ast.class(id).name.is_none() {
+            self.session
+                .class_names
+                .insert(id, swb_js_text::String16::from("default"));
+        }
         let declaration = self
             .ast
             .class(id)
@@ -249,6 +252,22 @@ impl FunctionCompiler<'_> {
         for at in breakable.breaks {
             self.patch_here(at);
         }
+        Ok(())
+    }
+
+    /// `export default AssignmentExpression;` (§16.2.3.7): the value
+    /// initializes the binding `*default*`; an anonymous function or class
+    /// gets the name `default` (`NamedEvaluation`).
+    fn export_default(&mut self, value: ExprId, binding: swb_js_syntax::RefId) -> CResult<()> {
+        let binding = self
+            .reference(binding)
+            .binding
+            .ok_or(Self::internal("export default without a binding"))?;
+        let mark = self.mark();
+        let t = self.temp()?;
+        self.expr_named(value, Some(t), swb_js_text::String16::from("default"))?;
+        self.init_binding(binding, t)?;
+        self.release(mark);
         Ok(())
     }
 

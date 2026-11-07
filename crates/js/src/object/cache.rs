@@ -189,7 +189,10 @@ pub(crate) enum SetPlan {
 fn own_cacheable(kind: &ObjectKind) -> bool {
     !matches!(
         kind,
-        ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_)
+        ObjectKind::Proxy(_)
+            | ObjectKind::WindowProxy(_)
+            | ObjectKind::HostExotic(_)
+            | ObjectKind::ModuleNamespace(_)
     )
 }
 
@@ -198,7 +201,10 @@ fn own_cacheable(kind: &ObjectKind) -> bool {
 #[inline]
 fn chain_cacheable(kind: &ObjectKind, typed: bool) -> bool {
     match kind {
-        ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => false,
+        ObjectKind::Proxy(_)
+        | ObjectKind::WindowProxy(_)
+        | ObjectKind::HostExotic(_)
+        | ObjectKind::ModuleNamespace(_) => false,
         ObjectKind::TypedArray(_) => typed,
         _ => true,
     }
@@ -511,7 +517,7 @@ impl Heap {
             }
             // A prototype that is not watched cannot happen (see the module
             // comment); it would make the entry unsafe.
-            if matches!(record.kind, ObjectKind::HostExotic(_)) || (depth > 0 && !record.watched) {
+            if record.kind.has_hooks() || (depth > 0 && !record.watched) {
                 cacheable = false;
             }
             if is_length && let ObjectKind::Array { length, .. } = record.kind {
@@ -777,9 +783,8 @@ impl Heap {
                 return Ok(GENERAL);
             }
             match record.kind {
-                ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) | ObjectKind::HostExotic(_) => {
-                    return Ok(GENERAL);
-                }
+                ObjectKind::Proxy(_) | ObjectKind::WindowProxy(_) => return Ok(GENERAL),
+                ref kind if kind.has_hooks() => return Ok(GENERAL),
                 ObjectKind::TypedArray(_) => {
                     if self.numeric_index(key)?.is_some() {
                         return Ok(GENERAL);

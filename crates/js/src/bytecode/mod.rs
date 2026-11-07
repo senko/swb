@@ -245,6 +245,14 @@ pub(crate) enum Insn {
         src: Reg,
         index: u32,
     },
+    /// Module code (ADR 0034 section 2): `dst` = the cell of the module's
+    /// environment that its closure holds as capture `index` (after the
+    /// import captures), not its value. The prologue puts the cells of the
+    /// exported bindings in place with it.
+    ModuleCell {
+        dst: Reg,
+        index: u32,
+    },
     /// `dst` = the `this` value of the frame.
     This {
         dst: Reg,
@@ -1464,6 +1472,11 @@ pub(crate) enum CodeKind {
     /// The function that initializes the fields of a class (instance or
     /// static, with the static blocks): called by the engine only.
     Initializer,
+    /// The body of a module (ADR 0034 section 2): strict, `this`
+    /// undefined, called by the linker only. Its prologue puts the cells of
+    /// the module's environment in place, then it suspends
+    /// (`InitialYield`) until the module is evaluated.
+    Module,
 }
 
 impl CodeKind {

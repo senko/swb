@@ -224,11 +224,17 @@ impl Runtime {
             .function
             .ok_or(VmError::invariant("a generator frame without a function"))?;
         let is_async = frame.compiled.kind == CodeKind::AsyncGenerator;
-        let key = PropertyKey::String(self.vm.atoms.prototype);
-        let proto = match self.heap.get(function, key, function.into())? {
-            crate::object::GetResult::Value(Value::Object(proto)) => proto,
-            _ if is_async => self.intrinsic(realm, Intrinsic::AsyncGeneratorPrototype)?,
-            _ => self.intrinsic(realm, Intrinsic::GeneratorPrototype)?,
+        // A module's body waits in an internal object that no script sees
+        // (ADR 0034 section 2); its evaluation resumes it.
+        let proto = if frame.compiled.kind == CodeKind::Module {
+            None
+        } else {
+            let key = PropertyKey::String(self.vm.atoms.prototype);
+            Some(match self.heap.get(function, key, function.into())? {
+                crate::object::GetResult::Value(Value::Object(proto)) => proto,
+                _ if is_async => self.intrinsic(realm, Intrinsic::AsyncGeneratorPrototype)?,
+                _ => self.intrinsic(realm, Intrinsic::GeneratorPrototype)?,
+            })
         };
         let kind = if is_async {
             GeneratorKind::AsyncGenerator(Box::default())
@@ -238,7 +244,7 @@ impl Runtime {
         let state = GeneratorState::new(GeneratorStatus::SuspendedStart, kind);
         let generator = self
             .heap
-            .new_object_with_kind(Some(proto), ObjectKind::Generator(Box::new(state)))?;
+            .new_object_with_kind(proto, ObjectKind::Generator(Box::new(state)))?;
         // The frame roots the generator until it is suspended in it.
         if let Some(frame) = self.vm.frames.last_mut() {
             frame.generator = Some(generator);
@@ -496,6 +502,23 @@ impl Runtime {
             ResumeMode::Throw => return Err(VmError::Throw(value)),
         };
         Ok(Step::Value(result.into()))
+    }
+
+    /// Resumes a suspended generator frame from the host level and runs it
+    /// in a fresh interpreter loop until the frame returns or suspends
+    /// (the body of a module, ADR 0034 section 2). Returns the frame's
+    /// result.
+    pub(crate) fn run_suspended(&mut self, generator: Gc<Object>) -> VmResult<Value> {
+        let restore_top = self.vm.stack.len();
+        let resume = Resume {
+            generator,
+            value: Value::Undefined,
+            mode: ResumeMode::Next,
+        };
+        match self.resume_generator(resume, ReturnTo::Host, restore_top)? {
+            Step::Entered => self.run_frames(),
+            _ => Err(VmError::invariant("a suspended frame that did not resume")),
+        }
     }
 
     /// Marks the generator of a frame that returned or threw as completed.

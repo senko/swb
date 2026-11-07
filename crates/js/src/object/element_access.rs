@@ -128,6 +128,7 @@ fn ordinary_elements(kind: &ObjectKind) -> bool {
         kind,
         ObjectKind::StringWrapper(_)
             | ObjectKind::HostExotic(_)
+            | ObjectKind::ModuleNamespace(_)
             | ObjectKind::Proxy(_)
             | ObjectKind::WindowProxy(_)
             | ObjectKind::TypedArray(_)
