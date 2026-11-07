@@ -24,7 +24,7 @@ in commit messages, ADRs and other docs.
   "Artificial Intelligence" (Chromium's requests); a hostile case with 10,000 levels of
   links and buttons. JS-off snapshot identical; `compare --js` unchanged.
 - Owner's acceptance (JavaScript on): Ars Technica and the Craigslist posting are accepted;
-  BBC waits for the owner's check of this fix.
+  BBC is accepted after the owner checked this fix (the side menu's links navigate).
 
 ## 2026-11-07: M10 plan: GitHub
 
