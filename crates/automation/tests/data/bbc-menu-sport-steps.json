@@ -1,0 +1,5 @@
+[
+  {"name": "consent", "steps": [{"click": [775, 584]}, {"wait": 1500}]},
+  {"name": "menu open", "steps": [{"click": "button[aria-label='Open menu']"}, {"wait": 800}]},
+  {"name": "sport", "steps": [{"click": [60, 256]}, {"wait": 1500}]}
+]

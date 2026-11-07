@@ -1,0 +1,1646 @@
+{
+ "a-button-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-text-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-text-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-text-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-submit-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-submit-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-submit-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-submit-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-submit-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-reset-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-reset-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-reset-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-reset-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-type-reset-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-disabled-real": [
+  "c@t h=2 loc="
+ ],
+ "a-button-disabled-click": [
+  " h=2 loc="
+ ],
+ "a-button-disabled-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-in-form-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-click": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-click-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-dispatch-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-type-button-in-form-real": [
+  "c@t|c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-in-form-click": [
+  "c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-in-form-click-t": [
+  "c@t|c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-in-form-dispatch": [
+  "c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-type-button-in-form-dispatch-t": [
+  "c@t|c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-reset-in-form-real": [
+  "c@t|c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "a-button-reset-in-form-click": [
+  "c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "a-button-reset-in-form-dispatch": [
+  "c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "a-button-disabled-in-form-real": [
+  "c@t h=2 loc="
+ ],
+ "a-button-disabled-in-form-click": [
+  " h=2 loc="
+ ],
+ "a-button-disabled-in-form-dispatch": [
+  "c@i|c@f|c@o h=3 loc=#L"
+ ],
+ "a-button-form-attr-real": [
+  "c@t|c@i|c@o|submit@fx/i h=3 loc=?b=1&q=1#FX"
+ ],
+ "a-button-form-attr-click": [
+  "c@i|c@o|submit@fx/i h=3 loc=?b=1&q=1#FX"
+ ],
+ "a-button-form-attr-dispatch": [
+  "c@i|c@o|submit@fx/i h=3 loc=?b=1&q=1#FX"
+ ],
+ "a-button-form-attr-missing-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-form-attr-missing-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-form-attr-missing-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-checkbox-real": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-checkbox-click": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-checkbox-dispatch": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-radio-real": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-radio-click": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-radio-dispatch": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-input-submit-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-submit-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-submit-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-submit-in-form-real": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=go#F"
+ ],
+ "a-input-submit-in-form-click": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=go#F"
+ ],
+ "a-input-submit-in-form-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=go#F"
+ ],
+ "a-input-image-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-image-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-image-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-image-in-form-real": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&im.x=20&im.y=10#F"
+ ],
+ "a-input-image-in-form-click": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&im.x=0&im.y=0#F"
+ ],
+ "a-input-image-in-form-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&im.x=-8&im.y=-11#F"
+ ],
+ "a-input-button-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-button-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-button-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-text-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-text-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-text-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-select-real": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-select-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-select-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-label-for-real": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-label-for-click": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-label-for-dispatch": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-label-no-control-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-label-no-control-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-label-no-control-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-label-wrapping-checkbox-real": [
+  "c@t|c@i|c@o|c@cb|c@i|c@o|change@cb h=2 loc= cb=true"
+ ],
+ "a-label-wrapping-checkbox-click": [
+  "c@i|c@o|c@cb|c@i|c@o|change@cb h=2 loc= cb=true"
+ ],
+ "a-label-wrapping-checkbox-dispatch": [
+  "c@i|c@o|c@cb|c@i|c@o|change@cb h=2 loc= cb=true"
+ ],
+ "a-summary-real": [
+  "c@t|c@i|c@d|c@o|toggle@d h=2 loc= d.open=true"
+ ],
+ "a-summary-click": [
+  "c@i|c@d|c@o|toggle@d h=2 loc= d.open=true"
+ ],
+ "a-summary-dispatch": [
+  "c@i|c@d|c@o|toggle@d h=2 loc= d.open=true"
+ ],
+ "a-span-tabindex-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-tabindex-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-tabindex-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-tabindex-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-tabindex-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-click-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-span-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-div-button-span-real": [
+  "c@t|c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-div-button-span-click": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-div-button-span-dispatch": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-details-default-summary-real": [
+  "c@i|c@o|toggle@i h=2 loc= i.open=true"
+ ],
+ "a-details-default-summary-click": [
+  "c@i|c@o h=3 loc=#L i.open=false"
+ ],
+ "a-details-default-summary-dispatch": [
+  "c@i|c@o h=3 loc=#L i.open=false"
+ ],
+ "a-a-real": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-a-real": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-button-real": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-nohref-real": [
+  "c@t|c@i|c@o|c@root h=3 loc=#L"
+ ],
+ "a-button-button-real": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#L"
+ ],
+ "a-label-for-button-real": [
+  "c@t|c@i|c@o|c@bb h=2 loc="
+ ],
+ "a-div-div-button-real": [
+  "c@t|c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-span-span-button-real": [
+  "c@t|c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-button-div-a-real": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-checkbox-real": [
+  "c@i|c@m|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-button-in-form-with-onsubmit-prevented-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-invalid-form-real": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-js-href-button-real": [
+  "c@t|c@i|c@o|js-link h=2 loc="
+ ],
+ "a-a-click": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-click-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-a-click": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-a-click-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-button-click": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-button-click-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-nohref-click": [
+  "c@i|c@o|c@root h=3 loc=#L"
+ ],
+ "a-a-nohref-click-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#L"
+ ],
+ "a-button-button-click": [
+  "c@i|c@m|c@o|c@root h=3 loc=#L"
+ ],
+ "a-button-button-click-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#L"
+ ],
+ "a-label-for-button-click": [
+  "c@i|c@o|c@bb h=2 loc="
+ ],
+ "a-div-div-button-click": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-span-span-button-click": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-span-span-button-click-t": [
+  "c@t|c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-button-div-a-click": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-checkbox-click": [
+  "c@i|c@m|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-button-in-form-with-onsubmit-prevented-click": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-form-with-onsubmit-prevented-click-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-invalid-form-click": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-js-href-button-click": [
+  "c@i|c@o|js-link h=2 loc="
+ ],
+ "a-a-dispatch": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-a-dispatch": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-a-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-button-dispatch": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-button-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-a-nohref-dispatch": [
+  "c@i|c@o|c@root h=3 loc=#L"
+ ],
+ "a-a-nohref-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#L"
+ ],
+ "a-button-button-dispatch": [
+  "c@i|c@m|c@o|c@root h=3 loc=#L"
+ ],
+ "a-button-button-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@root h=3 loc=#L"
+ ],
+ "a-label-for-button-dispatch": [
+  "c@i|c@o|c@bb h=2 loc="
+ ],
+ "a-div-div-button-dispatch": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-span-span-button-dispatch": [
+  "c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-span-span-button-dispatch-t": [
+  "c@t|c@i|c@m|c@o h=3 loc=#L"
+ ],
+ "a-button-div-a-dispatch": [
+  "c@i|c@m|c@o|c@root h=3 loc=#M"
+ ],
+ "a-button-checkbox-dispatch": [
+  "c@i|c@m|c@o|change@i h=2 loc= i=true"
+ ],
+ "a-button-in-form-with-onsubmit-prevented-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-form-with-onsubmit-prevented-dispatch-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-invalid-form-dispatch": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-js-href-button-dispatch": [
+  "c@i|c@o|js-link h=2 loc="
+ ],
+ "anohref-button-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "anohref-button-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "anohref-button-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "anohref-button-in-form-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "anohref-button-in-form-click": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "anohref-button-in-form-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "anohref-a-href-real": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "anohref-a-href-click": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "anohref-a-href-dispatch": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "anohref-span-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "anohref-span-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "anohref-span-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "label-button-real": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-click": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-click-t": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-dispatch": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-dispatch-t": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-type-button-real": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-type-button-click": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-type-button-click-t": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-type-button-dispatch": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-type-button-dispatch-t": [
+  "c@t|c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-button-in-form-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1#F cb=false"
+ ],
+ "label-button-in-form-click": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1#F cb=false"
+ ],
+ "label-button-in-form-click-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1#F cb=false"
+ ],
+ "label-button-in-form-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1#F cb=false"
+ ],
+ "label-button-in-form-dispatch-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=3 loc=?q=1#F cb=false"
+ ],
+ "label-input-text-real": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-input-text-click": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-input-text-dispatch": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-input-checkbox-real": [
+  "c@i|c@o|change@i h=2 loc= i=true cb=false"
+ ],
+ "label-input-checkbox-click": [
+  "c@i|c@o|change@i h=2 loc= i=true cb=false"
+ ],
+ "label-input-checkbox-dispatch": [
+  "c@i|c@o|change@i h=2 loc= i=true cb=false"
+ ],
+ "label-select-real": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-select-click": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-select-dispatch": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "label-a-href-real": [
+  "c@t|c@i|c@o h=3 loc=#M cb=false"
+ ],
+ "label-a-href-click": [
+  "c@i|c@o h=3 loc=#M cb=false"
+ ],
+ "label-a-href-click-t": [
+  "c@t|c@i|c@o h=3 loc=#M cb=false"
+ ],
+ "label-a-href-dispatch": [
+  "c@i|c@o h=3 loc=#M cb=false"
+ ],
+ "label-a-href-dispatch-t": [
+  "c@t|c@i|c@o h=3 loc=#M cb=false"
+ ],
+ "label-span-tabindex-real": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-tabindex-click": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-tabindex-click-t": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-tabindex-dispatch": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-tabindex-dispatch-t": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-real": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-click": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-click-t": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-dispatch": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-span-dispatch-t": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "label-label-real": [
+  "c@t|c@i|c@o|c@root h=2 loc= cb=false"
+ ],
+ "label-label-click": [
+  "c@i|c@o|c@root h=2 loc= cb=false"
+ ],
+ "label-label-click-t": [
+  "c@t|c@i|c@o|c@root h=2 loc= cb=false"
+ ],
+ "label-label-dispatch": [
+  "c@i|c@o|c@root h=2 loc= cb=false"
+ ],
+ "label-label-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=2 loc= cb=false"
+ ],
+ "summary-button-real": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-click": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-click-t": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-dispatch": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-dispatch-t": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-type-button-real": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-type-button-click": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-type-button-click-t": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-type-button-dispatch": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-button-type-button-dispatch-t": [
+  "c@t|c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-a-href-real": [
+  "c@t|c@i|c@o|c@d h=3 loc=#M d.open=false"
+ ],
+ "summary-a-href-click": [
+  "c@i|c@o|c@d h=3 loc=#M d.open=false"
+ ],
+ "summary-a-href-click-t": [
+  "c@t|c@i|c@o|c@d h=3 loc=#M d.open=false"
+ ],
+ "summary-a-href-dispatch": [
+  "c@i|c@o|c@d h=3 loc=#M d.open=false"
+ ],
+ "summary-a-href-dispatch-t": [
+  "c@t|c@i|c@o|c@d h=3 loc=#M d.open=false"
+ ],
+ "summary-input-checkbox-real": [
+  "c@i|c@o|c@d|change@i h=2 loc= i=true d.open=false"
+ ],
+ "summary-input-checkbox-click": [
+  "c@i|c@o|c@d|change@i h=2 loc= i=true d.open=false"
+ ],
+ "summary-input-checkbox-dispatch": [
+  "c@i|c@o|c@d|change@i h=2 loc= i=true d.open=false"
+ ],
+ "summary-input-text-real": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-input-text-click": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-input-text-dispatch": [
+  "c@i|c@o|c@d h=2 loc= d.open=false"
+ ],
+ "summary-span-real": [
+  "c@t|c@i|c@o|c@d|toggle@d h=2 loc= d.open=true"
+ ],
+ "summary-span-click": [
+  "c@i|c@o|c@d|toggle@d h=2 loc= d.open=true"
+ ],
+ "summary-span-click-t": [
+  "c@t|c@i|c@o|c@d|toggle@d h=2 loc= d.open=true"
+ ],
+ "summary-span-dispatch": [
+  "c@i|c@o|c@d|toggle@d h=2 loc= d.open=true"
+ ],
+ "summary-span-dispatch-t": [
+  "c@t|c@i|c@o|c@d|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-span-real": [
+  "c@t|c@i|c@o|c@f|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-span-click": [
+  "c@i|c@o|c@f|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-span-click-t": [
+  "c@t|c@i|c@o|c@f|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-span-dispatch": [
+  "c@i|c@o|c@f|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-span-dispatch-t": [
+  "c@t|c@i|c@o|c@f|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-href-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-href-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-href-click-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-href-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-href-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-button-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1&b2=2#F"
+ ],
+ "formbutton-button-click": [
+  "c@i|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1&b2=2#F"
+ ],
+ "formbutton-button-click-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1&b2=2#F"
+ ],
+ "formbutton-button-dispatch": [
+  "c@i|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1&b2=2#F"
+ ],
+ "formbutton-button-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1&b2=2#F"
+ ],
+ "formbutton-input-checkbox-real": [
+  "c@i|c@o|c@f|change@i h=2 loc= i=true"
+ ],
+ "formbutton-input-checkbox-click": [
+  "c@i|c@o|c@f|change@i h=2 loc= i=true"
+ ],
+ "formbutton-input-checkbox-dispatch": [
+  "c@i|c@o|c@f|change@i h=2 loc= i=true"
+ ],
+ "formbutton-a-text-real": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-span-a-real": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-type-button-a-real": [
+  "c@t|c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-disabled-a-real": [
+  "c@t|c@i h=3 loc=#M"
+ ],
+ "button-a-real": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-a-text-real": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-span-real": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "formbutton-a-prevent-inner-real": [
+  "c@t|c@i|c@o!|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-outer-real": [
+  "c@t|c@i|c@o|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-text-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-span-a-click": [
+  "c@i|c@m|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-span-a-click-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-type-button-a-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-type-button-a-click-t": [
+  "c@t|c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-disabled-a-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-disabled-a-click-t": [
+  "c@t|c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "button-a-click": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-a-click-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-a-text-click": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-span-click": [
+  "c@i|c@o|c@root h=2 loc="
+ ],
+ "button-span-click-t": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "formbutton-a-prevent-inner-click": [
+  "c@i|c@o!|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-inner-click-t": [
+  "c@t|c@i|c@o!|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-outer-click": [
+  "c@i|c@o|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-outer-click-t": [
+  "c@t|c@i|c@o|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-text-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-span-a-dispatch": [
+  "c@i|c@m|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-span-a-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-type-button-a-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-type-button-a-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-disabled-a-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-disabled-a-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "button-a-dispatch": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-a-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-a-text-dispatch": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "button-span-dispatch": [
+  "c@i|c@o|c@root h=2 loc="
+ ],
+ "button-span-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "formbutton-a-prevent-inner-dispatch": [
+  "c@i|c@o!|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-inner-dispatch-t": [
+  "c@t|c@i|c@o!|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-outer-dispatch": [
+  "c@i|c@o|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-prevent-outer-dispatch-t": [
+  "c@t|c@i|c@o|c@f!|c@root! h=2 loc="
+ ],
+ "formbutton-a-deep-real": [
+  "c@t|c@m|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-label-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F cb=false"
+ ],
+ "formbutton-details-real": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-select-real": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-input-text-real": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-button-real": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1#F"
+ ],
+ "formbutton-a-button-type-button-real": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-deep-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-deep-click-t": [
+  "c@t|c@m|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-label-click": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=3 loc=?q=1&b=1#F cb=false"
+ ],
+ "formbutton-label-click-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F cb=false"
+ ],
+ "formbutton-details-click": [
+  "c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-details-click-t": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-select-click": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-input-text-click": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-button-click": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1#F"
+ ],
+ "formbutton-a-button-click-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1#F"
+ ],
+ "formbutton-a-button-type-button-click": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-button-type-button-click-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-deep-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-deep-dispatch-t": [
+  "c@t|c@m|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-label-dispatch": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=3 loc=?q=1&b=1#F cb=false"
+ ],
+ "formbutton-label-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F cb=false"
+ ],
+ "formbutton-details-dispatch": [
+  "c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-details-dispatch-t": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-select-dispatch": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-input-text-dispatch": [
+  "c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-button-dispatch": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1#F"
+ ],
+ "formbutton-a-button-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/i h=3 loc=?q=1#F"
+ ],
+ "formbutton-a-button-type-button-dispatch": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-button-type-button-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "formbutton-a-padding-real": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-padding-span-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=3 loc=?q=1&b=1#F"
+ ],
+ "button-a-padding-real": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-ps-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "formbutton-a-text-ps-real": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-label-ps-real": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc= cb=false"
+ ],
+ "formbutton-label-text-ps-real": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=2 loc= cb=true"
+ ],
+ "formbutton-details-ps-real": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-a-button-tb-ps-real": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "label-button-in-form-ps-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc= cb=false"
+ ],
+ "summary-button-in-form-ps-real": [
+  "c@t|c@i|c@f|c@o|c@d|submit@f/i h=2 loc= d.open=false"
+ ],
+ "a-label-for-button-in-form-ps-real": [
+  "c@t|c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-button-in-form-ps-real": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-reset-in-form-ps-real": [
+  "c@t|c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "formbutton-a-ps-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-ps-click-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "formbutton-a-text-ps-click": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-label-ps-click": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=2 loc= cb=true"
+ ],
+ "formbutton-label-ps-click-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc= cb=false"
+ ],
+ "formbutton-label-text-ps-click": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=2 loc= cb=true"
+ ],
+ "formbutton-details-ps-click": [
+  "c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-details-ps-click-t": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-a-button-tb-ps-click": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "formbutton-a-button-tb-ps-click-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "label-button-in-form-ps-click": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc= cb=false"
+ ],
+ "label-button-in-form-ps-click-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc= cb=false"
+ ],
+ "summary-button-in-form-ps-click": [
+  "c@i|c@f|c@o|c@d|submit@f/i h=2 loc= d.open=false"
+ ],
+ "summary-button-in-form-ps-click-t": [
+  "c@t|c@i|c@f|c@o|c@d|submit@f/i h=2 loc= d.open=false"
+ ],
+ "a-label-for-button-in-form-ps-click": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-button-in-form-ps-click": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-form-ps-click-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-reset-in-form-ps-click": [
+  "c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "formbutton-a-ps-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-a-ps-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "formbutton-a-text-ps-dispatch": [
+  "c@i|c@o|c@f|c@root h=3 loc=#M"
+ ],
+ "formbutton-label-ps-dispatch": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=2 loc= cb=true"
+ ],
+ "formbutton-label-ps-dispatch-t": [
+  "c@t|c@i|c@o|c@f|c@root|submit@f/o h=2 loc= cb=false"
+ ],
+ "formbutton-label-text-ps-dispatch": [
+  "c@i|c@o|c@f|c@root|c@cb|c@root|change@cb|submit@f/o h=2 loc= cb=true"
+ ],
+ "formbutton-details-ps-dispatch": [
+  "c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-details-ps-dispatch-t": [
+  "c@t|c@i|c@d|c@o|c@f|c@root|toggle@d h=2 loc= d.open=true"
+ ],
+ "formbutton-a-button-tb-ps-dispatch": [
+  "c@i|c@m|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "formbutton-a-button-tb-ps-dispatch-t": [
+  "c@t|c@i|c@m|c@o|c@f|c@root|submit@f/o h=2 loc="
+ ],
+ "label-button-in-form-ps-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc= cb=false"
+ ],
+ "label-button-in-form-ps-dispatch-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc= cb=false"
+ ],
+ "summary-button-in-form-ps-dispatch": [
+  "c@i|c@f|c@o|c@d|submit@f/i h=2 loc= d.open=false"
+ ],
+ "summary-button-in-form-ps-dispatch-t": [
+  "c@t|c@i|c@f|c@o|c@d|submit@f/i h=2 loc= d.open=false"
+ ],
+ "a-label-for-button-in-form-ps-dispatch": [
+  "c@i|c@o|c@cb|change@cb h=2 loc= cb=true"
+ ],
+ "a-button-in-form-ps-dispatch": [
+  "c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-in-form-ps-dispatch-t": [
+  "c@t|c@i|c@f|c@o|submit@f/i h=2 loc="
+ ],
+ "a-button-reset-in-form-ps-dispatch": [
+  "c@i|c@f|c@o|reset@f h=2 loc="
+ ],
+ "disabled-events-enabled": [
+  "pointerover@t|pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|pointerenter@t|mouseover@t|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|mouseenter@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|mousedown@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|mouseup@o|c@t|c@i|c@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|mousedown@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|mouseup@o|c@t|c@i|c@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|mousedown@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|mouseup@o|c@t|c@i|c@o|dblclick@t|dblclick@i|dblclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|mousedown@o|contextmenu@t|contextmenu@i|contextmenu@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|mouseup@o|auxclick@t|auxclick@i|auxclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|mousedown@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|mouseup@o|auxclick@t|auxclick@i|auxclick@o h=3 loc=#L"
+ ],
+ "disabled-events-button": [
+  "pointerover@t|pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|pointerenter@t|mouseover@t|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|mouseenter@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|dblclick@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|contextmenu@t|contextmenu@i|contextmenu@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o h=2 loc="
+ ],
+ "disabled-events-button-text": [
+  "pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|pointerdown@i|pointerdown@o|pointerup@i|pointerup@o|pointerdown@i|pointerdown@o|pointerup@i|pointerup@o|pointerdown@i|pointerdown@o|pointerup@i|pointerup@o|pointerdown@i|pointerdown@o|contextmenu@i|contextmenu@o|pointerup@i|pointerup@o|auxclick@i|auxclick@o|pointerdown@i|pointerdown@o|pointerup@i|pointerup@o|auxclick@i|auxclick@o h=2 loc="
+ ],
+ "disabled-events-fieldset": [
+  "pointerover@t|pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|pointerenter@t|mouseover@t|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|mouseenter@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|dblclick@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|contextmenu@t|contextmenu@i|contextmenu@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o h=2 loc="
+ ],
+ "disabled-events-nested-in-button": [
+  "pointerover@t|pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|pointerenter@t|mouseover@t|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|mouseenter@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|c@m|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|c@m|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|c@t|c@m|dblclick@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|contextmenu@t|contextmenu@i|contextmenu@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|pointerup@t|pointerup@i|pointerup@o|mouseup@t|auxclick@t|auxclick@i|auxclick@o h=2 loc="
+ ],
+ "disabled-events-link-in-button": [
+  "pointerover@t|pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|pointerenter@t|mouseover@t|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|mouseenter@t|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|c@t|c@i|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|c@t|c@i|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|c@t|c@i|dblclick@t|dblclick@i|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|contextmenu@t|contextmenu@i|contextmenu@o|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|auxclick@t|auxclick@i|auxclick@o|pointerdown@t|pointerdown@i|pointerdown@o|mousedown@t|mousedown@i|pointerup@t|pointerup@i|pointerup@o|mouseup@t|mouseup@i|auxclick@t|auxclick@i|auxclick@o h=3 loc=#M"
+ ],
+ "disabled-events-select": [
+  "pointerover@i|pointerover@o|pointerenter@o|pointerenter@i|mouseover@i|mouseover@o|mouseenter@o|mouseenter@i|pointerdown@i|pointerdown@o|pointerup@i|pointerup@o|pointerdown@i|pointerdown@o|contextmenu@i|contextmenu@o|pointerup@i|pointerup@o|auxclick@i|auxclick@o h=2 loc="
+ ],
+ "form-a-button-real": [
+  "c@t|c@i|c@o|c@f|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "form-a-button-type-button-real": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-span-real": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-button-click": [
+  "c@i|c@o|c@f|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "form-a-button-click-t": [
+  "c@t|c@i|c@o|c@f|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "form-a-button-type-button-click": [
+  "c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-button-type-button-click-t": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-span-click": [
+  "c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-span-click-t": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-button-dispatch": [
+  "c@i|c@o|c@f|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "form-a-button-dispatch-t": [
+  "c@t|c@i|c@o|c@f|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "form-a-button-type-button-dispatch": [
+  "c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-button-type-button-dispatch-t": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-span-dispatch": [
+  "c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "form-a-span-dispatch-t": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "area-real": [
+  "c@o h=3 loc=#A"
+ ],
+ "a-button-prevent-inner-real": [
+  "c@t|c@i|c@o! h=2 loc="
+ ],
+ "a-button-prevent-inner-click": [
+  "c@i|c@o! h=2 loc="
+ ],
+ "a-button-prevent-inner-dispatch": [
+  "c@i|c@o! h=2 loc="
+ ],
+ "a-button-prevent-outer-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-button-prevent-outer-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-button-prevent-outer-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-button-stop-inner-real": [
+  "c@t|c@i h=3 loc=#L"
+ ],
+ "a-button-stop-inner-click": [
+  "c@i h=3 loc=#L"
+ ],
+ "a-button-stop-inner-dispatch": [
+  "c@i h=3 loc=#L"
+ ],
+ "a-button-prevent-document-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-button-prevent-document-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-button-prevent-document-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-inner-real": [
+  "c@t|c@i|c@f!|c@o! h=2 loc="
+ ],
+ "a-button-in-form-prevent-inner-click": [
+  "c@i|c@f!|c@o! h=2 loc="
+ ],
+ "a-button-in-form-prevent-inner-click-t": [
+  "c@t|c@i|c@f!|c@o! h=2 loc="
+ ],
+ "a-button-in-form-prevent-inner-dispatch": [
+  "c@i|c@f!|c@o! h=2 loc="
+ ],
+ "a-button-in-form-prevent-inner-dispatch-t": [
+  "c@t|c@i|c@f!|c@o! h=2 loc="
+ ],
+ "a-button-in-form-prevent-outer-real": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-outer-click": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-outer-click-t": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-outer-dispatch": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-outer-dispatch-t": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-stop-inner-real": [
+  "c@t|c@i|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-stop-inner-click": [
+  "c@i|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-stop-inner-click-t": [
+  "c@t|c@i|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-stop-inner-dispatch": [
+  "c@i|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-stop-inner-dispatch-t": [
+  "c@t|c@i|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "a-button-in-form-prevent-document-real": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-document-click": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-document-click-t": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-document-dispatch": [
+  "c@i|c@f|c@o h=2 loc="
+ ],
+ "a-button-in-form-prevent-document-dispatch-t": [
+  "c@t|c@i|c@f|c@o h=2 loc="
+ ],
+ "a-checkbox-prevent-inner-real": [
+  "c@i|c@o! h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-inner-click": [
+  "c@i|c@o! h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-inner-dispatch": [
+  "c@i|c@o! h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-outer-real": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-outer-click": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-outer-dispatch": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-checkbox-stop-inner-real": [
+  "c@i|change@i h=2 loc= i=true"
+ ],
+ "a-checkbox-stop-inner-click": [
+  "c@i|change@i h=2 loc= i=true"
+ ],
+ "a-checkbox-stop-inner-dispatch": [
+  "c@i|change@i h=2 loc= i=true"
+ ],
+ "a-checkbox-prevent-document-real": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-document-click": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-checkbox-prevent-document-dispatch": [
+  "c@i|c@o h=2 loc= i=false"
+ ],
+ "a-span-prevent-inner-real": [
+  "c@t|c@i|c@o! h=2 loc="
+ ],
+ "a-span-prevent-inner-click": [
+  "c@i|c@o! h=2 loc="
+ ],
+ "a-span-prevent-inner-click-t": [
+  "c@t|c@i|c@o! h=2 loc="
+ ],
+ "a-span-prevent-inner-dispatch": [
+  "c@i|c@o! h=2 loc="
+ ],
+ "a-span-prevent-inner-dispatch-t": [
+  "c@t|c@i|c@o! h=2 loc="
+ ],
+ "a-span-prevent-outer-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-outer-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-outer-click-t": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-outer-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-outer-dispatch-t": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-span-stop-inner-real": [
+  "c@t|c@i h=3 loc=#L"
+ ],
+ "a-span-stop-inner-click": [
+  "c@i h=3 loc=#L"
+ ],
+ "a-span-stop-inner-click-t": [
+  "c@t|c@i h=3 loc=#L"
+ ],
+ "a-span-stop-inner-dispatch": [
+  "c@i h=3 loc=#L"
+ ],
+ "a-span-stop-inner-dispatch-t": [
+  "c@t|c@i h=3 loc=#L"
+ ],
+ "a-span-prevent-document-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-document-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-document-click-t": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-document-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-span-prevent-document-dispatch-t": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "a-a-prevent-inner-real": [
+  "c@t|c@i|c@o!|c@root! h=2 loc="
+ ],
+ "a-a-prevent-inner-click": [
+  "c@i|c@o!|c@root! h=2 loc="
+ ],
+ "a-a-prevent-inner-click-t": [
+  "c@t|c@i|c@o!|c@root! h=2 loc="
+ ],
+ "a-a-prevent-inner-dispatch": [
+  "c@i|c@o!|c@root! h=2 loc="
+ ],
+ "a-a-prevent-inner-dispatch-t": [
+  "c@t|c@i|c@o!|c@root! h=2 loc="
+ ],
+ "a-a-prevent-outer-real": [
+  "c@t|c@i|c@o|c@root! h=2 loc="
+ ],
+ "a-a-prevent-outer-click": [
+  "c@i|c@o|c@root! h=2 loc="
+ ],
+ "a-a-prevent-outer-click-t": [
+  "c@t|c@i|c@o|c@root! h=2 loc="
+ ],
+ "a-a-prevent-outer-dispatch": [
+  "c@i|c@o|c@root! h=2 loc="
+ ],
+ "a-a-prevent-outer-dispatch-t": [
+  "c@t|c@i|c@o|c@root! h=2 loc="
+ ],
+ "a-a-stop-inner-real": [
+  "c@t|c@i h=3 loc=#M"
+ ],
+ "a-a-stop-inner-click": [
+  "c@i h=3 loc=#M"
+ ],
+ "a-a-stop-inner-click-t": [
+  "c@t|c@i h=3 loc=#M"
+ ],
+ "a-a-stop-inner-dispatch": [
+  "c@i h=3 loc=#M"
+ ],
+ "a-a-stop-inner-dispatch-t": [
+  "c@t|c@i h=3 loc=#M"
+ ],
+ "a-a-prevent-document-real": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "a-a-prevent-document-click": [
+  "c@i|c@o|c@root h=2 loc="
+ ],
+ "a-a-prevent-document-click-t": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "a-a-prevent-document-dispatch": [
+  "c@i|c@o|c@root h=2 loc="
+ ],
+ "a-a-prevent-document-dispatch-t": [
+  "c@t|c@i|c@o|c@root h=2 loc="
+ ],
+ "key-inner-button-Enter": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "key-inner-button-Space": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "key-outer-button-Enter": [
+  "c@o h=3 loc=#L"
+ ],
+ "key-outer-button-Space": [
+  " h=2 loc="
+ ],
+ "key-inner-button-type-button-Enter": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "key-inner-button-type-button-Space": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "key-outer-button-type-button-Enter": [
+  "c@o h=3 loc=#L"
+ ],
+ "key-outer-button-type-button-Space": [
+  " h=2 loc="
+ ],
+ "key-inner-button-in-form-Enter": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "key-inner-button-in-form-Space": [
+  "c@i|c@f|c@o|submit@f/i h=3 loc=?q=1&b=1#F"
+ ],
+ "key-outer-button-in-form-Enter": [
+  "c@o h=3 loc=#L"
+ ],
+ "key-outer-button-in-form-Space": [
+  " h=2 loc="
+ ],
+ "key-inner-checkbox-Enter": [
+  " h=2 loc= i=false"
+ ],
+ "key-inner-checkbox-Space": [
+  "c@i|c@o|change@i h=2 loc= i=true"
+ ],
+ "key-outer-checkbox-Enter": [
+  "c@o h=3 loc=#L i=false"
+ ],
+ "key-outer-checkbox-Space": [
+  " h=2 loc= i=false"
+ ],
+ "key-inner-span-tabindex-Enter": [
+  " h=2 loc="
+ ],
+ "key-inner-span-tabindex-Space": [
+  " h=2 loc="
+ ],
+ "key-outer-span-tabindex-Enter": [
+  "c@o h=3 loc=#L"
+ ],
+ "key-outer-span-tabindex-Space": [
+  " h=2 loc="
+ ],
+ "key-inner-a-a-Enter": [
+  "c@i|c@o|c@root h=3 loc=#M"
+ ],
+ "key-inner-button-in-nohref-Enter": [
+  "c@i|c@o h=2 loc="
+ ],
+ "key-label-button-Enter": [
+  "c@i|c@o h=2 loc= cb=false"
+ ],
+ "bbc-like-handler-on-button-real": [
+  "c@t|c@i|handler|c@o h=3 loc=#L"
+ ],
+ "bbc-like-handler-on-span-real": [
+  "c@t|handler-span|c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-button-removed-by-handler-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-link-removed-by-handler-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-href-changed-by-handler-real": [
+  "c@t|c@i|c@o h=2 loc="
+ ],
+ "bbc-like-button-disabled-by-handler-real": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-handler-on-button-click": [
+  "c@i|handler|c@o h=3 loc=#L"
+ ],
+ "bbc-like-handler-on-span-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-button-removed-by-handler-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-link-removed-by-handler-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-href-changed-by-handler-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "bbc-like-button-disabled-by-handler-click": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-handler-on-button-dispatch": [
+  "c@i|handler|c@o h=3 loc=#L"
+ ],
+ "bbc-like-handler-on-span-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-button-removed-by-handler-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-link-removed-by-handler-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "bbc-like-href-changed-by-handler-dispatch": [
+  "c@i|c@o h=2 loc="
+ ],
+ "bbc-like-button-disabled-by-handler-dispatch": [
+  "c@i|c@o h=3 loc=#L"
+ ],
+ "a-input-file-real": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-input-file-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-label-input-file-real": [
+  "c@i|c@lb|c@o h=2 loc="
+ ],
+ "formbutton-input-file-real": [
+  "c@i|c@b|c@f h=2 loc="
+ ],
+ "form-a-input-file-real": [
+  "c@i|c@o|c@f h=2 loc="
+ ],
+ "a-input-color-real": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-input-color-click": [
+  "c@i|c@o h=2 loc="
+ ],
+ "a-label-input-color-real": [
+  "c@i|c@lb|c@o h=2 loc="
+ ],
+ "formbutton-input-color-real": [
+  "c@i|c@b|c@f h=2 loc="
+ ],
+ "form-a-input-color-real": [
+  "c@i|c@o|c@f h=2 loc="
+ ],
+ "svg-a-real": [
+  "c@t|c@o h=3 loc=#L"
+ ],
+ "a-svg-a-real": [
+  "c@t|c@s|c@o h=3 loc=#S"
+ ],
+ "a-svg-real": [
+  "c@t|c@o h=3 loc=#L"
+ ],
+ "svg-a-no-href-in-a-real": [
+  "c@t|c@s|c@o h=3 loc=#L"
+ ],
+ "formbutton-svg-a-real": [
+  "c@t|c@s|c@i|c@f|submit@f/i h=3 loc=?q=1#S"
+ ],
+ "svg-a-click": [
+  "c@t|c@o h=3 loc=#L"
+ ],
+ "a-button-revalidate-form-removed": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-revalidate-form-attr-removed": [
+  "c@t|c@i|c@o h=3 loc=#L"
+ ],
+ "a-button-revalidate-type-button": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "a-button-revalidate-disabled": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "a-button-revalidate-type-button-mousedown": [
+  "c@t|c@i|c@o|c@f h=3 loc=#L"
+ ],
+ "a-button-revalidate-type-button-click": [
+  "c@i|c@o|c@f h=3 loc=#L"
+ ]
+}

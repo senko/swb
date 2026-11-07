@@ -1,0 +1,49 @@
+[
+ {
+  "drawer": "-320,359,320,441",
+  "sport": "-312,512,304,44",
+  "technology": "-312,602,304,44",
+  "expanded": null,
+  "ai": "none",
+  "subLinks": 0,
+  "atSport": "IFRAME  ",
+  "atTechnology": "IFRAME  ",
+  "atAi": "IFRAME  "
+ },
+ {
+  "drawer": "-320,359,320,441",
+  "sport": "-312,512,304,44",
+  "technology": "-312,602,304,44",
+  "expanded": null,
+  "ai": "none",
+  "subLinks": 0,
+  "atSport": "DIV ad-unit ",
+  "atTechnology": "DIV  ",
+  "atAi": "ARTICLE  "
+ },
+ {
+  "drawer": "0,81,320,719",
+  "sport": "8,234,304,44",
+  "technology": "8,324,304,44",
+  "expanded": null,
+  "ai": "none",
+  "subLinks": 0,
+  "atSport": "SPAN level0NavText-/sport /sport",
+  "atTechnology": "SPAN level0NavText-/technology ",
+  "atAi": "SPAN level0NavText-/culture "
+ },
+ {
+  "drawer": "0,81,320,719",
+  "sport": "8,234,304,44",
+  "technology": "8,324,304,44",
+  "expanded": null,
+  "ai": "8,408,304,40",
+  "subLinks": 4,
+  "atSport": "SPAN level0NavText-/sport /sport",
+  "atTechnology": "SPAN level0NavText-/technology ",
+  "atAi": "SPAN level1NavText-/technology/artificial-intelligence /technology/artificial-intelligence"
+ },
+ {
+  "navigated": true
+ }
+]

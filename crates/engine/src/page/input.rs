@@ -412,7 +412,8 @@ impl Page {
             origin: point,
             target: hit
                 .as_ref()
-                .and_then(|h| self.activation_target(h.node, point)),
+                .and_then(|h| self.activation_target(h.node, point))
+                .map(|t| t.node),
             anchor,
             control,
             dragging: false,
@@ -555,7 +556,9 @@ impl Page {
         let (x, y) = (point.x, point.y);
         let target = hit.and_then(|h| self.activation_target(h.node, Point::new(x, y)));
         let activated = match target {
-            Some(target) if press.target == Some(target) => self.activate(target, Point::new(x, y)),
+            Some(target) if press.target == Some(target.node) => {
+                self.activate(target, Some(Point::new(x, y)))
+            }
             _ => false,
         };
         (changed, activated)
@@ -595,13 +598,14 @@ impl Page {
         if proceed && button == MouseButton::Primary {
             let activation = self.activation_target(target, point);
             activated = activation.is_some();
-            if let Some(node) = activation
+            if let Some(target) = activation
+                && target.role == swb_dom::ClickRole::Summary
                 && self.document().is_some_and(|d| {
-                    d.element(node)
+                    d.element(target.node)
                         .is_some_and(|e| e.is_html_named(&swb_dom::local_name!("details")))
                 })
             {
-                changed |= self.toggle_details(node);
+                changed |= self.toggle_details(target.node);
             }
         }
         (changed || activated, activated)

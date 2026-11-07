@@ -431,9 +431,10 @@ impl Page {
             allowed &= self.fire_mouse("mousedown", target, point, None, index, count, (0.0, 0.0));
         }
 
-        if button == MouseButton::Secondary && !disabled {
+        if button == MouseButton::Secondary {
             // Chromium on Linux fires `contextmenu` when the button goes
-            // down.
+            // down, also at a disabled control (measured, `disabled-events-*`
+            // of `tools/probes/web-nested-activation.json`).
             self.fire_mouse("contextmenu", target, point, None, index, 0, (0.0, 0.0));
         }
         allowed
@@ -492,7 +493,8 @@ impl Page {
             self.fire_mouse("mouseup", target, point, None, index, count, (0.0, 0.0));
         }
         let down = down?;
-        if disabled || drag {
+        // A disabled control gets no `click`, but `auxclick` (measured).
+        if drag || (disabled && button == MouseButton::Primary) {
             return None;
         }
         // The click goes to the nearest common inclusive ancestor of the
@@ -522,8 +524,10 @@ impl Page {
             .find(|n| b_path.contains(n))
     }
 
-    /// True if `node` is a form control that is disabled: it gets no mouse
-    /// events but the pointer events (measured).
+    /// True if `node` is a form control that is disabled: it gets no
+    /// `mousedown`, `mouseup`, `click` and `dblclick` (measured); a target
+    /// below it gets them, but the path ends below the control
+    /// (`events::dispatch`).
     fn is_disabled_control(&self, node: NodeId) -> bool {
         self.document().is_some_and(|d| {
             d.element(node).is_some_and(|e| {

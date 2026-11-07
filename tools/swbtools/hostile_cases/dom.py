@@ -759,6 +759,41 @@ def javascript_link_loop_js_on() -> Page:
 
 
 @case(
+    "10,000 levels of a > button > a > button (built with appendChild, a link in a link), once "
+    "without a form and once inside a submit button that acts, a listener on each element, and a "
+    "click at the innermost span (the pointer, click() and dispatchEvent), with JavaScript on: "
+    "the rule for the activation target walks the path once and looks for a button that acts "
+    "above a link once per click (ADR 0028 'Nested activation')",
+    swb_args=steps_args([{"click": [5, 5]}, {"click": [5, 30]}]),
+    time_limit_s=15,
+    rss_limit_mib=1024,
+    expect_log="nested activation done",
+)
+def nested_links_and_buttons_10000_levels_click_js_on() -> Page:
+    script = (
+        "<script>let n = 0; const count = () => { n++; };"
+        "function chain(parent, leaf, type) { let p = parent; "
+        "for (let i = 0; i < 10000; i++) { "
+        "const e = document.createElement(i % 2 ? 'button' : 'a'); "
+        "if (!(i % 2)) e.setAttribute('href', '#x'); else if (type) e.setAttribute('type', type); "
+        "e.addEventListener('click', count); "
+        "p.appendChild(e); p = e; } "
+        "const s = document.createElement('span'); s.id = leaf; s.textContent = 'x'; "
+        "p.appendChild(s); return s; } "
+        "const t = chain(document.getElementById('plain'), 't', ''); "
+        "const form = document.getElementById('f'); "
+        "form.addEventListener('submit', (e) => { e.preventDefault(); n += 1000000; }); "
+        "const holder = document.createElement('button'); form.appendChild(holder); "
+        "const u = chain(holder, 'u', 'button'); "
+        "for (const s of [t, u]) { for (let i = 0; i < 3; i++) { s.click(); "
+        "s.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); } } "
+        "window.addEventListener('load', () => setTimeout(() => "
+        "console.warn('nested activation done ' + n), 100));</script>"
+    )
+    return Page(doc("<div id=plain></div><form id=f action='#y'></form>" + script))
+
+
+@case(
     "wheel listeners on 10,000 elements and on the document, body and window (passive by "
     "default there), 100 wheel turns over the elements, with JavaScript on: the dispatch "
     "visits the listeners of the path only (feature 6d2)",

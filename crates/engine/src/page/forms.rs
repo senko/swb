@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use swb_dom::{Document, NodeId, local_name};
+use swb_dom::{ClickRole, ClickTarget, Document, LabelMemo, NodeId, local_name, ns};
 use swb_layout::{FragmentRef, Point};
 use swb_style::{PseudoKind, is_actually_disabled};
 
@@ -291,89 +291,140 @@ impl Page {
     }
 
     /// The element whose activation behavior a click on `node` (at
-    /// `point`, in viewport coordinates) runs: the nearest inclusive
-    /// ancestor that is a link, a button, a checkbox, a radio button, a
-    /// label, or the summary of a `details` element (also its default
-    /// summary, which has no element: the target is then the `details`
-    /// element). A label or summary does not count if the click is on
-    /// other interactive content inside it (a text field, a select): as in
-    /// Chromium's `HTMLLabelElement`, the label then does nothing. A
-    /// disabled control gets no click events, so nothing above it
-    /// activates (as in Chromium).
-    pub(super) fn activation_target(&self, node: NodeId, point: Point) -> Option<NodeId> {
+    /// `point`, in viewport coordinates) runs. The rule is
+    /// [`swb_dom::click_target`] (Chromium, measured), the same as for the
+    /// scripts' `click` events; the roles come from the form state. A
+    /// disabled control gets no click events, so nothing above it activates.
+    pub(super) fn activation_target(&self, node: NodeId, point: Point) -> Option<ClickTarget> {
+        self.click_target_at(node, Some(point), None)
+    }
+
+    /// [`Page::activation_target`] for a click without a point (a key, a
+    /// label) and with `skip`, a label that must not be the target.
+    fn click_target_at(
+        &self,
+        node: NodeId,
+        point: Option<Point>,
+        skip: Option<NodeId>,
+    ) -> Option<ClickTarget> {
         let doc = self.document()?;
-        let mut in_interactive = false;
-        for n in std::iter::once(node).chain(doc.ancestors(node)) {
-            let Some(e) = doc.element(n).filter(|e| e.is_html()) else {
-                continue;
+        let mut labels = LabelMemo::default();
+        swb_dom::click_target(doc, node, true, |n, skip_labels| {
+            if Some(n) == skip {
+                ClickRole::Plain
+            } else {
+                self.click_role(doc, n, point, (&mut labels, skip_labels))
+            }
+        })
+    }
+
+    /// The role of `n` for [`swb_dom::click_target`]: a link, a label with
+    /// a control, the summary of a `details` element (also its default
+    /// summary, which has no element: the role is then the `details`
+    /// element's, if `point` is in the summary), a control, or interactive
+    /// content. Submit and reset buttons act if they have a form owner. A file
+    /// or a color field takes the click for itself (its chooser opens; measured):
+    /// nothing around it acts. `labels` is the memo of the walk and whether the
+    /// role of a label does not matter (it is then `Plain`).
+    fn click_role(
+        &self,
+        doc: &Document,
+        n: NodeId,
+        point: Option<Point>,
+        (labels, skip_labels): (&mut LabelMemo, bool),
+    ) -> ClickRole {
+        let Some(e) = doc.element(n) else {
+            return ClickRole::Plain;
+        };
+        if !e.is_html() {
+            let svg_link = e.name.ns == ns!(svg)
+                && *e.local_name() == local_name!("a")
+                && e.svg_href().is_some();
+            return if svg_link {
+                ClickRole::Link
+            } else {
+                ClickRole::Plain
             };
-            match &**e.local_name() {
-                "a" | "area" if e.has_attr("href") => return Some(n),
-                "label" if !in_interactive => return Some(n),
-                "summary" if !in_interactive && doc.details_of_summary(n).is_some() => {
-                    return Some(n);
-                }
-                "details"
-                    if !in_interactive
-                        && doc.details_summary(n).is_none()
-                        && self.in_default_summary(n, point) =>
-                {
-                    return Some(n);
-                }
-                _ => {}
-            }
-            match self.control_type(n) {
-                Some(_) if self.is_disabled(n) => return None,
-                Some(t) if t.is_button() || t.is_checkable() => return Some(n),
-                Some(t) => in_interactive |= t != ControlType::Input(InputType::Hidden),
-                None => in_interactive |= is_interactive(e),
-            }
         }
-        None
+        match &**e.local_name() {
+            "a" | "area" if e.has_attr("href") => return ClickRole::Link,
+            "label" if skip_labels => return ClickRole::Plain,
+            "label" => {
+                return labels.role(e.has_attr("for"), || labeled_control(doc, n).is_some());
+            }
+            "summary" if doc.details_of_summary(n).is_some() => return ClickRole::Summary,
+            "details"
+                if doc.details_summary(n).is_none()
+                    && point.is_some_and(|p| self.in_default_summary(n, p)) =>
+            {
+                return ClickRole::Summary;
+            }
+            _ => {}
+        }
+        match self.control_type(n) {
+            Some(_) if self.is_disabled(n) => ClickRole::Blocked,
+            Some(ControlType::Input(InputType::File | InputType::Color)) => ClickRole::Blocked,
+            Some(t) if t.is_checkable() => ClickRole::Toggle,
+            Some(t) if self.acts_as_button(n, t) => ClickRole::Button,
+            Some(ControlType::Input(InputType::Hidden)) => ClickRole::Plain,
+            Some(_) => ClickRole::Interactive,
+            None if is_interactive(e) => ClickRole::Interactive,
+            None => ClickRole::Plain,
+        }
     }
 
     /// Runs the activation behavior of `target` for a click at `point`
-    /// (viewport coordinates): follows a link, activates a control or the
-    /// control of a label. As in Chromium, a button without an activation
-    /// behavior (type `button`, no form owner) and a label without a
-    /// control let the click go to a link around them; a label whose
-    /// control is disabled handles the click and does nothing. Returns true
-    /// if something happened.
-    pub(super) fn activate(&mut self, target: NodeId, point: Point) -> bool {
-        let Some(doc) = self.document() else {
-            return false;
-        };
-        let Some(e) = doc.element(target) else {
-            return false;
-        };
-        if e.is_html_named(&local_name!("summary")) {
-            return doc
-                .details_of_summary(target)
-                .is_some_and(|details| self.toggle_details(details));
-        }
-        if e.is_html_named(&local_name!("details")) {
-            return self.toggle_details(target);
-        }
-        if e.is_html_named(&local_name!("label")) {
-            if let Some(control) = labeled_control(doc, target) {
-                return self.activate_label(control);
+    /// (viewport coordinates; none for a key or a label): follows a link,
+    /// toggles a summary, activates a control or the control of a label (and
+    /// the button around the label, if the rule says so). Returns true if
+    /// something happened.
+    pub(super) fn activate(&mut self, target: ClickTarget, point: Option<Point>) -> bool {
+        let node = target.node;
+        match target.role {
+            ClickRole::Summary => {
+                let Some(doc) = self.document() else {
+                    return false;
+                };
+                let details = if doc
+                    .element(node)
+                    .is_some_and(|e| e.is_html_named(&local_name!("details")))
+                {
+                    Some(node)
+                } else {
+                    doc.details_of_summary(node)
+                };
+                details.is_some_and(|d| self.toggle_details(d))
             }
-        } else if self.control_type(target).is_some() {
-            if self.is_disabled(target) {
-                // A disabled control gets no click events at all.
-                return false;
+            ClickRole::Label => {
+                let control = self.document().and_then(|doc| labeled_control(doc, node));
+                let mut acted = control.is_some_and(|c| self.activate_label(node, c));
+                if let Some(button) = target.also {
+                    acted |= self.activate_control(button, None);
+                }
+                acted
             }
-            if self.has_activation_behavior(target) {
+            ClickRole::Toggle | ClickRole::Button => {
                 let scroll = self.scroll_position();
-                let coordinate = self.element_box(target).map(|r| {
-                    let x = point.x + scroll.x - r.x;
-                    let y = point.y + scroll.y - r.y;
-                    (x.floor().max(0.0) as i32, y.floor().max(0.0) as i32)
+                let coordinate = point.and_then(|p| {
+                    self.element_box(node).map(|r| {
+                        let x = p.x + scroll.x - r.x;
+                        let y = p.y + scroll.y - r.y;
+                        (x.floor().max(0.0) as i32, y.floor().max(0.0) as i32)
+                    })
                 });
-                return self.activate_control(target, coordinate);
+                self.activate_control(node, coordinate)
             }
+            ClickRole::Link => self.follow_link_around(node),
+            ClickRole::Plain | ClickRole::Interactive | ClickRole::Blocked => false,
         }
-        self.follow_link_around(target)
+    }
+
+    /// Clicks `node` as a key does without scripts (Space or Enter on a
+    /// button): the activation of the element that the rule picks for a
+    /// click on `node`, which is a link around a button that does not act.
+    pub(super) fn click_element(&mut self, node: NodeId) -> bool {
+        let target = self.click_target_at(node, None, None);
+        target.is_some_and(|t| self.activate(t, None))
     }
 
     /// True if `point` (viewport coordinates) is in the default summary of
@@ -444,36 +495,28 @@ impl Page {
         self.navigate_from_input(link, None, target)
     }
 
-    /// True if a click on control `node` does something: checkboxes and
-    /// radio buttons, and submit and reset buttons with a form owner.
-    fn has_activation_behavior(&self, node: NodeId) -> bool {
-        let Some(forms) = self.forms() else {
-            return false;
-        };
-        let Some(ty) = forms.control_type(node) else {
-            return false;
-        };
+    /// True if a click on the button `node` of type `ty` does something:
+    /// a submit or reset button that has a form owner.
+    fn acts_as_button(&self, node: NodeId, ty: ControlType) -> bool {
         let resets = matches!(
             ty,
             ControlType::Input(InputType::Reset) | ControlType::Button(ButtonType::Reset)
         );
-        ty.is_checkable() || ((ty.is_submit_button() || resets) && forms.owner(node).is_some())
+        (ty.is_submit_button() || resets) && self.forms().is_some_and(|f| f.owner(node).is_some())
     }
 
-    /// The activation of a label: focuses its control and clicks it. The
-    /// click runs the activation behavior of the control (a button, a
-    /// checkbox, a radio button); for a control without one, it goes on to
-    /// a link around the control (as in Chromium, where the simulated click
-    /// bubbles up from the control). A disabled control gets no click.
-    fn activate_label(&mut self, control: NodeId) -> bool {
+    /// The activation of `label`: focuses its control and clicks it. The
+    /// click bubbles up from the control as [`swb_dom::click_target`] says (a
+    /// control that does not act lets it go on to a link around the control),
+    /// except that the label itself does not take it again. A disabled
+    /// control gets no click.
+    fn activate_label(&mut self, label: NodeId, control: NodeId) -> bool {
         if self.is_disabled(control) {
             return false;
         }
         let focused = self.focus(Some(control), false);
-        if self.has_activation_behavior(control) {
-            return self.activate_control(control, None) || focused;
-        }
-        self.follow_link_around(control) || focused
+        let target = self.click_target_at(control, None, Some(label));
+        target.is_some_and(|t| self.activate(t, None)) || focused
     }
 
     /// The activation behavior of a control: toggles a checkbox, checks a
@@ -546,7 +589,7 @@ impl Page {
                 if self.script_input() {
                     self.input.space_down = Some(node);
                 } else {
-                    self.activate_control(node, None);
+                    self.click_element(node);
                 }
             }
             _ if key == &Key::Enter && ty.is_checkable() => {
@@ -556,7 +599,7 @@ impl Page {
                 if self.script_input() {
                     self.simulate_click(node);
                 } else {
-                    self.activate_control(node, None);
+                    self.click_element(node);
                 }
             }
             _ => return None,

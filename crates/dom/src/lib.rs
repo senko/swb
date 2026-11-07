@@ -8,6 +8,7 @@
 //! and mutation sink ([`MutationSink`]), the id index, fragment parsing,
 //! more documents in one arena, and the limits ([`Limits`]).
 
+mod activation;
 mod algorithms;
 mod dump;
 mod encoding;
@@ -21,6 +22,7 @@ mod serialize;
 mod transplant;
 mod tree;
 
+pub use activation::{ClickRole, ClickTarget, LabelMemo, click_target};
 pub use algorithms::{Cloned, position};
 pub use dump::dump_tree;
 pub use html5ever::{LocalName, Namespace, QualName, local_name, ns};

@@ -1,0 +1,6 @@
+[
+  {"name": "consent", "steps": [{"click": [775, 584]}, {"wait": 1500}]},
+  {"name": "menu open", "steps": [{"click": "button[aria-label='Open menu']"}, {"wait": 800}]},
+  {"name": "technology", "steps": [{"click": [60, 346]}, {"wait": 800}]},
+  {"name": "artificial intelligence", "steps": [{"click": [60, 428]}, {"wait": 1500}]}
+]

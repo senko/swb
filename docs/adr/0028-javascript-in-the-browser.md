@@ -1447,7 +1447,8 @@ queries), three equal Chromium runs each; the Rust tests are
   is not) has an activation target (the target, or with `bubbles` the nearest
   ancestor with an activation behavior: `a`/`area`/SVG `a` with `href`,
   checkbox, radio, submit and image inputs and buttons, reset buttons,
-  `label`). Checkboxes and radio buttons run the legacy-pre-activation
+  `label`; where interactive elements nest, Chromium's rule decides, see
+  "Nested activation" at the end of the M9 notes). Checkboxes and radio buttons run the legacy-pre-activation
   behavior before the listeners (the checkedness changes, `indeterminate`
   becomes false; a radio button remembers the checked button of its group)
   and the legacy-canceled-activation behavior if the event is canceled
@@ -5488,6 +5489,91 @@ made and removes nodes while it walks. The IDL is DOM section 6 (`dom.idl`);
   view shows in neither browser), sets `overflow: hidden` on the body and logs
   nothing, as Chromium does (the focus fixup of the hidden container is the known
   gap: swb keeps the focus in the frame).
+
+### Nested activation (fix after M9 feature 15)
+
+BBC's side menu lists each section as `A[href] > BUTTON > SPAN`, a button without a
+type and without a form owner inside a link. A click on the item must follow the
+link. The DOM standard's "dispatch" takes the nearest inclusive ancestor of the
+target that has an activation behavior as the activation target, and every `button`
+that is not `type=button` has one (it does nothing without a form owner), so the
+standard never activates the link. Chromium picks the target by another rule where
+interactive elements nest.
+`tools/probes/web-nested-activation.json` (548 cases, three equal runs of
+Chromium 148) measures it: outer `a[href]`, `a` without `href`, `label`,
+`summary`, a button in a form and a form with a link around it; inner `button`
+of every type, with and without a form owner (also by the `form` attribute), disabled
+(also by a `fieldset`), `input` of all types, a link in a link (built with DOM
+methods), `label`, `summary`, `details`, `select`, a `span` with a `tabindex` and
+with several levels; the click of a pointer, `click()`, `dispatchEvent` (the
+target the inner element and the span in it), Enter and Space, with
+`preventDefault()` and `stopPropagation()` at the inner and the outer element,
+the history length, the events of the pointer on and in a disabled button.
+Where the rows agree with the standard, the rule is the standard's. The rule
+(`swb_dom::click_target`, used by the scripts' dispatch and by the engine's
+path without scripts; the callers give the role of each element on the path):
+
+- Walking up from the target, the first element that takes the click is a
+  checkbox or radio button (also disabled, for `dispatchEvent`), a submit or
+  reset button that acts (it has a form owner and is enabled), a link, a `label`
+  with a control, or a `summary` of a `details` element (also its default
+  summary, in the path without scripts).
+- A button that does not act (`type=button`, no form owner, disabled) is
+  skipped, and a link around it is followed. The elements of the path above a
+  disabled button, and the button itself, take no click that a pointer made
+  (see below); the click of a script passes through a disabled button.
+- A `label` or a `summary` is skipped when interactive content (a field, a
+  `select`, a button that does not act, a `details` element, a label without a
+  control) lies between it and the target. A link is not skipped that way
+  (`a > select`, `a > label` without a control: the link is followed).
+- Departures from the standard, in the rows of the file: inside a button that
+  acts, a link or a label that is not the target itself does nothing, and the
+  button acts (`C > a > span`: the form is submitted and the link is not
+  followed; `C > a` with the link as the target: the link is followed); a
+  `summary` inside such a button toggles and the button does not act. When a label acts and a button that
+  acts is above it, the button acts after the label (target the label itself).
+- The event path of a `mousedown`, `mouseup`, `click` or `dblclick` that the
+  user's pointer made on a target inside a disabled `button` (or one that a
+  disabled `fieldset` disables) ends below the button: the button, its
+  ancestors, the document and the window get nothing, and nothing above takes the
+  click. A disabled target gets none of these; `contextmenu` and `auxclick` (and
+  the pointer events) reach it and go all the way up.
+  `events::dispatch::disabled_cut` implements it; the path without scripts has the
+  role `Blocked`.
+- `stopPropagation()` does not stop the activation; `preventDefault()` at any
+  listener of the path does (also the legacy-canceled-activation behavior of
+  checkboxes). swb fixes the activation target before the listeners run: a
+  listener that removes the link or the button does not change it, and a
+  listener that removes `href` does. This is a departure for a button in a
+  link. Chromium checks the button again after the `click` listeners: a
+  listener that removes the form, removes the `form` attribute, sets
+  `type=button` or sets `disabled` makes the button not act, and the link
+  around it is followed (measured, three equal runs: `a > button[form=f]` with
+  `f` removed or the attribute removed, and `form > a > button` with
+  `type=button` or `disabled` set, in a pointer click and, for `type`, in
+  `click()`: `c@t|c@i|c@o` and the location `#L`). Swb follows nothing and
+  submits nothing in these rows. The same changes in a `mousedown` listener
+  match Chromium. The rows are in `DEPARTURES` of the test.
+- A `file` or `color` input takes the click for itself (its chooser opens in
+  Chromium): nothing around it acts, neither a link, nor a form's button
+  (`a > input[type=file]`, `button > input[type=color]` in a form, a label with
+  such a field in a link: the `click` event reaches the elements above, the
+  location stays and nothing is submitted). The callers give such a field the
+  role `Blocked`. An SVG `a` with `href` is a link in both paths.
+- The cost of the walk is linear in the depth: `LabelMemo` finds the control of
+  a label once for the labels without `for` on a path, and the roles of labels
+  are not asked when interactive content is below them.
+
+The test `crates/automation/tests/nested_activation.rs` runs all cases with
+scripts, and the cases that are plain markup also with JavaScript off (the
+activation does not depend on scripting; the values are Chromium's from the run
+with scripts). The
+departures that stay are rows in the test: the coordinates of an image button
+for `dispatchEvent`, the default summary of a `details` element inside a link
+when scripts run (the dispatch has no point), the `click` on an `area` of an
+image map (swb has no image map hit test), and the `toggle` event (not
+implemented). `crates/automation/tests/bbc.rs` has the two BBC tests (the item
+"Sport" and the sub-link "Artificial Intelligence").
 
 ## Consequences
 

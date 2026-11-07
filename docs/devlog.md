@@ -4,6 +4,28 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M9 fix: a button inside a link (BBC's side menu)
+
+- The owner found it while testing BBC for acceptance: the items of BBC's side menu did not
+  navigate. They are `A[href] > BUTTON > SPAN`. swb took the `button` as the activation
+  target, as the DOM standard says, and a button without a form does nothing. Chromium and
+  Firefox follow the link (Ladybird does not).
+- 548 cases measured in Chromium 148 (`tools/probes/web-nested-activation.json`, three
+  equal runs). The rule is `swb_dom::click_target`, shared by the scripts' dispatch and the
+  engine's input without scripts: a button that does not act (`type=button`, no form owner,
+  disabled) is skipped; a link or label inside a button that acts yields to it unless it is
+  the target itself; the pointer's `mousedown`, `mouseup`, `click` and `dblclick` stop below a
+  disabled button. Enter and Space on a focused element follow the same rule. File and
+  color inputs take the click; SVG links count as links, also without scripts.
+- The review found a walk through nested labels that searched for a control at each label
+  (20,000 nested labels: 1.08 s against 0.08 s); one search per walk now. Chromium checks
+  the button again after the `click` listeners, swb before them (a departure, backlog).
+- Tests: the 548 cases (94 also without scripts); BBC tests for the items "Sport" and
+  "Artificial Intelligence" (Chromium's requests); a hostile case with 10,000 levels of
+  links and buttons. JS-off snapshot identical; `compare --js` unchanged.
+- Owner's acceptance (JavaScript on): Ars Technica and the Craigslist posting are accepted;
+  BBC waits for the owner's check of this fix.
+
 ## 2026-11-07: M10 plan: GitHub
 
 - The owner chose github.com/senko/swb (the repository's front page, logged out) as the

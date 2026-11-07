@@ -289,10 +289,13 @@ pub(crate) fn dispatch(
     super::data_mut(rt, handle)?.dispatching = true;
     // Steps 5.4 to 5.10 of "dispatch": the activation target and its
     // legacy-pre-activation behavior (HTML activation behaviors).
-    let activation = activation_before(rt, target, handle);
+    let activation = disabled_cut(rt, target, handle).and_then(|cut| {
+        let activation = activation_before(rt, target, handle, cut)?;
+        Ok((cut, activation))
+    });
     let result = activation
-        .and_then(|activation| {
-            build_path(rt, realm, target, handle, target_override)?;
+        .and_then(|(cut, activation)| {
+            build_path(rt, realm, target, handle, target_override, cut)?;
             super::mouse::place_at_target(rt, event, handle, target)?;
             run_phases(rt, handle, event)?;
             Ok(activation)
@@ -341,6 +344,7 @@ fn activation_before(
     rt: &mut Runtime,
     target: Gc<Object>,
     handle: Gc<Generic>,
+    cut: Option<NodeId>,
 ) -> VmResult<Option<crate::html::activation::Activation>> {
     let event = super::data(rt, handle)?;
     let is_click =
@@ -352,7 +356,7 @@ fn activation_before(
     let TargetKind::Node(node) = kind_of(rt, target)? else {
         return Ok(None);
     };
-    match crate::html::activation::find_target(rt, node, bubbles)? {
+    match crate::html::activation::find_target(rt, node, bubbles, cut)? {
         Some(activation) => {
             let activation = crate::html::activation::pre_activation(rt, activation)?;
             Ok(Some(activation))
@@ -361,13 +365,44 @@ fn activation_before(
     }
 }
 
-/// Steps 5.3 to 5.9 of "dispatch": the event path, stored in the event.
+/// The disabled form control that cuts the path of a pointer's mouse event.
+/// Measured in Chromium 148 (`disabled-events-*` of
+/// `tools/probes/web-nested-activation.json`): `mousedown`, `mouseup`,
+/// `click` and `dblclick` of the user's pointer reach a target inside a
+/// disabled `button` (or one that a disabled `fieldset` disables) but go no
+/// further than its child: the button, its ancestors, the document and the
+/// window get nothing, and no activation behavior above runs. The
+/// other events (pointer events, `mouseover`, `contextmenu`, `auxclick`) and
+/// the events that scripts dispatch have the whole path.
+fn disabled_cut(rt: &Runtime, target: Gc<Object>, event: Gc<Generic>) -> VmResult<Option<NodeId>> {
+    let data = super::data(rt, event)?;
+    if !data.is_trusted || !matches!(&*data.kind, "mousedown" | "mouseup" | "click" | "dblclick") {
+        return Ok(None);
+    }
+    let TargetKind::Node(node) = kind_of(rt, target)? else {
+        return Ok(None);
+    };
+    let dom = dom(rt)?;
+    Ok(dom.ancestors(node).find(|&a| {
+        dom.element(a).is_some_and(|e| {
+            e.is_html()
+                && matches!(
+                    &**e.local_name(),
+                    "button" | "input" | "select" | "textarea"
+                )
+        }) && swb_style::is_actually_disabled(dom, a)
+    }))
+}
+
+/// Steps 5.3 to 5.9 of "dispatch": the event path, stored in the event. A
+/// path that a disabled control cuts ([`disabled_cut`]) ends below it.
 fn build_path(
     rt: &mut Runtime,
     realm: u32,
     target: Gc<Object>,
     event: Gc<Generic>,
     target_override: Option<Gc<Object>>,
+    cut: Option<NodeId>,
 ) -> VmResult<()> {
     let kind = kind_of(rt, target)?;
     let mut path = vec![PathItem {
@@ -382,12 +417,13 @@ fn build_path(
     if let TargetKind::Node(node) = kind {
         // Copied out of the DOM before the wrappers are made.
         let dom = dom(rt)?;
-        parents.extend(dom.ancestors(node));
+        parents.extend(dom.ancestors(node).take_while(|&a| Some(a) != cut));
         let root = parents.last().copied().unwrap_or(node);
         // "Get the parent" of a document: the window, unless the event is
         // `load` or the document has no browsing context (only the
         // document of the window has one).
-        window = root == NodeId::DOCUMENT && super::data(rt, event)?.kind != "load";
+        window =
+            cut.is_none() && root == NodeId::DOCUMENT && super::data(rt, event)?.kind != "load";
     }
     for node in parents {
         let wrapper = WebState::wrap_node(rt, realm, node)?;

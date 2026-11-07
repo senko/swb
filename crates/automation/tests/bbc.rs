@@ -62,6 +62,22 @@
 //! compared at the load too). Neither browser calls `document.open`, `write` or
 //! `close` on a document of the page.
 //!
+//! The side menu's links (two more loads, `bbc_menu_sport_link_navigates` and
+//! `bbc_menu_sub_link_navigates`): each item of the menu is `A[href] >
+//! BUTTON > SPAN`, a button without a type and without a form owner inside a
+//! link. A click on the item "Sport" (point 60, 256) must follow the link, as
+//! in Chromium (requests `https://www.bbc.com/sport`); "Technology" has no
+//! link, a click expands its four sub-links, and a click on "Artificial
+//! Intelligence" (60, 428) requests
+//! `https://www.bbc.com/technology/artificial-intelligence`. The steps are
+//! `data/bbc-menu-sport-steps.json` and `data/bbc-menu-technology-steps.json`
+//! (the consent click, the menu button, the clicks on the items), the record
+//! is `data/bbc-menu-record.txt` (the rectangles of the drawer and some of its
+//! items, the sub-links, and what the hit test finds at the three points) and
+//! Chromium's values are `data/bbc-menu-*-chromium.json` (the last record is
+//! `{"navigated": true}`). The rule for nested interactive elements is in
+//! `swb_dom::click_target`; `nested_activation.rs` tests it on small pages.
+//!
 //! Scroll anchoring (CSS Scroll Anchoring) is not implemented in swb. In
 //! Chromium the first wheel step scrolls 16 px less than the wheel: the
 //! content above the cards moves up by 16 px while the page scrolls, and
@@ -393,5 +409,106 @@ fn bbc_consent_manage_options_starts_the_privacy_manager() {
         );
         assert!(problems.is_empty(), "{}", problems.join("\n"));
         assert_eq!(console_errors(&page), Vec::<String>::new());
+    });
+}
+
+/// The keys of the menu record whose values hold rectangles.
+const MENU_RECTANGLES: &[&str] = &["ai", "drawer", "sport", "technology"];
+
+/// The URL that a click on "Sport" in the side menu navigates to.
+const MENU_SPORT: &str = "https://www.bbc.com/sport";
+
+/// The URL that a click on "Artificial Intelligence" in the menu navigates to.
+const MENU_ARTIFICIAL_INTELLIGENCE: &str = "https://www.bbc.com/technology/artificial-intelligence";
+
+/// A load and the steps of a menu test (`steps`, with Chromium's records
+/// `chromium` of the same steps and `data/bbc-menu-record.txt`): the last group
+/// navigates away. Returns the page, the recording fetcher and the differences
+/// of swb's record at the load and after each group but the last.
+fn menu_clicks(
+    dir: &std::path::Path,
+    steps: &str,
+    chromium: &str,
+) -> (Page, Arc<Recording>, Vec<String>) {
+    let expected: Vec<Value> = serde_json::from_str(chromium).unwrap();
+    let fetcher = Arc::new(Recording::new(ReplayFetcher::load(dir).unwrap()));
+    let mut page = load_at_capture_with(dir, Duration::from_millis(1500), fetcher.clone());
+    assert!(page.has_script_runtime());
+    assert_eq!(other_console_errors(&page), Vec::<String>::new());
+    let record = |page: &mut Page| -> Value {
+        let text = value(page, include_str!("data/bbc-menu-record.txt"));
+        serde_json::from_str(text.as_str().unwrap()).unwrap()
+    };
+    let mut problems = common::differences(
+        "load",
+        &record(&mut page),
+        &expected[0],
+        MENU_RECTANGLES,
+        TOLERANCE,
+    );
+    let groups = step_groups(steps);
+    assert_eq!(groups.len() + 1, expected.len());
+    for (index, (name, steps)) in groups.iter().enumerate() {
+        run_steps(&mut page, steps).unwrap();
+        let expected = &expected[index + 1];
+        if expected["navigated"] == true {
+            assert_eq!(index + 1, groups.len(), "only the last group navigates");
+            continue;
+        }
+        problems.extend(common::differences(
+            name,
+            &record(&mut page),
+            expected,
+            MENU_RECTANGLES,
+            TOLERANCE,
+        ));
+    }
+    (page, fetcher, problems)
+}
+
+/// A click on the item "Sport" of the side menu (`A > BUTTON > SPAN`, the button
+/// has no form owner) follows the link: the page navigates to `/sport`, as in
+/// Chromium.
+#[test]
+fn bbc_menu_sport_link_navigates() {
+    let Some(dir) = fixture("bbc") else {
+        eprintln!("skipped: fixtures/js/bbc is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let (page, fetcher, problems) = menu_clicks(
+            &dir,
+            include_str!("data/bbc-menu-sport-steps.json"),
+            include_str!("data/bbc-menu-sport-chromium.json"),
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+        assert_eq!(page.url().unwrap().as_str(), MENU_SPORT);
+        assert!(fetcher.urls().iter().any(|url| url == MENU_SPORT));
+    });
+}
+
+/// A click on "Technology" (a button without a link) expands its sub-links; a click
+/// on the sub-link "Artificial Intelligence" (the same structure as the items)
+/// follows its link.
+#[test]
+fn bbc_menu_sub_link_navigates() {
+    let Some(dir) = fixture("bbc") else {
+        eprintln!("skipped: fixtures/js/bbc is missing");
+        return;
+    };
+    on_page_thread(move || {
+        let (page, fetcher, problems) = menu_clicks(
+            &dir,
+            include_str!("data/bbc-menu-technology-steps.json"),
+            include_str!("data/bbc-menu-technology-chromium.json"),
+        );
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+        assert_eq!(page.url().unwrap().as_str(), MENU_ARTIFICIAL_INTELLIGENCE);
+        assert!(
+            fetcher
+                .urls()
+                .iter()
+                .any(|url| url == MENU_ARTIFICIAL_INTELLIGENCE)
+        );
     });
 }

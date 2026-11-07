@@ -11,7 +11,11 @@
 //! legacy-pre-activation behavior) and returns to the old state if a
 //! listener cancels the event; if not, `input` and `change` follow. A
 //! link, a submit button, a reset button and a label act after the
-//! dispatch.
+//! dispatch. Where interactive elements nest, Chromium picks the target by
+//! another rule than the standard: a button that does not act (`type=button`,
+//! no form owner) does not stop a link around it, and a link or label inside
+//! a button that acts does not act. The rule, with its measurements, is
+//! `swb_dom::click_target`; this module tells it the role of each element.
 //!
 //! What is the engine's goes through [`crate::EngineHost`]: the
 //! checkedness of controls, the invalid controls of a form, the reset of
@@ -34,7 +38,7 @@
 
 use std::collections::HashSet;
 
-use swb_dom::{Document, NodeId, QualName, local_name, ns};
+use swb_dom::{ClickRole, Document, LabelMemo, NodeId, QualName, local_name, ns};
 use swb_js::{Runtime, ScriptError, VmError, VmResult};
 
 use super::{form_owner, labeled_control};
@@ -106,6 +110,8 @@ pub(crate) struct Activation {
     origin: NodeId,
     kind: Kind,
     saved: Saved,
+    /// For a label: the button that acts after the label.
+    also: Option<NodeId>,
 }
 
 /// The activation behavior of an element.
@@ -139,35 +145,85 @@ fn kind_of(dom: &Document, node: NodeId) -> Option<Kind> {
     }
 }
 
-/// The activation target for a click on `node`: the node, or with
-/// `bubbles` the nearest ancestor with an activation behavior.
+/// The activation target for a click on `node`: the element that
+/// [`swb_dom::click_target`] picks (the node, or with `bubbles` an ancestor).
+/// `cut` is the disabled control that ends the event's path: nothing at or
+/// above it is a target.
 pub(crate) fn find_target(
     rt: &Runtime,
     node: NodeId,
     bubbles: bool,
+    cut: Option<NodeId>,
 ) -> VmResult<Option<Activation>> {
-    let node_target = node;
     let dom = dom(rt)?;
-    // Interactive content between the target and a label or a summary
-    // keeps it from acting (HTML "interactive content"; Chromium).
-    let mut in_interactive = false;
-    let found = std::iter::once(node)
-        .chain(
-            dom.ancestors(node)
-                .take(if bubbles { usize::MAX } else { 0 }),
-        )
-        .find_map(|n| {
-            let kind = kind_of(dom, n);
-            let blocked = in_interactive && matches!(kind, Some(Kind::Label | Kind::Summary));
-            in_interactive |= is_interactive(dom, n);
-            kind.filter(|_| !blocked).map(|kind| (n, kind))
-        });
-    Ok(found.map(|(node, kind)| Activation {
-        node,
-        origin: node_target,
-        kind,
-        saved: Saved::None,
+    let mut labels = LabelMemo::default();
+    let picked = swb_dom::click_target(dom, node, bubbles, |n, skip_labels| {
+        if Some(n) == cut {
+            ClickRole::Blocked
+        } else {
+            role_of(dom, n, (&mut labels, skip_labels))
+        }
+    });
+    Ok(picked.and_then(|t| {
+        Some(Activation {
+            node: t.node,
+            origin: node,
+            kind: kind_of(dom, t.node)?,
+            saved: Saved::None,
+            also: t.also,
+        })
     }))
+}
+
+/// The role of `node` for [`swb_dom::click_target`]. A submit or reset button
+/// acts if it has a form owner and is enabled (the activation behavior of
+/// HTML `button` and `input`); a label acts if it has a control (a label
+/// without one lets the click go to a link around it and, as interactive
+/// content, stops an outer label, measured). A file or a color field takes the
+/// click for itself (its chooser opens; measured): nothing around it acts.
+/// `labels` is the memo of the walk and whether the role of a label does not
+/// matter (it is then `Plain`).
+fn role_of(
+    dom: &Document,
+    node: NodeId,
+    (labels, skip_labels): (&mut LabelMemo, bool),
+) -> ClickRole {
+    let Some(kind) = kind_of(dom, node) else {
+        return if takes_the_click(dom, node) {
+            ClickRole::Blocked
+        } else if is_interactive(dom, node) {
+            ClickRole::Interactive
+        } else {
+            ClickRole::Plain
+        };
+    };
+    match kind {
+        Kind::Link => ClickRole::Link,
+        Kind::Label if skip_labels => ClickRole::Plain,
+        Kind::Label => labels.role(has_for(dom, node), || labeled_control(dom, node).is_some()),
+        Kind::Summary => ClickRole::Summary,
+        Kind::Checkbox | Kind::Radio => ClickRole::Toggle,
+        Kind::Submit | Kind::Reset => {
+            if form_owner(dom, node).is_some() && !swb_style::is_actually_disabled(dom, node) {
+                ClickRole::Button
+            } else {
+                ClickRole::Interactive
+            }
+        }
+    }
+}
+
+/// True for an `input` of type `file` or `color`.
+fn takes_the_click(dom: &Document, node: NodeId) -> bool {
+    dom.element(node)
+        .filter(|e| e.is_html() && *e.local_name() == local_name!("input"))
+        .and_then(|e| e.attr("type"))
+        .is_some_and(|t| t.eq_ignore_ascii_case("file") || t.eq_ignore_ascii_case("color"))
+}
+
+/// True if the `label` `node` has a `for` attribute.
+fn has_for(dom: &Document, node: NodeId) -> bool {
+    dom.element(node).is_some_and(|e| e.has_attr("for"))
 }
 
 /// True for interactive content other than links (HTML "interactive
@@ -283,7 +339,13 @@ pub(crate) fn after_dispatch(
             engine_mut(rt)?.request_hyperlink(a.node);
             Ok(())
         }
-        Kind::Label => activate_label(rt, a.node, a.origin, origin),
+        Kind::Label => {
+            activate_label(rt, a.node, a.origin, origin)?;
+            match a.also {
+                Some(button) => activate_button(rt, button, modifiers),
+                None => Ok(()),
+            }
+        }
         Kind::Summary => toggle_details(rt, a.node),
     }
 }
@@ -525,6 +587,22 @@ fn fire_input_and_change(rt: &mut Runtime, node: NodeId) -> VmResult<()> {
 
 fn is_disabled(rt: &Runtime, node: NodeId) -> VmResult<bool> {
     Ok(swb_style::is_actually_disabled(dom(rt)?, node))
+}
+
+/// The button that acts after an acting label (the label is inside it): its
+/// activation behavior, without a point.
+fn activate_button(rt: &mut Runtime, button: NodeId, modifiers: u16) -> VmResult<()> {
+    match kind_of(dom(rt)?, button) {
+        Some(Kind::Submit) => {
+            let click = ClickInfo {
+                coordinate: (0, 0),
+                elsewhere: opens_elsewhere(modifiers),
+            };
+            activate_submit(rt, button, click)
+        }
+        Some(Kind::Reset) => activate_reset(rt, button),
+        _ => Ok(()),
+    }
 }
 
 /// The activation behavior of a submit button: submits its form.

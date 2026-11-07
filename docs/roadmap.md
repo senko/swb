@@ -4466,6 +4466,12 @@ Steps:
    for the checks of a node from another document in `dom/tree_ops.rs`; one
    error page for the top level and frames (the pixels would change).
 
+   Fix after M9 (2026-11-07, found by the owner): the items of BBC's side
+   menu (`A[href] > BUTTON > SPAN`) did not navigate. A click now follows
+   Chromium's rule for nested interactive elements (548 measured cases,
+   `swb_dom::click_target`, ADR 0028 "Nested activation"), with and without
+   scripts; `bbc.rs` tests the items "Sport" and "Artificial Intelligence".
+
 ## M10: GitHub (github.com/senko/swb)
 
 Owner decisions (2026-11-07, ground rules): the target is the front page
@@ -4629,6 +4635,23 @@ Steps:
   of `github-css.json` differ).
 
 ## Backlog from M9
+
+- Nested activation (the fix after M9; rows in
+  `crates/automation/tests/nested_activation.rs`): `details` fires no
+  `toggle` event; a `dispatchEvent` click on an image button gives the
+  coordinates 0 (Chromium: negative values); with scripts, a click in the
+  default summary of a `details` inside a link toggles it and also follows
+  the link (the dispatch has no point of the click; the path without
+  scripts is right); swb has no image map hit test (a click on an `area`
+  goes to the `img`). Found in the review: swb fixes the activation
+  target before the `click` listeners run, while Chromium checks the button
+  again after them (a listener that removes the form or sets `type=button`
+  or `disabled`: Chromium follows the link, swb does nothing). Older than
+  the fix: a click with Ctrl, Shift or Alt on a link navigates in the same
+  tab (Chromium opens the link elsewhere and the page stays); a `mousedown`
+  listener that moves its target gives swb a `click` on the common ancestor
+  (Chromium fires none); a GET form with no fields navigates to `?#S` in
+  swb and to `#S` in Chromium (the empty query goes).
 
 - Joint session history of frames (ADR 0031 section 2; measured in
   Chromium: a frame navigation after the first document adds an entry,

@@ -138,7 +138,9 @@ checkboxes, radio buttons and labels, and submission with `GET` and
   text field, a `type=button` button) focuses it, and the click goes on
   to a link around that control; a disabled control gets no click, so
   nothing around it activates, and a label with a disabled control does
-  nothing.
+  nothing. The rule for the element that a click activates is
+  `swb_dom::click_target`, shared with the scripts' dispatch (ADR 0028,
+  "Nested activation"); the engine gives the roles from its form state.
 - Enter in a text field does implicit submission: it clicks the form's
   default button, or submits a form without a submit button that has at
   most one text field.
