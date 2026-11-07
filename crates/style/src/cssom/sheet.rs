@@ -20,10 +20,10 @@
 //! `CSSStyleRule.style` ([`StyleDeclarations`]) is built at its first use.
 //!
 //! The rules are those of the stylesheet parser: style rules, `@media`,
-//! `@supports`, `@import`, `@font-face` and `@keyframes`. Rules that the
-//! parser drops (`@page`, `@layer` statements, `@namespace`, ...) are not in
-//! the lists, and `@layer` blocks are flattened (departures from Chromium,
-//! which has an object for each).
+//! `@supports`, `@import`, `@font-face`, `@keyframes` and the cascade layer
+//! rules (`@layer` blocks, which hold rules, and `@layer` statements). Rules
+//! that the parser drops (`@page`, `@namespace`, ...) are not in the lists
+//! (a departure from Chromium, which has an object for each).
 
 use std::cell::RefCell;
 use std::fmt::Write as _;
@@ -31,9 +31,9 @@ use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
 use swb_css::{
-    ComponentValue, CssRule, Declaration, FontFaceRule, ImportRule, KeyframesRule, MediaQueryList,
-    SelectorList, SupportsCondition, parse_rule, parse_stylesheet, serialize_component_values,
-    serialize_identifier, serialize_string,
+    ComponentValue, CssRule, Declaration, FontFaceRule, ImportLayer, ImportRule, KeyframesRule,
+    LayerName, MediaQueryList, SelectorList, SupportsCondition, parse_rule, parse_stylesheet,
+    serialize_component_values, serialize_identifier, serialize_string,
 };
 use swb_dom::NodeId;
 use url::Url;
@@ -131,6 +131,18 @@ pub enum RuleKind {
     FontFace(FontFaceRule),
     /// `@keyframes` (`CSSKeyframesRule`). swb runs no animations.
     Keyframes(KeyframesRule),
+    /// `@layer name { ... }` and `@layer { ... }` (`CSSLayerBlockRule`).
+    LayerBlock {
+        /// The name; `None` for an anonymous layer.
+        name: Option<LayerName>,
+        /// The rules inside.
+        rules: Vec<RuleRef>,
+    },
+    /// `@layer a, b;` (`CSSLayerStatementRule`).
+    LayerStatement {
+        /// The names, in source order.
+        names: Vec<LayerName>,
+    },
 }
 
 /// A style rule.
@@ -201,6 +213,9 @@ pub mod rule_type {
     pub const FONT_FACE: u16 = 5;
     /// `KEYFRAMES_RULE`.
     pub const KEYFRAMES: u16 = 7;
+    /// The type of the rules that have no legacy constant (`CSSLayerBlockRule`
+    /// and `CSSLayerStatementRule`; Chromium 148 gives 0).
+    pub const NONE: u16 = 0;
     /// `SUPPORTS_RULE`.
     pub const SUPPORTS: u16 = 12;
 }
@@ -308,7 +323,9 @@ impl StyleSheet {
                 let mut rule = rule.borrow_mut();
                 match &mut rule.kind {
                     RuleKind::Style(style) => style.block = None,
-                    RuleKind::Media { rules, .. } | RuleKind::Supports { rules, .. } => {
+                    RuleKind::Media { rules, .. }
+                    | RuleKind::Supports { rules, .. }
+                    | RuleKind::LayerBlock { rules, .. } => {
                         clear(rules);
                     }
                     _ => {}
@@ -383,6 +400,7 @@ impl Rule {
             RuleKind::Import(_) => rule_type::IMPORT,
             RuleKind::FontFace(_) => rule_type::FONT_FACE,
             RuleKind::Keyframes(_) => rule_type::KEYFRAMES,
+            RuleKind::LayerBlock { .. } | RuleKind::LayerStatement { .. } => rule_type::NONE,
         }
     }
 
@@ -394,7 +412,9 @@ impl Rule {
     /// The rules inside a grouping rule (`@media`, `@supports`).
     pub fn child_rules(&self) -> Option<&[RuleRef]> {
         match &self.kind {
-            RuleKind::Media { rules, .. } | RuleKind::Supports { rules, .. } => Some(rules),
+            RuleKind::Media { rules, .. }
+            | RuleKind::Supports { rules, .. }
+            | RuleKind::LayerBlock { rules, .. } => Some(rules),
             _ => None,
         }
     }
@@ -449,11 +469,31 @@ impl Rule {
                 let mut out = String::from("@import url(");
                 serialize_string(&import.url, &mut out);
                 out.push(')');
+                match &import.layer {
+                    Some(ImportLayer::Anonymous) => out.push_str(" layer"),
+                    Some(ImportLayer::Named(name)) => {
+                        let _ = write!(out, " layer({name})");
+                    }
+                    None => {}
+                }
+                if let Some(text) = &import.supports_text {
+                    let _ = write!(out, " supports({text})");
+                }
                 if !import.media.is_empty() {
                     let _ = write!(out, " {}", import.media);
                 }
                 out.push(';');
                 out
+            }
+            RuleKind::LayerBlock { name, rules } => {
+                let keyword = name
+                    .as_ref()
+                    .map_or_else(|| "@layer".to_owned(), |n| format!("@layer {n}"));
+                grouping_block(&keyword, rules, quirks)
+            }
+            RuleKind::LayerStatement { names } => {
+                let names: Vec<String> = names.iter().map(ToString::to_string).collect();
+                format!("@layer {};", names.join(", "))
             }
             RuleKind::FontFace(face) => {
                 let descriptors: Vec<String> = face
@@ -519,7 +559,10 @@ pub fn insert_into_group(group: &RuleRef, text: &str, index: u32) -> Result<u32,
     }
     let rule = convert_inserted(parsed, &Rc::downgrade(group), &Weak::new(), &memory)?;
     let mut this = group.borrow_mut();
-    if let RuleKind::Media { rules, .. } | RuleKind::Supports { rules, .. } = &mut this.kind {
+    if let RuleKind::Media { rules, .. }
+    | RuleKind::Supports { rules, .. }
+    | RuleKind::LayerBlock { rules, .. } = &mut this.kind
+    {
         rules.insert(at, rule);
     }
     drop(this);
@@ -531,7 +574,9 @@ pub fn insert_into_group(group: &RuleRef, text: &str, index: u32) -> Result<u32,
 pub fn delete_from_group(group: &RuleRef, index: u32) -> Result<RuleRef, RuleError> {
     let mut this = group.borrow_mut();
     let Some(rules) = (match &mut this.kind {
-        RuleKind::Media { rules, .. } | RuleKind::Supports { rules, .. } => Some(rules),
+        RuleKind::Media { rules, .. }
+        | RuleKind::Supports { rules, .. }
+        | RuleKind::LayerBlock { rules, .. } => Some(rules),
         _ => None,
     }) else {
         return Err(RuleError::Index { length: 0 });
@@ -752,6 +797,14 @@ fn convert_one(
         CssRule::Import(import) => (RuleKind::Import(import), None),
         CssRule::FontFace(face) => (RuleKind::FontFace(face), None),
         CssRule::Keyframes(keyframes) => (RuleKind::Keyframes(keyframes), None),
+        CssRule::LayerBlock(layer) => (
+            RuleKind::LayerBlock {
+                name: layer.name,
+                rules: Vec::new(),
+            },
+            Some(layer.rules),
+        ),
+        CssRule::LayerStatement(layer) => (RuleKind::LayerStatement { names: layer.names }, None),
     };
     let rule = Rc::new(RefCell::new(Rule {
         kind,
@@ -768,8 +821,9 @@ fn convert_one(
             memory,
             budget,
         );
-        if let RuleKind::Media { rules, .. } | RuleKind::Supports { rules, .. } =
-            &mut rule.borrow_mut().kind
+        if let RuleKind::Media { rules, .. }
+        | RuleKind::Supports { rules, .. }
+        | RuleKind::LayerBlock { rules, .. } = &mut rule.borrow_mut().kind
         {
             *rules = converted;
         }
@@ -781,7 +835,12 @@ fn convert_one(
 /// indented by two spaces (the lines of a nested rule keep their own
 /// indentation), and the closing brace on a line of its own.
 fn grouping_text(keyword: &str, condition: &str, rules: &[RuleRef], quirks: bool) -> String {
-    let mut out = format!("{keyword} {condition} {{\n");
+    grouping_block(&format!("{keyword} {condition}"), rules, quirks)
+}
+
+/// [`grouping_text`] with the whole prelude given.
+fn grouping_block(prelude: &str, rules: &[RuleRef], quirks: bool) -> String {
+    let mut out = format!("{prelude} {{\n");
     for rule in rules {
         let _ = writeln!(out, "  {}", rule.borrow_mut().css_text(quirks));
     }

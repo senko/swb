@@ -10,11 +10,15 @@
 //! 1. Find the matching rules ([`Stylist::matching_rules`]), the
 //!    presentational hints ([`crate::hints`]) and the `style` attribute.
 //! 2. Pick the winning declaration of each property, in this order of
-//!    precedence (CSS Cascade 4, <https://www.w3.org/TR/css-cascade-4/#cascade-sort>):
+//!    precedence (CSS Cascade 5, <https://www.w3.org/TR/css-cascade-5/#cascade-sort>):
 //!    user-agent `!important`, author `!important` (the `style` attribute
-//!    before rules), author normal (the `style` attribute, then rules,
-//!    then presentational hints), user-agent normal. Within an origin,
-//!    higher specificity wins, then later source order.
+//!    before rules; the rules of the first cascade layer before those of
+//!    later layers, the unlayered rules last), author normal (the `style`
+//!    attribute, then the unlayered rules, then the layers from the last to
+//!    the first, then presentational hints), user-agent normal. Within a
+//!    layer, higher specificity wins, then later source order.
+//!    `revert-layer` drops the author declarations of its layer and of the
+//!    layers above it ([`Position`]).
 //! 3. Compute custom properties, then `font-family` and `font-size`
 //!    (other properties depend on the font size), then all other
 //!    properties. Values with `var()` are substituted and parsed here.
@@ -203,6 +207,10 @@ struct CascadeContext<'a> {
     /// until the root is styled).
     root_font_size: f32,
     initial: Arc<ComputedStyle>,
+    /// The rank of each cascade layer for the environment's media
+    /// conditions ([`Stylist::layer_ranks`]); `layer_ranks[0]` is the rank
+    /// of the unlayered rules, the highest.
+    layer_ranks: Arc<[u32]>,
 }
 
 /// The declarations that apply to an element, besides the matched rules.
@@ -243,6 +251,7 @@ impl<'a> Styler<'a> {
     ) -> Self {
         let quirks = stylist.quirks();
         let author = ParserContext::author(Some(Arc::new(base_url.clone())), quirks);
+        let media = stylist.evaluate_media(env);
         Styler {
             doc,
             states,
@@ -256,8 +265,9 @@ impl<'a> Styler<'a> {
                 } else {
                     ComputedStyle::initial()
                 },
+                layer_ranks: stylist.layer_ranks(&media),
             },
-            media: stylist.evaluate_media(env),
+            media,
             matching: MatchingContext::new(if quirks {
                 swb_css::QuirksMode::Quirks
             } else {
@@ -343,6 +353,7 @@ impl<'a> Styler<'a> {
             el,
             RuleTarget::Element,
             &self.media,
+            &self.cx.layer_ranks,
             self.filter.as_ref(),
             &mut self.matching,
             &mut self.scratch,
@@ -482,6 +493,7 @@ impl<'a> Styler<'a> {
                 el,
                 RuleTarget::Pseudo(kind),
                 &self.media,
+                &self.cx.layer_ranks,
                 self.filter.as_ref(),
                 &mut self.matching,
                 &mut self.scratch,
@@ -585,6 +597,23 @@ enum Level {
     UserAgent,
 }
 
+/// Where a group of author declarations stands in the layer order, for
+/// `revert-layer`: the presentational hints are 0 (below every layer), the
+/// layers follow in their order from 1, the unlayered rules come after the
+/// layers, and the `style` attribute last. A `revert-layer` at position `p`
+/// drops the author declarations at positions `p` and above, whatever their
+/// importance (measured in Chromium 148, `tools/probes/cascade-layers.json`,
+/// `rl-*` cases).
+type Position = u32;
+
+/// The position of the presentational hints.
+const HINT_POSITION: Position = 0;
+
+/// The position of the rules of the layer of rank `rank`.
+fn rule_position(rank: u32) -> Position {
+    rank.saturating_add(1)
+}
+
 /// The winning declaration of each property.
 struct Winners<'d> {
     longhands: [Option<&'d PropertyDeclaration>; LonghandId::COUNT],
@@ -592,8 +621,15 @@ struct Winners<'d> {
     /// author-level declarations are skipped, so the user-agent value (if
     /// any) wins. <https://www.w3.org/TR/css-cascade-5/#default>
     reverted: [bool; LonghandId::COUNT],
+    /// Per property, the position of the lowest `revert-layer` that won:
+    /// author declarations at this position and above are skipped
+    /// ([`Position`]). `Position::MAX` if none won.
+    layer_floor: [Position; LonghandId::COUNT],
     custom: Vec<(&'d Arc<str>, &'d CustomDeclaration)>,
     custom_seen: HashSet<&'d str>,
+    /// The same as `layer_floor`, for the custom properties that a
+    /// `revert-layer` rolled back.
+    custom_floor: HashMap<&'d str, Position>,
 }
 
 impl<'d> Winners<'d> {
@@ -601,20 +637,22 @@ impl<'d> Winners<'d> {
         Winners {
             longhands: [None; LonghandId::COUNT],
             reverted: [false; LonghandId::COUNT],
+            layer_floor: [Position::MAX; LonghandId::COUNT],
             custom: Vec::new(),
             custom_seen: HashSet::new(),
+            custom_floor: HashMap::new(),
         }
     }
 
     /// Adds declarations of lower precedence than all added so far. Later
-    /// declarations in `list` take precedence over earlier ones.
-    fn add_all(&mut self, list: &'d [PropertyDeclaration], level: Level) {
+    /// declarations in `list` take precedence over earlier ones. `position`
+    /// is where the declarations stand in the layer order (author level
+    /// only).
+    fn add_all(&mut self, list: &'d [PropertyDeclaration], level: Level, position: Position) {
         for decl in list.iter().rev() {
             match decl {
                 PropertyDeclaration::Custom(name, value) => {
-                    if self.custom_seen.insert(name) {
-                        self.custom.push((name, value));
-                    }
+                    self.add_custom(name, value, level, position);
                 }
                 other => {
                     let Some(id) = other.longhand() else {
@@ -622,22 +660,52 @@ impl<'d> Winners<'d> {
                     };
                     let index = id as usize;
                     if self.longhands[index].is_some()
-                        || (self.reverted[index] && level == Level::Author)
+                        || (level == Level::Author
+                            && (self.reverted[index] || position >= self.layer_floor[index]))
                     {
                         continue;
                     }
-                    if level == Level::Author
-                        && matches!(
-                            other,
-                            PropertyDeclaration::CssWide(_, CssWideKeyword::Revert)
-                        )
-                    {
-                        self.reverted[index] = true;
-                    } else {
-                        self.longhands[index] = Some(other);
+                    match other {
+                        PropertyDeclaration::CssWide(_, CssWideKeyword::Revert)
+                            if level == Level::Author =>
+                        {
+                            self.reverted[index] = true;
+                        }
+                        PropertyDeclaration::CssWide(_, CssWideKeyword::RevertLayer)
+                            if level == Level::Author =>
+                        {
+                            self.layer_floor[index] = position;
+                        }
+                        _ => self.longhands[index] = Some(other),
                     }
                 }
             }
+        }
+    }
+
+    fn add_custom(
+        &mut self,
+        name: &'d Arc<str>,
+        value: &'d CustomDeclaration,
+        level: Level,
+        position: Position,
+    ) {
+        let floor = self.custom_floor.get(&**name).copied();
+        if self.custom_seen.contains(&**name)
+            || (level == Level::Author && floor.is_some_and(|f| position >= f))
+        {
+            return;
+        }
+        if level == Level::Author
+            && matches!(
+                value,
+                CustomDeclaration::CssWide(CssWideKeyword::RevertLayer)
+            )
+        {
+            self.custom_floor.insert(name, position);
+        } else {
+            self.custom_seen.insert(name);
+            self.custom.push((name, value));
         }
     }
 }
@@ -666,28 +734,46 @@ fn cascade(
     let hint_rules = &rules[ua_end..author_start];
     let author = &rules[author_start..];
 
+    let ranks = &cx.layer_ranks;
+    let rank_of = |r: &crate::stylist::Rule| {
+        debug_assert!(
+            (r.layer as usize) < ranks.len(),
+            "every rule's layer node has a rank"
+        );
+        ranks.get(r.layer as usize).copied().unwrap_or(0)
+    };
+    // The unlayered rules rank last; the `style` attribute stands above them.
+    let attr_position = rule_position(ranks.first().copied().unwrap_or(0)).saturating_add(1);
+
     let mut winners = Winners::new();
     for r in ua.iter().rev() {
-        winners.add_all(&r.block.important, Level::UserAgent);
+        winners.add_all(&r.block.important, Level::UserAgent, HINT_POSITION);
     }
     if let Some(attr) = extra.style_attribute {
-        winners.add_all(&attr.important, Level::Author);
+        winners.add_all(&attr.important, Level::Author, attr_position);
     }
-    for r in author.iter().rev() {
-        winners.add_all(&r.block.important, Level::Author);
+    // `!important` reverses the order of the layers: the rules are sorted by
+    // layer rank, so the layers run from the first to the last and, inside a
+    // layer, the rules from the last to the first. The unlayered rules,
+    // ranked last, are the weakest.
+    for run in author.chunk_by(|a, b| rank_of(a) == rank_of(b)) {
+        let position = rule_position(rank_of(run[0]));
+        for r in run.iter().rev() {
+            winners.add_all(&r.block.important, Level::Author, position);
+        }
     }
     if let Some(attr) = extra.style_attribute {
-        winners.add_all(&attr.normal, Level::Author);
+        winners.add_all(&attr.normal, Level::Author, attr_position);
     }
     for r in author.iter().rev() {
-        winners.add_all(&r.block.normal, Level::Author);
+        winners.add_all(&r.block.normal, Level::Author, rule_position(rank_of(r)));
     }
-    winners.add_all(extra.hints, Level::Author);
+    winners.add_all(extra.hints, Level::Author, HINT_POSITION);
     for r in hint_rules.iter().rev() {
-        winners.add_all(&r.block.normal, Level::Author);
+        winners.add_all(&r.block.normal, Level::Author, HINT_POSITION);
     }
     for r in ua.iter().rev() {
-        winners.add_all(&r.block.normal, Level::UserAgent);
+        winners.add_all(&r.block.normal, Level::UserAgent, HINT_POSITION);
     }
     compute(cx, &winners, parent, element, is_root)
 }
@@ -828,12 +914,14 @@ fn apply_css_wide(
     initial: &ComputedStyle,
     style: &mut ComputedStyle,
 ) {
-    // `revert` reaches this point only from the user-agent origin or from
-    // `var()` substitution; there it behaves as `unset`.
+    // `revert` and `revert-layer` reach this point only from the user-agent
+    // origin or from `var()` substitution; there they behave as `unset`.
     let inherit = match keyword {
         CssWideKeyword::Initial => false,
         CssWideKeyword::Inherit => true,
-        CssWideKeyword::Unset | CssWideKeyword::Revert => id.is_inherited(),
+        CssWideKeyword::Unset | CssWideKeyword::Revert | CssWideKeyword::RevertLayer => {
+            id.is_inherited()
+        }
     };
     id.copy_value(if inherit { parent } else { initial }, style);
 }
@@ -1916,5 +2004,430 @@ mod tests {
         css.push_str("p { width: var(--v29) }");
         let (doc, map) = render("<p id=p>x</p>", &css);
         assert_eq!(get(&doc, &map, "p").width, Size::Auto);
+    }
+
+    /// The color of `#p` (`r`ed, `g`reen, `b`lue or blac`k`) with the
+    /// sheets `css`, in document order, and the media environment `env`.
+    fn layer_color(css: &[&str], body: &str, env: &MediaEnvironment) -> char {
+        let doc = parse_html(&format!("<!DOCTYPE html>{body}"));
+        let mut stylist = Stylist::new(doc.quirks_mode);
+        for sheet in css {
+            stylist.add_author_sheet(&swb_css::parse_stylesheet(sheet), &base());
+        }
+        let map = compute_styles(&doc, &stylist, env, &ElementStates::default(), &base());
+        match get(&doc, &map, "p").color {
+            c if c == RED => 'r',
+            c if c == GREEN => 'g',
+            c if c == BLUE => 'b',
+            c if c == Rgba::BLACK => 'k',
+            other => panic!("unexpected color {other:?}"),
+        }
+    }
+
+    /// Cases of `tools/probes/cascade-layers.json` with Chromium 148's
+    /// results (`engine/tests/cascade_layers.rs` runs all of them): the
+    /// layer order.
+    #[test]
+    fn layers_order_normal_declarations() {
+        let p = "<p id=p>x</p>";
+        let ord = "@layer b{p{color:red}} @layer a{p{color:blue}}";
+        let rows: &[(&str, String, char)] = &[
+            ("no statement", ord.to_owned(), 'b'),
+            ("statement first", format!("@layer a, b;{ord}"), 'r'),
+            ("statement last", format!("{ord}@layer a, b;"), 'b'),
+            ("empty block counts", format!("@layer a{{}}{ord}"), 'r'),
+            (
+                "same layer, later wins",
+                "@layer a{p{color:red}} @layer b{p{color:green}} @layer a{p{color:blue}}".into(),
+                'g',
+            ),
+            (
+                "each anonymous layer is its own",
+                "@layer{p{color:red}} @layer{p{color:blue}} @layer x{p{color:green}}".into(),
+                'g',
+            ),
+            (
+                "unlayered beats layered, whatever the specificity",
+                "@layer a{#p{color:blue}} p{color:red}".into(),
+                'r',
+            ),
+            (
+                "unlayered first still wins",
+                "p{color:red} @layer a{p{color:blue}}".into(),
+                'r',
+            ),
+            (
+                "dotted and nested are one layer",
+                "@layer a.b{p{color:red}} @layer a{@layer b{p{color:blue}}}".into(),
+                'b',
+            ),
+            (
+                "a parent's own rules come after its sublayers",
+                "@layer a{p{color:blue} @layer b{#p{color:red}}}".into(),
+                'b',
+            ),
+            (
+                "a late sublayer stays inside its parent",
+                "@layer a{@layer x{p{color:red}}} @layer b{p{color:green}} @layer a.y{p{color:blue}}"
+                    .into(),
+                'g',
+            ),
+            (
+                "layer names are case-sensitive",
+                "@layer A{p{color:red}} @layer a{p{color:blue}} @layer A{p{color:green}}".into(),
+                'b',
+            ),
+            (
+                "an @import with layer() declares its layer",
+                format!("@import url(missing.css) layer(a);{ord}"),
+                'r',
+            ),
+            (
+                "an @import with a false media does not",
+                format!("@import url(missing.css) layer(a) (min-width: 5000px);{ord}"),
+                'b',
+            ),
+            (
+                "an @import with a false supports() does not",
+                format!("@import url(missing.css) layer(a) supports(foo: bar);{ord}"),
+                'b',
+            ),
+        ];
+        for (name, css, want) in rows {
+            let got = layer_color(&[css], p, &MediaEnvironment::default());
+            assert_eq!(got, *want, "{name}");
+        }
+    }
+
+    /// The layers of one document across sheets, and the declarations in
+    /// conditional rules that do not apply.
+    #[test]
+    fn layers_order_across_sheets_and_conditions() {
+        let p = "<p id=p>x</p>";
+        let env = MediaEnvironment::default();
+        let ord = "@layer b{p{color:red}} @layer a{p{color:blue}}";
+        let sheets: &[(&str, &[&str], char)] = &[
+            (
+                "b then a",
+                &["@layer b{p{color:red}}", "@layer a{p{color:blue}}"],
+                'b',
+            ),
+            (
+                "one name in two sheets",
+                &[
+                    "@layer a{p{color:red}}",
+                    "@layer b{p{color:green}} @layer a{p{color:blue}}",
+                ],
+                'g',
+            ),
+            ("statement in the first", &["@layer a, b;", ord], 'r'),
+            (
+                "statement in the second",
+                &[
+                    "@layer b{p{color:red}}",
+                    "@layer a, b; @layer a{p{color:blue}}",
+                ],
+                'b',
+            ),
+            (
+                "unlayered in a later sheet",
+                &["@layer a{p{color:red}}", "p{color:blue}"],
+                'b',
+            ),
+            (
+                "unlayered in an earlier sheet",
+                &["p{color:blue}", "@layer a{p{color:red}}"],
+                'b',
+            ),
+        ];
+        for (name, css, want) in sheets {
+            assert_eq!(layer_color(css, p, &env), *want, "{name}");
+        }
+        // A declaration inside an `@media` that does not match, or a false
+        // `@supports`, does not count for the order.
+        for (name, prefix, want) in [
+            (
+                "media false statement",
+                "@media (min-width:5000px){@layer a,b;}",
+                'b',
+            ),
+            (
+                "media false block",
+                "@media (min-width:5000px){@layer a{p{color:green}}}",
+                'b',
+            ),
+            ("media true statement", "@media all{@layer a,b;}", 'r'),
+            (
+                "supports false statement",
+                "@supports (foo:bar){@layer a,b;}",
+                'b',
+            ),
+            (
+                "supports true statement",
+                "@supports (display:block){@layer a,b;}",
+                'r',
+            ),
+            ("media print statement", "@media print{@layer a,b;}", 'b'),
+        ] {
+            assert_eq!(
+                layer_color(&[&format!("{prefix}{ord}")], p, &env),
+                want,
+                "{name}"
+            );
+        }
+        // The order follows the viewport: the same sheet, two environments.
+        let css = format!("@media (min-width:500px){{@layer a,b;}}{ord}");
+        let wide = MediaEnvironment {
+            viewport_width: 800.0,
+            ..MediaEnvironment::default()
+        };
+        let narrow = MediaEnvironment {
+            viewport_width: 300.0,
+            ..MediaEnvironment::default()
+        };
+        assert_eq!(layer_color(&[&css], p, &wide), 'r');
+        assert_eq!(layer_color(&[&css], p, &narrow), 'b');
+    }
+
+    /// `!important` reverses the order of the layers; the unlayered rules
+    /// are then the weakest, and the `style` attribute stays on top.
+    #[test]
+    fn layers_important_reverses() {
+        let p = "<p id=p>x</p>";
+        let env = MediaEnvironment::default();
+        let attr = |style: &str| format!("<p id=p style='{style}'>x</p>");
+        let rows: &[(&str, &str, String, char)] = &[
+            (
+                "first layer wins",
+                "@layer a{p{color:red!important}} @layer b{p{color:blue!important}}",
+                p.into(),
+                'r',
+            ),
+            (
+                "unlayered important is weaker than layered",
+                "@layer a{p{color:red!important}} p{color:blue!important}",
+                p.into(),
+                'r',
+            ),
+            (
+                "layered important beats unlayered normal",
+                "@layer a{p{color:red!important}} p{color:blue}",
+                p.into(),
+                'r',
+            ),
+            (
+                "sublayers: the first sublayer wins, the parent's own rules lose",
+                "@layer a{@layer x{p{color:red!important}} @layer y{p{color:green!important}} p{color:blue!important}}",
+                p.into(),
+                'r',
+            ),
+            (
+                "statement order sets the reversed order too",
+                "@layer b, a; @layer a{p{color:red!important}} @layer b{p{color:blue!important}}",
+                p.into(),
+                'b',
+            ),
+            (
+                "specificity inside one layer",
+                "@layer a{p{color:red!important} #p{color:blue!important}}",
+                p.into(),
+                'b',
+            ),
+            (
+                "important style attribute wins",
+                "@layer a{p{color:red!important}}",
+                attr("color:blue!important"),
+                'b',
+            ),
+            (
+                "normal style attribute loses to a layered important",
+                "@layer a{p{color:red!important}}",
+                attr("color:blue"),
+                'r',
+            ),
+            (
+                "normal style attribute beats a layered normal",
+                "@layer a{p{color:red}}",
+                attr("color:blue"),
+                'b',
+            ),
+            (
+                "normal style attribute loses to an unlayered important",
+                "p{color:red!important}",
+                attr("color:blue"),
+                'r',
+            ),
+        ];
+        for (name, css, html, want) in rows {
+            assert_eq!(layer_color(&[css], html, &env), *want, "{name}");
+        }
+    }
+
+    /// `revert-layer` rolls back to the previous layer of the origin; the
+    /// rows are Chromium 148's results (the `rl-*` probe cases).
+    #[test]
+    #[allow(clippy::too_many_lines, reason = "a table of cases")]
+    fn revert_layer_rolls_back_one_layer() {
+        let env = MediaEnvironment::default();
+        let p = "<p id=p>x</p>";
+        let attr = |style: &str| format!("<p id=p style='{style}'>x</p>");
+        let hint = "<font id=p color=red>x</font>";
+        let rows: &[(&str, &str, String, char)] = &[
+            (
+                "style attribute rolls back to the unlayered rule",
+                "@layer a{p{color:green}} p{color:blue}",
+                attr("color:revert-layer"),
+                'b',
+            ),
+            (
+                "style attribute, important, rolls back to the first layer",
+                "@layer a{p{color:green!important}} @layer b{p{color:red!important}}",
+                attr("color:revert-layer!important"),
+                'g',
+            ),
+            (
+                "unlayered rule rolls back to the last layer",
+                "@layer a{p{color:green}} p{color:revert-layer}",
+                p.into(),
+                'g',
+            ),
+            (
+                "and skips the other unlayered rules",
+                "@layer a{p{color:green}} p{color:red} #p{color:revert-layer}",
+                p.into(),
+                'g',
+            ),
+            (
+                "without layers it reverts: no user-agent color here",
+                "p{color:red} #p{color:revert-layer}",
+                p.into(),
+                'k',
+            ),
+            (
+                "second layer rolls back to the first",
+                "@layer a{p{color:green}} @layer b{p{color:red} #p{color:revert-layer}}",
+                p.into(),
+                'g',
+            ),
+            (
+                "it skips the layers in between",
+                "@layer a{p{color:green}} @layer b{p{color:red}} @layer c{p{color:revert-layer}}",
+                p.into(),
+                'r',
+            ),
+            (
+                "the parent's own rules roll back to a sublayer",
+                "@layer a{@layer x{p{color:green}} p{color:revert-layer}}",
+                p.into(),
+                'g',
+            ),
+            (
+                "an empty layer in between",
+                "@layer a{p{color:green}} @layer b{} @layer c{p{color:revert-layer}}",
+                p.into(),
+                'g',
+            ),
+            (
+                "important in the first layer: the layers above it are dropped",
+                "@layer a{p{color:revert-layer!important}} @layer b{p{color:green!important}}",
+                p.into(),
+                'k',
+            ),
+            (
+                "important sees the normal rules of the layers below",
+                "@layer a{p{color:green}} @layer b{p{color:red}} @layer c{p{color:revert-layer!important}}",
+                p.into(),
+                'r',
+            ),
+            (
+                "important drops the unlayered rules",
+                "@layer a{p{color:revert-layer!important}} p{color:green}",
+                p.into(),
+                'k',
+            ),
+            (
+                "important drops the normal rules of its own layer",
+                "@layer a{p{color:red} #p{color:revert-layer!important}}",
+                p.into(),
+                'k',
+            ),
+            (
+                "the hint is below every layer",
+                "@layer a{font{color:revert-layer}}",
+                hint.into(),
+                'r',
+            ),
+            (
+                "revert drops the hint",
+                "font{color:revert}",
+                hint.into(),
+                'k',
+            ),
+            (
+                "a layer below wins over the hint",
+                "@layer a{font{color:green}} font{color:revert-layer}",
+                hint.into(),
+                'g',
+            ),
+            (
+                "an empty layer below leaves the hint",
+                "@layer a{} font{color:revert-layer}",
+                hint.into(),
+                'r',
+            ),
+            (
+                "a shorthand rolls back",
+                "@layer a{p{color:green}} @layer b{p{all:revert-layer}}",
+                p.into(),
+                'g',
+            ),
+            (
+                "a custom property rolls back",
+                "@layer a{p{--c:green;color:var(--c)}} @layer b{p{--c:revert-layer}}",
+                p.into(),
+                'g',
+            ),
+        ];
+        for (name, css, html, want) in rows {
+            assert_eq!(layer_color(&[css], html, &env), *want, "{name}");
+        }
+    }
+
+    /// The margin of `#p` (UA 16px; `revert-layer` in the first layer falls
+    /// back to the user-agent origin).
+    #[test]
+    fn revert_layer_in_the_first_layer_reaches_the_user_agent_sheet() {
+        for (css, want) in [
+            ("@layer a{p{margin-top:revert-layer}}", 16.0),
+            (
+                "@layer a{p{margin-top:7px} #p{margin-top:revert-layer}}",
+                16.0,
+            ),
+            ("p{margin-top:7px} #p{margin-top:revert-layer}", 16.0),
+            ("@layer a{p{margin-top:revert-layer!important}}", 16.0),
+            (
+                "@layer a{p{margin-top:3px}} @layer b{p{margin-top:revert-layer}}",
+                3.0,
+            ),
+        ] {
+            let (doc, map) = render("<p id=p>x</p>", css);
+            assert_eq!(
+                get(&doc, &map, "p").margin_top,
+                LengthPercentageOrAuto::px(want),
+                "{css}"
+            );
+        }
+    }
+
+    #[test]
+    fn layers_keep_the_pseudo_element_order() {
+        let (doc, map) = render(
+            "<p id=p>x</p>",
+            "@layer a{#p::before{content:'a';color:red}} @layer b{p::before{content:'b';color:blue}}",
+        );
+        let pseudo = map
+            .pseudo(node(&doc, "p"), PseudoKind::Before)
+            .expect("a ::before");
+        assert_eq!(pseudo.color, BLUE);
     }
 }

@@ -1,0 +1,3975 @@
+{
+  "cases": [
+    {
+      "name": "gh-layer-unlayered-beats-layered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            20.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-order-by-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            10.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-order-by-first-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            20.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-important-reverses",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            10.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-nested",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            20.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-anonymous-and-revert-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#p[1]",
+          "tag": "p",
+          "index": 4,
+          "rect": [
+            8.0,
+            16.0,
+            20.0,
+            4.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "gh-layer-github-primer-pattern",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#a[1]",
+          "style": {
+            "color": "rgb(31, 35, 40)",
+            "text-decoration-line": "none"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-statement-before",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-statement-after",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-statement-single-then-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-empty-block-counts",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-statement-list-in-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-case-sensitive",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-same-layer-later-wins",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-anonymous-each-own",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-anonymous-vs-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "unlayered-before-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "unlayered-low-spec-beats-layered-high",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "layer-spec-inside-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-dotted-vs-nested",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-dotted-vs-nested-reverse",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-parent-own-after-sublayers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-parent-own-written-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-sublayer-before-sibling",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-sublayer-declared-late-stays-in-parent",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-sublayer-order-late",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-dotted-three",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-dotted-same-name-in-two-parents",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-statement-dotted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-statement-in-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-in-media",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-in-media-reverse",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-in-supports",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-media-inside-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-media-inside-layer-false",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "nest-supports-inside-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-media-false-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-media-false-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-media-true-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-supports-false-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-supports-false-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-supports-true-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-media-print-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-media-false-nested-in-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cond-supports-false-invalid-condition",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-missing",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-anonymous-missing",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-after-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-media-false",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-supports-false",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-after-rule",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-dotted",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-invalid-name",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-layer-uppercase",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "import-statement-before-import",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-comma",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-comma-a",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-comma-b-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dot",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-dot-a",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dot-space-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-space-dot-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-comment-dot-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-digit-start",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-string",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-paren",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-and-valid",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-empty-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dot-dot-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dash-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dot-digit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-stmt-a-dot-dashdash",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-a-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-a-comma-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-a-dot-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-a-space-dot-b",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-digit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-string",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-anonymous",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-anonymous-no-space",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "invalid-block-trailing-comma",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-initial",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-initial",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-initial",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-inherit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-inherit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-inherit",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-unset",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-unset",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-unset",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-revert",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-revert",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-revert",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-revert-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-revert-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-revert-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-default",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-none",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-auto",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-initial-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-initial-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-initial-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-block-inherit-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-stmt-inherit-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-dotted-inherit-upper",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyword-first-in-list",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-reversed",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-unlayered-weakest",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-layered-beats-normal-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-normal-layer-vs-important-lower",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-sublayers-reversed",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-parent-own-weakest",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-statement-order",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-anonymous",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-same-layer-specificity",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-attr-important-vs-layer-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-attr-normal-vs-layer-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-attr-normal-vs-layer-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-attr-normal-vs-unlayered-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-attr-important-vs-unlayered-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-mixed-in-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "width": "20px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "imp-shorthand-in-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "1px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-normal-layer-vs-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "U"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-normal-layer-order",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "B"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-important-layer-vs-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-important-layer-vs-unlayered-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-important-reversed",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-important-vs-attr",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-var-in-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-var-resolves-by-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "width": "20px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "custom-var-resolves-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "width": "10px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "hint-img-attributes",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#i, #j, #k)[1]",
+          "tag": "img",
+          "index": 4,
+          "rect": [
+            8.0,
+            48.0,
+            50.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#i, #j, #k)[2]",
+          "tag": "img",
+          "index": 5,
+          "rect": [
+            58.0,
+            48.0,
+            50.0,
+            10.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#i, #j, #k)[3]",
+          "tag": "img",
+          "index": 6,
+          "rect": [
+            108.0,
+            8.0,
+            10.0,
+            50.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hint-img-low-spec-layered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#i[1]",
+          "tag": "img",
+          "index": 4,
+          "rect": [
+            8.0,
+            12.0,
+            50.0,
+            10.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hint-font-color",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#f[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        },
+        {
+          "kind": "style",
+          "label": "#g[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "hint-font-color-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#f[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "hint-align",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#d[1]",
+          "style": {
+            "text-align": "left"
+          }
+        }
+      ]
+    },
+    {
+      "name": "hint-table-border",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#t[1]",
+          "style": {
+            "border-top-width": "1px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "hint-bgcolor",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#b[1]",
+          "style": {
+            "background-color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-normal-no-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-normal-ua",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-unlayered-lower-rule",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-unlayered-no-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-unlayered-no-layers-ua",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-first-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-first-layer-with-lower-rule",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-second-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-second-layer-same-layer-rule",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-second-layer-skips-two",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-sublayer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-parent-own",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-anonymous-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-third-layer-middle-empty",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-first-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-two-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-reverts-to-later-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-second-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-with-normal-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-normal-with-important-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-important-no-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-hint-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-hint-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-hint-with-layer-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-hint-with-empty-layer-below",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-sees-lower-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-skips-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-important-skips-own-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-unlayered-important",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-hint",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-over-layers-and-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-attr-important-over-unlayered-normal",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rv-hint",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rv-layered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "3px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rv-attr",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-shorthand",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "3px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-all",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-all-margin",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "margin-top": "4px"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-custom-property",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "--x": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-var",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rl-inherit-chain",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "font-face-in-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #s)[1]",
+          "tag": "span",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            138.11,
+            19.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #s)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            8.0,
+            27.0,
+            111.69,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "font-face-in-unlayered",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "(#w, #s)[1]",
+          "tag": "span",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            138.11,
+            19.0
+          ]
+        },
+        {
+          "kind": "boxes",
+          "label": "(#w, #s)[2]",
+          "tag": "span",
+          "index": 6,
+          "rect": [
+            8.0,
+            27.0,
+            111.69,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "font-face-in-media-in-layer",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "boxes",
+          "label": "#w[1]",
+          "tag": "span",
+          "index": 4,
+          "rect": [
+            8.0,
+            8.0,
+            111.69,
+            17.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sheets-b-then-a",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-a-then-ba",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-statement-in-second",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-statement-in-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(255, 0, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-unlayered-second",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-unlayered-first",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-sublayers-across",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-anonymous-across",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-media-attribute-false",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-disabled-attribute",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 0, 255)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheets-body-style",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "color": "rgb(0, 128, 0)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pseudo-element-layers",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "style",
+          "label": "#p[1]",
+          "style": {
+            "content": "normal"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pseudo-element-layers-before",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "getComputedStyle(document.getElementById('p'), '::before').content + ' ' + getComputedStyle(document.getElementById('p'), '::before').color",
+          "value": "\"b\" rgb(0, 0, 255)"
+        }
+      ]
+    },
+    {
+      "name": "cssom-rules",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => Array.from(s.sheet.cssRules).map(T))",
+          "value": [
+            "CSSLayerStatementRule|0|@layer a, b.c;",
+            "CSSLayerBlockRule|0|@layer c {\n  p { color: red; }\n}",
+            "CSSLayerBlockRule|0|@layer {\n  p { color: blue; }\n}",
+            "CSSLayerBlockRule|0|@layer d {\n  @layer e {\n  p { color: green; }\n}\n  span { top: 1px; }\n  @layer f, g;\n}",
+            "CSSMediaRule|4|@media screen {\n  @layer h {\n  i { top: 2px; }\n}\n}",
+            "CSSLayerBlockRule|0|@layer i.j {\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => s.sheet.cssRules.length)",
+          "value": 6
+        },
+        {
+          "kind": "js",
+          "label": "E(() => Array.from(s.sheet.cssRules).map(r => r.constructor.name + ':' + (r.name === undefined ? 'u' : JSON.stringify(r.name)) + ':' + (r.nameList === undefined ? 'u' : JSON.stringify(Array.from(r.nameList)))))",
+          "value": [
+            "CSSLayerStatementRule:u:[\"a\",\"b.c\"]",
+            "CSSLayerBlockRule:\"c\":u",
+            "CSSLayerBlockRule:\"\":u",
+            "CSSLayerBlockRule:\"d\":u",
+            "CSSMediaRule:u:u",
+            "CSSLayerBlockRule:\"i.j\":u"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; return [Array.isArray(r.nameList), r.nameList === r.nameList, Object.isFrozen(r.nameList), r.nameList.length, r.nameList.constructor.name, typeof r.cssRules, r.cssRules === undefined]; })",
+          "value": [
+            true,
+            false,
+            true,
+            2,
+            "Array",
+            "undefined",
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[1]; return [r.constructor.name, Object.getPrototypeOf(r.constructor).name, r.name, r.cssRules.length, r.cssRules[0].constructor.name, r.cssRules[0].parentRule === r, r.cssRules[0].parentStyleSheet === s.sheet, r.parentRule, r.parentStyleSheet === s.sheet, r.cssRules[0].selectorText]; })",
+          "value": [
+            "CSSLayerBlockRule",
+            "CSSGroupingRule",
+            "c",
+            1,
+            "CSSStyleRule",
+            true,
+            true,
+            null,
+            true,
+            "p"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[3]; return [r.name, r.cssRules.length, T(r.cssRules[0]), T(r.cssRules[1]), T(r.cssRules[2]), r.cssRules[0].parentRule === r, r.cssRules[0].cssRules[0].parentRule === r.cssRules[0]]; })",
+          "value": [
+            "d",
+            3,
+            "CSSLayerBlockRule|0|@layer e {\n  p { color: green; }\n}",
+            "CSSStyleRule|1|span { top: 1px; }",
+            "CSSLayerStatementRule|0|@layer f, g;",
+            true,
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[4]; return [T(r), T(r.cssRules[0]), r.cssRules[0].parentRule === r, r.media.mediaText]; })",
+          "value": [
+            "CSSMediaRule|4|@media screen {\n  @layer h {\n  i { top: 2px; }\n}\n}",
+            "CSSLayerBlockRule|0|@layer h {\n  i { top: 2px; }\n}",
+            true,
+            "screen"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [Object.getPrototypeOf(CSSLayerBlockRule) === CSSGroupingRule, Object.getPrototypeOf(CSSLayerStatementRule) === CSSRule, Object.getPrototypeOf(CSSLayerBlockRule.prototype) === CSSGroupingRule.prototype, Object.getPrototypeOf(CSSLayerStatementRule.prototype) === CSSRule.prototype, typeof CSSLayerBlockRule, typeof CSSLayerStatementRule, CSSLayerBlockRule.name, CSSLayerStatementRule.length, CSSLayerBlockRule.length])",
+          "value": [
+            true,
+            true,
+            true,
+            true,
+            "function",
+            "function",
+            "CSSLayerBlockRule",
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [Object.getOwnPropertyNames(CSSLayerBlockRule.prototype).sort().join(), Object.getOwnPropertyNames(CSSLayerStatementRule.prototype).sort().join()])",
+          "value": [
+            "constructor,name",
+            "constructor,nameList"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [String(s.sheet.cssRules[0]), String(s.sheet.cssRules[1]), Object.prototype.toString.call(s.sheet.cssRules[0]), Object.prototype.toString.call(s.sheet.cssRules[1])])",
+          "value": [
+            "[object CSSLayerStatementRule]",
+            "[object CSSLayerBlockRule]",
+            "[object CSSLayerStatementRule]",
+            "[object CSSLayerBlockRule]"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const d = Object.getOwnPropertyDescriptor(CSSLayerBlockRule.prototype, 'name'); const n = Object.getOwnPropertyDescriptor(CSSLayerStatementRule.prototype, 'nameList'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof n.get, typeof n.set, n.enumerable]; })",
+          "value": [
+            "function",
+            "undefined",
+            true,
+            true,
+            "function",
+            "undefined",
+            true
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[1]; r.name = 'zz'; return [r.name, r.cssText]; })",
+          "value": [
+            "c",
+            "@layer c {\n  p { color: red; }\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [C('#p', 'color'), C('#span', 'top')])",
+          "value": [
+            "rgb(0, 128, 0)",
+            "1px"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-insert-statement",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => C('#p', 'color'))",
+          "value": "rgb(0, 0, 255)"
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a, b;', 0), C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)])",
+          "value": [
+            0,
+            "rgb(255, 0, 0)",
+            [
+              "CSSLayerStatementRule|0|@layer a, b;",
+              "CSSLayerBlockRule|0|@layer b {\n  p { color: red; }\n}",
+              "CSSLayerBlockRule|0|@layer a {\n  p { color: blue; }\n}"
+            ]
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.deleteRule(0), C('#p', 'color'), s.sheet.cssRules.length])",
+          "value": [
+            null,
+            "rgb(0, 0, 255)",
+            2
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a, b;', 2), C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)])",
+          "value": [
+            2,
+            "rgb(0, 0, 255)",
+            [
+              "CSSLayerBlockRule|0|@layer b {\n  p { color: red; }\n}",
+              "CSSLayerBlockRule|0|@layer a {\n  p { color: blue; }\n}",
+              "CSSLayerStatementRule|0|@layer a, b;"
+            ]
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer c;', s.sheet.cssRules.length), C('#p', 'color')])",
+          "value": [
+            3,
+            "rgb(0, 0, 255)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a b;'), C('#p', 'color')])",
+          "value": "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer a b;'."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a, ;'), C('#p', 'color')])",
+          "value": "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer a, ;'."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a {} @layer b;'), C('#p', 'color')])",
+          "value": "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer a {} @layer b;'."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer ;'), C('#p', 'color')])",
+          "value": "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer ;'."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer initial;'), C('#p', 'color')])",
+          "value": [
+            0,
+            "rgb(0, 0, 255)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer x { p { color: green } }', 0), C('#p', 'color'), T(s.sheet.cssRules[0])])",
+          "value": [
+            0,
+            "rgb(0, 0, 255)",
+            "CSSLayerBlockRule|0|@layer x {\n  p { color: green; }\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer { p { color: pink } }', 0), C('#p', 'color'), T(s.sheet.cssRules[0]), JSON.stringify(s.sheet.cssRules[0].name)])",
+          "value": [
+            0,
+            "rgb(0, 0, 255)",
+            "CSSLayerBlockRule|0|@layer {\n  p { color: pink; }\n}",
+            "\"\""
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { s.sheet.deleteRule(0); s.sheet.deleteRule(0); return [C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)]; })",
+          "value": [
+            "rgb(0, 0, 255)",
+            [
+              "CSSLayerStatementRule|0|@layer initial;",
+              "CSSLayerBlockRule|0|@layer b {\n  p { color: red; }\n}",
+              "CSSLayerBlockRule|0|@layer a {\n  p { color: blue; }\n}",
+              "CSSLayerStatementRule|0|@layer a, b;",
+              "CSSLayerStatementRule|0|@layer c;"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-insert-in-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => { s.sheet.insertRule('@layer a { }', 0); const r = s.sheet.cssRules[0]; return [r.insertRule('p { color: green }', 0), C('#p', 'color'), T(r)]; })",
+          "value": [
+            0,
+            "rgb(255, 0, 0)",
+            "CSSLayerBlockRule|0|@layer a {\n  p { color: green; }\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer inner { p { color: pink } }', 0), C('#p', 'color'), T(r), r.cssRules[0].constructor.name]; })",
+          "value": [
+            0,
+            "rgb(255, 0, 0)",
+            "CSSLayerBlockRule|0|@layer a {\n  @layer inner {\n  p { color: pink; }\n}\n  p { color: green; }\n}",
+            "CSSLayerBlockRule"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer z;', 0), T(r)]; })",
+          "value": [
+            0,
+            "CSSLayerBlockRule|0|@layer a {\n  @layer z;\n  @layer inner {\n  p { color: pink; }\n}\n  p { color: green; }\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer q, r;', 1), r.cssRules.length, Array.from(r.cssRules).map(x => x.constructor.name)]; })",
+          "value": [
+            1,
+            4,
+            [
+              "CSSLayerStatementRule",
+              "CSSLayerStatementRule",
+              "CSSLayerBlockRule",
+              "CSSStyleRule"
+            ]
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('@import url(x.css);', 0); })",
+          "value": "DOMException HierarchyRequestError: Failed to execute 'insertRule' on 'CSSGroupingRule': '@import' rules cannot be inserted inside a group rule."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('@layer a b;', 0); })",
+          "value": "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSGroupingRule': the rule '@layer a b;' is invalid and cannot be parsed."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('p { color: green }', 99); })",
+          "value": "DOMException IndexSizeError: Failed to execute 'insertRule' on 'CSSGroupingRule': the index 99 must be less than or equal to the length of the rule list."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; r.deleteRule(99); })",
+          "value": "DOMException IndexSizeError: Failed to execute 'deleteRule' on 'CSSGroupingRule': the index 99 is greated than the length of the rule list."
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; const n = r.cssRules.length; r.deleteRule(0); return [n, r.cssRules.length, C('#p', 'color')]; })",
+          "value": [
+            4,
+            3,
+            "rgb(255, 0, 0)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; while (r.cssRules.length) r.deleteRule(0); return [C('#p', 'color'), T(r)]; })",
+          "value": [
+            "rgb(255, 0, 0)",
+            "CSSLayerBlockRule|0|@layer a {\n}"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-insert-order-by-block",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer a { }', 0), C('#p', 'color')])",
+          "value": [
+            0,
+            "rgb(255, 0, 0)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer c { p { color: pink } }', s.sheet.cssRules.length), C('#p', 'color')])",
+          "value": [
+            3,
+            "rgb(255, 192, 203)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@layer { p { color: green } }', 0), C('#p', 'color')])",
+          "value": [
+            0,
+            "rgb(255, 192, 203)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('p { color: orange }', 0); return C('#p', 'color'); })",
+          "value": "rgb(255, 192, 203)"
+        }
+      ]
+    },
+    {
+      "name": "cssom-media-and-nested",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => { s.sheet.insertRule('@media all { @layer m { p { color: green } } }', 0); return [C('#p', 'color'), T(s.sheet.cssRules[0]), T(s.sheet.cssRules[0].cssRules[0])]; })",
+          "value": [
+            "rgb(0, 0, 255)",
+            "CSSMediaRule|4|@media all {\n  @layer m {\n  p { color: green; }\n}\n}",
+            "CSSLayerBlockRule|0|@layer m {\n  p { color: green; }\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const m = s.sheet.cssRules[0]; m.insertRule('@layer a, b;', 0); return [C('#p', 'color'), T(m)]; })",
+          "value": [
+            "rgb(0, 128, 0)",
+            "CSSMediaRule|4|@media all {\n  @layer a, b;\n  @layer m {\n  p { color: green; }\n}\n}"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const m = s.sheet.cssRules[0]; return [m.insertRule('@layer n { @layer o { } }', 0), T(m.cssRules[0]), m.cssRules[0].cssRules[0].parentRule === m.cssRules[0]]; })",
+          "value": [
+            0,
+            "CSSLayerBlockRule|0|@layer n {\n  @layer o {\n}\n}",
+            true
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-second-sheet",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => { const t = document.createElement('style'); t.textContent = '@layer a, b;'; document.head.appendChild(t); return [C('#p', 'color'), Array.from(t.sheet.cssRules).map(T)]; })",
+          "value": [
+            "rgb(0, 0, 255)",
+            [
+              "CSSLayerStatementRule|0|@layer a, b;"
+            ]
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { const t = document.createElement('style'); t.textContent = '@layer b { p { color: green } }'; document.head.insertBefore(t, s); return [C('#p', 'color')]; })",
+          "value": [
+            "rgb(0, 0, 255)"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { window.keep = s; s.remove(); return C('#p', 'color'); })",
+          "value": "rgb(0, 128, 0)"
+        },
+        {
+          "kind": "js",
+          "label": "E(() => { keep.textContent = '@layer q { p { color: pink } }'; document.head.appendChild(keep); return [C('#p', 'color'), Array.from(keep.sheet.cssRules).map(T)]; })",
+          "value": [
+            "rgb(255, 192, 203)",
+            [
+              "CSSLayerBlockRule|0|@layer q {\n  p { color: pink; }\n}"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-text-forms",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => { const t = document.createElement('style'); t.textContent = '@layer   a  ,b.c ,  d;@layer  x.y  {  p { color: red }  }@layer{p{color:blue}}@LAYER Up{}@layer a/* c */.b {}@layer\\nz\\n{}'; document.head.appendChild(t); return Array.from(t.sheet.cssRules).map(T); })",
+          "value": [
+            "CSSLayerStatementRule|0|@layer a, b.c, d;",
+            "CSSLayerBlockRule|0|@layer x.y {\n  p { color: red; }\n}",
+            "CSSLayerBlockRule|0|@layer {\n  p { color: blue; }\n}",
+            "CSSLayerBlockRule|0|@layer Up {\n}",
+            "CSSLayerBlockRule|0|@layer a.b {\n}",
+            "CSSLayerBlockRule|0|@layer z {\n}"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cssom-import",
+      "viewport": [
+        800,
+        600
+      ],
+      "results": [
+        {
+          "kind": "js",
+          "label": "E(() => Array.from(s.sheet.cssRules).map(T))",
+          "value": [
+            "CSSImportRule|3|@import url(\"a.css\") layer(x.y);",
+            "CSSImportRule|3|@import url(\"b.css\") layer;",
+            "CSSImportRule|3|@import url(\"c.css\") supports(display:grid) screen;",
+            "CSSImportRule|3|@import url(\"d.css\") layer(z) supports(display:grid) print;",
+            "CSSImportRule|3|@import url(\"e.css\") layer(Q);",
+            "CSSImportRule|3|@import url(\"f.css\") layer(x) (min-width: 10px);"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => Array.from(s.sheet.cssRules).map(r => JSON.stringify([r.layerName, r.supportsText, r.media.mediaText])))",
+          "value": [
+            "[\"x.y\",null,\"\"]",
+            "[\"\",null,\"\"]",
+            "[null,\"display:grid\",\"screen\"]",
+            "[\"z\",\"display:grid\",\"print\"]",
+            "[\"Q\",null,\"\"]",
+            "[\"x\",null,\"(min-width: 10px)\"]"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@import url(g.css) layer(a b);', 0)])",
+          "value": [
+            0
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@import url(g.css) layer(a.b);', 0), T(s.sheet.cssRules[0]), s.sheet.cssRules[0].layerName])",
+          "value": [
+            0,
+            "CSSImportRule|3|@import url(\"g.css\") layer(a.b);",
+            "a.b"
+          ]
+        },
+        {
+          "kind": "js",
+          "label": "E(() => [s.sheet.insertRule('@import url(h.css) layer;', 0), T(s.sheet.cssRules[0]), JSON.stringify(s.sheet.cssRules[0].layerName)])",
+          "value": [
+            0,
+            "CSSImportRule|3|@import url(\"h.css\") layer;",
+            "\"\""
+          ]
+        }
+      ]
+    }
+  ]
+}

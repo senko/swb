@@ -64,6 +64,22 @@ fn rule_texts() {
             "@import url(x.css) screen;",
             "@import url(\"x.css\") screen;",
         ),
+        (
+            "@import 'x.css' LAYER( a.b ) supports(display:grid) print;",
+            "@import url(\"x.css\") layer(a.b) supports(display:grid) print;",
+        ),
+        ("@import url(x.css) layer;", "@import url(\"x.css\") layer;"),
+        ("@layer   a ,b.c ;", "@layer a, b.c;"),
+        ("@layer x.y {}", "@layer x.y {\n}"),
+        ("@layer { p { top: 0 } }", "@layer {\n  p { top: 0px; }\n}"),
+        (
+            "@layer d { @layer e { p { top: 1px } } span { top: 2px } @layer f, g; }",
+            "@layer d {\n  @layer e {\n  p { top: 1px; }\n}\n  span { top: 2px; }\n  @layer f, g;\n}",
+        ),
+        (
+            "@media screen { @layer h { i { top: 3px } } }",
+            "@media screen {\n  @layer h {\n  i { top: 3px; }\n}\n}",
+        ),
     ] {
         let length = sheet.borrow().rules().len() as u32;
         StyleSheet::insert_rule(&sheet, text, length).unwrap();
@@ -135,6 +151,55 @@ fn grouping_rules() {
     assert!(parent_sheet(&inner).is_none());
     let removed = delete_from_group(&media, 0).unwrap();
     assert!(removed.borrow().parent_rule().is_none());
+}
+
+/// The rule objects of `@layer`: types, children, insertion and deletion
+/// (Chromium 148, `tools/probes/cascade-layers.json`, `cssom-*` cases).
+#[test]
+fn layer_rules() {
+    let sheet = StyleSheet::parse("@layer a, b; @layer c { p { top: 1px } } @layer { }", false);
+    let rules: Vec<RuleRef> = sheet.borrow().rules().to_vec();
+    assert_eq!(rules.len(), 3);
+    for rule in &rules {
+        assert_eq!(rule.borrow().type_number(), rule_type::NONE);
+    }
+    assert!(rules[0].borrow().child_rules().is_none());
+    let block = &rules[1];
+    assert_eq!(block.borrow().child_rules().map(<[RuleRef]>::len), Some(1));
+    let name_of = |rule: &RuleRef| match &rule.borrow().kind {
+        RuleKind::LayerBlock { name, .. } => name.as_ref().map(ToString::to_string),
+        _ => panic!("expected a layer block"),
+    };
+    assert_eq!(name_of(block).as_deref(), Some("c"));
+    assert_eq!(name_of(&rules[2]), None);
+    // Rules go into a block, a statement or a bad name does not parse.
+    assert_eq!(insert_into_group(block, "@layer z;", 0), Ok(0));
+    assert_eq!(insert_into_group(block, "q { top: 2px }", 2), Ok(2));
+    assert_eq!(
+        insert_into_group(block, "@layer a b;", 0),
+        Err(RuleError::Syntax)
+    );
+    assert_eq!(
+        insert_into_group(block, "@import url(x.css);", 0),
+        Err(RuleError::ImportInGroup)
+    );
+    assert_eq!(
+        block.borrow_mut().css_text(false),
+        "@layer c {\n  @layer z;\n  p { top: 1px; }\n  q { top: 2px; }\n}"
+    );
+    let inner = Rc::clone(&block.borrow().child_rules().unwrap()[1]);
+    assert!(Rc::ptr_eq(&inner.borrow().parent_rule().unwrap(), block));
+    assert!(Rc::ptr_eq(&parent_sheet(&inner).unwrap(), &sheet));
+    delete_from_group(block, 0).unwrap();
+    assert_eq!(
+        StyleSheet::insert_rule(&sheet, "@layer a, ;", 0),
+        Err(RuleError::Syntax)
+    );
+    assert_eq!(StyleSheet::insert_rule(&sheet, "@layer a, c;", 3), Ok(3));
+    assert_eq!(
+        texts(&sheet).last().map(String::as_str),
+        Some("@layer a, c;")
+    );
 }
 
 #[test]

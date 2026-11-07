@@ -262,9 +262,13 @@ pub(crate) fn compute_custom_properties(
             }
             // Custom properties are inherited: `inherit` and `unset` keep
             // the parent's value. `revert` does too: no user-agent rule
-            // sets custom properties.
+            // sets custom properties. So does `revert-layer` when no
+            // layer below has a value (the cascade drops the others).
             CustomDeclaration::CssWide(
-                CssWideKeyword::Inherit | CssWideKeyword::Unset | CssWideKeyword::Revert,
+                CssWideKeyword::Inherit
+                | CssWideKeyword::Unset
+                | CssWideKeyword::Revert
+                | CssWideKeyword::RevertLayer,
             ) => match parent.and_then(|p| p.get(&**name)) {
                 Some(v) => {
                     map.insert(Arc::clone(name), Arc::clone(v));

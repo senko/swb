@@ -28,8 +28,8 @@ use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
 use crate::serialize::{DisplayValues, serialize_component_values};
 use crate::stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, MediaRule, StyleRule,
-    Stylesheet, SupportsRule,
+    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, LayerBlockRule,
+    LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };
 use crate::supports::SupportsCondition;
 use crate::tokenizer::{Token, Tokenizer, preprocess};
@@ -353,13 +353,21 @@ impl<'a> RuleParser<'a> {
                     self.skip_block(BlockKind::Curly);
                 }
             }
-            // Approximation: the rules of a layer block join the parent list,
-            // and layer order is ignored.
+            // https://www.w3.org/TR/css-cascade-5/#layer-block
             ("layer", true) if holds_rules => {
-                let rules = self.consume_rule_block();
-                out.extend(rules);
+                if let Ok(name) = layer_block_name(prelude) {
+                    let rules = self.consume_rule_block();
+                    out.push(CssRule::LayerBlock(LayerBlockRule { name, rules }));
+                } else {
+                    debug!("dropped @layer block with invalid name");
+                    self.skip_block(BlockKind::Curly);
+                }
             }
-            ("layer", false) if holds_rules => {}
+            // https://www.w3.org/TR/css-cascade-5/#layer-empty
+            ("layer", false) if holds_rules => match layer_statement_names(prelude) {
+                Some(names) => out.push(CssRule::LayerStatement(LayerStatementRule { names })),
+                None => debug!("dropped @layer statement with invalid names"),
+            },
             ("font-face", true) if holds_rules => {
                 let declarations = self.consume_declaration_block(Context::Descriptors);
                 out.push(CssRule::FontFace(FontFaceRule { declarations }));
@@ -731,9 +739,37 @@ fn keyframe_selectors(prelude: &[ComponentValue]) -> Option<Vec<f32>> {
         .collect()
 }
 
+/// The name of an `@layer` block: `None` for an anonymous layer (an empty
+/// prelude), `Some(name)` for one valid name; an error for anything else
+/// (several names, an invalid name).
+fn layer_block_name(prelude: &[ComponentValue]) -> Result<Option<LayerName>, ParseError> {
+    let prelude = trim_whitespace(prelude);
+    if prelude.is_empty() {
+        return Ok(None);
+    }
+    LayerName::parse(prelude)
+        .map(Some)
+        .ok_or(ParseError::Invalid)
+}
+
+/// The names of an `@layer` statement: a comma-separated list of layer
+/// names. Any invalid name, or an empty list, invalidates the statement.
+fn layer_statement_names(prelude: &[ComponentValue]) -> Option<Vec<LayerName>> {
+    split_on_commas(prelude)
+        .map(|part| LayerName::parse(trim_whitespace(part)))
+        .collect()
+}
+
 /// At-rules that [`parse_rule`] accepts: those that the stylesheet model
 /// keeps as rules.
-const RULE_AT_RULES: &[&str] = &["media", "supports", "import", "font-face", "keyframes"];
+const RULE_AT_RULES: &[&str] = &[
+    "media",
+    "supports",
+    "import",
+    "font-face",
+    "keyframes",
+    "layer",
+];
 
 /// Parses exactly one rule (CSS Syntax "parse a rule", for CSSOM
 /// `insertRule`): optional whitespace, a style rule or a supported
@@ -895,6 +931,7 @@ fn parse_urange(s: &str) -> Option<(u32, u32)> {
 mod tests {
     use super::*;
     use crate::serialize::serialize_component_values;
+    use crate::stylesheet::ImportLayer;
 
     fn style_rules(css: &str) -> Vec<StyleRule> {
         parse_stylesheet(css)
@@ -1053,6 +1090,8 @@ mod tests {
                 CssRule::FontFace(_) => "font-face",
                 CssRule::Supports(_) => "supports",
                 CssRule::Keyframes(_) => "keyframes",
+                CssRule::LayerBlock(_) => "layer",
+                CssRule::LayerStatement(_) => "layer-statement",
             })
             .collect();
         assert_eq!(
@@ -1062,7 +1101,8 @@ mod tests {
                 "import",
                 "keyframes",
                 "font-face",
-                "style",
+                "layer-statement",
+                "layer",
                 "supports",
                 "style"
             ]
@@ -1114,7 +1154,10 @@ mod tests {
         let sheet = parse_stylesheet("@namespace x url(y); @import url(late.css);");
         assert_eq!(sheet.rules.len(), 0);
         let sheet = parse_stylesheet("@layer a, b; @import url(ok.css);");
-        assert_eq!(sheet.rules.len(), 1);
+        assert!(matches!(
+            &sheet.rules[..],
+            [CssRule::LayerStatement(_), CssRule::Import(_)]
+        ));
         // Invalid rules do not close the @import window.
         let sheet = parse_stylesheet("@foo; !! { } @import 'x.css';");
         assert!(matches!(&sheet.rules[..], [CssRule::Import(_)]));
@@ -1149,6 +1192,180 @@ mod tests {
     fn at_rule_without_block_in_block() {
         let sheet = parse_stylesheet("@media screen { @foo bar } a { x: y }");
         assert_eq!(sheet.rules.len(), 2);
+    }
+
+    /// The names of the layer rules of a sheet, flattened with their
+    /// depth: `statement a,b.c`, `block a`, `block <anonymous>`.
+    fn layer_outline(rules: &[CssRule], depth: usize, out: &mut Vec<String>) {
+        for rule in rules {
+            let pad = " ".repeat(depth);
+            match rule {
+                CssRule::LayerStatement(s) => {
+                    let names: Vec<String> = s.names.iter().map(ToString::to_string).collect();
+                    out.push(format!("{pad}statement {}", names.join(",")));
+                }
+                CssRule::LayerBlock(b) => {
+                    let name = b
+                        .name
+                        .as_ref()
+                        .map_or("<anonymous>".to_owned(), ToString::to_string);
+                    out.push(format!("{pad}block {name}"));
+                    layer_outline(&b.rules, depth + 1, out);
+                }
+                CssRule::Media(m) => {
+                    out.push(format!("{pad}media"));
+                    layer_outline(&m.rules, depth + 1, out);
+                }
+                CssRule::Supports(m) => {
+                    out.push(format!("{pad}supports"));
+                    layer_outline(&m.rules, depth + 1, out);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn outline(css: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        layer_outline(&parse_stylesheet(css).rules, 0, &mut out);
+        out
+    }
+
+    /// Valid and invalid `@layer` preludes, as Chromium 148 treats them
+    /// (`tools/probes/cascade-layers.json`, the `invalid-*` and `keyword-*`
+    /// cases).
+    #[test]
+    fn layer_preludes() {
+        assert_eq!(
+            outline("@layer a, b.c ,d; @layer x.y{} @layer{} @layer   z  {}"),
+            [
+                "statement a,b.c,d",
+                "block x.y",
+                "block <anonymous>",
+                "block z"
+            ]
+        );
+        // Comments vanish; a name may use `--` identifiers and CSS-wide
+        // keywords; names are case-sensitive.
+        assert_eq!(
+            outline("@layer a/**/.b; @layer a.--b, Initial, inherit; @LAYER Up{}"),
+            [
+                "statement a.b",
+                "statement a.--b,Initial,inherit",
+                "block Up"
+            ]
+        );
+        // Whitespace inside a name, empty names, other tokens and several
+        // names in a block make the whole rule invalid.
+        for bad in [
+            "@layer a b;",
+            "@layer a,;",
+            "@layer ,a;",
+            "@layer a, b {}",
+            "@layer a.;",
+            "@layer .a;",
+            "@layer a. b;",
+            "@layer a .b;",
+            "@layer 1a;",
+            "@layer 'a';",
+            "@layer a !important;",
+            "@layer a(b);",
+            "@layer a, b c;",
+            "@layer;",
+            "@layer ;",
+            "@layer a..b;",
+            "@layer a.1;",
+            "@layer a b{}",
+            "@layer 1a{}",
+            "@layer a,{}",
+        ] {
+            assert_eq!(outline(bad), Vec::<String>::new(), "{bad}");
+        }
+        // Rules that follow an invalid one are kept.
+        assert_eq!(outline("@layer a b; @layer c;"), ["statement c"]);
+    }
+
+    #[test]
+    fn layer_nesting_and_groups() {
+        assert_eq!(
+            outline(
+                "@layer a { @layer b, c; @layer d { x { y: z } } } \
+                 @media screen { @layer m; @layer n { } } \
+                 @supports (display: grid) { @layer s { } }"
+            ),
+            [
+                "block a",
+                " statement b,c",
+                " block d",
+                "media",
+                " statement m",
+                " block n",
+                "supports",
+                " block s"
+            ]
+        );
+        // The rules of a layer block stay in the block.
+        let sheet = parse_stylesheet("@layer a { p { x: y } q { x: y } }");
+        assert_eq!(sheet.rules.len(), 1);
+        let CssRule::LayerBlock(block) = &sheet.rules[0] else {
+            panic!("expected @layer");
+        };
+        assert_eq!(block.rules.len(), 2);
+        // A layer rule inside a style rule is dropped (nesting).
+        assert_eq!(
+            outline("p { @layer a { x: y } color: red }"),
+            Vec::<String>::new()
+        );
+    }
+
+    /// `@layer` statements before `@import` do not end the import window; a
+    /// block does.
+    #[test]
+    fn layer_and_the_import_window() {
+        let sheet =
+            parse_stylesheet("@layer a, b; @import url(x.css); @layer c {} @import url(y.css);");
+        let kinds: Vec<&str> = sheet
+            .rules
+            .iter()
+            .map(|r| match r {
+                CssRule::LayerStatement(_) => "statement",
+                CssRule::Import(_) => "import",
+                CssRule::LayerBlock(_) => "block",
+                _ => "other",
+            })
+            .collect();
+        assert_eq!(kinds, ["statement", "import", "block"]);
+    }
+
+    #[test]
+    fn import_layers() {
+        let import = |css: &str| {
+            let sheet = parse_stylesheet(css);
+            match sheet.rules.first() {
+                Some(CssRule::Import(i)) => i.clone(),
+                other => panic!("expected @import, got {other:?}"),
+            }
+        };
+        assert_eq!(import("@import url(a.css);").layer, None);
+        assert_eq!(
+            import("@import url(a.css) layer;").layer,
+            Some(ImportLayer::Anonymous)
+        );
+        let named = import("@import 'a.css' LAYER( x.y ) supports(display:grid) screen;");
+        assert_eq!(
+            named.layer.as_ref().map(|l| match l {
+                ImportLayer::Named(n) => n.to_string(),
+                ImportLayer::Anonymous => String::new(),
+            }),
+            Some("x.y".to_owned())
+        );
+        assert_eq!(named.supports_text.as_deref(), Some("display:grid"));
+        assert!(!named.media.is_empty());
+        // An invalid name is no layer; the function lands in the media
+        // query list, which then matches nothing.
+        let bad = import("@import url(a.css) layer(a b);");
+        assert_eq!(bad.layer, None);
+        assert!(!bad.media.is_empty());
     }
 
     #[test]
@@ -1244,6 +1461,10 @@ mod tests {
             "@keyframes pulse { 0% { opacity: 1 } 60% { opacity: 0.3 } 100% { opacity: 1 } }",
             "@font-face { font-family: X; src: url(x.woff2) }",
             "@MEDIA screen {}",
+            "@layer a;",
+            "@layer a, b.c;",
+            "@layer { }",
+            "@layer x { p { color: red } }",
         ] {
             assert!(parse_rule(ok).is_ok(), "{ok}");
         }
@@ -1260,8 +1481,10 @@ mod tests {
             "@charset \"utf-8\";",
             "@unknown {}",
             "@unknown x;",
-            "@layer base { #a { color: red } }",
-            "@layer base;",
+            "@layer a b;",
+            "@layer a, b { }",
+            "@layer ;",
+            "@layer a {} @layer b;",
             "@page { margin: 1cm }",
             "@keyframes none {}",
             "@supports (( {}",

@@ -46,11 +46,13 @@ pub(crate) enum CssWideKeyword {
     Inherit,
     /// `unset`.
     Unset,
-    /// `revert`, and `revert-layer` (swb flattens cascade layers, so
-    /// rolling back a layer means rolling back to the previous origin). In
-    /// the author origin it rolls back to the user-agent origin; in the
-    /// user-agent origin it behaves as `unset`.
+    /// `revert`. In the author origin it rolls back to the user-agent
+    /// origin; in the user-agent origin it behaves as `unset`.
     Revert,
+    /// `revert-layer`: rolls back to the previous cascade layer of the same
+    /// origin (see the cascade). Where no cascade handles it (a value
+    /// from `var()`), it behaves as `unset`.
+    RevertLayer,
 }
 
 impl CssWideKeyword {
@@ -68,7 +70,8 @@ impl CssWideKeyword {
             "initial" => Some(CssWideKeyword::Initial),
             "inherit" => Some(CssWideKeyword::Inherit),
             "unset" => Some(CssWideKeyword::Unset),
-            "revert" | "revert-layer" => Some(CssWideKeyword::Revert),
+            "revert" => Some(CssWideKeyword::Revert),
+            "revert-layer" => Some(CssWideKeyword::RevertLayer),
             _ => None,
         }
     }
@@ -1651,7 +1654,7 @@ mod tests {
         let (_, out) = parse("color", "revert-layer");
         assert!(matches!(
             out[0],
-            PropertyDeclaration::CssWide(_, CssWideKeyword::Revert)
+            PropertyDeclaration::CssWide(_, CssWideKeyword::RevertLayer)
         ));
         let (ok, out) = parse("border", "var(--b) solid");
         assert!(ok);

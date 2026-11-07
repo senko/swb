@@ -106,6 +106,57 @@ def has_rules() -> Page:
     return Page(doc(body, rules))
 
 
+@case("@layer blocks nested 3,000 deep (past the block depth limit of 64) (ADR 0007)")
+def layers_nested_blocks() -> Page:
+    css = nest("@layer a{", "}", 3000, "p{color:red}") + nest("@layer{", "}", 3000, "p{margin:0}")
+    return Page(doc("<p>x</p>", css))
+
+
+@case(
+    "a layer name of 200,000 segments (a.a.a...), as a statement and a block, and 1,000 "
+    "different names of 1,000 segments: past the limit of 65,536 layers (ADR 0007)",
+    time_limit_s=10,
+    expect_log="more than 65536 cascade layers",
+)
+def layers_long_dotted_names() -> Page:
+    long = ".".join(["a"] * 200_000)
+    css = f"@layer {long};@layer {long}{{p{{color:red}}}}\n"
+    for i in range(1000):
+        name = ".".join([f"n{i}"] + ["s"] * 999)
+        css += f"@layer {name}{{p{{color:blue}}}}\n"
+    return Page(doc("<p>x</p>", css))
+
+
+@case(
+    "100,000 layer names in statements and blocks, and 100,000 anonymous layers: past the "
+    "limit of 65,536 layers (ADR 0007)",
+    time_limit_s=10,
+    expect_log="more than 65536 cascade layers",
+)
+def layers_many_names() -> Page:
+    names = ",".join(f"l{i}" for i in range(100_000))
+    css = f"@layer {names};\n"
+    css += "".join(f"@layer l{i}{{.c{i % 500}{{color:red}}}}\n" for i in range(100_000))
+    css += "@layer{.c1{color:blue}}" * 100_000
+    return Page(doc("".join(f"<i class=c{i}>x</i>" for i in range(500)), css))
+
+
+@case(
+    "3,000 layers whose rules all match 5,000 elements, with !important, revert-layer and "
+    "the style attribute: 15,000,000 declarations (ADR 0007)",
+    time_limit_s=20,
+)
+def layers_important_revert_layer() -> Page:
+    css = "".join(
+        f"@layer l{i}{{p{{color:red!important;margin-top:revert-layer}} "
+        f".k{{width:{i}px!important;--v:{i}}}}}\n"
+        for i in range(3000)
+    )
+    css += "p{color:blue;margin-top:revert-layer}"
+    body = "".join("<p class=k style='color:revert-layer'>x</p>" for _ in range(5000))
+    return Page(doc(body, css))
+
+
 @case("200,000 style rules (stylesheet of about 5 MB)", time_limit_s=10)
 def many_rules() -> Page:
     rules = "".join(f".c{i}{{color:red}}\n" for i in range(200_000))

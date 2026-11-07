@@ -250,7 +250,9 @@ https://drafts.csswg.org/css-conditional-3/: `CSSConditionRule`,
 `CSSMediaRule`, `CSSSupportsRule`), CSS Fonts Module Level 4 (W3C
 Editor's Draft, https://drafts.csswg.org/css-fonts-4/: `CSSFontFaceRule`)
 and CSS Animations Level 1 (W3C Editor's Draft,
-https://drafts.csswg.org/css-animations-1/: `CSSKeyframesRule`). swb cut
+https://drafts.csswg.org/css-animations-1/: `CSSKeyframesRule`), and CSS
+Cascading and Inheritance Level 5 (https://www.w3.org/TR/css-cascade-5/:
+`CSSLayerBlockRule`, `CSSLayerStatementRule`, copied on 2026-11-07). swb cut
 the file to these, changed some members and added two special operations
 of its own (the header of the file lists the changes and says why). The
 license text is in the section of W3C High Resolution Time below.
@@ -259,8 +261,9 @@ license text is in the section of W3C High Resolution Time below.
 > from CSS Object Model (CSSOM), https://drafts.csswg.org/cssom/; CSS
 > Conditional Rules Module Level 3,
 > https://drafts.csswg.org/css-conditional-3/; CSS Fonts Module Level 4,
-> https://drafts.csswg.org/css-fonts-4/; and CSS Animations Level 1,
-> https://drafts.csswg.org/css-animations-1/.
+> https://drafts.csswg.org/css-fonts-4/; CSS Animations Level 1,
+> https://drafts.csswg.org/css-animations-1/; and CSS Cascading and
+> Inheritance Level 5, https://www.w3.org/TR/css-cascade-5/.
 > Copyright © 2026 World Wide Web Consortium.
 > https://www.w3.org/copyright/software-license-2023/
 

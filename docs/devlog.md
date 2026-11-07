@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-07: M10 feature 1: cascade layers
+
+- `swb_css` keeps `@layer` statements and blocks (named, dotted, anonymous,
+  nested) and the `layer` of `@import`, instead of flattening the blocks.
+  `swb_style` has one layer tree per document (`layers.rs`); the cascade sorts
+  by origin, layer rank, specificity and order, and reverses the layer order
+  for `!important`. The CSSOM has `CSSLayerBlockRule` and
+  `CSSLayerStatementRule`, and `CSSImportRule.layerName` and `supportsText`.
+- Measured in Chromium 148 (`tools/probes/cascade-layers.json`, 215 cases,
+  three equal runs): a declaration inside a `@media` that does not match, a
+  false `@supports` or a sheet that does not apply does not give a layer its
+  place, so the ranks follow the media evaluation; `@import url(missing)
+  layer(a)` counts; `revert-layer` drops the declarations of its own layer
+  and of all layers above it, whatever their importance, and falls to the
+  presentational hints and the UA sheet; presentational hints lose to every
+  author layer; CSS-wide keywords are valid layer names.
+- Review: no correctness bug; 66 of 67 extra cases match (the one left is
+  `adoptedStyleSheets`, feature 5b). The ranks were computed again at every
+  style flush and `getComputedStyle` (60,000 layers and 2,000 flushes:
+  1.93 s); the layer tree now keeps the last ranks, keyed by the `@media`
+  chains that hold declarations.
+- Scores: GitHub JS off geometry 0.1576 to 0.6978, pixels 0.9344 to 0.9911;
+  JS on 0.1425 to 0.5881, 0.9167 to 0.9720. The other targets are unchanged
+  with JavaScript off, and BBC with JavaScript on (no other fixture has
+  `@layer` in its CSS). Style time of GitHub unchanged (24 ms); the
+  stylist build 64 to 66 ms.
+- Next: feature 2, the min-content size of a non-wrapping flex row (GitHub's
+  header navigation).
+
 ## 2026-11-07: M9 fix: a button inside a link (BBC's side menu)
 
 - The owner found it while testing BBC for acceptance: the items of BBC's side menu did not

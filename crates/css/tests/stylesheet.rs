@@ -135,6 +135,8 @@ fn rule_counts() {
             CssRule::FontFace(_) => "font-face",
             CssRule::Supports(_) => "supports",
             CssRule::Keyframes(_) => "keyframes",
+            CssRule::LayerBlock(_) => "layer",
+            CssRule::LayerStatement(_) => "layer-statement",
         })
         .collect();
     assert_eq!(
@@ -161,14 +163,14 @@ fn rule_counts() {
             "supports",
             "font-face",
             "keyframes",
-            // the @layer block is flattened
+            "layer",
             "style", // @page and @namespace are dropped
-            "style",
             "style",
             "style",
         ]
     );
-    assert_eq!(style_rules(&sheet.rules).len(), 16);
+    // The `@layer base` block holds a style rule.
+    assert_eq!(style_rules(&sheet.rules).len(), 15);
 }
 
 #[test]

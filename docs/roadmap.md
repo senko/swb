@@ -4567,6 +4567,19 @@ Steps:
       needs them. Cases: `tools/probes/github-css.json` and new ones. Exit:
       GitHub's JS-off geometry near the emulated 0.66; the other targets
       unchanged or better.
+      Done (2026-11-07): the rule model of `swb_css` keeps `@layer`
+      statements and blocks and the layer of `@import`; `swb_style` has one
+      layer tree per document (`layers.rs`), ranks that follow the `@media`
+      evaluation (Chromium does not count a declaration in a `@media` or
+      `@supports` that does not apply), the reversed order of `!important`
+      and `revert-layer` as measured; the CSSOM has `CSSLayerBlockRule` and
+      `CSSLayerStatementRule` (ADR 0007 "Cascade layers"). 215 probe cases
+      of `tools/probes/cascade-layers.json` match Chromium
+      (`crates/engine/tests/cascade_layers.rs`), and 66 of the review's 67
+      extra cases (the one left is `adoptedStyleSheets`, feature 5b). GitHub
+      JS off: geometry 0.1576 to 0.6978, pixels 0.9344 to 0.9911; JS on:
+      0.1425 to 0.5881, 0.9167 to 0.9720; the other targets unchanged (JS
+      off all, JS on BBC; no other fixture has `@layer` in its CSS).
    2. Flex min-content (`implementer`; JS on and off): the min-content
       contribution of a non-wrapping flex container is the sum of its
       items' contributions and margins (CSS Flexbox 9.9.1). Cases:
@@ -4633,6 +4646,16 @@ Steps:
   `replay` of this page takes 17 s or more).
 - CSS nesting is not supported (GitHub does not use it; 3 of 4 probe cases
   of `github-css.json` differ).
+- Cascade layers (feature 1): `adoptedStyleSheets` must add their sheets to
+  the document's layer tree, after the document's sheets (feature 5b;
+  measured: an adopted sheet's `@layer a` joins the document's layer `a`).
+  swb loads no `@import` sheets: the layer of an import is declared, its
+  rules do not exist. `@page`, `@namespace`, `@container` and `@property`
+  have no CSSOM objects. An `@import ... layer(a b)` that `insertRule`
+  adds: Chromium accepts it, swb keeps no layer and puts the function in
+  the media list (it matches nothing). The hostile case
+  `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
+  rules.
 
 ## Backlog from M9
 

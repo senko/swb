@@ -74,6 +74,8 @@ CSSGroupingRule:dwc
 CSSConditionRule:dwc
 CSSMediaRule:dwc
 CSSSupportsRule:dwc
+CSSLayerBlockRule:dwc
+CSSLayerStatementRule:dwc
 CSSFontFaceRule:dwc
 CSSKeyframesRule:dwc
 DOMParser:dwc

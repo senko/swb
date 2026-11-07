@@ -161,7 +161,7 @@ Measured on the Wikipedia fixture (release build, 1280x800): 8 ms for
 - Values that depend on layout (percentages) stay as `LengthPercentage` in
   the computed style; layout resolves them.
 - Not supported yet: `@font-face`, `@import` (the engine loads imports),
-  cascade layers order, `@container`, `@keyframes`/animations/transitions,
+  `@container`, `@keyframes`/animations/transitions,
   transforms, filters, masks, shadows, grid templates,
   `quotes`, `::first-line`/`::first-letter`/`::placeholder`, `:visited`
   styles, `white-space-collapse`/`text-wrap-mode` as separate longhands,
@@ -382,3 +382,92 @@ a pseudo-element now holds the text of its counters, where Chromium's
   toward positive infinity (CSS Values 4, "Range Checking",
   <https://www.w3.org/TR/css-values-4/#calc-range>; Chromium:
   `calc(-1.5)` is -1).
+
+## Update (2026-11-07, cascade layers, M10 feature 1)
+
+CSS Cascade 5 layers
+(<https://www.w3.org/TR/css-cascade-5/#layering>). Before, the rules of
+`@layer` blocks joined the parent list and statements were dropped; GitHub
+has 6,341 of its 16,282 rules in layers. The rules below are the spec's and
+the measurements of Chromium 148 in `tools/probes/cascade-layers.json` (215
+cases; `crates/engine/tests/cascade_layers.rs` runs them against the stored
+answers `tests/data/web-cascade-layers.json`, with JavaScript on, and the
+style and box rows again with JavaScript off).
+
+- **Model.** `swb_css` keeps the structure: `CssRule::LayerBlock` (a
+  `LayerName` or none for an anonymous layer, and the rules),
+  `CssRule::LayerStatement` (names), and `ImportRule::layer`
+  (`layer`, `layer(name)`). The CSSOM model has `RuleKind::LayerBlock` and
+  `LayerStatement`; the bindings have `CSSLayerBlockRule` (`name`,
+  `cssRules`, `insertRule`, `deleteRule`) and `CSSLayerStatementRule`
+  (`nameList`); `type` is 0.
+- **Syntax.** A layer name is identifiers joined by `.` with nothing between
+  (not even a space; comments are fine: `a/**/.b`). A statement is a
+  comma-separated list of names; one invalid name drops the statement. A
+  block has one name or none; `@layer a, b {}` is dropped. CSS-wide keywords
+  (`initial`, `revert-layer`, ...) are valid names. `@layer` inside a style
+  rule is dropped (nesting is not supported). `@layer` statements do not end
+  the `@import` window; blocks do. `insertRule` takes both kinds, with
+  Chromium's `SyntaxError` texts for sheets and for grouping rules.
+- **One layer tree for the document** (`crates/style/src/layers.rs`): all
+  author sheets, in document order, add to one tree. A node is a name path
+  (`a.b` and `a { @layer b {} }` are the same node); each anonymous block
+  and anonymous `@import ... layer` is a node of its own. The stylist
+  records the declarations (statements, blocks, `@import ... layer`) as a
+  list of events, not an order.
+- **Order = first declaration.** The rank of a layer is its place in a
+  post-order walk of the tree in which the children of a layer come in the
+  order of their first declaration: sublayers rank below the layer's own
+  rules, and the unlayered rules (the root) rank last. A sublayer declared
+  late (`a.y` after `b`) stays inside `a`, so it ranks below `b`.
+- **A declaration only counts where it applies** (measured): inside an
+  `@media` that does not match or a false `@supports`, a declaration does
+  not give the layer a place (`@media (min-width:5000px){@layer a,b;}` then
+  `@layer b{} @layer a{}` orders b before a). A sheet that does not apply
+  (a `media` attribute that does not match, `disabled`) does not count.
+  `@import url(missing.css) layer(a)` counts although nothing loads
+  (Chromium counts a failed import); an import with a false `supports()` or
+  media does not. Because `@media` depends on the viewport, the ranks are
+  computed with the media evaluation (`Stylist::layer_ranks`, once per
+  `compute_styles` and per `getComputedStyle`), from the events:
+  O(declarations), no recursion (dotted names make the tree as deep as the
+  input is long). The tree keeps the last ranks, keyed by the values of the
+  `@media` chains that hold declarations, so a page with many layers does
+  not pay O(layers) per style flush (the review measured 60,000 layer
+  names and 2,000 flushes: 1.93 s without the cache).
+- **Cascade.** Normal declarations: origin, then layer rank, then
+  specificity, then source order (`matching_rules` sorts by that key; each
+  rule holds its layer node). `!important` reverses the layers: the first
+  layer wins, the unlayered rules are weakest, and a parent's own rules lose
+  to its sublayers; inside a layer, specificity and order as before. The
+  `style` attribute stays above all rules of its importance. Presentational
+  hints stay below all author rules, also layered ones (measured:
+  `<img width=10>` against a layered `width`, `<font color>`).
+- **`revert-layer`** drops the author declarations of its own layer and of
+  all layers above it in the layer order, whatever their importance, and
+  then cascades what is left (measured). So: in the first layer it reaches
+  the user-agent and hint level (`<font color=red>` stays red, which
+  `revert` does not allow); an unlayered rule rolls back to the last layer;
+  the `style` attribute rolls back to the unlayered rules; an `!important`
+  `revert-layer` in layer `a` does not see the `!important` rules of the
+  layers after `a` (they stand above it in the layer order) but sees the
+  normal rules of the layers before it. Implementation: each group of
+  author declarations has a position in the layer order (hints 0, layers
+  from 1, unlayered, `style` attribute); a winning `revert-layer` records
+  its position per property, and declarations at that position or above are
+  skipped. A value that comes from `var()` stays `unset`. Custom properties
+  work the same way.
+- **Limits.** At most 65,536 layers per document (further layers and their
+  rules are ignored with a warning); the parser's block depth limit of 64
+  applies to `@layer` blocks; names of any length are linear in the input.
+  Hostile pages: `layers-*` in `tools/swbtools/hostile_cases/generic.py`.
+- **`@font-face` in a layer** applies as if it were outside (Chromium).
+- **Departures.** swb loads no `@import` sheets, so the rules inside the
+  imported sheet do not exist (`CSSImportRule.styleSheet` is null).
+  `adoptedStyleSheets` (M10 feature 5) must add its sheets after the
+  document's, to the same tree. Rules that swb's parser still drops (`@page`,
+  `@namespace`, `@container`) have no CSSOM objects.
+- Cost: GitHub (JS off, `swbtools perf`, three runs each), style 24.0 to
+  24.4 ms before and 23.9 to 24.6 ms after; the stylist build (parse and
+  index) 62.9 to 64.6 ms before and 65.5 to 66.9 ms after (the layer tree
+  and the layer of each of 16,282 rules).

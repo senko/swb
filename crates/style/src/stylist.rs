@@ -13,16 +13,26 @@
 //!
 //! `@media` conditions are evaluated when styles are computed (the
 //! environment can change); `@supports` conditions are evaluated when a
-//! sheet is added. `@import` is ignored here. `@font-face` rules are kept
-//! with their `@media` conditions ([`Stylist::font_faces`]).
+//! sheet is added. `@import` loads nothing here, but an `@import ... layer`
+//! declares its layer. `@font-face` rules are kept with their `@media`
+//! conditions ([`Stylist::font_faces`]).
+//!
+//! Cascade layers: every rule has the node of its layer in the
+//! [`LayerTree`] of the author origin (one tree for all sheets, in document
+//! order). The tree keeps the declarations of the layers; the ranks that
+//! order the layers are computed with the `@media` evaluation
+//! ([`Stylist::layer_ranks`]), and [`Stylist::matching_rules`] sorts by
+//! origin, layer rank, specificity and source order. The cascade reverses
+//! the layer order for `!important` declarations.
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 use log::trace;
 use swb_css::{
-    BucketKey, CssRule, ElementState, FontFaceRule, MatchingContext, MediaEnvironment,
-    MediaQueryList, PseudoElement, Selector, SelectorList, Stylesheet, matches, parse_stylesheet,
+    BucketKey, CssRule, ElementState, FontFaceRule, ImportLayer, LayerName, MatchingContext,
+    MediaEnvironment, MediaQueryList, PseudoElement, Selector, SelectorList, Stylesheet, matches,
+    parse_stylesheet,
 };
 use url::Url;
 
@@ -32,6 +42,7 @@ use crate::bloom::{AncestorFilter, MAX_ANCESTOR_HASHES, ancestor_hashes};
 use crate::cssom::sheet::{RuleKind, RuleRef, StyleSheet};
 use crate::element::DomElement;
 use crate::font_face::FontFace;
+use crate::layers::{LayerTree, UNLAYERED};
 use crate::parse::ParserContext;
 use crate::properties::{DeclarationBlock, is_supported};
 use crate::style_map::PseudoKind;
@@ -59,14 +70,36 @@ pub(crate) enum CascadeOrigin {
     Author = 2,
 }
 
+/// Where rules are added: inside which `@media` chain and which layer.
+#[derive(Clone, Copy, Debug)]
+struct Scope {
+    /// The index of the `@media` condition chain.
+    media: Option<u32>,
+    /// The node of the layer in the layer tree.
+    layer: u32,
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Scope {
+            media: None,
+            layer: UNLAYERED,
+        }
+    }
+}
+
 /// One selector of a style rule and the rule's declarations.
 #[derive(Debug)]
 pub(crate) struct Rule {
     pub(crate) selector: Selector,
     pub(crate) block: Arc<DeclarationBlock>,
     pub(crate) origin: CascadeOrigin,
-    /// Cascade order within the origin: specificity, then source order.
+    /// Cascade order within the origin and the layer: specificity, then
+    /// source order.
     pub(crate) sort_key: u64,
+    /// The node of the rule's layer in the layer tree ([`UNLAYERED`] for
+    /// the rules that are in no layer, and for the user-agent rules).
+    pub(crate) layer: u32,
     /// The index of the `@media` condition chain, if the rule is inside
     /// `@media`.
     media: Option<u32>,
@@ -80,9 +113,15 @@ pub(crate) struct Rule {
 }
 
 impl Rule {
-    /// The full cascade sort key: origin, specificity, source order.
-    fn cascade_key(&self) -> (CascadeOrigin, u64) {
-        (self.origin, self.sort_key)
+    /// The full cascade sort key of normal declarations: origin, layer rank
+    /// (`ranks` from [`Stylist::layer_ranks`]), specificity, source order.
+    fn cascade_key(&self, ranks: &[u32]) -> (CascadeOrigin, u32, u64) {
+        debug_assert!(
+            (self.layer as usize) < ranks.len(),
+            "every rule's layer node has a rank"
+        );
+        let rank = ranks.get(self.layer as usize).copied().unwrap_or(0);
+        (self.origin, rank, self.sort_key)
     }
 }
 
@@ -188,6 +227,8 @@ pub struct Stylist {
     /// Chains of media query lists (nested `@media`); each rule refers to
     /// one chain.
     media_chains: Vec<Vec<u32>>,
+    /// The cascade layers of the author origin.
+    layers: LayerTree,
     next_order: u32,
     /// The element states that any selector depends on.
     state_dependencies: ElementState,
@@ -236,6 +277,7 @@ impl Stylist {
             no_rules: RuleMap::default(),
             media_lists: Vec::new(),
             media_chains: Vec::new(),
+            layers: LayerTree::default(),
             next_order: 0,
             state_dependencies: ElementState::empty(),
             font_faces: Vec::new(),
@@ -243,15 +285,25 @@ impl Stylist {
             dark_canvas_text: false,
         };
         let ua = ParserContext::user_agent();
-        stylist.add_rules(&UA_SHEET.rules, &ua, CascadeOrigin::UserAgent, None);
+        stylist.add_rules(
+            &UA_SHEET.rules,
+            &ua,
+            CascadeOrigin::UserAgent,
+            Scope::default(),
+        );
         if stylist.quirks {
-            stylist.add_rules(&UA_QUIRKS_SHEET.rules, &ua, CascadeOrigin::UserAgent, None);
+            stylist.add_rules(
+                &UA_QUIRKS_SHEET.rules,
+                &ua,
+                CascadeOrigin::UserAgent,
+                Scope::default(),
+            );
         }
         stylist.add_rules(
             &HINTS_SHEET.rules,
             &ua,
             CascadeOrigin::PresentationalHint,
-            None,
+            Scope::default(),
         );
         stylist
     }
@@ -260,7 +312,7 @@ impl Stylist {
     /// `base_url`. Sheets must be added in document order.
     pub fn add_author_sheet(&mut self, sheet: &Stylesheet, base_url: &Url) {
         let cx = ParserContext::author(Some(Arc::new(base_url.clone())), self.quirks);
-        self.add_rules(&sheet.rules, &cx, CascadeOrigin::Author, None);
+        self.add_rules(&sheet.rules, &cx, CascadeOrigin::Author, Scope::default());
     }
 
     /// The element states that some selector depends on. When other
@@ -290,26 +342,86 @@ impl Stylist {
         rules: &[CssRule],
         cx: &ParserContext,
         origin: CascadeOrigin,
-        media: Option<u32>,
+        scope: Scope,
     ) {
         for rule in rules {
             match rule {
                 CssRule::Style(style) => {
                     let block = DeclarationBlock::parse(&style.declarations, cx);
-                    self.add_style_rule(&style.selectors, &Arc::new(block), origin, media);
+                    self.add_style_rule(&style.selectors, &Arc::new(block), origin, scope);
                 }
                 CssRule::Media(m) => {
-                    let chain = self.push_media(&m.media, media);
-                    self.add_rules(&m.rules, cx, origin, Some(chain));
+                    let chain = self.push_media(&m.media, scope.media);
+                    let inner = Scope {
+                        media: Some(chain),
+                        ..scope
+                    };
+                    self.add_rules(&m.rules, cx, origin, inner);
                 }
                 CssRule::Supports(s) => {
                     if s.condition.evaluate(&is_supported) {
-                        self.add_rules(&s.rules, cx, origin, media);
+                        self.add_rules(&s.rules, cx, origin, scope);
                     }
                 }
-                CssRule::FontFace(rule) => self.add_font_face(rule, cx, media),
-                CssRule::Import(_) | CssRule::Keyframes(_) => {}
+                CssRule::LayerBlock(b) => {
+                    if let Some(layer) = self.enter_layer(b.name.as_ref(), scope) {
+                        let inner = Scope { layer, ..scope };
+                        self.add_rules(&b.rules, cx, origin, inner);
+                    }
+                }
+                CssRule::LayerStatement(s) => self.declare_layers(&s.names, scope),
+                CssRule::FontFace(rule) => self.add_font_face(rule, cx, scope.media),
+                CssRule::Import(import) => self.declare_import_layer(import, scope),
+                CssRule::Keyframes(_) => {}
             }
+        }
+    }
+
+    /// The node of the layer that a block opens inside `scope`, declared at
+    /// this place. `None` if the tree is full.
+    fn enter_layer(&mut self, name: Option<&LayerName>, scope: Scope) -> Option<u32> {
+        let node = match name {
+            Some(name) => self.layers.node(scope.layer, name),
+            None => self.layers.anonymous(scope.layer),
+        }?;
+        self.layers.declare(node, scope.media);
+        Some(node)
+    }
+
+    /// Declares the layers of an `@layer` statement.
+    fn declare_layers(&mut self, names: &[LayerName], scope: Scope) {
+        for name in names {
+            if let Some(node) = self.layers.node(scope.layer, name) {
+                self.layers.declare(node, scope.media);
+            }
+        }
+    }
+
+    /// An `@import ... layer` declares its layer (swb loads no imports),
+    /// unless its `supports()` is false or its media do not match (measured
+    /// in Chromium 148: such an import does not count, a missing file does).
+    fn declare_import_layer(&mut self, import: &swb_css::ImportRule, scope: Scope) {
+        let Some(layer) = &import.layer else {
+            return;
+        };
+        if import
+            .supports
+            .as_ref()
+            .is_some_and(|c| !c.evaluate(&is_supported))
+        {
+            return;
+        }
+        let media = if import.media.is_empty() {
+            scope.media
+        } else {
+            Some(self.push_media(&import.media, scope.media))
+        };
+        let scope = Scope { media, ..scope };
+        match layer {
+            ImportLayer::Anonymous => {
+                self.enter_layer(None, scope);
+            }
+            ImportLayer::Named(name) => self.declare_layers(std::slice::from_ref(name), scope),
         }
     }
 
@@ -320,30 +432,42 @@ impl Stylist {
     /// `base_url`. Sheets must be added in document order.
     pub fn add_cssom_sheet(&mut self, sheet: &StyleSheet, base_url: &Url) {
         let cx = ParserContext::author(Some(Arc::new(base_url.clone())), self.quirks);
-        self.add_cssom_rules(sheet.rules(), &cx, None);
+        self.add_cssom_rules(sheet.rules(), &cx, Scope::default());
     }
 
-    fn add_cssom_rules(&mut self, rules: &[RuleRef], cx: &ParserContext, media: Option<u32>) {
+    fn add_cssom_rules(&mut self, rules: &[RuleRef], cx: &ParserContext, scope: Scope) {
         for rule in rules {
             let mut rule = rule.borrow_mut();
             match &mut rule.kind {
                 RuleKind::Style(style) => {
                     let block = style.cascade_block(cx);
-                    self.add_style_rule(style.selectors(), &block, CascadeOrigin::Author, media);
+                    self.add_style_rule(style.selectors(), &block, CascadeOrigin::Author, scope);
                 }
                 RuleKind::Media { media: list, rules } => {
-                    let chain = self.push_media(list, media);
-                    self.add_cssom_rules(rules, cx, Some(chain));
+                    let chain = self.push_media(list, scope.media);
+                    let inner = Scope {
+                        media: Some(chain),
+                        ..scope
+                    };
+                    self.add_cssom_rules(rules, cx, inner);
                 }
                 RuleKind::Supports {
                     condition, rules, ..
                 } => {
                     if condition.evaluate(&is_supported) {
-                        self.add_cssom_rules(rules, cx, media);
+                        self.add_cssom_rules(rules, cx, scope);
                     }
                 }
-                RuleKind::FontFace(face) => self.add_font_face(face, cx, media),
-                RuleKind::Import(_) | RuleKind::Keyframes(_) => {}
+                RuleKind::LayerBlock { name, rules } => {
+                    if let Some(layer) = self.enter_layer(name.as_ref(), scope) {
+                        let inner = Scope { layer, ..scope };
+                        self.add_cssom_rules(rules, cx, inner);
+                    }
+                }
+                RuleKind::LayerStatement { names } => self.declare_layers(names, scope),
+                RuleKind::FontFace(face) => self.add_font_face(face, cx, scope.media),
+                RuleKind::Import(import) => self.declare_import_layer(import, scope),
+                RuleKind::Keyframes(_) => {}
             }
         }
     }
@@ -380,7 +504,7 @@ impl Stylist {
         selectors: &SelectorList,
         block: &Arc<DeclarationBlock>,
         origin: CascadeOrigin,
-        media: Option<u32>,
+        scope: Scope,
     ) {
         if block.is_empty() {
             return;
@@ -418,7 +542,8 @@ impl Stylist {
                 block: Arc::clone(block),
                 origin,
                 sort_key: (u64::from(specificity) << 32) | u64::from(self.next_order),
-                media,
+                layer: scope.layer,
+                media: scope.media,
                 ancestor_hashes: ancestor_hashes(selector, self.quirks).into_iter().collect(),
                 uses_element_data,
             });
@@ -434,6 +559,13 @@ impl Stylist {
             .iter()
             .map(|chain| chain.iter().all(|&i| lists[i as usize]))
             .collect()
+    }
+
+    /// The rank of each layer node for the evaluated `@media` conditions
+    /// `media` (from [`Stylist::evaluate_media`]): see
+    /// [`LayerTree::ranks`]. Index it with [`Rule::layer`].
+    pub(crate) fn layer_ranks(&self, media: &[bool]) -> Arc<[u32]> {
+        self.layers.ranks(media)
     }
 
     /// The `@font-face` rules whose `@media` conditions match `env`, in
@@ -468,15 +600,17 @@ impl Stylist {
     }
 
     /// Finds the rules that match `el` (or its pseudo-element), sorted by
-    /// cascade order (origin, specificity, source order). `filter`, if
-    /// given, must hold exactly the ancestors of `el`. `scratch` is a
-    /// reusable buffer.
+    /// the cascade order of normal declarations (origin, layer rank,
+    /// specificity, source order). `layer_ranks` is from
+    /// [`Stylist::layer_ranks`]. `filter`, if given, must hold exactly the
+    /// ancestors of `el`. `scratch` is a reusable buffer.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn matching_rules(
         &self,
         el: &DomElement<'_>,
         target: RuleTarget,
         media: &[bool],
+        layer_ranks: &[u32],
         filter: Option<&AncestorFilter>,
         context: &mut MatchingContext,
         scratch: &mut Vec<u32>,
@@ -503,7 +637,7 @@ impl Stylist {
                 out.push(index);
             }
         }
-        out.sort_unstable_by_key(|&i| self.rules[i as usize].cascade_key());
+        out.sort_unstable_by_key(|&i| self.rules[i as usize].cascade_key(layer_ranks));
         // In quirks mode, two classes that differ only in case look up the
         // same bucket.
         out.dedup();

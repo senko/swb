@@ -23,7 +23,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use swb_css::MediaQueryList;
+use swb_css::{ImportLayer, MediaQueryList};
 use swb_dom::NodeId;
 use swb_js::{Gc, GenericData, HostData, Object, Runtime, Tracer, Value, VmError};
 use swb_style::cssom::sheet::{self as model, RuleError, RuleKind, RuleRef, SheetRef, StyleSheet};
@@ -257,6 +257,8 @@ pub(crate) fn wrap_rule(cx: &mut Cx<'_>, rule: RuleRef) -> b::Result<Gc<Object>>
         RuleKind::Style(_) => g::CSS_STYLE_RULE,
         RuleKind::Media { .. } => g::CSS_MEDIA_RULE,
         RuleKind::Supports { .. } => g::CSS_SUPPORTS_RULE,
+        RuleKind::LayerBlock { .. } => g::CSS_LAYER_BLOCK_RULE,
+        RuleKind::LayerStatement { .. } => g::CSS_LAYER_STATEMENT_RULE,
         RuleKind::Import(_) => g::CSS_IMPORT_RULE,
         RuleKind::FontFace(_) => g::CSS_FONT_FACE_RULE,
         RuleKind::Keyframes(_) => g::CSS_KEYFRAMES_RULE,
@@ -391,6 +393,10 @@ fn group_error(error: RuleError, index: u32, text: &str, delete: bool) -> b::Exc
         RuleError::ImportInGroup => b::Exception::dom(
             "HierarchyRequestError",
             "'@import' rules cannot be inserted inside a group rule.",
+        ),
+        RuleError::Syntax => b::Exception::dom(
+            "SyntaxError",
+            format!("the rule '{text}' is invalid and cannot be parsed."),
         ),
         other => sheet_error(other, index, text, delete),
     }
@@ -722,14 +728,53 @@ impl g::css_import_rule::CSSImportRuleImpl for WebState {
         Ok(None)
     }
 
-    /// Always null: swb ignores `layer()` of `@import`.
-    fn layer_name(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<String>> {
-        Ok(None)
+    /// Null without `layer`, the empty string for `layer`, else the name
+    /// (Chromium 148).
+    fn layer_name(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<String>> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::Import(import) => import.layer.as_ref().map(|layer| match layer {
+                ImportLayer::Anonymous => String::new(),
+                ImportLayer::Named(name) => name.to_string(),
+            }),
+            _ => None,
+        })
     }
 
-    /// Always null (departure: swb keeps the condition, not its text).
-    fn supports_text(_cx: &mut Cx<'_>, _this: Platform) -> b::Result<Option<String>> {
-        Ok(None)
+    /// The text inside `supports(...)`, null without it.
+    fn supports_text(cx: &mut Cx<'_>, this: Platform) -> b::Result<Option<String>> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::Import(import) => import.supports_text.clone(),
+            _ => None,
+        })
+    }
+}
+
+impl g::css_layer_block_rule::CSSLayerBlockRuleImpl for WebState {
+    /// The dotted name; the empty string for an anonymous layer.
+    fn name(cx: &mut Cx<'_>, this: Platform) -> b::Result<String> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::LayerBlock { name, .. } => {
+                name.as_ref().map(ToString::to_string).unwrap_or_default()
+            }
+            _ => String::new(),
+        })
+    }
+}
+
+impl g::css_layer_statement_rule::CSSLayerStatementRuleImpl for WebState {
+    fn name_list(cx: &mut Cx<'_>, this: Platform) -> b::Result<Vec<String>> {
+        let rule = rule_of(cx.rt, this)?;
+        let rule = rule.borrow();
+        Ok(match &rule.kind {
+            RuleKind::LayerStatement { names } => names.iter().map(ToString::to_string).collect(),
+            _ => Vec::new(),
+        })
     }
 }
 

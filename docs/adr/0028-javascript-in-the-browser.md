@@ -5198,9 +5198,10 @@ swb with the departures in `SWB_VALUES`.
   alone. `HTMLStyleElement.disabled` and `type` (obsolete, reflected) came
   with this feature.
 - **Departures.** The rules that swb's parser drops are not in the lists
-  and are a `SyntaxError` for `insertRule` (`@page`, `@layer`,
+  and are a `SyntaxError` for `insertRule` (`@page`,
   `@container`, `@counter-style`, `@namespace`, selectors that swb does not
-  parse such as `::-webkit-scrollbar`), and `@layer` blocks are flattened;
+  parse such as `::-webkit-scrollbar`; `@layer` until M10 feature 1, which
+  added `CSSLayerBlockRule` and `CSSLayerStatementRule`, ADR 0007);
   no `CSSKeyframeRule` (`CSSKeyframesRule` has `name` only) and no
   `CSSFontFaceRule.style`; `@import` sheets and alternate style sheets are
   not loaded (`styleSheet` is null, the alternate sheets are not in

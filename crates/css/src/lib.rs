@@ -46,8 +46,8 @@ pub use selector::{
 pub use serialize::{serialize_component_values, serialize_identifier, serialize_string};
 pub use sizes::{allows_auto, source_size};
 pub use stylesheet::{
-    CssRule, Declaration, FontFaceRule, ImportRule, Keyframe, KeyframesRule, MediaRule, StyleRule,
-    Stylesheet, SupportsRule,
+    CssRule, Declaration, FontFaceRule, ImportLayer, ImportRule, Keyframe, KeyframesRule,
+    LayerBlockRule, LayerName, LayerStatementRule, MediaRule, StyleRule, Stylesheet, SupportsRule,
 };
 pub use supports::SupportsCondition;
 pub use tokenizer::{Number, Token, tokenize};

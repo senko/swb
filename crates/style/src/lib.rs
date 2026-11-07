@@ -12,7 +12,8 @@
 //! - `properties`: longhand and shorthand parsers, specified values,
 //!   computing values.
 //! - `custom`: custom properties and `var()` substitution.
-//! - `stylist`: rule storage and lookup.
+//! - `stylist`: rule storage and lookup; `layers`: the cascade layer tree
+//!   and the order of the layers.
 //! - `bloom`: the ancestor Bloom filter that rejects rules early.
 //! - `cascade`: the cascade, inheritance and computed-value fixups.
 //! - `hints`: presentational hints from HTML attributes;
@@ -48,6 +49,7 @@ mod element_kinds;
 mod font_face;
 mod font_settings;
 mod hints;
+mod layers;
 mod parse;
 mod properties;
 mod query;

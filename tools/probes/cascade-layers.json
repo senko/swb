@@ -1,0 +1,2678 @@
+{
+ "viewport": [
+  800,
+  600
+ ],
+ "cases": [
+  {
+   "name": "gh-layer-unlayered-beats-layered",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { #p, p.x { width: 10px } } p { width: 20px }</style><p id=p class=x>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-order-by-statement",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a, b; @layer b { p { width: 10px } } @layer a { #p { width: 20px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-order-by-first-block",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { p { width: 10px } } @layer b { p { width: 20px } } @layer a { #p { width: 30px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-important-reverses",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a, b; @layer a { p { width: 10px !important } } @layer b { p { width: 20px !important } } p { width: 30px !important }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-nested",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer a { @layer b { #p { width: 10px } } p { width: 20px } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-anonymous-and-revert-layer",
+   "html": "<!DOCTYPE html><style>p,span,div,a{display:block;height:4px}@layer { p { width: 10px } } @layer b { p { width: 20px } } @layer c { p { width: revert-layer } }</style><p id=p>x</p>",
+   "measure": [
+    {
+     "boxes": "#p"
+    }
+   ]
+  },
+  {
+   "name": "gh-layer-github-primer-pattern",
+   "html": "<!DOCTYPE html><style>@layer primer-css-base, primer-react, primer-brand; @layer primer-css-base { a { color: rgb(9,105,218); text-decoration: none } } @layer primer-react { [data-variant=normal] .link { color: rgb(9,105,218) } } .crumb { color: rgb(31,35,40) }</style><div data-variant=normal><a id=a class='link crumb' href=#>senko</a></div>",
+   "measure": [
+    {
+     "style": "#a",
+     "props": [
+      "color",
+      "text-decoration-line"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-none",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-statement-before",
+   "html": "<!DOCTYPE html><style>@layer a, b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-statement-after",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:red}} @layer a{p{color:blue}}@layer a, b;</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-statement-single-then-block",
+   "html": "<!DOCTYPE html><style>@layer a;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-empty-block-counts",
+   "html": "<!DOCTYPE html><style>@layer a{}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-statement-list-in-block",
+   "html": "<!DOCTYPE html><style>@layer x{@layer a, b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-case-sensitive",
+   "html": "<!DOCTYPE html><style>@layer A{p{color:red}} @layer a{p{color:blue}} @layer A{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-same-layer-later-wins",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}} @layer b{p{color:green}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-anonymous-each-own",
+   "html": "<!DOCTYPE html><style>@layer{p{color:red}} @layer{p{color:blue}} @layer x{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "order-anonymous-vs-statement",
+   "html": "<!DOCTYPE html><style>@layer x;@layer{p{color:red}} @layer x{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "unlayered-before-layer",
+   "html": "<!DOCTYPE html><style>p{color:red} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "unlayered-low-spec-beats-layered-high",
+   "html": "<!DOCTYPE html><style>@layer a{#p{color:blue}} p{color:red}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "layer-spec-inside-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red} #p{color:green} p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-dotted-vs-nested",
+   "html": "<!DOCTYPE html><style>@layer a.b{p{color:red}} @layer a{@layer b{p{color:blue}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-dotted-vs-nested-reverse",
+   "html": "<!DOCTYPE html><style>@layer a{@layer b{p{color:red}}} @layer a.b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-parent-own-after-sublayers",
+   "html": "<!DOCTYPE html><style>@layer a{@layer b{#p{color:red}} p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-parent-own-written-first",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:blue} @layer b{#p{color:red}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-sublayer-before-sibling",
+   "html": "<!DOCTYPE html><style>@layer a{@layer x{p{color:red}}} @layer b{p{color:green}} @layer a{@layer y{p{color:blue}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-sublayer-declared-late-stays-in-parent",
+   "html": "<!DOCTYPE html><style>@layer a{@layer x{p{color:red}}} @layer b{p{color:green}} @layer a.y{p{color:blue}} </style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-sublayer-order-late",
+   "html": "<!DOCTYPE html><style>@layer a{@layer y{p{color:red}}} @layer b{p{color:green}} @layer a.x{p{color:blue}} @layer a{@layer y{p{color:red}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-dotted-three",
+   "html": "<!DOCTYPE html><style>@layer a.b.c{p{color:red}} @layer a.b{p{color:blue}} @layer a{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-dotted-same-name-in-two-parents",
+   "html": "<!DOCTYPE html><style>@layer a.x{p{color:red}} @layer b.x{p{color:blue}} @layer a.x{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-statement-dotted",
+   "html": "<!DOCTYPE html><style>@layer a.b, a.c; @layer a.c{p{color:red}} @layer a.b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-statement-in-block",
+   "html": "<!DOCTYPE html><style>@layer a{@layer y, x;} @layer a.x{p{color:red}} @layer a.y{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-in-media",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}} @media all{@layer b{p{color:blue}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-in-media-reverse",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:blue}} @media all{@layer a{p{color:red}}} @layer a{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-in-supports",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}} @supports (display:block){@layer b{p{color:blue}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-media-inside-layer",
+   "html": "<!DOCTYPE html><style>@layer a{@media all{p{color:red}} } @layer b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-media-inside-layer-false",
+   "html": "<!DOCTYPE html><style>@layer a{@media (min-width:5000px){p{color:red}} p{color:green}} @layer b{@media all{p{color:blue}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nest-supports-inside-layer",
+   "html": "<!DOCTYPE html><style>@layer a{@supports (display:block){p{color:red}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-media-false-statement",
+   "html": "<!DOCTYPE html><style>@media (min-width:5000px){@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-media-false-block",
+   "html": "<!DOCTYPE html><style>@media (min-width:5000px){@layer a{p{color:green}}}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-media-true-statement",
+   "html": "<!DOCTYPE html><style>@media all{@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-supports-false-statement",
+   "html": "<!DOCTYPE html><style>@supports (foo:bar){@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-supports-false-block",
+   "html": "<!DOCTYPE html><style>@supports (foo:bar){@layer a{p{color:green}}}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-supports-true-statement",
+   "html": "<!DOCTYPE html><style>@supports (display:block){@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-media-print-statement",
+   "html": "<!DOCTYPE html><style>@media print{@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-media-false-nested-in-layer",
+   "html": "<!DOCTYPE html><style>@layer x{@media (min-width:5000px){@layer a,b;}}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cond-supports-false-invalid-condition",
+   "html": "<!DOCTYPE html><style>@supports (display){@layer a,b;}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-missing",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer(a);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-anonymous-missing",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer;@layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-after-statement",
+   "html": "<!DOCTYPE html><style>@layer b; @import url(missing.css) layer(a); @layer a{p{color:red}} @layer b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-media-false",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer(a) (min-width:5000px);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-supports-false",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer(a) supports(foo:bar);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-after-rule",
+   "html": "<!DOCTYPE html><style>p{} @import url(missing.css) layer(a);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-dotted",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer(a.b); @layer a{p{color:red}} @layer c{p{color:blue}} @layer a.b{p{color:green}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-invalid-name",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) layer(a b);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-layer-uppercase",
+   "html": "<!DOCTYPE html><style>@import url(missing.css) LAYER(a);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "import-statement-before-import",
+   "html": "<!DOCTYPE html><style>@layer a,b; @import url(missing.css); @layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-b",
+   "html": "<!DOCTYPE html><style>@layer a b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-comma",
+   "html": "<!DOCTYPE html><style>@layer a,;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-comma-a",
+   "html": "<!DOCTYPE html><style>@layer ,a;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-comma-b-block",
+   "html": "<!DOCTYPE html><style>@layer a, b {}@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dot",
+   "html": "<!DOCTYPE html><style>@layer a.;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-dot-a",
+   "html": "<!DOCTYPE html><style>@layer .a;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dot-space-b",
+   "html": "<!DOCTYPE html><style>@layer a. b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-space-dot-b",
+   "html": "<!DOCTYPE html><style>@layer a .b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-comment-dot-b",
+   "html": "<!DOCTYPE html><style>@layer a/**/.b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-digit-start",
+   "html": "<!DOCTYPE html><style>@layer 1a;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-string",
+   "html": "<!DOCTYPE html><style>@layer 'a';@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-important",
+   "html": "<!DOCTYPE html><style>@layer a !important;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-paren",
+   "html": "<!DOCTYPE html><style>@layer a(b);@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-and-valid",
+   "html": "<!DOCTYPE html><style>@layer a, b c;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-empty-statement",
+   "html": "<!DOCTYPE html><style>@layer;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dot-dot-b",
+   "html": "<!DOCTYPE html><style>@layer a..b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dash-b",
+   "html": "<!DOCTYPE html><style>@layer a-b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dot-digit",
+   "html": "<!DOCTYPE html><style>@layer a.1;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-stmt-a-dot-dashdash",
+   "html": "<!DOCTYPE html><style>@layer a.--b;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-a-b",
+   "html": "<!DOCTYPE html><style>@layer a b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-a-comma-b",
+   "html": "<!DOCTYPE html><style>@layer a, b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-a-dot-b",
+   "html": "<!DOCTYPE html><style>@layer a.b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-a-space-dot-b",
+   "html": "<!DOCTYPE html><style>@layer a .b{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-digit",
+   "html": "<!DOCTYPE html><style>@layer 1a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-string",
+   "html": "<!DOCTYPE html><style>@layer 'a'{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-anonymous",
+   "html": "<!DOCTYPE html><style>@layer {p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-anonymous-no-space",
+   "html": "<!DOCTYPE html><style>@layer{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "invalid-block-trailing-comma",
+   "html": "<!DOCTYPE html><style>@layer a,{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-initial",
+   "html": "<!DOCTYPE html><style>@layer initial{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-initial",
+   "html": "<!DOCTYPE html><style>@layer a, initial;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-initial",
+   "html": "<!DOCTYPE html><style>@layer a.initial{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-inherit",
+   "html": "<!DOCTYPE html><style>@layer inherit{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-inherit",
+   "html": "<!DOCTYPE html><style>@layer a, inherit;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-inherit",
+   "html": "<!DOCTYPE html><style>@layer a.inherit{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-unset",
+   "html": "<!DOCTYPE html><style>@layer unset{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-unset",
+   "html": "<!DOCTYPE html><style>@layer a, unset;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-unset",
+   "html": "<!DOCTYPE html><style>@layer a.unset{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-revert",
+   "html": "<!DOCTYPE html><style>@layer revert{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-revert",
+   "html": "<!DOCTYPE html><style>@layer a, revert;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-revert",
+   "html": "<!DOCTYPE html><style>@layer a.revert{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-revert-layer",
+   "html": "<!DOCTYPE html><style>@layer revert-layer{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-revert-layer",
+   "html": "<!DOCTYPE html><style>@layer a, revert-layer;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-revert-layer",
+   "html": "<!DOCTYPE html><style>@layer a.revert-layer{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-default",
+   "html": "<!DOCTYPE html><style>@layer default{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-default",
+   "html": "<!DOCTYPE html><style>@layer a, default;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-default",
+   "html": "<!DOCTYPE html><style>@layer a.default{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-none",
+   "html": "<!DOCTYPE html><style>@layer none{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-none",
+   "html": "<!DOCTYPE html><style>@layer a, none;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-none",
+   "html": "<!DOCTYPE html><style>@layer a.none{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-auto",
+   "html": "<!DOCTYPE html><style>@layer auto{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-auto",
+   "html": "<!DOCTYPE html><style>@layer a, auto;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-auto",
+   "html": "<!DOCTYPE html><style>@layer a.auto{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-initial-upper",
+   "html": "<!DOCTYPE html><style>@layer INITIAL{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-initial-upper",
+   "html": "<!DOCTYPE html><style>@layer a, INITIAL;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-initial-upper",
+   "html": "<!DOCTYPE html><style>@layer a.INITIAL{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-block-inherit-upper",
+   "html": "<!DOCTYPE html><style>@layer Inherit{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-stmt-inherit-upper",
+   "html": "<!DOCTYPE html><style>@layer a, Inherit;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-dotted-inherit-upper",
+   "html": "<!DOCTYPE html><style>@layer a.Inherit{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "keyword-first-in-list",
+   "html": "<!DOCTYPE html><style>@layer initial, a;@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-reversed",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important}}@layer b{p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-unlayered-weakest",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important}}p{color:blue!important}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-layered-beats-normal-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important}}p{color:blue}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-normal-layer-vs-important-lower",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}} @layer b{p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-sublayers-reversed",
+   "html": "<!DOCTYPE html><style>@layer a{@layer x{p{color:red!important}}@layer y{p{color:green!important}}p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-parent-own-weakest",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:blue!important} @layer x{p{color:red!important}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-statement-order",
+   "html": "<!DOCTYPE html><style>@layer b, a; @layer a{p{color:red!important}}@layer b{p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-anonymous",
+   "html": "<!DOCTYPE html><style>@layer{p{color:red!important}}@layer{p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-same-layer-specificity",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important} #p{color:blue!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-attr-important-vs-layer-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important}}</style><p id=p style='color:blue!important'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-attr-normal-vs-layer-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important}}</style><p id=p style='color:blue'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-attr-normal-vs-layer-normal",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}}</style><p id=p style='color:blue'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-attr-normal-vs-unlayered-important",
+   "html": "<!DOCTYPE html><style>p{color:red!important}</style><p id=p style='color:blue'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-attr-important-vs-unlayered-important",
+   "html": "<!DOCTYPE html><style>p{color:red!important}</style><p id=p style='color:blue!important'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-mixed-in-layers",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red!important;width:10px}} @layer b{p{color:blue;width:20px!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "imp-shorthand-in-layers",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin:1px!important}} @layer b{p{margin-top:5px!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-normal-layer-vs-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A}} p{--x:U}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-normal-layer-order",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A}} @layer b{p{--x:B}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-important-layer-vs-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A!important}} p{--x:U}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-important-layer-vs-unlayered-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A!important}} p{--x:U!important}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-important-reversed",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A!important}} @layer b{p{--x:B!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-important-vs-attr",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A!important}}</style><p id=p style='--x:S'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-var-in-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A}} @layer b{p{width:var(--x,10px)}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-var-resolves-by-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{--w:10px}} @layer b{p{--w:20px}} p{width:var(--w)}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "custom-var-resolves-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{--w:10px!important}} @layer b{p{--w:20px!important}} p{width:var(--w)}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hint-img-attributes",
+   "html": "<!DOCTYPE html><style>@layer a{#i{width:50px}} #j{width:50px} @layer b{#k{height:50px}}</style><img id=i width=10 height=10 src=data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==><img id=j width=10 height=10 src=data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==><img id=k width=10 height=10 src=data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==>",
+   "measure": [
+    {
+     "boxes": "#i, #j, #k"
+    }
+   ]
+  },
+  {
+   "name": "hint-img-low-spec-layered",
+   "html": "<!DOCTYPE html><style>@layer a{img{width:50px}}</style><img id=i width=10 height=10 src=data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==>",
+   "measure": [
+    {
+     "boxes": "#i"
+    }
+   ]
+  },
+  {
+   "name": "hint-font-color",
+   "html": "<!DOCTYPE html><style>@layer a{font{color:blue}} #g{color:green}</style><font id=f color=red>x</font><font id=g color=red>x</font>",
+   "measure": [
+    {
+     "style": "#f",
+     "props": [
+      "color"
+     ]
+    },
+    {
+     "style": "#g",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hint-font-color-important",
+   "html": "<!DOCTYPE html><style>@layer a{font{color:blue!important}}</style><font id=f color=red>x</font>",
+   "measure": [
+    {
+     "style": "#f",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hint-align",
+   "html": "<!DOCTYPE html><style>@layer a{div{text-align:left}}</style><div id=d align=center>x</div>",
+   "measure": [
+    {
+     "style": "#d",
+     "props": [
+      "text-align"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hint-table-border",
+   "html": "<!DOCTYPE html><style>@layer a{table{border-top-width:1px}}</style><table id=t border=5><tr><td>x</td></tr></table>",
+   "measure": [
+    {
+     "style": "#t",
+     "props": [
+      "border-top-width"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hint-bgcolor",
+   "html": "<!DOCTYPE html><style>@layer a{body{background-color:blue}}</style><body id=b bgcolor=red>x",
+   "measure": [
+    {
+     "style": "#b",
+     "props": [
+      "background-color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-normal",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} p{color:blue}</style><p id=p style='color:revert-layer'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-normal-no-layers",
+   "html": "<!DOCTYPE html><style>p{color:blue}</style><p id=p style='color:revert-layer'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-normal-ua",
+   "html": "<!DOCTYPE html><style>a{margin-top:7px}</style><p id=p style='margin-top:revert-layer'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} p{color:revert-layer}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-unlayered-lower-rule",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} p{color:red} #p{color:revert-layer}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-unlayered-no-layers",
+   "html": "<!DOCTYPE html><style>p{color:red} #p{color:revert-layer}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-unlayered-no-layers-ua",
+   "html": "<!DOCTYPE html><style>p{margin-top:7px} #p{margin-top:revert-layer}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-first-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin-top:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-first-layer-with-lower-rule",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin-top:7px} #p{margin-top:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-second-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-second-layer-same-layer-rule",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{color:red} #p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-second-layer-skips-two",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{color:red}} @layer c{p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-sublayer",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green} @layer x{p{color:revert-layer}}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-parent-own",
+   "html": "<!DOCTYPE html><style>@layer a{@layer x{p{color:green}} p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-anonymous-layers",
+   "html": "<!DOCTYPE html><style>@layer{p{color:green}} @layer{p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-third-layer-middle-empty",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{} @layer c{p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-first-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin-top:revert-layer!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-two-layers",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:revert-layer!important}} @layer b{p{color:green!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-reverts-to-later-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:revert-layer!important}} @layer b{p{color:green!important}} @layer c{p{color:red!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-second-layer",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green!important}} @layer b{p{color:revert-layer!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-with-normal-below",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{color:revert-layer!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-normal-with-important-below",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green!important}} @layer b{p{color:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green!important}} @layer b{p{color:red!important}}</style><p id=p style='color:revert-layer!important'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-important-no-layers",
+   "html": "<!DOCTYPE html><style>p{color:red!important}</style><p id=p style='color:revert-layer!important'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-hint-below",
+   "html": "<!DOCTYPE html><style>@layer a{font{color:revert-layer}}</style><font id=p color=red>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-hint-unlayered",
+   "html": "<!DOCTYPE html><style>font{color:revert-layer}</style><font id=p color=red>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-hint-with-layer-below",
+   "html": "<!DOCTYPE html><style>@layer a{font{color:green}} font{color:revert-layer}</style><font id=p color=red>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-hint-with-empty-layer-below",
+   "html": "<!DOCTYPE html><style>@layer a{} font{color:revert-layer}</style><font id=p color=red>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-sees-lower-normal",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{color:red}} @layer c{p{color:revert-layer!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-skips-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:revert-layer!important}} p{color:green}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-important-skips-own-normal",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red} #p{color:revert-layer!important}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-unlayered-important",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} p{color:revert-layer!important}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-hint",
+   "html": "<!DOCTYPE html><style></style><font id=p color=red style='color:revert-layer'>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-over-layers-and-unlayered",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}} p{color:green}</style><p id=p style='color:revert-layer'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-attr-important-over-unlayered-normal",
+   "html": "<!DOCTYPE html><style>p{color:green}</style><p id=p style='color:revert-layer!important'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rv-hint",
+   "html": "<!DOCTYPE html><style>font{color:revert}</style><font id=p color=red>x</font>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rv-layered",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin-top:revert}} @layer b{p{margin-top:3px}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rv-attr",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin-top:5px}}</style><p id=p style='margin-top:revert'>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-shorthand",
+   "html": "<!DOCTYPE html><style>@layer a{p{margin:3px}} @layer b{p{margin:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-all",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green;margin-top:4px}} @layer b{p{all:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-all-margin",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green;margin-top:4px}} @layer b{p{all:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "margin-top"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-custom-property",
+   "html": "<!DOCTYPE html><style>@layer a{p{--x:A}} @layer b{p{--x:revert-layer}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "--x"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-var",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:green}} @layer b{p{--r:revert-layer;color:var(--r)}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rl-inherit-chain",
+   "html": "<!DOCTYPE html><style>@layer a{div{color:green}} @layer b{p{color:revert-layer}}</style><div><p id=p>x</p></div>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "font-face-in-layer",
+   "html": "<!DOCTYPE html><style>@layer a{@font-face{font-family:W;src:local('DejaVu Sans')}} #w{font:16px W,serif} #s{font:16px serif}</style><span id=w>Hamburgefonstiv</span><br><span id=s>Hamburgefonstiv</span>",
+   "measure": [
+    {
+     "boxes": "#w, #s"
+    }
+   ]
+  },
+  {
+   "name": "font-face-in-unlayered",
+   "html": "<!DOCTYPE html><style>@font-face{font-family:W;src:local('DejaVu Sans')} #w{font:16px W,serif} #s{font:16px serif}</style><span id=w>Hamburgefonstiv</span><br><span id=s>Hamburgefonstiv</span>",
+   "measure": [
+    {
+     "boxes": "#w, #s"
+    }
+   ]
+  },
+  {
+   "name": "font-face-in-media-in-layer",
+   "html": "<!DOCTYPE html><style>@layer a{@media (min-width:5000px){@font-face{font-family:W;src:local('DejaVu Sans')}}} #w{font:16px W,serif}</style><span id=w>Hamburgefonstiv</span>",
+   "measure": [
+    {
+     "boxes": "#w"
+    }
+   ]
+  },
+  {
+   "name": "sheets-b-then-a",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:red}}</style><style>@layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-a-then-ba",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}}</style><style>@layer b{p{color:green}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-statement-in-second",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:red}}</style><style>@layer a, b; @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-statement-in-first",
+   "html": "<!DOCTYPE html><style>@layer a, b;</style><style>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-unlayered-second",
+   "html": "<!DOCTYPE html><style>@layer a{p{color:red}}</style><style>p{color:blue}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-unlayered-first",
+   "html": "<!DOCTYPE html><style>p{color:blue}</style><style>@layer a{p{color:red}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-sublayers-across",
+   "html": "<!DOCTYPE html><style>@layer a{@layer x{p{color:red}}}</style><style>@layer b{p{color:green}} @layer a.y{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-anonymous-across",
+   "html": "<!DOCTYPE html><style>@layer{p{color:red}}</style><style>@layer{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-media-attribute-false",
+   "html": "<!DOCTYPE html><style media='(min-width:5000px)'>@layer a,b;</style><style>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-disabled-attribute",
+   "html": "<!DOCTYPE html><style media='print'>@layer a,b;</style><style>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sheets-body-style",
+   "html": "<!DOCTYPE html><style>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><style>@layer c{p{color:green}}</style>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "color"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pseudo-element-layers",
+   "html": "<!DOCTYPE html><style>@layer a{p::before{content:'a'}} @layer b{p::before{content:'b'}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "style": "#p",
+     "props": [
+      "content"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pseudo-element-layers-before",
+   "html": "<!DOCTYPE html><style>@layer a{#p::before{content:'a';color:red}} @layer b{p::before{content:'b';color:blue}}</style><p id=p>x</p>",
+   "measure": [
+    {
+     "js": "getComputedStyle(document.getElementById('p'), '::before').content + ' ' + getComputedStyle(document.getElementById('p'), '::before').color"
+    }
+   ]
+  },
+  {
+   "name": "cssom-rules",
+   "html": "<!DOCTYPE html><style id=s>@layer a, b.c; @layer c { p { color: red } } @layer { p { color: blue } } @layer d { @layer e { p { color: green } } span { top: 1px } @layer f, g; } @media screen { @layer h { i { top: 2px } } } @layer   x  .  y  ; @layer i.j { }</style><p id=p>x</p><span id=span>s</span><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => Array.from(s.sheet.cssRules).map(T))"
+    },
+    {
+     "js": "E(() => s.sheet.cssRules.length)"
+    },
+    {
+     "js": "E(() => Array.from(s.sheet.cssRules).map(r => r.constructor.name + ':' + (r.name === undefined ? 'u' : JSON.stringify(r.name)) + ':' + (r.nameList === undefined ? 'u' : JSON.stringify(Array.from(r.nameList)))))"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; return [Array.isArray(r.nameList), r.nameList === r.nameList, Object.isFrozen(r.nameList), r.nameList.length, r.nameList.constructor.name, typeof r.cssRules, r.cssRules === undefined]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[1]; return [r.constructor.name, Object.getPrototypeOf(r.constructor).name, r.name, r.cssRules.length, r.cssRules[0].constructor.name, r.cssRules[0].parentRule === r, r.cssRules[0].parentStyleSheet === s.sheet, r.parentRule, r.parentStyleSheet === s.sheet, r.cssRules[0].selectorText]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[3]; return [r.name, r.cssRules.length, T(r.cssRules[0]), T(r.cssRules[1]), T(r.cssRules[2]), r.cssRules[0].parentRule === r, r.cssRules[0].cssRules[0].parentRule === r.cssRules[0]]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[4]; return [T(r), T(r.cssRules[0]), r.cssRules[0].parentRule === r, r.media.mediaText]; })"
+    },
+    {
+     "js": "E(() => [Object.getPrototypeOf(CSSLayerBlockRule) === CSSGroupingRule, Object.getPrototypeOf(CSSLayerStatementRule) === CSSRule, Object.getPrototypeOf(CSSLayerBlockRule.prototype) === CSSGroupingRule.prototype, Object.getPrototypeOf(CSSLayerStatementRule.prototype) === CSSRule.prototype, typeof CSSLayerBlockRule, typeof CSSLayerStatementRule, CSSLayerBlockRule.name, CSSLayerStatementRule.length, CSSLayerBlockRule.length])"
+    },
+    {
+     "js": "E(() => [Object.getOwnPropertyNames(CSSLayerBlockRule.prototype).sort().join(), Object.getOwnPropertyNames(CSSLayerStatementRule.prototype).sort().join()])"
+    },
+    {
+     "js": "E(() => [String(s.sheet.cssRules[0]), String(s.sheet.cssRules[1]), Object.prototype.toString.call(s.sheet.cssRules[0]), Object.prototype.toString.call(s.sheet.cssRules[1])])"
+    },
+    {
+     "js": "E(() => { const d = Object.getOwnPropertyDescriptor(CSSLayerBlockRule.prototype, 'name'); const n = Object.getOwnPropertyDescriptor(CSSLayerStatementRule.prototype, 'nameList'); return [typeof d.get, typeof d.set, d.enumerable, d.configurable, typeof n.get, typeof n.set, n.enumerable]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[1]; r.name = 'zz'; return [r.name, r.cssText]; })"
+    },
+    {
+     "js": "E(() => [C('#p', 'color'), C('#span', 'top')])"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-insert-statement",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => C('#p', 'color'))"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a, b;', 0), C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)])"
+    },
+    {
+     "js": "E(() => [s.sheet.deleteRule(0), C('#p', 'color'), s.sheet.cssRules.length])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a, b;', 2), C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer c;', s.sheet.cssRules.length), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a b;'), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a, ;'), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a {} @layer b;'), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer ;'), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer initial;'), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer x { p { color: green } }', 0), C('#p', 'color'), T(s.sheet.cssRules[0])])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer { p { color: pink } }', 0), C('#p', 'color'), T(s.sheet.cssRules[0]), JSON.stringify(s.sheet.cssRules[0].name)])"
+    },
+    {
+     "js": "E(() => { s.sheet.deleteRule(0); s.sheet.deleteRule(0); return [C('#p', 'color'), Array.from(s.sheet.cssRules).map(T)]; })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-insert-in-block",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => { s.sheet.insertRule('@layer a { }', 0); const r = s.sheet.cssRules[0]; return [r.insertRule('p { color: green }', 0), C('#p', 'color'), T(r)]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer inner { p { color: pink } }', 0), C('#p', 'color'), T(r), r.cssRules[0].constructor.name]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer z;', 0), T(r)]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; return [r.insertRule('@layer q, r;', 1), r.cssRules.length, Array.from(r.cssRules).map(x => x.constructor.name)]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('@import url(x.css);', 0); })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('@layer a b;', 0); })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('p { color: green }', 99); })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; r.deleteRule(99); })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; const n = r.cssRules.length; r.deleteRule(0); return [n, r.cssRules.length, C('#p', 'color')]; })"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; while (r.cssRules.length) r.deleteRule(0); return [C('#p', 'color'), T(r)]; })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-insert-order-by-block",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer a { }', 0), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer c { p { color: pink } }', s.sheet.cssRules.length), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@layer { p { color: green } }', 0), C('#p', 'color')])"
+    },
+    {
+     "js": "E(() => { const r = s.sheet.cssRules[0]; r.insertRule('p { color: orange }', 0); return C('#p', 'color'); })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-media-and-nested",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => { s.sheet.insertRule('@media all { @layer m { p { color: green } } }', 0); return [C('#p', 'color'), T(s.sheet.cssRules[0]), T(s.sheet.cssRules[0].cssRules[0])]; })"
+    },
+    {
+     "js": "E(() => { const m = s.sheet.cssRules[0]; m.insertRule('@layer a, b;', 0); return [C('#p', 'color'), T(m)]; })"
+    },
+    {
+     "js": "E(() => { const m = s.sheet.cssRules[0]; return [m.insertRule('@layer n { @layer o { } }', 0), T(m.cssRules[0]), m.cssRules[0].cssRules[0].parentRule === m.cssRules[0]]; })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-second-sheet",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => { const t = document.createElement('style'); t.textContent = '@layer a, b;'; document.head.appendChild(t); return [C('#p', 'color'), Array.from(t.sheet.cssRules).map(T)]; })"
+    },
+    {
+     "js": "E(() => { const t = document.createElement('style'); t.textContent = '@layer b { p { color: green } }'; document.head.insertBefore(t, s); return [C('#p', 'color')]; })"
+    },
+    {
+     "js": "E(() => { window.keep = s; s.remove(); return C('#p', 'color'); })"
+    },
+    {
+     "js": "E(() => { keep.textContent = '@layer q { p { color: pink } }'; document.head.appendChild(keep); return [C('#p', 'color'), Array.from(keep.sheet.cssRules).map(T)]; })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-text-forms",
+   "html": "<!DOCTYPE html><style id=s>@layer b{p{color:red}} @layer a{p{color:blue}}</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => { const t = document.createElement('style'); t.textContent = '@layer   a  ,b.c ,  d;@layer  x.y  {  p { color: red }  }@layer{p{color:blue}}@LAYER Up{}@layer a/* c */.b {}@layer\\nz\\n{}'; document.head.appendChild(t); return Array.from(t.sheet.cssRules).map(T); })"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "cssom-import",
+   "html": "<!DOCTYPE html><style id=s>@import url(a.css) layer(x.y); @import url(b.css) layer; @import url(c.css) supports(display:grid) screen; @import url(d.css) layer(z) supports(display:grid) print; @import 'e.css' LAYER(Q); @import url(f.css) layer(x) (min-width: 10px);</style><p id=p>x</p><script>\nfunction E(f) { try { const v = f(); return v === undefined ? 'undefined' : v; } catch (e) { return (e.constructor === DOMException ? 'DOMException ' + e.name : e.constructor.name) + ': ' + e.message; } }\nfunction T(r) { return r.constructor.name + '|' + r.type + '|' + r.cssText; }\nfunction C(q, p) { return getComputedStyle(document.querySelector(q)).getPropertyValue(p); }\n</script>",
+   "measure": [
+    {
+     "js": "E(() => Array.from(s.sheet.cssRules).map(T))"
+    },
+    {
+     "js": "E(() => Array.from(s.sheet.cssRules).map(r => JSON.stringify([r.layerName, r.supportsText, r.media.mediaText])))"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@import url(g.css) layer(a b);', 0)])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@import url(g.css) layer(a.b);', 0), T(s.sheet.cssRules[0]), s.sheet.cssRules[0].layerName])"
+    },
+    {
+     "js": "E(() => [s.sheet.insertRule('@import url(h.css) layer;', 0), T(s.sheet.cssRules[0]), JSON.stringify(s.sheet.cssRules[0].layerName)])"
+    }
+   ],
+   "javascript": true
+  }
+ ]
+}

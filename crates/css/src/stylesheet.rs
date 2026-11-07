@@ -4,18 +4,24 @@
 //! values stay as component values; the style crate parses them.
 //!
 //! Supported rules: style rules, `@media`, `@supports`, `@import`,
-//! `@font-face` and `@keyframes` (kept for the CSSOM; swb runs no
-//! animations). The rules of `@layer` blocks join the parent rule list
-//! (layer order is ignored). `@charset` and `@layer` statements are
-//! ignored. All other at-rules (`@page`, `@namespace`, `@counter-style`,
-//! `@property`, `@container`, `@-webkit-keyframes` and unknown ones) are
-//! dropped.
+//! `@font-face`, `@keyframes` (kept for the CSSOM; swb runs no animations)
+//! and the cascade layer rules: `@layer` blocks ([`LayerBlockRule`], named
+//! or anonymous, with the rules inside) and `@layer` statements
+//! ([`LayerStatementRule`]); `@import` keeps its `layer` and `layer(name)`.
+//! The model keeps the layer structure; the style crate's stylist decides
+//! the order (CSS Cascade 5, <https://www.w3.org/TR/css-cascade-5/#layering>).
+//! `@charset` is ignored. All other at-rules (`@page`, `@namespace`,
+//! `@counter-style`, `@property`, `@container`, `@-webkit-keyframes` and
+//! unknown ones) are dropped.
+
+use std::fmt;
 
 use crate::cursor::Parser;
 use crate::media::MediaQueryList;
 use crate::selector::SelectorList;
+use crate::serialize::{serialize_component_values, serialize_identifier};
 use crate::supports::{SupportsCondition, parse_condition_or_declaration};
-use crate::values::ComponentValue;
+use crate::values::{ComponentValue, trim_whitespace};
 
 /// A parsed stylesheet.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -39,6 +45,10 @@ pub enum CssRule {
     Supports(SupportsRule),
     /// `@keyframes`.
     Keyframes(KeyframesRule),
+    /// `@layer name { ... }` and `@layer { ... }`.
+    LayerBlock(LayerBlockRule),
+    /// `@layer a, b.c;`.
+    LayerStatement(LayerStatementRule),
 }
 
 /// A style rule.
@@ -73,18 +83,105 @@ pub struct MediaRule {
     pub rules: Vec<CssRule>,
 }
 
+/// A cascade layer name: identifiers joined by `.`, such as `a.b.c`
+/// (a sublayer `c` of `b` of `a`).
+/// <https://www.w3.org/TR/css-cascade-5/#typedef-layer-name>
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LayerName {
+    segments: Vec<Box<str>>,
+}
+
+impl LayerName {
+    /// Parses a layer name from component values without surrounding
+    /// whitespace: an identifier, then any number of `.` and identifier
+    /// with nothing between them (not even whitespace). Comments are gone
+    /// after tokenization, so `a/**/.b` is the name `a.b`. CSS-wide
+    /// keywords are valid names (measured in Chromium 148).
+    pub fn parse(values: &[ComponentValue]) -> Option<LayerName> {
+        let mut segments = Vec::new();
+        let mut iter = values.iter();
+        loop {
+            match iter.next()? {
+                ComponentValue::Ident(segment) => segments.push(segment.clone()),
+                _ => return None,
+            }
+            match iter.next() {
+                None => return Some(LayerName { segments }),
+                Some(v) if v.is_delim('.') => {}
+                Some(_) => return None,
+            }
+        }
+    }
+
+    /// The identifiers, outermost layer first. Never empty.
+    pub fn segments(&self) -> &[Box<str>] {
+        &self.segments
+    }
+}
+
+impl fmt::Display for LayerName {
+    /// The CSSOM text: the identifiers serialized and joined with `.`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, segment) in self.segments.iter().enumerate() {
+            if i > 0 {
+                f.write_str(".")?;
+            }
+            let mut text = String::new();
+            serialize_identifier(segment, &mut text);
+            f.write_str(&text)?;
+        }
+        Ok(())
+    }
+}
+
+/// An `@layer` block rule: `@layer name { rules }`, or an anonymous layer
+/// `@layer { rules }`.
+/// <https://www.w3.org/TR/css-cascade-5/#layer-block>
+#[derive(Clone, Debug, PartialEq)]
+pub struct LayerBlockRule {
+    /// The name; `None` for an anonymous layer.
+    pub name: Option<LayerName>,
+    /// The rules inside the block.
+    pub rules: Vec<CssRule>,
+}
+
+/// An `@layer` statement rule: `@layer a, b.c;`.
+/// <https://www.w3.org/TR/css-cascade-5/#layer-empty>
+#[derive(Clone, Debug, PartialEq)]
+pub struct LayerStatementRule {
+    /// The names, in source order. Never empty.
+    pub names: Vec<LayerName>,
+}
+
+/// The `layer` part of an `@import` rule.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ImportLayer {
+    /// `layer`: an anonymous layer.
+    Anonymous,
+    /// `layer(name)`.
+    Named(LayerName),
+}
+
 /// An `@import` rule.
 ///
-/// `layer(...)` in the prelude is ignored. Load the stylesheet only if
-/// `supports` (if any) is true and `media` matches.
+/// swb does not load the imported sheet, but the rule still declares its
+/// layer (Chromium does the same for a sheet that fails to load). Load the
+/// stylesheet only if `supports` (if any) is true and `media` matches.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportRule {
     /// The URL, as written (not resolved against a base URL).
     pub url: String,
+    /// The layer of the imported rules, if the prelude has `layer` or
+    /// `layer(name)`. A `layer(...)` with an invalid name is not a layer:
+    /// it stays in the media query list, which then matches nothing.
+    pub layer: Option<ImportLayer>,
     /// The condition of `supports(...)`, if the prelude has one. A bare
     /// declaration (`supports(display: grid)`) becomes
     /// [`SupportsCondition::Declaration`].
     pub supports: Option<SupportsCondition>,
+    /// The text inside `supports(...)`, serialized from its component
+    /// values (CSSOM `supportsText`).
+    pub supports_text: Option<String>,
     /// The media query list. Empty if the prelude has none.
     pub media: MediaQueryList,
 }
@@ -95,17 +192,27 @@ impl ImportRule {
     pub(crate) fn parse(prelude: &[ComponentValue]) -> Option<ImportRule> {
         let mut p = Parser::new(prelude);
         let url = p.expect_url_or_string().ok()?.to_owned();
-        let _ = p.try_parse(|p| match p.next() {
-            Some(v) if v.is_ident("layer") || v.is_function("layer") => Ok(()),
-            _ => Err(()),
-        });
-        let supports = p
-            .expect_function_matching("supports")
-            .ok()
-            .map(|args| parse_condition_or_declaration(args.remaining()));
+        let layer = p
+            .try_parse(|p| match p.next() {
+                Some(v) if v.is_ident("layer") => Ok(ImportLayer::Anonymous),
+                Some(v) => v
+                    .as_function()
+                    .filter(|f| f.name.eq_ignore_ascii_case("layer"))
+                    .and_then(|f| LayerName::parse(trim_whitespace(&f.arguments)))
+                    .map(ImportLayer::Named)
+                    .ok_or(()),
+                None => Err(()),
+            })
+            .ok();
+        let supports_args = p.expect_function_matching("supports").ok();
+        let supports = supports_args.map(|args| parse_condition_or_declaration(args.remaining()));
+        let supports_text =
+            supports_args.map(|args| serialize_component_values(trim_whitespace(args.remaining())));
         Some(ImportRule {
             url,
+            layer,
             supports,
+            supports_text,
             media: MediaQueryList::parse(p.remaining()),
         })
     }

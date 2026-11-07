@@ -79,8 +79,9 @@ Format: source, license (for code), what it influenced.
   Software and Document License 2023; see THIRD_PARTY_NOTICES.md).
 - W3C CSS Object Model (CSSOM) — https://drafts.csswg.org/cssom/ — the
   IDL of `CSSStyleDeclaration`, `ElementCSSInlineStyle` and the style
-  sheet and rule interfaces in `crates/web/idl/cssom.idl` (W3C Software
-  and Document License 2023; see THIRD_PARTY_NOTICES.md); the declaration
+  sheet and rule interfaces in `crates/web/idl/cssom.idl`, with the layer
+  rules of CSS Cascade 5 (W3C Software and Document License 2023; see
+  THIRD_PARTY_NOTICES.md); the declaration
   block algorithms (set, remove, serialize a declaration block, the
   camel-cased attributes) and `CSS.escape` of `swb_style::cssom`; the
   style sheet algorithms of `swb_style::cssom::sheet` (insert and remove

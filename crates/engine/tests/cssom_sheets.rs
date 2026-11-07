@@ -47,8 +47,8 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "insert-rule",
         4,
-        r#"[[0, 1, 2, 3, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@page { margin: 1cm }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer base;'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@layer base { #a { color: red } }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@container (min-width: 10px) { #a { color: red } }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@counter-style x { system: cyclic; symbols: a }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '::-webkit-scrollbar { width: 0 }'.", 4, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'a:-moz-focusring {}'.", 5, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '.a::after .b {}'.", 6, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'svg|a {}'.", 7, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'a:unknown-pseudo {}'."], "CSSMediaRule 4,CSSSupportsRule 12,CSSKeyframesRule 7,CSSFontFaceRule 5,CSSStyleRule 1,CSSStyleRule 1,CSSStyleRule 1,CSSStyleRule 1"]"#,
-        "the rules that swb's parser drops (`@page`, `@layer`, `@container`, `@counter-style`, `::-webkit-scrollbar`) are syntax errors",
+        r#"[[0, 1, 2, 3, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@page { margin: 1cm }'.", 4, 5, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@container (min-width: 10px) { #a { color: red } }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '@counter-style x { system: cyclic; symbols: a }'.", "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '::-webkit-scrollbar { width: 0 }'.", 6, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'a:-moz-focusring {}'.", 7, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule '.a::after .b {}'.", 8, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'svg|a {}'.", 9, "DOMException SyntaxError: Failed to execute 'insertRule' on 'CSSStyleSheet': Failed to parse the rule 'a:unknown-pseudo {}'."], "CSSMediaRule 4,CSSSupportsRule 12,CSSKeyframesRule 7,CSSFontFaceRule 5,CSSLayerStatementRule 0,CSSLayerBlockRule 0,CSSStyleRule 1,CSSStyleRule 1,CSSStyleRule 1,CSSStyleRule 1"]"#,
+        "the rules that swb's parser drops (`@page`, `@container`, `@counter-style`, `::-webkit-scrollbar`) are syntax errors",
     ),
     (
         "rule-objects",
@@ -77,14 +77,14 @@ const SWB_VALUES: &[(&str, usize, &str, &str)] = &[
     (
         "grouping-rules",
         7,
-        r#""CSSStyleRule,CSSStyleRule""#,
-        "swb's parser flattens `@layer` blocks and drops `@layer` statements, `@page` and `@namespace`",
+        r#""CSSLayerBlockRule,CSSLayerStatementRule,CSSStyleRule""#,
+        "swb's parser drops `@page` and `@namespace`",
     ),
     (
         "interfaces",
         0,
-        r#""StyleSheet:function CSSStyleSheet:function StyleSheetList:function CSSRuleList:function CSSRule:function CSSStyleRule:function CSSGroupingRule:function CSSConditionRule:function CSSMediaRule:function CSSSupportsRule:function CSSImportRule:function CSSFontFaceRule:function CSSKeyframesRule:function CSSKeyframeRule:undefined MediaList:function CSSPageRule:undefined CSSNamespaceRule:undefined CSSLayerBlockRule:undefined""#,
-        "swb has no rule objects for the rules that its parser drops",
+        r#""StyleSheet:function CSSStyleSheet:function StyleSheetList:function CSSRuleList:function CSSRule:function CSSStyleRule:function CSSGroupingRule:function CSSConditionRule:function CSSMediaRule:function CSSSupportsRule:function CSSImportRule:function CSSFontFaceRule:function CSSKeyframesRule:function CSSKeyframeRule:undefined MediaList:function CSSPageRule:undefined CSSNamespaceRule:undefined CSSLayerBlockRule:function""#,
+        "swb has no rule objects for the rules that its parser drops (`@page`, `@namespace`, keyframe)",
     ),
     (
         "interfaces",

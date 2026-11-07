@@ -20,7 +20,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use swb_css::{ComponentValue, CssRule, Declaration, SelectorList};
+use swb_css::{ComponentValue, CssRule, Declaration, LayerName, SelectorList};
 
 use super::Entry;
 use crate::properties::{DECLARATION_ENTRY_BYTES, declaration_entries};
@@ -146,8 +146,14 @@ pub(crate) fn rule_bytes(rule: &CssRule) -> usize {
                 supports.text.len().saturating_mul(16) + rules_bytes(&supports.rules)
             }
             CssRule::Import(import) => {
-                import.url.len() + import.media.to_string().len().saturating_mul(16)
+                import.url.len()
+                    + import.media.to_string().len().saturating_mul(16)
+                    + import.supports_text.as_ref().map_or(0, String::len)
             }
+            CssRule::LayerBlock(layer) => {
+                layer_name_bytes(layer.name.as_slice()) + rules_bytes(&layer.rules)
+            }
+            CssRule::LayerStatement(layers) => layer_name_bytes(&layers.names),
             CssRule::FontFace(face) => declarations_bytes(&face.declarations),
             CssRule::Keyframes(keyframes) => {
                 keyframes.name.len()
@@ -161,6 +167,20 @@ pub(crate) fn rule_bytes(rule: &CssRule) -> usize {
             }
         }
 }
+
+/// The estimated bytes of layer names: their text, and the layer tree's
+/// nodes that they make.
+fn layer_name_bytes(names: &[LayerName]) -> usize {
+    names
+        .iter()
+        .flat_map(LayerName::segments)
+        .map(|segment| segment.len().saturating_add(LAYER_NODE_BYTES))
+        .sum()
+}
+
+/// The estimated bytes of one layer name segment in the stylist's layer
+/// tree (a node and its index entry).
+const LAYER_NODE_BYTES: usize = 64;
 
 /// The estimated bytes of parsed rules.
 pub(crate) fn rules_bytes(rules: &[CssRule]) -> usize {

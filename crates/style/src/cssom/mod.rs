@@ -115,10 +115,8 @@ fn wide_keyword(tokens: &[ComponentValue]) -> Option<&'static str> {
         CssWideKeyword::Initial => "initial",
         CssWideKeyword::Inherit => "inherit",
         CssWideKeyword::Unset => "unset",
-        CssWideKeyword::Revert => match trim_whitespace(tokens) {
-            [ComponentValue::Ident(s)] if s.eq_ignore_ascii_case("revert-layer") => "revert-layer",
-            _ => "revert",
-        },
+        CssWideKeyword::Revert => "revert",
+        CssWideKeyword::RevertLayer => "revert-layer",
     })
 }
 

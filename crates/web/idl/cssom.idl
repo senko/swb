@@ -20,7 +20,10 @@
 // Rules 3 (https://drafts.csswg.org/css-conditional-3/), CSS Fonts 4
 // (https://drafts.csswg.org/css-fonts-4/) and CSS Animations 1
 // (https://drafts.csswg.org/css-animations-1/), W3C Editor's Drafts under
-// the same license as CSSOM.
+// the same license as CSSOM; and CSS Cascade 5
+// (https://www.w3.org/TR/css-cascade-5/, `CSSLayerBlockRule` and
+// `CSSLayerStatementRule`, M10 feature 1, copied on 2026-11-07), a W3C
+// Recommendation-track document under the same license.
 // Changes:
 //
 // - The order of some members follows Chromium's prototypes (measured,
@@ -202,6 +205,20 @@ interface CSSMediaRule : CSSConditionRule {
 
 [Exposed=Window]
 interface CSSSupportsRule : CSSConditionRule {
+};
+
+// CSS Cascade 5 (https://www.w3.org/TR/css-cascade-5/#csslayerblockrule and
+// #csslayerstatementrule): the rules of `@layer`. `type` is 0 for both
+// (Chromium 148).
+
+[Exposed=Window]
+interface CSSLayerBlockRule : CSSGroupingRule {
+  readonly attribute CSSOMString name;
+};
+
+[Exposed=Window]
+interface CSSLayerStatementRule : CSSRule {
+  readonly attribute FrozenArray<CSSOMString> nameList;
 };
 
 // CSS Fonts 4 (https://drafts.csswg.org/css-fonts-4/, §16.1): without
