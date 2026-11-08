@@ -342,7 +342,8 @@
    ],
    "resources": {
     "m.js": {
-     "text": "import 'x';log('m')"
+     "text": "import 'x';log('m')",
+     "delay_ms": 200
     },
     "x.js": {
      "text": "log('x')"
@@ -416,7 +417,8 @@
    ],
    "resources": {
     "p.js": {
-     "text": "import './q.js';log('p')"
+     "text": "import './q.js';log('p')",
+     "delay_ms": 120
     },
     "q.js": {
      "text": "import './r.js';log('q')"
@@ -426,7 +428,8 @@
     },
     "plain.js": {
      "text": "log('plain')",
-     "content_type": "text/plain"
+     "content_type": "text/plain",
+     "delay_ms": 60
     }
    }
   },
@@ -443,7 +446,8 @@
    ],
    "resources": {
     "p.js": {
-     "text": "import './q.js';log('p')"
+     "text": "import './q.js';log('p')",
+     "delay_ms": 100
     },
     "q.js": {
      "text": "log('q')"
@@ -455,7 +459,7 @@
    "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=importmap>{\"imports\":{\"x\":\"./x.js\"}}</script><link rel=modulepreload href=x><link rel=modulepreload href=x.js></head><body></body></html>",
    "measure": [
     {
-     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' '))},500)})"
     },
     {
      "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
@@ -463,7 +467,13 @@
    ],
    "resources": {
     "x.js": {
-     "text": "log('x')"
+     "text": "log('x')",
+     "delay_ms": 150
+    },
+    "x": {
+     "text": "-",
+     "status": 404,
+     "delay_ms": 100
     }
    }
   },
@@ -489,7 +499,8 @@
      "text": "export const w=n(import.meta.url)",
      "headers": {
       "Access-Control-Allow-Origin": "*"
-     }
+     },
+     "delay_ms": 100
     }
    }
   },
@@ -1473,6 +1484,402 @@
     "slow.js": {
      "text": "log('slow')",
      "delay_ms": 300
+    }
+   }
+  },
+  {
+   "name": "import-call-base-string-timer",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/setTimeout(\"t('st',import('./st.js'))\",10)</script><button id=b onclick=\"setTimeout('t(\\'sh\\',import(\\'./sh.js\\'))',10)\"></button><script>/*c2*/setTimeout(function(){document.getElementById('b').click()},50)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-eval-function",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><button id=b onclick=\"eval('t(\\'he\\',import(\\'./he.js\\'))');t('hf',new Function('return import(\\'./hf.js\\')')())\"></button><script>/*c1*/eval(\"t('ce',import('./ce.js'))\");t('cf',new Function(\"return import('./cf.js')\")());setTimeout(function(){document.getElementById('b').click()},50)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-javascript-url",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/setTimeout(function(){location.href=\"javascript:t('ju',import('./ju.js'));void 0\"},50)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-inserted",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/var s=document.createElement('script');s.text=\"t('is',import('./is.js'))\";document.head.appendChild(s);var m=document.createElement('script');m.type='module';m.text=\"t('im',import('./im.js'))\";document.head.appendChild(m)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-changes",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/function f(){return import('./late.js')}</script><button id=b onclick=\"t('hl',import('./hl.js'))\"></button><script>/*c2*/setTimeout(function(){document.querySelector('base').href='sub2/';t('fl',f());document.getElementById('b').click();var s=document.createElement('script');s.text=\"t('nl',import('./nl.js'))\";document.head.appendChild(s)},50)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-handler-callbacks",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><button id=b onclick=\"Promise.resolve().then(function(){t('hp',import('./hp.js'))});setTimeout(function(){t('ht',import('./ht.js'))},5)\"></button><script>/*c1*/setTimeout(function(){document.getElementById('b').click()},50)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-timer-changes",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/setTimeout(\"t('s1',import('./s1.js'))\",150)</script><button id=b onclick=\"setTimeout('t(\\'s2\\',import(\\'./s2.js\\'))',150)\"></button><script>/*c2*/document.getElementById('b').click();setTimeout(function(){document.querySelector('base').href='sub2/'},50);setTimeout(function(){setTimeout(\"t('s3',import('./s3.js'))\",10)},100)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-external",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){log(tag+' ok')},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script crossorigin src=$OTHER/$FOLDER/ex.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    }
+   ],
+   "resources": {
+    "ex.js": {
+     "text": "setTimeout(\"t('xst',import('./xst.js'))\",10);eval(\"t('xse',import('./xse.js'))\");t('xsf',new Function(\"return import('./xsf.js')\")());t('xsd',import('./xsd.js'))",
+     "headers": {
+      "Access-Control-Allow-Origin": "*"
+     }
+    }
+   }
+  },
+  {
+   "name": "import-call-base-cors-message",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script src=$OTHER/$FOLDER/cn.js></script><script crossorigin src=$OTHER/$FOLDER/ca.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "cn.js": {
+     "text": "import('./dep.js').then(function(m){log('cn:'+m.w)},function(e){log('cn-err:'+e.name+': '+n(e.message))})"
+    },
+    "ca.js": {
+     "text": "import('./dep.js').then(function(m){log('ca:'+m.w)},function(e){log('ca-err:'+e.name+': '+n(e.message))})",
+     "headers": {
+      "Access-Control-Allow-Origin": "*"
+     }
+    },
+    "dep.js": {
+     "text": "export const w=n(import.meta.url)",
+     "headers": {
+      "Access-Control-Allow-Origin": "*"
+     }
+    }
+   }
+  },
+  {
+   "name": "importmap-normalize",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=importmap>{\"imports\":{\"a\":\"./a.js\",\"b/\":\"./bdir/\",\"c/\":\"./c\",\"d\":\"\",\"./e.js\":\"./e2.js\",\"/f.js\":\"./f2.js\",\"https://x.test/g.js\":\"./g2.js\",\"h\":[\"./h.js\"],\"i\":null,\"j\":\"j-bare\",\"k\":\"/abs.js\",\"l\":\"https://y.test/l.js\",\"\":\"./empty.js\",\"m/n\":\"./mn.js\",\"m/\":\"./mdir/\",\"m/n/\":\"./mndir/\",\"o/\":\"https://z.test/odir/\",\"p\":\"data:text/javascript,1\",\"q/\":null,\"r%41\":\"./r1.js\",\"rA\":\"./r2.js\",\"s\":\"./s%41.js\",\"u\":\"./u.js?x=1#f\",\"w/\":\"./wdir/?q#h\"},\"scopes\":{\"./sc.js\":{\"a\":\"./sa.js\",\"s/\":\"./sdir/\",\"m/\":\"./sm/\"},\"/zzz/\":{\"a\":\"./z.js\"},\"http://[bad\":{\"a\":\"./bad.js\"},\"./\":{\"v\":\"./v-scoped.js\"}},\"bogus\":1}</script><script type=module>/*m1*/var S=[\"a\",\"a/\",\"a#f\",\"b/\",\"b/x.js\",\"b/x/../y.js\",\"b/../x.js\",\"c/x\",\"d\",\"./e.js\",\"./e.js?q\",\"e.js\",\"/f.js\",\"https://x.test/g.js\",\"h\",\"i\",\"j\",\"k\",\"l\",\"\",\"m/n\",\"m/n/z\",\"m/z\",\"m/n/\",\"o/x.js\",\"p\",\"q/x\",\"../zzz.js\",\"./nomatch.js\",\"r%41\",\"rA\",\"s\",\"u\",\"w/x\",\"w/x?y#z\",\"v\",\"a b\",\" a\",\"./a.js\",\"/abs.js\",\"//other.test/q.js\"];S.forEach(function(s){L.push(JSON.stringify(s)+'='+n(E(function(){return import.meta.resolve(s)})))});import('./sc.js')</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},500)})"
+    }
+   ],
+   "resources": {
+    "sc.js": {
+     "text": "['a','s/x','m/z','b/x.js','v','nope'].forEach(function(s){L.push('sc:'+s+'='+n(E(function(){return import.meta.resolve(s)})))})"
+    }
+   }
+  },
+  {
+   "name": "importmap-resolved-set",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=module>/*m1*/import './a.js';log('m1')</script><script type=importmap>{\"imports\":{\"./a.js\":\"./b.js\",\"./d.js\":\"./e.js\"}}</script><script type=module>/*m2*/import './a.js';import './d.js';log('m2')</script><script type=importmap>{\"scopes\":{\"/\":{\"./a.js\":\"./c.js\",\"./f.js\":\"./g.js\"}}}</script><script type=module>/*m3*/import './a.js';import './f.js';log('m3')</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},800)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "a.js": {
+     "text": "log('a')"
+    },
+    "b.js": {
+     "text": "log('b')"
+    },
+    "c.js": {
+     "text": "log('c')"
+    },
+    "d.js": {
+     "text": "log('d')"
+    },
+    "e.js": {
+     "text": "log('e')"
+    },
+    "f.js": {
+     "text": "log('f')"
+    },
+    "g.js": {
+     "text": "log('g')"
+    }
+   }
+  },
+  {
+   "name": "msg-importmap-errors",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=importmap>[]</script><script type=importmap>\"x\"</script><script type=importmap>{\"imports\":[]}</script><script type=importmap>{\"imports\":1}</script><script type=importmap>{\"scopes\":[]}</script><script type=importmap>{\"scopes\":{\"./a/\":1}}</script><script type=importmap>{\"scopes\":{\"http://[bad\":{}}}</script><script type=importmap>{\"unknown\":1}</script><script type=importmap>  </script><script type=importmap>{\"imports\":{}} x</script><script type=importmap>null</script><script type=importmap>{\"imports\":null}</script><script type=importmap>{\"imports\":{\"x\":\"./x.js\"}}</script><script type=module>/*m1*/log('m1:'+n(E(function(){return import.meta.resolve('x')})))</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},500)})"
+    }
+   ],
+   "resources": {
+    "x.js": {
+     "text": "log('x')"
+    }
+   }
+  },
+  {
+   "name": "msg-importmap-resolve",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=importmap>{\"imports\":{\"n\":null,\"npre/\":null,\"bad\":\"bad-bare\",\"tr/\":\"./nodir\",\"ok\":\"./ok.js\",\"./blk.js\":null,\"./blkdir/\":null},\"scopes\":{\"./\":{\"sn\":null}}}</script><script type=module>/*m1*/['n','npre/x','bad','tr/x','sn','nomap','./blk.js','./blkdir/x','','./nomatch.js'].forEach(function(s){L.push('r:'+s+'='+n(E(function(){return import.meta.resolve(s)})));import(s).catch(function(e){L.push('d:'+s+'='+e.name+': '+n(e.message))})})</script><script type=module>/*m2*/import 'n'</script><script type=module>/*m3*/import 'sn'</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},600)})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "modulepreload-errors",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><link rel=modulepreload href=''><link rel=modulepreload href='http://[x'><link rel=modulepreload as=script href=s.js><link rel='preload modulepreload' href=pp.js><link REL=ModulePreload href=up.js><link rel=modulepreload><link rel=modulepreload href=u.js#f1><link rel=modulepreload href=u.js#f2></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},600)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "s.js": {
+     "text": "log('s')"
+    },
+    "pp.js": {
+     "text": "log('p')"
+    },
+    "up.js": {
+     "text": "log('u')"
+    },
+    "u.js": {
+     "text": "log('u')"
+    }
+   }
+  },
+  {
+   "name": "modulepreload-as",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><link rel=modulepreload as=image href=img.js><link rel=modulepreload as=worker href=w.js><link rel=modulepreload as=script href=s.js></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},600)})"
+    }
+   ],
+   "resources": {
+    "img.js": {
+     "text": "log('img')"
+    },
+    "w.js": {
+     "text": "log('w')"
+    },
+    "s.js": {
+     "text": "log('s')"
+    }
+   }
+  },
+  {
+   "name": "modulepreload-script",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*c1*/var l=document.createElement('link');l.href='d1.js';l.rel='modulepreload';log('before');document.head.appendChild(l);log('after');setTimeout(function(){log('href');l.href='d2.js'},200);setTimeout(function(){log('new');var k=document.createElement('link');k.rel='modulepreload';k.href='d3.js'},350);setTimeout(function(){log('crossorigin');l.setAttribute('crossorigin','use-credentials')},500);setTimeout(function(){log('move');l.remove();document.body.appendChild(l)},650);setTimeout(function(){log('rel');l.rel='modulepreload'},800)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},1100)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "d1.js": {
+     "text": "log('d')",
+     "delay_ms": 60
+    },
+    "d2.js": {
+     "text": "log('d')",
+     "delay_ms": 60
+    },
+    "d3.js": {
+     "text": "log('d')"
+    }
+   }
+  },
+  {
+   "name": "modulepreload-slow",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><link rel=modulepreload href=slow.js><link rel=modulepreload href=slow2.js></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},900)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "slow.js": {
+     "text": "log('slow')",
+     "delay_ms": 400
+    },
+    "slow2.js": {
+     "text": "log('slow2')",
+     "delay_ms": 300
+    }
+   }
+  },
+  {
+   "name": "msg-resolve-empty",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=module>/*m1*/L.push('r='+n(E(function(){return import.meta.resolve('')})));import('').catch(function(e){L.push('d='+e.name+': '+n(e.message))})</script><script type=module>/*m2*/import ''</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},500)})"
+    }
+   ],
+   "resources": {
+    "unused.txt": {
+     "text": "-"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-function",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(){L.push(tag+' ok')},function(e){L.push(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script src=$ORIGIN/$FOLDER/fs.js></script><script crossorigin src=$OTHER/$FOLDER/fx.js></script><script type=module src=$ORIGIN/$FOLDER/fm.js></script><script type=module>/*m2*/t('mid',import('./mid.js'));eval(\"t('mie',import('./mie.js'))\");t('mif',new Function(\"return import('./mif.js')\")());setTimeout(\"t('mit',import('./mit.js'))\",10)</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},900)})"
+    }
+   ],
+   "resources": {
+    "fs.js": {
+     "text": "t('sd',import('./sd.js'));eval(\"t('se',import('./se.js'))\");t('sf',new Function(\"return import('./sf.js')\")());setTimeout(\"t('st',import('./st.js'))\",10);setTimeout(function(){t('sc',import('./sc.js'))},10)"
+    },
+    "fx.js": {
+     "text": "t('xc',import('./xc.js'));setTimeout(function(){t('xt',import('./xt.js'))},10)",
+     "headers": {
+      "Access-Control-Allow-Origin": "*"
+     }
+    },
+    "fm.js": {
+     "text": "t('md',import('./md.js'));eval(\"t('me',import('./me.js'))\");t('mf',new Function(\"return import('./mf.js')\")());setTimeout(\"t('mt',import('./mt.js'))\",10);setTimeout(function(){t('mc',import('./mc.js'))},10)"
+    }
+   }
+  },
+  {
+   "name": "import-call-base-frame-function",
+   "html": "<!DOCTYPE html><html><head><base href=sub/><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*t*/function t(tag,p){p.then(function(m){log(tag+' ok '+m.w)},function(e){log(tag+' '+n(e.message).replace('Failed to fetch dynamically imported module: ',''))})}</script><script>/*c1*/window.mine='top';function go(){var w=document.getElementById('f').contentWindow;t('in',w.callIn());t('ex',w.callExt());t('exok',w.callExtOk());t('top',import('./top-missing.js'))}</script></head><body><iframe id=f src=../f.html onload=go()></iframe></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.slice().sort().join(' # '))},1200)})"
+    },
+    {
+     "js": "fetch('__log').then(function(r){return r.json()}).then(function(a){return a.map(function(e){return e.path.replace(/^\\/case-[a-z0-9-]+\\//,'')}).filter(function(p){return p!=='f.html'}).sort().join(' ')})"
+    }
+   ],
+   "resources": {
+    "f.html": {
+     "text": "<!DOCTYPE html><html><head><base href=sub2/><script>window.mine='frame';window.callIn=function(){return import('./in-missing.js')}</script><script src=../ext.js></script></head><body></body></html>",
+     "content_type": "text/html"
+    },
+    "ext.js": {
+     "text": "window.callExt=function(){return import('./ext-missing.js')};window.callExtOk=function(){return import('./ok.js')}"
+    },
+    "ok.js": {
+     "text": "export var w=window.mine"
     }
    }
   }

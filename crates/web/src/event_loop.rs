@@ -76,6 +76,14 @@ pub(crate) enum Task {
     ScriptErrorEvent(swb_dom::NodeId),
     /// The fetch of a script element's script failed at once.
     ScriptFetchFailed(swb_dom::NodeId),
+    /// The module fetch of a `link rel=modulepreload` ended: fire `load` or
+    /// `error` (`error` true) at the element (`scripts/preload.rs`).
+    LinkEvent {
+        /// The `link` element.
+        node: swb_dom::NodeId,
+        /// True for `error`.
+        error: bool,
+    },
     /// The module script of an element is ready without a fetch: an inline
     /// module, or a URL that the module map already has (HTML "fetch an
     /// inline module script graph", "fetch a single module script").

@@ -215,6 +215,9 @@ pub struct DocumentState {
     /// True while the journal drain processes a step of the parser: the
     /// style sheets that it finds block scripts.
     parser_drain: bool,
+    /// The `link rel=modulepreload` elements that the parser inserted and
+    /// that the page has not taken yet (`take_parser_links`).
+    parser_links: Vec<NodeId>,
     /// The document URL.
     pub(crate) url: Url,
     /// The URL that a `base` element and the base URL resolve against: the
@@ -393,6 +396,7 @@ impl DocumentState {
             api_fetches: ApiFetches::default(),
             element_events: element_events::ElementEvents::default(),
             parser_drain: false,
+            parser_links: Vec::new(),
             base_url: Derived::new(base_fallback.clone()),
             base_fallback,
             style_budget: init.style_budget,
@@ -990,6 +994,10 @@ impl swb_web::EngineHost for DocumentState {
         std::mem::take(&mut self.frame_changes.inserted)
     }
 
+    fn take_parser_links(&mut self) -> Vec<NodeId> {
+        std::mem::take(&mut self.parser_links)
+    }
+
     fn retire(&mut self) {
         self.retire_document();
     }
@@ -1035,6 +1043,7 @@ impl DocumentState {
         self.images = Images::default();
         self.lazy = lazy::LazyImages::default();
         self.frame_changes = frames::FrameChanges::default();
+        self.parser_links = Vec::new();
         self.script_requests = ScriptRequests::default();
         self.scrolled = Vec::new();
     }

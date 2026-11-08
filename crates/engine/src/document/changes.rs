@@ -475,6 +475,16 @@ impl DocumentState {
                         slot.set_css(None, false);
                     }
                     let had = old.is_some();
+                    // The parser's `modulepreload` links are the page's (it
+                    // starts their module fetches); scripts' go through the
+                    // node insertion bindings.
+                    if kind == Kind::Link
+                        && self.parser_drain
+                        && self.dom.scripting()
+                        && self.dom.element(node).is_some_and(is_modulepreload_link)
+                    {
+                        self.parser_links.push(node);
+                    }
                     let (slot, changed) = self.wanted_sheet(node, old, &mut plan);
                     stylist_dirty |= changed || (had && slot.is_none());
                     if let Some(slot) = slot {
@@ -804,6 +814,16 @@ fn sort_in_tree_order(dom: &Document, nodes: &mut [NodeId]) {
 /// `text/css`, ASCII case-insensitive (HTML Standard §4.2.6).
 fn is_css_type(value: &str) -> bool {
     value.is_empty() || value.eq_ignore_ascii_case("text/css")
+}
+
+/// True if the `rel` of a `link` has the token `modulepreload` (ASCII
+/// case-insensitive).
+/// <https://html.spec.whatwg.org/multipage/links.html#link-type-modulepreload>
+fn is_modulepreload_link(element: &ElementData) -> bool {
+    element.attr("rel").is_some_and(|rel| {
+        rel.split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("modulepreload"))
+    })
 }
 
 /// True for a `rel` value that makes a `link` a primary stylesheet:

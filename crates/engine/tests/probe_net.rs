@@ -495,10 +495,6 @@ const MODULE_DEPARTURES: &[Departure] = &[
 const CYCLE: &str = "a cycle of re-exports fails to link with the message of a missing export at \
      another module (Chromium: `Detected cycle while resolving name ...`); roadmap backlog \
      \"Module link errors in cyclic graphs\"";
-const HANDLER_BASE: &str = "`import()` in an event handler resolves against the document's base \
-     URL (Chromium: the document's URL, measured); the base URLs of the code of classic scripts \
-     come with ADR 0034 sub-feature 3b-2";
-
 const SCHEDULING: &str = "Chromium's internal scheduling: the same page gives two orders there, \
      depending on timers and messages that are pending (`import-call-timing-joins-in-flight` and \
      `-quiet-then-element` differ only in them; swb takes the first order, where the `import()` is \
@@ -595,22 +591,16 @@ const MODULE_GRAPH_DEPARTURES: &[Departure] = &[
         DATA_LATER,
     ),
     (
+        "import-call-timing-joins-in-flight",
+        0,
+        r#""I-mic1 # I-mic2 # I-mic3 # I-mic4 # I-mic5 # I-t0 # I-mc # rsc:i # slow:i # I-imp # load-slow.js:i # dcl:i # rsc:c # load:c""#,
+        SCHEDULING,
+    ),
+    (
         "import-call-timing-quiet-then-element",
         0,
         r#""rsc:i # slow:i # imp-done:i # load-slow.js:i # dcl:i # rsc:c # load:c""#,
         SCHEDULING,
-    ),
-    (
-        "import-call-document-base",
-        0,
-        r#""rsc:i # dcl:i # rsc:c # load:c # x TypeError: Failed to fetch dynamically imported module: O/sub/x.js:c # y TypeError: Failed to fetch dynamically imported module: O/sub/y.js:c # z TypeError: Failed to fetch dynamically imported module: O/sub/z.js:c""#,
-        HANDLER_BASE,
-    ),
-    (
-        "import-call-document-base",
-        1,
-        r#""sub/x.js sub/y.js sub/z.js""#,
-        HANDLER_BASE,
     ),
 ];
 

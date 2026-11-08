@@ -32,7 +32,9 @@ use swb_dom::NodeId;
 use swb_js::{Gc, Module, Object, Runtime, ScriptError, SourceLocation, ThrowKind, Tracer, Value};
 use swb_js::{VmError, VmResult};
 
+use super::import_map::ImportMap;
 use super::{FetchedScript, MAX_HELD_SCRIPT_BYTES, WhenReady, scripts, scripts_mut};
+use crate::event_loop::{Task, queue_task};
 use crate::state::engine_mut;
 
 /// The most entries of a document's module map (ADR 0034 section 11;
@@ -101,6 +103,9 @@ pub(crate) enum Waiter {
     Element(NodeId),
     /// An `import()` whose root the entry is: the engine's token.
     Dynamic(u32),
+    /// A `link rel=modulepreload` element: it needs the fetch, not the parse
+    /// ([`preload`]).
+    Preload(NodeId),
 }
 
 /// An entry of the map.
@@ -179,7 +184,52 @@ pub(crate) struct ModuleMap {
     pub(crate) resolvers: HashMap<Gc<Object>, u32>,
     /// True after the warning about the entry limit.
     limit_warned: bool,
+    /// The document's import map and its resolved module set.
+    pub(crate) import_map: ImportMap,
 }
+
+/// What `import()` in a classic script resolves against.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ScriptBase {
+    /// The script's base URL: its URL (external) or the document's base URL
+    /// when it was prepared (inline).
+    pub(crate) url: String,
+    /// True for a cross-origin script fetched without CORS: its `import()`
+    /// is rejected (HTML "muted errors"; Chromium, measured).
+    pub(crate) muted: bool,
+    /// The realm of the document that prepared the script: an `import()` in a
+    /// function of the script resolves against this base and loads into the
+    /// module map of this realm's document, wherever the function is called
+    /// (HTML: the script's base URL and its realm's module map; Chromium,
+    /// measured: `import-call-base-frame-function`).
+    pub(crate) realm: u32,
+}
+
+/// The classic script bases of a runtime by number (the number minus 1),
+/// shared by its documents: a function of a script of one document can be
+/// called from another ([`script_number`]).
+#[derive(Debug, Default)]
+pub(crate) struct ScriptBases {
+    bases: Vec<ScriptBase>,
+    numbers: HashMap<ScriptBase, u32>,
+    limit_warned: bool,
+}
+
+impl ScriptBases {
+    /// The base of the classic script with the number `number`.
+    pub(crate) fn get(&self, number: u32) -> Option<&ScriptBase> {
+        let at = number.checked_sub(1)?;
+        self.bases.get(at as usize)
+    }
+}
+
+/// The number of the referrer "the document's URL": code without a script,
+/// and event handlers (Chromium, measured: `import-call-document-base`).
+pub(crate) const DOCUMENT_REFERRER: u32 = 0;
+
+/// The most distinct script bases a runtime numbers (ADR 0034 section 11
+/// spirit: the table is bounded); later scripts count as the document.
+const MAX_SCRIPT_BASES: usize = 65_536;
 
 impl ModuleMap {
     /// Reports the records, the error values of the entries and the functions
@@ -270,6 +320,37 @@ pub(crate) fn map_mut(rt: &mut Runtime) -> VmResult<&mut ModuleMap> {
     Ok(&mut scripts_mut(rt)?.modules)
 }
 
+/// The number that stands for the classic script base `url` (`muted`: see
+/// [`ScriptBase`]) of the current document in `eval_named_at`: the same base
+/// in the same realm gets the same number. A runtime with more than
+/// [`MAX_SCRIPT_BASES`] distinct bases gets [`DOCUMENT_REFERRER`] for the
+/// later ones, with one warning.
+pub(crate) fn script_number(rt: &mut Runtime, url: &str, muted: bool) -> VmResult<u32> {
+    let realm = crate::state::doc_realm(rt)?;
+    let table = &mut crate::state::state_mut(rt)?.script_bases;
+    let base = ScriptBase {
+        url: url.to_owned(),
+        muted,
+        realm,
+    };
+    if let Some(&number) = table.numbers.get(&base) {
+        return Ok(number);
+    }
+    if table.bases.len() >= MAX_SCRIPT_BASES {
+        if !std::mem::replace(&mut table.limit_warned, true) {
+            log::warn!(
+                "{MAX_SCRIPT_BASES} script base URLs are in use, the limit: later scripts \
+                 resolve import() against the document's URL"
+            );
+        }
+        return Ok(DOCUMENT_REFERRER);
+    }
+    table.bases.push(base.clone());
+    let number = table.bases.len() as u32;
+    table.numbers.insert(base, number);
+    Ok(number)
+}
+
 /// The URL without its fragment.
 fn without_fragment(url: &str) -> &str {
     url.split_once('#').map_or(url, |(base, _)| base)
@@ -316,6 +397,48 @@ pub(crate) fn request(
         }
         Found::Result(result) => Ok(Lookup::Now(result)),
     }
+}
+
+/// HTML "fetch a modulepreload module script graph" for the element `node`
+/// (without the descendants) and the URL `url`: the fetch of the single module
+/// into the map, with quiet options (it does not delay `load`), and the
+/// element's `load` or `error` event in a task after it. Text that arrives
+/// stays in the entry unparsed until a graph needs it. Measured in
+/// `modulepreload*`: a URL that the map has gives the event with no request.
+pub(crate) fn preload(
+    rt: &mut Runtime,
+    url: &str,
+    node: NodeId,
+    credentials: bool,
+) -> VmResult<()> {
+    let options = Options {
+        credentials,
+        quiet: true,
+    };
+    let state = match map(rt)?.entries.get(url).map(|entry| &entry.state) {
+        None => None,
+        Some(EntryState::Fetching(_)) => {
+            if let Some(entry) = map_mut(rt)?.entries.get_mut(url) {
+                entry.waiters.push(Waiter::Preload(node));
+            }
+            return Ok(());
+        }
+        Some(state) => Some(matches!(state, EntryState::Failed(_))),
+    };
+    let failed = match state {
+        Some(failed) => failed,
+        None => match start_entry(rt, url, Waiter::Preload(node), options)? {
+            Lookup::Later => return Ok(()),
+            Lookup::Now(result) => result.is_err(),
+        },
+    };
+    queue_task(
+        rt,
+        Task::LinkEvent {
+            node,
+            error: failed,
+        },
+    )
 }
 
 /// A requester that delays the `load` event (a script element's graph)
@@ -611,7 +734,10 @@ pub(crate) fn fetched(
         let options = entry.options;
         let state = match &script {
             None => EntryState::Failed(failure(rt, &key)?),
-            Some(script) if waiters.is_empty() || terminated.is_some() => {
+            Some(script)
+                if waiters.iter().all(|w| matches!(w, Waiter::Preload(_)))
+                    || terminated.is_some() =>
+            {
                 // No graph needs the text yet: it waits for its first use.
                 EntryState::Fetched(hold_text(rt, script)?)
             }
@@ -626,6 +752,7 @@ pub(crate) fn fetched(
             },
         };
         let result = result_of(&state);
+        let failed = matches!(state, EntryState::Failed(_));
         if let Some(entry) = map_mut(rt)?.entries.get_mut(&key) {
             entry.state = state;
         }
@@ -633,7 +760,7 @@ pub(crate) fn fetched(
             answers.extend(
                 waiters
                     .into_iter()
-                    .map(|waiter| (key.clone(), waiter, result)),
+                    .map(|waiter| (key.clone(), waiter, result, failed)),
             );
         }
     }
@@ -641,8 +768,16 @@ pub(crate) fn fetched(
         return Err(error);
     }
     let mut ready = Vec::new();
-    for (key, waiter, result) in answers {
+    for (key, waiter, result, failed) in answers {
         match waiter {
+            // The element's event comes in a task after the fetch.
+            Waiter::Preload(node) => queue_task(
+                rt,
+                Task::LinkEvent {
+                    node,
+                    error: failed,
+                },
+            )?,
             Waiter::Load(token) => rt.finish_loading_imported_module(token, result)?,
             Waiter::Element(node) => ready.extend(super::modules::element_root_ready(rt, node)?),
             // The `import()` is answered before the script elements that

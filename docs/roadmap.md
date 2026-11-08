@@ -4679,11 +4679,27 @@ Steps:
         `customElements` (feature 4) and the bare specifier `react` (import
         map, 3b-2).
       - 3b-2 import maps, `modulepreload`, `import()` base URLs in the page
-        (`implementer`).
-      Exit: the 9 module scripts of GitHub run in Chromium's order (the
-      page's errors after that belong to later features); the module
-      scripts of BBC keep working; the other targets keep their scores
-      with JavaScript on and off.
+        (`implementer`). Done (2026-11-08): import maps (inline only;
+        HTML's parse, normalization, merge and resolved module set; scopes;
+        Chromium's error texts, measured; 65,536 entries; prefix lookups
+        with a byte budget), `import.meta.resolve` with the maps,
+        `modulepreload` (one module fetch into the map that does not delay
+        `load`; `load` or `error` at the link), the base URL of `import()`
+        for each kind of code as measured in Chromium (a classic script:
+        its base URL when it was prepared, also its functions called from
+        another frame; a string timer: the base URL when it runs; a
+        handler and code without a script: the document's URL; a muted
+        cross-origin script: rejected at once). 93 cases of
+        `web-module-graph.json` run in `probe_net` (16 departures: the
+        `msg-cycle-*` cases and four orders of Chromium's scheduling and of
+        `data:`). A test with the local GitHub fixture checks that the 9
+        module scripts run in document order with no module error. Hostile
+        cases for import maps (100,000 entries, 50,000 scopes, 20,000
+        inserted maps, long specifiers) and 3,000 preload links pass.
+      Exit met (2026-11-08): GitHub's 9 module scripts load their 95
+      modules and run in Chromium's order; the page then stops at
+      `customElements` (feature 4); BBC's module script runs as before; all
+      targets keep their scores with JavaScript on and off.
    4. Custom elements (`implementer-hard`; new ADR): the registry
       (`define`, `get`, `whenDefined`, `upgrade`), `HTMLElement` as a
       constructor base, synchronous construction in the parser, upgrades,
@@ -4761,6 +4777,16 @@ Steps:
   lossily, so a lone surrogate from its `toString` resolves (Chromium
   fails). An `import()` in flight at a Stop rejects at once, not in a later
   task.
+- Module details (found in 3b-2): an event handler of one document that a
+  script of another document calls resolves `import()` against the
+  current document's URL (handlers share the number 0; give them one
+  number per document). `modulepreload` with an `as` other than `script`:
+  Chromium requests the URL and fires `error`, swb fires `error` without a
+  request. Classic scripts have no CORS fetch: `crossorigin` only removes
+  the muting. The `type` of a script element is compared without HTML's
+  stripping of ASCII whitespace for `module` and `importmap`.
+  `toggleAttribute` and the `Attr` setters do not run the processing of a
+  `modulepreload` link.
 - Module link errors in cyclic graphs (found in 3a-1; cases `msg-cycle-*`
   of `tools/probes/web-module-graph.json`): Chromium reports a cycle of
   `export {...} from` entries as `SyntaxError: Detected cycle while
@@ -4776,10 +4802,11 @@ Steps:
   `JSON.parse` reviver reads.
 - The search for the active script or module (found in 3a-3): each `eval`
   and `Function` call scans the frames from the top until a frame's code
-  has a script or module. Code without one (all page scripts until 3b-2
-  passes `host_defined`) makes it scan the whole stack: 200,000 `eval`
-  calls at the depth of 9,999 frames take 2.6 s instead of 0.6 s. The cost
-  is bounded by the stack limit, and pages call `eval` at a small depth.
+  has a script or module. Code without one makes it scan the whole stack:
+  200,000 `eval` calls at the depth of 9,999 frames take 2.6 s instead of
+  0.6 s. Since 3b-2 page scripts, handlers, string timers and
+  `javascript:` URLs have a number, so only code of the automation API's
+  `evaluate` has none. The cost is bounded by the stack limit.
   Fix: keep the effective referrer in each frame (also for resumed
   generator and async frames), if a profile of a target shows the scan.
 - Flaky test (seen once in 3a-3, under the load of `just check`):

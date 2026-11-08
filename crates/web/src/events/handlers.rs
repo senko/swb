@@ -646,9 +646,13 @@ fn compile(
         body: text,
         scope: &scope,
         script_name: &url,
-        // HTML: an event handler's function has no script (null); the page
-        // has no module hooks before ADR 0034 sub-feature 3b-1.
-        host_defined: None,
+        // HTML: an event handler's function has no script; Chromium resolves
+        // `import()` in it, and in code that it creates (`eval`, promise
+        // reactions and timer functions), against the document's URL, also
+        // when a script calls the handler (measured, cases
+        // `import-call-document-base`, `import-call-base-*`). The number 0
+        // stands for that referrer (`scripts/module_map.rs`).
+        host_defined: Some(crate::scripts::module_map::DOCUMENT_REFERRER),
     };
     match rt.compile_event_handler(&handler) {
         Ok(function) => {

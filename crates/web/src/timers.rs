@@ -286,7 +286,16 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
         }
         Handler::Code(code) => {
             let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
-            rt.eval_named_at(realm, code, &url, (0, 0), None)
+            // `import()` in a string timer resolves against the document's
+            // base URL when the timer runs, also in a script of another
+            // origin (Chromium, measured: `import-call-base-timer-changes`,
+            // `import-call-base-external`).
+            let base = crate::state::engine_mut(rt)
+                .map_err(crate::runtime::task_error)?
+                .base_url();
+            let number = crate::scripts::module_map::script_number(rt, &base, false)
+                .map_err(crate::runtime::task_error)?;
+            rt.eval_named_at(realm, code, &url, (0, 0), Some(number))
                 .map(|_| ())
         }
     };

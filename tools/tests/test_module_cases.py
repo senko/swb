@@ -11,7 +11,6 @@ from swbtools.module_cases import (
     GRAPH_CASES_FILE,
     GRAPH_PROBE_FILE,
     PROBE_FILE,
-    graph_later,
     raw,
     render,
 )
@@ -83,18 +82,9 @@ def test_render_skips_the_named_cases() -> None:
     assert "module-graph-cases" in text
 
 
-def test_graph_cases_of_sub_feature_3b2_wait() -> None:
-    assert graph_later("importmap-basic")
-    assert graph_later("modulepreload")
-    assert graph_later("modulepreload-bare")
-    assert graph_later("import-call-base")
-    assert not graph_later("import-call-errors")
-    assert not graph_later("graph-shared")
-
-
 def test_committed_graph_cases_are_those_of_the_probe_file() -> None:
     root = paths.repo_root()
     probe = json.loads((root / GRAPH_PROBE_FILE).read_text())
     rust = (root / GRAPH_CASES_FILE).read_text()
     written = re.findall(r'^        name: r?"([^"]+)",$', rust, re.MULTILINE)
-    assert written == [c["name"] for c in probe["cases"] if not graph_later(c["name"])]
+    assert written == [c["name"] for c in probe["cases"]]

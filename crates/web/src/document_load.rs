@@ -384,6 +384,7 @@ impl ScriptRuntime {
                 Err(_) => return,
             };
             self.connect_parser_frames();
+            self.start_parser_links();
             let Some((ParseStep::Script(node), position)) = step else {
                 if self.defer_parse_end() {
                     self.queue_resume();
@@ -423,6 +424,24 @@ impl ScriptRuntime {
                 crate::frames::parser_inserted(rt, inserted).map_err(task_error)
             });
         }
+    }
+
+    /// The `link rel=modulepreload` elements of the parser's last step start
+    /// their module fetches, in a task (`scripts/preload.rs`).
+    fn start_parser_links(&mut self) {
+        let Ok(host) = engine_mut(&mut self.rt) else {
+            return;
+        };
+        let links = host.take_parser_links();
+        if links.is_empty() {
+            return;
+        }
+        let _ = self.task("a link element", |rt| {
+            for node in links {
+                crate::scripts::process_preload(rt, node).map_err(task_error)?;
+            }
+            Ok(())
+        });
     }
 
     /// True the first time the input ends and "the end" must wait for a

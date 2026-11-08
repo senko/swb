@@ -2,8 +2,7 @@
 `crates/engine/tests/probe_net/modules.rs` from
 `tools/probes/web-module-scripts.json` (`module-cases`) and
 `crates/engine/tests/probe_net/module_graph.rs` from
-`tools/probes/web-module-graph.json` (`module-graph-cases`; without the
-cases of ADR 0034 sub-feature 3b-2, `GRAPH_LATER`).
+`tools/probes/web-module-graph.json` (`module-graph-cases`).
 
 Run Chromium three times and check that the outputs are equal (docs/testing.md),
 then pass one output:
@@ -26,17 +25,6 @@ PROBE_FILE = Path("tools/probes/web-module-scripts.json")
 CASES_FILE = Path("crates/engine/tests/probe_net/modules.rs")
 GRAPH_PROBE_FILE = Path("tools/probes/web-module-graph.json")
 GRAPH_CASES_FILE = Path("crates/engine/tests/probe_net/module_graph.rs")
-
-
-def graph_later(name: str) -> bool:
-    """True for a case of the module graph probe that ADR 0034 sub-feature
-    3b-2 runs (import maps, `modulepreload`, the base URLs of classic
-    scripts for `import()`)."""
-    return (
-        name.startswith("importmap-")
-        or name.startswith("modulepreload")
-        or name == "import-call-base"
-    )
 
 
 def render(
@@ -102,12 +90,12 @@ def write_module_cases(chromium_json: Path) -> int:
 
 
 def write_module_graph_cases(chromium_json: Path) -> int:
-    """Writes the cases file of the module graph probe (without the cases of
-    sub-feature 3b-2) from the `probe --json` output in `chromium_json`."""
+    """Writes the cases file of the module graph probe from the `probe --json`
+    output in `chromium_json`."""
     root = paths.repo_root()
     probe = json.loads((root / GRAPH_PROBE_FILE).read_text(encoding="utf-8"))
     chromium = json.loads(chromium_json.read_text(encoding="utf-8"))
-    text = render(probe, chromium, GRAPH_PROBE_FILE, graph_later)
+    text = render(probe, chromium, GRAPH_PROBE_FILE)
     (root / GRAPH_CASES_FILE).write_text(text, encoding="utf-8")
     print(f"wrote {GRAPH_CASES_FILE}")
     return 0

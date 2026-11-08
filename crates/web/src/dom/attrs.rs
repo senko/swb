@@ -207,6 +207,21 @@ fn value_of(rt: &Runtime, element: NodeId, name: &QualName) -> VmResult<Option<S
         .map(|a| a.value.clone()))
 }
 
+/// Whether the attribute `name` of `element` exists, and its value if the
+/// change steps compare it: the `rel` of a `link` (`scripts::attribute_changed`).
+/// No other attribute is copied: this runs for every `setAttribute`
+/// (`class`, `style`, a large `src`).
+fn old_value(rt: &Runtime, element: NodeId, name: &QualName) -> VmResult<(bool, Option<String>)> {
+    let Some(e) = dom(rt)?.element(element) else {
+        return Ok((false, None));
+    };
+    let Some(attr) = e.attr_by_namespace(&name.ns, &name.local) else {
+        return Ok((false, None));
+    };
+    let compared = name.ns == ns!() && &*name.local == "rel" && &**e.local_name() == "link";
+    Ok((true, compared.then(|| attr.value.clone())))
+}
+
 // ----- Changes -----
 
 /// Sets the attribute `name` of `element` and runs the attribute change
@@ -218,9 +233,7 @@ pub(crate) fn set_attribute(
     name: &QualName,
     value: &str,
 ) -> b::Result<()> {
-    let had = dom(rt)?
-        .element(element)
-        .is_some_and(|e| e.attr_by_namespace(&name.ns, &name.local).is_some());
+    let (had, old) = old_value(rt, element, name)?;
     let type_change = crate::html::before_type_change(rt, element, name)?;
     let result = dom_mut(rt)?.set_attribute(element, name, value);
     dom_result(rt, result)?;
@@ -232,7 +245,13 @@ pub(crate) fn set_attribute(
     if name.ns == ns!() && &*name.local == "hidden" {
         crate::html::focus::hidden_set(rt, element)?;
     }
-    Ok(crate::scripts::attribute_changed(rt, element, name, had)?)
+    Ok(crate::scripts::attribute_changed(
+        rt,
+        element,
+        name,
+        had,
+        old.as_deref(),
+    )?)
 }
 
 /// Tells the engine that the `selected` attribute of an `option` was

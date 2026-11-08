@@ -777,6 +777,121 @@ def module_tla_never_settles_js_on() -> Page:
 
 
 @case(
+    "An import map with 100,000 entries, with JavaScript on and an http: page from a replayed "
+    "fixture (M10 3b-2): the document's map takes 65,536 entries and ignores the later ones, "
+    "with one warning; the first key resolves and the last does not (ADR 0034 sections 9 and "
+    "11)",
+    swb_args=REPLAY,
+    time_limit_s=20,
+    url=REPLAY_URL,
+    expect_log=("the import map has 65536 entries", "first ok last failed"),
+)
+def importmap_entries_100000_js_on() -> Page:
+    entries = ",".join(f'"k{i}":"./v{i}.js"' for i in range(100_000))
+    script = (
+        "<script type=module>const ok = (s) => { try { import.meta.resolve(s); return true; } "
+        "catch { return false; } }; "
+        "console.warn('first ' + (ok('k0') ? 'ok' : 'failed') + ' last ' + "
+        "(ok('k99999') ? 'ok' : 'failed'));</script>"
+    )
+    head = '<p>import map</p><script type=importmap>{"imports":{' + entries + "}}</script>"
+    return replay_scripts_page(doc(head + script), {})
+
+
+@case(
+    "An import map with 50,000 scopes, 100,000 resolutions with it, and one specifier of 1 MiB "
+    "of slashes, with JavaScript on and an http: page from a replayed fixture (M10 3b-2): a "
+    "resolution looks up the prefixes of the base URL and of the specifier in hash maps, so "
+    "its time does not depend on the number of scopes that the base URL does not match, "
+    "and the long specifier ends its search at the lookup budget, which the exact lookup "
+    "in each matching scope also uses (ADR 0034 sections 9 and 11)",
+    swb_args=REPLAY,
+    time_limit_s=20,
+    url=REPLAY_URL,
+    expect_log="resolved 100000",
+)
+def importmap_scopes_50000_js_on() -> Page:
+    scopes = ",".join(f'"/s{i}/":{{"a":"/scoped{i}.js"}}' for i in range(50_000))
+    script = (
+        "<script type=module>let n = 0; "
+        "for (let i = 0; i < 100000; i++) { import.meta.resolve('a'); n++; } "
+        "try { import.meta.resolve('x' + '/'.repeat(1 << 20)); } catch {} "
+        "console.warn('resolved ' + n);</script>"
+    )
+    return replay_scripts_page(
+        doc(
+            '<p>import map</p><script type=importmap>{"imports":{"a":"/top.js"},"scopes":{'
+            + scopes
+            + "}}</script>"
+            + script
+        ),
+        {},
+    )
+
+
+@case(
+    "300 `import.meta.resolve` calls with a specifier of 1 MiB each, with JavaScript on and an "
+    "http: page from a replayed fixture (M10 3b-2 fix round): the resolved module set records "
+    "no pair of more than 4 KiB and holds at most 1 MiB in all, so the page does not keep "
+    "300 MiB of specifiers (ADR 0034 sections 9 and 11)",
+    swb_args=REPLAY,
+    time_limit_s=30,
+    url=REPLAY_URL,
+    expect_log="resolved 300",
+)
+def importmap_resolve_long_js_on() -> Page:
+    script = (
+        "<script type=module>for (let i = 0; i < 300; i++) { "
+        "import.meta.resolve('./k' + i + '/'.repeat(1 << 20)); } "
+        "console.warn('resolved 300');</script>"
+    )
+    return replay_scripts_page(doc("<p>import map</p>" + script), {})
+
+
+@case(
+    "20,000 import maps that a script inserts, each after a resolution, with JavaScript on and "
+    "an http: page from a replayed fixture (M10 3b-2): every merge checks the resolved "
+    "specifiers, and the work of the merges of a document has a budget, so the page finishes "
+    "within the time limit (ADR 0034 sections 9 and 11)",
+    swb_args=REPLAY,
+    time_limit_s=30,
+    url=REPLAY_URL,
+    expect_log="maps 20000",
+)
+def importmap_inserted_20000_js_on() -> Page:
+    script = (
+        "<script type=module>for (let i = 0; i < 20000; i++) { "
+        "const s = document.createElement('script'); s.type = 'importmap'; "
+        "s.text = JSON.stringify({imports: {['k' + i]: './v' + i + '.js'}}); "
+        "document.head.append(s); import.meta.resolve('k' + i); } "
+        "console.warn('maps ' + 20000);</script>"
+    )
+    return replay_scripts_page(doc("<p>import maps</p>" + script), {})
+
+
+@case(
+    "3,000 `link rel=modulepreload` elements, each for another file, with JavaScript on and an "
+    "http: page from a replayed fixture (M10 3b-2): the fetches go through the queue of 64 "
+    "script fetches, none delays `load`, and every link gets its `load` event; the event loop "
+    "runs in virtual time until they end (ADR 0034 sections 9 and 11)",
+    swb_args=(*REPLAY, "--virtual-time", "--settle-ms", "60000"),
+    time_limit_s=40,
+    url=REPLAY_URL,
+    expect_log="links loaded 3000",
+)
+def modulepreload_links_3000_js_on() -> Page:
+    n = 3_000
+    links = "".join(f"<link rel=modulepreload href=p{i}.js>" for i in range(n))
+    files = {f"p{i}.js": f"export default {i};" for i in range(n)}
+    script = (
+        "<script>let n = 0; document.addEventListener('load', (e) => { "
+        "if (e.target.localName === 'link' && ++n === 3000) console.warn('links loaded ' + n); "
+        "}, true);</script>"
+    )
+    return replay_scripts_page(doc("<p>preload</p>" + script + links), files)
+
+
+@case(
     "A module with 70,000 top-level let bindings, with JavaScript on (M9 feature 7): the "
     "bindings of a module are registers of its function, so the module is over the compiler's "
     "limit and fails to compile as a function with so many variables does, with an error "

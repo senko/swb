@@ -21,10 +21,14 @@
 //! document) and the module hooks (`scripts/module_hooks.rs`); the element
 //! is ready when its graph is loaded and linked (`scripts/modules.rs`).
 //!
-//! Departures (comments at the places): import maps, `modulepreload`,
-//! speculation rules and SVG scripts do not run; the `charset` attribute is
-//! ignored (the engine decodes with the response's charset, else the
-//! document's encoding).
+//! Import maps (`<script type=importmap>`, inline only) are prepared like
+//! inline classic scripts and register their parsed map when they execute
+//! (`scripts/import_map.rs`). `link rel=modulepreload` is in
+//! `scripts/preload.rs`.
+//!
+//! Departures (comments at the places): speculation rules and SVG scripts do
+//! not run; the `charset` attribute is ignored (the engine decodes with the
+//! response's charset, else the document's encoding).
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -38,14 +42,17 @@ use crate::generated as g;
 use crate::generated::types::DocumentReadyState;
 use crate::state::{WebState, dom, dom_mut, engine, engine_mut, state, state_mut};
 
+mod import_map;
 mod module_hooks;
 pub(crate) mod module_map;
 mod modules;
+mod preload;
 
 pub(crate) use module_hooks::{answer_import, install as install_module_hooks};
 pub(crate) use module_map::fetched as module_fetched;
 pub(crate) use modules::mark_module_ready;
-use modules::{prepare_inline_module, start_module_fetch};
+use modules::{execute_import_map, prepare_inline_module, start_module_fetch};
+pub(crate) use preload::{fire_link_event, process as process_preload, written_links};
 
 /// The JavaScript MIME type essences (MIME Sniffing §4.6,
 /// <https://mimesniff.spec.whatwg.org/#javascript-mime-type>).
@@ -122,6 +129,21 @@ pub(crate) struct ClassicScript {
     /// [`MAX_HELD_SCRIPT_BYTES`] while the script waits: the length of a
     /// fetched script's text, 0 for an inline script.
     held: usize,
+    /// The script's base URL (HTML "base URL" of a script): its URL for an
+    /// external script, the document's base URL when it was prepared for an
+    /// inline one. `import()` in the script resolves against it.
+    base: String,
+    /// True for a script of another origin that the page fetched without CORS
+    /// (no `crossorigin` attribute): its `import()` is rejected.
+    muted: bool,
+}
+
+/// The text of an inline import map and the document's base URL when the
+/// script was prepared (the base of its addresses).
+#[derive(Debug)]
+pub(crate) struct ImportMapSource {
+    text: String,
+    base: String,
 }
 
 /// The most bytes of fetched script text that a document holds before the
@@ -154,6 +176,8 @@ enum ScriptResult {
     Failed,
     /// A classic script.
     Classic(Box<ClassicScript>),
+    /// An inline import map, registered when the element executes.
+    ImportMap(Box<ImportMapSource>),
     /// A module script: the root of its linked graph.
     Module(Module),
     /// A module script with an error to rethrow: a parse, resolution or
@@ -405,7 +429,10 @@ impl Scripts {
         for el in self.elements.values_mut() {
             if matches!(
                 el.result,
-                ScriptResult::Classic(_) | ScriptResult::Module(_) | ScriptResult::ModuleError(_)
+                ScriptResult::Classic(_)
+                    | ScriptResult::ImportMap(_)
+                    | ScriptResult::Module(_)
+                    | ScriptResult::ModuleError(_)
             ) {
                 el.result = ScriptResult::Done;
             }
@@ -466,7 +493,9 @@ pub(crate) enum Prepared {
 enum Kind {
     Classic,
     Module,
-    /// An import map, speculation rules or a type that is not a script.
+    /// An import map (`type=importmap`, ASCII case-insensitive).
+    ImportMap,
+    /// Speculation rules or a type that is not a script.
     Other,
 }
 
@@ -485,6 +514,8 @@ fn kind_of(element: &swb_dom::ElementData) -> Kind {
         Kind::Classic
     } else if type_string.eq_ignore_ascii_case("module") {
         Kind::Module
+    } else if type_string.eq_ignore_ascii_case("importmap") {
+        Kind::ImportMap
     } else {
         Kind::Other
     }
@@ -597,10 +628,13 @@ pub(crate) fn prepare(
     if scripting_disabled || !found.in_document || nomodule || !event_for {
         return Ok(Prepared::Nothing);
     }
+    if kind == Kind::ImportMap {
+        return prepare_import_map(rt, node, found, parser);
+    }
     let module = (!classic).then_some(ScriptFetchMode::Module { credentials });
     match (found.src.clone(), module) {
         (Some(src), module) => prepare_external(rt, node, &src, &found, module),
-        (None, None) => prepare_inline(rt, node, found.source, parser),
+        (None, None) => prepare_inline(rt, node, found.source, parser, false),
         (None, Some(_)) => {
             let source = std::mem::take(&mut found.source);
             prepare_inline_module(rt, node, &source, (parser, credentials), &found)
@@ -682,20 +716,39 @@ fn place_script(
     }
 }
 
-/// Steps 33 and 34 of "prepare" for an inline classic script: the result
-/// is ready at once; a parser-inserted one waits for the style sheets that
-/// block scripts.
+/// Steps of "prepare" for an import map (HTML "prepare the script element":
+/// an import map with `src` fires `error` and nothing else; an inline one is
+/// prepared like an inline classic script, with the document's base URL as
+/// the base of its addresses).
+fn prepare_import_map(
+    rt: &mut Runtime,
+    node: NodeId,
+    found: Found,
+    parser: Option<ParserScript>,
+) -> VmResult<Prepared> {
+    if found.src.is_some() {
+        queue_task(rt, Task::ScriptErrorEvent(node))?;
+        return Ok(Prepared::Nothing);
+    }
+    prepare_inline(rt, node, found.source, parser, true)
+}
+
+/// Steps 33 and 34 of "prepare" for an inline classic script or an import map
+/// (`import_map`): the result is ready at once; a parser-inserted one waits
+/// for the style sheets that block scripts.
 fn prepare_inline(
     rt: &mut Runtime,
     node: NodeId,
     source: String,
     parser: Option<ParserScript>,
+    import_map: bool,
 ) -> VmResult<Prepared> {
     let (url, start) = match parser {
         Some(ParserScript::Document(p)) => (engine(rt)?.url(), (p.line, p.column)),
         Some(ParserScript::Written) => (String::new(), (0, 0)),
         None => (engine(rt)?.url(), (0, 0)),
     };
+    let base = engine_mut(rt)?.base_url();
     let parser_inserted = scripts(rt)?
         .elements
         .get(&node)
@@ -705,13 +758,19 @@ fn prepare_inline(
     let Some(el) = scripts.elements.get_mut(&node) else {
         return Ok(Prepared::Nothing);
     };
-    el.result = ScriptResult::Classic(Box::new(ClassicScript {
-        source,
-        url,
-        start,
-        written: parser == Some(ParserScript::Written),
-        held: 0,
-    }));
+    el.result = if import_map {
+        ScriptResult::ImportMap(Box::new(ImportMapSource { text: source, base }))
+    } else {
+        ScriptResult::Classic(Box::new(ClassicScript {
+            source,
+            url,
+            start,
+            written: parser == Some(ParserScript::Written),
+            held: 0,
+            base,
+            muted: false,
+        }))
+    };
     if blocked {
         el.ready_to_be_parser_executed = true;
         scripts.pending_parsing_blocking = Some(node);
@@ -748,13 +807,19 @@ pub(crate) fn mark_as_ready(
     }
     let held = fetched.as_ref().map_or(0, |script| script.source.len());
     scripts.held_bytes += held;
+    let muted = fetched
+        .as_ref()
+        .is_some_and(|script| is_muted(rt, node, &script.url));
+    let scripts = scripts_mut(rt)?;
     let script = fetched.map(|script| {
         Box::new(ClassicScript {
             source: script.source,
+            base: script.url.clone(),
             url: script.url,
             start: (0, 0),
             written: false,
             held,
+            muted,
         })
     });
     let Some(el) = scripts.elements.get_mut(&node) else {
@@ -811,6 +876,7 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
         result @ (ScriptResult::Module(_) | ScriptResult::ModuleError(_)) => {
             return modules::execute_module(rt, node, &result, external);
         }
+        ScriptResult::ImportMap(source) => return execute_import_map(rt, &source),
         ScriptResult::Failed => {
             return fire_at_element(rt, node, "error").map_err(crate::runtime::task_error);
         }
@@ -818,11 +884,18 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
     };
     let old = scripts.current_script.replace(node);
     let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
-    // No Script Record number: `import()` of a classic script resolves
-    // against the document's base URL (the script's own URL is sub-feature
-    // 3b-2 of ADR 0034).
+    // The Script Record number: `import()` in the script resolves against
+    // its base URL (ADR 0034 "3b-2 implementation notes").
+    let number = module_map::script_number(rt, &script.base, script.muted)
+        .map_err(crate::runtime::task_error)?;
     let run = rt
-        .eval_named_at(realm, &script.source, &script.url, script.start, None)
+        .eval_named_at(
+            realm,
+            &script.source,
+            &script.url,
+            script.start,
+            Some(number),
+        )
         .map(drop);
     let mut outcome = report_run(rt, &script, &run);
     if outcome.is_ok() && rt.stack_depths().0 == 0 {
@@ -945,11 +1018,14 @@ fn is_script(dom: &Document, node: NodeId) -> bool {
     dom.is_html_element(node, &local_name!("script"))
 }
 
-/// True for an HTML element with post-connection steps: `script`, `iframe`.
+/// True for an HTML element with post-connection steps: `script`, `iframe`,
+/// and a `link` with `rel=modulepreload`.
 fn has_steps(dom: &Document, node: NodeId) -> bool {
     dom.element(node).is_some_and(|e| {
         e.name.ns == swb_dom::ns!(html)
-            && (e.name.local == local_name!("script") || e.name.local == local_name!("iframe"))
+            && (e.name.local == local_name!("script")
+                || e.name.local == local_name!("iframe")
+                || preload::is_modulepreload(e))
     })
 }
 
@@ -970,6 +1046,11 @@ pub(crate) fn after_insertion(rt: &mut Runtime, parent: NodeId, nodes: &[NodeId]
         }
         if is_script(dom(rt)?, element) {
             post_connection(rt, element)?;
+        } else if dom(rt)?
+            .element(element)
+            .is_some_and(preload::is_modulepreload)
+        {
+            preload::process(rt, element)?;
         } else {
             crate::frames::connected(rt, element)?;
         }
@@ -981,14 +1062,37 @@ pub(crate) fn after_insertion(rt: &mut Runtime, parent: NodeId, nodes: &[NodeId]
 /// script element that gets an `async` attribute is no longer "force
 /// async"; one that gets a `src` attribute where it had none runs the
 /// post-connection steps (they prepare it if it is connected and not
-/// parser-inserted). `had_before` tells whether the attribute existed.
+/// parser-inserted). `had` tells if the attribute existed before; `old` is
+/// its value then, only for the `rel` of a `link` (the caller copies no other
+/// value).
+///
+/// A `link` that is a `modulepreload` link processes again when its `href` is
+/// set (to any value) or its `rel` gets another value (`scripts/preload.rs`).
 pub(crate) fn attribute_changed(
     rt: &mut Runtime,
     element: NodeId,
     name: &swb_dom::QualName,
-    had_before: bool,
+    had: bool,
+    old: Option<&str>,
 ) -> VmResult<()> {
-    if had_before || name.ns != swb_dom::ns!() || !is_script(dom(rt)?, element) {
+    if name.ns != swb_dom::ns!() {
+        return Ok(());
+    }
+    if !is_script(dom(rt)?, element) {
+        let changed = match &*name.local {
+            "href" => true,
+            "rel" => dom(rt)?
+                .element(element)
+                .and_then(|e| e.attr("rel"))
+                .is_none_or(|new| Some(new) != old),
+            _ => false,
+        };
+        if changed {
+            preload::process(rt, element)?;
+        }
+        return Ok(());
+    }
+    if had {
         return Ok(());
     }
     match &*name.local {
@@ -1080,6 +1184,29 @@ fn post_connection(rt: &mut Runtime, script: NodeId) -> VmResult<()> {
     Ok(())
 }
 
+/// True if the classic script of the element `node` with the URL `url` has
+/// "muted errors": it comes from another origin and the element has no
+/// `crossorigin` attribute (HTML: the fetch was `no-cors`). swb fetches every
+/// classic script with `no-cors`, so a script with `crossorigin` counts as
+/// CORS-approved here (Chromium would block it without the header); only
+/// `http` and `https` documents and scripts are compared (a `file` URL has an
+/// opaque origin).
+fn is_muted(rt: &Runtime, node: NodeId, url: &str) -> bool {
+    let has_attribute = dom(rt)
+        .ok()
+        .and_then(|d| d.element(node))
+        .is_some_and(|e| e.has_attr("crossorigin"));
+    if has_attribute {
+        return false;
+    }
+    let (Ok(script), Ok(document)) = (url::Url::parse(url), url::Url::parse(&document_url(rt)))
+    else {
+        return false;
+    };
+    let web = |u: &url::Url| matches!(u.scheme(), "http" | "https");
+    web(&script) && web(&document) && script.origin() != document.origin()
+}
+
 /// The URL of the lent document (the name of the scripts of string
 /// timer handlers), or empty without one.
 pub(crate) fn document_url(rt: &Runtime) -> String {
@@ -1169,7 +1296,7 @@ mod tests {
 
     #[test]
     fn script_types() {
-        use Kind::{Classic as C, Module as M, Other as O};
+        use Kind::{Classic as C, ImportMap as I, Module as M, Other as O};
         // As Chromium (tools/probes/web-scripts.json, case `types`): a type
         // with parameters is not JavaScript; `type` wins over `language`.
         let html = "<script>1</script><script type=''>2</script>\
@@ -1180,8 +1307,9 @@ mod tests {
                     <script language=vbscript>no</script>\
                     <script type='text/javascript; charset=utf-8'>no</script>\
                     <script type=MODULE language=javascript>m</script>\
-                    <script type=importmap>{}</script>";
-        assert_eq!(kinds(html), [C, C, C, C, C, M, O, O, O, M, O]);
+                    <script type=importmap>{}</script>\
+                    <script type=IMPORTMAP>{}</script>";
+        assert_eq!(kinds(html), [C, C, C, C, C, M, O, O, O, M, I, I]);
     }
 
     #[test]

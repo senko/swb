@@ -92,7 +92,7 @@ marked "M9". `L` is the log of the case: `name:readyState[:currentScript]`.
 | `modulepreload` of a module with descendants, of a 404 and of `text/plain` | `modulepreload` | fetches the URL only (no descendant); does not run it; `load` or `error` at the `link`, after the window `load` (it does not delay it) |
 | `import()` of a preloaded module later | `modulepreload-then-import` | no second request for the preloaded module; its descendant is fetched then |
 | `modulepreload` with `href` of a bare specifier | `modulepreload-bare` | `href` is a URL, not a specifier: `x` is requested (404, `error`) |
-| `import()` base URL: external classic script of another origin with and without `crossorigin`, inline classic script, event handler attribute | `import-call-base` | with `crossorigin`: the script's URL; inline and handler: the document's base URL; without `crossorigin`: rejected at once with `TypeError` (before the script's `load`) |
+| `import()` base URL: external classic script of another origin with and without `crossorigin`, inline classic script, event handler attribute | `import-call-base` | with `crossorigin`: the script's URL; inline script: the document's base URL; event handler: the document's URL, not the base URL (corrected in 3b-2 with `import-call-document-base` and `import-call-base-*`; with a `<base>` the handler differs from the inline script); without `crossorigin`: rejected at once with `TypeError` (before the script's `load`) |
 | `import()` failures | `import-call-errors` | bare: `TypeError: Failed to resolve module specifier 'bare'`; syntax error: the `SyntaxError`; 404: `TypeError: Failed to fetch dynamically imported module: URL`; a throwing module: its error, the same for each call |
 | `import()` from a classic script; `import.meta` | M9 `import-call-classic`, `import-call`, `import-meta` | the import runs after `load` (its fetch does not delay `load`); `import.meta` keys `url,resolve`, `url` of an inline module is the document URL |
 
@@ -1183,9 +1183,8 @@ with the last script object that reaches them); the numbers and the
 
 **Departures (listed in `MODULE_GRAPH_DEPARTURES` where a probe shows
 them):** the `msg-cycle-*` cases (roadmap backlog); `import()` in an event
-handler resolves against the document's base URL (Chromium: the document's
-URL, case `import-call-document-base`; 3b-2 gives classic scripts their
-Script Records, then `Referrer::Realm` can use the document's URL); the
+handler resolved against the document's base URL (Chromium: the document's
+URL, case `import-call-document-base`; fixed in 3b-2); the
 import attribute `type: "json"` and `"css"` fails with `TypeError:
 Unsupported module type 'json'` (Chromium has these module types; no text
 to measure); a lossy specifier from a non-string argument of
@@ -1216,3 +1215,184 @@ missing files made a log past the runner's read limit).
 none, so the text stays `Fetched`) and quiet options; classic scripts pass
 their numbers to `eval_named_at`, and `referrer_base` maps them to their
 base URLs.
+
+## 3b-2 implementation notes
+
+Facts of the implementation (M10 sub-feature 3b-2: import maps,
+`modulepreload`, the base URLs of `import()` in classic scripts, the GitHub
+check) that differ from the decision above. Code:
+`crates/web/src/scripts/import_map.rs`, `preload.rs`, and changes in
+`module_hooks.rs`, `module_map.rs`, `modules.rs`, `scripts.rs`. All values
+are Chromium 148's, measured in `tools/probes/web-module-graph.json` (93
+cases, 114 queries; three equal runs of the whole file on an idle machine,
+with the exceptions below).
+
+**Import maps.**
+
+- `<script type=importmap>` (ASCII case-insensitive) is prepared as an inline
+  classic script (`ScriptResult::ImportMap`: the text and the document's base
+  URL of the preparation). It registers when the element executes. With `src`
+  it queues `error` and nothing else. `serde_json` reads the text into
+  ordered objects (`Node`); the web crate now depends on `serde` and
+  `serde_json` (they were dev dependencies).
+- Parse errors are reported at the document's URL 0:0 and the map is not
+  registered: invalid JSON, `SyntaxError: Failed to parse import map:
+  invalid JSON`; a TypeError for the other shapes: `... not an object` (also
+  `null`, a string), `... "imports" top-level key must be a JSON object.`
+  (also `null`), `... "scopes" top-level key must be a JSON object.`, `...
+  the value of the scope with prefix "./a/" must be a JSON object.`
+  (`msg-importmap-errors`). Unknown top-level keys and scopes whose prefix is
+  not a URL are ignored (warning). An entry with a non-string address, an
+  address that is not a URL, or a key that ends in `/` with an address that
+  does not, is blocked (null). The empty key is dropped. Keys and addresses
+  that are URL-like become their serialization (`importmap-normalize`: 41
+  specifiers, two referrers, all as HTML says).
+- Resolution (`ImportMap::resolve`): the scopes whose prefix equals the
+  referrer's URL or ends in `/` and starts it, longest first, then the
+  top-level imports, then the URL-like parse. A specifier map is a hash map;
+  the prefixes that end in `/` are looked up from the longest, in the
+  specifier and in the base URL, so a lookup costs the number of `/`, not the
+  number of entries. Prefix keys do not match a specifier that is a URL with
+  a non-special scheme. One resolution hashes at most 1 MiB of its specifier
+  in all its lookups: the prefixes, and the exact lookup in each matching
+  scope and in the top-level imports (each costs the specifier's length, and
+  none is made once the budget is gone); a longer search ends with no match
+  (a departure for specifiers of megabytes). The cost of a resolution thus
+  depends on the number of `/` in the specifier and the base URL and on the
+  number of scopes that match the base URL, not on the number of other
+  scopes. A scope is kept only if it has a kept rule (a scope whose rules
+  the resolved module set dropped, or an empty one, is not kept).
+- Messages: after `Failed to resolve module specifier "x".` (static) or
+  `... x:` (`import.meta.resolve`) the reason is `Import Map: "x" matches with
+  "k" but is blocked by a null value` or `... but is blocked due to
+  backtracking`; for a URL-like specifier the first name is the absolute URL.
+  `import()` has no reason (`... 'x'`). The empty specifier (with or without
+  a map) gives the reason of an unparsable URL-like specifier, `Invalid
+  relative url or base scheme isn't hierarchical.` (`msg-resolve-empty`;
+  3b-1 gave the bare text).
+- Merge: a key of an earlier map stays; the entries are added in order, and
+  the 65,536 entry limit ignores the later ones (one warning). The resolved
+  module set holds the (base URL, specifier) of each successful resolution,
+  at most 4,096 records and 1 MiB in all; a pair of a specifier and a base
+  URL of more than 4 KiB is not recorded (a departure: such resolutions are
+  not recorded, so a later map's rule may change them; the set would
+  otherwise keep 1.2 MiB for each `import.meta.resolve` of a long
+  specifier), and a new rule that matches one is dropped as HTML says
+  (`importmap-resolved-set`: `./a.js` stays, `./d.js` is mapped; scopes too).
+  The work of all merges of a document is bounded (4,000,000 records
+  checked, one warning, then new rules are not checked against the set),
+  and each merge hashes at most 16 MiB in all, the base URL prefixes of the
+  records included (the later records then drop no rule).
+- A map applies to every later resolution, also of a graph in flight (the
+  hook asks the map at each request). Inline modules resolve at their
+  preparation (`importmap-after-module`, `-inserted`, `-merge`).
+
+**`modulepreload`.** The engine lists the `link` elements with a
+`modulepreload` token in `rel` that the parser inserted
+(`EngineHost::take_parser_links`, filled by the journal drain of a parser
+step with scripting on); scripts' links go through `after_insertion`
+(insertion into the document, also of a subtree) and `attribute_changed`
+(`href` set to any value, `rel` set to another value; measured,
+`modulepreload-script`: a `crossorigin` change and a `rel` set to its value
+do nothing, a removal and insertion fires the event again with no new
+request). `module_map::preload` requests the URL (the `href` against the
+base URL, with the fragment; a URL with another fragment is another entry
+and shares the fetch) with quiet options and the waiter `Preload(node)`.
+Text that arrives for preload waiters only stays `Fetched`; the next graph
+that needs it parses it (and clears `quiet` as before). The link gets `load`
+(or `error` for a failed fetch) in `Task::LinkEvent`, after the fetch, also
+for an entry the map has. An empty or invalid `href` does nothing. The 111
+links of GitHub go through the queue of 64. Departures: `as` other than
+`script` (Chromium: `image`, `worker`, measured in `modulepreload-as`) fires
+`error` without a request, where Chromium requests the URL and fires
+`error`; the parse of a preloaded module waits for its first graph.
+
+**Referrers of `import()`.** `Referrer::Script(n)`: `n` is the number of a
+(base URL, muted, realm) triple in the table of the runtime
+(`WebState::script_bases`, `module_map::script_number`; the same triple, the
+same number; 65,536 triples; later scripts count as the document). The
+realm is the one of the document that prepared the script. The hook enters
+that realm's document before it resolves and requests, so a function of a
+script of a frame that the top page calls resolves against the script's
+base URL and loads into the frame's module map (measured,
+`import-call-base-frame-function`: the frame's inline function resolves
+against the frame's `<base>`, a function of its external script against the
+script's URL, a module that it loads runs in the frame's realm, and the
+top page's own `import()` against the top page's `<base>`). Number 0 is the
+document's URL. Measured (`import-call-base-*`,
+`import-call-document-base`):
+
+| Code | Base of `import()` |
+|---|---|
+| External classic script, also its `eval`, `new Function` and function timers | the script's URL (response URL) |
+| Inline classic script (also inserted), also its `eval`, `new Function` and function timers | the document's base URL when it was prepared (a later `<base>` change does not move it) |
+| String timer (from any code, also from a script of another origin) | the document's base URL when the timer runs |
+| `javascript:` URL | the document's base URL when it runs |
+| Event handler attribute, also its `eval`, `new Function`, promise reactions and timer functions | the document's URL (not the base URL) |
+| Code without a script (`Referrer::Realm`: automation, the console) | the document's URL |
+| Module, also its `eval`, `new Function`, timers | the module's URL (inline module: the document's base URL when prepared) |
+
+Handlers compile with `host_defined: Some(0)` so that the document's URL
+holds also when a script calls them (the engine's table would use the
+caller's script). A cross-origin classic script fetched without a
+`crossorigin` attribute is muted: its `import()` rejects at once with
+`TypeError: Failed to resolve module specifier './dep.js'. The base URL is
+about:blank because import() is called from a CORS-cross-origin script.`
+(`import-call-base-cors-message`; the specifier as written, in single
+quotes). swb fetches every classic script with `no-cors`, so a script with
+`crossorigin` counts as approved, and one without it counts as muted only
+for `http` and `https` documents and scripts. The 3b-1 departure about
+handlers is gone. Handlers (number 0) of another document that a script of the current
+document calls still resolve against the current document's URL (backlog).
+
+**Chromium's compilation cache.** V8 caches the code of `eval` and `new
+Function` by source text, so two cases of one run that compile the same text
+share the base URL of the first (a `new Function` in a script of another
+origin gave the document's base URL in one whole-file run and the script's
+URL in the others). The new cases use texts that no other case has.
+
+**Races in Chromium.** Not stable between runs, handled in the query or the
+page: `modulepreload-bare` (the order of the two events; its resources now
+answer after 100 and 150 ms and the query is sorted),
+`importmap-after-module` (whether `m.js` arrived before the parser reached
+the map; it answers after 200 ms), the order of the `link` events of
+`modulepreload` (staggered delays), `modulepreload-slow` (the interleaving of
+a link event with a module that joins its fetch: that module was removed),
+`import-call-base-eval-function` (the order of two failing fetches: sorted
+query, like `-base-changes`). `import-call-timing-joins-in-flight-after-load`
+(two `import()` waiting for one fetch; the second first in some runs) and
+`-quiet-then-element` stay races of Chromium's scheduling.
+`-joins-in-flight` answered after `load` in all three clean runs, where the
+3b-1 value (and swb) answers before it: it is now a departure row.
+
+**Probe tests.** `module_graph_probe_cases_match_chromium` runs all 93 cases
+(`swbtools module-graph-cases` skips none; `graph_later` went).
+`MODULE_GRAPH_DEPARTURES` has 16 rows (12 `msg-cycle-*`, 4 timing queries);
+the two rows of `import-call-document-base` went. The simulated server's 30 ms
+minimum latency made some cases depend on the arrival order against the
+parse, so the page or its resources got delays (`import-call-base`:
+`dep.js` 100 ms).
+
+**GitHub.** `crates/automation/tests/github.rs` loads `fixtures/js/github-swb`
+(skipped without it) and checks that the 9 module scripts ran in document
+order, none with an error to rethrow (a parse, resolution or link error), and
+that the console has no message about a module or an import map. The order
+shows through `debug!` lines of `scripts/modules.rs` (`module script URL:
+run` when a graph is evaluated, `... : error to rethrow`) that the test
+collects with a logger of its own: no test hook in the runtime. Console of
+the fixture (`--js --virtual-time --settle-ms 1500`), before (b89d355): 7
+messages, two of them `Failed to resolve module specifier "react"`; after: 7
+messages, all from the missing `customElements` (`customElements is not
+defined`, `Cannot read properties of undefined`). Later features.
+
+**Hostile cases.** `importmap-entries-100000-js-on`,
+`importmap-scopes-50000-js-on` (100,000 resolutions with 50,000 scopes and a
+specifier of 1 MiB of slashes), `importmap-inserted-20000-js-on`,
+`importmap-resolve-long-js-on` (300 `import.meta.resolve` calls with 1 MiB
+specifiers), `modulepreload-links-3000-js-on`.
+
+**Backlog.** The base URL of event handlers of another document; the
+`as` values of `modulepreload`; classic scripts with real CORS (`crossorigin`
+today only removes the muting); the trimming of the `type` attribute of
+`module` and `importmap` (HTML strips ASCII whitespace; the code compares
+untrimmed).

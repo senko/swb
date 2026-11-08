@@ -25,14 +25,14 @@
 
 use swb_dom::NodeId;
 use swb_js::{
-    Module, PromiseStatus, ReactionKind, Runtime, ScriptError, SourceLocation, Value, VmError,
-    VmResult,
+    Module, PromiseStatus, ReactionKind, Runtime, ScriptError, SourceLocation, ThrowKind, Value,
+    VmError, VmResult,
 };
 
 use super::module_map::{self, GraphOwner, Lookup, Options, Waiter};
 use super::{
-    Found, ParserScript, Prepared, ScriptResult, WhenReady, fire_at_element, place_script, scripts,
-    scripts_mut,
+    Found, ImportMapSource, ParserScript, Prepared, ScriptResult, WhenReady, fire_at_element,
+    import_map, place_script, scripts, scripts_mut,
 };
 use crate::event_loop::{Task, queue_task};
 use crate::state::engine_mut;
@@ -45,6 +45,52 @@ pub(super) fn vm_error(error: &ScriptError) -> VmError {
         ScriptError::Internal(error) => VmError::Internal(*error),
         ScriptError::Uncaught { .. } | ScriptError::Compile { .. } => {
             VmError::invariant("a script error of the module API")
+        }
+    }
+}
+
+/// HTML "execute the script element" for an inline import map: HTML
+/// "register an import map". The text is parsed with the document's base URL
+/// of the preparation; an error is reported at the document's URL, 0:0
+/// (Chromium, measured: `importmap-errors`, `msg-importmap-errors`), and the
+/// map is not registered. A microtask checkpoint follows when no script runs.
+pub(super) fn execute_import_map(
+    rt: &mut Runtime,
+    source: &ImportMapSource,
+) -> Result<(), ScriptError> {
+    let outcome = register_import_map(rt, source).map_err(crate::runtime::task_error);
+    if outcome.is_ok() && rt.stack_depths().0 == 0 {
+        crate::event_loop::microtask_checkpoint(rt)?;
+    }
+    outcome
+}
+
+fn register_import_map(rt: &mut Runtime, source: &ImportMapSource) -> VmResult<()> {
+    let Ok(base) = url::Url::parse(&source.base) else {
+        log::warn!(
+            "an import map is ignored: its base URL {} is invalid",
+            source.base
+        );
+        return Ok(());
+    };
+    match import_map::parse(&source.text, &base) {
+        Ok(parsed) => {
+            scripts_mut(rt)?.modules.import_map.register(parsed);
+            Ok(())
+        }
+        Err(error) => {
+            let kind = match error {
+                import_map::ParseError::Syntax => ThrowKind::SyntaxError,
+                import_map::ParseError::Type(_) => ThrowKind::TypeError,
+            };
+            let value = Value::Object(rt.new_error(kind, &error.message())?);
+            let name = super::document_url(rt);
+            let location = SourceLocation {
+                name: name.clone(),
+                line: 0,
+                column: 0,
+            };
+            crate::errors::report_value_at(rt, &name, value, location)
         }
     }
 }
@@ -299,8 +345,13 @@ pub(super) fn execute_module(
         .current_script
         .take();
     let mut outcome = match *result {
-        ScriptResult::Module(root) => evaluate(rt, root, &name),
+        ScriptResult::Module(root) => {
+            // The test of the GitHub fixture reads the order of these lines.
+            log::debug!("module script {name}: run");
+            evaluate(rt, root, &name)
+        }
         ScriptResult::ModuleError(error) => {
+            log::debug!("module script {name}: error to rethrow");
             report_error(rt, &name, error).map_err(crate::runtime::task_error)
         }
         _ => Ok(()),

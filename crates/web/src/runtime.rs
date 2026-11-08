@@ -648,6 +648,7 @@ impl ScriptRuntime {
         crate::state::state(&self.rt).map_or(0, |s| s.doc.timers.len())
     }
 
+    #[allow(clippy::too_many_lines, reason = "one arm for each kind of task")]
     fn run_task(&mut self, task: Task) -> Result<(), ScriptError> {
         match task {
             Task::Timer { id, handle } => {
@@ -677,6 +678,9 @@ impl ScriptRuntime {
             }),
             Task::ScriptErrorEvent(node) => self.task("a script element", |rt| {
                 crate::scripts::fire_at_element(rt, node, "error").map_err(task_error)
+            }),
+            Task::LinkEvent { node, error } => self.task("a link element", |rt| {
+                crate::scripts::fire_link_event(rt, node, error).map_err(task_error)
             }),
             Task::ScriptFetchFailed(node) => {
                 self.script_fetched(node, None);

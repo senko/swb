@@ -224,6 +224,7 @@ fn read_written_text(rt: &mut swb_js::Runtime) -> VmResult<()> {
         let step = engine_mut(rt)?.parse_written_step();
         let inserted = engine_mut(rt)?.take_inserted_frames();
         crate::frames::parser_inserted(rt, inserted)?;
+        crate::scripts::written_links(rt)?;
         let Some(WrittenStep::Script(node)) = step else {
             return Ok(());
         };

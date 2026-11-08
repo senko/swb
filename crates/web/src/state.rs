@@ -172,6 +172,10 @@ pub(crate) struct WebState {
     pub(crate) message_cost: crate::messaging::MessageCost,
     /// The `NodeIterator` objects of the runtime (`node_iterator.rs`).
     pub(crate) iterators: crate::node_iterator::IteratorTable,
+    /// The base URLs of classic scripts by number, for the referrer of
+    /// `import()`; shared by the documents of the runtime
+    /// (`scripts/module_map.rs`).
+    pub(crate) script_bases: crate::scripts::module_map::ScriptBases,
 }
 
 /// The binding state of one document and its `Window`.

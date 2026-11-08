@@ -4,6 +4,42 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 3b-2: import maps, `modulepreload`, GitHub
+
+- Import maps (ADR 0034 section 9): inline `<script type=importmap>`
+  (`src` fires `error`), parsed with `serde_json` with HTML's
+  normalization, merged as HTML says (a key of an earlier map stays; a rule
+  that would change an already resolved specifier is ignored), scopes.
+  Errors reach `window.onerror` with Chromium's texts (measured,
+  `msg-importmap-*`). Resolution looks up prefixes in hash maps under a
+  byte budget; the map holds at most 65,536 entries and the resolved
+  module set 4,096 records and 1 MiB. `import.meta.resolve` uses the maps.
+- `modulepreload`: one module fetch into the module map, not parsed and
+  not run until a graph needs it; `load` or `error` at the link; it does
+  not delay `load`.
+- The base URL of `import()` for each kind of code, measured in Chromium
+  first: a classic script uses its base URL from when it was prepared,
+  also when another frame calls its function (the frame's module map gets
+  the request); a string timer uses the base URL when it runs; a handler
+  and code without a script use the document's URL, not `<base>`; a
+  cross-origin script without `crossorigin` is rejected at once with
+  Chromium's text.
+- GitHub: the 9 module scripts load their modules with the import map and
+  run in document order (a new test with the local fixture). The 7
+  console errors left all come from the missing `customElements`
+  (feature 4). Feature 3 has met its exit; all targets keep their scores.
+- Probe file `web-module-graph.json`: 93 cases, 16 departures. Some
+  Chromium values depended on the run: V8 caches `eval` and `Function` by
+  source text, so equal texts in two cases share a base URL (the cases now
+  use unique texts), and some events raced (now with delays or sorted
+  queries).
+- Review: one bug, script numbers per document (a frame's function called
+  by the top page used the top's base URL); fixed with a table per runtime
+  whose entries name their realm. Also byte budgets for the resolved
+  module set, the scope lookups and the merge, no copy of every old
+  attribute value in `setAttribute`, no empty scopes.
+- Next: feature 4, custom elements (new ADR).
+
 ## 2026-11-08: M10 feature 3b-1: the module graph in the page
 
 - Module scripts load their graphs (ADR 0034 sections 8, 10, 11). Each

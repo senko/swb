@@ -1136,6 +1136,14 @@ pub trait EngineHost: Any {
         Vec::new()
     }
 
+    /// The `link` elements with `rel=modulepreload` that the parser's last
+    /// steps inserted (scripting on): the runtime starts their fetches. The
+    /// list goes. Links that scripts insert go through the node insertion
+    /// bindings, not through this list.
+    fn take_parser_links(&mut self) -> Vec<NodeId> {
+        Vec::new()
+    }
+
     /// The document's frame was destroyed or got another document (ADR 0031
     /// section 5): its requests and its parser end, its derived data goes,
     /// and from now on it starts nothing. The nodes stay readable.
