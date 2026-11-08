@@ -286,7 +286,8 @@ pub(crate) fn run_timer(rt: &mut Runtime, id: i32, handle: u64) -> Result<(), Sc
         }
         Handler::Code(code) => {
             let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
-            rt.eval_named_at(realm, code, &url, (0, 0)).map(|_| ())
+            rt.eval_named_at(realm, code, &url, (0, 0), None)
+                .map(|_| ())
         }
     };
     if let Err(error) = &result {

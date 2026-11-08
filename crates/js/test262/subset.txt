@@ -591,3 +591,12 @@ dir test/language/export
 # runtime error of the test.
 feature top-level-await
 dir test/language/module-code/top-level-await
+
+# Added in M10 feature 3a-3 (ADR 0034 section 4): `import()` and
+# `import.meta`. `import()` in a script test loads files relative to the
+# test, as a module's imports; `import.meta` has no properties in the
+# runner (the shell gives `url`).
+feature dynamic-import
+feature import.meta
+dir test/language/expressions/dynamic-import
+dir test/language/expressions/import.meta

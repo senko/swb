@@ -143,11 +143,12 @@ pub(crate) struct Limits {
     pub(crate) stress: bool,
 }
 
-/// Runs one test in one mode.
+/// Runs one test in one mode. With its file, `import()` in the test loads
+/// files relative to it, inside the test262 directory.
 pub(crate) fn run_mode(
     harness: &str,
     meta: &Meta,
-    source: &str,
+    (source, file): (&str, Option<TestFile<'_>>),
     strict: bool,
     limits: Limits,
 ) -> Status {
@@ -174,7 +175,9 @@ pub(crate) fn run_mode(
         Ok(rt) => rt,
         Err(error) => return Status::Fail(format!("runtime: {error}")),
     };
-    let result = shell::run(&mut rt, &options, &text, "");
+    let path = file.map(|file| file.dir.join(file.path));
+    let script_file = path.as_deref().zip(file.map(|file| file.dir));
+    let result = shell::run(&mut rt, &options, (&text, ""), script_file);
     // test262 does not fail a test for a rejection without a handler.
     drop(rt.take_unhandled_rejections());
     let status = judge(&rt, meta, result.map(|_| ()));
@@ -209,7 +212,7 @@ fn run_module_mode(
         Ok(rt) => rt,
         Err(error) => return Status::Fail(format!("runtime: {error}")),
     };
-    if let Err(error) = shell::run(&mut rt, &options, harness, "") {
+    if let Err(error) = shell::run(&mut rt, &options, (harness, ""), None) {
         return Status::Fail(format!("harness: {error}"));
     }
     let path = file.dir.join(file.path);
@@ -428,7 +431,7 @@ pub(crate) fn run_test(
             continue;
         }
         let status = catch_unwind(AssertUnwindSafe(|| {
-            run_mode(harness, meta, source, flag, limits)
+            run_mode(harness, meta, (source, file), flag, limits)
         }))
         .unwrap_or_else(|_| Status::Fail("panic".to_owned()));
         results.push((label, status));
@@ -724,7 +727,12 @@ mod tests {
 
     #[test]
     fn unsupported_constructs_are_counted_apart() {
-        let results = run("/*---\n---*/", "import('m');");
+        // Since 3a-3 the shell compiles every construct; the engine's
+        // thrown refusals (the Function constructor) still count apart.
+        let results = run(
+            "/*---\n---*/",
+            "throw new SyntaxError('not supported yet (construct)');",
+        );
         assert!(matches!(combine(&results), Status::Unsupported(_)));
     }
 

@@ -313,6 +313,7 @@ fn builtin_tag(kind: &ObjectKind) -> &'static str {
         | ObjectKind::WrapForValidIterator(_)
         | ObjectKind::AsyncFromSyncIterator(_)
         | ObjectKind::ArrayFromAsync(_)
+        | ObjectKind::DynamicImport(_)
         | ObjectKind::ForInIterator(_)
         | ObjectKind::PrivateEnvironment(_)
         | ObjectKind::Environment(_)

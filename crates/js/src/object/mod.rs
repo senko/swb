@@ -163,6 +163,9 @@ pub enum ObjectKind {
     /// The variables of a running `Array.fromAsync` (internal, the data of
     /// its reactions; `builtins/array_from_async.rs`).
     ArrayFromAsync(Box<crate::builtins::FromAsync>),
+    /// The state of an `import()` after the host's answer (internal, the
+    /// data of its reactions; `module/dynamic.rs`).
+    DynamicImport(Box<crate::module::DynamicImport>),
     /// An error object (`[[ErrorData]]`, §20.5): ordinary otherwise. The
     /// payload is the captured stack for the `stack` property (none if
     /// `Error.stackTraceLimit` was not a number at the capture).
@@ -318,6 +321,7 @@ impl fmt::Debug for ObjectKind {
             ObjectKind::WrapForValidIterator(_) => "WrapForValidIterator",
             ObjectKind::AsyncFromSyncIterator(_) => "AsyncFromSyncIterator",
             ObjectKind::ArrayFromAsync(_) => "ArrayFromAsync",
+            ObjectKind::DynamicImport(_) => "DynamicImport",
             ObjectKind::Error(_) => "Error",
             ObjectKind::Arguments => "Arguments",
             ObjectKind::Promise(_) => "Promise",
@@ -454,6 +458,7 @@ impl ObjectKind {
             ObjectKind::Environment(env) => env.trace(tracer),
             ObjectKind::Promise(state) => state.trace(tracer),
             ObjectKind::ArrayFromAsync(state) => state.trace(tracer),
+            ObjectKind::DynamicImport(state) => state.trace(tracer),
             ObjectKind::Proxy(data) => data.trace(tracer),
             ObjectKind::WindowProxy(slot) => slot.trace(tracer),
             ObjectKind::WeakMap(_) => tracer.weak_map(index),
@@ -500,6 +505,7 @@ impl ObjectKind {
             ObjectKind::Environment(_) => size_of::<EnvRecord>(),
             ObjectKind::Promise(state) => state.heap_size(),
             ObjectKind::ArrayFromAsync(_) => size_of::<crate::builtins::FromAsync>(),
+            ObjectKind::DynamicImport(_) => size_of::<crate::module::DynamicImport>(),
             ObjectKind::Proxy(_) => size_of::<ProxyData>(),
             ObjectKind::WeakRef(_) => size_of::<WeakRefData>(),
             ObjectKind::FinalizationRegistry(registry) => registry.heap_size(),

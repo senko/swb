@@ -1047,6 +1047,103 @@
      "text": "await new Promise(function(r){setTimeout(r,20)});\nlog('E '+n(new Error('in d').stack));\nthrow new RangeError('from d')"
     }
    }
+  },
+  {
+   "name": "msg-import-call-options",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script src=t.js></script><script>/*c*/T(function(s,o){return arguments.length>1?import(s,o):import(s)},'classic')</script><script type=module>/*m*/T(function(s,o){return arguments.length>1?import(s,o):import(s)},'module')</script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},800)})"
+    }
+   ],
+   "resources": {
+    "t.js": {
+     "text": "function R(p){return p.then(function(v){return 'ok'},function(e){return (e&&e.constructor?e.constructor.name:typeof e)+'|'+(e&&e.name)+': '+n(e&&e.message)})}\nfunction T(imp,tag){var w1={};w1[Symbol('k')]='v';var w2={};Object.defineProperty(w2,'k',{value:'v',enumerable:false});var px=new Proxy({},{ownKeys:function(){throw new RangeError('keys')}});var C=[\n['opt-num',function(){return imp('./a.js',1)}],\n['opt-null',function(){return imp('./a.js',null)}],\n['opt-str',function(){return imp('./a.js','x')}],\n['opt-undef',function(){return imp('./a.js',undefined)}],\n['with-num',function(){return imp('./a.js',{with:1})}],\n['with-null',function(){return imp('./a.js',{with:null})}],\n['with-str',function(){return imp('./a.js',{with:'x'})}],\n['with-undef',function(){return imp('./a.js',{with:undefined})}],\n['with-getter',function(){return imp('./a.js',{get with(){throw new RangeError('g')}})}],\n['with-proxy',function(){return imp('./a.js',{with:px})}],\n['val-num',function(){return imp('./a.js',{with:{type:1}})}],\n['val-obj',function(){return imp('./a.js',{with:{type:{}}})}],\n['key-bad',function(){return imp('./a.js',{with:{k:'v'}})}],\n['key-bad-val-num',function(){return imp('./a.js',{with:{k:'v',type:1}})}],\n['val-num-key-bad',function(){return imp('./a.js',{with:{type:1,k:'v'}})}],\n['key-two-bad',function(){return imp('./a.js',{with:{k1:'v',k2:'v'}})}],\n['key-sym',function(){return imp('./a.js',{with:w1})}],\n['key-nonenum',function(){return imp('./a.js',{with:w2})}],\n['type-js',function(){return imp('./a.js',{with:{type:'javascript'}})}],\n['type-foo',function(){return imp('./a.js',{with:{type:'foo'}})}],\n['spec-throw',function(){return imp({toString:function(){throw new RangeError('ts')}})}],\n['spec-sym',function(){return imp(Symbol('s'))}],\n['spec-throw-opt-num',function(){return imp({toString:function(){throw new RangeError('ts')}},1)}],\n['spec-obj',function(){return imp({toString:function(){return './a.js'}})}]\n];return Promise.all(C.map(function(c){var p;try{p=c[1]()}catch(e){return c[0]+'=sync '+e.name+': '+e.message}return R(p).then(function(v){return c[0]+'='+v})})).then(function(a){L.push(tag+' '+a.join(' | '))})}"
+    },
+    "a.js": {
+     "text": "export var a=1"
+    }
+   }
+  },
+  {
+   "name": "msg-import-call-meta",
+   "html": "<!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script type=module src=m.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},800)})"
+    }
+   ],
+   "resources": {
+    "m.js": {
+     "text": "var a=import.meta,b=import.meta;log('same '+(a===b)+' proto '+Object.getPrototypeOf(a)+' keys '+Object.keys(a)+' ext '+Object.isExtensible(a)+' url '+n(a.url));import('./d.js').then(function(ns){log('d '+(ns.meta===a)+' '+n(ns.meta.url))});import('./m.js').then(function(ns){log('self '+Object.keys(ns))})"
+    },
+    "d.js": {
+     "text": "export var meta=import.meta"
+    }
+   }
+  },
+  {
+   "name": "tla-rejection-order",
+   "html": "<!DOCTYPE html><script>var L=[];</script><script type=module>import {p1,pA,pB} from './setup.js';var ip=Promise.all([pB.promise.then(function(){return import('./a.js').finally(function(){L.push('A')})}).catch(function(){}),import('./b.js').finally(function(){L.push('B')}).catch(function(){})]);Promise.all([pA.promise,pB.promise]).then(p1.reject);ip.then(function(){L.push('done')})</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},500)})"
+    }
+   ],
+   "resources": {
+    "setup.js": {
+     "text": "export const p1=Promise.withResolvers();export const pA=Promise.withResolvers();export const pB=Promise.withResolvers();"
+    },
+    "a.js": {
+     "text": "import './as.js';import './b.js';"
+    },
+    "as.js": {
+     "text": "import {pA} from './setup.js';pA.resolve();"
+    },
+    "b.js": {
+     "text": "import './bs.js';import {p1} from './setup.js';await p1.promise;"
+    },
+    "bs.js": {
+     "text": "import {pB} from './setup.js';pB.resolve();"
+    }
+   }
+  },
+  {
+   "name": "tla-rejection-order-chain",
+   "html": "<!DOCTYPE html><script>var L=[];</script><script type=module>import('./m1.js').catch(function(e){L.push('m1:'+e.message)});setTimeout(function(){import('./m2.js').catch(function(e){L.push('m2:'+e.message)})},20)</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},600)})"
+    }
+   ],
+   "resources": {
+    "m1.js": {
+     "text": "import './leaf.js';"
+    },
+    "m2.js": {
+     "text": "import './m1.js';"
+    },
+    "leaf.js": {
+     "text": "await new Promise(function(r){setTimeout(r,150)});throw new Error('L')"
+    }
+   }
+  },
+  {
+   "name": "tla-rejection-order-control",
+   "html": "<!DOCTYPE html><script>var L=[];</script><script type=module>import('./m1.js').catch(function(e){L.push('m1:'+e.message)});import('./m2.js').catch(function(e){L.push('m2:'+e.message)})</script>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' '))},600)})"
+    }
+   ],
+   "resources": {
+    "m1.js": {
+     "text": "await new Promise(function(r){setTimeout(r,100)});throw new Error('one')"
+    },
+    "m2.js": {
+     "text": "await new Promise(function(r){setTimeout(r,150)});throw new Error('two')"
+    }
+   }
   }
  ]
 }

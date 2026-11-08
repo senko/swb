@@ -536,7 +536,7 @@ fn queue_javascript_url_in(rt: &mut Runtime, source: String, target: &str) -> Vm
 pub(crate) fn run_javascript_url(rt: &mut Runtime, source: &str) -> VmResult<()> {
     let name = crate::scripts::document_url(rt);
     let realm = crate::state::doc_realm(rt)?;
-    match rt.eval_named_at(realm, source, &name, (0, 0)) {
+    match rt.eval_named_at(realm, source, &name, (0, 0), None) {
         Ok(_) => Ok(()),
         Err(ScriptError::Terminated(termination)) => Err(VmError::Terminated(termination)),
         Err(ScriptError::Internal(error)) => Err(VmError::Internal(error)),

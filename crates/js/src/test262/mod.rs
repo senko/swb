@@ -333,7 +333,7 @@ impl Harness {
 /// Runs the harness files alone; the error if they fail.
 fn check_harness(harness: &str, limits: Limits) -> Option<String> {
     let meta = Meta::default();
-    match run_mode(harness, &meta, "", false, limits) {
+    match run_mode(harness, &meta, ("", None), false, limits) {
         Status::Pass => None,
         other => Some(format!("{other:?}")),
     }

@@ -42,15 +42,13 @@ pub(crate) type Output = Rc<RefCell<dyn Write>>;
 /// The host data of a runtime: the output of `print`.
 struct Host {
     out: Output,
-    /// The modules of a module run (`loader.rs`).
-    modules: Option<loader::ModuleMap>,
+    /// The scripts and modules of the runs (`loader.rs`).
+    modules: loader::ModuleMap,
 }
 
 impl swb_js::HostState for Host {
     fn trace(&self, tracer: &mut swb_js::Tracer<'_>) {
-        if let Some(modules) = &self.modules {
-            modules.trace(tracer);
-        }
+        self.modules.trace(tracer);
     }
 }
 
@@ -85,9 +83,13 @@ pub(crate) fn new_runtime(options: &Options, out: Output) -> Result<Runtime, Scr
             handle.terminate();
         }
     }));
-    rt.set_host_data(Host { out, modules: None });
+    rt.set_host_data(Host {
+        out,
+        modules: loader::ModuleMap::default(),
+    });
     rt.set_module_hooks(swb_js::ModuleHooks {
         load_imported_module: loader::load,
+        import_meta_properties: Some(loader::import_meta),
     });
     rt.define_global_function("print", 1, print)?;
     rt.define_global_object(
@@ -157,14 +159,18 @@ fn eval_script(rt: &mut Runtime, call: &NativeCall) -> VmResult<NativeReturn> {
 /// stack traces show. The unhandled rejections stay in the runtime's
 /// tracker ([`unhandled_rejections`]). An exception in a promise job or a
 /// cleanup callback ends the run like an uncaught exception of the script.
+/// With `file` (the script's file and the directory that its imports may
+/// not leave), `import()` in the script loads files relative to the
+/// script's file (`loader.rs`).
 pub(crate) fn run(
     rt: &mut Runtime,
     options: &Options,
-    source: &str,
-    name: &str,
+    (source, name): (&str, &str),
+    file: Option<(&std::path::Path, &std::path::Path)>,
 ) -> Result<Value, ScriptError> {
     rt.set_deadline(options.time_limit.map(|limit| Instant::now() + limit));
-    let value = rt.eval_named(source, name)?;
+    let number = file.and_then(|(path, root)| loader::register_script(rt, path, root));
+    let value = rt.eval_named_at(0, source, name, (0, 0), number)?;
     rt.run_jobs()?;
     while rt.run_finalization_cleanup()? {
         rt.run_jobs()?;

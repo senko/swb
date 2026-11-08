@@ -803,7 +803,9 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
     let run = if module {
         rt.eval_module_at(realm, &script.source, &script.url, script.start)
     } else {
-        rt.eval_named_at(realm, &script.source, &script.url, script.start)
+        // No Script Record number: the page installs no module hooks before
+        // ADR 0034 sub-feature 3b-1, so `import()` is refused anyway.
+        rt.eval_named_at(realm, &script.source, &script.url, script.start, None)
     }
     .map(drop);
     // Departure (ADR 0028 section 6, item 7): a module that needs another

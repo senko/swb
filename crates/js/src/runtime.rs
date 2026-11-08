@@ -405,7 +405,7 @@ impl Runtime {
     /// or URL) that stack traces show. An empty name shows as
     /// `<anonymous>`.
     pub fn eval_named(&mut self, source: &str, name: &str) -> Result<Value, ScriptError> {
-        self.eval_named_at(0, source, name, (0, 0))
+        self.eval_named_at(0, source, name, (0, 0), None)
     }
 
     /// Like [`Runtime::eval_named`], in the realm `realm`, for a script
@@ -414,18 +414,30 @@ impl Runtime {
     /// and [`SourceLocation`]s count from the start of the document (an
     /// inline script of an HTML page). The column applies to the first line
     /// only.
+    ///
+    /// `host_defined` is the host's number of the script's Script Record
+    /// (`[[HostDefined]]`, ADR 0034 section 4): an `import()` in the script
+    /// (and in its functions) asks the host's loader with
+    /// [`Referrer::Script`](crate::Referrer::Script) of that number. With
+    /// `None` the code has no Script Record: the referrer is that of the
+    /// code that runs it, or the realm.
     pub fn eval_named_at(
         &mut self,
         realm: u32,
         source: &str,
         name: &str,
         start: (u32, u32),
+        host_defined: Option<u32>,
     ) -> Result<Value, ScriptError> {
         if self.budget.enter(REENTRY_WEIGHT).is_err() {
             return self.finish(Err(VmError::range_error(STACK_OVERFLOW)));
         }
         let text = String16::from(source);
-        let result = self.eval_text(realm, text.as_str16(), name, start, Goal::Script);
+        let referrer = match host_defined {
+            Some(number) => crate::bytecode::ScriptOrModule::Script(number),
+            None => crate::bytecode::ScriptOrModule::None,
+        };
+        let result = self.eval_text(realm, text.as_str16(), (name, start), referrer);
         self.budget.leave(REENTRY_WEIGHT);
         result
     }
@@ -467,13 +479,15 @@ impl Runtime {
         &mut self,
         realm: u32,
         source: Str16<'_>,
-        name: &str,
-        position: (u32, u32),
-        goal: Goal,
+        (name, position): (&str, (u32, u32)),
+        referrer: crate::bytecode::ScriptOrModule,
     ) -> Result<Value, ScriptError> {
         self.vm.error_offset = None;
         let start = self.run_start();
-        let (code, compiled) = self.compile(source, name, position, goal)?;
+        let (code, compiled) = self.compile(source, name, position, Goal::Script)?;
+        // Nothing allocates before the run roots the code.
+        self.set_script_or_module(code, referrer)
+            .map_err(finish_error)?;
         let result = self.run_script(code, compiled, realm, None);
         if result.is_err() {
             self.restore_run_start(&start);
@@ -515,11 +529,13 @@ impl Runtime {
         self.heap
             .reserve(size, &self.vm)
             .map_err(|e| finish_error(e.into()))?;
+        let imports = self.vm.modules.has_hooks();
         let result = compile_script(
             &mut self.heap,
             &script,
             (source, name, start),
             &mut self.budget,
+            imports,
         )
         .map_err(compile_error);
         // The time of each script, for the measurements of the load time

@@ -417,6 +417,7 @@ mod tests {
                 "var e1 = new Error('a');\n  var e2 = new Error('b'); [e1, e2]",
                 "page.html",
                 (3, 9),
+                None,
             )
             .expect("script");
         let first = rt.eval("e1").expect("e1");

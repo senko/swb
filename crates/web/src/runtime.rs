@@ -426,7 +426,9 @@ impl ScriptRuntime {
     pub fn run_classic_script(&mut self, source: &str, name: &str) -> Result<(), ScriptError> {
         self.task(name, |rt| {
             let realm = crate::state::doc_realm(rt).map_err(task_error)?;
-            let result = rt.eval_named_at(realm, source, name, (0, 0)).map(|_| ());
+            let result = rt
+                .eval_named_at(realm, source, name, (0, 0), None)
+                .map(|_| ());
             if let Err(error) = &result {
                 report_error(rt, &Site::script(name, source), error)?;
             }

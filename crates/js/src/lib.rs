@@ -43,8 +43,8 @@ pub use host::{
     WindowOwnPropertyHook, WindowProxyHooks,
 };
 pub use module::{
-    LoadAnswer, LoadImportedModuleHook, LoadRequest, Module, ModuleHooks, ModuleRequestInfo,
-    Referrer,
+    ImportMetaHook, LoadAnswer, LoadImportedModuleHook, LoadRequest, Module, ModuleHooks,
+    ModuleRequestInfo, Referrer,
 };
 pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};

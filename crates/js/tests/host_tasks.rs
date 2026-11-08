@@ -218,6 +218,7 @@ fn handler(rt: &mut swb_js::Runtime, body: &str) -> Result<Gc<Object>, ScriptErr
         body,
         scope: &scope,
         script_name: "https://example.test/page.html",
+        host_defined: None,
     })?;
     // The host keeps the function in its traced state.
     rt.host_data_mut::<TestHost>()
@@ -391,6 +392,7 @@ fn an_event_handler_without_scope_objects_reads_globals() {
                 body: "return g",
                 scope: &[],
                 script_name: "",
+                host_defined: None,
             })
             .unwrap();
         let value = rt

@@ -847,8 +847,9 @@ section 1 says `[[AsyncEvaluation]]` with its order.
   for "execList contains"; the set of gathered modules does not depend on
   the order of the walk, and the list is sorted by the order before it
   runs. `AsyncModuleExecutionRejected` is a loop over an explicit stack of
-  (module, next parent): the top-level promises are rejected after those of
-  the parents, the order of the specification's recursion (tested). Both
+  (module, next parent): a module's top-level promise is rejected before
+  those of its parents (leaf to root; 3a-3 changed this, see the 3a-3
+  notes) (tested). Both
   and the run of the gathered modules charge the time countdown per step.
 - A module whose status is `evaluated` with an error and whose
   `[[CycleRoot]]` is empty (it left the DFS stack with an error) stands
@@ -878,9 +879,9 @@ every promise that waits for them stays pending. Which modules:
   synchronous ancestor, or the first run of an async one): that module and
   the gathered modules that did not run yet. A termination in the
   rejection walk (the time limit, at a step of the walk) leaves the walk
-  undone: the modules that it reached are `evaluated` with the error, but
-  a top-level promise that it had not rejected yet stays pending; the
-  modules that it did not reach keep waiting.
+  undone: the modules that it reached are `evaluated` with the error and
+  their top-level promises are rejected (since 3a-3); the modules that it
+  did not reach keep waiting.
 
 A later Evaluate of a graph with such a module gives a promise that never
 settles; a module that waits for one never runs. No record is left in a
@@ -899,3 +900,149 @@ modules that await, 10,000 synchronous modules above one async module,
 10,000 async dependencies, 10,000 async parents of a module that rejects,
 and a chain of them, a ring of 10,000 with one async module, a body that
 never settles) each take well under a second in the test profile.
+
+## 3a-3 implementation notes
+
+Facts of the implementation (M10 sub-feature 3a-3, `import()` and
+`import.meta`) that differ from the decision above or that 3b-1 and 3b-2
+need. Code: `crates/js/src/module/dynamic.rs`.
+
+**The refusal and how the host switches it off.** The compiler compiles
+`import()` and `import.meta` only in a runtime with module hooks
+(`Runtime::set_module_hooks`); without hooks both keep the refusal
+"not supported yet (import())" / "(import.meta)" at the offset of the
+first one (`compiler/support.rs`), in scripts, modules, eval code, the
+`Function` constructor and event handlers. The flag is read at each
+compile, so 3b-1 must set the hooks before the page compiles its first
+script; code compiled before keeps the refusal. The web layer sets no
+hooks yet, so the page does not change (`MODULE_DEPARTURES` of
+`crates/engine/tests/probe_net.rs` unchanged).
+
+**Hook API:**
+
+- `ModuleHooks { load_imported_module, import_meta_properties }`. The
+  load hook gets `import()` requests too: `LoadRequest::dynamic` is true
+  and the referrer is `Referrer::Module`, `Referrer::Script(number)` or
+  `Referrer::Realm(realm)`. A `Later` answer is finished with
+  `Runtime::finish_loading_imported_module(token, result)` as for static
+  loads. The specifier has had `ToString`; the attributes are checked
+  (only `type`) and sorted; the host checks the value of `type` as for
+  static imports (the shell's texts, measured: `"x" is not a valid module
+  type.`).
+- `import_meta_properties: Option<fn(&mut Runtime, Module, Gc<Object>) ->
+  VmResult<()>>` (`HostGetImportMetaProperties` and
+  `HostFinalizeImportMeta` in one): called once per module, at the first
+  evaluation of `import.meta`, with the new object (ordinary, null
+  prototype, extensible); the host defines `url` and `resolve` with
+  `Runtime::create_data_property` and runs no script. With `None` the
+  object stays empty. Measured (`msg-import-call-meta`): one object per
+  module, keys `url,resolve`.
+- `Runtime::eval_named_at(realm, source, name, start, host_defined:
+  Option<u32>)` and `EventHandler::host_defined: Option<u32>`: `Some(n)`
+  gives the code a Script Record with the host's number `n`; `None` gives
+  it none. All web callers pass `None` (no change while the refusal
+  stays). 3b-1/3b-2: classic scripts pass their number (the host maps it
+  to the script's base URL: the script's URL for an external script, the
+  document's base URL for an inline one); event handlers stay `None`
+  (HTML gives them no script); a string timer may pass the number of its
+  initiating script (HTML) or `None`.
+
+**The referrer of each kind of code** (`GetActiveScriptOrModule`, §9.4.1):
+each code object has a `ScriptOrModule` (`None`, `Script(number)`,
+`Module(record)`), the same for all code objects of one compile; the
+referrer of an `import()` is the one of the topmost frame whose code has
+one, else `Referrer::Realm` of the current realm. So:
+
+| Code | Referrer |
+|---|---|
+| Module code, also its functions called from elsewhere | the module |
+| A classic script with `host_defined: Some(n)` | `Script(n)` |
+| Direct and indirect eval code, and its functions | the active script or module at the `eval` call |
+| A function made by `Function` | the active script or module at the call of `Function` (in a module: the module) |
+| Code compiled with `None` (handlers, `$262.evalScript`, `-e`) | the code below it on the stack (the script that called it), else the realm |
+| A job (promise reaction) | the function's own, else the realm |
+
+**Departures from section 4:**
+
+- There is no Script Record heap object: the code object holds the
+  host's number. Nothing else of a Script Record is used: its
+  `[[LoadedModules]]` serves only the assertion of
+  `FinishLoadingImportedModule` (the same module for a repeated
+  (referrer, specifier)), which the host's module map guarantees. For the
+  same reason an `import()` adds nothing to a module's `[[LoadedModules]]`.
+- `AsyncModuleExecutionRejected` now rejects a module's top-level promise
+  before those of its async parents (leaf to root, the current draft's
+  order). The 2025 edition, and 3a-2, rejected the parents' promises
+  first; test262 `top-level-await/rejection-order.js` at the pinned
+  commit requires the new order (measured: Chromium 148 rejects leaf to root, also for a chain of
+  `import()` roots; probe cases `tla-rejection-order` and
+  `tla-rejection-order-chain`). A termination
+  in the rejection walk now leaves no reached module with a pending
+  top-level promise.
+
+**`import()`:** `EvaluateImportCall` makes the promise in the current
+realm (not marked handled: an unhandled rejection is reported as for any
+promise), converts the specifier, checks the options and calls the hook.
+Chromium 148's messages (`msg-import-call-options`, the same in classic
+scripts and modules): `TypeError: The second argument to import() must be
+an object`, `TypeError: The 'with' option must be an object`, `TypeError:
+Import attribute value must be a string` (after the getters of all
+entries ran), `TypeError: Invalid attribute key "k".` (after the value
+check); symbol keys and non-enumerable keys are ignored.
+`ContinueDynamicImport` loads the graph (`LoadRequestedModules`); the
+reaction on its promise links and evaluates in a job; the reaction on the
+evaluation's promise resolves the `import()` promise with the namespace
+(the jobs of the specification's closures, so the order of
+`fulfillment-order.js` holds). A link error, a load error, an evaluation
+error and a rejected top-level `await` reject it.
+
+**Heap data of an import in flight:** while the host has not answered,
+the module table holds the promise and a module referrer
+(`PendingLoad::Dynamic`, a root); after the answer, an internal object
+(`ObjectKind::DynamicImport`: the promise and the module) is the data of
+the two reactions. An import whose module never finishes (a top-level
+`await` that never settles) stays as long as the module's record (its
+reaction is on the record's evaluation promise).
+
+**Termination:** a termination (or an engine error) at any step ends the
+task of that step and leaves the `import()` promise pending for ever; no
+later step settles it, and a promise is settled only while it is pending.
+In `import()` itself (a conversion, a getter) it ends the script. In the
+hook's answer or the graph load (now, or in
+`finish_loading_imported_module`) the graph load stays pending, as for a
+static load; a later `import()` of the module loads it again. In the link
+(a job) the modules return to `unlinked`; a later `import()` links them
+again. In the evaluation the modules are evaluated with the termination
+(section 6, 3a-2): a later `import()` of them waits for ever. Tested at
+each of 300 steps of the countdown, with answers now and later
+(`module/dynamic.rs`).
+
+**Shell:** `import()` in a script file loads files relative to that file,
+inside its directory; a module keeps the root of the script or module that
+loaded it first. `$262.evalScript` called from a script file resolves
+against the directory of the calling script (the code below it on the
+stack, as the table of referrers says); only code with no script below it
+(`-e` alone) resolves from the directory of the first file of the run (the
+working directory before one). The loader checks the root on the lexically
+normalized path before it touches the file system, then again on the
+canonical path (links), so a file outside the root gives the same error
+whether it exists or not. `import.meta.url` is the module's `file:`
+URL. The test262 runner runs script tests with their file, so `import()`
+in a script test loads files of the test262 tree.
+
+**Cost of the referrer search.** `Runtime`'s search for the active script
+or module scans the frames from the top. Code without a script (all page
+scripts until 3b-2 passes `host_defined`) makes each `eval` and `Function`
+call scan the whole stack (measured by the review: 200,000 `eval` calls at
+the depth of 9,999 frames take 2.6 s instead of 0.6 s). Backlog: keep the
+referrer in the frame or cache it.
+
+**Tests and scores.** test262: `expressions/dynamic-import` 619 of 619
+(386 skipped: `source-phase-imports`, `import-defer`, `import-text`,
+`json-modules`), `expressions/import.meta` 22 of 22, `module-code` 284
+(+1), `module-code/top-level-await` 251 of 251 (+11: the 8 tests of the
+feature `dynamic-import` and the 3 that use `import()`), also with
+`--stress`; no other group changed. The robustness tests (100,000
+`import()` calls of one specifier, 10,000 specifiers, an `import()` in the
+leaf of a chain of 10,000 modules) each take well under a second in the
+test profile.

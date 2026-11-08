@@ -1,5 +1,6 @@
-//! Module graphs (ADR 0034 sub-features 3a-1 and 3a-2; top-level `await`
-//! in `module_graph/tla.rs`): `Runtime::parse_module`,
+//! Module graphs (ADR 0034 sub-features 3a-1 to 3a-3; top-level `await`
+//! in `module_graph/tla.rs`, `import()` and `import.meta` in
+//! `module_graph/dynamic.rs`): `Runtime::parse_module`,
 //! `load_requested_modules` with an in-memory loader (answers now or
 //! later), `link` and `evaluate`. Cycles, live bindings, the dead zone,
 //! star exports and their ambiguity, namespace objects, default exports,
@@ -19,7 +20,7 @@ use std::time::{Duration, Instant};
 
 use common::on_big_stack;
 use swb_js::{
-    HeapConfig, LoadAnswer, LoadRequest, Module, ModuleHooks, NativeCall, NativeReturn,
+    Gc, HeapConfig, LoadAnswer, LoadRequest, Module, ModuleHooks, NativeCall, NativeReturn, Object,
     PromiseStatus, ReactionKind, Referrer, Runtime, RuntimeConfig, ScriptError, ThrowKind, Tracer,
     Value, VmResult,
 };
@@ -35,6 +36,11 @@ struct Loader {
     later: bool,
     waiting: VecDeque<(u32, String)>,
     requests: Vec<String>,
+    /// The `import()` requests: `name from referrer`.
+    referrers: Vec<String>,
+    /// The host keeps no module after its answer (the engine's own
+    /// references are then the only ones).
+    forget: bool,
 }
 
 impl swb_js::HostState for Loader {
@@ -80,7 +86,9 @@ fn module_of(rt: &mut Runtime, name: &str) -> Result<Module, Value> {
         Ok(module) => {
             let state = loader(rt);
             state.names.push(name.to_owned());
-            state.modules.insert(name.to_owned(), module);
+            if !state.forget {
+                state.modules.insert(name.to_owned(), module);
+            }
             Ok(module)
         }
         Err(ScriptError::Compile { message, .. }) => Err(rt
@@ -96,11 +104,28 @@ fn key_of(specifier: &str) -> String {
     specifier.trim_start_matches("./").to_owned()
 }
 
+/// The text of a referrer: `module NAME`, `script N` or `realm N`.
+fn referrer_text(rt: &mut Runtime, referrer: Referrer) -> String {
+    match referrer {
+        Referrer::Module(module) => {
+            let number = rt.module_host_defined(module).unwrap() as usize;
+            format!("module {}", loader(rt).names[number])
+        }
+        Referrer::Script(number) => format!("script {number}"),
+        Referrer::Realm(realm) => format!("realm {realm}"),
+    }
+}
+
 /// `HostLoadImportedModule`.
 #[allow(clippy::needless_pass_by_value, reason = "the signature of the hook")]
 fn load(rt: &mut Runtime, request: LoadRequest) -> LoadAnswer {
-    assert!(matches!(request.referrer, Referrer::Module(_)));
     let name = key_of(&request.specifier);
+    if request.dynamic {
+        let referrer = referrer_text(rt, request.referrer);
+        loader(rt).referrers.push(format!("{name} from {referrer}"));
+    } else {
+        assert!(matches!(request.referrer, Referrer::Module(_)));
+    }
     loader(rt).requests.push(name.clone());
     if loader(rt).later {
         loader(rt).waiting.push_back((request.token, name));
@@ -135,8 +160,18 @@ fn runtime_with(sources: &[(&str, &str)], stress: bool, later: bool) -> Runtime 
     .unwrap();
     rt.set_module_hooks(ModuleHooks {
         load_imported_module: load,
+        import_meta_properties: Some(import_meta),
     });
     rt
+}
+
+/// `HostGetImportMetaProperties`: `url` is `mem:` and the module's name.
+fn import_meta(rt: &mut Runtime, module: Module, meta: Gc<Object>) -> VmResult<()> {
+    let number = rt.module_host_defined(module).unwrap() as usize;
+    let url = format!("mem:{}", loader(rt).names[number]);
+    let url = rt.string_value(&url)?;
+    let key = rt.key_from_str("url")?;
+    rt.create_data_property(meta, key, url)
 }
 
 /// The text of an error value with its location: `Name: message @name:line:col`.
@@ -198,6 +233,54 @@ fn run_steps(rt: &mut Runtime, root: &str) -> Option<String> {
         Some((PromiseStatus::Rejected, error)) => Some(format!("error: {}", error_text(rt, error))),
         other => Some(format!("evaluate: not settled {other:?}")),
     }
+}
+
+/// The state of a promise: `pending`, `fulfilled` or `rejected: error`.
+fn state(rt: &Runtime, promise: Value) -> String {
+    match rt.promise_settlement(promise) {
+        Some((PromiseStatus::Pending, _)) => "pending".to_owned(),
+        Some((PromiseStatus::Fulfilled, _)) => "fulfilled".to_owned(),
+        Some((PromiseStatus::Rejected, error)) => format!("rejected: {}", error_text(rt, error)),
+        None => "not a promise".to_owned(),
+    }
+}
+
+/// The printed lines so far, joined by spaces.
+fn printed(rt: &mut Runtime) -> String {
+    std::mem::take(&mut loader(rt).printed).join(" ")
+}
+
+/// Sets a deadline of 30 s from now (after a short one; a mistake ends as
+/// a termination, not a hang).
+fn long_deadline(rt: &mut Runtime) {
+    rt.set_deadline(Some(Instant::now() + Duration::from_secs(30)));
+}
+
+/// Runs `steps` with the sources in the four modes; all must agree and no
+/// collection may find a stale root. Returns the output.
+fn in_all_modes(sources: &[(&str, &str)], steps: fn(&mut Runtime) -> String) -> String {
+    let sources: Vec<(String, String)> = sources
+        .iter()
+        .map(|&(a, b)| (a.to_owned(), b.to_owned()))
+        .collect();
+    on_big_stack(move || {
+        let refs: Vec<(&str, &str)> = sources
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
+        let mut outputs = Vec::new();
+        for (stress, later) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut rt = runtime_with(&refs, stress, later);
+            long_deadline(&mut rt);
+            outputs.push(steps(&mut rt));
+            assert_eq!(rt.heap().stats().total_stale_roots, 0, "stale roots");
+            assert_eq!(rt.stack_depths(), (0, 0));
+        }
+        for output in &outputs[1..] {
+            assert_eq!(&outputs[0], output, "the modes disagree");
+        }
+        outputs.remove(0)
+    })
 }
 
 /// Runs a graph with and without the stress mode and with answers now and
@@ -1335,3 +1418,7 @@ fn hooks_are_optional() {
 // Top-level `await` (sub-feature 3a-2).
 #[path = "module_graph/tla.rs"]
 mod tla;
+
+// `import()` and `import.meta` (sub-feature 3a-3).
+#[path = "module_graph/dynamic.rs"]
+mod dynamic;

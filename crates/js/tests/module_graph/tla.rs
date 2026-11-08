@@ -33,49 +33,6 @@ fn start(rt: &mut Runtime, root: &str) -> Value {
     rt.evaluate(module).unwrap()
 }
 
-/// The state of a promise: `pending`, `fulfilled` or `rejected: error`.
-fn state(rt: &Runtime, promise: Value) -> String {
-    match rt.promise_settlement(promise) {
-        Some((PromiseStatus::Pending, _)) => "pending".to_owned(),
-        Some((PromiseStatus::Fulfilled, _)) => "fulfilled".to_owned(),
-        Some((PromiseStatus::Rejected, error)) => format!("rejected: {}", error_text(rt, error)),
-        None => "not a promise".to_owned(),
-    }
-}
-
-/// The printed lines so far, joined by spaces.
-fn printed(rt: &mut Runtime) -> String {
-    std::mem::take(&mut loader(rt).printed).join(" ")
-}
-
-/// Runs `steps` with the sources in the four modes; all must agree and no
-/// collection may find a stale root. Returns the output.
-fn in_all_modes(sources: &[(&str, &str)], steps: fn(&mut Runtime) -> String) -> String {
-    let sources: Vec<(String, String)> = sources
-        .iter()
-        .map(|&(a, b)| (a.to_owned(), b.to_owned()))
-        .collect();
-    on_big_stack(move || {
-        let refs: Vec<(&str, &str)> = sources
-            .iter()
-            .map(|(a, b)| (a.as_str(), b.as_str()))
-            .collect();
-        let mut outputs = Vec::new();
-        for (stress, later) in [(false, false), (true, false), (false, true), (true, true)] {
-            let mut rt = runtime_with(&refs, stress, later);
-            // A mistake ends as a termination, not a hang.
-            long_deadline(&mut rt);
-            outputs.push(steps(&mut rt));
-            assert_eq!(rt.heap().stats().total_stale_roots, 0, "stale roots");
-            assert_eq!(rt.stack_depths(), (0, 0));
-        }
-        for output in &outputs[1..] {
-            assert_eq!(&outputs[0], output, "the modes disagree");
-        }
-        outputs.remove(0)
-    })
-}
-
 #[test]
 fn probe_tla_siblings() {
     // Case `tla-siblings`: `a1 b c1 a2 c2 m1`.
@@ -254,8 +211,9 @@ fn a_rejection_reaches_the_parents_and_a_second_root() {
             let p = loader(rt).modules["p.js"];
             let p = rt.evaluate(p).unwrap();
             // The order of the rejections is the order of the reaction
-            // jobs: the parents' promises first (the recursion of
-            // `AsyncModuleExecutionRejected`), then the module's.
+            // jobs: a module's promise, then those of its parents (the
+            // recursion of `AsyncModuleExecutionRejected` in the current
+            // draft, test262 `rejection-order.js`).
             for (promise, name) in [(y, "'y'"), (p, "'p'"), (x, "'x'")] {
                 let name = rt.eval(name).unwrap();
                 rt.react_to_promise(promise, note_settlement, name).unwrap();
@@ -275,7 +233,7 @@ fn a_rejection_reaches_the_parents_and_a_second_root() {
     );
     assert_eq!(
         output,
-        "rej x:Reject p:Reject y:Reject | pending pending | rejected: RangeError: r2 @rej.js:1:30 | rejected: RangeError: r2 @rej.js:1:30 | rejected: RangeError: r2 @rej.js:1:30"
+        "rej p:Reject x:Reject y:Reject | pending pending | rejected: RangeError: r2 @rej.js:1:30 | rejected: RangeError: r2 @rej.js:1:30 | rejected: RangeError: r2 @rej.js:1:30"
     );
 }
 
@@ -487,11 +445,6 @@ fn a_dependency_evaluated_alone_first() {
 /// Sets a deadline of 50 ms from now.
 fn short_deadline(rt: &mut Runtime) {
     rt.set_deadline(Some(Instant::now() + Duration::from_millis(50)));
-}
-
-/// Sets a deadline of 30 s from now (after a short one).
-fn long_deadline(rt: &mut Runtime) {
-    rt.set_deadline(Some(Instant::now() + Duration::from_secs(30)));
 }
 
 #[test]

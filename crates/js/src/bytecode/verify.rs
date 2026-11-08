@@ -446,6 +446,7 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         | I::SuperCall { callee: dst, .. }
         | I::SuperCallSpread { callee: dst }
         | I::NewPrivateEnv { dst, .. }
+        | I::ImportMeta { dst }
         | I::LoadPrivateEnv { dst } => f(dst),
         I::PrivateMethod { env, src, .. }
         | I::PrivateGetter { env, src, .. }
@@ -621,6 +622,11 @@ fn for_each_register(insn: &Insn, mut f: impl FnMut(Reg)) {
         }
         I::GetIndex { dst, obj, key }
         | I::DeleteIndex { dst, obj, key }
+        | I::ImportCall {
+            dst,
+            specifier: obj,
+            options: key,
+        }
         | I::In { dst, key, obj } => {
             f(dst);
             f(obj);

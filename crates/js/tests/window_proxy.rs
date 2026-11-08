@@ -22,13 +22,13 @@ fn install_proxy(rt: &mut Runtime, realm: u32, frame: u32) -> Gc<Object> {
     let global = rt.global(realm).unwrap();
     let proxy = rt.new_window_proxy(frame, Some(global)).unwrap();
     rt.set_global_this(realm, proxy).unwrap();
-    rt.eval_named_at(realm, "var window = this;", "", (0, 0))
+    rt.eval_named_at(realm, "var window = this;", "", (0, 0), None)
         .unwrap();
     proxy
 }
 
 fn text(rt: &mut Runtime, realm: u32, source: &str) -> String {
-    let value = rt.eval_named_at(realm, source, "", (0, 0)).unwrap();
+    let value = rt.eval_named_at(realm, source, "", (0, 0), None).unwrap();
     rt.to_rust_string(value).unwrap()
 }
 
@@ -426,6 +426,7 @@ fn the_realms_stay_apart() {
             "(function () { return [this === window, name].join(); })",
             "",
             (0, 0),
+            None,
         )
         .unwrap();
     let global = rt.global(0).unwrap();
@@ -561,7 +562,7 @@ fn a_native_of_another_realm_knows_its_caller() {
     install_proxy(&mut rt, other, 2);
     assert_eq!(rt.caller_realm(), 0);
     let f = rt
-        .eval_named_at(other, "var f = Array.isArray; f", "", (0, 0))
+        .eval_named_at(other, "var f = Array.isArray; f", "", (0, 0), None)
         .unwrap();
     assert!(matches!(f, Value::Object(_)));
     assert_eq!(rt.caller_realm(), 0);
@@ -713,7 +714,7 @@ fn only_the_global_object_of_a_realm_is_a_target() {
     assert!(rt.new_window_proxy(0, Some(object)).is_err());
     assert!(rt.new_window_proxy(1 << 31, None).is_err());
     assert!(rt.set_global_this(0, object).is_err());
-    assert!(rt.eval_named_at(5, "1", "", (0, 0)).is_err());
+    assert!(rt.eval_named_at(5, "1", "", (0, 0), None).is_err());
     assert!(rt.eval_module_at(5, "1", "", (0, 0)).is_err());
     let global = rt.global(0).unwrap();
     rt.set_global_this(0, global).unwrap();

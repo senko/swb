@@ -24,6 +24,7 @@
 //! closure of the module function holds the cells of the import entries
 //! that the code uses (its capture list), then the environment cells.
 
+mod dynamic;
 mod evaluate;
 mod link;
 mod load;
@@ -35,11 +36,14 @@ use std::rc::Rc;
 use swb_js_syntax::{BindingKind, Script};
 use swb_js_text::{Str16, String16};
 
+pub(crate) use dynamic::DynamicImport;
 pub(crate) use load::ModuleTable;
-pub use load::{LoadAnswer, LoadImportedModuleHook, LoadRequest, ModuleHooks, Referrer};
+pub use load::{
+    ImportMetaHook, LoadAnswer, LoadImportedModuleHook, LoadRequest, ModuleHooks, Referrer,
+};
 pub(crate) use namespace::{NAMESPACE_HOOKS, NamespaceData};
 
-use crate::bytecode::FunctionCode;
+use crate::bytecode::{FunctionCode, ScriptOrModule};
 use crate::error::Termination;
 use crate::heap::{Gc, Generic, GenericData, Tracer};
 use crate::object::Object;
@@ -224,6 +228,8 @@ pub(crate) struct ModuleRecord {
     /// for importers (`import * as ns`, `export * as ns`).
     pub(crate) namespace: Option<Gc<Object>>,
     pub(crate) namespace_cell: Option<Gc<ValueCell>>,
+    /// `[[ImportMeta]]` (§16.2.1.7): made at the first `import.meta`.
+    pub(crate) meta: Option<Gc<Object>>,
     /// The module function, suspended after its prologue (a generator
     /// object that no script sees).
     pub(crate) body: Option<Gc<Object>>,
@@ -272,6 +278,7 @@ impl GenericData for ModuleRecord {
             self.top_level_promise,
             self.async_capability,
             self.namespace,
+            self.meta,
             self.body,
         ]
         .into_iter()
@@ -372,6 +379,8 @@ impl Runtime {
             .heap
             .alloc_generic(record)
             .map_err(|e| crate::runtime::finish_error(e.into()))?;
+        self.set_script_or_module(code, ScriptOrModule::Module(handle))
+            .map_err(crate::runtime::finish_error)?;
         Ok(Module(handle))
     }
 
@@ -438,6 +447,7 @@ impl Runtime {
             environment: vec![None; environment.len()],
             namespace: None,
             namespace_cell: None,
+            meta: None,
             body: None,
             resolved: HashMap::new(),
         })
@@ -647,6 +657,8 @@ impl Runtime {
             .heap
             .alloc_generic(record)
             .map_err(|e| crate::runtime::finish_error(e.into()))?;
+        self.set_script_or_module(code, ScriptOrModule::Module(handle))
+            .map_err(crate::runtime::finish_error)?;
         // The record is rooted by the handle scope of the run.
         let scope = self.heap.open_scope();
         self.heap.record(crate::heap::Root::Generic(handle));
@@ -713,11 +725,13 @@ pub(crate) mod test_support {
     use crate::runtime::{Runtime, RuntimeConfig};
     use crate::value::Value;
 
-    /// The sources and the modules made from them.
+    /// The sources and the modules made from them; with `waiting`, the
+    /// loader answers later and keeps the requests there.
     #[derive(Default)]
     pub(crate) struct Sources {
         pub(crate) texts: HashMap<String, String>,
         pub(crate) modules: HashMap<String, Module>,
+        pub(crate) waiting: Option<Vec<(u32, String)>>,
     }
 
     impl crate::host::HostState for Sources {
@@ -751,6 +765,11 @@ pub(crate) mod test_support {
     #[allow(clippy::needless_pass_by_value, reason = "the signature of the hook")]
     fn load(rt: &mut Runtime, request: LoadRequest) -> LoadAnswer {
         let name = request.specifier.trim_start_matches("./").to_owned();
+        let sources = rt.host_data_mut::<Sources>().expect("the test host");
+        if let Some(waiting) = &mut sources.waiting {
+            waiting.push((request.token, name));
+            return LoadAnswer::Later;
+        }
         LoadAnswer::Now(module(rt, &name))
     }
 
@@ -770,9 +789,11 @@ pub(crate) mod test_support {
                 .map(|&(name, text)| (name.to_owned(), text.to_owned()))
                 .collect(),
             modules: HashMap::new(),
+            waiting: None,
         });
         rt.set_module_hooks(ModuleHooks {
             load_imported_module: load,
+            import_meta_properties: None,
         });
         rt
     }

@@ -253,6 +253,21 @@ pub(crate) enum Insn {
         dst: Reg,
         index: u32,
     },
+    /// `import(specifier, options)` (§13.3.10.1 `EvaluateImportCall` after
+    /// the evaluation of its operands; ADR 0034 section 4): `dst` = a new
+    /// promise of the module's namespace object; `options` holds
+    /// `undefined` when the call has none. The load starts with the
+    /// referrer of the running code (`module/dynamic.rs`).
+    ImportCall {
+        dst: Reg,
+        specifier: Reg,
+        options: Reg,
+    },
+    /// `import.meta` (§13.3.12.1): `dst` = the meta object of the running
+    /// code's module, made on first use.
+    ImportMeta {
+        dst: Reg,
+    },
     /// `dst` = the `this` value of the frame.
     This {
         dst: Reg,
@@ -1780,20 +1795,48 @@ pub(crate) struct CodeObject {
     pub(crate) code: Rc<FunctionCode>,
     /// The template objects by (constant index, realm).
     pub(crate) templates: RefCell<HandleMap<(u32, u32), Gc<Object>>>,
+    /// The Script or Module Record of the code (set after the compile).
+    pub(crate) referrer: Cell<ScriptOrModule>,
+}
+
+/// `[[ScriptOrModule]]` of the functions made from a code object, and the
+/// `ScriptOrModule` of the execution contexts that run it (ECMA-262 §9.4.1,
+/// §10.2.3 `OrdinaryFunctionCreate`; ADR 0034 section 4). All code objects
+/// of one compile share it, so it is a field of the code object and not of
+/// each function object: module code refers to its module record, the
+/// code of a classic script to a Script Record (only its host-defined
+/// number: nothing else of a Script Record is used), eval code and the
+/// functions of a `Function` constructor to the active script or module of
+/// their caller; code without one (`None`) is skipped by
+/// `GetActiveScriptOrModule`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ScriptOrModule {
+    /// null.
+    #[default]
+    None,
+    /// A classic script with the host's number.
+    Script(u32),
+    /// A module record.
+    Module(Gc<Generic>),
 }
 
 impl CodeObject {
-    /// The code object of compiled code, without template objects.
+    /// The code object of compiled code, without template objects and
+    /// without a script or module.
     pub(crate) fn new(code: Rc<FunctionCode>) -> Self {
         CodeObject {
             code,
             templates: RefCell::new(HandleMap::default()),
+            referrer: Cell::new(ScriptOrModule::None),
         }
     }
 }
 
 impl GenericData for CodeObject {
     fn trace(&self, tracer: &mut Tracer<'_>) {
+        if let ScriptOrModule::Module(module) = self.referrer.get() {
+            tracer.generic(module);
+        }
         let code = &self.code;
         for constant in &code.constants {
             match constant {

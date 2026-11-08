@@ -321,16 +321,19 @@ impl CompileStats {
 /// Compiles a parsed script. Returns the script's code object (not
 /// rooted: the caller runs it or roots it before the next safepoint) and
 /// its code. The recursion budget is restored when the compile ends.
+/// `imports` says whether the runtime has module hooks: without them,
+/// `import()` and `import.meta` are refused (`support.rs`).
 pub(crate) fn compile_script(
     heap: &mut Heap,
     script: &Script,
     (source, name, start): (Str16<'_>, &str, (u32, u32)),
     budget: &mut RecursionBudget,
+    imports: bool,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let mut text = crate::bytecode::Source::new(source, Rc::from(name));
     text.start = start;
     let shared = Rc::new(text);
-    compile_code(heap, script, (source, shared), budget, None)
+    compile_code(heap, script, (source, shared), budget, (None, imports))
 }
 
 /// Compiles eval code (§19.2.1.1 `PerformEval`): its top-level function
@@ -343,10 +346,16 @@ pub(crate) fn compile_eval(
     script: &Script,
     (source, origin): (Str16<'_>, Rc<str>),
     budget: &mut RecursionBudget,
-    input: eval::EvalInput,
+    (input, imports): (eval::EvalInput, bool),
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let shared = Rc::new(crate::bytecode::Source::eval_code(source, origin));
-    compile_code(heap, script, (source, shared), budget, Some(input))
+    compile_code(
+        heap,
+        script,
+        (source, shared),
+        budget,
+        (Some(input), imports),
+    )
 }
 
 /// Compiles the source of a `Function` constructor call (parsed by
@@ -359,6 +368,7 @@ pub(crate) fn compile_dynamic_function(
     script: &Script,
     (source, origin): (Str16<'_>, Rc<str>),
     budget: &mut RecursionBudget,
+    imports: bool,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let function = script
         .dynamic_function
@@ -368,10 +378,9 @@ pub(crate) fn compile_dynamic_function(
     let shared = Rc::new(crate::bytecode::Source::dynamic_function(source, origin));
     let input = eval::EvalInput::default();
     let initial = *budget;
-    let result =
-        compile_functions(script, source, budget, Some(input)).and_then(|(builders, session)| {
-            materialize(heap, script, builders, session, &shared, function)
-        });
+    let result = compile_functions(script, source, budget, (Some(input), imports)).and_then(
+        |(builders, session)| materialize(heap, script, builders, session, &shared, function),
+    );
     *budget = initial;
     result
 }
@@ -388,6 +397,7 @@ pub(crate) fn compile_event_handler(
     (source, script_name): (Str16<'_>, Rc<str>),
     name: String16,
     budget: &mut RecursionBudget,
+    imports: bool,
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let function = script
         .dynamic_function
@@ -409,10 +419,9 @@ pub(crate) fn compile_event_handler(
         ..eval::EvalInput::default()
     };
     let initial = *budget;
-    let result =
-        compile_functions(script, source, budget, Some(input)).and_then(|(builders, session)| {
-            materialize(heap, script, builders, session, &shared, function)
-        });
+    let result = compile_functions(script, source, budget, (Some(input), imports)).and_then(
+        |(builders, session)| materialize(heap, script, builders, session, &shared, function),
+    );
     *budget = initial;
     result
 }
@@ -422,7 +431,7 @@ fn compile_code(
     script: &Script,
     (text, source): (Str16<'_>, Rc<crate::bytecode::Source>),
     budget: &mut RecursionBudget,
-    input: Option<eval::EvalInput>,
+    input: (Option<eval::EvalInput>, bool),
 ) -> CResult<(Gc<Generic>, Rc<FunctionCode>)> {
     let initial = *budget;
     let result = compile_functions(script, text, budget, input).and_then(|(builders, session)| {
@@ -432,14 +441,15 @@ fn compile_code(
     result
 }
 
-/// Compiles every function of the script.
+/// Compiles every function of the script. Without `imports` (a runtime
+/// without module hooks), `import()` and `import.meta` are refused.
 fn compile_functions<'a>(
     script: &'a Script,
     text: Str16<'a>,
     budget: &mut RecursionBudget,
-    input: Option<eval::EvalInput>,
+    (input, imports): (Option<eval::EvalInput>, bool),
 ) -> CResult<(Vec<Option<Builder>>, Session)> {
-    if let Some((offset, construct)) = support::first_unsupported(script) {
+    if !imports && let Some((offset, construct)) = support::first_unsupported(script) {
         return Err(CompileError::unsupported(offset, construct));
     }
     if let Some(offset) = bigint::first_oversized(script) {

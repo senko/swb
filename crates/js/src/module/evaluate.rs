@@ -119,7 +119,7 @@ impl Runtime {
     }
 
     /// Evaluate with its promise.
-    fn evaluate_promise(&mut self, module: Gc<Generic>) -> VmResult<Gc<Object>> {
+    pub(super) fn evaluate_promise(&mut self, module: Gc<Generic>) -> VmResult<Gc<Object>> {
         let record = self.record(module)?;
         let module = match record.status {
             Status::Linked => module,
@@ -530,8 +530,11 @@ impl Runtime {
 
     /// `AsyncModuleExecutionRejected(module, error)` (§16.2.1.6.1.3.5) as a
     /// loop: `module` and its async parents (transitively) are evaluated
-    /// with the error; the top-level promises are rejected after those of
-    /// the parents, in the order of the specification's recursion.
+    /// with the error. A module's top-level promise is rejected before
+    /// those of its parents (leaf to root), in the order of the
+    /// specification's recursion. This follows the current draft (the
+    /// test262 test `top-level-await/rejection-order.js` at the pinned
+    /// commit); the 2025 edition rejected the parents' promises first.
     fn async_module_rejected(&mut self, module: Gc<Generic>, error: Value) -> VmResult<()> {
         let mut stack = Vec::new();
         self.start_rejection(module, error, &mut stack)?;
@@ -544,15 +547,13 @@ impl Runtime {
                 continue;
             }
             stack.pop();
-            if let Some(promise) = self.record(current)?.top_level_promise {
-                self.reject_promise(promise, error)?;
-            }
         }
         Ok(())
     }
 
-    /// Steps 1 to 6 of `AsyncModuleExecutionRejected`: a module that is not
-    /// evaluated yet gets the error and is visited.
+    /// Steps 1 to 9 of `AsyncModuleExecutionRejected` (the draft's order):
+    /// a module that is not evaluated yet gets the error, its top-level
+    /// promise is rejected, and it is visited.
     fn start_rejection(
         &mut self,
         module: Gc<Generic>,
@@ -568,8 +569,12 @@ impl Runtime {
         record.async_order = AsyncOrder::Done;
         // A parent that waited never runs.
         record.body = None;
+        let promise = record.top_level_promise;
         stack.push(Rejecting { module, next: 0 });
-        Ok(())
+        match promise {
+            Some(promise) => self.reject_promise(promise, error),
+            None => Ok(()),
+        }
     }
 }
 

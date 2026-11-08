@@ -482,6 +482,21 @@ impl Runtime {
                     let cell = tri!(self.capture(index));
                     put!(dst, Value::Cell(cell));
                 }
+                Insn::ImportCall {
+                    dst,
+                    specifier,
+                    options,
+                } => {
+                    let (specifier, options) = (get!(specifier), get!(options));
+                    save!();
+                    let promise = tri!(self.with_scope(|rt| rt.import_call(specifier, options)));
+                    put!(dst, promise);
+                }
+                Insn::ImportMeta { dst } => {
+                    save!();
+                    let meta = tri!(self.with_scope(Runtime::import_meta));
+                    put!(dst, meta);
+                }
                 Insn::This { dst } => {
                     let this = self.vm.frames.last().map_or(Value::Undefined, |f| f.this);
                     put!(dst, this);

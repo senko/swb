@@ -294,17 +294,24 @@ impl Runtime {
             self.check_handed_captures(script, caller)?;
         }
         let origin = self.eval_origin();
-        compile_eval(
+        let imports = self.vm.modules.has_hooks();
+        let (code, compiled) = compile_eval(
             &mut self.heap,
             script,
             (text, origin),
             &mut self.budget,
-            input,
+            (input, imports),
         )
         .map_err(|error| match error {
             CompileError::Script { kind, message, .. } => VmError::Raise { kind, message },
             CompileError::Heap(error) => error.into(),
-        })
+        })?;
+        // `PerformEval` step 16: the ScriptOrModule of the caller's context
+        // (for indirect eval, the context of `eval` has none, and
+        // `GetActiveScriptOrModule` finds the caller's).
+        let referrer = self.active_script_or_module();
+        self.set_script_or_module(code, referrer)?;
+        Ok((code, compiled))
     }
 
     /// Bounds the work of eval code whose functions call `eval` themselves:

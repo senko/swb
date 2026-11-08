@@ -646,6 +646,9 @@ fn compile(
         body: text,
         scope: &scope,
         script_name: &url,
+        // HTML: an event handler's function has no script (null); the page
+        // has no module hooks before ADR 0034 sub-feature 3b-1.
+        host_defined: None,
     };
     match rt.compile_event_handler(&handler) {
         Ok(function) => {

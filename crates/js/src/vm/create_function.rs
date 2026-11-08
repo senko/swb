@@ -111,17 +111,24 @@ impl Runtime {
             swb_js_syntax::parse_dynamic_function(source, params_end, budget)
         })?;
         let origin = self.eval_origin();
+        let imports = self.vm.modules.has_hooks();
         let (handle, compiled) = compile_dynamic_function(
             &mut self.heap,
             &script,
             (text.as_str16(), origin),
             &mut self.budget,
+            imports,
         )
         .map_err(|error| match error {
             CompileError::Script { kind, message, .. } => VmError::Raise { kind, message },
             CompileError::Heap(error) => error.into(),
         })?;
         self.heap.record(handle);
+        // `OrdinaryFunctionCreate` step 13 (§10.2.3): the function's
+        // `[[ScriptOrModule]]` is the active one of the caller (the
+        // context of `Function` itself has none).
+        let referrer = self.active_script_or_module();
+        self.set_script_or_module(handle, referrer)?;
         if !compiled.captures.is_empty() {
             return Err(VmError::invariant(
                 "the function of a Function constructor captures cells",

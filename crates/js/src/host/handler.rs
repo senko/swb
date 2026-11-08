@@ -59,6 +59,11 @@ pub struct EventHandler<'a> {
     pub scope: &'a [Gc<Object>],
     /// The name of the script in stack traces (the document's URL).
     pub script_name: &'a str,
+    /// The `[[ScriptOrModule]]` of the function (ADR 0034 section 4): a
+    /// Script Record with the host's number, or none (`None`, as HTML says
+    /// for event handlers): an `import()` in the handler then has the
+    /// referrer of the code that runs it, or the realm.
+    pub host_defined: Option<u32>,
 }
 
 /// The source text of a handler, the offset of the `)` after its
@@ -112,14 +117,20 @@ impl Runtime {
         self.heap
             .reserve(size, &self.vm)
             .map_err(|e| finish_error(e.into()))?;
+        let imports = self.vm.modules.has_hooks();
         let (code, compiled) = compile_event_handler(
             &mut self.heap,
             &script,
             (text.as_str16(), Rc::from(handler.script_name)),
             name,
             &mut self.budget,
+            imports,
         )
         .map_err(|error| body_relative(compile_error(error), body))?;
+        if let Some(number) = handler.host_defined {
+            self.set_script_or_module(code, crate::bytecode::ScriptOrModule::Script(number))
+                .map_err(finish_error)?;
+        }
         // The code is not rooted until the closure exists; nothing between
         // collects (the allocations below are of fixed size).
         let function = self
@@ -188,6 +199,7 @@ mod tests {
             body: "return 1",
             scope: &[],
             script_name: "",
+            host_defined: None,
         };
         let (text, params_end, body_start) = handler_source(&handler);
         let text = text.as_str16().to_string_lossy();

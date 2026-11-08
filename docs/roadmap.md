@@ -4639,7 +4639,19 @@ Steps:
         refuses top-level `await` until 3b-1; the JS-on targets are
         unchanged.
       - 3a-3 `import()` and `import.meta` (`implementer-hard`; at least 590
-        of 631 and 21 of 22).
+        of 631 and 21 of 22). Done (2026-11-08): the instructions
+        `ImportCall` and `ImportMeta`; each code object knows its script
+        or module, and `import()` uses the active one (eval code and
+        `Function` as the specification says); EvaluateImportCall with
+        Chromium's option messages (measured, `msg-import-call-*`);
+        ContinueDynamicImport with internal reactions; the meta object
+        with a host hook. Without module hooks the compiler keeps the old
+        refusal, so the page does not change until 3b-1 installs them.
+        AsyncModuleExecutionRejected now rejects leaf to root, as the
+        current draft and Chromium 148 do (measured,
+        `tla-rejection-order*`). test262: all 631 `import()` tests, 22 of
+        22 `import.meta`, 251 of 251 top-level `await`, also in the stress
+        mode; no group lost passes.
       - 3b-1 the module graph in the page: module map, fetch, readiness,
         errors, budgets (`implementer-hard`; the cases of
         `tools/probes/web-module-graph.json` without import maps and
@@ -4731,6 +4743,20 @@ Steps:
   console text of a graph that fails in every browser differs. Not
   measured: the text of a namespace binding in its dead zone that the
   `JSON.parse` reviver reads.
+- The search for the active script or module (found in 3a-3): each `eval`
+  and `Function` call scans the frames from the top until a frame's code
+  has a script or module. Code without one (all page scripts until 3b-2
+  passes `host_defined`) makes it scan the whole stack: 200,000 `eval`
+  calls at the depth of 9,999 frames take 2.6 s instead of 0.6 s. The cost
+  is bounded by the stack limit, and pages call `eval` at a small depth.
+  Fix: keep the effective referrer in each frame (also for resumed
+  generator and async frames), if a profile of a target shows the scan.
+- Flaky test (seen once in 3a-3, under the load of `just check`):
+  `crates/automation/tests/real_input.rs` `probe_cases`, case
+  `javascript-link-targets`, gave `click@p` before `ran-s`: the task of
+  the `javascript:` URL of one click ran after the next click. It passed
+  5 of 5 runs alone. Make the step runner run the queued tasks before the
+  next input step, as Chromium does between real clicks.
 - Intrinsic sizes (found in feature 2; cases in
   `tools/probes/flex-intrinsic.json`): `min-content`, `max-content` and
   `fit-content` as `width`, `min-width` and `max-width` of block boxes are

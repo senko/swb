@@ -4,6 +4,37 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 3a-3: `import()` and `import.meta` in the engine
+
+- New instructions `ImportCall` and `ImportMeta` (ADR 0034 section 4).
+  Each code object knows its script or module (`None`, a script's number
+  from the host, or the module record); `import()` uses the topmost frame
+  that has one, else the realm. Eval code and functions made by `Function`
+  take the active script or module of the call.
+- EvaluateImportCall converts the specifier, checks the options with
+  Chromium 148's messages (measured, `msg-import-call-options`) and calls
+  the host's hook; ContinueDynamicImport loads, links and evaluates the
+  graph in the jobs of the specification and resolves the promise with
+  the namespace. Imports in flight are heap data that the collector
+  traces. `import.meta` is a null-prototype object made on first use,
+  filled by a host hook.
+- Without module hooks the compiler keeps the old refusal of `import()`
+  and `import.meta`, so pages do not change until 3b-1 installs the hooks.
+- The order of rejections changed: a module's top-level promise is now
+  rejected before those of its async parents (leaf to root), as the
+  current draft, test262 and Chromium 148 do (measured,
+  `tla-rejection-order*`). The 3a-2 review had compared with Node.js 22,
+  whose V8 has the older order.
+- `swb-js`: `import()` from scripts and modules with the confined loader;
+  `import.meta.url` is the file URL.
+- test262: all 631 `import()` tests, 22 of 22 `import.meta`, 251 of 251
+  top-level `await`, also with `--stress`; no group lost passes.
+- Review: no correctness bug. Fixes: a test for the module in the data of
+  an import in flight, the shell loader's root check before any file
+  access, docs. Backlog: `eval` and `Function` scan the whole stack when
+  no frame has a script.
+- Next: 3b-1 (the module graph in the page).
+
 ## 2026-11-08: M10 feature 3a-2: top-level `await` in the engine
 
 - A module with top-level `await` runs its body as an async function (ADR

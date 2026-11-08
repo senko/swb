@@ -237,9 +237,13 @@ impl FunctionCompiler<'_> {
             ExprKind::Class(class) => self.class_definition(class, dst, None),
             ExprKind::SuperMember { .. } | ExprKind::SuperIndex { .. } => self.super_load(e, dst),
             ExprKind::SuperCall(call) => self.super_call(call, dst),
-            ExprKind::ImportCall { .. } | ExprKind::ImportMeta => {
-                Err(self
-                    .unsupported(super::support::unsupported_expr(kind).unwrap_or("expression")))
+            ExprKind::ImportCall { specifier, options } => {
+                self.import_call(e, specifier, options, dst)
+            }
+            ExprKind::ImportMeta => {
+                let t = self.target(dst)?;
+                self.emit(Insn::ImportMeta { dst: t });
+                Ok(t)
             }
             ExprKind::Await(argument) => self.await_expr(argument, dst),
             ExprKind::Yield {
@@ -300,6 +304,35 @@ impl FunctionCompiler<'_> {
             }
             None => Ok(t),
         }
+    }
+
+    /// `import(specifier, options)` (§13.3.10.1): the operands in order,
+    /// then the instruction, which never throws (every failure after the
+    /// operands rejects the promise).
+    fn import_call(
+        &mut self,
+        e: ExprId,
+        specifier: ExprId,
+        options: Option<ExprId>,
+        dst: Option<Reg>,
+    ) -> CResult<Reg> {
+        let t = self.target(dst)?;
+        let mark = self.mark();
+        let (specifier, options) = match options {
+            Some(options) => {
+                let specifier = self.expr_stable(specifier, &[options])?;
+                (specifier, self.expr(options, None)?)
+            }
+            None => (self.expr(specifier, None)?, self.undefined_temp()?),
+        };
+        self.position = self.ast.expr(e).span.start;
+        self.emit(Insn::ImportCall {
+            dst: t,
+            specifier,
+            options,
+        });
+        self.release(mark);
+        Ok(t)
     }
 
     /// `Await` of the value in `t` (a temporary pair): afterwards `t` holds

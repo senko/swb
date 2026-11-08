@@ -1,14 +1,16 @@
-//! The constructs that the parser accepts but the compiler does not
-//! compile: a linear scan over the node tables of a script before any
-//! function compiles. The script fails with a `SyntaxError` "not
-//! supported yet (construct)" at the first such construct in the source;
-//! the compile functions never see them. These are `import()` and
-//! `import.meta` (ADR 0034: they come with sub-feature 3a-3).
+//! The constructs that the parser accepts but that the compiler refuses
+//! in a runtime without module hooks: a linear scan over the node tables
+//! of a script before any function compiles. The script fails with a
+//! `SyntaxError` "not supported yet (construct)" at the first such
+//! construct in the source. These are `import()` and `import.meta` (ADR
+//! 0034 sub-feature 3a-3): they need the host's loader and meta hook
+//! (`Runtime::set_module_hooks`), and the web layer installs none before
+//! sub-feature 3b-1, so its scripts keep the refusal.
 
 use swb_js_syntax::{ExprKind, Script};
 
-/// The construct of an expression that the compiler does not support.
-pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
+/// The construct of an expression that needs module hooks.
+fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     Some(match kind {
         ExprKind::ImportCall { .. } => "import()",
         ExprKind::ImportMeta => "import.meta",
@@ -16,8 +18,8 @@ pub(super) fn unsupported_expr(kind: ExprKind) -> Option<&'static str> {
     })
 }
 
-/// The first construct of the script (by source offset) that the
-/// compiler does not support, with its offset.
+/// The first construct of the script (by source offset) that needs module
+/// hooks, with its offset.
 pub(super) fn first_unsupported(script: &Script) -> Option<(u32, &'static str)> {
     let ast = &script.ast;
     let mut first: Option<(u32, &'static str)> = None;

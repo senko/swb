@@ -66,11 +66,25 @@ pub enum LoadAnswer {
 /// `HostLoadImportedModule`: the host's hook. It runs no script code.
 pub type LoadImportedModuleHook = fn(&mut Runtime, LoadRequest) -> LoadAnswer;
 
-/// The module hooks of a host (`Runtime::set_module_hooks`).
+/// `HostGetImportMetaProperties` and `HostFinalizeImportMeta` (§16.2.1.12,
+/// §16.2.1.13): the host defines the properties of a module's new
+/// `import.meta` object (an ordinary object with a null prototype, made
+/// at the first evaluation of `import.meta` in the module), for example
+/// with [`Runtime::create_data_property`]. It runs no script code; an
+/// error (the heap limit) is thrown at the `import.meta` expression.
+pub type ImportMetaHook = fn(&mut Runtime, Module, Gc<Object>) -> VmResult<()>;
+
+/// The module hooks of a host (`Runtime::set_module_hooks`). A runtime
+/// with hooks compiles `import()` and `import.meta`; without them both are
+/// refused with "not supported yet" (`compiler/support.rs`).
 #[derive(Clone, Copy, Debug)]
 pub struct ModuleHooks {
-    /// `HostLoadImportedModule` (§16.2.1.10).
+    /// `HostLoadImportedModule` (§16.2.1.10), for static imports and
+    /// `import()`.
     pub load_imported_module: LoadImportedModuleHook,
+    /// The properties of `import.meta`; with `None` the object stays
+    /// empty.
+    pub import_meta_properties: Option<ImportMetaHook>,
 }
 
 /// `GraphLoadingState` Record (§16.2.1.6.1.1, Table 46).
@@ -89,12 +103,22 @@ struct GraphLoad {
     tokens: u32,
 }
 
-/// A request that waits for the host's answer.
-struct PendingLoad {
-    /// The index of the graph load in [`ModuleTable::loads`].
-    load: u32,
-    referrer: Gc<Generic>,
-    request: u32,
+/// A request that waits for the host's answer: the payload of
+/// `FinishLoadingImportedModule` (§16.2.1.11).
+pub(super) enum PendingLoad {
+    /// A request of a graph load (a `GraphLoadingState` Record).
+    Graph {
+        /// The index of the graph load in [`ModuleTable::loads`].
+        load: u32,
+        referrer: Gc<Generic>,
+        request: u32,
+    },
+    /// An `import()` (a `PromiseCapability` Record): its promise, and the
+    /// referrer while it is a module.
+    Dynamic {
+        promise: Gc<Object>,
+        referrer: Option<Gc<Generic>>,
+    },
 }
 
 /// The module state of a runtime: the host's hooks, the graph loads and
@@ -120,8 +144,32 @@ impl ModuleTable {
             }
         }
         for pending in self.pending.values() {
-            tracer.generic(pending.referrer);
+            match *pending {
+                PendingLoad::Graph { referrer, .. } => tracer.generic(referrer),
+                PendingLoad::Dynamic { promise, referrer } => {
+                    tracer.object(promise);
+                    if let Some(referrer) = referrer {
+                        tracer.generic(referrer);
+                    }
+                }
+            }
         }
+    }
+
+    /// Whether the host set its hooks: then the compiler accepts
+    /// `import()` and `import.meta`.
+    pub(crate) fn has_hooks(&self) -> bool {
+        self.hooks.is_some()
+    }
+
+    /// The host's hooks.
+    pub(super) fn hooks(&self) -> Option<ModuleHooks> {
+        self.hooks
+    }
+
+    /// Records a request whose answer comes later.
+    pub(super) fn add_pending(&mut self, token: u32, pending: PendingLoad) {
+        self.pending.insert(token, pending);
     }
 
     /// The bytes that the table holds for scripts.
@@ -167,7 +215,7 @@ impl ModuleTable {
     }
 
     /// A token that no pending request uses.
-    fn new_token(&mut self) -> u32 {
+    pub(super) fn new_token(&mut self) -> u32 {
         loop {
             let token = self.next_token;
             self.next_token = self.next_token.wrapping_add(1);
@@ -246,16 +294,58 @@ impl Runtime {
                 Ok(module) => Root::Generic(module.0),
                 Err(error) => Root::Value(error),
             });
-            rt.heap.record(Root::Generic(pending.referrer));
-            let load = rt.vm.modules.load_mut(pending.load)?;
-            load.tokens = load.tokens.saturating_sub(1);
-            if let Ok(module) = result {
-                rt.set_loaded(pending.referrer, pending.request, module.0)?;
+            match pending {
+                PendingLoad::Graph {
+                    load,
+                    referrer,
+                    request,
+                } => {
+                    rt.heap.record(Root::Generic(referrer));
+                    let state = rt.vm.modules.load_mut(load)?;
+                    state.tokens = state.tokens.saturating_sub(1);
+                    if let Ok(module) = result {
+                        rt.set_loaded(referrer, request, module.0)?;
+                    }
+                    rt.continue_loading(load, result.map(|m| m.0))?;
+                    rt.vm.modules.release_if_done(load);
+                    Ok(())
+                }
+                PendingLoad::Dynamic { promise, .. } => {
+                    rt.heap.record(promise);
+                    rt.continue_dynamic_import(promise, result.map(|m| m.0))
+                }
             }
-            rt.continue_loading(pending.load, result.map(|m| m.0))?;
-            rt.vm.modules.release_if_done(pending.load);
-            Ok(())
         })
+    }
+
+    /// Calls the host's `HostLoadImportedModule` with a new token. The
+    /// result of an answer that comes now is recorded in the current
+    /// handle scope. `None` when the host has no hooks.
+    pub(super) fn call_load_hook(
+        &mut self,
+        referrer: Referrer,
+        (specifier, attributes): (String, Vec<(String, String)>),
+        dynamic: bool,
+    ) -> Option<(u32, LoadAnswer)> {
+        let hooks = self.vm.modules.hooks?;
+        let token = self.vm.modules.new_token();
+        let answer = (hooks.load_imported_module)(
+            self,
+            LoadRequest {
+                referrer,
+                specifier,
+                attributes,
+                dynamic,
+                token,
+            },
+        );
+        if let LoadAnswer::Now(result) = answer {
+            self.heap.record(match result {
+                Ok(module) => Root::Generic(module.0),
+                Err(error) => Root::Value(error),
+            });
+        }
+        Some((token, answer))
     }
 
     /// Records a loaded module (§16.2.1.11 step 1): the first answer for a
@@ -409,34 +499,18 @@ impl Runtime {
             let error = self.new_error(crate::error::ThrowKind::SyntaxError, &message)?;
             return Ok(Some(Err(error.into())));
         }
-        let Some(hooks) = self.vm.modules.hooks else {
-            let message = format!("Cannot load module '{specifier}': no module loader");
-            let error = self.new_error(crate::error::ThrowKind::TypeError, &message)?;
-            return Ok(Some(Err(error.into())));
+        let referrer_module = Referrer::Module(Module(referrer));
+        let Some((token, answer)) =
+            self.call_load_hook(referrer_module, (specifier.clone(), attributes), false)
+        else {
+            return Ok(Some(Err(self.no_loader_error(&specifier)?)));
         };
-        let token = self.vm.modules.new_token();
-        let answer = (hooks.load_imported_module)(
-            self,
-            LoadRequest {
-                referrer: Referrer::Module(Module(referrer)),
-                specifier,
-                attributes,
-                dynamic: false,
-                token,
-            },
-        );
         match answer {
-            LoadAnswer::Now(result) => {
-                self.heap.record(match result {
-                    Ok(module) => Root::Generic(module.0),
-                    Err(error) => Root::Value(error),
-                });
-                Ok(Some(result.map(|module| module.0)))
-            }
+            LoadAnswer::Now(result) => Ok(Some(result.map(|module| module.0))),
             LoadAnswer::Later => {
                 self.vm.modules.pending.insert(
                     token,
-                    PendingLoad {
+                    PendingLoad::Graph {
                         load: index,
                         referrer,
                         request,
@@ -446,6 +520,13 @@ impl Runtime {
                 Ok(None)
             }
         }
+    }
+
+    /// The `TypeError` of a load without the host's hooks.
+    pub(super) fn no_loader_error(&mut self, specifier: &str) -> VmResult<Value> {
+        let message = format!("Cannot load module '{specifier}': no module loader");
+        let error = self.new_error(crate::error::ThrowKind::TypeError, &message)?;
+        Ok(error.into())
     }
 }
 
@@ -468,7 +549,7 @@ mod tests {
         assert_eq!(table.new_token(), u32::MAX);
         table.pending.insert(
             0,
-            PendingLoad {
+            PendingLoad::Graph {
                 load: 0,
                 referrer: Gc::new(0, 0),
                 request: 0,
@@ -508,6 +589,7 @@ mod tests {
         let mut rt = runtime(&[("a.js", "import './b.js';"), ("b.js", "")], true);
         rt.set_module_hooks(ModuleHooks {
             load_imported_module: later,
+            import_meta_properties: None,
         });
         let a = module(&mut rt, "a.js").expect("parses");
         let promise = rt.load_requested_modules(a).expect("loads");

@@ -55,6 +55,8 @@ Options:
 
 print(...) and console.log(...) write to stdout. $262 has evalScript(src),
 gc() and global; createRealm, detachArrayBuffer and agent are not available.
+import() in a script file loads files relative to that file, inside its
+directory; import.meta.url is the file URL of a module.
 
 The promise jobs run after each script, then the cleanup callbacks of the
 FinalizationRegistry objects whose targets the collector found dead (each
@@ -278,7 +280,14 @@ fn run_script(
     if command.compile_only {
         return Ok(());
     }
-    match shell::run(rt, &command.options, source, name) {
+    // A script file's `import()` loads files of its directory; `-e` code
+    // and the standard input load from the working directory.
+    let path = std::path::Path::new(name);
+    let file = (!name.starts_with('<')).then(|| match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => (path, parent),
+        _ => (path, std::path::Path::new(".")),
+    });
+    match shell::run(rt, &command.options, (source, name), file) {
         Ok(_) => {}
         Err(error) => return Err(fail(&error)),
     }

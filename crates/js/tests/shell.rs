@@ -329,7 +329,17 @@ fn mini_test262(name: &str) -> PathBuf {
         "async.js",
         "/*---\nflags: [async]\n---*/\nPromise.resolve(2).then(v => assert.sameValue(v, 2)).then($DONE, $DONE);\n",
     );
-    write("unsupported.js", "/*---\n---*/\nimport('m');\n");
+    // The engine compiles every construct since ADR 0034 3a-3; its thrown
+    // refusals still count apart.
+    write(
+        "unsupported.js",
+        "/*---\n---*/\nthrow new SyntaxError('not supported yet (construct)');\n",
+    );
+    // `import()` in a script test loads files relative to the test.
+    write(
+        "dynamic.js",
+        "/*---\nflags: [async]\n---*/\nimport('./dep_FIXTURE.js').then(ns => assert.sameValue(ns.v, 1)).then($DONE, $DONE);\n",
+    );
     write(
         "strict.js",
         "/*---\nflags: [onlyStrict]\n---*/\nassert(this === undefined || true);\n",
@@ -358,11 +368,11 @@ fn test262_runner_counts_and_ratchets() {
     };
     let out = run(&[]);
     let stdout = text(&out.stdout);
-    // pass, neg, neg_runtime, strict, async, module, neg_resolution pass;
-    // fail; unsupported; skipped.
+    // pass, neg, neg_runtime, strict, async, dynamic, module,
+    // neg_resolution pass; fail; unsupported; skipped.
     assert!(
         stdout.contains("test/language/mini/group")
-            && stdout.contains("total: 7 pass, 1 fail, 1 unsupported, 1 skipped (10 tests)"),
+            && stdout.contains("total: 8 pass, 1 fail, 1 unsupported, 1 skipped (11 tests)"),
         "{stdout}\n{}",
         text(&out.stderr)
     );
@@ -372,15 +382,15 @@ fn test262_runner_counts_and_ratchets() {
     assert_eq!(code(&run(&["--update"])), 0);
     let written = std::fs::read_to_string(&scores).unwrap();
     assert!(
-        written.contains("\"test/language/mini/group\": 7"),
+        written.contains("\"test/language/mini/group\": 8"),
         "{written}"
     );
     assert_eq!(code(&run(&[])), 0);
     // A recorded count above the current one is a regression.
-    std::fs::write(&scores, "{\"test/language/mini/group\": 8}").unwrap();
+    std::fs::write(&scores, "{\"test/language/mini/group\": 9}").unwrap();
     let out = run(&[]);
     assert_eq!(code(&out), 1);
-    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 7 < 8"));
+    assert!(text(&out.stderr).contains("REGRESSION test/language/mini/group: 8 < 9"));
     // A path argument runs only that test; a group is not judged by a part.
     let out = run(&["test/language/mini/group/pass.js"]);
     assert!(text(&out.stdout).contains("total: 1 pass, 0 fail, 0 unsupported, 0 skipped"));
@@ -391,7 +401,7 @@ fn test262_runner_counts_and_ratchets() {
     assert!(text(&out.stderr).contains("--update needs a run of whole groups"));
     assert_eq!(
         std::fs::read_to_string(&scores).unwrap(),
-        "{\"test/language/mini/group\": 8}"
+        "{\"test/language/mini/group\": 9}"
     );
     // A run that finds no tests fails.
     let out = run(&["test/language/zzz"]);
@@ -459,7 +469,45 @@ fn unreadable_test_file_is_a_failure() {
     ]);
     let stdout = text(&out.stdout);
     assert!(stdout.contains("cannot read"), "{stdout}");
-    assert!(stdout.contains("7 pass, 2 fail"), "{stdout}");
+    assert!(stdout.contains("8 pass, 2 fail"), "{stdout}");
+}
+
+#[test]
+fn a_missing_file_outside_the_root_gives_the_root_error() {
+    // A missing file outside the root gets the same error as an existing
+    // one: a script learns nothing about files outside its root.
+    let dir = temp_dir("module-missing");
+    let outside = temp_dir("module-missing-outside");
+    std::fs::write(outside.join("secret.js"), "").unwrap();
+    let outside_name = outside.file_name().unwrap().to_str().unwrap().to_owned();
+    let write = |name: &str, text: &str| std::fs::write(dir.join(name), text).unwrap();
+    write(
+        "escape-existing.js",
+        &format!("import '../{outside_name}/secret.js';\n"),
+    );
+    write(
+        "escape-missing.js",
+        &format!("import '../{outside_name}/nope.js';\n"),
+    );
+    write(
+        "escape-missing-dir.js",
+        "import '../no-such-dir-at-all/nope.js';\n",
+    );
+    let path = |name: &str| dir.join(name).to_str().unwrap().to_owned();
+    for name in [
+        "escape-existing.js",
+        "escape-missing.js",
+        "escape-missing-dir.js",
+    ] {
+        let out = shell(&["--module", &path(name)]);
+        assert_eq!(code(&out), 1, "{name}");
+        let stderr = text(&out.stderr);
+        assert!(
+            stderr.contains("Cannot load module") && stderr.contains("outside"),
+            "{name}: {stderr}"
+        );
+        assert!(!stderr.contains("Cannot find module"), "{name}: {stderr}");
+    }
 }
 
 #[test]
@@ -610,6 +658,55 @@ fn module_files_with_top_level_await() {
     let out = shell(&["--module", &path("never.js")]);
     assert_eq!(code(&out), 0, "{}", text(&out.stderr));
     assert_eq!(text(&out.stdout), "");
+}
+
+#[test]
+fn dynamic_imports_from_scripts_and_modules() {
+    // ADR 0034 section 4 (3a-3): `import()` loads files relative to the
+    // importing script or module, inside its root; `import.meta.url` is
+    // the module's file URL.
+    let dir = temp_dir("dynamic");
+    let sub = dir.join("sub");
+    std::fs::create_dir_all(&sub).unwrap();
+    let write = |name: &str, text: &str| std::fs::write(dir.join(name), text).unwrap();
+    write(
+        "sub/a.js",
+        "export const a = 'A';\nprint('meta', import.meta.url === 'file://' + globalThis.base + '/sub/a.js');\n",
+    );
+    write(
+        "sub/s.js",
+        "import('./a.js').then(ns => print('s', ns.a));\n\
+         import('../m.js').catch(e => print(e.name, e.message.includes('outside')));\n\
+         import('./a.js', { with: { type: 'javascript' } }).catch(e => print(e.message));\n",
+    );
+    write(
+        "m.js",
+        "const { a } = await import('./sub/a.js');\nprint('m', a);\n",
+    );
+    write("missing.js", "import('./nope.js');\n");
+    let base = dir.canonicalize().unwrap();
+    let define = format!("globalThis.base = {:?}", base.to_str().unwrap());
+    let path = |name: &str| dir.join(name).to_str().unwrap().to_owned();
+    let out = shell(&["-e", &define, &path("sub/s.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    // The module runs in the job of its load, before the reactions of the
+    // rejections.
+    assert_eq!(
+        text(&out.stdout),
+        "meta true\nTypeError true\n\"javascript\" is not a valid module type.\ns A\n"
+    );
+    let out = shell(&["-e", &define, "--module", &path("m.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "meta true\nm A\n");
+    // An import that nobody handles is an unhandled rejection.
+    let out = shell(&[&path("missing.js")]);
+    assert_eq!(code(&out), 1);
+    assert!(
+        text(&out.stderr)
+            .contains("Uncaught (in promise) TypeError: Cannot find module './nope.js'"),
+        "{}",
+        text(&out.stderr)
+    );
 }
 
 #[test]

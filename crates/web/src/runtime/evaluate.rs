@@ -59,7 +59,7 @@ impl ScriptRuntime {
         let mut error_text = None;
         let started = self.task("evaluate", |rt| {
             let realm = crate::state::doc_realm(rt).map_err(task_error)?;
-            let value = match rt.eval_named_at(realm, source, "", (0, 0)) {
+            let value = match rt.eval_named_at(realm, source, "", (0, 0), None) {
                 Ok(value) => value,
                 Err(error) => {
                     error_text = Some(thrown_text(rt, &error));

@@ -409,11 +409,6 @@ impl<'a> FunctionCompiler<'a> {
 
     // --- Errors ---
 
-    /// The error for a construct that the compiler does not support yet.
-    pub(super) fn unsupported(&self, construct: &'static str) -> CompileError {
-        CompileError::unsupported(self.position, construct)
-    }
-
     /// More variables than registers (V8 accepts more; the register
     /// operand has 16 bits).
     fn too_many_variables(&self) -> CompileError {
