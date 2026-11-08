@@ -4521,7 +4521,8 @@ Steps:
      fixture `fixtures/pages/github-swb`.
 2. Each hard feature writes its ADR first (modules, custom elements,
    shadow DOM, the top layer); the orchestrator reads it before the code.
-   ADR 0034 (modules): accepted 2026-11-07.
+   ADR 0034 (modules): accepted 2026-11-07. ADR 0035 (custom elements):
+   accepted 2026-11-08.
 3. Features, in this order. Each feature ends with a review and a
    commit, with the checks of M9: JavaScript off by default; the other
    targets keep their scores with JavaScript on and off; a change of a
@@ -4706,6 +4707,23 @@ Steps:
       the reaction queue (`connectedCallback`, `disconnectedCallback`,
       `adoptedCallback`, `attributeChangedCallback` with
       `observedAttributes`), `[CEReactions]`. Autonomous elements only.
+      [ADR 0035](adr/0035-custom-elements.md), accepted 2026-11-08, in
+      three sub-features (scope, files, tests and exit of each in the ADR,
+      "The plan of sub-features"):
+      - 4a definitions, constructors and upgrades (`implementer-hard`):
+        the element state and `:defined`, the engine API, the registry,
+        `[HTMLConstructor]`, "create an element", upgrades, the reaction
+        machinery with Chromium's nesting limit of 43, `[CEReactions]` in
+        the generator with a fast path.
+      - 4b reactions of DOM operations (`implementer`): insertion,
+        removal, attributes, adoption, clones, fragment parsing. GitHub's
+        elements are upgraded and their callbacks run after 4b.
+      - 4c synchronous construction in the parser (`implementer-hard`):
+        after features 5 to 8 (GitHub's first load does not need it).
+      Exit (after 4b): GitHub's 74 definitions succeed, its 10 elements
+      are upgraded, and its callback counts equal Chromium's replay
+      (connected 35, attributeChanged 76); the targets keep their scores
+      with JavaScript on and off.
    5. Shadow DOM (`implementer-hard`; new ADR), in three parts: 5a
       `attachShadow`, slots and the flat tree in style, layout, paint and
       hit testing; 5b style scoping, `:host`, `::slotted`,
@@ -4764,6 +4782,12 @@ Steps:
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
+- Custom elements (ADR 0035): customized built-in elements (`extends`,
+  `is`; Chromium supports them, swb throws `NotSupportedError` at
+  `define`); scoped registries (`new CustomElementRegistry()`,
+  `initialize`, `customElementRegistry`); `ElementInternals`,
+  form-associated custom elements and `:state()`; `moveBefore` and
+  `connectedMoveCallback`. GitHub uses none of them.
 - Modules (ADR 0034): JSON and CSS modules (import attributes with
   `type`; GitHub uses none; swb rejects them with `TypeError: Unsupported
   module type 'json'`, a text that Chromium has no reason to give). The

@@ -4,6 +4,35 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 4: ADR 0035 (custom elements)
+
+- ADR 0035 decides the design of custom elements before the code. The
+  element state (`undefined`, `failed`, `uncustomized`, `precustomized`,
+  `custom`) and the definition number live in the DOM's element data;
+  `:defined` follows the state, also with JavaScript off. The engine needs
+  no interpreter change: `super()` into a native constructor already passes
+  `new.target`; only `construct`, `is_constructor`, `set_prototype_of` and a
+  second host flag become public. Definitions belong to the agent and
+  registries to windows. The reaction queues are Rust data shared with the
+  documents' mutation sinks. `[CEReactions]` wraps the generated calls with
+  a fast path of one flag load while no definition exists. The parser
+  pauses after a token that creates a defined element (4c).
+- What GitHub needs (Chromium replay of the fixture): 75 `define` calls (70
+  from module scripts before `DOMContentLoaded`, 5 after `load`), 10
+  elements upgraded at their `define`, 25 synchronous constructions in
+  `createElement`, 35 connected and 76 attribute callbacks. The parser
+  never builds a defined element on the first load.
+- 37 Chromium cases in `tools/probes/web-custom-elements.json`. Surprises:
+  Chromium stops at 43 nested reaction invocations without a report;
+  `createElement` reports a failing constructor and returns an
+  `HTMLUnknownElement`; `innerHTML` and `cloneNode` upgrade inside the
+  call; Chromium 148 has scoped registries; `x-a!` is a valid name. I
+  re-measured nine cases, including the depth limit.
+- Decisions: customized built-ins throw `NotSupportedError`; the limit of
+  43 as in Chromium; scoped registries and `ElementInternals` to the
+  backlog; the order 4a, 4b, features 5 to 8, then 4c (the parser).
+- Next: 4a.
+
 ## 2026-11-08: M10 feature 3b-2: import maps, `modulepreload`, GitHub
 
 - Import maps (ADR 0034 section 9): inline `<script type=importmap>`

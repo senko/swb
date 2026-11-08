@@ -380,7 +380,8 @@ written by hand.
   attributes of the legacy platform objects, and `[Reflect]` of the
   HTML IDL (generated getters and setters that reflect content
   attributes, with the keyword tables of enumerated attributes).
-  `[CEReactions]` is ignored (no custom elements).
+  `[CEReactions]` is ignored (no custom elements). (Superseded by ADR
+  0035: the generator wraps the `[CEReactions]` members.)
 - **License of the IDL.** WHATWG standards are CC BY 4.0, and "to the
   extent portions of it are incorporated into source code, such
   portions in the source code are licensed under the BSD 3-Clause
