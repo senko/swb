@@ -68,7 +68,7 @@ impl DynamicImport {
 
 /// A module request of `import()`: the specifier and the attributes,
 /// sorted by key.
-type Request = (String, Vec<(String, String)>);
+type Request = (super::load::SpecifierText, Vec<(String, String)>);
 
 impl Runtime {
     /// `GetActiveScriptOrModule()` (§9.4.1): the script or module of the
@@ -137,7 +137,7 @@ impl Runtime {
     ) -> VmResult<Result<Request, Value>> {
         let text = self.to_string(specifier);
         let specifier = match self.caught(text)? {
-            Ok(text) => self.heap.string_lossy(text, usize::MAX),
+            Ok(text) => self.specifier_text(text),
             Err(reason) => return Ok(Err(reason)),
         };
         if options == Value::Undefined {
@@ -247,7 +247,7 @@ impl Runtime {
         let Some((token, answer)) =
             self.call_load_hook(host_referrer, (specifier.clone(), attributes), true)
         else {
-            let error = self.no_loader_error(&specifier)?;
+            let error = self.no_loader_error(&specifier.0)?;
             return self.settle_import(promise, Err(error));
         };
         match answer {

@@ -4,6 +4,50 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 3b-1: the module graph in the page
+
+- Module scripts load their graphs (ADR 0034 sections 8, 10, 11). Each
+  document has a module map: one entry per URL with its fragment, one
+  request for URLs that differ only in the fragment, the text parsed when
+  a graph needs it, at most 65,536 entries. The engine fetches modules in
+  the queue of the scripts (`fetch_module`, `module_fetched`).
+- The runtime installs the module hooks before the first compile, so
+  `import()` and `import.meta` run in pages. Specifiers resolve against the
+  module's URL (other code: the document's base URL) with Chromium's
+  texts; a lone surrogate before the fragment fails, as in Chromium.
+  `import()` loads its root's whole graph before it answers; a failed
+  fetch anywhere rejects with `Failed to fetch dynamically imported
+  module: <root>`. `import.meta` has `url` and `resolve`.
+- When `import()` settles (measured in Chromium, 16 cases
+  `import-call-timing-*`, three runs each): in a task of its own, also for
+  a module that has run, a stored failure and a stored parse error; only
+  an unresolvable specifier rejects at once. The fetches of `import()` do
+  not delay `load`, but a script element that joins one makes it delay
+  `load`. After a Stop the module fetches fail and the map keeps the
+  failures (Chromium does not fetch again).
+- A script element is ready when its graph is loaded and linked; graph
+  errors and rejections of top-level `await` reach `window.onerror` with
+  Chromium's places; a failed fetch fires `error`.
+- Probe cases: 64 of `web-module-graph.json` run in `probe_net`, 17
+  queries are listed departures (`msg-cycle-*`, the base URL of `import()`
+  in an event handler for 3b-2, three orders that depend on Chromium's
+  scheduling or on `data:`). The 11 import departures of M9 went.
+- Hostile cases: chains and rings of 10,000 modules, 40,000 `export *`
+  edges, 100,000 export names, 100,000 `import()` URLs past the map's
+  limit, a top-level `await` that never settles, 10,000 modules that
+  import one module.
+- Targets: all scores unchanged with JavaScript on and off. BBC's module
+  script runs as before. GitHub's module scripts now run and stop at
+  `customElements` and at the bare specifier `react` (no import map yet).
+- Review: no correctness bug. Fixes: dropped and terminated fetches no
+  longer leave map entries that wait forever; the `import()` timing cases;
+  a script element that joins an `import()` fetch delays `load`; GC tests
+  (the trace of the map's error list was redundant: handles carry a
+  generation). A Chromium measurement corrected the reviewer's guess that
+  Chromium fetches again after a stop (it keeps the failure).
+- Next: 3b-2 (import maps, `modulepreload`, the base URLs of `import()`,
+  GitHub's 9 module scripts in Chromium's order).
+
 ## 2026-11-08: M10 feature 3a-3: `import()` and `import.meta` in the engine
 
 - New instructions `ImportCall` and `ImportMeta` (ADR 0034 section 4).

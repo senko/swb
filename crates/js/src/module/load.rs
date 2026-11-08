@@ -16,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 use crate::heap::{Gc, Generic, Root, Tracer};
 use crate::object::Object;
 use crate::runtime::Runtime;
+use crate::string::JsString;
 use crate::value::Value;
 use crate::vm::{VmError, VmResult};
 
@@ -41,6 +42,11 @@ pub struct LoadRequest {
     pub referrer: Referrer,
     /// The specifier (lossy for lone surrogates).
     pub specifier: String,
+    /// The byte offset in `specifier` of the replacement character of the
+    /// first lone surrogate of the specifier, if it has one (Chromium 148
+    /// fails to resolve a specifier with a lone surrogate before its
+    /// fragment; ADR 0034 "3b-1 implementation notes").
+    pub lone_surrogate: Option<usize>,
     /// The import attributes (key, value), sorted by key.
     pub attributes: Vec<(String, String)>,
     /// Whether the request comes from `import()`.
@@ -226,6 +232,27 @@ impl ModuleTable {
     }
 }
 
+/// The text of a specifier and the byte offset of its first lone surrogate
+/// ([`LoadRequest::lone_surrogate`]).
+pub(super) type SpecifierText = (String, Option<usize>);
+
+/// The text of UTF-16 code units (lone surrogates become U+FFFD) and the byte
+/// offset of the first lone surrogate in it: the form of a specifier in
+/// [`LoadRequest`], also for the host's own specifiers (`import.meta.resolve`).
+#[must_use]
+pub fn decode_specifier(units: impl IntoIterator<Item = u16>) -> (String, Option<usize>) {
+    let mut text = String::new();
+    let mut lone = None;
+    for c in char::decode_utf16(units) {
+        let c = c.unwrap_or_else(|_| {
+            lone.get_or_insert(text.len());
+            char::REPLACEMENT_CHARACTER
+        });
+        text.push(c);
+    }
+    (text, lone)
+}
+
 /// A step of the walk: a module whose requests are being visited.
 struct Visit {
     module: Gc<Generic>,
@@ -324,7 +351,7 @@ impl Runtime {
     pub(super) fn call_load_hook(
         &mut self,
         referrer: Referrer,
-        (specifier, attributes): (String, Vec<(String, String)>),
+        ((specifier, lone_surrogate), attributes): (SpecifierText, Vec<(String, String)>),
         dynamic: bool,
     ) -> Option<(u32, LoadAnswer)> {
         let hooks = self.vm.modules.hooks?;
@@ -334,6 +361,7 @@ impl Runtime {
             LoadRequest {
                 referrer,
                 specifier,
+                lone_surrogate,
                 attributes,
                 dynamic,
                 token,
@@ -486,7 +514,7 @@ impl Runtime {
             .get(request as usize)
             .ok_or(VmError::invariant("a module request outside the list"))?;
         let text = |string| self.heap.string_lossy(string, usize::MAX);
-        let specifier = text(entry.specifier);
+        let specifier = self.specifier_text(entry.specifier);
         let attributes: Vec<(String, String)> = entry
             .attributes
             .iter()
@@ -503,7 +531,7 @@ impl Runtime {
         let Some((token, answer)) =
             self.call_load_hook(referrer_module, (specifier.clone(), attributes), false)
         else {
-            return Ok(Some(Err(self.no_loader_error(&specifier)?)));
+            return Ok(Some(Err(self.no_loader_error(&specifier.0)?)));
         };
         match answer {
             LoadAnswer::Now(result) => Ok(Some(result.map(|module| module.0))),
@@ -520,6 +548,12 @@ impl Runtime {
                 Ok(None)
             }
         }
+    }
+
+    /// The text of a specifier (lone surrogates become U+FFFD) and the byte
+    /// offset of the first lone surrogate in it.
+    pub(super) fn specifier_text(&self, string: Gc<JsString>) -> SpecifierText {
+        decode_specifier(self.heap.string_units(string))
     }
 
     /// The `TypeError` of a load without the host's hooks.

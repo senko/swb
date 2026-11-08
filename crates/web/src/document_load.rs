@@ -85,18 +85,38 @@ impl ScriptRuntime {
         self.scripts_ready(ready);
     }
 
-    /// [`Task::ModuleReady`]: the module script of an element is ready
-    /// without a fetch (an inline module, or a URL that the module map has
-    /// already fetched).
+    /// [`Task::ModuleReady`]: the graph of a module script loaded (its link
+    /// runs here), or its root is in the module map, or an inline module is
+    /// ready.
     pub(crate) fn module_ready(&mut self, node: NodeId) {
-        let ready = match crate::scripts::mark_module_ready(&mut self.rt, node) {
-            Ok(ready) => ready,
-            Err(error) => {
-                log::warn!("a module script was lost: {error:?}");
-                return;
-            }
-        };
-        self.scripts_ready(ready);
+        let ready = self.task("a module script", |rt| {
+            crate::scripts::mark_module_ready(rt, node).map_err(task_error)
+        });
+        if let Ok(ready) = ready {
+            self.scripts_ready(ready);
+        }
+    }
+
+    /// [`Task::ModuleImport`]: an `import()` of a module that the module
+    /// map has gets its answer.
+    pub(crate) fn module_import(&mut self, token: u32) -> Result<(), swb_js::ScriptError> {
+        self.task("an import()", |rt| {
+            crate::scripts::answer_import(rt, token).map_err(task_error)
+        })
+    }
+
+    /// Hands the result of a module fetch of the module map (ADR 0034
+    /// section 8; the id of [`crate::EngineHost::fetch_module`]) to the
+    /// runtime: the module is parsed if a graph waits for it, the waiting
+    /// loads get their answers, and the script elements whose graphs are
+    /// complete are ready.
+    pub fn module_fetched(&mut self, id: u64, script: Option<FetchedScript>) {
+        let ready = self.task("a module script", |rt| {
+            crate::scripts::module_fetched(rt, id, script).map_err(task_error)
+        });
+        if let Ok(ready) = ready {
+            self.scripts_ready(ready);
+        }
     }
 
     /// The steps to run when the results of script elements are ready
@@ -264,6 +284,11 @@ impl ScriptRuntime {
         // The engine drops the requests of the page; the `XMLHttpRequest`
         // objects that wait for them get no event (they stay as they are).
         crate::xhr::drop_requests(&mut self.rt);
+        // The module fetches of the page go too (also those of `import()`
+        // when the load has ended): their entries fail.
+        if let Err(error) = crate::scripts::module_map::abort_fetches(&mut self.rt) {
+            log::warn!("the module fetches were not stopped: {error:?}");
+        }
         let Ok(scripts) = scripts_mut(&mut self.rt) else {
             return;
         };

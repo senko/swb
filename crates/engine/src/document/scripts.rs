@@ -1,7 +1,10 @@
 //! What the script runtime needs of the document for its script elements
-//! (ADR 0028 section 8, M8 feature 5c, M9 feature 7): the fetches of
-//! classic and module scripts and their results, and the style sheets that
-//! block scripts.
+//! (ADR 0028 section 8, M8 feature 5c, M9 feature 7) and its module map
+//! (ADR 0034 sections 8 and 10): the fetches of classic scripts and modules
+//! and their results, and the style sheets that block scripts.
+//!
+//! A module fetch of `import()` does not delay the `load` event: it does not
+//! count in [`DocumentState::is_loading`], only in the page's activity.
 //!
 //! A fetch is a `GET` with the destination `script` from the document's
 //! origin. A classic script is fetched in the mode `no-cors`; a module
@@ -26,15 +29,70 @@
 use encoding_rs::Encoding;
 use swb_dom::NodeId;
 use swb_net::{CredentialsMode, Destination, NetError, Request, RequestMode, Response, Url};
-use swb_web::ScriptFetchMode;
+use swb_web::{ModuleFetch, ScriptFetchMode};
 
 use super::DocumentState;
-use crate::resources::{MAX_SCRIPT_FETCHES, Pending};
+use crate::resources::{MAX_SCRIPT_FETCHES, Pending, ScriptTarget};
 
 impl DocumentState {
     /// Starts the fetch of the script at `url` for the script element
     /// `node`, or queues it. False if the document may not load it.
     pub(crate) fn fetch_script(&mut self, node: NodeId, url: &str, mode: ScriptFetchMode) -> bool {
+        self.fetch_script_for(ScriptTarget::Element(node), url, mode)
+    }
+
+    /// Starts the fetch of a module of the runtime's module map (`id`), or
+    /// queues it. False if the document may not load it.
+    pub(crate) fn fetch_module(&mut self, id: u64, url: &str, options: ModuleFetch) -> bool {
+        let target = ScriptTarget::Module {
+            id,
+            delays_load: options.delays_load,
+        };
+        let mode = ScriptFetchMode::Module {
+            credentials: options.credentials,
+        };
+        self.fetch_script_for(target, url, mode)
+    }
+
+    /// Makes the module fetch `id`, in flight or queued, delay the `load`
+    /// event (a script element joined the fetch of an `import()`).
+    pub(crate) fn delay_load_for_module(&mut self, id: u64) {
+        let fetches = &mut self.script_fetches;
+        for pending in self.requests.pending.values_mut() {
+            if let Pending::Script {
+                target:
+                    ScriptTarget::Module {
+                        id: fetch,
+                        delays_load,
+                    },
+                ..
+            } = pending
+                && *fetch == id
+            {
+                if !*delays_load {
+                    *delays_load = true;
+                    fetches.quiet_in_flight = fetches.quiet_in_flight.saturating_sub(1);
+                }
+                return;
+            }
+        }
+        for (target, _, _) in &mut fetches.queued {
+            if let ScriptTarget::Module {
+                id: fetch,
+                delays_load,
+            } = target
+                && *fetch == id
+            {
+                if !*delays_load {
+                    *delays_load = true;
+                    fetches.quiet_queued = fetches.quiet_queued.saturating_sub(1);
+                }
+                return;
+            }
+        }
+    }
+
+    fn fetch_script_for(&mut self, target: ScriptTarget, url: &str, mode: ScriptFetchMode) -> bool {
         if self.retired {
             return false;
         }
@@ -46,14 +104,17 @@ impl DocumentState {
             return false;
         }
         if self.script_fetches.in_flight >= MAX_SCRIPT_FETCHES {
-            self.script_fetches.queued.push_back((node, url, mode));
+            if target.is_quiet() {
+                self.script_fetches.quiet_queued += 1;
+            }
+            self.script_fetches.queued.push_back((target, url, mode));
         } else {
-            self.start_script_fetch(node, url, mode);
+            self.start_script_fetch(target, url, mode);
         }
         true
     }
 
-    fn start_script_fetch(&mut self, node: NodeId, url: Url, mode: ScriptFetchMode) {
+    fn start_script_fetch(&mut self, target: ScriptTarget, url: Url, mode: ScriptFetchMode) {
         #[cfg(test)]
         self.load_log.push(format!("script {url}"));
         let mut request = Request::get(url, Destination::Script);
@@ -68,19 +129,26 @@ impl DocumentState {
         let id = self.start_subresource(request);
         self.requests
             .pending
-            .insert(id, Pending::Script { node, mode });
+            .insert(id, Pending::Script { target, mode });
         self.script_fetches.in_flight += 1;
+        if target.is_quiet() {
+            self.script_fetches.quiet_in_flight += 1;
+        }
     }
 
     /// The response of a script fetch: the decoded script, or `None` for a
     /// network error. The next queued fetch starts.
     pub(super) fn script_arrived(
         &mut self,
-        node: NodeId,
+        target: ScriptTarget,
         mode: ScriptFetchMode,
         result: Result<Response, NetError>,
     ) {
-        self.script_fetches.in_flight = self.script_fetches.in_flight.saturating_sub(1);
+        let fetches = &mut self.script_fetches;
+        fetches.in_flight = fetches.in_flight.saturating_sub(1);
+        if target.is_quiet() {
+            fetches.quiet_in_flight = fetches.quiet_in_flight.saturating_sub(1);
+        }
         let script = match result {
             Ok(response) => self.script_of(&response, mode),
             Err(error) => {
@@ -88,8 +156,12 @@ impl DocumentState {
                 None
             }
         };
-        self.script_fetches.arrived.push((node, script));
+        self.script_fetches.arrived.push((target, script));
         if let Some((next, url, next_mode)) = self.script_fetches.queued.pop_front() {
+            if next.is_quiet() {
+                let fetches = &mut self.script_fetches;
+                fetches.quiet_queued = fetches.quiet_queued.saturating_sub(1);
+            }
             self.start_script_fetch(next, url, next_mode);
         }
     }
@@ -143,8 +215,11 @@ impl DocumentState {
         })
     }
 
-    /// The scripts that arrived since the last call, for the runtime.
-    pub(crate) fn take_arrived_scripts(&mut self) -> Vec<(NodeId, Option<swb_web::FetchedScript>)> {
+    /// The scripts that arrived since the last call, for the runtime, in
+    /// order of arrival.
+    pub(crate) fn take_arrived_scripts(
+        &mut self,
+    ) -> Vec<(ScriptTarget, Option<swb_web::FetchedScript>)> {
         std::mem::take(&mut self.script_fetches.arrived)
     }
 

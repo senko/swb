@@ -30,11 +30,36 @@ pub(crate) enum Pending {
     Image { url: Url },
     /// A web font file.
     Font { url: Url },
-    /// The script of a script element, classic or module.
+    /// The script of a script element, classic or module, or a module of
+    /// the module map.
     Script {
-        node: NodeId,
+        target: ScriptTarget,
         mode: swb_web::ScriptFetchMode,
     },
+}
+
+/// What a script fetch is for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ScriptTarget {
+    /// The script of a script element (`EngineHost::fetch_script`).
+    Element(NodeId),
+    /// A module of the module map (`EngineHost::fetch_module`): the
+    /// runtime's fetch id, and whether the fetch delays the `load` event (a
+    /// fetch of `import()` does not; ADR 0034 section 10).
+    Module { id: u64, delays_load: bool },
+}
+
+impl ScriptTarget {
+    /// True for a fetch that does not delay the `load` event.
+    pub(crate) fn is_quiet(self) -> bool {
+        matches!(
+            self,
+            ScriptTarget::Module {
+                delays_load: false,
+                ..
+            }
+        )
+    }
 }
 
 /// Where the text of an author stylesheet comes from.
@@ -731,34 +756,39 @@ pub(crate) struct Requests {
     pub(crate) pending: HashMap<RequestId, Pending>,
 }
 
-impl Requests {
-    /// True if no request is running.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.pending.is_empty()
-    }
-}
-
 /// The most script fetches of a document in flight at once (ADR 0028
 /// section 16); the next ones wait in a queue.
 pub(crate) const MAX_SCRIPT_FETCHES: usize = 64;
 
-/// The fetches of the scripts of script elements beyond the requests.
+/// The fetches of the scripts of script elements and of the module map
+/// beyond the requests.
 #[derive(Debug, Default)]
 pub(crate) struct ScriptFetches {
     /// The script requests in flight.
     pub(crate) in_flight: usize,
+    /// The requests in flight that do not delay the `load` event
+    /// ([`ScriptTarget::is_quiet`]); they are in the requests too.
+    pub(crate) quiet_in_flight: usize,
     /// The fetches that wait for a free place, in order.
-    pub(crate) queued: VecDeque<(NodeId, Url, swb_web::ScriptFetchMode)>,
+    pub(crate) queued: VecDeque<(ScriptTarget, Url, swb_web::ScriptFetchMode)>,
+    /// The queued fetches that do not delay the `load` event.
+    pub(crate) quiet_queued: usize,
     /// The scripts that arrived (`None`: the fetch failed) and wait for the
     /// script runtime, in order of arrival.
-    pub(crate) arrived: Vec<(NodeId, Option<swb_web::FetchedScript>)>,
+    pub(crate) arrived: Vec<(ScriptTarget, Option<swb_web::FetchedScript>)>,
 }
 
 impl ScriptFetches {
-    /// True if no fetch waits in the queue and no result waits for the
-    /// runtime.
+    /// True if no fetch that delays the `load` event waits in the queue and
+    /// no result waits for the runtime.
     pub(crate) fn is_empty(&self) -> bool {
-        self.queued.is_empty() && self.arrived.is_empty()
+        self.queued.len() == self.quiet_queued && self.arrived.is_empty()
+    }
+
+    /// True if a fetch that does not delay the `load` event is queued or in
+    /// flight (the page's loops wait for it).
+    pub(crate) fn has_quiet(&self) -> bool {
+        self.quiet_in_flight > 0 || self.quiet_queued > 0
     }
 }
 

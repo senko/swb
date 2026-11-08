@@ -80,6 +80,9 @@ pub(crate) enum Task {
     /// module, or a URL that the module map already has (HTML "fetch an
     /// inline module script graph", "fetch a single module script").
     ModuleReady(swb_dom::NodeId),
+    /// An `import()` of a module that the module map has gets its answer
+    /// (the engine's token; `scripts/module_hooks.rs`).
+    ModuleImport(u32),
     /// Run the script of a `javascript:` URL that a link or a form
     /// navigates to (HTML "navigate to a javascript: URL" queues a task).
     JavascriptUrl(String),

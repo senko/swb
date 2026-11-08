@@ -358,8 +358,10 @@ impl DocumentState {
         fetches.running.clear();
     }
 
-    /// True if a call waits for its result.
+    /// True if a call waits for its result, or a module fetch of `import()`
+    /// (neither delays the `load` event, but the page's loops wait for
+    /// them).
     pub(crate) fn has_pending_api_fetches(&self) -> bool {
-        self.api_fetches.is_pending()
+        self.api_fetches.is_pending() || self.script_fetches.has_quiet()
     }
 }

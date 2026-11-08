@@ -12,30 +12,24 @@
 //! ([`crate::EngineHost::fetch_script`]) and hands the result back
 //! ([`crate::ScriptRuntime::script_fetched`]).
 //!
-//! Module scripts (ADR 0028 section 6, item 7 and section 8, code in
-//! `scripts/modules.rs`): a module that needs no other module runs as a
-//! script of its own. HTML
-//! "prepare the script element" puts it into the same lists as an
-//! external classic script (a parser-inserted one without `async` is
+//! Module scripts (ADR 0034 sections 8 to 10, ADR 0028 section 8): HTML
+//! "prepare the script element" puts a module script into the same lists
+//! as an external classic script (a parser-inserted one without `async` is
 //! deferred, an inserted one without `async` and with "force async" false
-//! is ordered); its fetch is "fetch a module script graph" for a graph of
-//! one module, and the module map keeps one entry per URL for the life of
-//! the document ([`ModuleEntry`]): a second element with the same URL
-//! waits for the first fetch and does not run the module again. A module
-//! with an `import` or `export` declaration, `import()`, `import.meta` or
-//! top-level `await` is refused (a warning and an `error` event at the
-//! element).
+//! is ordered). Its graph loads through the module map of the document
+//! (`scripts/module_map.rs`, one entry per URL for the life of the
+//! document) and the module hooks (`scripts/module_hooks.rs`); the element
+//! is ready when its graph is loaded and linked (`scripts/modules.rs`).
 //!
-//! Departures (comments at the places): module scripts that need other
-//! modules do not run, and neither do import maps, speculation rules and
-//! SVG scripts; the `charset` attribute is ignored
-//! (the engine decodes with the response's charset, else the document's
-//! encoding).
+//! Departures (comments at the places): import maps, `modulepreload`,
+//! speculation rules and SVG scripts do not run; the `charset` attribute is
+//! ignored (the engine decodes with the response's charset, else the
+//! document's encoding).
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use swb_dom::{Document, NodeData, NodeId, TextPosition, local_name};
-use swb_js::{Runtime, ScriptError, VmError, VmResult};
+use swb_js::{Module, Runtime, ScriptError, Tracer, Value, VmError, VmResult};
 
 use crate::bindings::{self as b, Cx};
 use crate::event_loop::{Task, queue_task};
@@ -44,13 +38,14 @@ use crate::generated as g;
 use crate::generated::types::DocumentReadyState;
 use crate::state::{WebState, dom, dom_mut, engine, engine_mut, state, state_mut};
 
+mod module_hooks;
+pub(crate) mod module_map;
 mod modules;
 
-pub(crate) use modules::{ModuleEntry, mark_module_ready};
-use modules::{
-    ModuleState, finish_module_fetch, prepare_inline_module, refuse_module_run, start_module_fetch,
-    take_module,
-};
+pub(crate) use module_hooks::{answer_import, install as install_module_hooks};
+pub(crate) use module_map::fetched as module_fetched;
+pub(crate) use modules::mark_module_ready;
+use modules::{prepare_inline_module, start_module_fetch};
 
 /// The JavaScript MIME type essences (MIME Sniffing §4.6,
 /// <https://mimesniff.spec.whatwg.org/#javascript-mime-type>).
@@ -134,9 +129,19 @@ pub(crate) struct ClassicScript {
 /// fails as a network error: its `error` event fires.
 pub(crate) const MAX_HELD_SCRIPT_BYTES: usize = 256 << 20;
 
-/// The refused module scripts of a document that log a warning (the later
-/// ones log at the debug level).
-const MAX_REFUSED_WARNINGS: u32 = 10;
+/// The fetch options of a module script fetch (ADR 0034 section 8): the
+/// engine fetches the module with `cors`, the JavaScript MIME type check
+/// and UTF-8 ([`crate::EngineHost::fetch_module`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ModuleFetch {
+    /// The credentials mode `include` (the root's
+    /// `crossorigin=use-credentials`, inherited by its descendants); else
+    /// `same-origin`.
+    pub credentials: bool,
+    /// True if the fetch delays the `load` event: the fetches of a script
+    /// element's graph do, those of `import()` do not.
+    pub delays_load: bool,
+}
 
 /// HTML "result" of a script element.
 #[derive(Debug, Default)]
@@ -144,15 +149,16 @@ enum ScriptResult {
     /// "uninitialized": the fetch goes on.
     #[default]
     Uninitialized,
-    /// Null: the fetch failed.
+    /// Null: the fetch failed (of a module script: the fetch of a module
+    /// of its graph).
     Failed,
     /// A classic script.
     Classic(Box<ClassicScript>),
-    /// An inline module script: its own text.
-    InlineModule(Box<ClassicScript>),
-    /// An external module script: the key (the URL) of its entry in the
-    /// module map, which holds the text until the first element runs it.
-    ExternalModule(String),
+    /// A module script: the root of its linked graph.
+    Module(Module),
+    /// A module script with an error to rethrow: a parse, resolution or
+    /// link error of its graph.
+    ModuleError(Value),
     /// The script ran; its text is dropped.
     Done,
 }
@@ -185,9 +191,17 @@ pub(crate) struct ScriptElement {
     pub(crate) when_ready: Option<WhenReady>,
     /// The key in the module map of an external module script.
     module_key: Option<String>,
-    /// The text of an inline module script until its [`Task::ModuleReady`]
-    /// runs.
-    pending_inline_module: Option<Box<ClassicScript>>,
+    /// The name of an inline module script in the log (the document's URL).
+    inline_name: Option<String>,
+    /// The credentials mode `include` of a module script
+    /// (`crossorigin=use-credentials`).
+    credentials: bool,
+    /// True while the graph of a module script loads (its promise has the
+    /// reaction of the page).
+    graph_pending: bool,
+    /// The root of a module script's graph and the error of its load, from
+    /// the end of the load until the link ([`Task::ModuleReady`]).
+    loaded_graph: Option<(Module, Option<Value>)>,
 }
 
 impl ScriptElement {
@@ -202,13 +216,31 @@ impl ScriptElement {
             result: ScriptResult::Uninitialized,
             when_ready: None,
             module_key: None,
-            pending_inline_module: None,
+            inline_name: None,
+            credentials: false,
+            graph_pending: false,
+            loaded_graph: None,
         }
     }
 
     /// True once the result is not "uninitialized".
     pub(crate) fn has_result(&self) -> bool {
         !matches!(self.result, ScriptResult::Uninitialized)
+    }
+
+    /// Reports the module records and error values of the element.
+    fn trace(&self, tracer: &mut Tracer<'_>) {
+        match &self.result {
+            ScriptResult::Module(module) => module.trace(tracer),
+            ScriptResult::ModuleError(value) => tracer.value(*value),
+            _ => {}
+        }
+        if let Some((module, error)) = &self.loaded_graph {
+            module.trace(tracer);
+            if let Some(error) = error {
+                tracer.value(*error);
+            }
+        }
     }
 }
 
@@ -253,15 +285,13 @@ pub(crate) struct Scripts {
     /// HTML "module map" of the document, by URL (with its fragment: two
     /// URLs that differ in the fragment are two modules, as in Chromium,
     /// measured).
-    pub(crate) modules: HashMap<String, ModuleEntry>,
+    pub(crate) modules: module_map::ModuleMap,
     /// The inline module scripts that were prepared while the parser runs
     /// a step and that run as soon as possible; the parser queues their
     /// [`Task::ModuleReady`] tasks when the step ends.
     pub(crate) module_ready_queue: Vec<NodeId>,
     /// True while the parser runs a step (`ScriptRuntime::parse`).
     pub(crate) in_parse_step: bool,
-    /// The module scripts that swb refused (they need another module).
-    pub(crate) refused_modules: u32,
     /// The bytes of fetched script text that has not run yet (see
     /// [`MAX_HELD_SCRIPT_BYTES`]).
     pub(crate) held_bytes: usize,
@@ -302,10 +332,9 @@ impl Default for Scripts {
             deferred: VecDeque::new(),
             in_order: VecDeque::new(),
             asap: HashSet::new(),
-            modules: HashMap::new(),
+            modules: module_map::ModuleMap::default(),
             module_ready_queue: Vec::new(),
             in_parse_step: false,
-            refused_modules: 0,
             held_bytes: 0,
             current_script: None,
             // HTML: a document's readiness is "complete" until a parser
@@ -349,6 +378,7 @@ impl Scripts {
         self.asap.clear();
         self.module_ready_queue.clear();
         self.release_all();
+        self.modules.retire();
     }
 
     /// True if the document is "completely loaded" (HTML "completely
@@ -375,18 +405,24 @@ impl Scripts {
         for el in self.elements.values_mut() {
             if matches!(
                 el.result,
-                ScriptResult::Classic(_) | ScriptResult::InlineModule(_)
+                ScriptResult::Classic(_) | ScriptResult::Module(_) | ScriptResult::ModuleError(_)
             ) {
                 el.result = ScriptResult::Done;
             }
-            el.pending_inline_module = None;
+            el.loaded_graph = None;
         }
-        for entry in self.modules.values_mut() {
-            if matches!(entry.state, ModuleState::Ready(_)) {
-                entry.state = ModuleState::Evaluated;
-            }
-        }
+        self.modules.release_texts();
         self.held_bytes = 0;
+    }
+
+    /// Reports the module records and the error values of the document's
+    /// scripts and module map to the collector: they live as long as the
+    /// document's state.
+    pub(crate) fn trace(&self, tracer: &mut Tracer<'_>) {
+        for el in self.elements.values() {
+            el.trace(tracer);
+        }
+        self.modules.trace(tracer);
     }
 }
 
@@ -567,7 +603,7 @@ pub(crate) fn prepare(
         (None, None) => prepare_inline(rt, node, found.source, parser),
         (None, Some(_)) => {
             let source = std::mem::take(&mut found.source);
-            prepare_inline_module(rt, node, source, parser, &found)
+            prepare_inline_module(rt, node, &source, (parser, credentials), &found)
         }
     }
 }
@@ -593,8 +629,10 @@ fn prepare_external(
         return Ok(Prepared::Nothing);
     };
     match module {
-        Some(mode) => start_module_fetch(rt, node, &url, mode)?,
-        None => {
+        Some(ScriptFetchMode::Module { credentials }) => {
+            start_module_fetch(rt, node, &url, credentials)?;
+        }
+        Some(ScriptFetchMode::Classic) | None => {
             if !engine_mut(rt)?.fetch_script(node, &url, ScriptFetchMode::Classic) {
                 // The fetch fails at once (a URL that the document may not
                 // load); its result comes as a task, as a fetch's would.
@@ -682,23 +720,23 @@ fn prepare_inline(
     Ok(Prepared::ExecuteNow)
 }
 
-/// HTML "mark as ready" with the fetched script (`None`: the fetch
+/// HTML "mark as ready" with the fetched classic script (`None`: the fetch
 /// failed). Returns the steps to run when the result is ready, which the
-/// caller runs (they execute scripts).
-///
-/// The fetch of a module script is the fetch of its module map entry: the
-/// result then goes to every element that waits for the entry, so the
-/// steps of several elements can be ready at once.
+/// caller runs (they execute scripts). (Module scripts become ready
+/// through the module map, `scripts/modules.rs`.)
 pub(crate) fn mark_as_ready(
     rt: &mut Runtime,
     node: NodeId,
     mut fetched: Option<FetchedScript>,
 ) -> VmResult<Vec<(NodeId, WhenReady)>> {
     let scripts = scripts_mut(rt)?;
-    let key = match scripts.elements.get(&node) {
-        Some(el) if !el.has_result() => el.module_key.clone(),
-        _ => return Ok(Vec::new()),
-    };
+    if scripts
+        .elements
+        .get(&node)
+        .is_none_or(ScriptElement::has_result)
+    {
+        return Ok(Vec::new());
+    }
     let held = fetched.as_ref().map_or(0, |script| script.source.len());
     if scripts.held_bytes.saturating_add(held) > MAX_HELD_SCRIPT_BYTES {
         log::warn!(
@@ -719,9 +757,6 @@ pub(crate) fn mark_as_ready(
             held,
         })
     });
-    if let Some(key) = key {
-        return Ok(finish_module_fetch(scripts, node, &key, script));
-    }
     let Some(el) = scripts.elements.get_mut(&node) else {
         return Ok(Vec::new());
     };
@@ -768,60 +803,28 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
     }
     let external = el.from_external_file;
     let result = std::mem::replace(&mut el.result, ScriptResult::Done);
-    if let ScriptResult::Classic(script) = &result {
-        scripts.held_bytes = scripts.held_bytes.saturating_sub(script.held);
-    }
-    let mut module_key = None;
-    let (script, module) = match result {
-        ScriptResult::Classic(script) => (script, false),
-        ScriptResult::InlineModule(script) => (script, true),
-        ScriptResult::ExternalModule(key) => match take_module(scripts, &key) {
-            Ok(script) => {
-                module_key = Some(key);
-                (script, true)
-            }
-            Err(refused) => {
-                // An element ran the module before (it runs once per
-                // URL), or refused it.
-                let event = if refused { "error" } else { "load" };
-                return fire_at_element(rt, node, event).map_err(crate::runtime::task_error);
-            }
-        },
+    let script = match result {
+        ScriptResult::Classic(script) => {
+            scripts.held_bytes = scripts.held_bytes.saturating_sub(script.held);
+            script
+        }
+        result @ (ScriptResult::Module(_) | ScriptResult::ModuleError(_)) => {
+            return modules::execute_module(rt, node, &result, external);
+        }
         ScriptResult::Failed => {
             return fire_at_element(rt, node, "error").map_err(crate::runtime::task_error);
         }
         ScriptResult::Uninitialized | ScriptResult::Done => return Ok(()),
     };
-    // `document.currentScript` is null in a module (HTML "execute the
-    // script element": only a classic script sets it).
-    let old = if module {
-        scripts.current_script.take()
-    } else {
-        scripts.current_script.replace(node)
-    };
+    let old = scripts.current_script.replace(node);
     let realm = crate::state::doc_realm(rt).map_err(crate::runtime::task_error)?;
-    let run = if module {
-        rt.eval_module_at(realm, &script.source, &script.url, script.start)
-    } else {
-        // No Script Record number: the page installs no module hooks before
-        // ADR 0034 sub-feature 3b-1, so `import()` is refused anyway.
-        rt.eval_named_at(realm, &script.source, &script.url, script.start, None)
-    }
-    .map(drop);
-    // Departure (ADR 0028 section 6, item 7): a module that needs another
-    // module is refused. Chromium loads the graph; swb fires `error`, as it
-    // does for a module that fails to load.
-    if let Err(error) = &run
-        && module
-        && error.is_unsupported()
-    {
-        if let Ok(scripts) = scripts_mut(rt) {
-            scripts.current_script = old;
-        }
-        refuse_module_run(rt, &script, module_key.as_deref(), error);
-        return fire_at_element(rt, node, "error").map_err(crate::runtime::task_error);
-    }
-    let mut outcome = report_run(rt, &script, module, &run);
+    // No Script Record number: `import()` of a classic script resolves
+    // against the document's base URL (the script's own URL is sub-feature
+    // 3b-2 of ADR 0034).
+    let run = rt
+        .eval_named_at(realm, &script.source, &script.url, script.start, None)
+        .map(drop);
+    let mut outcome = report_run(rt, &script, &run);
     if outcome.is_ok() && rt.stack_depths().0 == 0 {
         outcome = crate::event_loop::microtask_checkpoint(rt);
     }
@@ -840,7 +843,6 @@ pub(crate) fn execute(rt: &mut Runtime, node: NodeId) -> Result<(), ScriptError>
 fn report_run(
     rt: &mut Runtime,
     script: &ClassicScript,
-    module: bool,
     run: &Result<(), ScriptError>,
 ) -> Result<(), ScriptError> {
     match run {
@@ -858,11 +860,7 @@ fn report_run(
             crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)
         }
         Err(error @ (ScriptError::Uncaught { .. } | ScriptError::Compile { .. })) => {
-            let site = if module {
-                crate::errors::Site::module_at(&script.url, &script.source, script.start)
-            } else {
-                crate::errors::Site::script_at(&script.url, &script.source, script.start)
-            };
+            let site = crate::errors::Site::script_at(&script.url, &script.source, script.start);
             crate::errors::report(rt, &site, error).map_err(crate::runtime::task_error)
         }
         Err(error) => Err(error.clone()),

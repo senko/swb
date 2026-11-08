@@ -44,7 +44,7 @@ pub use host::{
 };
 pub use module::{
     ImportMetaHook, LoadAnswer, LoadImportedModuleHook, LoadRequest, Module, ModuleHooks,
-    ModuleRequestInfo, Referrer,
+    ModuleRequestInfo, Referrer, decode_specifier,
 };
 pub use object::{GetResult, HostData, Object, Property, PropertyDescriptor, SetResult};
 pub use string::{JsString, PropertyKey};

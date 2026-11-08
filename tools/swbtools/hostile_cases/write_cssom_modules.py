@@ -620,21 +620,160 @@ def module_scripts_same_url_10000_js_on() -> Page:
 
 
 @case(
-    "10,000 module scripts that need another module (an import), with JavaScript on (M9 "
-    "feature 7): swb refuses each one with an `error` event; the first 10 log a warning and "
-    "the others a debug line; the page loads within the time limit (ADR 0028 section 8)",
-    swb_args=JS,
+    "10,000 inline module scripts that import one module, with JavaScript on and an http: "
+    "page from a replayed fixture (M10 3b-1; replaces M9's case of 10,000 refused modules): "
+    "the module map fetches the module once and it runs once; each inline module runs after "
+    "its graph is complete (ADR 0034 section 8)",
+    swb_args=REPLAY,
     time_limit_s=10,
-    expect_log="is not run",
+    url=REPLAY_URL,
+    expect_log="dep 1 modules 10000",
 )
-def module_scripts_refused_10000_js_on() -> Page:
-    modules = "<script type=module>import './dep.js';</script>" * 10_000
+def module_scripts_import_10000_js_on() -> Page:
+    modules = "<script type=module>import './dep.js'; window.m = (window.m || 0) + 1;</script>"
     script = (
-        "<script>let errors = 0; document.addEventListener('error', (e) => { "
-        "if (e.target.localName === 'script') errors++; }, true); "
-        "addEventListener('load', () => console.log('errors ' + errors));</script>"
+        "<script>addEventListener('load', () => "
+        "console.warn('dep ' + window.n + ' modules ' + window.m));</script>"
     )
-    return Page(doc("<p>modules</p>" + script + modules))
+    return replay_scripts_page(
+        doc("<p>modules</p>" + script + modules * 10_000),
+        {"dep.js": "window.n = (window.n || 0) + 1;"},
+    )
+
+
+@case(
+    "A chain of 10,000 modules, each importing the next, with JavaScript on and an http: page "
+    "from a replayed fixture (M10 3b-1): the graph loads one fetch after the other, links and "
+    "evaluates without Rust stack per module, and the leaf runs first (ADR 0034 sections 6 and "
+    "8)",
+    swb_args=REPLAY,
+    time_limit_s=30,
+    url=REPLAY_URL,
+    expect_log="chain ran 10000",
+)
+def module_chain_10000_js_on() -> Page:
+    n = 10_000
+    files = {
+        f"m{i}.js": f"import './m{i + 1}.js'; window.c = (window.c || 0) + 1;" for i in range(n - 1)
+    }
+    files[f"m{n - 1}.js"] = "window.c = (window.c || 0) + 1;"
+    script = (
+        "<script>addEventListener('load', () => console.warn('chain ran ' + window.c));</script>"
+    )
+    return replay_scripts_page(
+        doc("<p>modules</p>" + script + "<script type=module src=m0.js></script>"), files
+    )
+
+
+@case(
+    "A ring of 10,000 modules (each imports the next, the last the first) with live bindings, "
+    "with JavaScript on and an http: page from a replayed fixture (M10 3b-1): the cycle loads, "
+    "links and evaluates once (ADR 0034 sections 6 and 8)",
+    swb_args=REPLAY,
+    time_limit_s=30,
+    url=REPLAY_URL,
+    expect_log="ring ran 10000",
+)
+def module_cycle_ring_10000_js_on() -> Page:
+    n = 10_000
+    files = {
+        f"r{i}.js": (
+            f"import {{v{(i + 1) % n}}} from './r{(i + 1) % n}.js'; export let v{i} = {i}; "
+            "window.c = (window.c || 0) + 1;"
+        )
+        for i in range(n)
+    }
+    script = (
+        "<script>addEventListener('load', () => console.warn('ring ran ' + window.c));</script>"
+    )
+    return replay_scripts_page(
+        doc("<p>modules</p>" + script + "<script type=module src=r0.js></script>"), files
+    )
+
+
+@case(
+    "A mesh of 200 modules where each re-exports all others with `export *` (40,000 star "
+    "edges) and a namespace import of it, with JavaScript on and an http: page from a replayed "
+    "fixture (M10 3b-1): the link finishes or ends at the task's time limit, never hangs "
+    "(ADR 0034 sections 6 and 11)",
+    swb_args=REPLAY,
+    time_limit_s=30,
+    url=REPLAY_URL,
+)
+def module_star_mesh_js_on() -> Page:
+    n = 200
+    files = {
+        f"s{i}.js": "".join(f"export * from './s{j}.js';" for j in range(n) if j != i)
+        + f"export const v{i} = {i};"
+        for i in range(n)
+    }
+    script = (
+        "<script type=module>import * as ns from './s0.js'; "
+        "console.warn('mesh names ' + Object.keys(ns).length);</script>"
+    )
+    return replay_scripts_page(doc("<p>modules</p>" + script), files)
+
+
+@case(
+    "A module with 100,000 export names (re-exports of one binding) and a namespace import of "
+    "it, with JavaScript on and an http: page from a replayed fixture (M10 3b-1): the link "
+    "and the namespace are linear in the names (ADR 0034 sections 6 and 11)",
+    swb_args=REPLAY,
+    time_limit_s=20,
+    url=REPLAY_URL,
+    expect_log="exports 100000",
+)
+def module_exports_100000_js_on() -> Page:
+    names = ",".join(f"a as e{i}" for i in range(100_000))
+    files = {"big.js": f"const a = 1; export {{{names}}};"}
+    script = (
+        "<script type=module>import * as ns from './big.js'; "
+        "console.warn('exports ' + Object.keys(ns).length);</script>"
+    )
+    return replay_scripts_page(doc("<p>modules</p>" + script), files)
+
+
+@case(
+    "`import()` of 100,000 different URLs (one module with 100,000 fragments), with "
+    "JavaScript on and an http: page from a replayed fixture (M10 3b-1): one request serves "
+    "the URLs while it is in flight; the module map takes 65,536 entries (65,536 modules), "
+    "the later URLs fail at once with one warning (ADR 0034 sections 8 and 11). The fetches "
+    "of `import()` do not delay `load`, so swb runs the event loop in virtual time until "
+    "they end",
+    swb_args=(*REPLAY, "--virtual-time", "--settle-ms", "60000"),
+    time_limit_s=40,
+    url=REPLAY_URL,
+    expect_log=("the module map has 65536 entries", "fulfilled 65536 rejected 34464"),
+    rss_limit_mib=1500,
+)
+def module_import_call_urls_100000_js_on() -> Page:
+    script = (
+        "<script type=module>let ok = 0, failed = 0; const all = []; "
+        "for (let i = 0; i < 100000; i++) "
+        "all.push(import('./m.js#' + i).then(() => { ok++; }, () => { failed++; })); "
+        "Promise.all(all).then(() => console.warn('fulfilled ' + ok + ' rejected ' + failed));"
+        "</script>"
+    )
+    return replay_scripts_page(doc("<p>modules</p>" + script), {"m.js": "export default 1;"})
+
+
+@case(
+    "A module whose top-level `await` never settles, imported by a deferred module, with "
+    "JavaScript on and an http: page from a replayed fixture (M10 3b-1): neither "
+    "`DOMContentLoaded` nor `load` wait for it; the importer never runs (ADR 0034 section 10)",
+    swb_args=REPLAY,
+    time_limit_s=10,
+    url=REPLAY_URL,
+    expect_log="loaded without the importer",
+)
+def module_tla_never_settles_js_on() -> Page:
+    files = {"never.js": "window.started = 1; await new Promise(() => {});"}
+    script = (
+        "<script>addEventListener('load', () => { if (window.started && !window.importer) "
+        "console.warn('loaded without the importer'); });</script>"
+        "<script type=module>import './never.js'; window.importer = 1;</script>"
+    )
+    return replay_scripts_page(doc("<p>modules</p>" + script), files)
 
 
 @case(

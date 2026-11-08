@@ -1032,6 +1032,114 @@ fn module_scripts_are_fetched_in_cors_mode() {
     );
 }
 
+/// The module fetches of the module map (ADR 0034 sections 8 and 10):
+/// `cors` with the credentials of the options; a fetch of `import()` does
+/// not delay the `load` event (the document is not loading), but the page's
+/// loops wait for it; its result names the fetch id.
+#[test]
+fn module_map_fetches_and_the_load_event() {
+    use crate::resources::ScriptTarget;
+    use swb_net::{CredentialsMode, RequestMode};
+    use swb_web::ModuleFetch;
+    let recorder = Arc::new(Recorder::default());
+    let loader = Rc::new(Loader::new(recorder.clone(), 1, Arc::new(|| {})));
+    let mut doc = state_with(swb_dom::parse_html("<p>x"), None, &url(), loader);
+    assert!(!doc.is_loading());
+    let quiet = ModuleFetch {
+        credentials: true,
+        delays_load: false,
+    };
+    assert!(doc.fetch_module(7, "https://b.test/q.js", quiet));
+    assert!(!doc.is_loading());
+    assert!(doc.has_pending_api_fetches());
+    let loud = ModuleFetch {
+        credentials: false,
+        delays_load: true,
+    };
+    assert!(doc.fetch_module(8, "https://b.test/l.js", loud));
+    assert!(doc.is_loading());
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while recorder.requests.lock().unwrap().len() < 2 {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the requests did not arrive"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let seen: Vec<_> = recorder
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|r| (r.url.path().to_owned(), r.mode, r.credentials))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            (
+                "/q.js".to_owned(),
+                RequestMode::Cors,
+                CredentialsMode::Include
+            ),
+            (
+                "/l.js".to_owned(),
+                RequestMode::Cors,
+                CredentialsMode::SameOrigin
+            ),
+        ]
+    );
+    let target = ScriptTarget::Module {
+        id: 7,
+        delays_load: false,
+    };
+    let mode = swb_web::ScriptFetchMode::Module { credentials: true };
+    doc.script_arrived(
+        target,
+        mode,
+        Ok(script_response("text/javascript", false, b"1")),
+    );
+    let arrived = doc.take_arrived_scripts();
+    assert_eq!(arrived.len(), 1);
+    assert_eq!(arrived[0].0, target);
+    assert_eq!(doc.script_fetches.quiet_in_flight, 0);
+}
+
+#[test]
+fn a_module_fetch_that_a_script_element_joins_delays_the_load_event() {
+    use swb_web::ModuleFetch;
+    let recorder = Arc::new(Recorder::default());
+    let loader = Rc::new(Loader::new(recorder, 1, Arc::new(|| {})));
+    let mut doc = state_with(swb_dom::parse_html("<p>x"), None, &url(), loader);
+    let quiet = ModuleFetch {
+        credentials: false,
+        delays_load: false,
+    };
+    assert!(doc.fetch_module(7, "https://b.test/q.js", quiet));
+    assert!(doc.fetch_module(8, "https://b.test/r.js", quiet));
+    assert!(!doc.is_loading());
+    // An unknown id changes nothing.
+    doc.delay_load_for_module(99);
+    assert!(!doc.is_loading());
+    doc.delay_load_for_module(7);
+    assert!(doc.is_loading());
+    assert_eq!(doc.script_fetches.quiet_in_flight, 1);
+    // Again: nothing more.
+    doc.delay_load_for_module(7);
+    assert_eq!(doc.script_fetches.quiet_in_flight, 1);
+    // The arrival of the fetch ends the delay (its target is the changed one).
+    let target = crate::resources::ScriptTarget::Module {
+        id: 7,
+        delays_load: true,
+    };
+    let mode = swb_web::ScriptFetchMode::Module { credentials: false };
+    doc.script_arrived(
+        target,
+        mode,
+        Ok(script_response("text/javascript", false, b"1")),
+    );
+    assert_eq!(doc.script_fetches.quiet_in_flight, 1);
+}
+
 fn script_response(content_type: &str, nosniff: bool, body: &[u8]) -> Response {
     let mut headers: swb_net::Headers = [("content-type", content_type)].into_iter().collect();
     if nosniff {
@@ -1051,13 +1159,14 @@ fn script_response(content_type: &str, nosniff: bool, body: &[u8]) -> Response {
 /// cases `mime-types`, `mime-types-classic`, `encoding`, `encoding-page`).
 #[test]
 fn module_scripts_need_a_javascript_type_and_decode_as_utf8() {
+    use crate::resources::ScriptTarget;
     use swb_web::ScriptFetchMode;
     let mut doc = walked("<p>x", &url());
     doc.encoding = encoding_rs::WINDOWS_1252;
     let module = ScriptFetchMode::Module { credentials: false };
     let node = NodeId::DOCUMENT;
     let mut run = |mode, response| {
-        doc.script_arrived(node, mode, Ok(response));
+        doc.script_arrived(ScriptTarget::Element(node), mode, Ok(response));
         let mut arrived = doc.take_arrived_scripts();
         assert_eq!(arrived.len(), 1);
         arrived.remove(0).1.map(|script| script.source)

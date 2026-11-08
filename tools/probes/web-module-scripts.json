@@ -762,7 +762,8 @@
    ],
    "resources": {
     "dep.js": {
-     "text": "export const a=1;log('dep')"
+     "text": "export const a=1;log('dep')",
+     "delay_ms": 100
     },
     "d.js": {
      "text": "log('d')"
@@ -780,6 +781,11 @@
    "resources": {
     "d.js": {
      "text": "log('d')"
+    },
+    "nope.js": {
+     "text": "",
+     "status": 404,
+     "delay_ms": 100
     }
    }
   },

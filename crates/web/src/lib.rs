@@ -32,11 +32,13 @@
 //!   ([`PageClock`]), and [`ScriptRuntime::run_due_tasks`], which the
 //!   engine calls from its loop.
 //! - Scripts in the document: `scripts` (script elements:
-//!   prepare, execute, `HTMLScriptElement`) and `document_load` (the
+//!   prepare, execute, `HTMLScriptElement`; module scripts with the module
+//!   map and the module hooks of the engine) and `document_load` (the
 //!   parser with its pauses, "the end" of the parse, `DOMContentLoaded`,
 //!   `load`, `pageshow`, the unload). The engine lends the parser and
-//!   fetches the scripts ([`EngineHost::parse_step`],
-//!   [`EngineHost::fetch_script`], [`ScriptRuntime::script_fetched`]).
+//!   fetches the scripts and modules ([`EngineHost::parse_step`],
+//!   [`EngineHost::fetch_script`], [`ScriptRuntime::script_fetched`],
+//!   [`EngineHost::fetch_module`], [`ScriptRuntime::module_fetched`]).
 //! - The rendering update: `animation_frames`
 //!   (`requestAnimationFrame`) and `media_queries` (`matchMedia` and the
 //!   change events); the engine runs the steps of a frame through
@@ -157,7 +159,7 @@ pub use runtime::{
     AgentShared, ConsoleMessage, DocumentKey, EVALUATION_TIMEOUT, Evaluation, EvaluationId,
     EvaluationStart, HEAP_LIMIT, JsonForm, SCRIPT_BUDGET, ScriptRuntime, TASK_TIME_LIMIT,
 };
-pub use scripts::{FetchedScript, ScriptFetchMode, is_javascript_mime_type};
+pub use scripts::{FetchedScript, ModuleFetch, ScriptFetchMode, is_javascript_mime_type};
 pub use storage::{
     AREA_COST_BYTES, AREA_QUOTA_UNITS, KEY_COST_BYTES, MAX_KEYS_PER_AREA, QuotaExceeded,
     SharedStorage, StorageKey, StorageKind, StoragePartition, StorageStore, TOTAL_LIMIT_BYTES,

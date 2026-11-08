@@ -1046,3 +1046,173 @@ feature `dynamic-import` and the 3 that use `import()`), also with
 `import()` calls of one specifier, 10,000 specifiers, an `import()` in the
 leaf of a chain of 10,000 modules) each take well under a second in the
 test profile.
+
+## 3b-1 implementation notes
+
+Facts of the implementation (M10 sub-feature 3b-1, the module graph in the
+page) that differ from the decision above or that 3b-2 needs. Code:
+`crates/web/src/scripts/module_map.rs` (the map), `module_hooks.rs` (the
+hooks, resolution, `import()`, `import.meta`), `modules.rs` (the graphs of
+script elements, their readiness, run and reports).
+
+**Engine API.** `LoadRequest::lone_surrogate`: the byte offset in the
+(lossy) specifier of its first lone surrogate. Chromium 148 fails to
+resolve a specifier with a lone surrogate before its fragment (case
+`msg-lone-surrogate`: no request; a URL-like specifier such as
+`'./s\uD800.js'` gets `Failed to resolve module specifier "./s?.js".
+Invalid relative url or base scheme isn't hierarchical.` (the `?` is the
+lone surrogate), an absolute one the bare-specifier text; a lone surrogate
+in the fragment is fine). The same text comes for a URL-like
+specifier that does not parse (`//[x`).
+
+**Host interface.** `EngineHost::fetch_module(id, url, ModuleFetch {
+credentials, delays_load })` and `ScriptRuntime::module_fetched(id,
+Option<FetchedScript>)`. The engine keeps module fetches with the script
+fetches (one queue of 64, `ScriptTarget::Module`); a fetch with
+`delays_load: false` (`import()` and its descendants) does not count in
+`DocumentState::is_loading`, only in the page's activity
+(`has_pending_api_fetches`), so the page's loops wait for it but `load` does
+not. Script elements no longer fetch through `fetch_script` with
+`ScriptFetchMode::Module` (the mode stays for the engine's request).
+
+**The map.** An entry is `Fetching(id)`, `Fetched(text)`, `Module`,
+`ParseError(SyntaxError)` or `Failed(TypeError)`, with its waiters (an
+engine token, a script element, an `import()` token) and its fetch options.
+Fetched text that a waiter needs is parsed in the fetch's task; text without
+a waiter stays `Fetched` (3b-1 never has one; `modulepreload` will) and is
+parsed at the first request. Each record's `[[HostDefined]]` is the index of
+its `ModuleInfo` (URL with the entry's fragment, credentials, quiet). The
+module's URL is the response URL with the entry's fragment
+(`import.meta.url` of `m.js#frag` keeps the fragment, measured). An inline
+module's URL is the document's base URL at its preparation. The map knows
+the error objects it made (parse errors with their place, fetch failures);
+the entries trace their values, and the table of errors is not a root (a
+handle carries a generation, so a dead key never names a later object; a
+test with collections between an arrival and its answers could not fail
+with the trace). Past 65,536 entries a request for a new URL gets one
+shared fetch failure and one warning. A termination of the parse of a
+fetch's entry puts the text back (`Fetched`), so that a later request parses
+it; the document's scripts stop after a termination, so no test can show
+it.
+
+**Fetch options of joined fetches.** An entry keeps the options of its
+first requester. A requester that delays `load` (a script element) that
+joins an entry or a fetch in flight that an `import()` started clears the
+entry's `quiet` flag (its descendants are then fetched as the element's)
+and calls `EngineHost::delay_load_for_module(id)`: the fetch delays `load`
+from then on (case `import-call-timing-quiet-then-async`; the engine
+moves the target of the fetch, in flight or queued, to the counted ones).
+An `import()` that joins an element's fetch changes nothing.
+
+**A stopped document.** `ScriptRuntime::abort_document` (`Page::stop`)
+turns every entry that fetches into a fetch failure and answers its
+waiters, because the engine drops the page's requests and the map would wait
+for ever. An `import()` in flight rejects with `Failed to fetch dynamically
+imported module: <url>`, and a later `import()` of the URL gets the stored
+failure and makes no request (Chromium 148, measured with `window.stop()`
+in the probe session: the `import()` in flight rejects a task after the
+stop, the later one gets the stored failure, one request). swb has no
+`window.stop()`, so the test is `a_stopped_load_fails_the_module_fetches_of_import`
+(`Page::stop` while the parser waits); the rejection comes at once, not in a
+task.
+
+**Graphs of script elements.** The root's entry or the inline text is
+parsed, then `load_requested_modules`. If the promise is settled when it
+returns, the root is linked at once: in the fetch task, or for an inline
+module in "prepare" (with a handle scope, without the task's deadline);
+else the reaction (a job) keeps the loaded root in the element and queues
+`Task::ModuleReady`, which links in a task and runs the readiness steps.
+The engine's link is not called from a job. A rejection with a fetch
+failure gives the null result (`error` event), any other error is the
+error to rethrow. A parser-inserted inline module whose graph is complete
+at once is ready at once, as in M9.
+
+**`import()`.** The hook resolves (dynamic text: `Failed to resolve module
+specifier 'x'`), then loads the root's whole graph with
+`load_requested_modules` before it answers the engine: Chromium rejects a
+graph with a failed fetch anywhere with `TypeError: Failed to fetch
+dynamically imported module: <root URL>` (case
+`msg-import-call-descendant`; a descendant's bare specifier keeps the
+static text). **When `import()` settles** (Chromium 148, cases
+`import-call-timing-*`, three runs each): every `import()` is answered in a
+task that is queued when the answer is known, one task per call, in order
+with the timers and messages queued between the calls, except a specifier
+that does not resolve, which rejects at once. This holds for a module in
+the map in any state (evaluated, a stored fetch failure, a stored parse
+error; `-evaluated-*`, `-failed-again`, `-parse-error-again`, `-evaluated-twice`),
+for a fetch failure (`-blob-after-load`) and for `data:`
+(`-data-after-load`); `-resolve-fail-after-load` is the rejection at once. swb does the same with `Task::ModuleImport` for
+a module that the map has. An `import()` that waits for a fetch in flight is
+answered when the fetch arrives, before the script elements that wait for
+it run (`-joins-in-flight`, `-joins-in-flight-after-load`,
+`-quiet-then-async`: Chromium's task of the `import()` comes first). Two
+`import()` calls that wait for one fetch settle in either order in Chromium
+(`-joins-in-flight-after-load`: the second first in three runs of the whole
+file, the first first in three runs of the case alone); the stored value
+and swb have the first first. Departures
+(listed in `MODULE_GRAPH_DEPARTURES`): `-quiet-then-element` against
+`-joins-in-flight` (the same page except for the timers and messages that the
+race adds: two stable orders in Chromium, swb follows `-joins-in-flight`);
+`-javascript-after-load` (Chromium rejects later than the timers, `blob:`
+earlier; swb earlier for both); `-data-after-load` (the loader's worker
+thread delivers the response after the timers that were queued with the
+call, which run in the same turn of the page; Chromium decodes `data:` in
+an earlier task). Referrers
+without a module (`Referrer::Realm`: classic scripts, handlers, string
+timers) resolve against the document's base URL with the default options;
+`Referrer::Script` does not occur yet.
+
+**`import.meta`.** `url` and `resolve` (a host method per module, length 1,
+not a constructor; the map maps the function to the module's number).
+`resolve` text: `Failed to resolve module specifier bare: Relative
+references must start with either "/", "./", or "../".` (no quotes; case
+`msg-meta-resolve`); a string argument keeps its lone surrogates for the
+check, another value is converted lossily.
+
+**Run and reports.** Evaluate; a rejected promise is reported now, a
+pending one gets a reaction that reports its rejection when it happens (at
+the window of its document). A report's place: the error object's frame,
+else the parse error's place from the map, else the document's URL 0:0.
+`Site::module_at` and the `module` flag of `Site` went.
+
+**Lifetime.** `DocState::trace` traces the scripts' state: the map's
+records, the error values of its entries, graph roots and `resolve`
+functions, and the results of the elements. A retired document drops its map's entries (its records die
+with the last script object that reaches them); the numbers and the
+`resolve` functions stay.
+
+**Departures (listed in `MODULE_GRAPH_DEPARTURES` where a probe shows
+them):** the `msg-cycle-*` cases (roadmap backlog); `import()` in an event
+handler resolves against the document's base URL (Chromium: the document's
+URL, case `import-call-document-base`; 3b-2 gives classic scripts their
+Script Records, then `Referrer::Realm` can use the document's URL); the
+import attribute `type: "json"` and `"css"` fails with `TypeError:
+Unsupported module type 'json'` (Chromium has these module types; no text
+to measure); a lossy specifier from a non-string argument of
+`import.meta.resolve`.
+
+**Lone surrogates.** The engine's `decode_specifier` makes the lossy text and
+the offset of the first lone surrogate for `LoadRequest` and for the host's
+`import.meta.resolve`.
+
+**Tests.** The probe tool's simulated server answers a 404 after 30 ms (as
+a found resource). The simulated server answers every resource after at
+least 30 ms, the probe tool's server at once, so in the M9 cases
+`import-call` and `import-call-missing` the `import()` fetch and the
+deferred `d.js` arrived within a millisecond in swb and their order
+changed from run to run (the `import()` continues in the arrival's task,
+the deferred script in a later one). Their imported module now answers
+after 100 ms (`delay_ms`, a 404 resource for the missing one); Chromium's
+values did not change (three equal runs). The query of
+`msg-import-call-options` sorts its lines: the order of the classic and the
+module line is a race in Chromium (two of three runs differed). The hostile
+case `module-scripts-refused-10000-js-on` of M9 became
+`module-scripts-import-10000-js-on` (the modules run now); the case of
+100,000 `import()` URLs uses one module with 100,000 fragments (100,000
+missing files made a log past the runner's read limit).
+
+**For 3b-2.** Import maps hook into `module_hooks::answer` before
+`resolve`; `modulepreload` requests the entry with a waiter of its own (or
+none, so the text stays `Fetched`) and quiet options; classic scripts pass
+their numbers to `eval_named_at`, and `referrer_base` maps them to their
+base URLs.

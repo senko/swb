@@ -565,6 +565,14 @@ impl swb_web::EngineHost for DocumentState {
         self.fetch_script(node, url, mode)
     }
 
+    fn fetch_module(&mut self, id: u64, url: &str, options: swb_web::ModuleFetch) -> bool {
+        self.fetch_module(id, url, options)
+    }
+
+    fn delay_load_for_module(&mut self, id: u64) {
+        self.delay_load_for_module(id);
+    }
+
     fn start_api_fetch(&mut self, request: swb_net::Request) -> Option<u64> {
         self.start_api_fetch(request)
     }
@@ -1248,9 +1256,12 @@ impl DocumentState {
         self.scroll
     }
 
-    /// True while the parse or subresource loads go on.
+    /// True while the parse or subresource loads go on (not the module
+    /// fetches of `import()`, which do not delay the `load` event).
     pub fn is_loading(&self) -> bool {
-        self.parser.is_some() || !self.requests.is_empty() || !self.script_fetches.is_empty()
+        self.parser.is_some()
+            || self.requests.pending.len() > self.script_fetches.quiet_in_flight
+            || !self.script_fetches.is_empty()
     }
 
     /// True if the document was parsed with scripting on.

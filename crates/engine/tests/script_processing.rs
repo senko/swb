@@ -155,6 +155,8 @@ struct DelaySite {
     origin: &'static str,
     in_flight: AtomicUsize,
     most_in_flight: AtomicUsize,
+    /// The URLs of the requests, in order.
+    requested: std::sync::Mutex<Vec<String>>,
 }
 
 impl DelaySite {
@@ -184,6 +186,7 @@ impl Fetcher for DelaySite {
         self.most_in_flight.fetch_max(now, Ordering::SeqCst);
         // The probe's server ignores the query of a URL.
         let url = request.url.as_str();
+        self.requested.lock().unwrap().push(url.to_owned());
         let file = self
             .files
             .get(url)
@@ -411,6 +414,79 @@ fn a_stopped_load_ends_the_parse() {
         assert_eq!(
             answer(&mut page, "document.body.childNodes.length"),
             serde_json::json!(2)
+        );
+    });
+}
+
+#[test]
+fn a_stopped_load_fails_the_module_fetches_of_import() {
+    on_page_thread(|| {
+        let mut site = DelaySite::default();
+        // `never.js` keeps the load going while the `import()` of `slow.js`
+        // is in flight.
+        site.add(
+            "page.html",
+            "<!DOCTYPE html><script>window.r = []; import('./slow.js').then(\
+             () => r.push('ok'), (e) => r.push(e.message));</script>\
+             <script src=never.js></script><p>b</p>",
+            0,
+            "text/html",
+        );
+        site.add("never.js", "1", 5000, "text/javascript");
+        site.add("slow.js", "window.ran = 1", 5000, "text/javascript");
+        let (mut page, site) = open(site, "page.html");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !site
+            .requested
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|u| u.ends_with("slow.js"))
+            && Instant::now() < deadline
+        {
+            page.process_network();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(page.is_loading());
+        page.stop();
+        // The `import()` in flight rejects as a failed fetch; a later one
+        // gets the stored failure and makes no request (Chromium, measured
+        // with `window.stop()`: `import-call-timing-stop-then-import` in
+        // the notes of ADR 0034).
+        let message = "Failed to fetch dynamically imported module: https://site.test/slow.js";
+        let first = page.evaluate_with_timeout(
+            "new Promise((done) => { var t = setInterval(() => { \
+             if (window.r.length) { clearInterval(t); done(window.r.slice()); } }, 10); })",
+            JsonForm::Strict,
+            Duration::from_secs(5),
+        );
+        assert_eq!(
+            first,
+            Some(Evaluation::Value(format!(
+                "[{}]",
+                serde_json::json!(message)
+            )))
+        );
+        let again = page.evaluate_with_timeout(
+            "import('./slow.js').then(() => 'ok', (e) => e.message)",
+            JsonForm::Strict,
+            Duration::from_secs(5),
+        );
+        assert_eq!(
+            again,
+            Some(Evaluation::Value(serde_json::json!(message).to_string()))
+        );
+        let slow = site
+            .requested
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|u| u.ends_with("slow.js"))
+            .count();
+        assert_eq!(slow, 1, "one request for slow.js");
+        assert_eq!(
+            answer(&mut page, "typeof window.ran"),
+            serde_json::json!("undefined")
         );
     });
 }

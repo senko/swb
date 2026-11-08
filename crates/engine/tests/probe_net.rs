@@ -4,7 +4,10 @@
 //! `upload`, `abort`, `timeout`, response types, header lists, CORS),
 //! `web-image-events.json` (`load` and `error` of images and style sheets,
 //! `complete`, natural sizes, `decode()`) and `web-blob-formdata.json`
-//! (`FormData` and multipart bodies, `FileReader`, Blob URLs, `sendBeacon`).
+//! (`FormData` and multipart bodies, `FileReader`, Blob URLs, `sendBeacon`);
+//! and the module probes `web-module-scripts.json` (M9 feature 7) and
+//! `web-module-graph.json` (ADR 0034 sub-feature 3b-1: module graphs,
+//! their errors, top-level `await`, `import()`, `import.meta`).
 //!
 //! `Sim` answers as the probe server does (`swbtools/probe.py`): the
 //! `resources` of a case under `/case-N/`, the headers `Cache-Control:
@@ -31,6 +34,8 @@ mod blob_cases;
 mod image_cases;
 #[path = "probe_net/modules.rs"]
 mod module_cases;
+#[path = "probe_net/module_graph.rs"]
+mod module_graph_cases;
 #[path = "probe_net/xhr.rs"]
 mod xhr_cases;
 
@@ -165,7 +170,9 @@ impl Fetcher for Sim {
                 self.html.clone().into_bytes(),
             ));
         }
-        if name == "__log" {
+        // As the probe server: `__log` in any directory of the case (a
+        // page with `<base href=sub/>` asks for `sub/__log`).
+        if name == "__log" || name.ends_with("/__log") {
             let headers = vec![("content-type".to_owned(), "application/json".to_owned())];
             return Ok(reply(
                 &request.url,
@@ -207,6 +214,10 @@ impl Fetcher for Sim {
             return Ok(Self::options_answer(request, resource));
         }
         let Some(resource) = resource else {
+            // A real server needs some time for a 404 too: Chromium gets
+            // the error of a missing module after the window's `load`
+            // (measured, case `import-call-missing`).
+            std::thread::sleep(Duration::from_millis(30));
             return Ok(reply(
                 &request.url,
                 404,
@@ -281,6 +292,33 @@ impl Sim {
     }
 }
 
+/// `text` with the origin and folder of each URL of a case (`http://HOST/case-NAME/`:
+/// Chromium's probe tool has a random port and a number, this test `MAIN` and the
+/// case's name) replaced by `http://X/`, for messages that name a URL (such as
+/// `Failed to fetch dynamically imported module: ...`).
+fn scrub_origin(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("http://") {
+        let (before, tail) = rest.split_at(start);
+        out.push_str(before);
+        let after = &tail["http://".len()..];
+        let host_end = after.find(['/', ' ', '"', '\\']).unwrap_or(after.len());
+        let folder = after[host_end..].strip_prefix("/case-");
+        let folder_end = folder.and_then(|f| f.find('/'));
+        if let Some(end) = folder_end {
+            out.push_str("http://X/");
+            let consumed = "http://".len() + host_end + "/case-".len() + end + 1;
+            rest = &tail[consumed..];
+        } else {
+            out.push_str("http://");
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// The failures of the cases `cases`: a query whose value differs from
 /// Chromium's and is not a departure. The page's loader has `workers`
 /// threads (Chromium has six connections per host).
@@ -316,8 +354,9 @@ fn failures(
                 .iter()
                 .find(|(c, i, _, _)| *c == case.name && *i == index)
                 .map_or(*expected, |d| d.2);
-            let got = evaluate(&mut page, &sim, query);
-            let want: serde_json::Value = serde_json::from_str(want).unwrap();
+            let got = scrub_origin(&evaluate(&mut page, &sim, query));
+            let want = scrub_origin(want);
+            let want: serde_json::Value = serde_json::from_str(&want).unwrap();
             let got: serde_json::Value =
                 serde_json::from_str(&got).unwrap_or(serde_json::Value::String(got));
             if got != want {
@@ -421,10 +460,6 @@ const ORIGIN_HEADER: &str = "swb sends no `Origin` header with a same-origin GET
      request Origin header\"); Chromium sends it with a module script";
 const NO_COOKIE_JAR: &str = "the simulated server has no cookie jar (the credentials of a module \
      fetch are checked in `crates/engine/src/document/tests.rs`)";
-const REFUSED: &str = "swb refuses a module that needs another module (`import`, `export`, \
-     `import()`, `import.meta`, top-level `await`): it does not run, and `error` fires at the \
-     element (ADR 0028 section 8)";
-const REFUSED_M1: &str = r#""rsc:i error-m1:i m2:i d:i:d.js load-d.js:i dcl:i rsc:c load:c""#;
 
 /// The departures of the module script probe (M9 feature 7, ADR 0028
 /// section 8).
@@ -455,29 +490,137 @@ const MODULE_DEPARTURES: &[Departure] = &[
     ),
     ("cors-same-origin", 2, r#""""#, NO_COOKIE_JAR),
     ("cors-cross-origin", 2, r#""""#, NO_COOKIE_JAR),
+];
+
+const CYCLE: &str = "a cycle of re-exports fails to link with the message of a missing export at \
+     another module (Chromium: `Detected cycle while resolving name ...`); roadmap backlog \
+     \"Module link errors in cyclic graphs\"";
+const HANDLER_BASE: &str = "`import()` in an event handler resolves against the document's base \
+     URL (Chromium: the document's URL, measured); the base URLs of the code of classic scripts \
+     come with ADR 0034 sub-feature 3b-2";
+
+const SCHEDULING: &str = "Chromium's internal scheduling: the same page gives two orders there, \
+     depending on timers and messages that are pending (`import-call-timing-joins-in-flight` and \
+     `-quiet-then-element` differ only in them; swb takes the first order, where the `import()` is \
+     answered before the element that joins its fetch runs); `javascript:` fails later than the \
+     timers in Chromium, `blob:` before them (swb: both before)";
+const DATA_LATER: &str = "the loader's worker thread delivers the `data:` response after the \
+     timers and messages that were queued with the `import()` (they run in the same turn of the \
+     page); Chromium decodes it in a task before them";
+
+/// The departures of the module graph probe (ADR 0034 sub-feature 3b-1).
+const MODULE_GRAPH_DEPARTURES: &[Departure] = &[
     (
-        "module-map-throws",
+        "msg-cycle-reexport",
         0,
-        r#""rsc:i t:i err:Uncaught TypeError: Cannot read properties of null (reading 'x')@O/t.js:2:6 load-t.js:i load-t.js:i err:Uncaught SyntaxError: Unexpected token ';'@O/s.js:2:9 load-s.js:i load-s.js:i dcl:i rsc:c load:c""#,
-        "an element with the URL of a module that failed to run reports no error: swb reports an \
-         error once per module (Chromium: for each element)",
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './self.js' does not provide an export named 'a'@O/self.js:1:9 # stack:SyntaxError|SyntaxError: The requested module './self.js' does not provide an export named 'a' # load-x.js:i # err:Uncaught SyntaxError: The requested module './c1.js' does not provide an export named 'b'@O/c2.js:1:9 # stack:SyntaxError|SyntaxError: The requested module './c1.js' does not provide an export named 'b' # load-w.js:i # err:Uncaught SyntaxError: The requested module './st.js' does not provide an export named 's'@O/z.js:1:9 # stack:SyntaxError|SyntaxError: The requested module './st.js' does not provide an export named 's' # load-z.js:i # q 0:i # load-q.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
     ),
-    ("import-ok", 0, REFUSED_M1, REFUSED),
-    ("import-named", 0, REFUSED_M1, REFUSED),
-    ("import-bad-name", 0, REFUSED_M1, REFUSED),
-    ("export-from", 0, REFUSED_M1, REFUSED),
-    ("import-call", 0, REFUSED_M1, REFUSED),
-    ("import-call-missing", 0, REFUSED_M1, REFUSED),
-    ("import-meta", 0, REFUSED_M1, REFUSED),
-    ("tla", 0, REFUSED_M1, REFUSED),
-    ("tla-sequence", 0, REFUSED_M1, REFUSED),
     (
-        "import-call-classic",
+        "msg-cycle-reexport-2",
         0,
-        r#""err:Uncaught SyntaxError: not supported yet (import())@DOC:1:1118 rsc:i dcl:i rsc:c load:c""#,
-        "swb does not support `import()` (a syntax error \"not supported yet\")",
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './c1.js' does not provide an export named 'b'@O/c2.js:2:10 # stack:SyntaxError|SyntaxError: The requested module './c1.js' does not provide an export named 'b' # load-w.js:i # err:Uncaught SyntaxError: The requested module './d1.js' does not provide an export named 'b'@O/d3.js:1:11 # stack:SyntaxError|SyntaxError: The requested module './d1.js' does not provide an export named 'b' # load-w3.js:i # err:Uncaught SyntaxError: The requested module './e1.js' does not provide an export named 'b'@O/e2.js:1:9 # stack:SyntaxError|SyntaxError: The requested module './e1.js' does not provide an export named 'b' # load-w4.js:i # err:Uncaught SyntaxError: The requested module './f1.js' does not provide an export named 'b'@O/f2.js:1:9 # stack:SyntaxError|SyntaxError: The requested module './f1.js' does not provide an export named 'b' # load-w5.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-self",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './self.js' does not provide an export named 'a'@O/self.js:2:10 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-two",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './k1.js' does not provide an export named 'b'@O/k2.js:3:11 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-four",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './m1.js' does not provide an export named 'b'@O/m4.js:5:13 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-prechain",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './r1.js' does not provide an export named 'b'@O/r2.js:5:13 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-self-prechain",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './t2.js' does not provide an export named 'a'@O/t2.js:3:11 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-namespace",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './n1.js' does not provide an export named 'b'@O/n3.js:4:12 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-bare",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './u1.js' does not provide an export named 'b'@O/u3.js:4:12 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-bare-two-names",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './v1.js' does not provide an export named 'c'@O/v2.js:3:11 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-renamed",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './w2.js' does not provide an export named 'q'@O/w3.js:4:12 # load-x.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "msg-cycle-star",
+        0,
+        r#""rsc:i # err:Uncaught SyntaxError: The requested module './a2.js' does not provide an export named 'b'@O/a1.js:2:10 # load-x1.js:i # err:Uncaught SyntaxError: The requested module './g1.js' does not provide an export named 'b'@O/g3.js:4:12 # load-x2.js:i # err:Uncaught SyntaxError: The requested module './h2.js' does not provide an export named 'b'@O/h3.js:4:12 # load-x3.js:i # dcl:i # rsc:c # load:c""#,
+        CYCLE,
+    ),
+    (
+        "import-call-timing-javascript-after-load",
+        0,
+        r#""rsc:i # dcl:i # rsc:c # load:c # H-mic1 # H-mic2 # H-mic3 # H-mic4 # H-mic5 # H-rej Failed to fetch dynamically imported module: javascript:1 # H-t0 # H-mc""#,
+        SCHEDULING,
+    ),
+    (
+        "import-call-timing-data-after-load",
+        0,
+        r#""rsc:i # dcl:i # rsc:c # load:c # K-mic1 # K-mic2 # K-mic3 # K-mic4 # K-mic5 # K-t0 # K-mc # d-eval # K-imp""#,
+        DATA_LATER,
+    ),
+    (
+        "import-call-timing-quiet-then-element",
+        0,
+        r#""rsc:i # slow:i # imp-done:i # load-slow.js:i # dcl:i # rsc:c # load:c""#,
+        SCHEDULING,
+    ),
+    (
+        "import-call-document-base",
+        0,
+        r#""rsc:i # dcl:i # rsc:c # load:c # x TypeError: Failed to fetch dynamically imported module: O/sub/x.js:c # y TypeError: Failed to fetch dynamically imported module: O/sub/y.js:c # z TypeError: Failed to fetch dynamically imported module: O/sub/z.js:c""#,
+        HANDLER_BASE,
+    ),
+    (
+        "import-call-document-base",
+        1,
+        r#""sub/x.js sub/y.js sub/z.js""#,
+        HANDLER_BASE,
     ),
 ];
+
+#[test]
+fn module_graph_probe_cases_match_chromium() {
+    on_page_thread(|| {
+        let failures = failures(module_graph_cases::CASES, MODULE_GRAPH_DEPARTURES, 8);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    });
+}
 
 #[test]
 fn module_probe_cases_match_chromium() {

@@ -449,6 +449,8 @@ impl DocState {
             tracer.object(*signal);
         }
         self.fetches.trace(tracer);
+        // The module records of the document (ADR 0034 section 5).
+        self.scripts.trace(tracer);
         self.cssom.trace(tracer);
         self.messages.trace(tracer);
         for reader in self.readers.values() {

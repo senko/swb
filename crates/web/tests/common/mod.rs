@@ -5,6 +5,8 @@
 #![allow(dead_code, reason = "each test crate uses a part")]
 
 use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use swb_dom::{Document, HtmlParser, ParseStep, TextPosition, WrittenStep};
 use swb_js::{HeapConfig, RuntimeConfig};
@@ -37,8 +39,15 @@ pub(crate) struct TestDocument {
     /// [`TestDocument::accepting_fetches`]); the id of a request is its
     /// number from 1.
     pub(crate) started: Vec<swb_net::Request>,
-    /// Whether `start_api_fetch` accepts requests (else it refuses them).
+    /// Whether `start_api_fetch` and `fetch_module` accept requests (else
+    /// they refuse them).
     pub(crate) accept_fetches: bool,
+    /// The module fetches of the module map (id, URL, options), which the
+    /// test answers with `ScriptRuntime::module_fetched`.
+    pub(crate) module_fetches: Rc<RefCell<Vec<(u64, String, swb_web::ModuleFetch)>>>,
+    /// The ids of the module fetches that a script element joined and that
+    /// delay the load event from then on (`EngineHost::delay_load_for_module`).
+    pub(crate) delayed_fetches: Rc<RefCell<Vec<u64>>>,
 }
 
 impl TestDocument {
@@ -50,6 +59,8 @@ impl TestDocument {
             bytes: 0,
             started: Vec::new(),
             accept_fetches: false,
+            module_fetches: Rc::default(),
+            delayed_fetches: Rc::default(),
         }
     }
 
@@ -71,6 +82,8 @@ impl TestDocument {
             bytes: html.len() as u64,
             started: Vec::new(),
             accept_fetches: false,
+            module_fetches: Rc::default(),
+            delayed_fetches: Rc::default(),
         }
     }
 }
@@ -140,6 +153,20 @@ impl EngineHost for TestDocument {
         }
         self.started.push(request);
         Some(self.started.len() as u64)
+    }
+
+    fn fetch_module(&mut self, id: u64, url: &str, options: swb_web::ModuleFetch) -> bool {
+        if !self.accept_fetches {
+            return false;
+        }
+        self.module_fetches
+            .borrow_mut()
+            .push((id, url.to_owned(), options));
+        true
+    }
+
+    fn delay_load_for_module(&mut self, id: u64) {
+        self.delayed_fetches.borrow_mut().push(id);
     }
 
     fn parse_step(&mut self) -> Option<(ParseStep, Option<TextPosition>)> {

@@ -39,11 +39,6 @@ pub(crate) struct Site<'a> {
     /// in the error object): Chromium's report of a script from
     /// `document.write`.
     pub(crate) compile_prefix: &'a str,
-    /// True for a module script: the position of a thrown value that is
-    /// not an error object is the document's URL at line 0, column 0
-    /// (Chromium reports the rejection of the module's evaluation, which
-    /// has no position; measured, case `runtime-errors-classic`).
-    pub(crate) module: bool,
 }
 
 impl Site<'static> {
@@ -53,7 +48,6 @@ impl Site<'static> {
         script: None,
         start: (0, 0),
         compile_prefix: "",
-        module: false,
     };
     /// The function of a timer.
     pub(crate) const TIMER: Site<'static> = Site {
@@ -61,7 +55,6 @@ impl Site<'static> {
         script: None,
         start: (0, 0),
         compile_prefix: "",
-        module: false,
     };
 }
 
@@ -79,15 +72,6 @@ impl<'a> Site<'a> {
             script: Some((url, source)),
             start,
             compile_prefix: "",
-            module: false,
-        }
-    }
-
-    /// A module script whose text starts at `start` in its document.
-    pub(crate) fn module_at(url: &'a str, source: &'a str, start: (u32, u32)) -> Site<'a> {
-        Site {
-            module: true,
-            ..Site::script_at(url, source, start)
         }
     }
 
@@ -98,7 +82,6 @@ impl<'a> Site<'a> {
             script: None,
             start: (0, 0),
             compile_prefix: "",
-            module: false,
         }
     }
 }
@@ -112,17 +95,7 @@ pub(crate) fn report(rt: &mut Runtime, site: &Site<'_>, error: &ScriptError) -> 
         ScriptError::Uncaught { .. } => {
             // Both are taken before the text is made: the serializer is a run.
             let value = rt.last_value();
-            let location = rt.error_location(value).or_else(|| {
-                if site.module {
-                    Some(SourceLocation {
-                        name: crate::scripts::document_url(rt),
-                        line: 0,
-                        column: 0,
-                    })
-                } else {
-                    rt.throw_location()
-                }
-            });
+            let location = rt.error_location(value).or_else(|| rt.throw_location());
             crate::runtime::pin(rt, value);
             let message = format!("Uncaught {}", crate::runtime::thrown_text(rt, error));
             let result = report_exception(rt, site.name, value, &message, location);
@@ -205,6 +178,22 @@ pub(crate) fn report_value(rt: &mut Runtime, value: Value) -> VmResult<()> {
     let message = format!("Uncaught {}", crate::runtime::thrown_value_text(rt, value));
     let location = rt.error_location(value);
     let result = report_exception(rt, "reportError", value, &message, location);
+    crate::runtime::unpin(rt);
+    result
+}
+
+/// Reports a thrown value at `location` (the error of a module graph or of
+/// a module's evaluation, `scripts/modules.rs`); `name` names it in the
+/// log.
+pub(crate) fn report_value_at(
+    rt: &mut Runtime,
+    name: &str,
+    value: Value,
+    location: SourceLocation,
+) -> VmResult<()> {
+    crate::runtime::pin(rt, value);
+    let message = format!("Uncaught {}", crate::runtime::thrown_value_text(rt, value));
+    let result = report_exception(rt, name, value, &message, Some(location));
     crate::runtime::unpin(rt);
     result
 }

@@ -40,6 +40,7 @@ pub(crate) use dynamic::DynamicImport;
 pub(crate) use load::ModuleTable;
 pub use load::{
     ImportMetaHook, LoadAnswer, LoadImportedModuleHook, LoadRequest, ModuleHooks, Referrer,
+    decode_specifier,
 };
 pub(crate) use namespace::{NAMESPACE_HOOKS, NamespaceData};
 

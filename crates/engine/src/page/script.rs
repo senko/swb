@@ -44,6 +44,7 @@ use super::frames::Initiator;
 use crate::document::{DocumentState, MAX_PENDING_TRAVERSALS, ScriptNavigation, ScriptRequests};
 use crate::frames::registry::RetiredElsewhere;
 use crate::frames::{AgentId, FrameId, FrameScript, FrameTarget};
+use crate::resources::ScriptTarget;
 
 /// The most real time that one [`Page::pump`] spends on tasks (a frame at
 /// 60 Hz), so that the embedder's loop stays responsive.
@@ -156,8 +157,15 @@ impl Page {
         if self.frame_runtime(frame).is_none() {
             return;
         }
-        for (node, script) in arrived {
-            self.run_task_in(frame, |runtime| runtime.script_fetched(node, script));
+        for (target, script) in arrived {
+            match target {
+                ScriptTarget::Element(node) => {
+                    self.run_task_in(frame, |runtime| runtime.script_fetched(node, script));
+                }
+                ScriptTarget::Module { id, .. } => {
+                    self.run_task_in(frame, |runtime| runtime.module_fetched(id, script));
+                }
+            }
         }
         if sheets_changed
             && self

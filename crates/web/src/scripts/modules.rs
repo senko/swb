@@ -1,222 +1,218 @@
-//! Module scripts (ADR 0028 section 6, item 7, and section 8): the module map
-//! of a document ([`ModuleEntry`]), the fetch of a module that needs no other
-//! module, the elements that wait for it, and the refusal of a module that
-//! needs more. The processing model of script elements is in `super`.
+//! Module scripts (HTML "fetch a module script graph", "fetch an inline
+//! module script graph", "fetch the descendants of and link a module
+//! script", "run a module script"; ADR 0034 sections 8 and 10, ADR 0028
+//! section 8): the graph of a script element, its readiness, its run and
+//! the reports of its errors. The processing model of script elements is
+//! in `super`, the module map in `module_map.rs`, the hooks in
+//! `module_hooks.rs`.
+//!
+//! An external module script waits for the entry of its URL; an inline one
+//! is parsed when it is prepared (its requests resolve then). Then the
+//! graph loads (`Runtime::load_requested_modules`). When the load ends
+//! (at once if the map has every module, else in the reaction of its
+//! promise, which queues [`Task::ModuleReady`]), the root is linked in a
+//! task and the element's result is set: the linked root, an error to
+//! rethrow (a parse, resolution or link error), or null (a failed fetch).
+//! The element is then ready as M9's single fetch was, with the lists of
+//! ADR 0028 section 8.
+//!
+//! The run evaluates the root; an error (also a rejection of top-level
+//! `await`, when it happens) goes to `window.onerror` at the error's place,
+//! a parse error at the bad module's position, a value without a place at
+//! the document's URL 0:0. Then `load` fires at an external element; a null
+//! result fires `error` and reports nothing (the table of ADR 0034 section
+//! 8).
 
 use swb_dom::NodeId;
-use swb_js::{Runtime, ScriptError, VmResult};
+use swb_js::{
+    Module, PromiseStatus, ReactionKind, Runtime, ScriptError, SourceLocation, Value, VmError,
+    VmResult,
+};
 
+use super::module_map::{self, GraphOwner, Lookup, Options, Waiter};
 use super::{
-    ClassicScript, Found, MAX_REFUSED_WARNINGS, ParserScript, Prepared, ScriptFetchMode,
-    ScriptResult, Scripts, WhenReady, place_script, scripts_mut,
+    Found, ParserScript, Prepared, ScriptResult, WhenReady, fire_at_element, place_script, scripts,
+    scripts_mut,
 };
 use crate::event_loop::{Task, queue_task};
-use crate::state::{engine, engine_mut};
+use crate::state::engine_mut;
 
-/// The state of a module in the module map (HTML "module map": one entry
-/// per URL of a document, `(url, "javascript")`).
-#[derive(Debug)]
-pub(super) enum ModuleState {
-    /// The fetch is in flight; the elements in [`ModuleEntry::waiters`]
-    /// wait for it, besides the one that started it.
-    Fetching,
-    /// The fetch succeeded; no element has run the module yet.
-    Ready(Box<ClassicScript>),
-    /// An element ran the module (or tried: an error of its run is
-    /// reported once). Later elements with the URL do not run it again.
-    Evaluated,
-    /// The fetch failed (a network error, an error status, a CORS failure,
-    /// a type that is not JavaScript): null in the module map.
-    Failed,
+/// The `VmError` of an error of the engine's module API (a termination or
+/// an engine error; the API reports script errors as values).
+pub(super) fn vm_error(error: &ScriptError) -> VmError {
+    match error {
+        ScriptError::Terminated(termination) => VmError::Terminated(*termination),
+        ScriptError::Internal(error) => VmError::Internal(*error),
+        ScriptError::Uncaught { .. } | ScriptError::Compile { .. } => {
+            VmError::invariant("a script error of the module API")
+        }
+    }
 }
 
-/// An entry of the module map.
-#[derive(Debug)]
-pub(crate) struct ModuleEntry {
-    pub(super) state: ModuleState,
-    /// The elements that found the entry while it was fetching, in order.
-    waiters: Vec<NodeId>,
-}
-
-/// HTML "fetch a module script graph" for a module with no requests of
-/// its own (<https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-script-tree>):
-/// the module map decides. A URL that the map has is not fetched again;
-/// an entry that is fetching gets the element as a waiter, one that has its
-/// result makes the element ready in a task (the result of a fetch comes
-/// in a task too). Otherwise the engine fetches the URL.
+/// HTML "fetch a module script graph" for the element `node` with the URL
+/// `url`: the element waits for the entry of the URL, or is ready in a
+/// task when the map has it (the result of a fetch comes in a task too).
 pub(super) fn start_module_fetch(
     rt: &mut Runtime,
     node: NodeId,
     url: &str,
-    mode: ScriptFetchMode,
+    credentials: bool,
 ) -> VmResult<()> {
-    let scripts = scripts_mut(rt)?;
-    if let Some(el) = scripts.elements.get_mut(&node) {
+    if let Some(el) = scripts_mut(rt)?.elements.get_mut(&node) {
         el.module_key = Some(url.to_owned());
+        el.credentials = credentials;
     }
-    let fetching = scripts.modules.get_mut(url).map(|entry| {
-        let fetching = matches!(entry.state, ModuleState::Fetching);
-        if fetching {
-            entry.waiters.push(node);
-        }
-        fetching
-    });
-    match fetching {
-        Some(true) => return Ok(()),
-        Some(false) => return queue_task(rt, Task::ModuleReady(node)),
-        None => {}
+    let options = Options {
+        credentials,
+        quiet: false,
+    };
+    match module_map::request(rt, url, Waiter::Element(node), options)? {
+        Lookup::Later => Ok(()),
+        Lookup::Now(_) => queue_task(rt, Task::ModuleReady(node)),
     }
-    scripts.modules.insert(
-        url.to_owned(),
-        ModuleEntry {
-            state: ModuleState::Fetching,
-            waiters: Vec::new(),
-        },
-    );
-    if !engine_mut(rt)?.fetch_script(node, url, mode) {
-        // The fetch fails at once (a URL that the document may not load).
-        if let Some(entry) = scripts_mut(rt)?.modules.get_mut(url) {
-            entry.state = ModuleState::Failed;
-        }
-        queue_task(rt, Task::ModuleReady(node))?;
-    }
-    Ok(())
 }
 
 /// Steps 33 and 34 of "prepare" for an inline module script (HTML "fetch
-/// an inline module script graph"): a module that needs no other module is
-/// ready in a task, as Chromium runs it (measured, cases `order` and
-/// `inserted`: an inline module of the parser runs after the parse ends,
-/// an inserted one in a task after the script that inserted it).
+/// an inline module script graph"): the text is parsed and its graph
+/// starts now. A result that is ready now makes a parser-inserted module
+/// without `async` ready at once, and other modules ready in a task, as
+/// Chromium runs them (measured, cases `order` and `inserted` of
+/// `web-module-scripts.json`); a graph that loads later is ready in a task
+/// after its load.
 pub(super) fn prepare_inline_module(
     rt: &mut Runtime,
     node: NodeId,
-    source: String,
-    parser: Option<ParserScript>,
+    source: &str,
+    (parser, credentials): (Option<ParserScript>, bool),
     found: &Found,
 ) -> VmResult<Prepared> {
-    let (url, start) = match parser {
-        Some(ParserScript::Document(p)) => (engine(rt)?.url(), (p.line, p.column)),
+    let (name, start) = match parser {
+        Some(ParserScript::Document(p)) => (engine_mut(rt)?.url(), (p.line, p.column)),
         Some(ParserScript::Written) => (String::new(), (0, 0)),
-        None => (engine(rt)?.url(), (0, 0)),
+        None => (engine_mut(rt)?.url(), (0, 0)),
     };
+    let base = engine_mut(rt)?.base_url();
     let scripts = scripts_mut(rt)?;
     if !scripts.elements.contains_key(&node) {
         return Ok(Prepared::Nothing);
     }
     let in_parse_step = scripts.in_parse_step;
-    let text = Box::new(ClassicScript {
-        source,
-        url,
-        start,
-        written: parser == Some(ParserScript::Written),
-        held: 0,
-    });
     let (when_ready, prepared) = place_script(scripts, node, found, true);
-    let Some(el) = scripts.elements.get_mut(&node) else {
-        return Ok(prepared);
+    if let Some(el) = scripts.elements.get_mut(&node) {
+        el.when_ready = Some(when_ready);
+        el.credentials = credentials;
+        el.inline_name = Some(name.clone());
+    }
+    let options = Options {
+        credentials,
+        quiet: false,
     };
+    let scope = rt.heap_mut().open_scope();
+    let parsed = module_map::parse_inline(rt, source, (&name, start), &base, options);
+    let done = match parsed {
+        Ok(Ok(root)) => start_graph(rt, node, root),
+        Ok(Err(error)) => set_result(rt, node, ScriptResult::ModuleError(error)).map(|()| true),
+        Err(error) => Err(error),
+    };
+    if let Err(error) = rt.heap_mut().close_scope(scope) {
+        log::warn!("the handle scope of a module was not the last one: {error:?}");
+    }
+    if !done? {
+        return Ok(prepared);
+    }
+    let scripts = scripts_mut(rt)?;
     if when_ready == WhenReady::ParserExecuted {
         // A module of the parser that waits for the end of the parse is
         // ready at once.
-        el.result = ScriptResult::InlineModule(text);
-        el.ready_to_be_parser_executed = true;
-        return Ok(prepared);
-    }
-    el.when_ready = Some(when_ready);
-    el.pending_inline_module = Some(text);
-    if in_parse_step {
+        if let Some(el) = scripts.elements.get_mut(&node) {
+            el.when_ready = None;
+            el.ready_to_be_parser_executed = true;
+        }
+    } else if in_parse_step {
         // The parser queues the task when its step ends, behind its own
         // (`ScriptRuntime::parse`).
         scripts.module_ready_queue.push(node);
-        Ok(prepared)
     } else {
         queue_task(rt, Task::ModuleReady(node))?;
-        Ok(prepared)
+    }
+    Ok(prepared)
+}
+
+/// Loads the graph of the root `root` of the element `node`. True if the
+/// result of the element is set now (the map had every module); else the
+/// reaction of the load's promise goes on ([`graph_loaded`]).
+fn start_graph(rt: &mut Runtime, node: NodeId, root: Module) -> VmResult<bool> {
+    let promise = rt.load_requested_modules(root)?;
+    match rt.promise_settlement(promise) {
+        Some((PromiseStatus::Fulfilled, _)) => finish_graph(rt, node, root, None).map(|()| true),
+        Some((PromiseStatus::Rejected, error)) => {
+            finish_graph(rt, node, root, Some(error)).map(|()| true)
+        }
+        _ => {
+            super::module_hooks::react_to_graph(rt, promise, GraphOwner::Element(node), root)?;
+            if let Some(el) = scripts_mut(rt)?.elements.get_mut(&node) {
+                el.graph_pending = true;
+            }
+            Ok(false)
+        }
     }
 }
 
-/// The result of the fetch of the module map entry `key` (`None`: the
-/// fetch failed; the entry is null from now on). `node` started the
-/// fetch. Returns the steps of every element that waited, in order.
-pub(super) fn finish_module_fetch(
-    scripts: &mut Scripts,
-    node: NodeId,
-    key: &str,
-    script: Option<Box<ClassicScript>>,
-) -> Vec<(NodeId, WhenReady)> {
-    let fetching = scripts
-        .modules
-        .get(key)
-        .is_some_and(|entry| matches!(entry.state, ModuleState::Fetching));
-    let Some(entry) = scripts.modules.get_mut(key).filter(|_| fetching) else {
-        // A stale result (the entry is gone or has its result).
-        if let Some(script) = &script {
-            scripts.held_bytes = scripts.held_bytes.saturating_sub(script.held);
-        }
-        return Vec::new();
-    };
-    entry.state = match script {
-        Some(script) => ModuleState::Ready(script),
-        None => ModuleState::Failed,
-    };
-    let mut nodes = std::mem::take(&mut entry.waiters);
-    nodes.insert(0, node);
-    resolve_module_elements(scripts, key, &nodes)
-}
-
-/// Sets the result of the elements `nodes` from the module map entry `key`
-/// (which is no longer fetching) and returns their steps.
-fn resolve_module_elements(
-    scripts: &mut Scripts,
-    key: &str,
-    nodes: &[NodeId],
-) -> Vec<(NodeId, WhenReady)> {
-    let failed = scripts
-        .modules
-        .get(key)
-        .is_none_or(|entry| matches!(entry.state, ModuleState::Failed));
-    let mut ready = Vec::new();
-    for node in nodes {
-        let Some(el) = scripts.elements.get_mut(node) else {
-            continue;
-        };
-        if el.has_result() {
-            continue;
-        }
-        el.result = if failed {
-            ScriptResult::Failed
-        } else {
-            ScriptResult::ExternalModule(key.to_owned())
-        };
-        if let Some(when) = el.when_ready.take() {
-            ready.push((*node, when));
-        }
-    }
-    ready
-}
-
-/// The module script of `node` is ready without a fetch ([`Task::ModuleReady`]):
-/// an inline module, or an external one whose URL the module map has
-/// already. Returns the steps to run.
-pub(crate) fn mark_module_ready(
+/// The load of the graph of the element `node` ended (a job): the link
+/// runs in a task ([`Task::ModuleReady`]), which also makes the element
+/// ready.
+pub(super) fn graph_loaded(
     rt: &mut Runtime,
     node: NodeId,
-) -> VmResult<Vec<(NodeId, WhenReady)>> {
-    let scripts = scripts_mut(rt)?;
-    let Some(el) = scripts.elements.get_mut(&node) else {
+    root: Module,
+    error: Option<Value>,
+) -> VmResult<()> {
+    if let Some(el) = scripts_mut(rt)?.elements.get_mut(&node) {
+        el.graph_pending = false;
+        el.loaded_graph = Some((root, error));
+    }
+    queue_task(rt, Task::ModuleReady(node))
+}
+
+/// HTML "fetch the descendants of and link a module script", the end: the
+/// root is linked, and the element's result is the root, the error to
+/// rethrow (a parse, resolution or link error), or null (a failed fetch).
+fn finish_graph(
+    rt: &mut Runtime,
+    node: NodeId,
+    root: Module,
+    error: Option<Value>,
+) -> VmResult<()> {
+    let result = match error {
+        None => match rt.link(root) {
+            Ok(()) => ScriptResult::Module(root),
+            Err(ScriptError::Uncaught { .. }) => ScriptResult::ModuleError(rt.last_value()),
+            Err(error) => return Err(vm_error(&error)),
+        },
+        Some(error) if module_map::map_mut(rt)?.is_fetch_failure(error) => ScriptResult::Failed,
+        Some(error) => ScriptResult::ModuleError(error),
+    };
+    set_result(rt, node, result)
+}
+
+/// Sets the result of the element `node` unless it has one.
+fn set_result(rt: &mut Runtime, node: NodeId, result: ScriptResult) -> VmResult<()> {
+    if let Some(el) = scripts_mut(rt)?.elements.get_mut(&node)
+        && !el.has_result()
+    {
+        el.result = result;
+    }
+    Ok(())
+}
+
+/// The steps of the element `node` when it has its result.
+fn take_steps(rt: &mut Runtime, node: NodeId) -> VmResult<Vec<(NodeId, WhenReady)>> {
+    let Some(el) = scripts_mut(rt)?.elements.get_mut(&node) else {
         return Ok(Vec::new());
     };
-    if el.has_result() {
+    if !el.has_result() {
         return Ok(Vec::new());
     }
-    if let Some(key) = el.module_key.clone() {
-        return Ok(resolve_module_elements(scripts, &key, &[node]));
-    }
-    let Some(text) = el.pending_inline_module.take() else {
-        return Ok(Vec::new());
-    };
-    el.result = ScriptResult::InlineModule(text);
     Ok(el
         .when_ready
         .take()
@@ -225,61 +221,172 @@ pub(crate) fn mark_module_ready(
         .collect())
 }
 
-/// The module script `script` needs another module: the entry `key` of the
-/// module map (if any) is refused for the other elements too, and a warning
-/// says so. A page can have thousands of them, so only the first ones warn.
-pub(super) fn refuse_module_run(
+/// The entry of the root of the external module script `node` has its
+/// result (from the map's fetch, or a [`Task::ModuleReady`]): its graph
+/// loads. Returns the steps of the element if it is ready now.
+pub(crate) fn element_root_ready(
     rt: &mut Runtime,
-    script: &ClassicScript,
-    key: Option<&str>,
-    error: &ScriptError,
-) {
-    let name = if script.url.is_empty() {
-        "(written)"
-    } else {
-        &script.url
+    node: NodeId,
+) -> VmResult<Vec<(NodeId, WhenReady)>> {
+    let Some((Some(key), credentials)) = scripts(rt)?
+        .elements
+        .get(&node)
+        .filter(|el| !el.graph_pending && !el.has_result())
+        .map(|el| (el.module_key.clone(), el.credentials))
+    else {
+        return Ok(Vec::new());
     };
-    let message = format!(
-        "the module script {name} is not run: {error} (swb runs modules that need no other \
-         module)"
-    );
-    let Ok(scripts) = scripts_mut(rt) else {
-        return;
+    let options = Options {
+        credentials,
+        quiet: false,
     };
-    if let Some(key) = key {
-        refuse_module(scripts, key);
-    }
-    scripts.refused_modules += 1;
-    if scripts.refused_modules <= MAX_REFUSED_WARNINGS {
-        log::warn!("{message}");
+    let done = match module_map::request(rt, &key, Waiter::Element(node), options)? {
+        Lookup::Later => false,
+        Lookup::Now(Ok(root)) => start_graph(rt, node, root)?,
+        Lookup::Now(Err(error)) => {
+            let result = if module_map::map_mut(rt)?.is_fetch_failure(error) {
+                ScriptResult::Failed
+            } else {
+                ScriptResult::ModuleError(error)
+            };
+            set_result(rt, node, result)?;
+            true
+        }
+    };
+    if done {
+        take_steps(rt, node)
     } else {
-        log::debug!("{message}");
+        Ok(Vec::new())
     }
 }
 
-/// The text of the module map entry `key` for its first run. The entry is
-/// then evaluated and its text no longer counts as held. `Err(false)`: the
-/// module ran already; `Err(true)`: the entry failed or the module was
-/// refused.
-pub(super) fn take_module(scripts: &mut Scripts, key: &str) -> Result<Box<ClassicScript>, bool> {
-    let entry = scripts.modules.get_mut(key).ok_or(true)?;
-    match std::mem::replace(&mut entry.state, ModuleState::Evaluated) {
-        ModuleState::Ready(script) => {
-            scripts.held_bytes = scripts.held_bytes.saturating_sub(script.held);
-            Ok(script)
+/// [`Task::ModuleReady`] (in a task): the element links its loaded graph,
+/// or starts the graph of a root that the map has, or has its result
+/// already (an inline module). Returns its steps if it is ready.
+pub(crate) fn mark_module_ready(
+    rt: &mut Runtime,
+    node: NodeId,
+) -> VmResult<Vec<(NodeId, WhenReady)>> {
+    let Some(el) = scripts_mut(rt)?.elements.get_mut(&node) else {
+        return Ok(Vec::new());
+    };
+    if el.has_result() {
+        return take_steps(rt, node);
+    }
+    if let Some((root, error)) = el.loaded_graph.take() {
+        finish_graph(rt, node, root, error)?;
+        return take_steps(rt, node);
+    }
+    if el.module_key.is_some() {
+        return element_root_ready(rt, node);
+    }
+    Ok(Vec::new())
+}
+
+/// HTML "run a module script" for the element `node` (its result is a
+/// module or an error to rethrow): `document.currentScript` is null; an
+/// error is reported; `load` fires at an external element. A termination
+/// goes up.
+pub(super) fn execute_module(
+    rt: &mut Runtime,
+    node: NodeId,
+    result: &ScriptResult,
+    external: bool,
+) -> Result<(), ScriptError> {
+    let name = module_name(rt, node);
+    let old = scripts_mut(rt)
+        .map_err(crate::runtime::task_error)?
+        .current_script
+        .take();
+    let mut outcome = match *result {
+        ScriptResult::Module(root) => evaluate(rt, root, &name),
+        ScriptResult::ModuleError(error) => {
+            report_error(rt, &name, error).map_err(crate::runtime::task_error)
         }
-        other => {
-            let refused = matches!(other, ModuleState::Failed);
-            entry.state = other;
-            Err(refused)
+        _ => Ok(()),
+    };
+    if outcome.is_ok() && rt.stack_depths().0 == 0 {
+        outcome = crate::event_loop::microtask_checkpoint(rt);
+    }
+    if let Ok(scripts) = scripts_mut(rt) {
+        scripts.current_script = old;
+    }
+    outcome?;
+    if external {
+        fire_at_element(rt, node, "load").map_err(crate::runtime::task_error)?;
+    }
+    Ok(())
+}
+
+/// The name of a module script in the log: its URL, or the document's.
+fn module_name(rt: &Runtime, node: NodeId) -> String {
+    scripts(rt)
+        .ok()
+        .and_then(|s| s.elements.get(&node))
+        .and_then(|el| el.module_key.clone().or_else(|| el.inline_name.clone()))
+        .unwrap_or_else(|| super::document_url(rt))
+}
+
+/// Evaluates the root `root` (its graph is linked): an error of the
+/// evaluation is reported now, a rejection of its top-level `await` when it
+/// happens ([`evaluation_settled`]).
+fn evaluate(rt: &mut Runtime, root: Module, name: &str) -> Result<(), ScriptError> {
+    let promise = match rt.evaluate(root) {
+        Ok(promise) => promise,
+        Err(error @ ScriptError::Uncaught { .. }) => {
+            return crate::errors::report(rt, &crate::errors::Site::named(name), &error)
+                .map_err(crate::runtime::task_error);
         }
+        Err(error) => return Err(error),
+    };
+    match rt.promise_settlement(promise) {
+        Some((PromiseStatus::Rejected, error)) => {
+            report_error(rt, name, error).map_err(crate::runtime::task_error)
+        }
+        Some((PromiseStatus::Pending, _)) => {
+            let key = crate::state::document_key(rt).map_err(crate::runtime::task_error)?;
+            rt.react_to_promise(promise, evaluation_settled, Value::number(f64::from(key)))
+                .map(drop)
+        }
+        _ => Ok(()),
     }
 }
 
-/// Marks the module map entry `key` as refused: elements that run later
-/// with the same URL fire `error` too.
-fn refuse_module(scripts: &mut Scripts, key: &str) {
-    if let Some(entry) = scripts.modules.get_mut(key) {
-        entry.state = ModuleState::Failed;
+/// The evaluation promise of a module script settled (a job): a rejection
+/// (of top-level `await`) is reported at the window of its document, as
+/// Chromium does (measured, case `tla-reject`; no `unhandledrejection`).
+fn evaluation_settled(
+    rt: &mut Runtime,
+    data: Value,
+    kind: ReactionKind,
+    value: Value,
+) -> VmResult<Value> {
+    let Some(key) = data.as_number() else {
+        return Ok(Value::Undefined);
+    };
+    if !matches!(kind, ReactionKind::Reject) {
+        return Ok(Value::Undefined);
     }
+    let Ok(entered) = crate::state::switch_if_other(rt, key as u32) else {
+        return Ok(Value::Undefined);
+    };
+    let result = report_error(rt, "a module script", value);
+    crate::state::leave(rt, entered);
+    result.map(|()| Value::Undefined)
+}
+
+/// HTML "report an exception" for an error of a module graph: at the
+/// error's place, at the position of a parse error of the map, or at the
+/// document's URL 0:0 (Chromium, measured: `resolve-error`,
+/// `descendant-parse-error`).
+pub(super) fn report_error(rt: &mut Runtime, name: &str, error: Value) -> VmResult<()> {
+    let location = rt
+        .error_location(error)
+        .or_else(|| module_map::map_mut(rt).ok()?.parse_error_location(error))
+        .unwrap_or_else(|| SourceLocation {
+            name: super::document_url(rt),
+            line: 0,
+            column: 0,
+        });
+    crate::errors::report_value_at(rt, name, error, location)
 }

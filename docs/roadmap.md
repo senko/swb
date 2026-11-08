@@ -4655,7 +4655,29 @@ Steps:
       - 3b-1 the module graph in the page: module map, fetch, readiness,
         errors, budgets (`implementer-hard`; the cases of
         `tools/probes/web-module-graph.json` without import maps and
-        `modulepreload`).
+        `modulepreload`). Done (2026-11-08): the module map of each
+        document (one entry per URL with its fragment, one request for
+        URLs that differ only in the fragment, parse on first use, 65,536
+        entries); `EngineHost::fetch_module` and
+        `ScriptRuntime::module_fetched` (the fetches of `import()` do not
+        delay `load` until a script element joins them); the module hooks,
+        installed before the first compile (relative and absolute
+        specifiers with Chromium's texts, lone surrogates, `import.meta`
+        with `url` and `resolve`); `import()` loads its root's whole graph
+        and settles in a task, as measured in Chromium (cases
+        `import-call-timing-*`); script elements are ready after their
+        graph's load and link; graph errors and rejections of top-level
+        `await` reach `window.onerror` as in Chromium; a stopped load fails
+        the module fetches and keeps the failures. The page no longer uses
+        `eval_module_at`. 64 cases of `web-module-graph.json` run in
+        `probe_net`; 17 queries are listed departures (the `msg-cycle-*`
+        cases, the base URL of `import()` in an event handler (3b-2), three
+        orders of Chromium's scheduling and of `data:`); the 11 import rows
+        of `MODULE_DEPARTURES` went. 12 hostile cases `module-*` pass. The
+        targets keep their scores with JavaScript on and off; BBC's module
+        script runs as before; GitHub's module scripts run and stop at
+        `customElements` (feature 4) and the bare specifier `react` (import
+        map, 3b-2).
       - 3b-2 import maps, `modulepreload`, `import()` base URLs in the page
         (`implementer`).
       Exit: the 9 module scripts of GitHub run in Chromium's order (the
@@ -4727,9 +4749,18 @@ Steps:
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
 - Modules (ADR 0034): JSON and CSS modules (import attributes with
-  `type`; GitHub uses none). The probe tool cannot serve `resources` in
-  subdirectories (a name with `/`); the module cases use a second origin
-  instead.
+  `type`; GitHub uses none; swb rejects them with `TypeError: Unsupported
+  module type 'json'`, a text that Chromium has no reason to give). The
+  probe tool cannot serve `resources` in subdirectories (a name with `/`);
+  the module cases use a second origin instead.
+- Module details (found in 3b-1): `import('data:...')` settles after the
+  timers queued with the call, because the loader's worker thread delivers
+  the `data:` response (Chromium decodes it in an earlier task; case
+  `import-call-timing-data-after-load`); complete `data:` script fetches
+  without the thread. `import.meta.resolve` converts a non-string argument
+  lossily, so a lone surrogate from its `toString` resolves (Chromium
+  fails). An `import()` in flight at a Stop rejects at once, not in a later
+  task.
 - Module link errors in cyclic graphs (found in 3a-1; cases `msg-cycle-*`
   of `tools/probes/web-module-graph.json`): Chromium reports a cycle of
   `export {...} from` entries as `SyntaxError: Detected cycle while
@@ -5863,9 +5894,10 @@ Steps:
   URL) has a unit test but no Chromium probe.
 - `web`/`engine` (found in feature 10b): (`HTMLLinkElement.sheet` and
   external sheets in `document.styleSheets`: done in M9 feature 6.)
-  `blob:` URLs for `img`, `link` and the page's loader
+  `blob:` URLs for `img`, `link`, scripts and modules and the page's loader
   (`img.src = URL.createObjectURL(blob)` fires `error`; upload previews
-  use it); the Blob
+  use it; an `import()` of a Blob URL fails with "not allowed to load the
+  script", found in 3b-1); the Blob
   URL store is per runtime, so a same-origin frame cannot read its
   parent's Blob URLs (not measured);
   XML documents (`responseXML`, `DOMParser` with `text/xml`); a

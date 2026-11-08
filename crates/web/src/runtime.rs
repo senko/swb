@@ -278,6 +278,10 @@ impl ScriptRuntime {
             Ok(())
         };
         setup(&mut rt).map_err(|e| internal(&e))?;
+        // Before the first compile: the compiler accepts `import()` and
+        // `import.meta` only in a runtime with module hooks (ADR 0034,
+        // "3a-3 implementation notes").
+        crate::scripts::install_module_hooks(&mut rt);
         let wall = clock.clone();
         rt.set_clock(Box::new(move || wall.wall_now()));
         let serializer = rt.eval_named(SERIALIZER, "swb:serializer")?;
@@ -682,6 +686,7 @@ impl ScriptRuntime {
                 self.module_ready(node);
                 Ok(())
             }
+            Task::ModuleImport(token) => self.module_import(token),
             Task::JavascriptUrl(source) => self.task("a javascript: URL", |rt| {
                 crate::html::activation::run_javascript_url(rt, &source).map_err(task_error)
             }),

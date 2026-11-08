@@ -46,7 +46,7 @@ impl DocumentState {
         match pending {
             Pending::Stylesheet { owner, serial } => self.stylesheet_arrived(owner, serial, result),
             Pending::Font { url } => self.font_file_arrived(&url, result, fonts),
-            Pending::Script { node, mode } => self.script_arrived(node, mode, result),
+            Pending::Script { target, mode } => self.script_arrived(target, mode, result),
             Pending::Image { url } => {
                 let too_big = matches!(&result, Ok(r) if self.images.exceeds_budget(&r.body));
                 let source_bytes = result.as_ref().map_or(0, |r| r.body.len());

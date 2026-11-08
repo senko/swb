@@ -457,6 +457,24 @@ pub trait EngineHost: Any {
         false
     }
 
+    /// Starts the fetch of a module of the module map (ADR 0034 section 8)
+    /// at `url` (absolute, without a fragment), as a module script
+    /// (`cors`, the JavaScript MIME type check, UTF-8): the engine hands
+    /// the result to [`crate::ScriptRuntime::module_fetched`] with `id`.
+    /// False if the document may not load the URL (the fetch fails at
+    /// once).
+    fn fetch_module(&mut self, id: u64, url: &str, options: crate::ModuleFetch) -> bool {
+        let _ = (id, url, options);
+        false
+    }
+
+    /// Makes the fetch `id` of [`EngineHost::fetch_module`] delay the `load`
+    /// event, if it does not (a script element joined the fetch of an
+    /// `import()`; ADR 0034 section 10). Nothing if the fetch is not there.
+    fn delay_load_for_module(&mut self, id: u64) {
+        let _ = id;
+    }
+
     /// Starts the fetch of a script's `fetch()` call (feature 10a): the
     /// engine gives the request its initiator (the document's origin), runs
     /// it through its loader and queue (at most 64 at once per document)
