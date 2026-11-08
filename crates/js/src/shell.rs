@@ -186,7 +186,11 @@ pub(crate) fn run_module(
         Some(parent) if !parent.as_os_str().is_empty() => parent,
         _ => std::path::Path::new("."),
     };
-    run_module_in(rt, options, root, path, source)
+    match run_module_in(rt, options, root, path, source) {
+        // A promise that never settles ends the run without a report.
+        Err(loader::ModuleFailure::Pending) => Ok(()),
+        other => other,
+    }
 }
 
 /// [`run_module`] with the directory that the imports may not leave.

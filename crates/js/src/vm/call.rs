@@ -888,7 +888,9 @@ impl Runtime {
     ) -> VmResult<Option<Value>> {
         match self.generator_state(generator)?.kind {
             GeneratorKind::Sync => {}
-            GeneratorKind::AsyncFunction(_) => return self.async_return(generator, value, false),
+            GeneratorKind::AsyncFunction(_) | GeneratorKind::AsyncModule(_) => {
+                return self.async_return(generator, value, false);
+            }
             GeneratorKind::AsyncGenerator(_) => {
                 return self.async_generator_complete(generator, Ok(value));
             }

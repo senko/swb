@@ -39,7 +39,7 @@
 //! queue of requests.
 
 use crate::bytecode::{CodeKind, DELEGATE_TYPED, RESUME_NEXT, RESUME_RETURN, RESUME_THROW, Reg};
-use crate::heap::{Gc, Tracer};
+use crate::heap::{Gc, Generic, Tracer};
 use crate::object::{Object, ObjectKind};
 use crate::runtime::Runtime;
 use crate::string::PropertyKey;
@@ -91,6 +91,12 @@ pub(crate) enum GeneratorKind {
     /// An async generator (`vm/async_generator.rs`): its state and its
     /// queue of requests.
     AsyncGenerator(Box<AsyncGenerator>),
+    /// The body of a module with top-level `await` while it runs as an
+    /// async function (ADR 0034 section 3, `module/evaluate.rs`): the
+    /// module, whose record holds the promise of the capability of
+    /// `ExecuteAsyncModule` (here it would make every generator object
+    /// bigger).
+    AsyncModule(Gc<Generic>),
 }
 
 impl GeneratorState {
@@ -116,13 +122,16 @@ impl GeneratorState {
             GeneratorKind::Sync => {}
             GeneratorKind::AsyncFunction(promise) => tracer.object(*promise),
             GeneratorKind::AsyncGenerator(generator) => generator.trace(tracer),
+            GeneratorKind::AsyncModule(module) => tracer.generic(*module),
         }
     }
 
     pub(crate) fn heap_size(&self) -> usize {
         let queue = match &self.kind {
             GeneratorKind::AsyncGenerator(generator) => generator.heap_size(),
-            GeneratorKind::Sync | GeneratorKind::AsyncFunction(_) => 0,
+            GeneratorKind::Sync
+            | GeneratorKind::AsyncFunction(_)
+            | GeneratorKind::AsyncModule(_) => 0,
         };
         size_of::<GeneratorState>()
             + self.registers.capacity() * size_of::<Value>()

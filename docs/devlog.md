@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-08: M10 feature 3a-2: top-level `await` in the engine
+
+- A module with top-level `await` runs its body as an async function (ADR
+  0034 section 3): ExecuteAsyncModule gives the suspended module function
+  the generator kind `AsyncModule`, keeps a new promise in the record and
+  attaches an internal reaction to it; `await`, the end of the body and
+  the handler over the body work as in an async function.
+- Evaluate follows ECMA-262 2025 §16.2.1.6.1.3: `evaluating-async`,
+  `[[AsyncEvaluationOrder]]`, `[[PendingAsyncDependencies]]`,
+  `[[AsyncParentModules]]`, AsyncModuleExecutionFulfilled with the sorted
+  list of gathered ancestors, AsyncModuleExecutionRejected with the
+  top-level promises rejected after those of the parents. Both walks are
+  loops with explicit stacks (chains of 10,000 async parents).
+- A termination marks the modules it reaches as terminated: they never run
+  again, and the promises that wait for them stay pending.
+- test262: 240 of 251 top-level-await tests (the other 11 need `import()`),
+  also with `--stress`; 9 more passes in the class and object groups
+  (`await` in computed keys).
+- Chromium shows a module that waits for an async function as
+  `at async x.js:2:5` in stack traces (measured, cases `msg-tla-stack` and
+  `msg-tla-dependency-stack`); swb does the same.
+- Review: the order of bodies, of ancestors run from a job, and of
+  rejections matched Node.js (black box) on about 365 random graphs. Two
+  guards had no test (a cycle root with an error stops the gathering; a
+  termination keeps an earlier error); the test262 runner counted a module
+  test whose promise never settles as a pass. All three are fixed.
+- Next: 3a-3 (`import()` and `import.meta`).
+
 ## 2026-11-08: M10 feature 3a-1: static module graphs in the engine
 
 - The engine has module records (ADR 0034 sections 1, 2, 5, 6):

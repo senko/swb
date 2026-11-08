@@ -160,14 +160,14 @@ fn check_code_kind(code: &FunctionCode, insn: &Insn) -> Result<(), &'static str>
         | Insn::AsyncIteratorCall { .. }
         | Insn::AsyncClose { .. }
         | Insn::AsyncCloseEnd { .. }
-            if !code.kind.is_async() =>
+            if !code.kind.can_await() =>
         {
             Err("await outside an async function")
         }
         Insn::Resume { .. }
             if !matches!(
                 code.kind,
-                CodeKind::Generator | CodeKind::Async | CodeKind::AsyncGenerator
+                CodeKind::Generator | CodeKind::Async | CodeKind::AsyncGenerator | CodeKind::Module
             ) =>
         {
             Err("a resumption outside a generator or async function")

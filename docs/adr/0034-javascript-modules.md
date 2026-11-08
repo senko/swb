@@ -771,3 +771,131 @@ counts. The robustness tests of `module_graph.rs` (chain and ring of
 in the test profile. In the web layer, a module with `export` and no
 request now runs; four rows of `MODULE_DEPARTURES` went (`export-const`,
 `export-default`, `export-list`, `import-external`).
+
+## 3a-2 implementation notes
+
+Facts of the implementation (M10 sub-feature 3a-2, top-level `await`)
+that differ from the decision above or that 3a-3 and 3b-1 need. The
+algorithms follow ECMA-262 2025 §16.2.1.6.1.3 and its helpers, which name
+the field `[[AsyncEvaluationOrder]]` (unset, an integer, or done) where
+section 1 says `[[AsyncEvaluation]]` with its order.
+
+**API of a pending evaluation:**
+
+- `Runtime::evaluate(module)` returns `[[TopLevelCapability]]`'s promise
+  of the module's cycle root. Without top-level `await` in the graph it is
+  settled when the call returns, as in 3a-1. With it, the promise can be
+  pending: it settles in a job of `Runtime::run_jobs`, when the last async
+  body of the graph ends (fulfilled with `undefined`) or when a body of
+  the graph rejects (rejected with that value). The promise counts as
+  handled, so the rejection tracker never reports it.
+- The host learns that a promise settled with `Runtime::react_to_promise`
+  (a continuation in a job, after the module's own reactions), or reads it
+  with `Runtime::promise_settlement` after its microtask checkpoint. 3b-1
+  reports a rejection as HTML "run a module script" says (upon rejection
+  of the evaluation promise), which fits the measured `tla-reject` case:
+  the error reaches `window.onerror` at the time of the rejection.
+- Evaluate of a module that waits (`evaluating-async`) gives the promise
+  of its cycle root, a new one if the root has none; it settles when the
+  root's async evaluation ends. Evaluate of a module evaluated with an
+  error gives a promise rejected now with the same value (also an error of
+  an async body).
+- `Runtime::eval_module_at` (the page path, `run_module_without_requests`)
+  still refuses a module with top-level `await` with "not supported yet
+  (top-level await)" at offset 0, now in `module/mod.rs` instead of the
+  compiler. 3b-1 removes it with the switch to the records. A module that
+  also uses `import()` or `import.meta` gets the refusal of that construct
+  (the compile runs before this check).
+- `swb-js --module` runs the jobs after Evaluate and reports a rejection of
+  the module's promise as an uncaught error (`Uncaught RangeError: late`
+  and the location of the error), exit code 1. A promise that never
+  settles ends the run without a report (exit code 0). An error in the
+  synchronous part of Evaluate ends the run before the jobs, as an
+  uncaught error of a script does: async bodies that started do not go
+  on. The page runs them in its microtask checkpoint after the script
+  (3b-1).
+
+**Engine:**
+
+- A module function with top-level `await` (`[[HasTLA]]`) keeps the code
+  kind `Module`; its code has the handler of an async function over the
+  body after `InitialYield` (`AsyncReject`). The verifier allows `Await`,
+  `Resume` and the instructions of `for await` in `Module` code
+  (`CodeKind::can_await`).
+- `ExecuteAsyncModule` makes a new promise (the capability; resolving
+  functions that no script reaches; the record keeps it in
+  `async_capability` until the body has ended), gives the module's
+  suspended generator object the kind `GeneratorKind::AsyncModule(module)`
+  (the promise is not in the kind: a second handle would make every
+  generator object 8 bytes bigger) and attaches an internal continuation
+  to the promise (data: the generator object, whose kind names the
+  module); then it resumes the body. That kind behaves as an async
+  function's: `await` delivers the promise to the caller, the end of the
+  body resolves it, `AsyncReject` rejects it. The continuation runs
+  `AsyncModuleExecutionFulfilled` or `AsyncModuleExecutionRejected` in its
+  job. No instruction after `InitialYield` does the work of `AsyncStart`:
+  the kind is set before the resume, so the body starts directly. While a
+  body waits, the record keeps its frame alive (record, capability,
+  reaction, generator object), also when the awaited promise can never
+  settle; an async function's frame in that case is garbage.
+- The record has the status `evaluating-async`, `async_order`
+  (`AsyncOrder::Unset`, `Order(n)`, `Done`), `pending_async` and
+  `async_parents` (traced, charged with `Heap::generic_resized`). The
+  counter of `IncrementModuleAsyncEvaluationCount` is a `u64` of the
+  runtime's module table; it is never reset.
+- `GatherAvailableAncestors` is a loop over a work stack with a hash set
+  for "execList contains"; the set of gathered modules does not depend on
+  the order of the walk, and the list is sorted by the order before it
+  runs. `AsyncModuleExecutionRejected` is a loop over an explicit stack of
+  (module, next parent): the top-level promises are rejected after those of
+  the parents, the order of the specification's recursion (tested). Both
+  and the run of the gathered modules charge the time countdown per step.
+- A module whose status is `evaluated` with an error and whose
+  `[[CycleRoot]]` is empty (it left the DFS stack with an error) stands
+  for itself where the specification reads its cycle root. The guards
+  for the assertions of `GatherAvailableAncestors` (a parent that is not
+  `evaluating-async` or has no pending dependency) skip the parent instead
+  of failing.
+- Stack traces: a module body that waits for an async function shows as
+  `at async x.js:2:5` below it (Chromium 148, probe case `msg-tla-stack`);
+  after the module's own `await`, its frame is the only one
+  (`msg-tla-dependency-stack`). The async frames end at the module (no
+  script waits for a module).
+
+**Termination.** A termination (or an engine error) ends the evaluation
+of the modules it reaches; these are `evaluated` with the internal
+"terminated" error: they never run again and report nothing more, and
+every promise that waits for them stays pending. Which modules:
+
+- in the synchronous part of Evaluate (also in the first run of an async
+  body): the modules on the DFS stack (as in 3a-1). Async modules that
+  left the stack before go on in later jobs; their parents on the stack
+  never run;
+- in a body resumed by a job (after an `await`): its module
+  (`Runtime::module_body_ended`, from the `await` reaction); its parents
+  wait for ever;
+- in a module that `AsyncModuleExecutionFulfilled` runs from a job (a
+  synchronous ancestor, or the first run of an async one): that module and
+  the gathered modules that did not run yet. A termination in the
+  rejection walk (the time limit, at a step of the walk) leaves the walk
+  undone: the modules that it reached are `evaluated` with the error, but
+  a top-level promise that it had not rejected yet stays pending; the
+  modules that it did not reach keep waiting.
+
+A later Evaluate of a graph with such a module gives a promise that never
+settles; a module that waits for one never runs. No record is left in a
+state where a later step runs a body twice or settles a promise wrongly
+(engine tests in `module/evaluate.rs` and `crates/js/tests/module_graph/
+tla.rs`).
+
+**Tests and scores.** test262: `test/language/module-code/top-level-await`
+passes 240 of 251 (also with `--stress`): 8 tests are skipped for the
+feature `dynamic-import` and 3 use `import()` (`fulfillment-order.js`,
+`rejection-order.js`, `module-graphs-does-not-hang.js`; they come with
+3a-3). The feature `top-level-await` raised `expressions/class` and
+`statements/class` by 4 each and `expressions/object` by 1 (`await` in
+computed keys at the top level). The robustness tests (chains of 10,000
+modules that await, 10,000 synchronous modules above one async module,
+10,000 async dependencies, 10,000 async parents of a module that rejects,
+and a chain of them, a ring of 10,000 with one async module, a body that
+never settles) each take well under a second in the test profile.

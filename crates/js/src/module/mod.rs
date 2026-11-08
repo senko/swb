@@ -12,7 +12,7 @@
 //!
 //! The parts: `load.rs` (`LoadRequestedModules` with the host hook,
 //! §16.2.1.6.1.1), `link.rs` (Link, `ResolveExport`, `GetExportedNames`,
-//! `InitializeEnvironment`), `evaluate.rs` (Evaluate without top-level
+//! `InitializeEnvironment`), `evaluate.rs` (Evaluate with top-level
 //! `await`) and `namespace.rs` (module namespace exotic objects, §10.4.6).
 //! Every graph algorithm is iterative with explicit stacks (ADR 0034
 //! section 6).
@@ -84,7 +84,18 @@ pub(crate) enum Status {
     Linking,
     Linked,
     Evaluating,
+    EvaluatingAsync,
     Evaluated,
+}
+
+/// `[[AsyncEvaluationOrder]]` (§16.2.1.6, Table 45): unset for a module
+/// that evaluates synchronously; the position of the module in the order
+/// of async evaluations while it waits or runs; done after.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AsyncOrder {
+    Unset,
+    Order(u64),
+    Done,
 }
 
 /// A request of the record, with its strings as atoms.
@@ -198,6 +209,15 @@ pub(crate) struct ModuleRecord {
     /// The promise of `[[TopLevelCapability]]` (a record that Evaluate was
     /// called on).
     pub(crate) top_level_promise: Option<Gc<Object>>,
+    /// `[[AsyncEvaluationOrder]]`.
+    pub(crate) async_order: AsyncOrder,
+    /// `[[PendingAsyncDependencies]]`.
+    pub(crate) pending_async: u32,
+    /// `[[AsyncParentModules]]`.
+    pub(crate) async_parents: Vec<Gc<Generic>>,
+    /// The promise of the capability of `ExecuteAsyncModule` (a module
+    /// with top-level `await` that started).
+    pub(crate) async_capability: Option<Gc<Object>>,
     /// The environment: one cell per exported binding, made on first use.
     pub(crate) environment: Vec<Option<Gc<ValueCell>>>,
     /// The namespace object (made on first use) and the cell that holds it
@@ -239,15 +259,23 @@ impl GenericData for ModuleRecord {
         for &module in self.loaded.iter().flatten() {
             tracer.generic(module);
         }
+        for &module in &self.async_parents {
+            tracer.generic(module);
+        }
         if let Some(root) = self.cycle_root {
             tracer.generic(root);
         }
         if let Some(EvaluationError::Thrown(value)) = self.evaluation_error {
             tracer.value(value);
         }
-        for object in [self.top_level_promise, self.namespace, self.body]
-            .into_iter()
-            .flatten()
+        for object in [
+            self.top_level_promise,
+            self.async_capability,
+            self.namespace,
+            self.body,
+        ]
+        .into_iter()
+        .flatten()
         {
             tracer.object(object);
         }
@@ -279,6 +307,7 @@ impl GenericData for ModuleRecord {
             + self.exports.capacity() * (size_of::<(Gc<JsString>, ExportSlot)>() + 8)
             + self.local_names.len() * size_of::<Gc<JsString>>()
             + self.loaded.capacity() * size_of::<Option<Gc<Generic>>>()
+            + self.async_parents.capacity() * size_of::<Gc<Generic>>()
             + self.environment.capacity() * size_of::<Option<Gc<ValueCell>>>()
             + self.resolved.capacity() * (size_of::<(Gc<JsString>, Resolved)>() + 8)
     }
@@ -293,6 +322,15 @@ impl Runtime {
     /// The record of a module, for writing.
     pub(crate) fn record_mut(&mut self, module: Gc<Generic>) -> VmResult<&mut ModuleRecord> {
         Ok(self.heap.generic_mut::<ModuleRecord>(module)?)
+    }
+
+    /// The promise of the capability of a module whose async body runs.
+    pub(crate) fn module_capability(&self, module: Gc<Generic>) -> VmResult<Gc<Object>> {
+        self.record(module)?
+            .async_capability
+            .ok_or(VmError::invariant(
+                "an async module body without its capability",
+            ))
     }
 
     /// `GetImportedModule(referrer, request)` (§16.2.1.9): the module that
@@ -314,10 +352,8 @@ impl Runtime {
     /// the realm `realm`: a new record with the status `new`. `name` and
     /// `start` are as in [`Runtime::eval_named_at`]; `host_defined` is the
     /// host's number for the module (`[[HostDefined]]`). A syntax error is
-    /// [`ScriptError::Compile`], as for scripts; a module with top-level
-    /// `await` fails with "not supported yet (top-level await)" (ADR 0034
-    /// sub-feature 3a-2). The handle is not rooted: the host stores it in
-    /// its traced state before the next run.
+    /// [`ScriptError::Compile`], as for scripts. The handle is not rooted:
+    /// the host stores it in its traced state before the next run.
     pub fn parse_module(
         &mut self,
         realm: u32,
@@ -395,6 +431,10 @@ impl Runtime {
             cycle_root: None,
             evaluation_error: None,
             top_level_promise: None,
+            async_order: AsyncOrder::Unset,
+            pending_async: 0,
+            async_parents: Vec::new(),
+            async_capability: None,
             environment: vec![None; environment.len()],
             namespace: None,
             namespace_cell: None,
@@ -565,7 +605,9 @@ impl Runtime {
     /// Runs a module that requests no other module through the module
     /// path (ADR 0034 sub-feature 3a-1): parse, link (which runs the
     /// prologue), evaluate. Errors as [`Runtime::eval_named_at`]; a module
-    /// with requests is refused ("not supported yet (module syntax)").
+    /// with requests is refused ("not supported yet (module syntax)"), and
+    /// so is a module with top-level `await` ("not supported yet
+    /// (top-level await)", at offset 0).
     pub(crate) fn run_module_without_requests(
         &mut self,
         realm: u32,
@@ -575,6 +617,22 @@ impl Runtime {
     ) -> Result<Value, ScriptError> {
         let (script, code, compiled) =
             self.parse_and_compile(source, name, start, crate::runtime::Goal::Module)?;
+        // The host path runs a module to its end in one task; a module that
+        // waits is for the module graphs of sub-feature 3b-1.
+        if script
+            .module
+            .as_ref()
+            .is_some_and(|m| m.has_top_level_await)
+        {
+            return Err(ScriptError::Compile {
+                kind: crate::error::ThrowKind::SyntaxError,
+                message: format!(
+                    "{} (top-level await)",
+                    swb_js_syntax::messages::NOT_SUPPORTED
+                ),
+                offset: 0,
+            });
+        }
         if let Some(offset) = first_request_offset(&script) {
             return Err(ScriptError::Compile {
                 kind: crate::error::ThrowKind::SyntaxError,

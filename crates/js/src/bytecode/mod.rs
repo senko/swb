@@ -1486,6 +1486,12 @@ impl CodeKind {
         matches!(self, CodeKind::Async | CodeKind::AsyncGenerator)
     }
 
+    /// Whether the code may contain `await`: async code, or the body of a
+    /// module (top-level `await`, ADR 0034 section 3).
+    pub(crate) fn can_await(self) -> bool {
+        self.is_async() || self == CodeKind::Module
+    }
+
     /// Whether the code is a class constructor (`[[IsClassConstructor]]`).
     pub(crate) fn is_class_constructor(self) -> bool {
         matches!(

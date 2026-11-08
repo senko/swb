@@ -60,6 +60,10 @@ pub(crate) enum ModuleFailure {
     Runtime(Value),
     /// A termination, an engine error, or an error of a job.
     Other(ScriptError),
+    /// No error, but the promise of the evaluation is still pending after
+    /// the jobs (a top-level `await` that never ends). The shell ends such
+    /// a run as a success; the test262 runner judges it.
+    Pending,
 }
 
 /// The modules of the runtime's host state.
@@ -206,16 +210,26 @@ pub(crate) fn run_module(
         }
         Err(other) => return Err(ModuleFailure::Other(other)),
     }
+    // The module's record keeps the promise alive.
     let promise = rt.evaluate(module).map_err(ModuleFailure::Other)?;
     if let Some((PromiseStatus::Rejected, error)) = rt.promise_settlement(promise) {
         return Err(ModuleFailure::Runtime(error));
     }
+    // With top-level `await` the promise settles in a job: its rejection
+    // is reported as an uncaught error after the jobs. A promise that never
+    // settles reports nothing.
     rt.run_jobs().map_err(ModuleFailure::Other)?;
+    if let Some((PromiseStatus::Rejected, error)) = rt.promise_settlement(promise) {
+        return Err(ModuleFailure::Runtime(error));
+    }
     while rt
         .run_finalization_cleanup()
         .map_err(ModuleFailure::Other)?
     {
         rt.run_jobs().map_err(ModuleFailure::Other)?;
+    }
+    if let Some((PromiseStatus::Pending, _)) = rt.promise_settlement(promise) {
+        return Err(ModuleFailure::Pending);
     }
     Ok(())
 }
@@ -249,6 +263,7 @@ pub(crate) fn describe_failure(
             (value_report(rt, *value), 1)
         }
         ModuleFailure::Runtime(value) => (value_report(rt, *value), 1),
+        ModuleFailure::Pending => (String::new(), 0),
     }
 }
 

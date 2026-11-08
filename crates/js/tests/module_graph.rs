@@ -1,4 +1,5 @@
-//! Module graphs (ADR 0034 sub-feature 3a-1): `Runtime::parse_module`,
+//! Module graphs (ADR 0034 sub-features 3a-1 and 3a-2; top-level `await`
+//! in `module_graph/tla.rs`): `Runtime::parse_module`,
 //! `load_requested_modules` with an in-memory loader (answers now or
 //! later), `link` and `evaluate`. Cycles, live bindings, the dead zone,
 //! star exports and their ambiguity, namespace objects, default exports,
@@ -19,8 +20,8 @@ use std::time::{Duration, Instant};
 use common::on_big_stack;
 use swb_js::{
     HeapConfig, LoadAnswer, LoadRequest, Module, ModuleHooks, NativeCall, NativeReturn,
-    PromiseStatus, Referrer, Runtime, RuntimeConfig, ScriptError, ThrowKind, Tracer, Value,
-    VmResult,
+    PromiseStatus, ReactionKind, Referrer, Runtime, RuntimeConfig, ScriptError, ThrowKind, Tracer,
+    Value, VmResult,
 };
 
 /// The host of the tests: the sources by name, the modules made so far,
@@ -1330,3 +1331,7 @@ fn hooks_are_optional() {
         assert_eq!(rt.constructor_name(reason), "TypeError");
     });
 }
+
+// Top-level `await` (sub-feature 3a-2).
+#[path = "module_graph/tla.rs"]
+mod tla;

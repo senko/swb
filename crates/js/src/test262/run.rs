@@ -248,6 +248,16 @@ fn judge_module(rt: &swb_js::Runtime, meta: &Meta, result: Result<(), ModuleFail
         }
         Err(ModuleFailure::Resolution(value)) => Some(("resolution", value)),
         Err(ModuleFailure::Runtime(value)) => Some(("runtime", value)),
+        // A promise that is still pending after the jobs is a failure,
+        // unless an async test reports its end with `$DONE` (judged
+        // later). A negative test fails below: it did not complete with
+        // the error.
+        Err(ModuleFailure::Pending) => {
+            if meta.negative.is_none() && !meta.flags.iter().any(|f| f == "async") {
+                return Status::Fail("the evaluation is still pending after the jobs".into());
+            }
+            None
+        }
     };
     match (&meta.negative, failure) {
         (None, None) => Status::Pass,
@@ -672,6 +682,44 @@ mod tests {
             judge_module(&rt, &meta, Err(ModuleFailure::Other(other))),
             Status::Fail(_)
         ));
+    }
+
+    #[test]
+    fn a_pending_module_evaluation_is_a_failure_unless_the_test_is_async() {
+        let rt = swb_js::Runtime::new(swb_js::RuntimeConfig::default()).expect("a runtime");
+        let pending =
+            |header: &str| judge_module(&rt, &parse_meta(header), Err(ModuleFailure::Pending));
+        assert!(matches!(
+            pending("/*---\nflags: [module]\n---*/"),
+            Status::Fail(_)
+        ));
+        // A negative test did not complete with its error.
+        assert!(matches!(
+            pending(
+                "/*---\nflags: [module]\nnegative:\n  phase: runtime\n  type: TypeError\n---*/"
+            ),
+            Status::Fail(_)
+        ));
+        // An async test is judged by `$DONE` afterwards.
+        assert_eq!(
+            pending("/*---\nflags: [module, async]\n---*/"),
+            Status::Pass
+        );
+    }
+
+    #[test]
+    fn a_module_that_never_ends_fails_in_the_runner() {
+        let source = "/*---\nflags: [module]\n---*/\n\
+            await new Promise(function () {}); throw new Error('must not pass');";
+        let results = run_test(
+            "",
+            &parse_meta(source),
+            source,
+            &BTreeSet::new(),
+            LIMITS,
+            None,
+        );
+        assert!(matches!(combine(&results), Status::Fail(_)));
     }
 
     #[test]

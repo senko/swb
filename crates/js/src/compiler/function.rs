@@ -14,8 +14,9 @@
 //! stops there (`InitialYield`). An async function starts with
 //! `AsyncStart`, and one handler covers all of its code after it: a throw
 //! that nothing catches rejects the function's promise (`AsyncReject` at
-//! the end of the code). The script's prologue declares its global
-//! bindings (§16.1.7).
+//! the end of the code). The body of a module with top-level `await` has
+//! the same handler over its code after `InitialYield` (ADR 0034 section
+//! 3). The script's prologue declares its global bindings (§16.1.7).
 //!
 //! `try` (§14.15, ADR 0026 section 5, memo 1.4): the handler table maps
 //! the `try` block to the `catch` code, and the `try` and `catch` code to
@@ -253,8 +254,11 @@ impl<'a> FunctionCompiler<'a> {
         let mut body_start = self.here();
         self.prologue(kind)?;
         // An async generator's parameters throw to the caller (§15.6.2);
-        // its body after `InitialYield` rejects requests.
-        if kind == CodeKind::AsyncGenerator {
+        // its body after `InitialYield` rejects requests. So does the body
+        // of a module with top-level `await` its capability (ADR 0034
+        // section 3; a throw in its prologue is an engine error).
+        let async_module = kind == CodeKind::Module && self.script_has_top_level_await();
+        if kind == CodeKind::AsyncGenerator || async_module {
             body_start = self.here();
         }
         for &statement in self.ast.stmts(self.function.body) {
@@ -273,7 +277,7 @@ impl<'a> FunctionCompiler<'a> {
         if let Some(registers) = self.derived_result {
             self.derived_epilogue(registers);
         }
-        if kind.is_async() {
+        if kind.is_async() || async_module {
             self.async_epilogue(body_start)?;
         }
         let this_mode = if matches!(self.function.kind, FunctionKind::Arrow | FunctionKind::Eval) {
@@ -340,6 +344,15 @@ impl<'a> FunctionCompiler<'a> {
             span,
             eval,
         })
+    }
+
+    /// Whether the script is a module with top-level `await`
+    /// (`[[HasTLA]]`).
+    fn script_has_top_level_await(&self) -> bool {
+        self.script
+            .module
+            .as_ref()
+            .is_some_and(|m| m.has_top_level_await)
     }
 
     fn code_kind(&self) -> CodeKind {

@@ -211,7 +211,8 @@ impl Runtime {
             ObjectKind::Generator(state) => Ok(match &state.kind {
                 GeneratorKind::AsyncFunction(promise) => Some(*promise),
                 GeneratorKind::AsyncGenerator(data) => data.queue.front().map(|r| r.promise),
-                GeneratorKind::Sync => None,
+                // No script code waits for a module's body.
+                GeneratorKind::Sync | GeneratorKind::AsyncModule(_) => None,
             }),
             _ => Err(VmError::invariant("a generator frame without a generator")),
         }

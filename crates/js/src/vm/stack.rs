@@ -228,7 +228,10 @@ impl Runtime {
             };
             let (
                 crate::vm::generator::GeneratorKind::AsyncFunction(_)
-                | crate::vm::generator::GeneratorKind::AsyncGenerator(_),
+                | crate::vm::generator::GeneratorKind::AsyncGenerator(_)
+                // A module body that awaits (Chromium 148: `at async
+                // x.js:2:5`, case `msg-tla-stack`).
+                | crate::vm::generator::GeneratorKind::AsyncModule(_),
                 Some(frame),
             ) = (&state.kind, &state.frame)
             else {

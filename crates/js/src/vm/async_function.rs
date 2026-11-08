@@ -34,6 +34,12 @@
 //! A suspended async function is reachable only through the reaction on
 //! the promise that it awaits: when no one can settle that promise, the
 //! frame is garbage.
+//!
+//! The body of a module with top-level `await` uses the same machinery
+//! (ADR 0034 section 3): `ExecuteAsyncModule` (`module/evaluate.rs`) gives
+//! the module's suspended generator object the kind
+//! [`GeneratorKind::AsyncModule`]; the promise of the capability, in the
+//! module's record, takes the role of the result promise here.
 
 use crate::bytecode::{Insn, Reg};
 use crate::heap::Gc;
@@ -133,6 +139,7 @@ impl Runtime {
         match &self.heap.object(generator)?.kind {
             ObjectKind::Generator(state) => Ok(match state.kind {
                 GeneratorKind::AsyncFunction(promise) => Some(promise),
+                GeneratorKind::AsyncModule(module) => Some(self.module_capability(module)?),
                 GeneratorKind::Sync | GeneratorKind::AsyncGenerator(_) => None,
             }),
             _ => Err(VmError::invariant("a generator frame without a generator")),
@@ -145,6 +152,9 @@ impl Runtime {
     fn suspension_result(&mut self, generator: Gc<Object>) -> VmResult<Value> {
         match &mut self.generator_state(generator)?.kind {
             GeneratorKind::AsyncFunction(promise) => Ok(Value::Object(*promise)),
+            &mut GeneratorKind::AsyncModule(module) => {
+                Ok(Value::Object(self.module_capability(module)?))
+            }
             GeneratorKind::AsyncGenerator(data) => Ok(data
                 .caller_promise
                 .take()
@@ -263,7 +273,13 @@ pub(crate) fn async_resume(
     };
     match rt.resume_generator(resume, ReturnTo::Host, restore_top)? {
         Step::Entered => {
-            rt.run_frames()?;
+            if let Err(error) = rt.run_frames() {
+                // Only a termination or an engine error ends the body of
+                // a module with top-level `await` here (its handler takes
+                // every throw): the module never runs again.
+                rt.module_body_ended(generator, &error);
+                return Err(error);
+            }
             Ok(Value::Undefined)
         }
         _ => Err(VmError::invariant(

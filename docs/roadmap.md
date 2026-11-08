@@ -4623,6 +4623,21 @@ Steps:
         `web-module-graph.json`): writes to imports, namespace bindings in
         the dead zone, import attribute keys, the `stack` of link errors.
       - 3a-2 top-level `await` (`implementer-hard`; at least 230 of 250).
+        Done (2026-11-08): a module with top-level `await` runs its body as
+        an async function (the generator kind `AsyncModule`; the record
+        keeps the capability's promise); the async evaluation of ECMA-262
+        2025 §16.2.1.6.1.3 (`evaluating-async`, the order counter, async
+        parents, the cycle root's promise), with GatherAvailableAncestors
+        and the rejection walk as loops (chains of 10,000 async parents);
+        a termination leaves the modules it reaches "terminated" and their
+        promises pending. 240 of 251 test262 TLA tests (3 need `import()`,
+        8 are skipped for `dynamic-import`), also in the stress mode; the
+        class and object groups gained 9 passes. A review compared the
+        order with Node.js (black box) on about 365 random graphs (no
+        difference). `Runtime::evaluate` can return a pending promise;
+        `swb-js --module` reports a later rejection. The page still
+        refuses top-level `await` until 3b-1; the JS-on targets are
+        unchanged.
       - 3a-3 `import()` and `import.meta` (`implementer-hard`; at least 590
         of 631 and 21 of 22).
       - 3b-1 the module graph in the page: module map, fetch, readiness,

@@ -106,6 +106,9 @@ pub(crate) struct ModuleTable {
     free: Vec<u32>,
     pending: HashMap<u32, PendingLoad>,
     next_token: u32,
+    /// `[[ModuleAsyncEvaluationCount]]` of the agent (§9.6.3,
+    /// `IncrementModuleAsyncEvaluationCount`).
+    async_evaluation_count: u64,
 }
 
 impl ModuleTable {
@@ -153,6 +156,14 @@ impl ModuleTable {
             *slot = None;
             self.free.push(index);
         }
+    }
+
+    /// `IncrementModuleAsyncEvaluationCount()` (§9.6.3): the next number of
+    /// the order of async evaluations.
+    pub(crate) fn next_async_order(&mut self) -> u64 {
+        let order = self.async_evaluation_count;
+        self.async_evaluation_count = order.wrapping_add(1);
+        order
     }
 
     /// A token that no pending request uses.

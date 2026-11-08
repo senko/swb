@@ -1016,6 +1016,37 @@
      "text": "import {late, lc, Kl, default as def} from './tmain.js';log('t0='+E(function(){late = 1}));log('t1='+E(function(){late++}));log('t2='+E(function(){--late}));log('t3='+E(function(){late += 1}));log('t4='+E(function(){late ??= 1}));log('t5='+E(function(){late ||= 1}));log('t6='+E(function(){late &&= 1}));log('t7='+E(function(){[late] = [1]}));log('t8='+E(function(){({late} = {late: 1})}));log('t9='+E(function(){({x: late} = {x: 1})}));log('t10='+E(function(){for (late of [1]);}));log('t11='+E(function(){for (late in {a: 1});}));log('t12='+E(function(){(function(){ late = 1 })()}));log('t13='+E(function(){(() => late++)()}));log('t14='+E(function(){eval('late = 1')}));log('t15='+E(function(){eval('late++')}));log('t16='+E(function(){lc = 1}));log('t17='+E(function(){Kl = 1}));log('t18='+E(function(){def = 1}));log('t19='+E(function(){typeof late}));log('t20='+E(function(){late}));log('t21='+E(function(){[...[late]] = [1]}));log('t22='+E(function(){({...late} = {})}));export function after(){log('a0='+E(function(){late = 1}));log('a1='+E(function(){late++}));log('a2='+E(function(){--late}));log('a3='+E(function(){late += 1}));log('a4='+E(function(){late ??= 1}));log('a5='+E(function(){late ||= 1}));log('a6='+E(function(){late &&= 1}));log('a7='+E(function(){[late] = [1]}));log('a8='+E(function(){({late} = {late: 1})}));log('a9='+E(function(){({x: late} = {x: 1})}));log('a10='+E(function(){for (late of [1]);}));log('a11='+E(function(){for (late in {a: 1});}));log('a12='+E(function(){(function(){ late = 1 })()}));log('a13='+E(function(){(() => late++)()}));log('a14='+E(function(){eval('late = 1')}));log('a15='+E(function(){eval('late++')}));log('a16='+E(function(){lc = 1}));log('a17='+E(function(){Kl = 1}));log('a18='+E(function(){def = 1}));log('a19='+E(function(){typeof late}));log('a20='+E(function(){late}));log('a21='+E(function(){[...[late]] = [1]}));log('a22='+E(function(){({...late} = {})}))}"
     }
    }
+  },
+  {
+   "name": "msg-tla-stack",
+   "html": "<!DOCTYPE html><html><head><!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*s*/addEventListener('error',function(ev){L.push('stack:'+(ev.error?ev.error.constructor.name+'|'+n(ev.error.stack):'none'))})</script><script type=module src=x.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},800)})"
+    }
+   ],
+   "resources": {
+    "x.js": {
+     "text": "async function f(){await 0;throw new Error('in f')}\ntry{await f()}catch(e){log('A '+n(e.stack))}\nlog('B '+n(new Error('before').stack));\nawait 0;\nlog('C '+n(new Error('after').stack));\n(function g(){log('D '+n(new Error('in g').stack))})();\nthrow new TypeError('thrown')"
+    }
+   }
+  },
+  {
+   "name": "msg-tla-dependency-stack",
+   "html": "<!DOCTYPE html><html><head><!DOCTYPE html><html><head><script>/*h*/var L=[];function nm(c){if(!c)return '';if(c.src)return c.src.slice(c.src.lastIndexOf('/')+1);if(c.href)return c.href.slice(c.href.lastIndexOf('/')+1);var t=c.text;return t.slice(0,2)==='/*'?t.slice(2,t.indexOf('*/')):'?'}function log(x){var c=document.currentScript;L.push(x+':'+document.readyState[0]+(c?':'+nm(c):''))}function n(s){return String(s).split(location.href).join('DOC').split(location.origin).join('O').replace(/http:\\/\\/(127\\.0\\.0\\.1:[0-9]+|other\\.test)/g,'X').replace(/\\/case-[a-z0-9-]+\\//g,'/')}function E(f){try{var v=f();return v===undefined?'undefined':v}catch(e){return e.constructor.name+': '+e.message}}document.addEventListener('readystatechange',function(){log('rsc')});document.addEventListener('DOMContentLoaded',function(){log('dcl')});addEventListener('load',function(e){log('load')});document.addEventListener('load',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('load-'+nm(e.target))},true);document.addEventListener('error',function(e){var t=e.target.localName;if(t==='script'||t==='link')log('error-'+nm(e.target))},true);window.onerror=function(m,s,l,c){L.push('err:'+m+'@'+n(s)+':'+l+':'+c)};addEventListener('unhandledrejection',function(e){L.push('unhandled:'+(e.reason&&e.reason.message))});</script><script>/*s*/addEventListener('error',function(ev){L.push('stack:'+(ev.error?ev.error.constructor.name+'|'+n(ev.error.stack):'none'))})</script><script type=module src=x.js></script></head><body></body></html>",
+   "measure": [
+    {
+     "js": "new Promise(function(r){setTimeout(function(){r(L.join(' # '))},800)})"
+    }
+   ],
+   "resources": {
+    "x.js": {
+     "text": "import './d.js';log('x')"
+    },
+    "d.js": {
+     "text": "await new Promise(function(r){setTimeout(r,20)});\nlog('E '+n(new Error('in d').stack));\nthrow new RangeError('from d')"
+    }
+   }
   }
  ]
 }

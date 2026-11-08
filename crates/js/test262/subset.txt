@@ -574,8 +574,7 @@ dir test/intl402/Number
 # (the flag module) run as modules; their imports are files relative to
 # the importing module inside the test262 directory. Import attributes:
 # the key `type` is supported, and no module type exists (json-modules,
-# import-text and import-bytes stay skipped by their features). The
-# top-level-await directory comes with 3a-2.
+# import-text and import-bytes stay skipped by their features).
 feature export-star-as-namespace-from-module
 feature arbitrary-module-namespace-names
 feature import-attributes
@@ -585,3 +584,10 @@ dir test/language/module-code/import-attributes
 dir test/language/module-code/namespace
 dir test/language/import
 dir test/language/export
+
+# Added in M10 feature 3a-2 (ADR 0034 section 3): top-level await in
+# module bodies and the async evaluation of module graphs. The runner runs
+# the jobs after Evaluate; a rejection of the module's promise is the
+# runtime error of the test.
+feature top-level-await
+dir test/language/module-code/top-level-await

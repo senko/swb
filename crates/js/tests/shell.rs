@@ -576,6 +576,43 @@ fn module_files_run_with_their_imports() {
 }
 
 #[test]
+fn module_files_with_top_level_await() {
+    // ADR 0034 section 3 (3a-2): the shell runs the jobs after Evaluate and
+    // reports a rejection of the module's promise as an uncaught error.
+    let dir = temp_dir("module-tla");
+    let write = |name: &str, text: &str| std::fs::write(dir.join(name), text).unwrap();
+    write(
+        "main.js",
+        "import './a.js'; print('main');\nPromise.resolve().then(() => print('job'));\n",
+    );
+    write("a.js", "print('a1');\nawait null;\nprint('a2');\n");
+    write(
+        "rejects.js",
+        "import './a.js';\nprint('r');\nawait 0;\nthrow new RangeError('late');\n",
+    );
+    write(
+        "never.js",
+        "await new Promise(() => {});\nprint('never');\n",
+    );
+    let path = |name: &str| dir.join(name).to_str().unwrap().to_owned();
+    let out = shell(&["--module", &path("main.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "a1\na2\nmain\njob\n");
+    let out = shell(&["--module", &path("rejects.js")]);
+    assert_eq!(code(&out), 1);
+    assert_eq!(text(&out.stdout), "a1\na2\nr\n");
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("Uncaught RangeError: late") && stderr.contains("rejects.js:4:7"),
+        "{stderr}"
+    );
+    // A module that never settles ends without a report.
+    let out = shell(&["--module", &path("never.js")]);
+    assert_eq!(code(&out), 0, "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), "");
+}
+
+#[test]
 fn nested_eval_script_is_a_range_error() {
     let out = shell(&["-e", "function f() { $262.evalScript('f()'); } f()"]);
     assert_eq!(code(&out), 1, "{}", text(&out.stderr));
