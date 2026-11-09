@@ -4,6 +4,34 @@ Newest entries first. One entry per working session or milestone. Record what
 was done, what was learned, and what is next. Keep entries short; details go
 in commit messages, ADRs and other docs.
 
+## 2026-11-09: M10 feature 5: ADR 0036 (shadow DOM)
+
+- ADR 0036 decides the design of shadow DOM before the code: a new node
+  kind `ShadowRoot`, a flag byte in the element data and a per-arena
+  shadow state (no field in every node: it would grow each node from 104
+  to 112 bytes); named and manual slots assigned eagerly in the change
+  functions, which also make the `slotchange` signals; shadow-including
+  walks for custom elements, sheets, images, frames and forms; a flat-tree
+  iterator without a cache behind a one-branch fast path; scoped rule
+  indexes and a cascade context step; `adoptedStyleSheets` as a `Proxy`
+  over an array; events through "get the parent" with retargeting; the Tab
+  order from focus navigation scopes.
+- What GitHub needs (Chromium replay): 26 `attachShadow({mode: "open"})`
+  calls, 24 live roots. `relative-time` holds `<span part="root">4 days
+  ago</span>` with no style or slot; `tool-tip` has one `<style>` of
+  `:host` rules and a default slot, and stays a closed popover. No
+  `composedPath`, `slotchange`, `delegatesFocus`, `::slotted` or
+  `::part` by the page; in swb two polyfills (`command`, `popover`) also
+  observe and style every root.
+- Probe files `web-shadow-dom.json` (21 cases, 119 queries) and
+  `shadow-dom.json` (16 layout cases), three equal Chromium runs. I
+  re-measured six JavaScript cases and all layout cases: equal.
+- Decisions: four sub-features (5a DOM, 5b flat tree in rendering, 5c
+  style scoping and constructable sheets, 5d events and focus);
+  `:host-context()` and `::part()` in, `exportparts`, declarative roots
+  and the engine's selection through shadow trees to the backlog.
+- Next: 5a.
+
 ## 2026-11-09: M10 feature 4b: custom element reactions of DOM operations
 
 - The mutation sink of a document is now a dispatcher: the mutation

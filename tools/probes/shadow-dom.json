@@ -1,0 +1,173 @@
+{
+ "viewport": [
+  400,
+  300
+ ],
+ "cases": [
+  {
+   "name": "host-replaces-children",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h>light text<span id=c>child</span></div><p id=after>after</p><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<p style='margin:0;height:30px'>shadow</p>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #c, #after"
+    },
+    {
+     "js": "document.getElementById('h').offsetHeight"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "default-slot",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=a>AA</span><span id=b>B</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<b>[</b><slot></slot><b>]</b>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #a, #b"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "named-slot-order",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=x slot=b>XX</span><span id=y slot=a>Y</span><span id=z>Z</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<slot name=a></slot>|<slot name=b></slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #x, #y, #z"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slot-fallback",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h></div><div id=h2><i id=l>L</i></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<slot>fallback text</slot>\";document.getElementById('h2').attachShadow({mode:'open'}).innerHTML=\"<slot>fallback text</slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #h2, #l"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "relative-time-in-flex-row",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=row style='display:flex;gap:4px'><span id=by>by</span><relative-time id=rt datetime=2026-10-18T12:23:28Z>Oct 18, 2026</relative-time><span id=e>end</span></div><script>document.getElementById('rt').attachShadow({mode:'open'}).innerHTML=\"<span part=root>4 days ago</span>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#row, #by, #rt, #e"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "inline-host-in-paragraph",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><p id=p style='width:200px;margin:0'>aaa <span id=h>light</span> bbb ccc ddd</p><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"eee fff ggg hhh iii\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#p, #h"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "host-style-block-padding",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><span id=h>x</span><span id=n>next</span><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<style>:host{display:block;padding:5px 7px;border:2px solid}</style>shadow\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #n"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slotted-inherits-from-slot",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=s>slotted</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<style>slot{font-size:32px;line-height:40px}</style><slot></slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #s"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slot-display-block",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=s>S</span><span id=t>T</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<style>slot{display:block;padding:3px}</style><slot></slot><slot name=n></slot>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #s, #t"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "nested-shadow-slot-passthrough",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><b id=x>pass</b></div><script>var r=document.getElementById('h').attachShadow({mode:'open'});r.innerHTML=\"<div id=ih style='border:1px solid'><slot></slot></div>\";r.getElementById('ih').attachShadow({mode:'open'}).innerHTML=\"<i style='display:block;padding:2px'>[<slot></slot>]</i>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #x"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "host-display-none",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=c>c</span></div><p id=a>after</p><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<style>:host{display:none}</style>shadow\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #c, #a"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slot-in-flex-container",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><span id=a>A</span><span id=b>BB</span></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div style='display:flex;justify-content:space-between;width:200px'><slot></slot></div>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #a, #b"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "slotted-list-items",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><ul id=h><li id=a>one</li><li id=b>two</li></ul><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<ol style='margin:0'><slot></slot></ol>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #a, #b"
+    },
+    {
+     "js": "getComputedStyle(document.getElementById('b'),'::marker').content"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "table-through-slot",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><div id=r style='display:table-row'><div id=c style='display:table-cell;padding:2px'>cell</div></div></div><script>document.getElementById('h').attachShadow({mode:'open'}).innerHTML=\"<div style='display:table;border-spacing:3px'><slot></slot></div>\";</script></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #r, #c"
+    }
+   ],
+   "javascript": true
+  },
+  {
+   "name": "declarative-js-off",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><template shadowrootmode=open><p style='margin:0;height:25px'>shadow</p><slot></slot></template><span id=c>light</span></div></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #c"
+    }
+   ]
+  },
+  {
+   "name": "declarative-js-on",
+   "html": "<!DOCTYPE html><html><head><style>body{margin:8px;font:16px/20px sans-serif}</style></head><body><div id=h><template shadowrootmode=open><p style='margin:0;height:25px'>shadow</p><slot></slot></template><span id=c>light</span></div></body></html>",
+   "measure": [
+    {
+     "boxes": "#h, #c"
+    }
+   ],
+   "javascript": true
+  }
+ ]
+}

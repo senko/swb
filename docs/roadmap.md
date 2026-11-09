@@ -4522,7 +4522,7 @@ Steps:
 2. Each hard feature writes its ADR first (modules, custom elements,
    shadow DOM, the top layer); the orchestrator reads it before the code.
    ADR 0034 (modules): accepted 2026-11-07. ADR 0035 (custom elements):
-   accepted 2026-11-08.
+   accepted 2026-11-08. ADR 0036 (shadow DOM): accepted 2026-11-09.
 3. Features, in this order. Each feature ends with a review and a
    commit, with the checks of M9: JavaScript off by default; the other
    targets keep their scores with JavaScript on and off; a change of a
@@ -4759,6 +4759,28 @@ Steps:
       the Tab order through shadow trees. Declarative shadow roots if a
       target has them (GitHub has none). Exit: GitHub's `relative-time`
       and `tool-tip` render as in Chromium.
+      [ADR 0036](adr/0036-shadow-dom.md), accepted 2026-11-09, changes the
+      split to four sub-features (scope, files, tests and exit of each in
+      the ADR, "The plan of sub-features"):
+      - 5a shadow trees and slots in the DOM (`implementer-hard`):
+        `ShadowRoot` nodes, `attachShadow` with Chromium's checks and
+        messages, named and manual slots with eager assignment,
+        `slotchange`, shadow-including walks (custom elements, sheets,
+        images, frames, forms), the bindings. Exit: GitHub's 24 roots
+        exist with the replay's content and its callback counts reach 35
+        and 76 (feature 4's open part).
+      - 5b the flat tree in rendering (`implementer-hard`): style
+        inheritance, the box tree, counters, hit testing,
+        `elementFromPoint`, the `:hover` chains, `innerText`; the fast
+        path for documents without shadow roots. Exit: GitHub's relative
+        times show Chromium's text; no cost for the other targets.
+      - 5c style scoping and constructable sheets (`implementer-hard`):
+        `:host`, `:host()`, `:host-context()`, `::slotted()`, `::part()`,
+        the cascade's context step, layers per scope, `new
+        CSSStyleSheet`, `replace`, `replaceSync`, `adoptedStyleSheets`.
+      - 5d events and focus (`implementer`): retargeting, `composedPath`,
+        `relatedTarget`, `activeElement`, `delegatesFocus`, the Tab order
+        with scopes.
    6. Popover, dialog and the top layer (`implementer-hard`; new ADR; JS on
       and off): the `popover` attribute and its states, `showPopover`,
       `hidePopover`, `togglePopover`, `popovertarget` (also without
@@ -4810,6 +4832,15 @@ Steps:
   the media list (it matches nothing). The hostile case
   `layers-many-names` (100,000 layers) uses 502 MiB, most of it the CSSOM
   rules.
+- Shadow DOM (ADR 0036): declarative shadow roots (`<template
+  shadowrootmode>`, html5ever's `attach_declarative_shadow`) with
+  `getHTML`, `setHTMLUnsafe`, `parseHTMLUnsafe` (probe cases
+  `declarative-js-on`, layout `declarative-js-off`; no fixture has them);
+  `exportparts`; the engine's selection and copy in flat tree order
+  (shadow text is not selected); `CommandEvent` and `commandfor` (without
+  them GitHub's `command` polyfill runs in swb and wraps `attachShadow`).
+  The diagnosis's "`adoptedStyleSheets` set once" was the tools' own
+  `stop_animations` sheet; GitHub's page uses none.
 - Custom elements (ADR 0035): customized built-in elements (`extends`,
   `is`; Chromium supports them, swb throws `NotSupportedError` at
   `define`); scoped registries (`new CustomElementRegistry()`,
